@@ -1,0 +1,225 @@
+Name: @aigne/core
+License: Elastic-2.0
+Repository: https://github.com/AIGNE-io/aigne-framework
+
+-----------------------------
+
+Name: @aigne/openai
+License: Elastic-2.0
+Repository: https://github.com/AIGNE-io/aigne-framework
+
+-----------------------------
+
+Name: @langchain/core
+License: MIT
+Repository: https://github.com/langchain-ai/langchainjs
+
+-----------------------------
+
+Name: @langchain/openai
+License: MIT
+Repository: https://github.com/langchain-ai/langchainjs
+
+-----------------------------
+
+Name: @rmp135/sql-ts
+License: MIT
+Repository: https://github.com/rmp135/sql-ts
+
+-----------------------------
+
+Name: @types/cors
+License: MIT
+Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+
+-----------------------------
+
+Name: @types/express-ws
+License: MIT
+Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+
+-----------------------------
+
+Name: @types/express
+License: MIT
+Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+
+-----------------------------
+
+Name: @types/jsonwebtoken
+License: MIT
+Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+
+-----------------------------
+
+Name: @types/license-checker
+License: MIT
+Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+
+-----------------------------
+
+Name: @types/morgan
+License: MIT
+Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
+
+-----------------------------
+
+Name: axios-retry
+License: Apache-2.0
+Repository: https://github.com/softonic/axios-retry
+
+-----------------------------
+
+Name: axios
+License: MIT
+Repository: https://github.com/axios/axios
+
+-----------------------------
+
+Name: better-sqlite3
+License: MIT
+Repository: https://github.com/WiseLibs/better-sqlite3
+
+-----------------------------
+
+Name: cors
+License: MIT
+Repository: https://github.com/expressjs/cors
+
+-----------------------------
+
+Name: dotenv
+License: BSD-2-Clause
+Repository: https://github.com/motdotla/dotenv
+
+-----------------------------
+
+Name: dotenv
+License: BSD-2-Clause
+Repository: https://github.com/motdotla/dotenv
+
+-----------------------------
+
+Name: electron-builder
+License: MIT
+Repository: https://github.com/electron-userland/electron-builder
+
+-----------------------------
+
+Name: electron
+License: MIT
+Repository: https://github.com/electron/electron
+
+-----------------------------
+
+Name: electronmon
+License: ISC
+Repository: https://github.com/catdad/electronmon
+
+-----------------------------
+
+Name: express-ws
+License: BSD-2-Clause
+Repository: https://github.com/HenningM/express-ws
+
+-----------------------------
+
+Name: express
+License: MIT
+Repository: https://github.com/expressjs/express
+
+-----------------------------
+
+Name: fast-glob
+License: MIT
+Repository: https://github.com/mrmlnc/fast-glob
+
+-----------------------------
+
+Name: form-data
+License: MIT
+Repository: https://github.com/form-data/form-data
+
+-----------------------------
+
+Name: is-path-inside
+License: MIT
+Repository: https://github.com/sindresorhus/is-path-inside
+
+-----------------------------
+
+Name: js-md5
+License: MIT
+Repository: https://github.com/emn178/js-md5
+
+-----------------------------
+
+Name: jsonwebtoken
+License: MIT
+Repository: https://github.com/auth0/node-jsonwebtoken
+
+-----------------------------
+
+Name: knex
+License: MIT
+Repository: https://github.com/knex/knex
+
+-----------------------------
+
+Name: langchain
+License: MIT
+Repository: https://github.com/langchain-ai/langchainjs
+
+-----------------------------
+
+Name: license-checker
+License: BSD-3-Clause
+Repository: https://github.com/davglass/license-checker
+
+-----------------------------
+
+Name: morgan
+License: MIT
+Repository: https://github.com/expressjs/morgan
+
+-----------------------------
+
+Name: nodemon
+License: MIT
+Repository: https://github.com/remy/nodemon
+
+-----------------------------
+
+Name: sharp
+License: Apache-2.0
+Repository: https://github.com/lovell/sharp
+
+-----------------------------
+
+Name: sqlite3
+License: BSD-3-Clause
+Repository: https://github.com/TryGhost/node-sqlite3
+
+-----------------------------
+
+Name: tsx
+License: MIT
+Repository: https://github.com/privatenumber/tsx
+
+-----------------------------
+
+Name: typescript
+License: Apache-2.0
+Repository: https://github.com/microsoft/TypeScript
+
+-----------------------------
+
+Name: zod
+License: MIT
+Repository: https://github.com/colinhacks/zod
+
+-----------------------------
+
+Name: zod
+License: MIT
+Repository: https://github.com/colinhacks/zod

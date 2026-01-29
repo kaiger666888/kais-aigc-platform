@@ -1,0 +1,41 @@
+import express from "express";
+import u from "@/utils";
+import { success } from "@/lib/responseFormat";
+import { validateFields } from "@/middleware/middleware";
+import { z } from "zod";
+const router = express.Router();
+
+// 获取视频配置列表
+export default router.post(
+  "/",
+  validateFields({
+    scriptId: z.number(),
+  }),
+  async (req, res) => {
+    const { scriptId } = req.body;
+
+    // 查询该脚本下的所有视频配置
+    const configs = await u.db("t_videoConfig")
+      .where({ scriptId })
+      .orderBy("createTime", "desc");
+
+    // 解析 JSON 字段
+    const result = configs.map((config: any) => ({
+      id: config.id,
+      scriptId: config.scriptId,
+      projectId: config.projectId,
+      manufacturer: config.manufacturer,
+      mode: config.mode,
+      startFrame: config.startFrame ? JSON.parse(config.startFrame) : null,
+      endFrame: config.endFrame ? JSON.parse(config.endFrame) : null,
+      images: config.images ? JSON.parse(config.images) : [],
+      resolution: config.resolution,
+      duration: config.duration,
+      prompt: config.prompt || "",
+      selectedResultId: config.selectedResultId,
+      createdAt: config.createTime ? new Date(config.createTime).toISOString() : new Date().toISOString(),
+    }));
+
+    res.status(200).send(success(result));
+  },
+);
