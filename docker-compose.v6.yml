@@ -65,8 +65,8 @@ services:
   # ---------------------------------------------------------------------------
   kais-movie-agent:
     build:
-      context: .
-      dockerfile: docker/movie-agent/Dockerfile
+      context: ./docker/movie-agent
+      dockerfile: Dockerfile
     container_name: kais-movie-agent
     restart: unless-stopped
     ports:
@@ -104,8 +104,8 @@ services:
   # ---------------------------------------------------------------------------
   kais-gold-team:
     build:
-      context: .
-      dockerfile: docker/gold-team/Dockerfile
+      context: ./docker/gold-team
+      dockerfile: Dockerfile
     container_name: kais-gold-team
     restart: unless-stopped
     ports:
@@ -191,8 +191,8 @@ services:
   # ---------------------------------------------------------------------------
   kais-review-platform:
     build:
-      context: .
-      dockerfile: docker/review-platform/Dockerfile
+      context: ./docker/review-platform
+      dockerfile: Dockerfile
     container_name: kais-review-platform
     restart: unless-stopped
     ports:
