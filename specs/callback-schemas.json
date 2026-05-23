@@ -1,0 +1,669 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "kais-aigc-platform Cross-Service Callback Schemas",
+  "description": "V6.0 跨服务回调 JSON Schema 定义。三个核心回调类型覆盖 gold-team → movie-agent、review-platform → movie-agent、movie-agent 内部事件。",
+  "version": "6.0.0",
+  "definitions": {
+
+    "GpuTaskCallback": {
+      "$id": "#/definitions/GpuTaskCallback",
+      "title": "GpuTaskCallback",
+      "description": "gold-team GPU 任务完成后回调 movie-agent。由 kais-gold-team (:8002) 发送到 kais-movie-agent (:8001) 的 POST /api/v1/gpu/callback。",
+      "type": "object",
+      "required": ["task_id", "job_id", "task_type", "status", "timestamp", "signature"],
+      "properties": {
+        "task_id": {
+          "type": "string",
+          "description": "GPU 任务唯一 ID",
+          "examples": ["gpu_task_a1b2c3"]
+        },
+        "job_id": {
+          "type": "string",
+          "description": "movie-agent 管线 Job ID，用于关联管线状态",
+          "examples": ["job_20260523_001"]
+        },
+        "pipeline_id": {
+          "type": "string",
+          "description": "管线 ID",
+          "examples": ["pipe_001"]
+        },
+        "phase": {
+          "type": "string",
+          "description": "对应的管线阶段",
+          "enum": ["storyboard", "character", "image", "video", "audio", "compose"],
+          "examples": ["video"]
+        },
+        "shot_id": {
+          "type": "string",
+          "description": "镜头 ID",
+          "examples": ["shot_003"]
+        },
+        "task_type": {
+          "type": "string",
+          "description": "GPU 任务类型",
+          "enum": [
+            "image_generation",
+            "video_generation",
+            "face_fusion",
+            "voice_clone",
+            "tts_synthesis",
+            "audio_generation",
+            "bgm_generation",
+            "style_transfer",
+            "lip_sync",
+            "video_compose"
+          ],
+          "examples": ["video_generation"]
+        },
+        "status": {
+          "type": "string",
+          "description": "任务结果状态",
+          "enum": ["success", "failed", "partial"],
+          "examples": ["success"]
+        },
+        "outputs": {
+          "type": "array",
+          "description": "生成产物列表",
+          "items": {
+            "type": "object",
+            "required": ["url", "type"],
+            "properties": {
+              "url": {
+                "type": "string",
+                "format": "uri",
+                "description": "产物存储 URL (MinIO)",
+                "examples": ["http://minio:9000/kais/proj_001/shot_003/v2.mp4"]
+              },
+              "type": {
+                "type": "string",
+                "description": "产物类型",
+                "enum": ["image", "video", "audio", "model", "metadata"],
+                "examples": ["video"]
+              },
+              "format": {
+                "type": "string",
+                "description": "文件格式",
+                "examples": ["mp4", "png", "wav", "mp3"]
+              },
+              "duration_seconds": {
+                "type": "number",
+                "description": "时长（音视频适用）",
+                "examples": [5.2]
+              },
+              "resolution": {
+                "type": "string",
+                "description": "分辨率（视频/图片适用）",
+                "examples": ["1920x1080"]
+              },
+              "file_size_bytes": {
+                "type": "integer",
+                "examples": [1048576]
+              },
+              "thumbnail_url": {
+                "type": "string",
+                "format": "uri"
+              }
+            }
+          }
+        },
+        "error": {
+          "type": "object",
+          "description": "失败时的错误详情",
+          "properties": {
+            "code": {
+              "type": "string",
+              "examples": ["OOM", "TIMEOUT", "MODEL_ERROR", "INVALID_INPUT"]
+            },
+            "message": {
+              "type": "string",
+              "examples": ["CUDA out of memory: tried to allocate 2.1 GiB"]
+            },
+            "retryable": {
+              "type": "boolean",
+              "description": "是否可重试",
+              "examples": [true]
+            },
+            "retry_count": {
+              "type": "integer",
+              "description": "已重试次数",
+              "examples": [2]
+            },
+            "suggestion": {
+              "type": "string",
+              "description": "降级建议",
+              "examples": ["Try lower resolution or switch to cloud API"]
+            }
+          }
+        },
+        "metrics": {
+          "type": "object",
+          "description": "GPU 任务执行指标",
+          "properties": {
+            "gpu_time_seconds": {
+              "type": "number",
+              "examples": [12.5]
+            },
+            "total_time_seconds": {
+              "type": "number",
+              "examples": [15.3]
+            },
+            "gpu_memory_peak_mb": {
+              "type": "number",
+              "examples": [6144]
+            },
+            "engine": {
+              "type": "string",
+              "description": "使用的引擎名称",
+              "examples": ["ComfyUI", "FaceFusion", "ACE-Step"]
+            }
+          }
+        },
+        "engine_fallback": {
+          "type": "object",
+          "description": "引擎降级信息（如有降级）",
+          "properties": {
+            "original_engine": {
+              "type": "string",
+              "examples": ["ComfyUI-Local"]
+            },
+            "fallback_engine": {
+              "type": "string",
+              "examples": ["Cloud-API-Jimeng"]
+            },
+            "reason": {
+              "type": "string",
+              "examples": ["Local GPU OOM, auto-fallback to cloud"]
+            }
+          }
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "回调发送时间",
+          "examples": ["2026-05-23T15:30:00Z"]
+        },
+        "signature": {
+          "type": "string",
+          "description": "HMAC-SHA256 签名，movie-agent 验证来源完整性",
+          "examples": ["sha256:e3b0c44298fc1c149afbf4c8996fb924..."]
+        }
+      },
+      "examples": [
+        {
+          "task_id": "gpu_task_a1b2c3",
+          "job_id": "job_20260523_001",
+          "pipeline_id": "pipe_001",
+          "phase": "video",
+          "shot_id": "shot_003",
+          "task_type": "video_generation",
+          "status": "success",
+          "outputs": [
+            {
+              "url": "http://minio:9000/kais/proj_001/shot_003/v2.mp4",
+              "type": "video",
+              "format": "mp4",
+              "duration_seconds": 5.2,
+              "resolution": "1920x1080",
+              "file_size_bytes": 3145728,
+              "thumbnail_url": "http://minio:9000/kais/proj_001/shot_003/v2_thumb.png"
+            }
+          ],
+          "metrics": {
+            "gpu_time_seconds": 12.5,
+            "total_time_seconds": 15.3,
+            "gpu_memory_peak_mb": 6144,
+            "engine": "ComfyUI"
+          },
+          "timestamp": "2026-05-23T15:30:00Z",
+          "signature": "sha256:e3b0c44298fc1c149afbf4c8996fb924..."
+        }
+      ]
+    },
+
+    "ReviewCallback": {
+      "$id": "#/definitions/ReviewCallback",
+      "title": "ReviewCallback",
+      "description": "review-platform 审核完成后回调 movie-agent。由 kais-review-platform (:8090) 发送到 kais-movie-agent (:8001) 的 POST /api/v1/reviews/callback。携带 HMAC-SHA256 签名。",
+      "type": "object",
+      "required": ["review_id", "phase", "decision", "items", "timestamp", "signature"],
+      "properties": {
+        "review_id": {
+          "type": "string",
+          "description": "审核记录 ID",
+          "examples": ["rev_001"]
+        },
+        "pipeline_id": {
+          "type": "string",
+          "description": "关联管线 ID",
+          "examples": ["pipe_001"]
+        },
+        "phase": {
+          "type": "string",
+          "description": "审核对应的管线阶段",
+          "enum": ["storyboard", "character", "image", "video", "audio", "compose"],
+          "examples": ["video"]
+        },
+        "decision": {
+          "type": "string",
+          "description": "整体审核决策",
+          "enum": ["approved", "rejected", "needs_revision", "auto_approved"],
+          "examples": ["approved"]
+        },
+        "items": {
+          "type": "array",
+          "description": "逐镜头审核结果",
+          "items": {
+            "type": "object",
+            "required": ["shot_id", "decision"],
+            "properties": {
+              "shot_id": {
+                "type": "string",
+                "examples": ["shot_003"]
+              },
+              "decision": {
+                "type": "string",
+                "enum": ["approved", "rejected"],
+                "examples": ["approved"]
+              },
+              "reviewer": {
+                "type": "string",
+                "description": "审核员 ID（auto_approved 时为 system）",
+                "examples": ["user_001"]
+              },
+              "reviewer_role": {
+                "type": "string",
+                "enum": ["review_gov", "admin", "toonflow_deep", "system"],
+                "examples": ["review_gov"]
+              },
+              "reviewed_at": {
+                "type": "string",
+                "format": "date-time",
+                "examples": ["2026-05-23T15:00:00Z"]
+              },
+              "scores": {
+                "type": "object",
+                "description": "五维评分",
+                "properties": {
+                  "aesthetics": { "type": "number", "minimum": 0, "maximum": 100 },
+                  "consistency": { "type": "number", "minimum": 0, "maximum": 100 },
+                  "compliance": { "type": "number", "minimum": 0, "maximum": 100 },
+                  "technical_quality": { "type": "number", "minimum": 0, "maximum": 100 },
+                  "audio_match": { "type": "number", "minimum": 0, "maximum": 100 }
+                }
+              },
+              "annotations": {
+                "type": "array",
+                "description": "Toonflow 帧级批注（只读回传）",
+                "items": {
+                  "type": "object",
+                  "required": ["frame_number", "type", "comment", "severity"],
+                  "properties": {
+                    "frame_number": { "type": "integer" },
+                    "region": {
+                      "type": "object",
+                      "properties": {
+                        "x": { "type": "number" },
+                        "y": { "type": "number" },
+                        "w": { "type": "number" },
+                        "h": { "type": "number" }
+                      }
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": ["character_drift", "quality_issue", "continuity_error", "other"]
+                    },
+                    "comment": { "type": "string" },
+                    "severity": {
+                      "type": "string",
+                      "enum": ["low", "medium", "high", "critical"]
+                    }
+                  }
+                }
+              },
+              "reject_reason": {
+                "type": "string",
+                "nullable": true,
+                "enum": ["character_drift", "quality_issue", "continuity_error", "compliance", "other", null],
+                "description": "驳回时必填"
+              },
+              "reject_dimensions": {
+                "type": "array",
+                "description": "不达标维度",
+                "items": {
+                  "type": "string",
+                  "enum": ["aesthetics", "consistency", "compliance", "technical_quality", "audio_match"]
+                }
+              },
+              "suggested_action": {
+                "type": "string",
+                "nullable": true,
+                "enum": ["regenerate", "adjust_params", "use_alternate", null],
+                "description": "驳回时的建议动作"
+              }
+            }
+          },
+          "minItems": 1
+        },
+        "audit_entry_ids": {
+          "type": "array",
+          "description": "关联审计记录 IDs（用于 Merkle 追溯）",
+          "items": { "type": "string" },
+          "examples": [["audit_uuid_001", "audit_uuid_002"]]
+        },
+        "merkle_leaf_hash": {
+          "type": "string",
+          "description": "Merkle 叶节点哈希（链式审计）",
+          "examples": ["sha256:abc123def456..."]
+        },
+        "degradation_info": {
+          "type": "object",
+          "description": "降级审批信息（超时自动通过时填充）",
+          "properties": {
+            "original_timeout_minutes": {
+              "type": "integer",
+              "examples": [120]
+            },
+            "degraded_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "reason": {
+              "type": "string",
+              "enum": ["timeout_2h_auto_pass", "timeout_30min_local", "no_reviewer_available"],
+              "examples": ["timeout_2h_auto_pass"]
+            }
+          }
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "签名时间戳（5 分钟有效窗口）",
+          "examples": ["2026-05-23T15:00:05Z"]
+        },
+        "signature": {
+          "type": "string",
+          "description": "HMAC-SHA256 签名",
+          "examples": ["sha256:f9c2d1e4..."]
+        }
+      },
+      "examples": [
+        {
+          "review_id": "rev_001",
+          "pipeline_id": "pipe_001",
+          "phase": "video",
+          "decision": "approved",
+          "items": [
+            {
+              "shot_id": "shot_003",
+              "decision": "approved",
+              "reviewer": "user_001",
+              "reviewer_role": "review_gov",
+              "reviewed_at": "2026-05-23T15:00:00Z",
+              "scores": {
+                "aesthetics": 85,
+                "consistency": 80,
+                "compliance": 95,
+                "technical_quality": 88,
+                "audio_match": 82
+              },
+              "annotations": [],
+              "reject_reason": null,
+              "reject_dimensions": [],
+              "suggested_action": null
+            }
+          ],
+          "audit_entry_ids": ["audit_uuid_001"],
+          "merkle_leaf_hash": "sha256:abc123def456...",
+          "timestamp": "2026-05-23T15:00:05Z",
+          "signature": "sha256:f9c2d1e4..."
+        },
+        {
+          "review_id": "rev_002",
+          "pipeline_id": "pipe_002",
+          "phase": "image",
+          "decision": "rejected",
+          "items": [
+            {
+              "shot_id": "shot_005",
+              "decision": "rejected",
+              "reviewer": "user_002",
+              "reviewer_role": "review_gov",
+              "reviewed_at": "2026-05-23T16:00:00Z",
+              "scores": {
+                "aesthetics": 60,
+                "consistency": 45,
+                "compliance": 90,
+                "technical_quality": 70,
+                "audio_match": 80
+              },
+              "annotations": [
+                {
+                  "frame_number": 1,
+                  "type": "character_drift",
+                  "comment": "角色左眼与参考图不一致",
+                  "severity": "high"
+                }
+              ],
+              "reject_reason": "character_drift",
+              "reject_dimensions": ["consistency"],
+              "suggested_action": "regenerate"
+            }
+          ],
+          "audit_entry_ids": ["audit_uuid_003", "audit_uuid_004"],
+          "merkle_leaf_hash": "sha256:789ghi012jkl...",
+          "timestamp": "2026-05-23T16:00:05Z",
+          "signature": "sha256:a1b2c3d4..."
+        }
+      ]
+    },
+
+    "TaskEvent": {
+      "$id": "#/definitions/TaskEvent",
+      "title": "TaskEvent",
+      "description": "movie-agent 内部任务事件。用于管线状态机驱动、日志聚合和事件溯源。",
+      "type": "object",
+      "required": ["event_id", "event_type", "pipeline_id", "phase", "timestamp"],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "description": "事件唯一 ID (UUID v4)",
+          "examples": ["evt_550e8400-e29b-41d4-a716-446655440000"]
+        },
+        "event_type": {
+          "type": "string",
+          "description": "事件类型",
+          "enum": [
+            "pipeline_started",
+            "phase_entered",
+            "phase_completed",
+            "phase_failed",
+            "gpu_task_dispatched",
+            "gpu_task_completed",
+            "gpu_task_failed",
+            "review_requested",
+            "review_completed",
+            "review_timeout",
+            "review_degraded",
+            "quality_gate_passed",
+            "quality_gate_failed",
+            "pipeline_completed",
+            "pipeline_cancelled",
+            "pipeline_error",
+            "engine_fallback",
+            "retry_attempt"
+          ],
+          "examples": ["phase_completed"]
+        },
+        "pipeline_id": {
+          "type": "string",
+          "description": "管线 ID",
+          "examples": ["pipe_001"]
+        },
+        "job_id": {
+          "type": "string",
+          "description": "Job ID（异步任务）",
+          "examples": ["job_20260523_001"]
+        },
+        "project_id": {
+          "type": "string",
+          "description": "项目 ID",
+          "examples": ["proj_001"]
+        },
+        "phase": {
+          "type": "string",
+          "description": "当前阶段",
+          "enum": ["phase0_init", "phase1_storyboard", "phase2_character", "phase3_image", "phase4_video", "phase5_audio", "phase6_compose", "phase7_export"],
+          "examples": ["phase4_video"]
+        },
+        "shot_id": {
+          "type": "string",
+          "description": "关联镜头 ID（可选）",
+          "examples": ["shot_003"]
+        },
+        "source": {
+          "type": "string",
+          "description": "事件来源服务",
+          "enum": ["movie-agent", "gold-team", "review-platform", "core-backend", "hermes", "system"],
+          "examples": ["movie-agent"]
+        },
+        "data": {
+          "type": "object",
+          "description": "事件附加数据（按 event_type 不同结构不同）",
+          "additionalProperties": true,
+          "examples": [
+            {
+              "output_url": "http://minio:9000/kais/proj_001/shot_003/v2.mp4",
+              "duration_seconds": 5.2,
+              "engine": "ComfyUI"
+            }
+          ]
+        },
+        "error": {
+          "type": "object",
+          "description": "错误详情（失败事件）",
+          "properties": {
+            "code": {
+              "type": "string",
+              "examples": ["PHASE_FAILED", "GPU_ERROR", "REVIEW_TIMEOUT"]
+            },
+            "message": {
+              "type": "string",
+              "examples": ["Video generation failed: CUDA OOM"]
+            },
+            "recoverable": {
+              "type": "boolean",
+              "examples": [true]
+            },
+            "retry_count": {
+              "type": "integer",
+              "examples": [1]
+            },
+            "max_retries": {
+              "type": "integer",
+              "examples": [3]
+            }
+          }
+        },
+        "transition": {
+          "type": "object",
+          "description": "阶段转换信息（phase_entered / phase_completed 事件）",
+          "properties": {
+            "from_phase": {
+              "type": "string",
+              "examples": ["phase3_image"]
+            },
+            "to_phase": {
+              "type": "string",
+              "examples": ["phase4_video"]
+            },
+            "trigger": {
+              "type": "string",
+              "enum": ["auto_advance", "review_approved", "manual_resume", "retry", "fallback"],
+              "examples": ["review_approved"]
+            }
+          }
+        },
+        "correlation_id": {
+          "type": "string",
+          "description": "关联 ID，用于追踪因果链",
+          "examples": ["corr_a1b2c3d4"]
+        },
+        "parent_event_id": {
+          "type": "string",
+          "description": "父事件 ID（事件溯源）",
+          "examples": ["evt_550e8400-e29b-41d4-a716-446655440099"]
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "事件时间",
+          "examples": ["2026-05-23T15:00:00Z"]
+        }
+      },
+      "examples": [
+        {
+          "event_id": "evt_550e8400-e29b-41d4-a716-446655440000",
+          "event_type": "phase_completed",
+          "pipeline_id": "pipe_001",
+          "job_id": "job_20260523_001",
+          "project_id": "proj_001",
+          "phase": "phase4_video",
+          "shot_id": "shot_003",
+          "source": "movie-agent",
+          "data": {
+            "output_url": "http://minio:9000/kais/proj_001/shot_003/v2.mp4",
+            "duration_seconds": 5.2,
+            "engine": "ComfyUI"
+          },
+          "transition": {
+            "from_phase": "phase4_video",
+            "to_phase": "phase5_audio",
+            "trigger": "review_approved"
+          },
+          "correlation_id": "corr_a1b2c3d4",
+          "timestamp": "2026-05-23T15:00:00Z"
+        },
+        {
+          "event_id": "evt_660e8400-e29b-41d4-a716-446655440001",
+          "event_type": "gpu_task_failed",
+          "pipeline_id": "pipe_001",
+          "job_id": "job_20260523_001",
+          "project_id": "proj_001",
+          "phase": "phase4_video",
+          "shot_id": "shot_003",
+          "source": "gold-team",
+          "error": {
+            "code": "GPU_ERROR",
+            "message": "CUDA out of memory: tried to allocate 2.1 GiB",
+            "recoverable": true,
+            "retry_count": 1,
+            "max_retries": 3
+          },
+          "correlation_id": "corr_a1b2c3d4",
+          "parent_event_id": "evt_550e8400-e29b-41d4-a716-446655440099",
+          "timestamp": "2026-05-23T14:55:00Z"
+        },
+        {
+          "event_id": "evt_770e8400-e29b-41d4-a716-446655440002",
+          "event_type": "review_timeout",
+          "pipeline_id": "pipe_002",
+          "project_id": "proj_002",
+          "phase": "phase3_image",
+          "source": "system",
+          "data": {
+            "review_id": "rev_003",
+            "timeout_minutes": 120,
+            "pending_items": 5
+          },
+          "transition": {
+            "from_phase": "phase3_image",
+            "to_phase": "phase3_image",
+            "trigger": "fallback"
+          },
+          "correlation_id": "corr_x1y2z3",
+          "timestamp": "2026-05-23T17:00:00Z"
+        }
+      ]
+    }
+  }
+}

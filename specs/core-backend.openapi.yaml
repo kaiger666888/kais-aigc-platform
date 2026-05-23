@@ -1,0 +1,1654 @@
+openapi: 3.0.3
+info:
+  title: KAIS Core Backend API
+  description: |
+    Toonflow Express 后端深度改造版 — 系统数据主存储，服务端口 8000。
+    
+    包含 Canvas Sync、Project/Node CRUD、Asset、Shot、Audit、Snapshot 等 API，
+    以及 WebSocket 实时推送。
+    
+    技术栈: Express + SQLite (本地缓存) / PostgreSQL (主存储)
+  version: 6.0.0
+  contact:
+    name: KAIS AIGC Platform Team
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8000
+    description: Local development (Toonflow Electron 直连)
+  - url: http://kais-core-backend:8000
+    description: Docker bridge (容器间通信)
+
+tags:
+  - name: Health
+    description: 健康检查
+  - name: Canvas Sync
+    description: 画布事件同步 (Local-First)
+  - name: Projects
+    description: 项目 CRUD
+  - name: Nodes
+    description: 画布节点操作
+  - name: Assets
+    description: 资产管理
+  - name: Shots
+    description: 分镜管理
+  - name: Audit
+    description: 审核记录
+  - name: Snapshots
+    description: 项目快照
+  - name: WebSocket
+    description: 实时推送
+
+# ============================================================
+# PATHS
+# ============================================================
+paths:
+  # ─── Health ───────────────────────────────────────────────
+  /health:
+    get:
+      tags: [Health]
+      operationId: getHealth
+      summary: 健康检查
+      responses:
+        "200":
+          description: 服务健康
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  # ─── Canvas Sync ──────────────────────────────────────────
+  /api/v1/sync/batch:
+    post:
+      tags: [Canvas Sync]
+      operationId: syncBatch
+      summary: 批量同步画布事件
+      description: |
+        Toonflow 本地 SQLite 变更批量推送至后端。
+        本地优先 (Local-First)，每 500ms batch 一次。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncBatchRequest"
+      responses:
+        "200":
+          description: 同步成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncBatchResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: 存在冲突
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncBatchResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/sync/pull/{project_id}:
+    post:
+      tags: [Canvas Sync]
+      operationId: syncPull
+      summary: 拉取后端变更
+      description: |
+        从后端拉取自 last_seq 以来的变更事件。
+        配合 WebSocket 实现实时 + 拉取双重同步。
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: last_seq
+          in: query
+          required: false
+          description: 客户端已知的最新序列号
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: 拉取成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncPullResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # ─── Projects ─────────────────────────────────────────────
+  /api/v1/projects:
+    get:
+      tags: [Projects]
+      operationId: listProjects
+      summary: 列出所有项目
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/ProjectStatus"
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: 项目列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Project"
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  page_size:
+                    type: integer
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      tags: [Projects]
+      operationId: createProject
+      summary: 创建项目
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectCreate"
+      responses:
+        "201":
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Project"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/projects/{id}:
+    get:
+      tags: [Projects]
+      operationId: getProject
+      summary: 获取项目详情
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: 项目详情
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Project"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags: [Projects]
+      operationId: updateProject
+      summary: 更新项目
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectUpdate"
+      responses:
+        "200":
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Project"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [Projects]
+      operationId: deleteProject
+      summary: 删除项目
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── Nodes ────────────────────────────────────────────────
+  /api/v1/projects/{id}/nodes:
+    get:
+      tags: [Nodes]
+      operationId: listNodes
+      summary: 列出项目的所有节点
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - name: node_type
+          in: query
+          schema:
+            $ref: "#/components/schemas/NodeType"
+      responses:
+        "200":
+          description: 节点列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Node"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    post:
+      tags: [Nodes]
+      operationId: createNode
+      summary: 创建节点
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NodeCreate"
+      responses:
+        "201":
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Node"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/projects/{id}/nodes/{nid}:
+    put:
+      tags: [Nodes]
+      operationId: updateNode
+      summary: 更新节点
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - name: nid
+          in: path
+          required: true
+          description: 节点 ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NodeUpdate"
+      responses:
+        "200":
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Node"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [Nodes]
+      operationId: deleteNode
+      summary: 删除节点
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - name: nid
+          in: path
+          required: true
+          description: 节点 ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── Assets ───────────────────────────────────────────────
+  /api/v1/assets:
+    post:
+      tags: [Assets]
+      operationId: createAsset
+      summary: 创建资产
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssetCreate"
+      responses:
+        "201":
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Asset"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /api/v1/assets/from_node:
+    post:
+      tags: [Assets]
+      operationId: createAssetFromNode
+      summary: 从画布节点创建资产
+      description: |
+        将画布中的角色/场景节点注册为正式资产，
+        自动生成 seed_lock、LoRA 绑定和 style_prompt。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssetFromNodeRequest"
+      responses:
+        "201":
+          description: 资产创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/AssetFromNodeResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/assets/{asset_id}:
+    get:
+      tags: [Assets]
+      operationId: getAsset
+      summary: 获取资产详情
+      parameters:
+        - name: asset_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: 资产详情
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Asset"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags: [Assets]
+      operationId: updateAsset
+      summary: 更新资产
+      parameters:
+        - name: asset_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssetUpdate"
+      responses:
+        "200":
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Asset"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── Shots ────────────────────────────────────────────────
+  /api/v1/shots/from_graph:
+    post:
+      tags: [Shots]
+      operationId: generateShotsFromGraph
+      summary: 从事件图谱生成分镜
+      description: |
+        将事件图谱 (EventGraph) 中的节点和边翻译为有序分镜列表，
+        自动关联角色资产和场景资产。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShotsFromGraphRequest"
+      responses:
+        "200":
+          description: 分镜生成成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Shot"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/projects/{id}/shots:
+    get:
+      tags: [Shots]
+      operationId: listShots
+      summary: 获取项目的分镜列表
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/ShotStatus"
+      responses:
+        "200":
+          description: 分镜列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Shot"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/shots/{shot_id}:
+    put:
+      tags: [Shots]
+      operationId: updateShot
+      summary: 更新分镜
+      parameters:
+        - name: shot_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShotUpdate"
+      responses:
+        "200":
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Shot"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── Audit ────────────────────────────────────────────────
+  /api/v1/audit:
+    post:
+      tags: [Audit]
+      operationId: createAuditEntry
+      summary: 写入审核记录
+      description: |
+        记录审核操作到不可变审计链。
+        每条记录包含 prev_hash 和 own_hash，支持 Merkle 验证。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuditEntryCreate"
+      responses:
+        "201":
+          description: 审核记录写入成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/AuditEntry"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/audit/{project_id}:
+    get:
+      tags: [Audit]
+      operationId: getAuditHistory
+      summary: 获取项目的审核历史
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: target_type
+          in: query
+          schema:
+            type: string
+            enum: [project, shot, asset, node]
+        - name: action
+          in: query
+          schema:
+            $ref: "#/components/schemas/AuditAction"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: 审核历史列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AuditEntry"
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── Snapshots ────────────────────────────────────────────
+  /api/v1/snapshots:
+    post:
+      tags: [Snapshots]
+      operationId: createSnapshot
+      summary: 创建项目快照
+      description: |
+        对项目全量数据创建快照，通常在终审通过时自动触发。
+        包含 Git 标签创建。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SnapshotCreate"
+      responses:
+        "201":
+          description: 快照创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Snapshot"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/v1/snapshots/{project_id}:
+    get:
+      tags: [Snapshots]
+      operationId: listSnapshots
+      summary: 获取项目的快照列表
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: 快照列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Snapshot"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+# ============================================================
+# COMPONENTS
+# ============================================================
+components:
+  parameters:
+    ProjectId:
+      name: id
+      in: path
+      required: true
+      description: 项目 ID (UUID)
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            code: 400
+            message: "Invalid request body"
+            details:
+              - field: "name"
+                message: "name is required"
+
+    NotFound:
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            code: 404
+            message: "Resource not found"
+
+    InternalServerError:
+      description: 服务器内部错误
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            code: 500
+            message: "Internal server error"
+
+  schemas:
+    # ─── Common ──────────────────────────────────────────
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        version:
+          type: string
+        uptime_sec:
+          type: number
+        db:
+          type: string
+          enum: [connected, disconnected]
+        redis:
+          type: string
+          enum: [connected, disconnected, disabled]
+
+    # ─── Enums ───────────────────────────────────────────
+    ProjectStatus:
+      type: string
+      enum:
+        - draft
+        - in_production
+        - in_review
+        - completed
+        - archived
+      default: draft
+
+    NodeType:
+      type: string
+      enum:
+        - script
+        - character
+        - scene
+        - event
+        - shot
+        - material
+        - audit
+        - version
+
+    AssetType:
+      type: string
+      enum:
+        - character
+        - scene
+        - prop
+        - style
+        - audio
+        - 3d_model
+
+    ShotStatus:
+      type: string
+      enum:
+        - draft
+        - generating
+        - generated
+        - in_review
+        - approved
+        - rejected
+        - final
+      default: draft
+
+    AuditAction:
+      type: string
+      enum:
+        - deep_review_pass
+        - deep_review_reject
+        - governance_approve
+        - governance_reject
+        - ai_auto_score
+        - snapshot_created
+
+    ActorRole:
+      type: string
+      enum:
+        - toonflow_deep
+        - review_gov
+        - admin
+        - auditor
+        - ai_service
+
+    EngineMode:
+      type: string
+      enum:
+        - auto
+        - local
+        - cloud
+      default: auto
+
+    # ─── Canvas Sync ─────────────────────────────────────
+    SyncEvent:
+      type: object
+      required: [type, node_id, timestamp]
+      properties:
+        type:
+          type: string
+          enum:
+            - node_moved
+            - node_created
+            - node_updated
+            - node_deleted
+            - audit_submitted
+        node_id:
+          type: string
+          format: uuid
+        payload:
+          type: object
+          description: 事件内容，结构根据 type 不同而变化
+          additionalProperties: true
+        timestamp:
+          type: integer
+          format: int64
+          description: Unix 毫秒时间戳
+
+    SyncBatchRequest:
+      type: object
+      required: [project_id, client_seq, events]
+      properties:
+        project_id:
+          type: string
+          format: uuid
+        client_seq:
+          type: integer
+          minimum: 0
+          description: 客户端当前序列号
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/SyncEvent"
+          maxItems: 500
+
+    SyncConflict:
+      type: object
+      properties:
+        event_index:
+          type: integer
+        server_seq:
+          type: integer
+        resolution:
+          type: string
+          enum: [server_wins, client_wins, merged]
+        server_event:
+          $ref: "#/components/schemas/SyncEvent"
+
+    SyncBatchResponse:
+      type: object
+      required: [server_seq, acknowledged]
+      properties:
+        server_seq:
+          type: integer
+          description: 服务端最新序列号
+        acknowledged:
+          type: boolean
+        conflicts:
+          type: array
+          items:
+            $ref: "#/components/schemas/SyncConflict"
+
+    SyncPullEvent:
+      type: object
+      required: [type, server_seq, timestamp]
+      properties:
+        type:
+          type: string
+          enum:
+            - audit_decision
+            - state_change
+            - generation_complete
+            - node_updated
+            - node_created
+            - node_deleted
+        node_id:
+          type: string
+          format: uuid
+        payload:
+          type: object
+          additionalProperties: true
+        server_seq:
+          type: integer
+        timestamp:
+          type: integer
+          format: int64
+
+    SyncPullResponse:
+      type: object
+      required: [events, has_more]
+      properties:
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/SyncPullEvent"
+        has_more:
+          type: boolean
+
+    # ─── Project ─────────────────────────────────────────
+    ProjectScript:
+      type: object
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        bible_ref:
+          type: string
+
+    EventNode:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        label:
+          type: string
+        data:
+          type: object
+          additionalProperties: true
+        position:
+          type: object
+          properties:
+            x:
+              type: number
+            y:
+              type: number
+
+    EventEdge:
+      type: object
+      properties:
+        id:
+          type: string
+        source:
+          type: string
+        target:
+          type: string
+        label:
+          type: string
+        data:
+          type: object
+          additionalProperties: true
+
+    Material:
+      type: object
+      properties:
+        file_path:
+          type: string
+        type:
+          type: string
+          enum: [audio, video, image, document]
+        duration:
+          type: number
+
+    Project:
+      type: object
+      required: [id, name, status, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+        project_type:
+          type: string
+          description: 项目类型 (继承自 Toonflow)
+        script:
+          $ref: "#/components/schemas/ProjectScript"
+        event_graph:
+          type: object
+          properties:
+            nodes:
+              type: array
+              items:
+                $ref: "#/components/schemas/EventNode"
+            edges:
+              type: array
+              items:
+                $ref: "#/components/schemas/EventEdge"
+        materials:
+          type: array
+          items:
+            $ref: "#/components/schemas/Material"
+        status:
+          $ref: "#/components/schemas/ProjectStatus"
+        art_style:
+          type: string
+        video_ratio:
+          type: string
+        image_model:
+          type: string
+        video_model:
+          type: string
+        image_quality:
+          type: string
+        mode:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ProjectCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+        project_type:
+          type: string
+        art_style:
+          type: string
+        video_ratio:
+          type: string
+        image_model:
+          type: string
+        video_model:
+          type: string
+        image_quality:
+          type: string
+        mode:
+          type: string
+        director_manual:
+          type: string
+
+    ProjectUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+        status:
+          $ref: "#/components/schemas/ProjectStatus"
+        script:
+          $ref: "#/components/schemas/ProjectScript"
+        event_graph:
+          type: object
+          properties:
+            nodes:
+              type: array
+              items:
+                $ref: "#/components/schemas/EventNode"
+            edges:
+              type: array
+              items:
+                $ref: "#/components/schemas/EventEdge"
+        art_style:
+          type: string
+        video_ratio:
+          type: string
+        image_model:
+          type: string
+        video_model:
+          type: string
+
+    # ─── Node ────────────────────────────────────────────
+    Node:
+      type: object
+      required: [id, project_id, node_type, position_x, position_y, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        node_type:
+          $ref: "#/components/schemas/NodeType"
+        label:
+          type: string
+        data:
+          type: object
+          additionalProperties: true
+        position_x:
+          type: number
+        position_y:
+          type: number
+        width:
+          type: number
+          default: 200
+        height:
+          type: number
+          default: 100
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    NodeCreate:
+      type: object
+      required: [node_type, position_x, position_y]
+      properties:
+        node_type:
+          $ref: "#/components/schemas/NodeType"
+        label:
+          type: string
+        data:
+          type: object
+          additionalProperties: true
+        position_x:
+          type: number
+        position_y:
+          type: number
+        width:
+          type: number
+          default: 200
+        height:
+          type: number
+          default: 100
+
+    NodeUpdate:
+      type: object
+      properties:
+        label:
+          type: string
+        data:
+          type: object
+          additionalProperties: true
+        position_x:
+          type: number
+        position_y:
+          type: number
+        width:
+          type: number
+        height:
+          type: number
+
+    # ─── Asset ───────────────────────────────────────────
+    StyleParams:
+      type: object
+      properties:
+        style_prompt:
+          type: string
+        negative_prompt:
+          type: string
+        cfg_scale:
+          type: number
+        sampler:
+          type: string
+
+    Asset:
+      type: object
+      required: [id, project_id, asset_type, name, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        asset_type:
+          $ref: "#/components/schemas/AssetType"
+        name:
+          type: string
+        description:
+          type: string
+        seed_lock:
+          type: integer
+          description: 锁定种子值，确保角色一致性
+        lora_path:
+          type: string
+          description: LoRA 模型文件路径
+        style_params:
+          $ref: "#/components/schemas/StyleParams"
+        reference_image_path:
+          type: string
+        is_global:
+          type: boolean
+          default: false
+          description: 全局资产可跨项目引用
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    AssetCreate:
+      type: object
+      required: [project_id, asset_type, name]
+      properties:
+        project_id:
+          type: string
+          format: uuid
+        asset_type:
+          $ref: "#/components/schemas/AssetType"
+        name:
+          type: string
+        description:
+          type: string
+        seed_lock:
+          type: integer
+        lora_path:
+          type: string
+        style_params:
+          $ref: "#/components/schemas/StyleParams"
+        reference_image_path:
+          type: string
+        is_global:
+          type: boolean
+          default: false
+
+    AssetUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        seed_lock:
+          type: integer
+        lora_path:
+          type: string
+        style_params:
+          $ref: "#/components/schemas/StyleParams"
+        reference_image_path:
+          type: string
+        is_global:
+          type: boolean
+
+    AssetFromNodeRequest:
+      type: object
+      required: [name, project_id]
+      properties:
+        name:
+          type: string
+          description: 角色名称
+        description:
+          type: string
+          description: 角色描述
+        project_id:
+          type: string
+          format: uuid
+        node_id:
+          type: string
+          format: uuid
+          description: 画布节点 ID（可选）
+        asset_type:
+          $ref: "#/components/schemas/AssetType"
+          default: character
+        is_global:
+          type: boolean
+          default: false
+
+    AssetFromNodeResponse:
+      type: object
+      properties:
+        asset_id:
+          type: string
+          format: uuid
+        seed_lock:
+          type: integer
+        lora_path:
+          type: string
+        style_prompt:
+          type: string
+
+    # ─── Shot ────────────────────────────────────────────
+    Camera:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - extreme_close_up
+            - close_up
+            - medium_shot
+            - medium_long_shot
+            - long_shot
+            - extreme_long_shot
+        angle:
+          type: string
+          enum:
+            - eye_level
+            - high_angle
+            - low_angle
+            - birds_eye
+            - dutch_angle
+        movement:
+          type: string
+          enum:
+            - static
+            - pan
+            - tilt
+            - dolly
+            - tracking
+            - crane
+            - handheld
+
+    ShotAssetRefs:
+      type: object
+      properties:
+        character_refs:
+          type: array
+          items:
+            type: string
+            format: uuid
+        scene_ref:
+          type: string
+          format: uuid
+          nullable: true
+
+    Shot:
+      type: object
+      required: [id, project_id, sequence_number, status, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        sequence_number:
+          type: integer
+          minimum: 1
+        duration_sec:
+          type: number
+          minimum: 0.5
+          maximum: 30
+        camera:
+          $ref: "#/components/schemas/Camera"
+        dialogue:
+          type: string
+        action_description:
+          type: string
+        character_refs:
+          type: array
+          items:
+            type: string
+            format: uuid
+        scene_asset_id:
+          type: string
+          format: uuid
+          nullable: true
+        asset_refs:
+          $ref: "#/components/schemas/ShotAssetRefs"
+        proxy_path:
+          type: string
+        thumbnail_path:
+          type: string
+        status:
+          $ref: "#/components/schemas/ShotStatus"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ShotUpdate:
+      type: object
+      properties:
+        sequence_number:
+          type: integer
+          minimum: 1
+        duration_sec:
+          type: number
+        camera:
+          $ref: "#/components/schemas/Camera"
+        dialogue:
+          type: string
+        action_description:
+          type: string
+        character_refs:
+          type: array
+          items:
+            type: string
+            format: uuid
+        scene_asset_id:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/ShotStatus"
+
+    ShotsFromGraphRequest:
+      type: object
+      required: [project_id, event_graph]
+      properties:
+        project_id:
+          type: string
+          format: uuid
+        event_graph:
+          type: object
+          required: [nodes, edges]
+          properties:
+            nodes:
+              type: array
+              items:
+                $ref: "#/components/schemas/EventNode"
+            edges:
+              type: array
+              items:
+                $ref: "#/components/schemas/EventEdge"
+        character_assets:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: 需要关联的角色资产 ID 列表
+
+    # ─── Audit ───────────────────────────────────────────
+    AuditEntry:
+      type: object
+      required: [id, project_id, action, actor_id, actor_role, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        target_id:
+          type: string
+          format: uuid
+          description: 审核目标 (shot/asset/project) ID
+        target_type:
+          type: string
+          enum: [project, shot, asset, node]
+        action:
+          $ref: "#/components/schemas/AuditAction"
+        actor_id:
+          type: string
+        actor_role:
+          $ref: "#/components/schemas/ActorRole"
+        payload:
+          type: object
+          additionalProperties: true
+          description: 审核详情 (评分、评语等)
+        prev_hash:
+          type: string
+          description: 前一条记录的 hash (审计链)
+        own_hash:
+          type: string
+          description: 本条记录的 hash
+        created_at:
+          type: string
+          format: date-time
+
+    AuditEntryCreate:
+      type: object
+      required: [project_id, action, actor_id, actor_role]
+      properties:
+        project_id:
+          type: string
+          format: uuid
+        target_id:
+          type: string
+          format: uuid
+        target_type:
+          type: string
+          enum: [project, shot, asset, node]
+        action:
+          $ref: "#/components/schemas/AuditAction"
+        actor_id:
+          type: string
+        actor_role:
+          $ref: "#/components/schemas/ActorRole"
+        payload:
+          type: object
+          additionalProperties: true
+
+    # ─── Snapshot ────────────────────────────────────────
+    Snapshot:
+      type: object
+      required: [id, project_id, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        version_tag:
+          type: string
+          description: 版本标签 (v1.0, v2.0 等)
+        git_commit_hash:
+          type: string
+          description: Git 提交哈希
+        trigger:
+          type: string
+          description: 触发原因
+        project_data:
+          type: object
+          additionalProperties: true
+          description: 项目全量数据快照
+        created_at:
+          type: string
+          format: date-time
+
+    SnapshotCreate:
+      type: object
+      required: [project_id]
+      properties:
+        project_id:
+          type: string
+          format: uuid
+        trigger:
+          type: string
+          description: 触发原因 (如 final_audit_approved)
+        version_tag:
+          type: string
+          description: 版本标签 (如 v1.0)
+
+    # ─── WebSocket Messages ──────────────────────────────
+    WsProjectEvent:
+      type: object
+      required: [event, data]
+      properties:
+        event:
+          type: string
+          enum:
+            - generation_complete
+            - audit_decision
+            - state_change
+            - node_updated
+            - node_created
+            - node_deleted
+            - shot_status_changed
+        data:
+          type: object
+          additionalProperties: true
+          description: 事件数据，结构根据 event 类型不同
+
+# ============================================================
+# x-websocket (非标准扩展，用于文档化 WebSocket)
+# ============================================================
+x-websocket:
+  /ws/projects/{project_id}:
+    summary: 项目实时事件推送
+    description: |
+      WebSocket 连接，推送项目相关的实时事件。
+      Toonflow 连接此 WebSocket 接收后端变更推送。
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    messages:
+      server_to_client:
+        $ref: "#/components/schemas/WsProjectEvent"

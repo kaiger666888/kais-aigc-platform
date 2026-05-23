@@ -1,0 +1,880 @@
+openapi: 3.0.3
+info:
+  title: kais-movie-agent
+  description: |
+    V6.0 管线调度中枢 — 从 OpenClaw Skill 迁移为独立 Docker 服务。
+    唯一编排者（Agent 权唯一原则），负责管线生命周期、Skill 路由、质量闸门与回调处理。
+  version: 6.0.0
+  contact:
+    name: Kai
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8001
+    description: Local development
+  - url: http://kais-movie-agent:8001
+    description: Docker Compose (kais-net)
+
+tags:
+  - name: Pipeline
+    description: 管线生命周期管理
+  - name: Skill Router
+    description: 路由请求到下游 Skill 服务
+  - name: Quality Gate
+    description: 质量闸门与审核
+  - name: Callbacks
+    description: 接收外部服务回调
+  - name: Health
+    description: 服务健康探测
+
+# ---------------------------------------------------------------------------
+# Shared components
+# ---------------------------------------------------------------------------
+components:
+  schemas:
+    # ---- Enums ----
+    PipelineStatus:
+      type: string
+      enum: [pending, running, paused, completed, failed, cancelled]
+      description: 管线整体状态
+
+    PhaseStatus:
+      type: string
+      enum: [pending, running, completed, failed, skipped, blocked]
+      description: 单个 Phase 状态
+
+    ReviewDecision:
+      type: string
+      enum: [approved, rejected, revision_needed]
+
+    EnginePreference:
+      type: string
+      enum: [auto, local, cloud]
+      default: auto
+
+    ReviewMode:
+      type: string
+      enum: [auto, manual, hybrid]
+      default: hybrid
+
+    PhaseId:
+      type: string
+      enum:
+        - requirement
+        - art-character
+        - script-voice
+        - storyboard-scene
+        - video
+        - post-production
+        - quality-gate
+        - delivery
+      description: |
+        Phase 0~7: requirement / art-character / script-voice /
+        storyboard-scene / video / post-production / quality-gate / delivery
+
+    # ---- Common objects ----
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+        detail:
+          type: string
+
+    Timestamps:
+      type: object
+      properties:
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # ---- Pipeline ----
+    PipelineConfig:
+      type: object
+      required: [phases]
+      properties:
+        phases:
+          type: array
+          items:
+            $ref: '#/components/schemas/PhaseId'
+          minItems: 1
+        engine_preference:
+          $ref: '#/components/schemas/EnginePreference'
+        review_mode:
+          $ref: '#/components/schemas/ReviewMode'
+        metadata:
+          type: object
+          additionalProperties: true
+
+    PhaseState:
+      type: object
+      required: [id, status]
+      properties:
+        id:
+          $ref: '#/components/schemas/PhaseId'
+        status:
+          $ref: '#/components/schemas/PhaseStatus'
+        review_result:
+          $ref: '#/components/schemas/ReviewDecision'
+        tasks:
+          type: array
+          items:
+            type: string
+          description: 当前 phase 关联的异步任务 ID 列表
+        error:
+          type: string
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+
+    PipelineSummary:
+      type: object
+      required: [pipeline_id, status, current_phase, phases]
+      properties:
+        pipeline_id:
+          type: string
+        status:
+          $ref: '#/components/schemas/PipelineStatus'
+        current_phase:
+          $ref: '#/components/schemas/PhaseId'
+          nullable: true
+        progress:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: 完成进度 0.0 ~ 1.0
+        phases:
+          type: array
+          items:
+            $ref: '#/components/schemas/PhaseState'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # ---- Callbacks ----
+    GpuTaskCallback:
+      type: object
+      required: [task_id, status]
+      properties:
+        task_id:
+          type: string
+          example: gold_s03_02_v1
+        status:
+          type: string
+          enum: [completed, failed]
+        engine_used:
+          type: string
+          enum: [local, cloud]
+        outputs:
+          type: object
+          properties:
+            video:
+              type: string
+              description: 产物路径
+            proxy:
+              type: string
+              description: 720p 代理文件路径
+            thumbnail:
+              type: string
+              description: 缩略图路径
+        metadata:
+          type: object
+          properties:
+            seed:
+              type: integer
+            inference_time_sec:
+              type: number
+            gpu_memory_peak_gb:
+              type: number
+        error:
+          type: string
+
+    ReviewCallback:
+      type: object
+      required: [review_id, pipeline_id, phase, decision]
+      properties:
+        review_id:
+          type: string
+        pipeline_id:
+          type: string
+        phase:
+          $ref: '#/components/schemas/PhaseId'
+        decision:
+          $ref: '#/components/schemas/ReviewDecision'
+        items:
+          type: array
+          items:
+            type: object
+            required: [shot_id, decision]
+            properties:
+              shot_id:
+                type: string
+              decision:
+                $ref: '#/components/schemas/ReviewDecision'
+              reviewer:
+                type: string
+              reviewed_at:
+                type: string
+                format: date-time
+              scores:
+                type: object
+                additionalProperties:
+                  type: number
+        signature:
+          type: string
+          description: HMAC-SHA256 签名
+
+    # ---- Quality Gate ----
+    QualityGateTrigger:
+      type: object
+      required: [pipeline_id, phase]
+      properties:
+        pipeline_id:
+          type: string
+        phase:
+          $ref: '#/components/schemas/PhaseId'
+        config:
+          type: object
+          properties:
+            auto_pass_threshold:
+              type: number
+              default: 80
+            require_manual_review:
+              type: boolean
+              default: false
+
+    QualityGateResult:
+      type: object
+      required: [phase_id, status]
+      properties:
+        phase_id:
+          type: string
+        status:
+          type: string
+          enum: [pending, passed, failed, manual_review]
+        scores:
+          type: object
+          additionalProperties:
+            type: number
+        decision:
+          $ref: '#/components/schemas/ReviewDecision'
+        review_url:
+          type: string
+          description: review-platform 审核页面 URL
+        checked_at:
+          type: string
+          format: date-time
+
+    # ---- Skill Router ----
+    SkillRouterRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          description: 操作类型（如 generate / refine / export）
+        params:
+          type: object
+          additionalProperties: true
+        pipeline_id:
+          type: string
+          description: 关联管线 ID（可选）
+
+    SkillRouterResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+        task_id:
+          type: string
+          description: 异步任务 ID
+        data:
+          type: object
+          additionalProperties: true
+        error:
+          type: string
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    HmacSignature:
+      type: apiKey
+      in: header
+      name: X-Signature
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+paths:
+  # ======================== Pipeline ========================
+  /api/v1/pipeline/create:
+    post:
+      tags: [Pipeline]
+      summary: 创建管线实例
+      operationId: createPipeline
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [project_id, config]
+              properties:
+                project_id:
+                  type: string
+                  example: proj_123
+                config:
+                  $ref: '#/components/schemas/PipelineConfig'
+                metadata:
+                  type: object
+                  additionalProperties: true
+            example:
+              project_id: proj_123
+              config:
+                phases:
+                  - requirement
+                  - art-character
+                  - script-voice
+                  - storyboard-scene
+                  - video
+                  - post-production
+                  - quality-gate
+                  - delivery
+                engine_preference: auto
+                review_mode: hybrid
+      responses:
+        '201':
+          description: 管线创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineSummary'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/pipeline/{id}/start:
+    post:
+      tags: [Pipeline]
+      summary: 启动管线（从指定 phase 开始）
+      operationId: startPipeline
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                from_phase:
+                  $ref: '#/components/schemas/PhaseId'
+                  description: 起始 phase，默认第一个 pending phase
+      responses:
+        '202':
+          description: 管线已启动
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineSummary'
+        '404':
+          description: 管线不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 管线已在运行
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/pipeline/{id}/resume:
+    post:
+      tags: [Pipeline]
+      summary: 恢复管线（审核通过后继续）
+      operationId: resumePipeline
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phase:
+                  $ref: '#/components/schemas/PhaseId'
+                  description: 从哪个 phase 恢复，默认当前 blocked phase
+                decision:
+                  $ref: '#/components/schemas/ReviewDecision'
+      responses:
+        '202':
+          description: 管线已恢复
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineSummary'
+        '404':
+          description: 管线不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/pipeline/{id}/status:
+    get:
+      tags: [Pipeline]
+      summary: 获取管线状态
+      operationId: getPipelineStatus
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 管线状态
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineSummary'
+        '404':
+          description: 管线不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/pipeline/{id}/phases:
+    get:
+      tags: [Pipeline]
+      summary: 获取所有 phase 状态
+      operationId: getPipelinePhases
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Phase 列表
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [pipeline_id, phases]
+                properties:
+                  pipeline_id:
+                    type: string
+                  phases:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PhaseState'
+        '404':
+          description: 管线不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/pipeline/{id}/cancel:
+    post:
+      tags: [Pipeline]
+      summary: 取消管线
+      operationId: cancelPipeline
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: 管线已取消
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineSummary'
+        '404':
+          description: 管线不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 管线已结束，无法取消
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ======================== Skill Router ========================
+  /api/v1/skills/toonflow/{action}:
+    post:
+      tags: [Skill Router]
+      summary: 路由到 Toonflow 操作
+      operationId: routeToonflow
+      parameters:
+        - name: action
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Toonflow 操作名（如 sync / export / canvas-update）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SkillRouterRequest'
+      responses:
+        '200':
+          description: 路由成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillRouterResponse'
+        '502':
+          description: Toonflow 不可达
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/skills/jellyfish/{action}:
+    post:
+      tags: [Skill Router]
+      summary: 路由到 core-backend (Jellyfish)
+      operationId: routeJellyfish
+      parameters:
+        - name: action
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Jellyfish 操作名（如 canvas-sync / llm-route / audit-query）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SkillRouterRequest'
+      responses:
+        '200':
+          description: 路由成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillRouterResponse'
+        '502':
+          description: core-backend 不可达
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/skills/hermes/{action}:
+    post:
+      tags: [Skill Router]
+      summary: 路由到 hermes-agent (LLM 路由)
+      operationId: routeHermes
+      parameters:
+        - name: action
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Hermes 操作名（如 chat / complete / embed）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SkillRouterRequest'
+      responses:
+        '200':
+          description: 路由成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillRouterResponse'
+        '502':
+          description: hermes-agent 不可达
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/skills/gold-team/generate:
+    post:
+      tags: [Skill Router]
+      summary: 路由到 gold-team 生成任务
+      operationId: routeGoldTeamGenerate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [task_type, params]
+              properties:
+                task_type:
+                  type: string
+                  enum: [video, image, audio, tts]
+                  description: 生成任务类型
+                params:
+                  type: object
+                  additionalProperties: true
+                  description: 任务参数（prompt, seed, resolution 等）
+                engine_hint:
+                  type: string
+                  description: 引擎偏好（comfyui / kling / jimeng / seedance / runway / luma）
+                pipeline_id:
+                  type: string
+                callback_url:
+                  type: string
+                  format: uri
+                  description: 完成回调地址（默认 movie-agent 自身）
+            example:
+              task_type: video
+              params:
+                prompt: "A cat walking on a rooftop at sunset"
+                seed: 42
+                resolution: "1280x720"
+              engine_hint: comfyui
+              pipeline_id: pipe_001
+      responses:
+        '202':
+          description: 任务已提交
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, task_id]
+                properties:
+                  ok:
+                    type: boolean
+                  task_id:
+                    type: string
+                    example: gold_s03_02_v1
+                  engine:
+                    type: string
+                    description: 实际使用的引擎
+                  estimated_time_sec:
+                    type: number
+        '502':
+          description: gold-team 不可达
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ======================== Quality Gate ========================
+  /api/v1/quality-gate/trigger:
+    post:
+      tags: [Quality Gate]
+      summary: 触发质量闸门
+      operationId: triggerQualityGate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QualityGateTrigger'
+      responses:
+        '202':
+          description: 闸门评估已触发
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [gate_id, status]
+                properties:
+                  gate_id:
+                    type: string
+                  status:
+                    type: string
+                    enum: [evaluating]
+                  pipeline_id:
+                    type: string
+                  phase:
+                    type: string
+        '404':
+          description: 管线或 phase 不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/quality-gate/{phase_id}/result:
+    get:
+      tags: [Quality Gate]
+      summary: 获取闸门结果
+      operationId: getQualityGateResult
+      parameters:
+        - name: phase_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: pipeline_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 闸门结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QualityGateResult'
+        '404':
+          description: 未找到闸门记录
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ======================== Callbacks ========================
+  /api/v1/callbacks/gpu-task:
+    post:
+      tags: [Callbacks]
+      summary: 接收 gold-team 生成完成回调
+      operationId: gpuTaskCallback
+      security:
+        - HmacSignature: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GpuTaskCallback'
+      responses:
+        '200':
+          description: 回调已处理
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          description: 签名验证失败或参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/callbacks/review:
+    post:
+      tags: [Callbacks]
+      summary: 接收 review-platform 审核回调
+      operationId: reviewCallback
+      security:
+        - HmacSignature: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewCallback'
+      responses:
+        '200':
+          description: 回调已处理，管线状态已更新
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  pipeline_status:
+                    $ref: '#/components/schemas/PipelineStatus'
+                  next_phase:
+                    $ref: '#/components/schemas/PhaseId'
+        '400':
+          description: 签名验证失败或参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 关联管线不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ======================== Health ========================
+  /health:
+    get:
+      tags: [Health]
+      summary: 服务存活探测
+      operationId: healthCheck
+      responses:
+        '200':
+          description: 服务健康
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  version:
+                    type: string
+                    example: 6.0.0
+                  uptime_sec:
+                    type: number
+                  downstream:
+                    type: object
+                    description: 下游服务可达性
+                    properties:
+                      core-backend:
+                        type: boolean
+                      gold-team:
+                        type: boolean
+                      redis:
+                        type: boolean
