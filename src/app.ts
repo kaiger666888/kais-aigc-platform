@@ -110,6 +110,15 @@ export default async function startServe(randomPort: Boolean = false) {
     const token = rawToken.replace("Bearer ", "");
     // 白名单路径
     if (req.path === "/api/login/login") return next();
+    if (req.path === "/health") return next();
+    // V6.0 API routes: accept Bearer token or X-API-Key header
+    if (req.path.startsWith("/api/v1/")) {
+      const apiKey = req.headers["x-api-key"];
+      if (apiKey === (process.env.V6_API_KEY || "kais-v6-dev")) {
+        (req as any).user = { source: "v6-api-key" };
+        return next();
+      }
+    }
 
     if (!token) return res.status(401).send({ message: "未提供token" });
     try {
@@ -137,7 +146,7 @@ export default async function startServe(randomPort: Boolean = false) {
     res.status(err.status || 500).send(err);
   });
 
-  const port = randomPort ? 0 : 10588;
+  const port = randomPort ? 0 : (parseInt(process.env.PORT || '') || 10588);
   return await new Promise((resolve) => {
     server.listen(port, async () => {
       const address = server.address();
