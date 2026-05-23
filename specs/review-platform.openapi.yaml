@@ -1,0 +1,944 @@
+openapi: 3.0.3
+info:
+  title: kais-review-platform API
+  description: |
+    V6.0 治理层 API — 卡片流轻量审核 + 移动端审批。
+    服务端口: 8090。基于 FastAPI + SQLAlchemy 2.0 (async)。
+  version: 6.0.0
+  contact:
+    name: kais-aigc-platform
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8090
+    description: Local development
+  - url: http://kais-review-platform:8090
+    description: Docker Compose (kais-net)
+
+tags:
+  - name: ShotCards
+    description: 分镜审核卡片 CRUD + 审批
+  - name: Reviews
+    description: 审核提交与回调
+  - name: Health
+    description: 健康检查
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: 健康检查
+      operationId: healthCheck
+      responses:
+        '200':
+          description: 服务健康
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  version:
+                    type: string
+                    example: 6.0.0
+                  db:
+                    type: string
+                    example: connected
+                  uptime_seconds:
+                    type: number
+                    example: 3600
+
+  # ─── ShotCard CRUD ────────────────────────────────────
+
+  /api/v1/shot-cards:
+    post:
+      tags: [ShotCards]
+      summary: 创建审核卡片
+      operationId: createShotCard
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateShotCardRequest'
+      responses:
+        '201':
+          description: 卡片创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShotCard'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    get:
+      tags: [ShotCards]
+      summary: 列表查询
+      operationId: listShotCards
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: project_id
+          in: query
+          schema:
+            type: string
+          description: 按项目 ID 过滤
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, rejected, needs_revision]
+          description: 按审核状态过滤
+        - name: phase
+          in: query
+          schema:
+            type: string
+            enum: [storyboard, character, image, video, audio, compose]
+          description: 按管线阶段过滤
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 200
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum: [created_at, updated_at, priority]
+            default: created_at
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: 卡片列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ShotCardSummary'
+                  total:
+                    type: integer
+                    example: 128
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/shot-cards/{id}:
+    get:
+      tags: [ShotCards]
+      summary: 获取卡片详情
+      operationId: getShotCard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ShotCardId'
+      responses:
+        '200':
+          description: 卡片详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShotCard'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ─── Single Approve / Reject ──────────────────────────
+
+  /api/v1/shot-cards/{id}/approve:
+    post:
+      tags: [ShotCards]
+      summary: 通过审核
+      operationId: approveShotCard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ShotCardId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalRequest'
+      responses:
+        '200':
+          description: 审核通过
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 卡片已被审核（状态冲突）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/shot-cards/{id}/reject:
+    post:
+      tags: [ShotCards]
+      summary: 驳回审核
+      operationId: rejectShotCard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ShotCardId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectionRequest'
+      responses:
+        '200':
+          description: 审核驳回
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewResult'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 卡片已被审核（状态冲突）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ─── Batch Approve / Reject ───────────────────────────
+
+  /api/v1/shot-cards/batch/approve:
+    post:
+      tags: [ShotCards]
+      summary: 批量通过
+      operationId: batchApproveShotCards
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchApprovalRequest'
+      responses:
+        '200':
+          description: 批量审核结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchReviewResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/shot-cards/batch/reject:
+    post:
+      tags: [ShotCards]
+      summary: 批量驳回
+      operationId: batchRejectShotCards
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchRejectionRequest'
+      responses:
+        '200':
+          description: 批量审核结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchReviewResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ─── Reviews ──────────────────────────────────────────
+
+  /api/v1/reviews:
+    post:
+      tags: [Reviews]
+      summary: 提交审核
+      operationId: submitReview
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitReviewRequest'
+      responses:
+        '201':
+          description: 审核已提交
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/reviews/{id}:
+    get:
+      tags: [Reviews]
+      summary: 查询审核状态
+      operationId: getReview
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 审核状态
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/reviews/{id}/callback:
+    post:
+      tags: [Reviews]
+      summary: 审核完成回调通知
+      description: |
+        review-platform 审核完成后主动回调 movie-agent。
+        携带 HMAC-SHA256 签名，movie-agent 验证后更新管线状态。
+      operationId: reviewCallback
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewCallbackPayload'
+      responses:
+        '200':
+          description: 回调已接收
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received:
+                    type: boolean
+                    example: true
+                  review_id:
+                    type: string
+                    example: rev_001
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: HMAC 签名验证失败
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    ShotCardId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: ShotCard ID
+
+  responses:
+    BadRequest:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: bad_request
+            message: Invalid request body
+
+    Unauthorized:
+      description: 未认证
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: unauthorized
+            message: Missing or invalid authentication token
+
+    Forbidden:
+      description: 权限不足
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: forbidden
+            message: Role reviewer cannot perform this action
+
+    NotFound:
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: not_found
+            message: ShotCard not found
+
+  schemas:
+    # ─── Error ──────────────────────────────────────────
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+
+    # ─── ScoreVector (五维评分) ──────────────────────────
+    ScoreVector:
+      type: object
+      description: 五维评分向量
+      properties:
+        aesthetics:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: 美学
+          example: 85
+        consistency:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: 一致性
+          example: 72
+        compliance:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: 合规
+          example: 90
+        technical_quality:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: 技术质量
+          example: 78
+        audio_match:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: 音画匹配
+          example: 80
+
+    # ─── ShotCard ───────────────────────────────────────
+    CreateShotCardRequest:
+      type: object
+      required: [project_id, shot_id, phase, asset_url]
+      properties:
+        project_id:
+          type: string
+          description: 项目 ID
+          example: proj_001
+        shot_id:
+          type: string
+          description: 镜头 ID
+          example: shot_003
+        phase:
+          type: string
+          enum: [storyboard, character, image, video, audio, compose]
+          description: 管线阶段
+          example: video
+        asset_url:
+          type: string
+          format: uri
+          description: 待审核资源 URL
+          example: http://minio:9000/kais/proj_001/shot_003/v2.mp4
+        thumbnail_url:
+          type: string
+          format: uri
+          description: 缩略图 URL
+        narrative_context:
+          type: object
+          description: 叙事上下文（角色/场景/前后镜头等）
+          additionalProperties: true
+        ai_scores:
+          $ref: '#/components/schemas/ScoreVector'
+        priority:
+          type: string
+          enum: [normal, urgent]
+          default: normal
+        metadata:
+          type: object
+          additionalProperties: true
+
+    ShotCard:
+      type: object
+      required: [id, project_id, shot_id, phase, status, created_at]
+      properties:
+        id:
+          type: string
+          example: sc_a1b2c3d4
+        project_id:
+          type: string
+          example: proj_001
+        shot_id:
+          type: string
+          example: shot_003
+        phase:
+          type: string
+          enum: [storyboard, character, image, video, audio, compose]
+          example: video
+        status:
+          type: string
+          enum: [pending, approved, rejected, needs_revision]
+          example: pending
+        asset_url:
+          type: string
+          format: uri
+        thumbnail_url:
+          type: string
+          format: uri
+        narrative_context:
+          type: object
+          additionalProperties: true
+        ai_scores:
+          $ref: '#/components/schemas/ScoreVector'
+        priority:
+          type: string
+          enum: [normal, urgent]
+        reviewer_id:
+          type: string
+          nullable: true
+        reviewed_at:
+          type: string
+          format: date-time
+          nullable: true
+        reject_reason:
+          type: string
+          nullable: true
+        reject_comment:
+          type: string
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ShotCardSummary:
+      type: object
+      description: 列表查询的轻量卡片摘要
+      required: [id, project_id, shot_id, phase, status, created_at]
+      properties:
+        id:
+          type: string
+        project_id:
+          type: string
+        shot_id:
+          type: string
+        phase:
+          type: string
+        status:
+          type: string
+        thumbnail_url:
+          type: string
+          format: uri
+        priority:
+          type: string
+        ai_score_overall:
+          type: number
+          description: 五维均分
+          example: 81
+        created_at:
+          type: string
+          format: date-time
+
+    # ─── Approval / Rejection ──────────────────────────
+    ApprovalRequest:
+      type: object
+      properties:
+        comment:
+          type: string
+          description: 审核意见
+          example: 画面质量达标
+        scores_override:
+          type: object
+          description: 治理端覆盖评分（可选）
+          additionalProperties:
+            type: number
+          example:
+            compliance: 95
+        tags:
+          type: array
+          items:
+            type: string
+          description: 标签
+          example: [final_pick]
+
+    RejectionRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          enum: [character_drift, quality_issue, continuity_error, compliance, other]
+          description: 驳回原因分类
+          example: character_drift
+        comment:
+          type: string
+          description: 补充说明
+          example: 角色面部与参考图不一致
+        suggested_action:
+          type: string
+          enum: [regenerate, adjust_params, use_alternate]
+          description: 建议动作
+          example: regenerate
+        reject_dimensions:
+          type: array
+          items:
+            type: string
+            enum: [aesthetics, consistency, compliance, technical_quality, audio_match]
+          description: 不达标维度
+          example: [consistency]
+        priority:
+          type: string
+          enum: [normal, urgent]
+          default: normal
+
+    ReviewResult:
+      type: object
+      required: [id, status, reviewed_at]
+      properties:
+        id:
+          type: string
+          example: sc_a1b2c3d4
+        status:
+          type: string
+          enum: [approved, rejected]
+        reviewer_id:
+          type: string
+        reviewed_at:
+          type: string
+          format: date-time
+        callback_sent:
+          type: boolean
+          description: 是否已发送回调到 movie-agent
+        audit_entry_id:
+          type: string
+          description: 关联审计记录 ID
+
+    # ─── Batch ──────────────────────────────────────────
+    BatchApprovalRequest:
+      type: object
+      required: [card_ids]
+      properties:
+        card_ids:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          maxItems: 100
+          example: [sc_a1b2, sc_a1b3, sc_a1b4]
+        comment:
+          type: string
+          example: 批量通过
+
+    BatchRejectionRequest:
+      type: object
+      required: [card_ids, reason]
+      properties:
+        card_ids:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          maxItems: 100
+          example: [sc_a1b5, sc_a1b6]
+        reason:
+          type: string
+          enum: [character_drift, quality_issue, continuity_error, compliance, other]
+        comment:
+          type: string
+        suggested_action:
+          type: string
+          enum: [regenerate, adjust_params, use_alternate]
+
+    BatchReviewResult:
+      type: object
+      required: [total, succeeded, failed]
+      properties:
+        total:
+          type: integer
+          example: 3
+        succeeded:
+          type: integer
+          example: 2
+        failed:
+          type: integer
+          example: 1
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              card_id:
+                type: string
+              status:
+                type: string
+                enum: [approved, rejected, error]
+              error:
+                type: string
+                nullable: true
+
+    # ─── Review ─────────────────────────────────────────
+    SubmitReviewRequest:
+      type: object
+      required: [project_id, phase, items]
+      properties:
+        project_id:
+          type: string
+          example: proj_001
+        pipeline_id:
+          type: string
+          description: 关联管线 ID
+          example: pipe_001
+        phase:
+          type: string
+          enum: [storyboard, character, image, video, audio, compose]
+          example: video
+        callback_url:
+          type: string
+          format: uri
+          description: 审核完成后回调 URL
+          example: http://kais-movie-agent:8001/api/v1/reviews/callback
+        items:
+          type: array
+          items:
+            type: object
+            required: [shot_id, asset_url]
+            properties:
+              shot_id:
+                type: string
+              asset_url:
+                type: string
+                format: uri
+              thumbnail_url:
+                type: string
+                format: uri
+              ai_scores:
+                $ref: '#/components/schemas/ScoreVector'
+              narrative_context:
+                type: object
+                additionalProperties: true
+              metadata:
+                type: object
+                additionalProperties: true
+          minItems: 1
+
+    Review:
+      type: object
+      required: [id, project_id, phase, status, created_at]
+      properties:
+        id:
+          type: string
+          example: rev_001
+        project_id:
+          type: string
+          example: proj_001
+        pipeline_id:
+          type: string
+          nullable: true
+        phase:
+          type: string
+          example: video
+        status:
+          type: string
+          enum: [pending, in_progress, completed, expired]
+          example: pending
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              shot_id:
+                type: string
+              card_id:
+                type: string
+              decision:
+                type: string
+                enum: [pending, approved, rejected]
+              reviewer_id:
+                type: string
+                nullable: true
+              reviewed_at:
+                type: string
+                format: date-time
+                nullable: true
+              scores:
+                $ref: '#/components/schemas/ScoreVector'
+              reject_reason:
+                type: string
+                nullable: true
+              reject_comment:
+                type: string
+                nullable: true
+        callback_url:
+          type: string
+          format: uri
+          nullable: true
+        callback_sent:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+          description: 超时自动降级时间
+          nullable: true
+
+    # ─── Review Callback ────────────────────────────────
+    ReviewCallbackPayload:
+      type: object
+      required: [review_id, phase, decision, items, signature, timestamp]
+      properties:
+        review_id:
+          type: string
+          example: rev_001
+        pipeline_id:
+          type: string
+          nullable: true
+          example: pipe_001
+        phase:
+          type: string
+          enum: [storyboard, character, image, video, audio, compose]
+          example: video
+        decision:
+          type: string
+          enum: [approved, rejected, needs_revision]
+          example: approved
+        items:
+          type: array
+          items:
+            type: object
+            required: [shot_id, decision]
+            properties:
+              shot_id:
+                type: string
+                example: shot_003
+              decision:
+                type: string
+                enum: [approved, rejected]
+              reviewer:
+                type: string
+                example: user_001
+              reviewer_role:
+                type: string
+                enum: [review_gov, admin, toonflow_deep]
+                example: review_gov
+              reviewed_at:
+                type: string
+                format: date-time
+              scores:
+                $ref: '#/components/schemas/ScoreVector'
+              annotations:
+                type: array
+                description: Toonflow 帧级批注（只读回传）
+                items:
+                  type: object
+                  properties:
+                    frame_number:
+                      type: integer
+                    type:
+                      type: string
+                    comment:
+                      type: string
+                    severity:
+                      type: string
+                      enum: [low, medium, high, critical]
+              reject_reason:
+                type: string
+                nullable: true
+              reject_dimensions:
+                type: array
+                items:
+                  type: string
+              suggested_action:
+                type: string
+                nullable: true
+                enum: [regenerate, adjust_params, use_alternate]
+        audit_entry_ids:
+          type: array
+          items:
+            type: string
+          description: 关联审计记录 IDs
+        merkle_leaf_hash:
+          type: string
+          description: Merkle 叶节点哈希
+          example: sha256:abc123...
+        signature:
+          type: string
+          description: HMAC-SHA256 签名
+        timestamp:
+          type: string
+          format: date-time
+          description: 签名时间戳（5 分钟有效窗口）

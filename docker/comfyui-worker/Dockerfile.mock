@@ -1,0 +1,47 @@
+# =============================================================================
+# comfyui-worker Mock (开发阶段替代)
+# =============================================================================
+# 轻量 mock 服务，模拟 ComfyUI API
+# =============================================================================
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir fastapi uvicorn -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+COPY <<'EOF' mock_server.py
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+import time
+
+app = FastAPI(title="comfyui-worker-mock")
+
+@app.get("/system_stats")
+async def system_stats():
+    return {
+        "system": {
+            "cpu": {"type": "mock"},
+            "devices": [{"name": "MOCK GPU", "vram": "24576 MB"}]
+        }
+    }
+
+@app.get("/health")
+async def health():
+    return {"status": "healthy", "mode": "mock"}
+
+@app.post("/prompt")
+async def prompt(request: dict):
+    return {"prompt_id": f"mock-{int(time.time())}", "status": "queued"}
+
+@app.get("/history")
+async def history():
+    return {}
+
+@app.api_route("/{path:path}", methods=["GET", "POST"])
+async def catch_all(path: str):
+    return {"mode": "mock", "path": path}
+EOF
+
+EXPOSE 8188
+
+CMD ["uvicorn", "mock_server:app", "--host", "0.0.0.0", "--port", "8188"]

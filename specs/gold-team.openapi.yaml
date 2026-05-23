@@ -1,0 +1,778 @@
+openapi: 3.0.3
+info:
+  title: kais-gold-team API
+  description: |
+    Unified Execution Agent for KAIS AIGC Platform V6.0.
+    Engine Router defaults to local RTX 3090, degrades to cloud engines
+    (Kling / Jimeng / Seedance / Runway / Luma) when VRAM insufficient or model missing.
+  version: 6.0.0
+  contact:
+    name: KAIS AIGC Platform
+
+servers:
+  - url: http://127.0.0.1:8002
+    description: Local Docker Compose deployment
+
+tags:
+  - name: Task
+    description: Task lifecycle management
+  - name: Engine
+    description: Engine discovery and health
+  - name: Batch
+    description: Batch task submission
+  - name: Health
+    description: Service health
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      operationId: healthCheck
+      summary: Service health check
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /api/v1/tasks:
+    post:
+      tags: [Task]
+      operationId: createTask
+      summary: Submit a generation task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreateRequest'
+      responses:
+        '202':
+          description: Task accepted and queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskAcceptedResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: No engine available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      tags: [Task]
+      operationId: listTasks
+      summary: List tasks with optional filters
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/TaskStatus'
+          description: Filter by task status
+        - name: type
+          in: query
+          schema:
+            type: string
+          description: Filter by task type (e.g. video_final, tts)
+        - name: priority
+          in: query
+          schema:
+            $ref: '#/components/schemas/Priority'
+        - name: engine_used
+          in: query
+          schema:
+            type: string
+            enum: [local, cloud]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 500
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+        - name: created_after
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: created_before
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Paginated task list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListResponse'
+
+  /api/v1/tasks/{id}:
+    get:
+      tags: [Task]
+      operationId: getTask
+      summary: Get task status and details
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '200':
+          description: Task details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskDetailResponse'
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/tasks/{id}/cancel:
+    post:
+      tags: [Task]
+      operationId: cancelTask
+      summary: Cancel a running or queued task
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '200':
+          description: Task cancelled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskCancelResponse'
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Task already completed or cannot be cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/tasks/{id}/events:
+    get:
+      tags: [Task]
+      operationId: taskEventStream
+      summary: SSE real-time event stream for a task
+      description: |
+        Server-Sent Events stream emitting task lifecycle events.
+        Events: `queued`, `started`, `progress`, `completed`, `failed`, `cancelled`.
+        The stream closes automatically when the task reaches a terminal state.
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '200':
+          description: SSE event stream
+          content:
+            text/event-stream:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SSEEvent'
+        '404':
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/tasks/batch:
+    post:
+      tags: [Batch]
+      operationId: batchCreateTasks
+      summary: Submit multiple tasks atomically
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchCreateRequest'
+      responses:
+        '202':
+          description: Batch accepted (individual tasks may still fail validation)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchCreateResponse'
+        '400':
+          description: Batch request validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/engines:
+    get:
+      tags: [Engine]
+      operationId: listEngines
+      summary: List all registered engines and their status
+      responses:
+        '200':
+          description: Engine list with current status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EngineListResponse'
+
+  /api/v1/engines/capacity:
+    get:
+      tags: [Engine]
+      operationId: getCapacity
+      summary: Query current engine capacity
+      description: |
+        Returns aggregate capacity info including GPU utilization,
+        VRAM usage, queue depth, and estimated wait time.
+      responses:
+        '200':
+          description: Current capacity overview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CapacityResponse'
+
+  /api/v1/engines/{id}/health:
+    get:
+      tags: [Engine]
+      operationId: engineHealthCheck
+      summary: Health check for a specific engine
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Engine identifier (e.g. local-comfyui, cloud-kling)
+      responses:
+        '200':
+          description: Engine is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EngineHealthResponse'
+        '503':
+          description: Engine is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EngineHealthResponse'
+
+components:
+  parameters:
+    TaskId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Task identifier (e.g. gold_s03_02_v1)
+
+  schemas:
+    # ─── Enums ───
+    TaskType:
+      type: string
+      enum:
+        - video_final
+        - video_preview
+        - image_draw
+        - image_refine
+        - tts
+        - music
+        - sfx
+        - upscale
+        - face_restore
+        - image_to_3d
+
+    TaskStatus:
+      type: string
+      enum:
+        - queued
+        - scheduled
+        - running
+        - completed
+        - failed
+        - cancelled
+
+    Priority:
+      type: string
+      enum:
+        - normal
+        - high
+        - critical
+      default: normal
+
+    ModelPreference:
+      type: string
+      enum:
+        - auto
+        - local
+        - cloud
+      default: auto
+
+    # ─── Task Create Request ───
+    TaskCreateRequest:
+      type: object
+      required:
+        - task_id
+        - type
+        - params
+      properties:
+        task_id:
+          type: string
+          description: Caller-assigned unique task identifier
+          example: gold_s03_02_v1
+        type:
+          $ref: '#/components/schemas/TaskType'
+        model_preference:
+          $ref: '#/components/schemas/ModelPreference'
+        params:
+          type: object
+          description: |
+            Type-specific generation parameters. Schema varies by `type`.
+            Examples:
+            - video_final: { prompt, negative_prompt, duration_sec, resolution, seed }
+            - tts: { text, voice_id, speed, language }
+            - image_draw: { prompt, negative_prompt, width, height, steps, seed }
+          additionalProperties: true
+          example:
+            prompt: "A golden sunset over cyberpunk city"
+            negative_prompt: "blurry, low quality"
+            duration_sec: 5
+            resolution: "1280x720"
+            seed: 42
+        callback_url:
+          type: string
+          format: uri
+          description: URL to receive V6.0 standard callback on completion
+          example: http://movie-agent:8001/api/v1/callbacks/gpu-task
+        callback_secret:
+          type: string
+          description: HMAC shared secret for callback signature verification
+        priority:
+          $ref: '#/components/schemas/Priority'
+
+    # ─── Task Responses ───
+    TaskAcceptedResponse:
+      type: object
+      properties:
+        task_id:
+          type: string
+          example: gold_s03_02_v1
+        status:
+          type: string
+          enum: [queued, scheduled]
+        engine_target:
+          type: string
+          enum: [local, cloud, pending]
+          description: |
+            Which engine pool the task is routed to.
+            `pending` means Engine Router decision is deferred until execution.
+        queue_position:
+          type: integer
+          description: Position in execution queue (null if running immediately)
+          nullable: true
+        estimated_start_sec:
+          type: number
+          description: Estimated seconds until execution begins
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    TaskDetailResponse:
+      type: object
+      properties:
+        task_id:
+          type: string
+        type:
+          $ref: '#/components/schemas/TaskType'
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        priority:
+          $ref: '#/components/schemas/Priority'
+        model_preference:
+          $ref: '#/components/schemas/ModelPreference'
+        engine_used:
+          type: string
+          enum: [local, cloud]
+          nullable: true
+          description: Which engine pool was actually used (null if not yet assigned)
+        engine_id:
+          type: string
+          nullable: true
+          description: Specific engine instance ID (e.g. local-comfyui-wan22)
+        params:
+          type: object
+          additionalProperties: true
+        callback_url:
+          type: string
+          format: uri
+          nullable: true
+        outputs:
+          $ref: '#/components/schemas/TaskOutputs'
+        metadata:
+          $ref: '#/components/schemas/TaskMetadata'
+        error:
+          type: string
+          nullable: true
+          description: Error message if status is `failed`
+        progress:
+          type: number
+          minimum: 0
+          maximum: 100
+          nullable: true
+          description: Execution progress percentage
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    TaskOutputs:
+      type: object
+      description: Output artifact paths (filesystem references, not base64)
+      additionalProperties: true
+      properties:
+        video:
+          type: string
+          description: Primary output video path
+          example: /mnt/agents/output/gold_s03_02_v1/final.mp4
+        thumbnail:
+          type: string
+          example: /mnt/agents/output/gold_s03_02_v1/thumb.jpg
+        audio:
+          type: string
+          example: /mnt/agents/output/gold_s03_02_v1/voice.wav
+        image:
+          type: string
+          example: /mnt/agents/output/gold_s03_02_v1/render.png
+      nullable: true
+
+    TaskMetadata:
+      type: object
+      description: Execution metadata from the engine
+      properties:
+        seed:
+          type: integer
+          nullable: true
+        cost_usd:
+          type: number
+          description: Cost in USD (0 for local inference)
+          nullable: true
+        inference_time_sec:
+          type: number
+          nullable: true
+        gpu_memory_peak_gb:
+          type: number
+          nullable: true
+        model_name:
+          type: string
+          nullable: true
+        cloud_task_id:
+          type: string
+          nullable: true
+          description: External cloud task ID if cloud engine was used
+      nullable: true
+
+    TaskListResponse:
+      type: object
+      properties:
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskDetailResponse'
+        total:
+          type: integer
+          description: Total matching tasks (for pagination)
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    TaskCancelResponse:
+      type: object
+      properties:
+        task_id:
+          type: string
+        status:
+          type: string
+          enum: [cancelled]
+        message:
+          type: string
+          example: Task cancelled successfully
+
+    # ─── SSE ───
+    SSEEvent:
+      type: object
+      description: Server-Sent Event payload
+      properties:
+        event:
+          type: string
+          enum: [queued, started, progress, completed, failed, cancelled]
+        data:
+          type: object
+          properties:
+            task_id:
+              type: string
+            status:
+              $ref: '#/components/schemas/TaskStatus'
+            progress:
+              type: number
+              nullable: true
+            message:
+              type: string
+              nullable: true
+            outputs:
+              $ref: '#/components/schemas/TaskOutputs'
+            metadata:
+              $ref: '#/components/schemas/TaskMetadata'
+            error:
+              type: string
+              nullable: true
+            timestamp:
+              type: string
+              format: date-time
+
+    # ─── Batch ───
+    BatchCreateRequest:
+      type: object
+      required:
+        - tasks
+      properties:
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskCreateRequest'
+          minItems: 1
+          maxItems: 100
+        fail_fast:
+          type: boolean
+          default: false
+          description: If true, reject entire batch on first validation error
+
+    BatchCreateResponse:
+      type: object
+      properties:
+        batch_id:
+          type: string
+          format: uuid
+          description: Unique batch identifier
+        accepted:
+          type: integer
+          description: Number of tasks accepted
+        rejected:
+          type: integer
+          description: Number of tasks rejected
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              task_id:
+                type: string
+              status:
+                type: string
+                enum: [queued, rejected]
+              error:
+                type: string
+                nullable: true
+              queue_position:
+                type: integer
+                nullable: true
+
+    # ─── Engine ───
+    EngineInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          example: local-comfyui
+        name:
+          type: string
+          example: ComfyUI Local (RTX 3090)
+        pool:
+          type: string
+          enum: [local, cloud]
+        type:
+          type: string
+          description: Engine category
+          example: comfyui
+        status:
+          type: string
+          enum: [online, offline, degraded, busy]
+        supported_types:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskType'
+          description: Task types this engine can handle
+        vram_total_mb:
+          type: integer
+          nullable: true
+          description: Total VRAM in MB (local engines only)
+          example: 24576
+        vram_used_mb:
+          type: integer
+          nullable: true
+          example: 8192
+        queue_depth:
+          type: integer
+          description: Number of tasks queued for this engine
+        models:
+          type: array
+          items:
+            type: string
+          description: Available model IDs
+          example: ["wan2.2-14b", "flux-dev", "ace-step"]
+
+    EngineListResponse:
+      type: object
+      properties:
+        engines:
+          type: array
+          items:
+            $ref: '#/components/schemas/EngineInfo'
+
+    EngineHealthResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        response_time_ms:
+          type: number
+          description: Health check response latency
+        details:
+          type: object
+          additionalProperties: true
+          description: Engine-specific health details
+        checked_at:
+          type: string
+          format: date-time
+
+    CapacityResponse:
+      type: object
+      properties:
+        local:
+          type: object
+          description: Local engine pool capacity
+          properties:
+            available:
+              type: boolean
+            vram_total_mb:
+              type: integer
+              nullable: true
+            vram_available_mb:
+              type: integer
+              nullable: true
+            gpu_utilization_pct:
+              type: number
+              nullable: true
+            running_tasks:
+              type: integer
+            queued_tasks:
+              type: integer
+            estimated_wait_sec:
+              type: number
+              nullable: true
+        cloud:
+          type: object
+          description: Cloud engine pool capacity
+          properties:
+            available:
+              type: boolean
+            active_providers:
+              type: array
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                    enum: [kling, jimeng, seedance, runway, luma]
+                  available:
+                    type: boolean
+                  rate_limit_remaining:
+                    type: integer
+                    nullable: true
+        total_queue_depth:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+
+    # ─── Health ───
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        version:
+          type: string
+          example: 6.0.0
+        uptime_sec:
+          type: number
+        gpu:
+          type: object
+          nullable: true
+          properties:
+            device:
+              type: string
+              example: NVIDIA GeForce RTX 3090
+            vram_total_mb:
+              type: integer
+            vram_used_mb:
+              type: integer
+            utilization_pct:
+              type: number
+        redis:
+          type: string
+          enum: [connected, disconnected]
+        timestamp:
+          type: string
+          format: date-time
+
+    # ─── Error ───
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error type / code
+          example: task_not_found
+        message:
+          type: string
+          description: Human-readable error message
+          example: Task 'gold_s03_02_v1' not found
+        detail:
+          type: object
+          additionalProperties: true
+          nullable: true
