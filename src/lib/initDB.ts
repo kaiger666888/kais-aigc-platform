@@ -1024,6 +1024,100 @@ export default async (knex: Knex, forceInit: boolean = false): Promise<void> => 
         table.index(["isolationKey", "summarized"]);
       },
     },
+    // ===== kais-core-backend v1 新增表 =====
+    // 画布同步事件表
+    {
+      name: "kv_syncEvent",
+      builder: (table) => {
+        table.integer("id").notNullable();
+        table.integer("projectId").notNullable();
+        table.string("type");
+        table.text("nodeId");
+        table.text("payload");
+        table.integer("timestamp");
+        table.integer("createTime");
+        table.primary(["id"]);
+        table.index(["projectId", "timestamp"]);
+      },
+    },
+    // 画布节点资产表
+    {
+      name: "kv_nodeAsset",
+      builder: (table) => {
+        table.integer("id").notNullable();
+        table.integer("projectId").notNullable();
+        table.string("nodeId");
+        table.string("name");
+        table.string("type");
+        table.text("describe");
+        table.text("prompt");
+        table.text("seedLock");
+        table.text("loraPath");
+        table.text("stylePrompt");
+        table.integer("createTime");
+        table.primary(["id"]);
+        table.index(["projectId"]);
+        table.index(["projectId", "nodeId"]);
+      },
+    },
+    // 分镜图谱任务表
+    {
+      name: "kv_shotGraph",
+      builder: (table) => {
+        table.integer("id").notNullable();
+        table.integer("projectId").notNullable();
+        table.text("graphData");
+        table.string("state"); // pending | processing | done | error
+        table.integer("createTime");
+        table.primary(["id"]);
+        table.index(["projectId"]);
+      },
+    },
+    // 分镜表 (v1)
+    {
+      name: "kv_shot",
+      builder: (table) => {
+        table.integer("id").notNullable();
+        table.integer("projectId").notNullable();
+        table.integer("shotIndex");
+        table.text("prompt");
+        table.text("filePath");
+        table.text("duration");
+        table.string("state");
+        table.text("metadata");
+        table.integer("createTime");
+        table.primary(["id"]);
+        table.index(["projectId", "shotIndex"]);
+      },
+    },
+    // 审核记录表
+    {
+      name: "kv_audit",
+      builder: (table) => {
+        table.integer("id").notNullable();
+        table.integer("projectId").notNullable();
+        table.string("action");
+        table.string("result");
+        table.text("detail");
+        table.integer("createTime");
+        table.primary(["id"]);
+        table.index(["projectId"]);
+      },
+    },
+    // 项目快照表
+    {
+      name: "kv_snapshot",
+      builder: (table) => {
+        table.integer("id").notNullable();
+        table.integer("projectId").notNullable();
+        table.string("label");
+        table.text("data");
+        table.integer("createTime");
+        table.primary(["id"]);
+        table.index(["projectId"]);
+      },
+    },
+    // ===== kais-core-backend v1 新增表结束 =====
     {
       name: "o_assetsRole2Audio",
       builder: (table) => {

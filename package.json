@@ -1,6 +1,6 @@
 {
-  "name": "toonflow",
-  "version": "1.1.7",
+  "name": "kais-core-backend",
+  "version": "6.0.0",
   "description": "Toonflow 是一款 AI 短剧漫剧工具，能够利用 AI 技术将小说自动转化为剧本，并结合 AI 生成的图片和视频，实现高效的短剧创作。",
   "author": "HBAI-Ltd <ltlctools@outlook.com>",
   "license": "Apache-2.0",
@@ -20,6 +20,8 @@
   },
   "scripts": {
     "dev": "nodemon --inspect --exec tsx src/app.ts",
+    "dev:server": "nodemon --inspect --exec tsx src/app.ts",
+    "start:server": "cross-env NODE_ENV=prod node data/serve/app.js",
     "dev:gui": "electronmon -r tsx scripts/main.ts",
     "dev:gui-vite": "cross-env VITE_DEV=1 electronmon -r tsx scripts/main.ts",
     "start": "cross-env NODE_ENV=prod node data/serve/app.js",
