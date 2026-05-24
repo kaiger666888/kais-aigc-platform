@@ -1,0 +1,75 @@
+# Smoke test — minimal services, no GPU, no external deps
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: review
+      POSTGRES_PASSWORD: review
+      POSTGRES_DB: reviewdb
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U review"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  movie-agent:
+    image: kais-movie-agent:latest
+    ports:
+      - "8001:8001"
+    environment:
+      PORT: 8001
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  gold-team:
+    image: kais-gold-team:latest
+    ports:
+      - "8002:8002"
+    environment:
+      PORT: 8002
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  review-platform:
+    image: kais-review-platform:latest
+    ports:
+      - "8091:8090"
+    environment:
+      PORT: 8090
+      POSTGRES_URL: postgresql+asyncpg://review:review@postgres:5432/reviewdb
+      REDIS_URL: redis://redis:6379/0
+      API_KEY: test-api-key
+      JWT_SECRET: test-jwt-secret-for-smoke-test
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
