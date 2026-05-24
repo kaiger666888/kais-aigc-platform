@@ -24,8 +24,28 @@ const STAGE_ORDER = Object.keys(STAGE_REGISTRY);
 
 // ─── Helpers ──────────────────────────────────────────────
 
+let _gitAvailable = null;
+
+async function checkGitAvailable() {
+  if (_gitAvailable !== null) return _gitAvailable;
+  try {
+    await new Promise((resolve, reject) => {
+      execFile('git', ['--version'], (err) => err ? reject(err) : resolve());
+    });
+    _gitAvailable = true;
+  } catch {
+    _gitAvailable = false;
+    console.warn('[git-stage] git not available — stage commits disabled');
+  }
+  return _gitAvailable;
+}
+
 function git(workdir, ...args) {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
+    if (!(await checkGitAvailable())) {
+      resolve('(git unavailable)');
+      return;
+    }
     execFile('git', ['-C', workdir, ...args], { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err && !stdout) return reject(new Error(`git failed: ${stderr || err.message}`));
       resolve(stdout.trim());
