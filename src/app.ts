@@ -111,6 +111,9 @@ export default async function startServe(randomPort: Boolean = false) {
     // 白名单路径
     if (req.path === "/api/login/login") return next();
     if (req.path === "/health") return next();
+    // 静态前端文件（Toonflow UI）
+    if (req.path === "/" || req.path === "/index.html") return next();
+    if (req.path.startsWith("/assets/") || req.path.endsWith(".js") || req.path.endsWith(".css") || req.path.endsWith(".ico") || req.path.endsWith(".map")) return next();
     // V6.0 API routes: accept Bearer token or X-API-Key header
     if (req.path.startsWith("/api/v1/")) {
       const apiKey = req.headers["x-api-key"];
