@@ -1,6 +1,61 @@
-// @db-hash 46c86c97b2ffc399387f42c5b7c014eb
+// @db-hash 21a2230e11d708e372a90e2efd8f4deb
 //该文件由脚本自动生成，请勿手动修改
 
+export interface kv_audit {
+  'action'?: string | null;
+  'createTime'?: number | null;
+  'detail'?: string | null;
+  'id'?: number;
+  'projectId': number;
+  'result'?: string | null;
+}
+export interface kv_nodeAsset {
+  'createTime'?: number | null;
+  'describe'?: string | null;
+  'id'?: number;
+  'loraPath'?: string | null;
+  'name'?: string | null;
+  'nodeId'?: string | null;
+  'projectId': number;
+  'prompt'?: string | null;
+  'seedLock'?: string | null;
+  'stylePrompt'?: string | null;
+  'type'?: string | null;
+}
+export interface kv_shot {
+  'createTime'?: number | null;
+  'duration'?: string | null;
+  'filePath'?: string | null;
+  'id'?: number;
+  'metadata'?: string | null;
+  'projectId': number;
+  'prompt'?: string | null;
+  'shotIndex'?: number | null;
+  'state'?: string | null;
+}
+export interface kv_shotGraph {
+  'createTime'?: number | null;
+  'graphData'?: string | null;
+  'id'?: number;
+  'projectId': number;
+  'state'?: string | null;
+}
+export interface kv_snapshot {
+  'createTime'?: number | null;
+  'data'?: string | null;
+  'id'?: number;
+  'label'?: string | null;
+  'projectId': number;
+}
+export interface kv_syncEvent {
+  'createTime'?: number | null;
+  'id'?: number;
+  'nodeId'?: string | null;
+  'payload'?: string | null;
+  'projectId': number;
+  'timestamp'?: number | null;
+  'type'?: string | null;
+}
 export interface memories {
   'content': string;
   'createTime': number;
@@ -23,7 +78,6 @@ export interface o_agentDeploy {
   'modelName'?: string | null;
   'name'?: string | null;
   'temperature'?: number | null;
-  'topP'?: number | null;
   'type'?: string | null;
   'vendorId'?: string | null;
 }
@@ -98,7 +152,6 @@ export interface o_modelPrompt {
   'id'?: number;
   'model'?: string | null;
   'path'?: string | null;
-  'prompt'?: string | null;
   'vendorId'?: string | null;
 }
 export interface o_novel {
@@ -112,17 +165,6 @@ export interface o_novel {
   'id'?: number;
   'projectId'?: number | null;
   'reel'?: string | null;
-}
-export interface o_outline {
-  'data'?: string | null;
-  'episode'?: number | null;
-  'id'?: number;
-  'projectId'?: number | null;
-}
-export interface o_outlineNovel {
-  'id'?: number;
-  'novelId'?: number | null;
-  'outlineId'?: number | null;
 }
 export interface o_project {
   'artStyle'?: string | null;
@@ -242,6 +284,12 @@ export interface o_videoTrack {
 }
 
 export interface DB {
+  "kv_audit": kv_audit;
+  "kv_nodeAsset": kv_nodeAsset;
+  "kv_shot": kv_shot;
+  "kv_shotGraph": kv_shotGraph;
+  "kv_snapshot": kv_snapshot;
+  "kv_syncEvent": kv_syncEvent;
   "memories": memories;
   "o_agentDeploy": o_agentDeploy;
   "o_agentWorkData": o_agentWorkData;
@@ -255,8 +303,6 @@ export interface DB {
   "o_imageFlow": o_imageFlow;
   "o_modelPrompt": o_modelPrompt;
   "o_novel": o_novel;
-  "o_outline": o_outline;
-  "o_outlineNovel": o_outlineNovel;
   "o_project": o_project;
   "o_prompt": o_prompt;
   "o_script": o_script;

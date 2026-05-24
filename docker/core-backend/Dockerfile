@@ -1,22 +1,18 @@
 # =============================================================================
 # kais-core-backend (Toonflow Express Server)
 # =============================================================================
-# 基于 Toonflow 现有 Dockerfile，适配 V6 平台
-# 剥离 Electron 依赖，纯后端服务
-# FROM node:24-bookworm-slim — 保持与原 Toonflow Dockerfile 一致
+# Multi-stage: build with all deps, runtime with production deps only
 # =============================================================================
-FROM node:24-bookworm-slim
+FROM node:24-bookworm-slim AS builder
 
 WORKDIR /app
 
-# 国内镜像加速
 RUN npm config set registry https://registry.npmmirror.com/ && \
     yarn config set registry https://registry.npmmirror.com/
 
-# 先复制依赖文件，利用 Docker 层缓存
 COPY package.json yarn.lock ./
 
-# 剥离 Electron 相关依赖，避免下载桌面二进制
+# 剥离 Electron 相关依赖
 RUN node -e "\
 const fs = require('fs');\
 const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));\
@@ -28,19 +24,50 @@ for (const section of ['dependencies', 'devDependencies']) {\
 }\
 fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');"
 
-RUN yarn install --frozen-lockfile --production && \
-    yarn cache clean
+# Install ALL deps (including devDeps for build tools like cross-env, esbuild)
+RUN yarn install --frozen-lockfile && yarn cache clean
 
-# 复制源码并构建
+# Build TypeScript → data/serve/app.js (esbuild bundles with @/ alias)
 COPY tsconfig.json ./
 COPY src/ ./src/
 COPY scripts/ ./scripts/
+RUN yarn build
 
-# 构建 TypeScript
-RUN yarn build || true
+# =============================================================================
+# Runtime stage — production deps only
+# =============================================================================
+FROM node:24-bookworm-slim
 
-# 复制运行时数据
-COPY data/ ./data/
+WORKDIR /app
+
+RUN npm config set registry https://registry.npmmirror.com/
+
+COPY package.json yarn.lock ./
+
+# 剥离 Electron
+RUN node -e "\
+const fs = require('fs');\
+const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));\
+for (const section of ['dependencies', 'devDependencies']) {\
+  if (!pkg[section]) continue;\
+  for (const name of ['custom-electron-titlebar', 'electron', 'electron-builder', 'electron-rebuild', 'electronmon']) {\
+    delete pkg[section][name];\
+  }\
+}\
+fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');"
+
+# Install production deps + build native modules (better-sqlite3)
+RUN yarn install --production --ignore-scripts && \
+    cd node_modules/better-sqlite3 && \
+    npx --yes prebuild-install --runtime napi --target 10 || \
+    (apt-get update && apt-get install -y --no-install-recommends python3 make g++ && \
+     npx node-gyp rebuild --release && \
+     apt-get purge -y python3 make g++ && apt-get autoremove -y && \
+     rm -rf /var/lib/apt/lists/*) && \
+    cd /app && yarn cache clean
+
+# Copy built app from builder
+COPY --from=builder /app/data/ ./data/
 
 # 创建非 root 用户
 RUN groupadd -r kais && useradd -r -g kais kais && \
@@ -52,5 +79,7 @@ ENV PORT=8000
 
 EXPOSE 8000
 
-# Health check endpoint 已在应用内实现
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=30s \
+  CMD node -e "fetch('http://localhost:8000/health').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))"
+
 CMD ["node", "data/serve/app.js"]

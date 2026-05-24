@@ -9,25 +9,25 @@ const router = express.Router();
 router.post(
   "/",
   validateFields({
-    projectId: z.number(),
+    project_id: z.string(),
     label: z.string().optional(),
   }),
   async (req, res) => {
-    const { projectId, label } = req.body;
+    const { project_id, label } = req.body;
     const id = Date.now();
 
     // 收集项目关键数据序列化为快照
     const [project, assets, storyboards] = await Promise.all([
-      u.db("o_project").where("id", projectId).first(),
-      u.db("o_assets").where("projectId", projectId).select("*"),
-      u.db("o_storyboard").where("projectId", projectId).select("*"),
+      u.db("o_project").where("id", project_id).first(),
+      u.db("o_assets").where("projectId", project_id).select("*"),
+      u.db("o_storyboard").where("projectId", project_id).select("*"),
     ]);
 
     const snapshotData = JSON.stringify({ project, assets, storyboards, timestamp: Date.now() });
 
     await u.db("kv_snapshot").insert({
       id,
-      projectId,
+      projectId: project_id,
       label: label || `snapshot-${id}`,
       data: snapshotData,
       createTime: Date.now(),

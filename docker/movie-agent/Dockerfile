@@ -3,6 +3,7 @@ FROM node:20-slim
 WORKDIR /app
 
 # Copy the movie-agent server code (zero npm deps, pure node:http)
+COPY lib/ ./lib/
 COPY src/ ./src/
 
 RUN groupadd -r kais && useradd -r -g kais kais && \
