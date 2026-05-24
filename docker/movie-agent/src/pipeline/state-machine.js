@@ -103,7 +103,9 @@ export class PipelineManager {
         // 执行该 V6 Phase 对应的 legacy stages
         const legacyStages = v6Phase.stages;
         for (const stageId of legacyStages) {
-          await entry.pipeline.runPhase(stageId);
+          // Pass pipeline config so phase handlers can read requirement data
+          const phaseConfig = this._buildPhaseConfig(entry, stageId);
+          await entry.pipeline.runPhase(stageId, phaseConfig);
         }
 
         entry.phases[i].status = 'completed';
@@ -123,6 +125,23 @@ export class PipelineManager {
       entry.updatedAt = new Date().toISOString();
       console.error(`[PipelineManager] Pipeline ${entry.pipelineId} failed: ${err.message}`);
     }
+  }
+
+  /**
+   * Build phaseConfig for a legacy stage.
+   * Passes through any stage-specific data from v6Config.
+   */
+  _buildPhaseConfig(entry, stageId) {
+    const config = {};
+    const v6Config = entry.v6Config || {};
+
+    // If v6Config has phase-specific config, pass it through
+    const phaseConfig = v6Config.phasesConfig?.[stageId];
+    if (phaseConfig) {
+      Object.assign(config, phaseConfig);
+    }
+
+    return config;
   }
 
   /**

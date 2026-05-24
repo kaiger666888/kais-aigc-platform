@@ -46,6 +46,14 @@ services:
       - "8001:8001"
     environment:
       PORT: 8001
+      GOLD_TEAM_URL: http://gold-team:8002
+      REVIEW_PLATFORM_URL: http://review-platform:8090
+      CORE_BACKEND_URL: http://core-backend:8000
+      ZHIPU_API_KEY: ${ZHIPU_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+    volumes:
+      - /tmp/movie-agent:/tmp/movie-agent
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:8001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 10s
