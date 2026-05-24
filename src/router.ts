@@ -1,4 +1,4 @@
-// @routes-hash 27c8c858cde9c7b95ac540de3ca9def5
+// @routes-hash 39fe05183c02d15a70fda197b5cd851c
 import { Express } from "express";
 
 import route1 from "./routes/agents/clearMemory";
@@ -170,11 +170,14 @@ import route166 from "./routes/task/taskDetails";
 import route167 from "./routes/test/test";
 import route168 from "./routes/v1/assets/from_node";
 import route169 from "./routes/v1/audit/index";
-import route170 from "./routes/v1/shots/from_graph";
-import route171 from "./routes/v1/shots/list";
-import route172 from "./routes/v1/snapshots/index";
-import route173 from "./routes/v1/sync/batch";
-import route174 from "./routes/v1/sync/pull/[projectId]";
+import route170 from "./routes/v1/pipeline/render-shot";
+import route171 from "./routes/v1/pipeline/status/[taskId]";
+import route172 from "./routes/v1/pipeline/submit-to-review";
+import route173 from "./routes/v1/shots/from_graph";
+import route174 from "./routes/v1/shots/list";
+import route175 from "./routes/v1/snapshots/index";
+import route176 from "./routes/v1/sync/batch";
+import route177 from "./routes/v1/sync/pull/[projectId]";
 
 export default async (app: Express) => {
   app.use("/api/agents/clearMemory", route1);
@@ -346,9 +349,12 @@ export default async (app: Express) => {
   app.use("/api/test/test", route167);
   app.use("/api/v1/assets/from_node", route168);
   app.use("/api/v1/audit", route169);
-  app.use("/api/v1/shots/from_graph", route170);
-  app.use("/api/v1/shots/list", route171);
-  app.use("/api/v1/snapshots", route172);
-  app.use("/api/v1/sync/batch", route173);
-  app.use("/api/v1/sync/pull/:projectId", route174);
+  app.use("/api/v1/pipeline/render-shot", route170);
+  app.use("/api/v1/pipeline/status/:taskId", route171);
+  app.use("/api/v1/pipeline/submit-to-review", route172);
+  app.use("/api/v1/shots/from_graph", route173);
+  app.use("/api/v1/shots/list", route174);
+  app.use("/api/v1/snapshots", route175);
+  app.use("/api/v1/sync/batch", route176);
+  app.use("/api/v1/sync/pull/:projectId", route177);
 }
