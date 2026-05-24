@@ -1,75 +1,26 @@
 # =============================================================================
 # kais-core-backend (Toonflow Express Server)
 # =============================================================================
-# Multi-stage: build with all deps, runtime with production deps only
-# =============================================================================
-FROM node:24-bookworm-slim AS builder
-
-WORKDIR /app
-
-RUN npm config set registry https://registry.npmmirror.com/ && \
-    yarn config set registry https://registry.npmmirror.com/
-
-COPY package.json yarn.lock ./
-
-# 剥离 Electron 相关依赖
-RUN node -e "\
-const fs = require('fs');\
-const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));\
-for (const section of ['dependencies', 'devDependencies']) {\
-  if (!pkg[section]) continue;\
-  for (const name of ['custom-electron-titlebar', 'electron', 'electron-builder', 'electron-rebuild', 'electronmon']) {\
-    delete pkg[section][name];\
-  }\
-}\
-fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');"
-
-# Install ALL deps (including devDeps for build tools like cross-env, esbuild)
-RUN yarn install --frozen-lockfile && yarn cache clean
-
-# Build TypeScript → data/serve/app.js (esbuild bundles with @/ alias)
-COPY tsconfig.json ./
-COPY src/ ./src/
-COPY scripts/ ./scripts/
-RUN yarn build
-
-# =============================================================================
-# Runtime stage — production deps only
+# Strategy: copy pre-built bundle + pre-installed node_modules from host
+# Avoids Docker build-time network issues (yarn install / npm registry)
 # =============================================================================
 FROM node:24-bookworm-slim
 
 WORKDIR /app
 
-RUN npm config set registry https://registry.npmmirror.com/
+# Copy production node_modules from host (already installed)
+COPY node_modules/ ./node_modules/
 
-COPY package.json yarn.lock ./
+# Copy pre-built app bundle (esbuild output)
+COPY data/serve/ ./data/serve/
 
-# 剥离 Electron
-RUN node -e "\
-const fs = require('fs');\
-const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));\
-for (const section of ['dependencies', 'devDependencies']) {\
-  if (!pkg[section]) continue;\
-  for (const name of ['custom-electron-titlebar', 'electron', 'electron-builder', 'electron-rebuild', 'electronmon']) {\
-    delete pkg[section][name];\
-  }\
-}\
-fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');"
+# Copy runtime data files if they exist
+COPY data/version.txt ./data/version.txt
 
-# Install production deps + build native modules (better-sqlite3)
-RUN yarn install --production --ignore-scripts && \
-    cd node_modules/better-sqlite3 && \
-    npx --yes prebuild-install --runtime napi --target 10 || \
-    (apt-get update && apt-get install -y --no-install-recommends python3 make g++ && \
-     npx node-gyp rebuild --release && \
-     apt-get purge -y python3 make g++ && apt-get autoremove -y && \
-     rm -rf /var/lib/apt/lists/*) && \
-    cd /app && yarn cache clean
+# Strip electron artifacts if any
+RUN rm -rf node_modules/electron node_modules/electron-builder 2>/dev/null; true
 
-# Copy built app from builder
-COPY --from=builder /app/data/ ./data/
-
-# 创建非 root 用户
+# Create non-root user
 RUN groupadd -r kais && useradd -r -g kais kais && \
     chown -R kais:kais /app
 USER kais
