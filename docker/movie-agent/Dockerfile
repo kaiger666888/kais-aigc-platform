@@ -6,9 +6,9 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
 
 # Copy the movie-agent server code (zero npm deps, pure node:http)
-COPY shared/ ./shared/
-COPY lib/ ./lib/
-COPY src/ ./src/
+COPY docker/movie-agent/src/ ./src/
+COPY docker/movie-agent/lib/ ./lib/
+COPY docker/movie-agent/shared/ ./shared/
 
 RUN groupadd -r kais && useradd -r -g kais kais && \
     chown -R kais:kais /app
