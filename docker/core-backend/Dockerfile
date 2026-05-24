@@ -3,6 +3,9 @@
 # =============================================================================
 # Strategy: copy pre-built bundle + pre-installed node_modules from host
 # Avoids Docker build-time network issues (yarn install / npm registry)
+# NOTE: better-sqlite3 must be rebuilt on host first (npm rebuild) to avoid
+# GLIBC_2.38 mismatch — the host Ubuntu (glibc 2.39) links against newer
+# symbols that bookworm-slim (glibc 2.36) cannot resolve.
 # =============================================================================
 FROM node:24-bookworm-slim
 
