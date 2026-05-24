@@ -61,7 +61,7 @@ export const PHASES_V6 = [
     id: 'delivery',
     name: '导出交付',
     order: 7,
-    stages: ['delivery'],
+    stages: ['post-production'],  // mapped to legacy post-production (handles delivery internally)
     review: false,
   },
 ];

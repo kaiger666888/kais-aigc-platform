@@ -683,6 +683,24 @@ export const phaseHandlers = {
       };
     },
   },
+
+  'post-production': {
+    after: async (pipeline, phase, phaseConfig) => {
+      console.log('[post-production] Phase completed (no-op for mock)');
+    },
+  },
+
+  'quality-gate': {
+    after: async (pipeline, phase, phaseConfig) => {
+      console.log('[quality-gate] Phase completed (no-op for mock)');
+    },
+  },
+
+  delivery: {
+    after: async (pipeline, phase, phaseConfig) => {
+      console.log('[delivery] Phase completed (no-op for mock)');
+    },
+  },
 };
 
 // Phase 8 hook 已在 pipeline.js 的 PHASES 定义中通过 outputFiles 管理
