@@ -101,6 +101,24 @@ export default async function startServe(randomPort: Boolean = false) {
     res.json({ status: "ok", service: "kais-core-backend", version: "6.0.0" });
   });
 
+  // SPA fallback: serve index.html BEFORE auth middleware
+  // so that deep links like /project, /production work without JWT
+  app.use((req, res, next) => {
+    if (req.method !== "GET") return next();
+    if (req.path.startsWith("/api/") || req.path.startsWith("/oss/") || req.path.startsWith("/assets/") || req.path.startsWith("/skills/")) {
+      return next();
+    }
+    if (req.path.match(/\.[^/]+$/)) {
+      return next();
+    }
+    const indexPath = path.join(webDir, "index.html");
+    if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else {
+      next();
+    }
+  });
+
   app.use(async (req, res, next) => {
     const setting = await u.db("o_setting").where("key", "tokenKey").select("value").first();
     if (!setting) return res.status(444).send({ message: "服务器秘钥未配置，请联系管理员" });
@@ -117,6 +135,12 @@ export default async function startServe(randomPort: Boolean = false) {
     // V6.0 API routes: pass through without auth (internal service mesh)
     if (req.path.startsWith("/api/v1/")) {
       (req as any).user = { source: "v6-internal" };
+      return next();
+    }
+
+    // V6.0: open all API routes for web deployment (no login required)
+    if (req.path.startsWith("/api/")) {
+      (req as any).user = { source: "v6-web" };
       return next();
     }
 
