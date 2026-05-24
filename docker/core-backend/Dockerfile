@@ -17,8 +17,11 @@ COPY node_modules/ ./node_modules/
 # Copy pre-built app bundle (esbuild output)
 COPY data/serve/ ./data/serve/
 
-# Copy runtime data files if they exist
+# Copy runtime data files
 COPY data/version.txt ./data/version.txt
+
+# Copy frontend static files
+COPY data/web/ ./data/web/
 
 # Strip electron artifacts if any
 RUN rm -rf node_modules/electron node_modules/electron-builder 2>/dev/null; true
