@@ -2,6 +2,9 @@ FROM node:20-slim
 
 WORKDIR /app
 
+# git needed by lib/git-stage-manager.js (post-production phase)
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+
 # Copy the movie-agent server code (zero npm deps, pure node:http)
 COPY shared/ ./shared/
 COPY lib/ ./lib/
