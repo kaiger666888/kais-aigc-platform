@@ -1,4 +1,4 @@
-node_modules
+# node_modules - needed for Docker build (pre-installed)
 build
 dist
 logs
