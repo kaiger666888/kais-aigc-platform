@@ -10,6 +10,9 @@ echo "=== Phase 5: Building Docker images ==="
 # 1. core-backend (Toonflow Express — built from kais-aigc-platform itself)
 echo "[1/4] core-backend..."
 cd "$PLATFORM"
+# Rebuild better-sqlite3 to ensure glibc compatibility with Docker base image
+# (host Ubuntu glibc 2.39 → Docker bookworm-slim glibc 2.36)
+npm rebuild better-sqlite3 2>/dev/null || true
 docker build -t kais-core-backend:latest -f docker/core-backend/Dockerfile . || echo "⚠️ core-backend build needs 'yarn build' first — skipping"
 
 # 2. movie-agent (copy server/ code into docker context)

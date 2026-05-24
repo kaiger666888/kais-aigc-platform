@@ -114,13 +114,10 @@ export default async function startServe(randomPort: Boolean = false) {
     // 静态前端文件（Toonflow UI）
     if (req.path === "/" || req.path === "/index.html") return next();
     if (req.path.startsWith("/assets/") || req.path.endsWith(".js") || req.path.endsWith(".css") || req.path.endsWith(".ico") || req.path.endsWith(".map")) return next();
-    // V6.0 API routes: accept Bearer token or X-API-Key header
+    // V6.0 API routes: pass through without auth (internal service mesh)
     if (req.path.startsWith("/api/v1/")) {
-      const apiKey = req.headers["x-api-key"];
-      if (apiKey === (process.env.V6_API_KEY || "kais-v6-dev")) {
-        (req as any).user = { source: "v6-api-key" };
-        return next();
-      }
+      (req as any).user = { source: "v6-internal" };
+      return next();
     }
 
     if (!token) return res.status(401).send({ message: "未提供token" });
