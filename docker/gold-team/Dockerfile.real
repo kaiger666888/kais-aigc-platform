@@ -1,0 +1,42 @@
+# =============================================================================
+# kais-gold-team Real — Full V6 FastAPI with GPU support
+# Builds from actual kais-gold-team source code
+# =============================================================================
+FROM python:3.11-slim
+
+LABEL maintainer="KAIS AIGC Platform"
+LABEL version="6.0.0-real"
+LABEL description="kais-gold-team V6 with ComfyUI engine support"
+
+WORKDIR /app
+
+# System deps: curl for healthcheck, libgl for OpenCV (optional GPU tasks)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Python deps — use Tsinghua mirror for speed
+COPY requirements-v6.txt .
+RUN pip install --no-cache-dir -r requirements-v6.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+# Application code
+COPY src/ ./src/
+COPY config/ ./config/
+
+# Non-root user for security
+RUN groupadd -r kais && useradd -r -g kais kais && \
+    mkdir -p /mnt/agents/output && \
+    chown -R kais:kais /app /mnt/agents/output
+USER kais
+
+ENV PORT=8002
+ENV PYTHONUNBUFFERED=1
+
+EXPOSE 8002
+
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=15s \
+    CMD curl -f http://localhost:8002/health || exit 1
+
+CMD ["uvicorn", "src.v6.main:app", "--host", "0.0.0.0", "--port", "8002", "--workers", "1"]

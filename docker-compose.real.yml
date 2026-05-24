@@ -1,0 +1,156 @@
+# =============================================================================
+# KAIS AIGC Platform V6.0 — Real Integration Compose
+# 4 services + PG + Redis, GPU-enabled gold-team, ComfyUI integration
+#
+# Usage:
+#   docker compose -f docker-compose.real.yml up -d --build
+#
+# Smoke test compose is unaffected (docker-compose.smoke.yml)
+# =============================================================================
+
+services:
+  # ─── Infrastructure ──────────────────────────────────────────────
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6390:6379"
+    volumes:
+      - redis_data:/data
+      - /mnt/agents/output:/mnt/agents/output
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: review
+      POSTGRES_PASSWORD: review
+      POSTGRES_DB: reviewdb
+    ports:
+      - "5490:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U review"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ─── Application Services ────────────────────────────────────────
+
+  core-backend:
+    image: kais-core-backend:latest
+    ports:
+      - "8000:8000"
+    environment:
+      NODE_ENV: production
+      PORT: 8000
+    volumes:
+      - /mnt/agents/output:/mnt/agents/output
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  movie-agent:
+    image: kais-movie-agent:latest
+    ports:
+      - "8001:8001"
+    environment:
+      PORT: 8001
+      GOLD_TEAM_URL: http://gold-team:8002
+      REVIEW_PLATFORM_URL: http://review-platform:8090
+      CORE_BACKEND_URL: http://core-backend:8000
+      ZHIPU_API_KEY: ${ZHIPU_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+    volumes:
+      - /mnt/agents/output:/mnt/agents/output
+    depends_on:
+      gold-team:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ─── Gold Team (REAL — built from source, GPU-enabled) ──────────
+
+  gold-team:
+    build:
+      context: ${GOLD_TEAM_PATH:-../kais-gold-team}
+      dockerfile: docker/gold-team/Dockerfile.real
+    image: kais-gold-team:real
+    ports:
+      - "8002:8002"
+    environment:
+      PORT: 8002
+      REDIS_URL: redis://redis:6379/0
+      # ComfyUI integration
+      COMFYUI_ENABLED: ${COMFYUI_ENABLED:-true}
+      COMFYUI_HOST: ${COMFYUI_HOST:-comfyui}
+      COMFYUI_PORT: ${COMFYUI_PORT:-8188}
+      # Output
+      OUTPUT_DIR: /mnt/agents/output
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - /mnt/agents/output:/mnt/agents/output
+      # Mount model cache to avoid re-downloading
+      - model_cache:/home/kais/.cache
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    # GPU support — nvidia runtime
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # ─── Review Platform ─────────────────────────────────────────────
+
+  review-platform:
+    image: kais-review-platform:latest
+    ports:
+      - "8091:8090"
+    environment:
+      PORT: 8090
+      POSTGRES_URL: postgresql+asyncpg://review:review@postgres:5432/reviewdb
+      REDIS_URL: redis://redis:6379/0
+      API_KEY: ${API_KEY:-prod-api-key-change-me}
+      JWT_SECRET: ${JWT_SECRET:-prod-jwt-secret-change-me}
+    volumes:
+      - /mnt/agents/output:/mnt/agents/output
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+# ─── Volumes ────────────────────────────────────────────────────────
+
+volumes:
+  redis_data:
+  pg_data:
+  model_cache:
