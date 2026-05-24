@@ -1,0 +1,78 @@
+# kais-movie-agent 质量门控配置
+# 集成自 kais-movie-gate 评分标准
+
+# 默认阈值
+threshold:
+  total: 65          # 总分低于此值不放行
+  critical: 40       # 任何单维度低于此值一票否决
+  warning: 75        # 总分在此区间给出警告但放行
+
+# 6维度权重（满分100）
+dimensions:
+  hook: 25           # 黄金3秒钩子
+  structure: 20      # 内容结构节奏
+  realism: 20        # AIGC真实感
+  title_cover: 15    # 标题与封面
+  duration: 10       # 时长适配
+  engagement: 10     # 互动潜力
+
+# 平台预设
+platform_presets:
+  douyin:
+    total: 65
+    critical: 40
+    warning: 75
+    duration_optimal: [15, 60]
+    hook_weight_bonus: 5    # 抖音对前3秒更敏感
+  bilibili:
+    total: 60
+    critical: 40
+    warning: 70
+    duration_optimal: [30, 180]
+    structure_weight_bonus: 3  # B站用户更耐心
+  xiaohongshu:
+    total: 60
+    critical: 40
+    warning: 70
+    duration_optimal: [15, 90]
+    title_cover_weight_bonus: 5  # 小红书封面决定点击
+  youtube_shorts:
+    total: 60
+    critical: 40
+    warning: 70
+    duration_optimal: [15, 60]
+    hook_weight_bonus: 3
+
+# 内容类型预设
+content_type_presets:
+  短剧:
+    duration_optimal: [30, 90]
+    hook_bonus: 3
+    realism_bonus: 3
+  知识:
+    duration_optimal: [30, 60]
+    structure_bonus: 3
+    engagement_bonus: 2
+  娱乐:
+    duration_optimal: [15, 30]
+    hook_bonus: 5
+    duration_penalty: 3  # 娱乐类对时长更敏感
+  广告:
+    duration_optimal: [15, 30]
+    hook_bonus: 4
+    engagement_bonus: 2
+    duration_penalty: 2
+
+# 第一导演（四维蓝图元层）
+first_director:
+  enabled: true
+  model: glm-4-flash
+  blueprint_path: blueprint.json
+  cognitive_walkthrough_enabled: true
+  entropy_injection_enabled: true
+  causal_loop_enabled: false  # 发布后启用
+  four_dimension_weights:
+    neuro: 0.25
+    emotion: 0.25
+    narrative: 0.25
+    social: 0.25
