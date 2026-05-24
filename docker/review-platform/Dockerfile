@@ -9,9 +9,12 @@ RUN apt-get update && \
 COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-COPY src/ ./src/
-COPY static/ ./static/ 2>/dev/null || true
-COPY templates/ ./templates/ 2>/dev/null || true
+# Copy the entire app package (includes static, templates, policies, etc.)
+COPY app/ ./app/
+
+# Copy alembic for DB migrations
+COPY alembic.ini ./alembic.ini
+COPY alembic/ ./alembic/
 
 RUN groupadd -r kais && useradd -r -g kais kais && \
     chown -R kais:kais /app
@@ -24,4 +27,4 @@ EXPOSE 8090
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=15s \
   CMD curl -f http://localhost:8090/health || exit 1
 
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8090", "--workers", "2"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8090", "--workers", "2"]

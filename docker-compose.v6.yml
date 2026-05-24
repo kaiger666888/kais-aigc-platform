@@ -104,8 +104,8 @@ services:
   # ---------------------------------------------------------------------------
   kais-gold-team:
     build:
-      context: ./docker/gold-team
-      dockerfile: Dockerfile
+      context: ../../kais-gold-team
+      dockerfile: /home/kai/.openclaw/workspace/kais-aigc-platform/docker/gold-team/Dockerfile
     container_name: kais-gold-team
     restart: unless-stopped
     ports:
@@ -191,8 +191,8 @@ services:
   # ---------------------------------------------------------------------------
   kais-review-platform:
     build:
-      context: ./docker/review-platform
-      dockerfile: Dockerfile
+      context: ../../kais-review-platform
+      dockerfile: /home/kai/.openclaw/workspace/kais-aigc-platform/docker/review-platform/Dockerfile
     container_name: kais-review-platform
     restart: unless-stopped
     ports:

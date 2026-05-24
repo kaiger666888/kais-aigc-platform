@@ -9,31 +9,32 @@ const router = express.Router();
 export default router.post(
   "/",
   validateFields({
-    projectId: z.number(),
-    nodeId: z.string(),
+    project_id: z.string(),
+    node_id: z.string().optional(),
     name: z.string(),
-    type: z.string(), // role | scene | tool
-    describe: z.string().optional(),
+    type: z.string().optional(), // role | scene | tool
+    description: z.string().optional(),
     prompt: z.string().optional(),
-    seedLock: z.string().optional(),
-    loraPath: z.string().optional(),
-    stylePrompt: z.string().optional(),
+    seed_lock: z.string().optional(),
+    lora_path: z.string().optional(),
+    style_prompt: z.string().optional(),
+    is_global: z.boolean().optional(),
   }),
   async (req, res) => {
-    const { projectId, nodeId, name, type, describe, prompt, seedLock, loraPath, stylePrompt } = req.body;
+    const { project_id, node_id, name, type, description, prompt, seed_lock, lora_path, style_prompt, is_global } = req.body;
 
     const id = Date.now();
     await u.db("kv_nodeAsset").insert({
       id,
-      projectId,
-      nodeId,
+      projectId: project_id,
+      nodeId: node_id || "",
       name,
-      type,
-      describe: describe || "",
+      type: type || "role",
+      describe: description || "",
       prompt: prompt || "",
-      seedLock: seedLock || "",
-      loraPath: loraPath || "",
-      stylePrompt: stylePrompt || "",
+      seedLock: seed_lock || "",
+      loraPath: lora_path || "",
+      stylePrompt: style_prompt || "",
       createTime: Date.now(),
     });
 

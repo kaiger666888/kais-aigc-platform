@@ -9,21 +9,22 @@ const router = express.Router();
 router.post(
   "/",
   validateFields({
-    projectId: z.number(),
+    project_id: z.string(),
     action: z.string(),
     result: z.string(),
+    phase: z.string().optional(),
     detail: z.string().optional(),
   }),
   async (req, res) => {
-    const { projectId, action, result, detail } = req.body;
+    const { project_id, action, result, phase, detail } = req.body;
     const id = Date.now();
 
     await u.db("kv_audit").insert({
       id,
-      projectId,
+      projectId: project_id,
       action,
       result,
-      detail: detail || "",
+      detail: detail || phase ? `${phase ? `[${phase}] ` : ""}${detail || ""}` : "",
       createTime: Date.now(),
     });
 

@@ -9,19 +9,20 @@ const router = express.Router();
 export default router.post(
   "/",
   validateFields({
-    projectId: z.number(),
-    graphData: z.any(), // 事件图谱 JSON
+    project_id: z.string(),
+    event_graph: z.any(), // 事件图谱 JSON
+    character_assets: z.array(z.any()).optional(),
   }),
   async (req, res) => {
-    const { projectId, graphData } = req.body;
+    const { project_id, event_graph, character_assets } = req.body;
 
     const batchId = Date.now();
-    const graphJson = typeof graphData === "string" ? graphData : JSON.stringify(graphData);
+    const graphJson = typeof event_graph === "string" ? event_graph : JSON.stringify(event_graph);
 
     // 存储 graphData 以便后续处理
     await u.db("kv_shotGraph").insert({
       id: batchId,
-      projectId,
+      projectId: project_id,
       graphData: graphJson,
       state: "pending",
       createTime: Date.now(),

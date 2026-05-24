@@ -9,25 +9,26 @@ const router = express.Router();
 export default router.post(
   "/",
   validateFields({
-    projectId: z.number(),
+    project_id: z.string(),
+    client_seq: z.number().optional(),
     events: z.array(
       z.object({
         type: z.string(),
-        nodeId: z.string().optional(),
+        node_id: z.string().optional(),
         payload: z.any().optional(),
         timestamp: z.number(),
       }),
     ),
   }),
   async (req, res) => {
-    const { projectId, events } = req.body;
+    const { project_id, events } = req.body;
 
     const syncId = Date.now();
     const rows = events.map((ev: any, i: number) => ({
       id: syncId + i,
-      projectId,
+      projectId: project_id,
       type: ev.type,
-      nodeId: ev.nodeId || null,
+      nodeId: ev.node_id || null,
       payload: typeof ev.payload === "string" ? ev.payload : JSON.stringify(ev.payload || {}),
       timestamp: ev.timestamp,
       createTime: Date.now(),
