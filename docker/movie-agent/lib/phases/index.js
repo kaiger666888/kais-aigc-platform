@@ -16,6 +16,7 @@ import { AssetBus } from '../asset-bus.js';
 import { PromptInjector } from '../prompt-injector.js';
 import { parseShotToGpuParams, deduplicateSceneNeeds } from '../shot-list-parser.js';
 import { AIScorer } from '../ai-scorer.js';
+import { callLLMJson } from '../llm.js';
 
 /**
  * 各阶段的 before/after 钩子
@@ -67,6 +68,12 @@ export const phaseHandlers = {
 
   'art-direction': {
     after: async (pipeline, phase, phaseConfig) => {
+      // 如果没有提供 data，通过 LLM 生成美术方向
+      if (!phaseConfig.data) {
+        console.log('[art-direction] 未提供 phaseConfig.data，尝试 LLM 生成...');
+        phaseConfig.data = await _generateArtDirection(pipeline);
+      }
+
       const data = phaseConfig.data;
       if (!data) return;
 
@@ -140,8 +147,16 @@ export const phaseHandlers = {
 
   character: {
     after: async (pipeline, phase, phaseConfig) => {
-      const characters = phaseConfig.data?.characters;
-      if (!characters?.length) throw new Error('[pipeline] Phase 3 未产出角色数据');
+      let characters = phaseConfig.data?.characters;
+
+      // 如果没有提供角色数据，尝试 LLM 生成
+      if (!characters?.length) {
+        console.log('[character] phaseConfig.data.characters 为空，尝试 LLM 生成...');
+        characters = await _generateCharacters(pipeline);
+        if (!characters?.length) {
+          throw new Error('[pipeline] Phase 3 未产出角色数据');
+        }
+      }
       await registerCharacterDNA(pipeline, characters);
 
       // V2: 写入 character-assets.json 资产
@@ -684,18 +699,6 @@ export const phaseHandlers = {
     },
   },
 
-  'post-production': {
-    after: async (pipeline, phase, phaseConfig) => {
-      console.log('[post-production] Phase completed (no-op for mock)');
-    },
-  },
-
-  'quality-gate': {
-    after: async (pipeline, phase, phaseConfig) => {
-      console.log('[quality-gate] Phase completed (no-op for mock)');
-    },
-  },
-
   delivery: {
     after: async (pipeline, phase, phaseConfig) => {
       console.log('[delivery] Phase completed (no-op for mock)');
@@ -705,6 +708,131 @@ export const phaseHandlers = {
 
 // Phase 8 hook 已在 pipeline.js 的 PHASES 定义中通过 outputFiles 管理
 // 后期合成的实际执行由 agent 调用外部工具（ffmpeg等），pipeline 只做检查点
+
+// ─── LLM-based Auto-Generation Helpers ─────────────────────
+
+/**
+ * Generate art direction data from requirement using LLM.
+ * Falls back to mock data if LLM is unavailable.
+ */
+async function _generateArtDirection(pipeline) {
+  const req = pipeline.config || {};
+  const title = req.title || '未命名项目';
+  const genre = req.genre || '短片';
+  const stylePref = req.style_preference || '';
+  const characters = (req.characters || []).map(c => c.name || '角色').join(', ');
+
+  const prompt = `你是一个动画美术总监。请根据以下项目需求，生成美术方向方案。
+
+项目: ${title}
+类型: ${genre}
+风格偏好: ${stylePref || '由你决定'}
+角色: ${characters || '待定'}
+
+请返回 JSON 格式:
+{
+  "style": "美术风格描述",
+  "style_anchor": "视觉锚点关键词",
+  "lighting": "光照风格",
+  "color_palette": ["#色值1", "#色值2", "#色值3", "#色值4"],
+  "composition": "构图原则",
+  "description": "整体美术方向描述"
+}`;
+
+  try {
+    const result = await callLLMJson(prompt, { temperature: 0.7 });
+    console.log('[art-direction] ✅ LLM 生成美术方向完成');
+    return result;
+  } catch (err) {
+    console.warn(`[art-direction] LLM 生成失败: ${err.message}，使用 mock 数据`);
+    return {
+      style: `${genre}动画风格`,
+      style_anchor: '2D animation, vibrant colors',
+      lighting: '柔和自然光，局部戏剧性光影',
+      color_palette: ['#2D5A8E', '#E8A838', '#4CAF50', '#D32F2F'],
+      composition: '三分法构图，角色居中',
+      description: `${title} 默认美术方向：${genre}风格，色彩鲜明`,
+    };
+  }
+}
+
+/**
+ * Generate character designs from requirement using LLM.
+ * Falls back to mock data if LLM is unavailable.
+ */
+async function _generateCharacters(pipeline) {
+  const req = pipeline.config || {};
+  const title = req.title || '未命名项目';
+  const genre = req.genre || '短片';
+  const inputCharacters = req.characters || [];
+
+  // 如果 requirement 里已经有角色定义（带 name），直接使用
+  if (inputCharacters.length > 0 && inputCharacters.some(c => c.description)) {
+    console.log(`[character] 使用 requirement 中的 ${inputCharacters.length} 个角色定义`);
+    return inputCharacters.map(c => ({
+      name: c.name,
+      description: c.description || '',
+      core_prompt: c.description || c.name,
+      refImages: [],
+      seed: null,
+    }));
+  }
+
+  const charNames = inputCharacters.map(c => c.name).filter(Boolean).join(', ') || '主角, 配角';
+
+  const prompt = `你是一个角色设计师。请根据以下项目需求，设计角色。
+
+项目: ${title}
+类型: ${genre}
+角色名: ${charNames}
+
+请返回 JSON 数组格式:
+[
+  {
+    "name": "角色名",
+    "description": "详细外观描述（发型、服装、体型、特征）",
+    "personality": "性格特征",
+    "color_scheme": ["主色调", "辅助色"],
+    "key_features": ["特征1", "特征2"]
+  }
+]`;
+
+  try {
+    const result = await callLLMJson(prompt, { temperature: 0.7 });
+    const characters = Array.isArray(result) ? result : [result];
+    console.log(`[character] ✅ LLM 生成了 ${characters.length} 个角色`);
+    return characters.map(c => ({
+      name: c.name || '未命名',
+      description: c.description || '',
+      core_prompt: c.description || c.name,
+      personality: c.personality || '',
+      color_scheme: c.color_scheme || [],
+      key_features: c.key_features || [],
+      refImages: [],
+      seed: null,
+    }));
+  } catch (err) {
+    console.warn(`[character] LLM 生成失败: ${err.message}，使用 mock 数据`);
+    // 从 requirement 中提取角色名
+    const mockChars = inputCharacters.length > 0
+      ? inputCharacters.map(c => ({
+          name: c.name || '未命名',
+          description: `${c.name || '角色'}默认外观`,
+          core_prompt: `${c.name || '角色'}动画角色`,
+          refImages: [],
+          seed: null,
+        }))
+      : [{
+          name: '主角',
+          description: '默认主角外观，简洁动画风格',
+          core_prompt: '动画主角角色设计',
+          refImages: [],
+          seed: null,
+        }];
+    console.log(`[character] 使用 ${mockChars.length} 个 mock 角色`);
+    return mockChars;
+  }
+}
 
 // ─── Phase 4A: Gold-Team V4.1 Engine Integrations ──────────────
 
