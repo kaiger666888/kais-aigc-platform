@@ -104,7 +104,7 @@ services:
   # ---------------------------------------------------------------------------
   kais-gold-team:
     build:
-      context: ../../kais-gold-team
+      context: ../kais-gold-team
       dockerfile: /home/kai/.openclaw/workspace/kais-aigc-platform/docker/gold-team/Dockerfile
     container_name: kais-gold-team
     restart: unless-stopped
@@ -191,7 +191,7 @@ services:
   # ---------------------------------------------------------------------------
   kais-review-platform:
     build:
-      context: ../../kais-review-platform
+      context: ../kais-review-platform
       dockerfile: /home/kai/.openclaw/workspace/kais-aigc-platform/docker/review-platform/Dockerfile
     container_name: kais-review-platform
     restart: unless-stopped
@@ -200,7 +200,10 @@ services:
     env_file: .env
     environment:
       PORT: 8090
-      DATABASE_URL: postgresql://${POSTGRES_USER:-kais}:${POSTGRES_PASSWORD:-kais}@audit-db:5432/${POSTGRES_DB:-kais_audit}
+      POSTGRES_URL: postgresql+asyncpg://${POSTGRES_USER:-kais}:${POSTGRES_PASSWORD:-kais}@audit-db:5432/${POSTGRES_DB:-kais_audit}
+      API_KEY: ${REVIEW_API_KEY:-kais-review-dev-key}
+      JWT_SECRET: ${REVIEW_JWT_SECRET:-kais-review-jwt-dev-2026}
+      REDIS_URL: redis://redis:6379/0
       OUTPUT_DIR: /mnt/agents/output
     volumes:
       - ${OUTPUT_DIR:-/mnt/agents/output}:/mnt/agents/output:ro  # 只读！

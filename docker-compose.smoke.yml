@@ -1,9 +1,12 @@
-# Smoke test — minimal services, no GPU, no external deps
+# =============================================================================
+# KAIS AIGC Platform V6.0 — Smoke Test Compose
+# 4 服务 + PG + Redis，无 GPU，一键验证全栈集成
+# =============================================================================
 services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "6390:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -11,18 +14,31 @@ services:
       retries: 5
 
   postgres:
-    image: postgres:16-alpine
+    image: postgres:latest
     environment:
       POSTGRES_USER: review
       POSTGRES_PASSWORD: review
       POSTGRES_DB: reviewdb
     ports:
-      - "5432:5432"
+      - "5490:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U review"]
       interval: 5s
       timeout: 3s
       retries: 5
+
+  core-backend:
+    image: kais-core-backend:latest
+    ports:
+      - "8000:8000"
+    environment:
+      NODE_ENV: production
+      PORT: 8000
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   movie-agent:
     image: kais-movie-agent:latest
@@ -68,7 +84,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8090/health"]
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/health')"]
       interval: 10s
       timeout: 5s
       retries: 5
