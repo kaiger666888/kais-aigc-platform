@@ -190,7 +190,7 @@ export class Pipeline {
   async _runRemoteReview(phase, phaseConfig = {}) {
     const config = this.config.reviewPlatform || {};
     const client = new ReviewPlatformClient({
-      baseUrl: config.baseUrl || 'http://127.0.0.1:8090',
+      baseUrl: config.baseUrl || process.env.REVIEW_PLATFORM_URL || 'http://review-platform:8090',
       timeout: config.timeout || 10000,
       traceId: this.traceId,
     });

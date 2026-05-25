@@ -31,8 +31,8 @@ export class ReviewPlatformClient {
    * @param {string} [options.baseUrl='http://127.0.0.1:8090'] - Review platform base URL
    * @param {number} [options.timeout=10000] - Request timeout in ms
    */
-  constructor({ baseUrl = 'http://127.0.0.1:8090', timeout = 10000, traceId = '' } = {}) {
-    this._baseUrl = baseUrl.replace(/\/$/, '');
+  constructor({ baseUrl, timeout = 10000, traceId = '' } = {}) {
+    this._baseUrl = (baseUrl || process.env.REVIEW_PLATFORM_URL || 'http://review-platform:8090').replace(/\/$/, '');
     this._timeout = timeout;
     this._traceId = traceId;
   }

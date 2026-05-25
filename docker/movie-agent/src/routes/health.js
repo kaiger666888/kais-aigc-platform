@@ -55,7 +55,8 @@ export async function healthRouter(req, res) {
     }
 
     const allOk = Object.values(checks).every(c => c.status === 'ok' || c.status === 'degraded');
-    return res._json({ status: allOk ? 'ok' : 'degraded', checks }, allOk ? 200 : 207);
+    res._json({ status: allOk ? 'ok' : 'degraded', checks }, allOk ? 200 : 207);
+    return true;
   }
 
   // GET /health
@@ -72,10 +73,11 @@ export async function healthRouter(req, res) {
     downstream = {};
   }
 
-  return res._json({
+  res._json({
     status: 'ok',
     version: '6.0.0',
     uptime_sec: Math.round(process.uptime()),
     downstream,
   });
+  return true;
 }

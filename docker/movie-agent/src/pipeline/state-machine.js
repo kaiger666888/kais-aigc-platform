@@ -27,7 +27,7 @@ export class PipelineManager {
     const pipeline = new Pipeline({
       workdir,
       episode: metadata.episode || projectId,
-      config: config.config || {},
+      config: config.config || config.projectConfig || {},
       traceId: pipelineId,
     });
 
@@ -129,11 +129,16 @@ export class PipelineManager {
 
   /**
    * Build phaseConfig for a legacy stage.
-   * Passes through any stage-specific data from v6Config.
+   * Passes project config + stage-specific overrides so phases have data to work with.
    */
   _buildPhaseConfig(entry, stageId) {
     const config = {};
     const v6Config = entry.v6Config || {};
+
+    // Pass project config from the create request (title, genre, characters, etc.)
+    if (v6Config.config) {
+      config.projectConfig = v6Config.config;
+    }
 
     // If v6Config has phase-specific config, pass it through
     const phaseConfig = v6Config.phasesConfig?.[stageId];

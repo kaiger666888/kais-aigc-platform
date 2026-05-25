@@ -42,10 +42,11 @@ function jsonResponse(res, data, status = 200) {
     'Access-Control-Allow-Origin': '*',
   });
   res.end(JSON.stringify(data));
+  return true;
 }
 
 function errorResponse(res, message, status = 400) {
-  jsonResponse(res, { error: message }, status);
+  return jsonResponse(res, { error: message }, status);
 }
 
 // ─── 路由分发 ─────────────────────────────────────────────
