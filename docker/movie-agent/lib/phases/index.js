@@ -3,7 +3,8 @@
  * pipeline 编排器通过 phaseHandlers[phaseId] 调用对应 handler
  */
 import { writeFile, readFile, mkdir } from 'node:fs/promises';
-import { join, basename } from 'node:path';
+import { join, basename, dirname } from 'node:path';
+import { existsSync } from 'node:fs/promises';
 import {
   generateTopics, audienceMatch, deepAudienceAnalysis,
   registerCharacterDNA, registerSceneDNA,
@@ -281,17 +282,20 @@ export const phaseHandlers = {
             timeoutMs: 300000,
           });
 
-          const artifacts = task.artifacts || [];
-          const audioFile = artifacts[0]?.path || `${result.taskId}.wav`;
           const fileName = `${line.id || result.taskId}.wav`;
           const outputPath = join(ttsDir, fileName);
 
-          // Copy artifact to assets/tts/ if it's not already there
-          if (artifacts[0]?.path && artifacts[0].path !== outputPath) {
+          // Extract audio URL from V6 outputs or V4 artifacts
+          const artifactInfo = _extractArtifactUrl(task, 'audio');
+
+          if (artifactInfo?.url) {
             try {
-              const { copyFile } = await import('node:fs/promises');
-              await copyFile(artifacts[0].path, outputPath).catch(() => {});
-            } catch {}
+              const gtBaseUrl = phaseConfig.goldTeam?.baseUrl || pipeline.config?.goldTeam?.baseUrl || 'http://gold-team:8002';
+              await _downloadArtifact(artifactInfo.url, outputPath, gtBaseUrl);
+              console.log(`[voice] ✅ Audio saved: ${fileName}`);
+            } catch (dlErr) {
+              console.warn(`[voice] Download failed: ${dlErr.message}`);
+            }
           }
 
           voiceAssignments.push({
@@ -301,7 +305,7 @@ export const phaseHandlers = {
             voiceId: line.voiceId || 'Vivian',
             taskId: result.taskId,
             audioFile: fileName,
-            artifactPath: audioFile,
+            artifactPath: artifactInfo?.url || '',
             source: 'gold-team',
           });
 
@@ -404,7 +408,7 @@ export const phaseHandlers = {
                 },
               },
             },
-            priority: 5,
+            priority: 'normal',
             description: `${pipeline.episode}:scene:${scene.id}`,
           });
 
@@ -414,22 +418,23 @@ export const phaseHandlers = {
             timeoutMs: 300000,
           });
 
-          const artifacts = task.artifacts || [];
-          if (artifacts.length) {
-            const srcPath = artifacts[0].path;
+          // Extract image URL from V6 outputs or V4 artifacts
+          const artifactInfo = _extractArtifactUrl(task, 'image');
+
+          if (artifactInfo?.url) {
             const fileName = `scene_${scene.id || scenes.indexOf(scene) + 1}.png`;
             const destPath = join(storyboardDir, fileName);
 
-            // Copy artifact to assets/storyboard/
+            // Download artifact (handles file:// and http:// URLs)
             try {
-              const { copyFile } = await import('node:fs/promises');
-              await copyFile(srcPath, destPath);
-            } catch {
-              // If copy fails, just record the source path
+              const gtBaseUrl = phaseConfig.goldTeam?.baseUrl || pipeline.config?.goldTeam?.baseUrl || 'http://gold-team:8002';
+              await _downloadArtifact(artifactInfo.url, destPath, gtBaseUrl);
+            } catch (dlErr) {
+              console.warn(`[scene] Download failed: ${dlErr.message}`);
             }
 
             scene.imagePath = destPath;
-            scene.imageUrl = srcPath;
+            scene.imageUrl = artifactInfo.url;
             scene.taskId = result.taskId;
 
             console.log(`[scene] ✅ Rendered: ${fileName}`);
@@ -447,7 +452,7 @@ export const phaseHandlers = {
                   phase: 'storyboard',
                   scene_id: scene.id,
                   prompt,
-                  image_url: srcPath,
+                  image_url: artifactInfo.url,
                   event: scene.event || '',
                   character: scene.character || '',
                 },
@@ -460,7 +465,7 @@ export const phaseHandlers = {
             shotCards.push({
               sceneId: scene.id,
               imagePath: destPath,
-              imageUrl: srcPath,
+              imageUrl: artifactInfo.url,
               taskId: result.taskId,
             });
           }
@@ -864,6 +869,96 @@ export const phaseHandlers = {
 
 // Phase 8 hook 已在 pipeline.js 的 PHASES 定义中通过 outputFiles 管理
 // 后期合成的实际执行由 agent 调用外部工具（ffmpeg等），pipeline 只做检查点
+
+// ─── Artifact Download Helper ────────────────────────────────
+
+/**
+ * Download an artifact from gold-team.
+ * Supports:
+ *  - file:///mnt/agents/output/<task_id>/<filename> → convert to gold-team HTTP file service URL
+ *  - http(s):// URLs → direct fetch
+ *
+ * Returns the local file path where the file was saved.
+ */
+async function _downloadArtifact(url, destPath, gtBaseUrl) {
+  if (!url) throw new Error('[downloadArtifact] empty URL');
+
+  let fetchUrl;
+
+  if (url.startsWith('file://')) {
+    // file:///mnt/agents/output/<task_id>/<filename>
+    // → http://gold-team:8002/api/v1/files/<task_id>/<filename>
+    const filePath = new URL(url).pathname; // e.g. /mnt/agents/output/test-xxx/voice.wav
+    const parts = filePath.split('/');
+    // Find task_id and filename: .../output/<task_id>/<filename>
+    const outputIdx = parts.lastIndexOf('output');
+    if (outputIdx >= 0 && parts.length > outputIdx + 2) {
+      const taskId = parts[outputIdx + 1];
+      const fileName = parts.slice(outputIdx + 2).join('/');
+      const base = gtBaseUrl || 'http://gold-team:8002';
+      fetchUrl = `${base}/api/v1/files/${taskId}/${fileName}`;
+    } else {
+      // Fallback: try to use the path as-is (local filesystem)
+      try {
+        const { copyFile } = await import('node:fs/promises');
+        await mkdir(dirname(destPath), { recursive: true });
+        await copyFile(filePath, destPath);
+        console.log(`[downloadArtifact] file:// → local copy: ${destPath}`);
+        return destPath;
+      } catch (copyErr) {
+        throw new Error(`[downloadArtifact] Cannot resolve file:// URL and local copy failed: ${copyErr.message}`);
+      }
+    }
+  } else if (url.startsWith('http://') || url.startsWith('https://')) {
+    fetchUrl = url;
+  } else {
+    // Assume it's a local path already
+    try {
+      const { copyFile } = await import('node:fs/promises');
+      await mkdir(dirname(destPath), { recursive: true });
+      await copyFile(url, destPath);
+      console.log(`[downloadArtifact] local path copy: ${destPath}`);
+      return destPath;
+    } catch (copyErr) {
+      throw new Error(`[downloadArtifact] Cannot handle URL format: ${url}`);
+    }
+  }
+
+  // Download via HTTP
+  await mkdir(dirname(destPath), { recursive: true });
+  console.log(`[downloadArtifact] Fetching: ${fetchUrl} → ${destPath}`);
+
+  const response = await fetch(fetchUrl, {
+    signal: AbortSignal.timeout(120000),
+  });
+
+  if (!response.ok) {
+    throw new Error(`[downloadArtifact] HTTP ${response.status} for ${fetchUrl}`);
+  }
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+  await writeFile(destPath, buffer);
+  console.log(`[downloadArtifact] ✅ Saved: ${destPath} (${buffer.length} bytes)`);
+  return destPath;
+}
+
+/**
+ * Extract artifact URL from gold-team task result.
+ * Checks task.artifacts[] (V4) and task.outputs.* (V6).
+ * Returns { url, source } or null.
+ */
+function _extractArtifactUrl(task, type) {
+  // V6 format: task.outputs.audio / task.outputs.image
+  if (task.outputs?.[type]) {
+    return { url: task.outputs[type], source: 'outputs' };
+  }
+  // V4 format: task.artifacts[].path
+  const artifacts = task.artifacts || [];
+  if (artifacts.length && artifacts[0]?.path) {
+    return { url: artifacts[0].path, source: 'artifacts' };
+  }
+  return null;
+}
 
 // ─── LLM-based Auto-Generation Helpers ─────────────────────
 
