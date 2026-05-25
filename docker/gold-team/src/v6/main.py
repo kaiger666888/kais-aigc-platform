@@ -52,9 +52,14 @@ async def lifespan(app: FastAPI):
 
     await executor.start()
 
-    # Also start legacy local_pool for backward compat
-    local_pool = get_local_pool()
-    await local_pool.start()
+    # Only start legacy local_pool if no real engines available
+    has_real_engine = any(e.engine_id != "mock" for e in executor.list_engines())
+    if not has_real_engine:
+        local_pool = get_local_pool()
+        await local_pool.start()
+        logger.info("Started local_pool (mock fallback — no real engines)")
+    else:
+        logger.info("Real engines available, skipping local_pool mock worker")
 
     logger.info("kais-gold-team V6.0 started (engines: %s)", [e.engine_id for e in executor.list_engines()])
     yield
