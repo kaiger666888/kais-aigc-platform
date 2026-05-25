@@ -23,6 +23,9 @@ COPY data/version.txt ./data/version.txt
 # Copy frontend static files
 COPY data/web/ ./data/web/
 
+# Copy vendor adapters (TTS, image, video providers)
+COPY data/vendor/ ./data/vendor/
+
 # Strip electron artifacts if any
 RUN rm -rf node_modules/electron node_modules/electron-builder 2>/dev/null; true
 
