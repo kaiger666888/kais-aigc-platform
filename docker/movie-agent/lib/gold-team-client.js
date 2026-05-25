@@ -58,21 +58,26 @@ export class GoldTeamClient {
       ? `${this._callbackBaseUrl}${callbackPath}`
       : `${this._callbackBaseUrl}/callback/gpu-task`;
 
+    const taskId = `ma-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const body = {
-      task_type: taskType,
+      task_id: taskId,
+      // task_type removed for V6
+      type: taskType, // gold-team v2 expects 'type'
       params,
       assets,
       priority,
       description,
       callback_url: callbackUrl,
       callback_secret: this._callbackSecret,
+      model_preference: 'local',
+      priority: priority === 5 ? 'normal' : (typeof priority === 'number' ? 'normal' : priority),
     };
 
-    const result = await this._request('POST', '/api/tasks', body);
+    const result = await this._request('POST', '/api/v1/tasks', body);
     return {
-      taskId: result.data.task_id,
-      state: result.data.state,
-      createdAt: result.data.created_at,
+      taskId: result.data?.task_id || result.task_id || taskId,
+      state: result.data?.status || result.status || 'submitted',
+      createdAt: result.data?.created_at || result.created_at || new Date().toISOString(),
     };
   }
 
@@ -82,8 +87,8 @@ export class GoldTeamClient {
    * @returns {Promise<object>} 任务详情
    */
   async getTask(taskId) {
-    const result = await this._request('GET', `/api/tasks/${taskId}`);
-    return result.data;
+    const result = await this._request('GET', `/api/v1/tasks/${taskId}`);
+    return result.data || result;
   }
 
   /**
@@ -97,9 +102,9 @@ export class GoldTeamClient {
   async listTasks({ state, taskType, limit = 20, offset = 0 } = {}) {
     const params = new URLSearchParams({ limit, offset });
     if (state) params.set('state', state);
-    if (taskType) params.set('task_type', taskType);
-    const result = await this._request('GET', `/api/tasks?${params}`);
-    return result.data;
+    // task_type param removed for V6
+    const result = await this._request('GET', `/api/v1/tasks?${params}`);
+    return result.data || result;
   }
 
   /**
@@ -114,8 +119,9 @@ export class GoldTeamClient {
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
       const task = await this.getTask(taskId);
-      if (task.state === 'done') return task;
-      if (task.state === 'failed') {
+      const status = task.status || task.state || '';
+      if (status === 'done' || status === 'completed') return task;
+      if (status === 'failed') {
         throw new GoldTeamError(`GPU 任务失败: ${task.error}`, { task });
       }
       await new Promise(r => setTimeout(r, pollIntervalMs));
@@ -133,7 +139,7 @@ export class GoldTeamClient {
    */
   async submitTTS(text, { voiceId = 'Vivian', language = 'zh', outputFormat = 'wav', ...rest } = {}) {
     return this.submitTask({
-      taskType: 'tts_generation',
+      taskType: 'tts',
       params: {
         text,
         output_format: outputFormat,
@@ -183,7 +189,7 @@ export class GoldTeamClient {
    */
   async submitTTSDegraded(text, options = {}) {
     return this.submitTaskDegraded({
-      taskType: 'tts_generation',
+      taskType: 'tts',
       params: {
         text,
         output_format: options.outputFormat || 'wav',

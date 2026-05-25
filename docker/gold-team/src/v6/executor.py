@@ -120,18 +120,29 @@ class TaskExecutor:
             # Build workflow from task params
             workflow = task.params.get("workflow")
             if not workflow or "__mock__" in workflow:
-                # Auto-build ComfyUI workflow from prompt params
-                from src.v6.engines.workflow_builder import build_txt2img_workflow
-                workflow = build_txt2img_workflow(
-                    prompt=task.params.get("prompt", ""),
-                    negative_prompt=task.params.get("negative_prompt", ""),
-                    width=task.params.get("width", 1024),
-                    height=task.params.get("height", 1024),
-                    steps=task.params.get("steps", 20),
-                    cfg_scale=task.params.get("cfg_scale", 7.5),
-                    seed=task.params.get("seed"),
-                )
-                logger.info("Auto-built ComfyUI workflow for task %s", task.task_id)
+                # Route to appropriate workflow builder based on task type
+                if task.type == TaskType.TTS:
+                    from src.v6.engines.workflow_builder import build_tts_workflow
+                    workflow = build_tts_workflow(
+                        text=task.params.get("text", ""),
+                        voice=task.params.get("voice", "default"),
+                        speed=task.params.get("speed", 1.0),
+                        backend=task.params.get("backend", "auto"),
+                        task_id=task.task_id,
+                    )
+                    logger.info("Auto-built TTS workflow for task %s", task.task_id)
+                else:
+                    from src.v6.engines.workflow_builder import build_txt2img_workflow
+                    workflow = build_txt2img_workflow(
+                        prompt=task.params.get("prompt", ""),
+                        negative_prompt=task.params.get("negative_prompt", ""),
+                        width=task.params.get("width", 1024),
+                        height=task.params.get("height", 1024),
+                        steps=task.params.get("steps", 20),
+                        cfg_scale=task.params.get("cfg_scale", 7.5),
+                        seed=task.params.get("seed"),
+                    )
+                    logger.info("Auto-built ComfyUI workflow for task %s", task.task_id)
             engine_params = {"task_id": task.task_id, "type": task.type.value}
 
             engine_job_id = await engine.submit(workflow, engine_params)
@@ -194,16 +205,31 @@ class TaskExecutor:
 
     def _resolve_engine(self, engine_id: str, task: GenerationTask) -> Optional[BaseEngine]:
         """Resolve engine by ID, preferring real engines over mock."""
+        # For TTS tasks, always prefer tts-local engine
+        if task.type == TaskType.TTS:
+            tts_engine = self._engines.get("tts-local")
+            if tts_engine:
+                return tts_engine
+            # Fall through to mock if TTS engine unavailable
+
         # Direct match
         if engine_id in self._engines:
             return self._engines[engine_id]
+
+        # Cloud engine IDs (cloud-jimeng, cloud-kling, cloud-seedance)
+        if engine_id and engine_id.startswith("cloud-"):
+            provider = engine_id.replace("cloud-", "")
+            for eid, engine in self._engines.items():
+                if eid == provider or eid == f"cloud-{provider}":
+                    if hasattr(engine, 'is_configured') and engine.is_configured:
+                        return engine
+            logger.warning("Cloud engine '%s' not configured, falling back to mock", engine_id)
 
         # For local/unset engine_id, prefer comfyui-local over mock
         if engine_id is None or engine_id in ("local", "local-comfyui", "local-comfyui-mock"):
             comfyui = self._engines.get("comfyui-local")
             if comfyui and comfyui.status().value == "online":
                 return comfyui
-            # Fallback to mock if comfyui unavailable
             return self._engines.get("mock")
 
         # Fallback to mock

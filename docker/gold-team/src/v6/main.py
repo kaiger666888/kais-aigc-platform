@@ -11,6 +11,7 @@ from fastapi import FastAPI
 from src.v6.engine.local_pool import get_local_pool
 from src.v6.executor import get_executor
 from src.v6.engines.mock import MockEngine
+from src.v6.engines.tts import TTSEngine
 from src.v6.routers import tasks, engines, events, health
 
 logging.basicConfig(
@@ -33,6 +34,15 @@ async def lifespan(app: FastAPI):
     # Always register mock engine for development
     executor.register_engine(MockEngine())
 
+    # Register TTS engine (CosyVoice / edge-tts)
+    try:
+        tts_engine = TTSEngine()
+        await tts_engine.start()
+        executor.register_engine(tts_engine)
+        logger.info("TTS engine registered")
+    except Exception as e:
+        logger.warning("TTS engine init failed: %s", e)
+
     # Register ComfyUI engine if available
     if COMFYUI_ENABLED:
         try:
@@ -50,8 +60,28 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning("ComfyUI engine init failed: %s", e)
 
+    # Register cloud engines (Jimeng/Kling/Seedance)
+    try:
+        from src.v6.engines.cloud_jimeng import JimengEngine
+        from src.v6.engines.cloud_kling import KlingEngine
+        from src.v6.engines.cloud_seedance import SeedanceEngine
+
+        for cloud_cls in [JimengEngine, KlingEngine, SeedanceEngine]:
+            try:
+                cloud_engine = cloud_cls()
+                await cloud_engine.start()
+                executor.register_engine(cloud_engine)
+                configured = "✓" if cloud_engine.is_configured else "✗"
+                logger.info("Cloud engine registered: %s [%s configured]",
+                            cloud_engine.engine_id, configured)
+            except Exception as e:
+                logger.warning("Cloud engine %s init failed: %s", cloud_cls.__name__, e)
+    except ImportError as e:
+        logger.warning("Cloud engines not available: %s", e)
+
     await executor.start()
 
+    local_pool = None
     # Only start legacy local_pool if no real engines available
     has_real_engine = any(e.engine_id != "mock" for e in executor.list_engines())
     if not has_real_engine:
@@ -65,7 +95,8 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown
     await executor.stop()
-    await local_pool.stop()
+    if local_pool:
+        await local_pool.stop()
     logger.info("kais-gold-team V6.0 stopped")
 
 

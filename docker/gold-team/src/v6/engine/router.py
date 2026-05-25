@@ -60,11 +60,11 @@ class EngineRouter:
         """
         # Explicit preference
         if task.model_preference == ModelPreference.CLOUD:
-            return EnginePool.CLOUD, "cloud-mock"
+            return EnginePool.CLOUD, self._pick_cloud_engine_id(task)
 
         if task.model_preference == ModelPreference.LOCAL:
             if self.local_available:
-                return EnginePool.LOCAL, "comfyui-local"
+                return EnginePool.LOCAL, self._pick_local_engine_id(task)
             return EnginePool.CLOUD, "cloud-mock"  # fallback even if forced local
 
         # AUTO: try local first
@@ -76,7 +76,7 @@ class EngineRouter:
         vram_available = self._vram_available()
 
         if vram_needed <= vram_available:
-            return EnginePool.LOCAL, "comfyui-local"
+            return EnginePool.LOCAL, self._pick_local_engine_id(task)
 
         # Local VRAM insufficient
         if task.type in CLOUD_CAPABLE:
@@ -86,7 +86,7 @@ class EngineRouter:
                 vram_available,
                 task.task_id,
             )
-            return EnginePool.CLOUD, "cloud-mock"
+            return EnginePool.CLOUD, self._pick_cloud_engine_id(task)
 
         # No cloud fallback
         logger.warning(
@@ -95,6 +95,22 @@ class EngineRouter:
             task.type.value,
         )
         return EnginePool.LOCAL, "local-comfyui-mock"  # will queue and wait
+
+    def _pick_local_engine_id(self, task: GenerationTask) -> str:
+        """Pick the best local engine ID for the task type."""
+        if task.type == TaskType.TTS:
+            return "tts-local"
+        return "comfyui-local"
+
+    def _pick_cloud_engine_id(self, task: GenerationTask) -> str:
+        """Pick the best cloud engine ID for the task type."""
+        task_type = task.type.value if hasattr(task.type, 'value') else str(task.type)
+        # Priority: jimeng > kling > seedance
+        if task_type in ("image_draw", "image_refine"):
+            return "cloud-jimeng"
+        if task_type in ("video_final", "video_preview"):
+            return "cloud-jimeng"  # jimeng supports video too
+        return "cloud-mock"
 
 
 # Singleton
