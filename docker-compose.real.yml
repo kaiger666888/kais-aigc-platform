@@ -84,8 +84,8 @@ services:
 
   gold-team:
     build:
-      context: ${GOLD_TEAM_PATH:-../kais-gold-team}
-      dockerfile: docker/gold-team/Dockerfile.real
+      context: docker/gold-team
+      dockerfile: Dockerfile.real
     image: kais-gold-team:real
     ports:
       - "8002:8002"

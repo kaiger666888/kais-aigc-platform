@@ -1,19 +1,19 @@
 # =============================================================================
 # kais-gold-team Real — Full V6 FastAPI with GPU support
-# Builds from actual kais-gold-team source code
+# Builds from docker/gold-team/ context (files copied by build.sh or manually)
 # =============================================================================
 FROM python:3.11-slim
 
 LABEL maintainer="KAIS AIGC Platform"
 LABEL version="6.0.0-real"
-LABEL description="kais-gold-team V6 with ComfyUI engine support"
+LABEL description="kais-gold-team V6 with GPU engine support"
 
 WORKDIR /app
 
 # System deps: curl for healthcheck, libgl for OpenCV (optional GPU tasks)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements-v6.txt .
 RUN pip install --no-cache-dir -r requirements-v6.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-# Application code
+# Application code (src/v6/ → /app/src/v6/)
 COPY src/ ./src/
 COPY config/ ./config/
 
