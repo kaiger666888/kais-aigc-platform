@@ -19,10 +19,10 @@ export async function pipelineRouter(req, res) {
   if (method === 'POST' && path === `${PIPELINE_PREFIX}/create`) {
     const body = await req._parseBody();
     if (!body.project_id) return res._error('project_id is required', 400);
-    if (!body.config?.phases?.length) return res._error('config.phases is required', 400);
 
     try {
-      const result = req._ctx.manager.create(body.project_id, body.config, body.metadata || {});
+      // config.phases is now optional — defaults to all V6 phases
+      const result = await req._ctx.manager.create(body.project_id, body.config || {}, body.metadata || {});
       return res._json(result, 201);
     } catch (err) {
       return res._error(err.message, 400);

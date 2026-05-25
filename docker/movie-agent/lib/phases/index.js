@@ -229,32 +229,45 @@ export const phaseHandlers = {
       const ttsDir = join(workdir, 'assets', 'tts');
       await mkdir(ttsDir, { recursive: true });
 
-      // Collect dialogue lines from phaseConfig.data or scenario.json
-      const dialogueLines = phaseConfig.data?.dialogueLines
-        || await _loadDialogueFromScenario(workdir);
-      if (!dialogueLines?.length) {
-        console.log('[pipeline] Phase 4.5 无对白数据，跳过 TTS');
+      // ── Generate narration from events ──
+      let dialogueLines = phaseConfig.dialogueLines || [];
+
+      if (!dialogueLines.length) {
+        const events = phaseConfig.events || [];
+        const novelContent = phaseConfig.novelContent || '';
+
+        if (events.length) {
+          // Use LLM to generate narration lines from events
+          console.log(`[voice] Generating narration from ${events.length} events...`);
+          dialogueLines = await _generateNarrationFromEvents(events, novelContent, pipeline.config);
+        } else {
+          // Fallback: load from scenario.json
+          dialogueLines = await _loadDialogueFromScenario(workdir) || [];
+        }
+      }
+
+      if (!dialogueLines.length) {
+        console.log('[voice] No dialogue/narration data, skipping TTS');
         return { summary: { linesProcessed: 0 }, metrics: {} };
       }
 
-      // Build voice assignments map
-      const voiceAssignments = [];
+      // Save narration script
+      await writeFile(join(workdir, 'narration-script.json'), JSON.stringify(dialogueLines, null, 2));
 
-      // Try gold-team TTS first, fallback to local ZHIPU GLM-TTS
+      // Build voice assignments
+      const voiceAssignments = [];
       let usedGoldTeam = false;
+
+      // Try gold-team TTS first
       try {
         const gtClient = new GoldTeamClient({
-          baseUrl: pipeline.config?.goldTeam?.baseUrl,
-          apiKey: pipeline.config?.goldTeam?.apiKey,
+          baseUrl: phaseConfig.goldTeam?.baseUrl || pipeline.config?.goldTeam?.baseUrl,
         });
 
-        // Health check before submitting batch
         const available = await gtClient.ping(5000);
-        if (!available) {
-          throw new GoldTeamError('gold-team health check failed');
-        }
+        if (!available) throw new GoldTeamError('gold-team health check failed');
 
-        console.log(`[voice] gold-team 可用，开始提交 ${dialogueLines.length} 条 TTS 任务`);
+        console.log(`[voice] gold-team available, submitting ${dialogueLines.length} TTS tasks`);
 
         for (const line of dialogueLines) {
           const result = await gtClient.submitTTS(line.text, {
@@ -263,150 +276,219 @@ export const phaseHandlers = {
             outputFormat: line.outputFormat || 'wav',
           });
 
-          // Poll until done (5min timeout per line)
           const task = await gtClient.waitForTask(result.taskId, {
             pollIntervalMs: 3000,
             timeoutMs: 300000,
           });
 
-          // Collect artifact info
           const artifacts = task.artifacts || [];
           const audioFile = artifacts[0]?.path || `${result.taskId}.wav`;
-          const outputPath = join(ttsDir, `${line.id || line.lineId || result.taskId}.wav`);
+          const fileName = `${line.id || result.taskId}.wav`;
+          const outputPath = join(ttsDir, fileName);
+
+          // Copy artifact to assets/tts/ if it's not already there
+          if (artifacts[0]?.path && artifacts[0].path !== outputPath) {
+            try {
+              const { copyFile } = await import('node:fs/promises');
+              await copyFile(artifacts[0].path, outputPath).catch(() => {});
+            } catch {}
+          }
 
           voiceAssignments.push({
-            lineId: line.id || line.lineId || result.taskId,
-            character: line.character || line.speaker || '',
+            lineId: line.id || result.taskId,
+            character: line.character || '',
             text: line.text,
-            voiceId: line.voiceId || line.voice_id || 'Vivian',
+            voiceId: line.voiceId || 'Vivian',
             taskId: result.taskId,
-            audioFile: basename(outputPath),
+            audioFile: fileName,
             artifactPath: audioFile,
             source: 'gold-team',
           });
 
-          console.log(`[voice] TTS 完成: "${line.text.substring(0, 30)}..." → ${basename(outputPath)}`);
+          console.log(`[voice] TTS done: "${line.text.substring(0, 40)}..." → ${fileName}`);
         }
 
         usedGoldTeam = true;
-        console.log(`[voice] gold-team TTS 全部完成: ${voiceAssignments.length} 条`);
+        console.log(`[voice] All gold-team TTS done: ${voiceAssignments.length} lines`);
       } catch (err) {
         if (err instanceof GoldTeamError) {
-          console.warn(`[voice] gold-team 不可用: ${err.message}，使用本地回退`);
-          voiceAssignments.length = 0; // Clear partial results
+          console.warn(`[voice] gold-team unavailable: ${err.message}, falling back`);
+          voiceAssignments.length = 0;
         } else {
           throw err;
         }
       }
 
-      // Fallback: local TTS via ZHIPU GLM-TTS
+      // Fallback: local TTS
       if (!usedGoldTeam) {
-        console.log(`[voice] 本地 TTS 回退: ${dialogueLines.length} 条`);
+        console.log(`[voice] Local TTS fallback: ${dialogueLines.length} lines`);
         const localResults = await _localTTSFallback(dialogueLines, ttsDir, pipeline.config);
         voiceAssignments.push(...localResults);
       }
 
-      // 声音克隆 / 变声（可选，通过 config.goldTeam 启用）
-      if (pipeline.config.goldTeam?.enableVoiceClone && pipeline._gpuVoiceAvailable !== false) {
-        const cloneTasks = phaseConfig.data?.cloneTasks || [];
-        for (const ct of cloneTasks) {
-          try {
-            const result = await cloneVoice(pipeline, ct.referenceAudio, ct.text, ct.language || 'zh');
-            const gtClient2 = new GoldTeamClient({
-              baseUrl: pipeline.config?.goldTeam?.baseUrl,
-              apiKey: pipeline.config?.goldTeam?.apiKey,
-            });
-            const task = await gtClient2.waitForTask(result.taskId, {
-              pollIntervalMs: 3000,
-              timeoutMs: 300000,
-            });
-            const artifacts = task.artifacts || [];
-            if (artifacts.length) {
-              voiceAssignments.push({
-                lineId: ct.id || `clone-${voiceAssignments.length + 1}`,
-                character: ct.character || '',
-                text: ct.text,
-                taskId: result.taskId,
-                audioFile: `${ct.id || `clone-${voiceAssignments.length + 1}`}.wav`,
-                artifactPath: artifacts[0].path,
-                source: 'gold-team-clone',
-              });
-              console.log(`[voice] ✅ 声音克隆完成: "${ct.text.substring(0, 30)}..."`);
-            }
-          } catch (err) {
-            console.warn(`[voice] 声音克隆降级: ${err.message}`);
-          }
-        }
-
-        const convertTasks = phaseConfig.data?.convertTasks || [];
-        for (const cvt of convertTasks) {
-          try {
-            const result = await convertVoice(pipeline, cvt.sourceAudio, cvt.targetVoice);
-            const gtClient3 = new GoldTeamClient({
-              baseUrl: pipeline.config?.goldTeam?.baseUrl,
-              apiKey: pipeline.config?.goldTeam?.apiKey,
-            });
-            const task = await gtClient3.waitForTask(result.taskId, {
-              pollIntervalMs: 3000,
-              timeoutMs: 300000,
-            });
-            const artifacts = task.artifacts || [];
-            if (artifacts.length) {
-              voiceAssignments.push({
-                lineId: cvt.id || `convert-${voiceAssignments.length + 1}`,
-                character: cvt.character || '',
-                text: '[voice-convert]',
-                taskId: result.taskId,
-                audioFile: `${cvt.id || `convert-${voiceAssignments.length + 1}`}.wav`,
-                artifactPath: artifacts[0].path,
-                source: 'gold-team-convert',
-              });
-              console.log(`[voice] ✅ 变声完成: ${cvt.sourceAudio} → ${cvt.targetVoice}`);
-            }
-          } catch (err) {
-            console.warn(`[voice] 变声降级: ${err.message}`);
-          }
-        }
-      }
-
       // Save voice_assignments.json
-      await writeFile(
-        join(workdir, 'voice_assignments.json'),
-        JSON.stringify(voiceAssignments, null, 2),
-      );
+      await writeFile(join(workdir, 'voice_assignments.json'), JSON.stringify(voiceAssignments, null, 2));
 
       return {
-        summary: {
-          linesProcessed: voiceAssignments.length,
-          source: usedGoldTeam ? 'gold-team' : 'local-fallback',
-        },
-        metrics: {
-          ttsLines: voiceAssignments.length,
-          usedGoldTeam,
-        },
+        summary: { linesProcessed: voiceAssignments.length, source: usedGoldTeam ? 'gold-team' : 'local-fallback' },
+        metrics: { ttsLines: voiceAssignments.length, usedGoldTeam },
       };
     },
   },
 
   scene: {
     after: async (pipeline, phase, phaseConfig) => {
-      const scenes = phaseConfig.data?.scenes;
-      if (!scenes?.length) {
-        console.log('[pipeline] Phase 5 无场景数据，跳过场景DNA');
+      const workdir = pipeline.workdir;
+      const scenesDir = join(workdir, 'assets', 'scenes');
+      const storyboardDir = join(workdir, 'assets', 'storyboard');
+      await mkdir(scenesDir, { recursive: true });
+      await mkdir(storyboardDir, { recursive: true });
+
+      // Get events from config
+      const events = phaseConfig.events || [];
+      const artDirection = await _loadArtDirection(workdir);
+      const stylePrompt = artDirection?.style || phaseConfig.style_preference || phaseConfig.artStyle || '';
+      const novelContent = phaseConfig.novelContent || '';
+
+      // Generate scene descriptions from events using LLM
+      let scenes = phaseConfig.scenes || [];
+
+      if (!scenes.length && events.length) {
+        console.log(`[scene] Generating scene prompts from ${events.length} events...`);
+        scenes = await _generateScenePrompts(events, stylePrompt, novelContent, pipeline.config);
+      }
+
+      if (!scenes.length) {
+        console.log('[scene] No scene data, skipping scene generation');
         return;
       }
+
+      // Register scene DNA
       try {
         await registerSceneDNA(pipeline, scenes);
       } catch (e) {
-        console.warn(`[pipeline] 场景DNA跳过: ${e.message}`);
+        console.warn(`[scene] Scene DNA skip: ${e.message}`);
       }
 
-      // 构建审核候选：从 phaseConfig.data 或磁盘收集场景图候选
-      if (phase.review && !phaseConfig.reviewCandidates?.length) {
-        phaseConfig.reviewCandidates = _buildSceneReviewCandidates(pipeline.workdir, scenes);
-        if (phaseConfig.reviewCandidates.length) {
-          console.log(`[pipeline] 场景图审核: ${phaseConfig.reviewCandidates.length} 个候选`);
+      // Generate images via gold-team
+      const gtClient = new GoldTeamClient({
+        baseUrl: phaseConfig.goldTeam?.baseUrl || pipeline.config?.goldTeam?.baseUrl,
+      });
+      const resolution = phaseConfig.resolution || { width: 1344, height: 768 };
+      const shotCards = [];
+
+      try {
+        const available = await gtClient.ping(5000);
+        if (!available) throw new GoldTeamError('gold-team not available');
+
+        console.log(`[scene] gold-team available, rendering ${scenes.length} scene images...`);
+
+        for (const scene of scenes) {
+          const prompt = scene.prompt || scene.description || '';
+          if (!prompt) continue;
+
+          console.log(`[scene] Rendering: "${prompt.substring(0, 60)}..."`);
+
+          const result = await gtClient.submitTask({
+            taskType: 'image_draw',
+            params: {
+              prompt,
+              negative_prompt: 'low quality, blurry, watermark, text, distorted',
+              width: resolution.width,
+              height: resolution.height,
+              output_format: 'png',
+              extra: {
+                flux: {
+                  guidance_scale: 3.5,
+                  num_inference_steps: 20,
+                },
+              },
+            },
+            priority: 5,
+            description: `${pipeline.episode}:scene:${scene.id}`,
+          });
+
+          // Wait for render to complete
+          const task = await gtClient.waitForTask(result.taskId, {
+            pollIntervalMs: 5000,
+            timeoutMs: 300000,
+          });
+
+          const artifacts = task.artifacts || [];
+          if (artifacts.length) {
+            const srcPath = artifacts[0].path;
+            const fileName = `scene_${scene.id || scenes.indexOf(scene) + 1}.png`;
+            const destPath = join(storyboardDir, fileName);
+
+            // Copy artifact to assets/storyboard/
+            try {
+              const { copyFile } = await import('node:fs/promises');
+              await copyFile(srcPath, destPath);
+            } catch {
+              // If copy fails, just record the source path
+            }
+
+            scene.imagePath = destPath;
+            scene.imageUrl = srcPath;
+            scene.taskId = result.taskId;
+
+            console.log(`[scene] ✅ Rendered: ${fileName}`);
+
+            // Create shot card on review-platform
+            try {
+              const rpClient = new ReviewPlatformClient({
+                baseUrl: phaseConfig.reviewPlatform?.baseUrl || pipeline.config?.reviewPlatform?.baseUrl,
+              });
+              await rpClient.submitReview({
+                type: 'shot_card',
+                contentRef: `${pipeline.episode}:scene:${scene.id}`,
+                metadata: {
+                  project_id: phaseConfig.projectId || pipeline.episode,
+                  phase: 'storyboard',
+                  scene_id: scene.id,
+                  prompt,
+                  image_url: srcPath,
+                  event: scene.event || '',
+                  character: scene.character || '',
+                },
+                riskScore: 0.3,
+              });
+            } catch (rpErr) {
+              console.warn(`[scene] Shot card creation skipped: ${rpErr.message}`);
+            }
+
+            shotCards.push({
+              sceneId: scene.id,
+              imagePath: destPath,
+              imageUrl: srcPath,
+              taskId: result.taskId,
+            });
+          }
         }
+
+        console.log(`[scene] ✅ All scenes rendered: ${shotCards.length}/${scenes.length}`);
+      } catch (err) {
+        if (err instanceof GoldTeamError) {
+          console.warn(`[scene] gold-team unavailable: ${err.message}, skipping rendering`);
+        } else {
+          throw err;
+        }
+      }
+
+      // Save scene data
+      await writeFile(join(workdir, 'scene_design.json'), JSON.stringify({ scenes, shotCards }, null, 2));
+
+      // Build review candidates
+      if (phase.review && !phaseConfig.reviewCandidates?.length) {
+        phaseConfig.reviewCandidates = scenes
+          .filter(s => s.imagePath || s.imageUrl)
+          .map((s, i) => ({
+            id: s.id || `scene-${i + 1}`,
+            label: s.label || s.description?.substring(0, 40) || `Scene ${i + 1}`,
+            description: s.description || '',
+            imagePath: s.imagePath,
+            imageUrl: s.imageUrl,
+          }));
       }
     },
   },
@@ -426,11 +508,42 @@ export const phaseHandlers = {
       }
     },
     after: async (pipeline, phase, phaseConfig) => {
+      const workdir = pipeline.workdir;
+
+      // If we have events but no storyboard data, generate shot list from events
+      const events = phaseConfig.events || [];
+      let shots = [];
+
+      if (events.length) {
+        console.log(`[storyboard] Building shot list from ${events.length} events...`);
+        const artDirection = await _loadArtDirection(workdir);
+        const style = artDirection?.style || phaseConfig.artStyle || '';
+
+        shots = events.map((evt, i) => ({
+          id: `shot-${i + 1}`,
+          description: `${style} ${evt.description}`.trim(),
+          character: evt.character,
+          chapter: evt.chapter,
+          dialogue: evt.description,
+        }));
+
+        // Save storyboard
+        await writeFile(join(workdir, 'storyboard.json'), JSON.stringify({ shots }, null, 2));
+        console.log(`[storyboard] Generated ${shots.length} shots from events`);
+      } else {
+        // Try loading existing storyboard
+        try {
+          const raw = await readFile(join(workdir, 'storyboard.json'), 'utf-8');
+          const data = JSON.parse(raw);
+          shots = data.shots || [];
+        } catch {}
+      }
+
       // 构建审核候选：从磁盘收集分镜板产出
       if (phase.review && !phaseConfig.reviewCandidates?.length) {
-        phaseConfig.reviewCandidates = await _buildStoryboardReviewCandidates(pipeline.workdir, phaseConfig);
+        phaseConfig.reviewCandidates = await _buildStoryboardReviewCandidates(workdir, { data: { shots } });
         if (phaseConfig.reviewCandidates.length) {
-          console.log(`[pipeline] 分镜板审核: ${phaseConfig.reviewCandidates.length} 个候选`);
+          console.log(`[storyboard] Review candidates: ${phaseConfig.reviewCandidates.length}`);
         }
       }
     },
@@ -696,7 +809,55 @@ export const phaseHandlers = {
 
   delivery: {
     after: async (pipeline, phase, phaseConfig) => {
-      console.log('[delivery] Phase completed (no-op for mock)');
+      const workdir = pipeline.workdir;
+
+      // Generate manifest.json with all produced assets
+      const manifest = {
+        pipeline_id: pipeline.traceId,
+        episode: pipeline.episode,
+        created_at: new Date().toISOString(),
+        assets: {
+          storyboards: [],
+          scenes: [],
+          tts: [],
+          videos: [],
+        },
+      };
+
+      // Collect scene/storyboard images
+      try {
+        const sceneData = JSON.parse(await readFile(join(workdir, 'scene_design.json'), 'utf-8'));
+        manifest.assets.scenes = (sceneData.shotCards || []).map(sc => ({
+          sceneId: sc.sceneId,
+          imagePath: sc.imagePath,
+          imageUrl: sc.imageUrl,
+        }));
+      } catch {}
+
+      // Collect TTS audio
+      try {
+        const voiceData = JSON.parse(await readFile(join(workdir, 'voice_assignments.json'), 'utf-8'));
+        manifest.assets.tts = voiceData.map(v => ({
+          lineId: v.lineId,
+          character: v.character,
+          text: v.text,
+          audioFile: v.audioFile,
+          source: v.source,
+        }));
+      } catch {}
+
+      // Collect storyboard
+      try {
+        const sbData = JSON.parse(await readFile(join(workdir, 'storyboard.json'), 'utf-8'));
+        manifest.assets.storyboards = (sbData.shots || []).map(s => ({
+          id: s.id,
+          description: s.description?.substring(0, 100),
+          character: s.character,
+        }));
+      } catch {}
+
+      await writeFile(join(workdir, 'manifest.json'), JSON.stringify(manifest, null, 2));
+      console.log(`[delivery] ✅ Manifest generated: ${manifest.assets.scenes.length} scenes, ${manifest.assets.tts.length} TTS, ${manifest.assets.storyboards.length} shots`);
     },
   },
 };
@@ -705,6 +866,123 @@ export const phaseHandlers = {
 // 后期合成的实际执行由 agent 调用外部工具（ffmpeg等），pipeline 只做检查点
 
 // ─── LLM-based Auto-Generation Helpers ─────────────────────
+
+/**
+ * Generate narration lines from event data using LLM.
+ * Each event becomes a narration line with voice assignment.
+ */
+async function _generateNarrationFromEvents(events, novelContent, config) {
+  const lines = [];
+
+  // Try LLM-based generation
+  try {
+    const eventsSummary = events.map((e, i) => `[${i + 1}] ${e.chapter} | ${e.character}: ${e.description}`).join('\n');
+    const prompt = `你是一个影视旁白编剧。根据以下事件列表，为每个事件生成一段旁白文本。
+要求：简洁、有画面感、适合语音朗读，每段不超过50字。
+
+事件列表:
+${eventsSummary}
+
+请返回 JSON 数组格式:
+[{"id": "line-1", "text": "旁白文本", "character": "角色名", "emotion": "情绪"}]`;
+
+    const result = await callLLMJson(prompt, { temperature: 0.7 });
+    const arr = Array.isArray(result) ? result : [result];
+    for (let i = 0; i < arr.length; i++) {
+      lines.push({
+        id: arr[i].id || `line-${i + 1}`,
+        text: arr[i].text || events[i]?.description || '',
+        character: arr[i].character || events[i]?.character || '',
+        voiceId: 'Vivian',
+        language: 'zh',
+        emotion: arr[i].emotion || 'neutral',
+      });
+    }
+    console.log(`[voice] LLM generated ${lines.length} narration lines`);
+    return lines;
+  } catch (err) {
+    console.warn(`[voice] LLM narration generation failed: ${err.message}, using event descriptions`);
+  }
+
+  // Fallback: use event descriptions directly as narration
+  for (let i = 0; i < events.length; i++) {
+    const evt = events[i];
+    lines.push({
+      id: `line-${i + 1}`,
+      text: evt.description || '',
+      character: evt.character || '',
+      voiceId: 'Vivian',
+      language: 'zh',
+    });
+  }
+  return lines;
+}
+
+/**
+ * Generate image prompts for each scene/event using LLM.
+ * Combines art direction style with event descriptions.
+ */
+async function _generateScenePrompts(events, stylePrompt, novelContent, config) {
+  const scenes = [];
+
+  try {
+    const eventsSummary = events.map((e, i) => `[${i + 1}] ${e.character}: ${e.description}`).join('\n');
+    const prompt = `你是一个 AI 绘画提示词专家。根据以下事件列表和美术风格，为每个事件生成一个高质量的图片生成提示词。
+美术风格: ${stylePrompt || 'cinematic, high quality'}
+
+事件:
+${eventsSummary}
+
+要求：
+- 英文提示词，Stable Diffusion / FLUX 风格
+- 包含场景描述、光照、构图、氛围
+- 每个提示词 50-100 个英文单词
+
+请返回 JSON 数组:
+[{"id": "scene-1", "prompt": "...", "character": "角色名", "description": "中文场景描述"}]`;
+
+    const result = await callLLMJson(prompt, { temperature: 0.7 });
+    const arr = Array.isArray(result) ? result : [result];
+    for (let i = 0; i < arr.length; i++) {
+      scenes.push({
+        id: arr[i].id || `scene-${i + 1}`,
+        prompt: arr[i].prompt || '',
+        character: arr[i].character || events[i]?.character || '',
+        description: arr[i].description || events[i]?.description || '',
+        event: events[i]?.description || '',
+      });
+    }
+    console.log(`[scene] LLM generated ${scenes.length} scene prompts`);
+    return scenes;
+  } catch (err) {
+    console.warn(`[scene] LLM scene generation failed: ${err.message}, using basic prompts`);
+  }
+
+  // Fallback: basic prompt from event + style
+  for (let i = 0; i < events.length; i++) {
+    const evt = events[i];
+    scenes.push({
+      id: `scene-${i + 1}`,
+      prompt: `${stylePrompt}, ${evt.description}, cinematic lighting, high quality, detailed`,
+      character: evt.character || '',
+      description: evt.description || '',
+      event: evt.description || '',
+    });
+  }
+  return scenes;
+}
+
+/**
+ * Load art direction from workdir.
+ */
+async function _loadArtDirection(workdir) {
+  try {
+    const raw = await readFile(join(workdir, 'art_direction.json'), 'utf-8');
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Generate art direction data from requirement using LLM.
