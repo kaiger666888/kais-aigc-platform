@@ -4,7 +4,7 @@
  */
 import { writeFile, readFile, mkdir } from 'node:fs/promises';
 import { join, basename, dirname } from 'node:path';
-import { existsSync } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import {
   generateTopics, audienceMatch, deepAudienceAnalysis,
   registerCharacterDNA, registerSceneDNA,

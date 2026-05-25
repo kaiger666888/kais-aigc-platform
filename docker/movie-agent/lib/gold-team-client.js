@@ -61,16 +61,15 @@ export class GoldTeamClient {
     const taskId = `ma-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const body = {
       task_id: taskId,
-      // task_type removed for V6
-      type: taskType, // gold-team v2 expects 'type'
+      // task_type removed for V6 — gold-team V6 uses 'type' only
+      type: taskType,
       params,
       assets,
-      priority,
+      priority: typeof priority === 'number' ? 'normal' : String(priority),
       description,
       callback_url: callbackUrl,
       callback_secret: this._callbackSecret,
       model_preference: 'local',
-      priority: priority === 5 ? 'normal' : (typeof priority === 'number' ? 'normal' : priority),
     };
 
     const result = await this._request('POST', '/api/v1/tasks', body);
