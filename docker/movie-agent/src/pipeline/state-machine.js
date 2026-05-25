@@ -162,14 +162,17 @@ export class PipelineManager {
         for (const chapter of novelData) {
           if (chapter.event) {
             // Parse pipe-delimited event table: | chapter | character | description | ... |
-            const rows = chapter.event.split('\n').filter(r => r.includes('|'));
-            for (const row of rows) {
+            const rows = chapter.event.split('\n').filter(r => r.includes('|') && !r.replace(/[\s|\-:]/g, ''));
+            // Fallback: if the above filter removed all rows, use a simpler filter
+            const actualRows = rows.length > 0 ? rows : chapter.event.split('\n').filter(r => r.includes('|'));
+            for (const row of actualRows) {
               const cols = row.split('|').map(c => c.trim()).filter(Boolean);
-              // Skip header-like rows (first col looks like a header)
-              if (cols.length >= 3 && !cols[0].match(/^第\d+[章节]/)) {
-                // This row might be the header — but also might be data, try character col
-                charSet.add(cols[1]);
-              } else if (cols.length >= 2) {
+              // Skip separator rows (---, :---)
+              if (cols.every(c => /^[-:]+$/.test(c))) continue;
+              // Skip header rows (章节+角色)
+              const isHeader = /^(章节|chapter)/i.test(cols[0]) && /^(角色|character)/i.test(cols[1]);
+              if (isHeader) continue;
+              if (cols.length >= 2) {
                 charSet.add(cols[1]);
               }
             }
@@ -189,16 +192,17 @@ export class PipelineManager {
             const rows = chapter.event.split('\n').filter(r => r.includes('|'));
             for (const row of rows) {
               const cols = row.split('|').map(c => c.trim()).filter(Boolean);
+              // Skip separator rows (---, :---)
+              if (cols.every(c => /^[-:]+$/.test(c))) continue;
+              // Skip header rows (both cols[0] AND cols[1] look like headers)
+              const isHeader = /^(章节|chapter)/i.test(cols[0]) && /^(角色|character)/i.test(cols[1]);
+              if (isHeader) continue;
               if (cols.length >= 3) {
-                // Detect if this is a header row (first col is generic like "章节")
-                const isHeader = /^(章节|chapter|第\d+章)/i.test(cols[0]) && /^(角色|character)/i.test(cols[1]);
-                if (!isHeader) {
-                  cfg.events.push({
-                    chapter: cols[0],
-                    character: cols[1],
-                    description: cols[2],
-                  });
-                }
+                cfg.events.push({
+                  chapter: cols[0],
+                  character: cols[1],
+                  description: cols[2],
+                });
               }
             }
           }

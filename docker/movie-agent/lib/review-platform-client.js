@@ -156,6 +156,61 @@ export class ReviewPlatformClient {
   }
 
   /**
+   * Create a shot-card on the review platform (V6 API).
+   * POST /api/v1/v6/shot-cards/ — no auth required.
+   *
+   * @param {object} params
+   * @param {string} params.projectId - Project ID
+   * @param {string} [params.phase='storyboard'] - Phase name
+   * @param {string} [params.status='pending'] - Shot card status
+   * @param {string} [params.imageUrl] - Image URL
+   * @param {object} [params.metadata={}] - Additional metadata
+   * @returns {Promise<{id: string, projectId: string, phase: string, status: string}>}
+   * @throws {ReviewClientError} If creation fails
+   */
+  async createShotCard({ projectId, phase = 'storyboard', status = 'pending', imageUrl, metadata = {} }) {
+    const body = {
+      project_id: String(projectId),
+      phase,
+      status,
+      ...(imageUrl ? { image_url: imageUrl } : {}),
+      metadata,
+    };
+
+    const url = `${this._baseUrl}/api/v1/v6/shot-cards/`;
+    try {
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(this._traceId ? { 'X-Trace-Id': this._traceId } : {}),
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(this._timeout),
+      });
+
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => '');
+        throw new ReviewClientError(
+          `Create shot-card failed: ${resp.status} ${resp.statusText}${text ? ` — ${text}` : ''}`,
+          { status: resp.status, url },
+        );
+      }
+
+      const { data } = await resp.json();
+      return {
+        id: data?.id || data?.shot_card_id,
+        projectId: data?.project_id || projectId,
+        phase: data?.phase || phase,
+        status: data?.status || status,
+      };
+    } catch (err) {
+      if (err instanceof ReviewClientError) throw err;
+      throw new ReviewClientError(`Create shot-card request failed: ${err.message}`, { url, cause: err });
+    }
+  }
+
+  /**
    * Log a degraded review for audit trail.
    * @param {object} info
    * @param {string} info.type - Review type
