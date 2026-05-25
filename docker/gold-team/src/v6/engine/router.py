@@ -64,7 +64,7 @@ class EngineRouter:
 
         if task.model_preference == ModelPreference.LOCAL:
             if self.local_available:
-                return EnginePool.LOCAL, "local-comfyui-mock"
+                return EnginePool.LOCAL, "comfyui-local"
             return EnginePool.CLOUD, "cloud-mock"  # fallback even if forced local
 
         # AUTO: try local first
@@ -76,7 +76,7 @@ class EngineRouter:
         vram_available = self._vram_available()
 
         if vram_needed <= vram_available:
-            return EnginePool.LOCAL, "local-comfyui-mock"
+            return EnginePool.LOCAL, "comfyui-local"
 
         # Local VRAM insufficient
         if task.type in CLOUD_CAPABLE:

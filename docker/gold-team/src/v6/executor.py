@@ -118,7 +118,20 @@ class TaskExecutor:
 
         try:
             # Build workflow from task params
-            workflow = task.params.get("workflow", {"__mock__": True})
+            workflow = task.params.get("workflow")
+            if not workflow or "__mock__" in workflow:
+                # Auto-build ComfyUI workflow from prompt params
+                from src.v6.engines.workflow_builder import build_txt2img_workflow
+                workflow = build_txt2img_workflow(
+                    prompt=task.params.get("prompt", ""),
+                    negative_prompt=task.params.get("negative_prompt", ""),
+                    width=task.params.get("width", 1024),
+                    height=task.params.get("height", 1024),
+                    steps=task.params.get("steps", 20),
+                    cfg_scale=task.params.get("cfg_scale", 7.5),
+                    seed=task.params.get("seed"),
+                )
+                logger.info("Auto-built ComfyUI workflow for task %s", task.task_id)
             engine_params = {"task_id": task.task_id, "type": task.type.value}
 
             engine_job_id = await engine.submit(workflow, engine_params)
@@ -180,13 +193,17 @@ class TaskExecutor:
                 await send_callback(task, task.callback_url, task.callback_secret)
 
     def _resolve_engine(self, engine_id: str, task: GenerationTask) -> Optional[BaseEngine]:
-        """Resolve engine by ID, falling back to mock if unavailable."""
+        """Resolve engine by ID, preferring real engines over mock."""
         # Direct match
         if engine_id in self._engines:
             return self._engines[engine_id]
 
-        # Legacy local-comfyui-mock → mock engine
-        if "mock" in engine_id or "local" in engine_id:
+        # For local/unset engine_id, prefer comfyui-local over mock
+        if engine_id is None or engine_id in ("local", "local-comfyui", "local-comfyui-mock"):
+            comfyui = self._engines.get("comfyui-local")
+            if comfyui and comfyui.status().value == "online":
+                return comfyui
+            # Fallback to mock if comfyui unavailable
             return self._engines.get("mock")
 
         # Fallback to mock
