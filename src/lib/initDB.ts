@@ -927,12 +927,21 @@ export default async (knex: Knex, forceInit: boolean = false): Promise<void> => 
             state: 1,
           },
         ];
-        await Promise.all(
-          list.map(async (item) => {
-            const embedding = await getEmbedding(item.description);
-            item.embedding = JSON.stringify(embedding);
-          }),
-        );
+        // Embedding is optional — skip if model not available (Docker without model files)
+        try {
+          await Promise.all(
+            list.map(async (item) => {
+              try {
+                const embedding = await getEmbedding(item.description);
+                item.embedding = JSON.stringify(embedding);
+              } catch {
+                item.embedding = "[]";
+              }
+            }),
+          );
+        } catch {
+          list.forEach(item => { item.embedding = "[]"; });
+        }
         await knex("o_skillList").insert(list);
       },
     },
