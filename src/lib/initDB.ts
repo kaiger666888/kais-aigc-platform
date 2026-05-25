@@ -589,6 +589,18 @@ export default async (knex: Knex, forceInit: boolean = false): Promise<void> => 
             enable: 0,
           },
           {
+            id: "goldteam",
+            inputValues: JSON.stringify({
+              baseUrl: process.env.GOLD_TEAM_URL || "http://kais-gold-team:8002",
+            }),
+            models: JSON.stringify([
+              { name: "CosyVoice 中文女声", modelName: "cosyvoice-zh-female", type: "tts", voices: [{ title: "温柔女声", voice: "zh_female_gentle" }, { title: "知性女声", voice: "zh_female_wise" }] },
+              { name: "CosyVoice 中文男声", modelName: "cosyvoice-zh-male", type: "tts", voices: [{ title: "沉稳男声", voice: "zh_male_calm" }, { title: "磁性男声", voice: "zh_male_magnetic" }] },
+              { name: "CosyVoice 克隆", modelName: "cosyvoice-clone", type: "tts", voices: [{ title: "音频克隆", voice: "clone" }] },
+            ]),
+            enable: 1,
+          },
+          {
             id: "minimax",
             inputValues: "{}",
             models: "[]",
