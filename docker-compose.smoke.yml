@@ -51,7 +51,7 @@ services:
       CORE_BACKEND_URL: http://core-backend:8000
       ZHIPU_API_KEY: ${ZHIPU_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://open.bigmodel.cn/api/paas/v4}
     volumes:
       - /tmp/movie-agent:/tmp/movie-agent
     healthcheck:
@@ -67,6 +67,11 @@ services:
     environment:
       PORT: 8002
       REDIS_URL: redis://redis:6379
+      COMFYUI_ENABLED: "true"
+      COMFYUI_HOST: "172.17.0.1"
+      COMFYUI_PORT: "8188"
+    volumes:
+      - /mnt/agents/output:/mnt/agents/output
     depends_on:
       redis:
         condition: service_healthy
