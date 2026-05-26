@@ -203,7 +203,7 @@ services:
       POSTGRES_URL: postgresql+asyncpg://${POSTGRES_USER:-kais}:${POSTGRES_PASSWORD:-kais}@audit-db:5432/${POSTGRES_DB:-kais_audit}
       API_KEY: ${REVIEW_API_KEY:-kais-review-dev-key}
       JWT_SECRET: ${REVIEW_JWT_SECRET:-kais-review-jwt-dev-2026}
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://172.18.0.1:6379/0
       OUTPUT_DIR: /mnt/agents/output
     volumes:
       - ${OUTPUT_DIR:-/mnt/agents/output}:/mnt/agents/output:ro  # 只读！
