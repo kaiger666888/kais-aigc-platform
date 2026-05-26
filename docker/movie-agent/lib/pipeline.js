@@ -227,7 +227,7 @@ export class Pipeline {
           enable_scoring: reviewConfig.enableScoring !== false,
           enable_feedback: reviewConfig.enableFeedback !== false,
         },
-        callbackUrl: config.callbackUrl || `http://127.0.0.1:8766/callback/review_result`,
+        callbackUrl: config.callbackUrl || process.env.REVIEW_CALLBACK_URL || `http://kais-movie-agent:8001/api/v1/pipeline/callback/review_result`,
         callbackSecret: config.callbackSecret || process.env.REVIEW_CALLBACK_SECRET || '',
         riskScore: 0.5, // moderate risk for all phases per RESEARCH.md recommendation
       });
