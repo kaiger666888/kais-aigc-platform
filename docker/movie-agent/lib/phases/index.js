@@ -441,6 +441,7 @@ export const phaseHandlers = {
 
             // Create shot card on review-platform
             try {
+              const { ReviewPlatformClient } = await import('../review-platform-client.js');
               const rpClient = new ReviewPlatformClient({
                 baseUrl: phaseConfig.reviewPlatform?.baseUrl || pipeline.config?.reviewPlatform?.baseUrl,
               });
