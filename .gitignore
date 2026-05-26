@@ -58,3 +58,6 @@ version.txt__pycache__/
 
 # Independent repo (symlink)
 docker/gold-team
+
+# Independent repo (symlink)
+docker/review-platform
