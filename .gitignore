@@ -61,3 +61,6 @@ docker/gold-team
 
 # Independent repo (symlink)
 docker/review-platform
+
+# Build artifacts (copied by build.sh from skill repos)
+docker/movie-agent/src/
