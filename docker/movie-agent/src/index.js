@@ -79,10 +79,11 @@ async function handleCreatePipeline(req, res) {
 
     // Create pipeline instance
     const workdir = process.env.PIPELINE_WORKDIR || `/mnt/agents/output/pipelines/${pipelineId}`;
-    const pipeline = new Pipeline(episode, {
+    const pipeline = new Pipeline({
       ...config,
       workdir,
       projectId,
+      episode,
     });
 
     pipelines.set(pipelineId, {
@@ -123,10 +124,11 @@ async function handleRunPipeline(req, res) {
     const episode = config.episode || `E${pipelineId.slice(-4)}`;
 
     const workdir = config.workdir || process.env.PIPELINE_WORKDIR || `/mnt/agents/output/pipelines/${pipelineId}`;
-    const pipeline = new Pipeline(episode, {
+    const pipeline = new Pipeline({
       ...config,
       workdir,
       projectId,
+      episode,
     });
 
     pipelines.set(pipelineId, {
@@ -138,8 +140,30 @@ async function handleRunPipeline(req, res) {
       createdAt: new Date().toISOString(),
     });
 
+    // Build phasesConfig: convert phases array to object map and attach phase-specific config
+    const phasesList = body.phases || config.phases || [];
+    const phasesConfig = {};
+    if (Array.isArray(phasesList)) {
+      for (const phaseId of phasesList) {
+        phasesConfig[phaseId] = config[phaseId] || {};
+      }
+      // Pass scene data from config.scenes into scene phase config
+      if (phasesConfig.scene && config.scenes) {
+        phasesConfig.scene.scenes = config.scenes;
+      }
+      // Pass shots data into storyboard/camera phases
+      if (phasesConfig.storyboard && config.shots) {
+        phasesConfig.storyboard.shots = config.shots;
+      }
+    } else if (typeof phasesList === 'object') {
+      Object.assign(phasesConfig, phasesList);
+    }
+
+    // Attach skipNonListed flag so run() only executes specified phases
+    pipeline._phaseFilter = Array.isArray(phasesList) ? new Set(phasesList) : null;
+
     // Start pipeline in background — do NOT await it
-    pipeline.run(config.phases || {}).then(result => {
+    pipeline.run(phasesConfig).then(result => {
       const entry = pipelines.get(pipelineId);
       if (entry) {
         entry.status = result.success ? 'completed' : 'failed';

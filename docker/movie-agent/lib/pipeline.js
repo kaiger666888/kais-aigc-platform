@@ -135,6 +135,7 @@ export class Pipeline {
   }
 
   async _saveState(state) {
+    await mkdir(this.workdir, { recursive: true });
     await writeFile(join(this.workdir, '.pipeline-state.json'), JSON.stringify(state, null, 2));
     this._state = state;
   }
@@ -453,6 +454,12 @@ export class Pipeline {
     const results = {};
 
     for (const phase of PHASES) {
+      // Skip phases not in the filter (when specific phases requested)
+      if (this._phaseFilter && !this._phaseFilter.has(phase.id)) {
+        console.log(`[pipeline] Skipping unlisted phase=${phase.id} (${phase.name})`);
+        results[phase.id] = { skipped: true, reason: 'not_in_filter' };
+        continue;
+      }
       // Skip phases already completed/approved/awaiting_review
       const phaseState = state.phases[phase.id];
       if (phaseState && doneStatuses.has(phaseState.status)) {
