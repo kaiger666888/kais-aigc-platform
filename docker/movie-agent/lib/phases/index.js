@@ -887,26 +887,27 @@ async function _downloadArtifact(url, destPath, gtBaseUrl) {
 
   if (url.startsWith('file://')) {
     // file:///mnt/agents/output/<task_id>/<filename>
-    // → http://gold-team:8002/api/v1/files/<task_id>/<filename>
-    const filePath = new URL(url).pathname; // e.g. /mnt/agents/output/test-xxx/voice.wav
-    const parts = filePath.split('/');
-    // Find task_id and filename: .../output/<task_id>/<filename>
-    const outputIdx = parts.lastIndexOf('output');
-    if (outputIdx >= 0 && parts.length > outputIdx + 2) {
-      const taskId = parts[outputIdx + 1];
-      const fileName = parts.slice(outputIdx + 2).join('/');
-      const base = gtBaseUrl || 'http://gold-team:8002';
-      fetchUrl = `${base}/api/v1/files/${taskId}/${fileName}`;
-    } else {
-      // Fallback: try to use the path as-is (local filesystem)
-      try {
-        const { copyFile } = await import('node:fs/promises');
-        await mkdir(dirname(destPath), { recursive: true });
-        await copyFile(filePath, destPath);
-        console.log(`[downloadArtifact] file:// → local copy: ${destPath}`);
-        return destPath;
-      } catch (copyErr) {
-        throw new Error(`[downloadArtifact] Cannot resolve file:// URL and local copy failed: ${copyErr.message}`);
+    // Same-machine shortcut: try local filesystem copy first, fall back to HTTP
+    const filePath = new URL(url).pathname;
+    try {
+      const { copyFile, access } = await import('node:fs/promises');
+      await access(filePath); // throws if not readable
+      await mkdir(dirname(destPath), { recursive: true });
+      await copyFile(filePath, destPath);
+      console.log(`[downloadArtifact] file:// → local copy: ${destPath}`);
+      return destPath;
+    } catch (localErr) {
+      // File not on local filesystem — try HTTP via gold-team /files API
+      console.log(`[downloadArtifact] local copy failed (${localErr.message}), trying HTTP...`);
+      const parts = filePath.split('/');
+      const outputIdx = parts.lastIndexOf('output');
+      if (outputIdx >= 0 && parts.length > outputIdx + 2) {
+        const taskId = parts[outputIdx + 1];
+        const fileName = parts.slice(outputIdx + 2).join('/');
+        const base = gtBaseUrl || 'http://gold-team:8002';
+        fetchUrl = `${base}/api/v1/files/${taskId}/${fileName}`;
+      } else {
+        throw new Error(`[downloadArtifact] Cannot resolve file:// URL: ${url}`);
       }
     }
   } else if (url.startsWith('http://') || url.startsWith('https://')) {
