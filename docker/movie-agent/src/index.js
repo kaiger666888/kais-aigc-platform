@@ -265,6 +265,100 @@ async function handlePipelineResume(req, res, pipelineId) {
   });
 }
 
+// ─── Review callback handler ─────────────────────────────────
+// POST /api/v1/pipeline/callback/review_result
+// Receives review-platform approval/rejection callbacks and resumes pipeline.
+async function handleReviewCallback(req, res) {
+  try {
+    const rawBody = await readBody(req);
+    const payload = JSON.parse(rawBody);
+
+    console.log(`[callback] Review callback received: review_id=${payload.review_id}, disposition=${payload.disposition}`);
+
+    const { review_id, disposition, source_system, result } = payload;
+
+    if (!review_id || !disposition) {
+      return json(res, 400, { error: 'Missing review_id or disposition' });
+    }
+
+    // Find the pipeline that has this review_id in its state
+    let targetEntry = null;
+    let targetPipelineId = null;
+    for (const [pid, entry] of pipelines) {
+      try {
+        const status = await entry.pipeline.getStatus();
+        for (const phase of status.phases) {
+          // Check saved state for review_id
+          const state = await entry.pipeline._loadState();
+          const phaseState = state.phases[phase.id];
+          if (phaseState && phaseState.review_id === review_id) {
+            targetEntry = entry;
+            targetPipelineId = pid;
+            break;
+          }
+        }
+        if (targetEntry) break;
+      } catch (e) {
+        // skip pipelines with broken state
+      }
+    }
+
+    if (!targetEntry) {
+      console.warn(`[callback] No pipeline found for review_id=${review_id}`);
+      return json(res, 404, { error: 'No pipeline awaiting this review', review_id });
+    }
+
+    // Update the phase state based on disposition
+    const state = await targetEntry.pipeline._loadState();
+    for (const [phaseId, phaseState] of Object.entries(state.phases)) {
+      if (phaseState.review_id === review_id) {
+        if (disposition === 'approved') {
+          phaseState.status = 'approved';
+          phaseState.approvedAt = new Date().toISOString();
+          phaseState.reviewResult = result || {};
+        } else {
+          phaseState.status = 'rejected';
+          phaseState.rejectedAt = new Date().toISOString();
+          phaseState.reviewResult = result || {};
+        }
+        break;
+      }
+    }
+    await targetEntry.pipeline._saveState(state);
+
+    console.log(`[callback] Pipeline ${targetPipelineId}: review #${review_id} ${disposition}`);
+
+    // If approved, resume pipeline from the next phase
+    if (disposition === 'approved') {
+      targetEntry.status = 'running';
+      targetEntry.pipeline.resume(null, targetEntry.config.phases || {}).then(r => {
+        targetEntry.status = r.success ? 'completed' : 'failed';
+        targetEntry.result = r;
+        targetEntry.completedAt = new Date().toISOString();
+        console.log(`[callback] Pipeline ${targetPipelineId} resumed and ${r.success ? 'completed' : 'failed'}`);
+      }).catch(err => {
+        targetEntry.status = 'failed';
+        targetEntry.error = err.message;
+        console.error(`[callback] Pipeline ${targetPipelineId} resume failed: ${err.message}`);
+      });
+    } else {
+      targetEntry.status = 'failed';
+      targetEntry.error = `Review rejected: review_id=${review_id}`;
+      targetEntry.completedAt = new Date().toISOString();
+    }
+
+    json(res, 200, {
+      ok: true,
+      pipeline_id: targetPipelineId,
+      disposition,
+      review_id,
+    });
+  } catch (err) {
+    console.error('[callback] Review callback error:', err);
+    json(res, 500, { error: err.message });
+  }
+}
+
 // ─── Router ───────────────────────────────────────────────────
 async function handleRequest(req, res) {
   const { path } = parseUrl(req.url);
@@ -273,6 +367,11 @@ async function handleRequest(req, res) {
   // Health
   if (path === '/health' && method === 'GET') {
     return handleHealth(req, res);
+  }
+
+  // Review callback
+  if (path === '/api/v1/pipeline/callback/review_result' && method === 'POST') {
+    return handleReviewCallback(req, res);
   }
 
   // List pipelines

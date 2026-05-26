@@ -366,6 +366,29 @@ export class Pipeline {
         }
       }
 
+      // Phase handler may have submitted review directly (e.g., quality-gate)
+      if (result.review && result.review.action === 'awaiting_review') {
+        // Update state to awaiting_review
+        state.phases[phaseId] = {
+          status: 'awaiting_review',
+          review_id: result.review.review_id,
+          submitted_at: new Date().toISOString(),
+          routing: result.review.routing,
+        };
+        await this._saveState(state);
+        console.log(JSON.stringify({
+          traceId: this.traceId,
+          phase: phaseId,
+          event: 'phase_awaiting_review',
+          phaseName: phase.name,
+          reviewId: result.review.review_id,
+          ts: new Date().toISOString(),
+        }));
+        this.onPhaseComplete?.(phase, result);
+        this.onProgress?.(phaseId, phase.name, 'awaiting_review');
+        return result;
+      }
+
       await this._git.init();
       await this._git.checkpoint(phase.stage, { description: phase.name, metrics: result.metrics || {} });
       this.onPhaseComplete?.(phase, result);
