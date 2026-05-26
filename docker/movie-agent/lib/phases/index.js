@@ -812,7 +812,7 @@ export const phaseHandlers = {
           traceId: pipeline.traceId,
         });
 
-        const callbackUrl = rpConfig.callbackUrl || `http://kais-movie-agent:8001/api/v1/pipeline/callback/review_result`;
+        const callbackUrl = rpConfig.callbackUrl || process.env.REVIEW_CALLBACK_URL || `http://kais-movie-agent:8001/api/v1/pipeline/callback/review_result`;
         const reviewResult = await client.submitReview({
           type: 'pipeline_phase',
           contentRef: `${pipeline.episode}:quality-gate`,
