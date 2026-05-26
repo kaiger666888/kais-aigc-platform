@@ -76,7 +76,7 @@ services:
       NODE_ENV: production
       PORT: 8001
       CORE_BACKEND_URL: http://kais-core-backend:8000
-      GOLD_TEAM_URL: http://kais-gold-team:8002
+      GOLD_TEAM_URL: http://kais-aigc-platform-gold-team-1:8002
       REVIEW_PLATFORM_URL: http://kais-review-platform:8090
       REDIS_URL: redis://redis:6379
     volumes:

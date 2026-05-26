@@ -802,6 +802,66 @@ export const phaseHandlers = {
         console.log(`[pipeline] ✅ 质量门控通过: ${overallScore} >= ${thresholds.overall}`);
       }
 
+      // ── Submit to review-platform for human approval ──────────────
+      try {
+        const { ReviewPlatformClient } = await import('../review-platform-client.js');
+        const rpConfig = pipeline.config.reviewPlatform || {};
+        const client = new ReviewPlatformClient({
+          baseUrl: rpConfig.baseUrl || process.env.REVIEW_PLATFORM_URL || 'http://kais-review-platform:8090',
+          timeout: rpConfig.timeout || 10000,
+          traceId: pipeline.traceId,
+        });
+
+        const callbackUrl = rpConfig.callbackUrl || `http://kais-movie-agent:8001/api/v1/pipeline/callback/review_result`;
+        const reviewResult = await client.submitReview({
+          type: 'pipeline_phase',
+          contentRef: `${pipeline.episode}:quality-gate`,
+          metadata: {
+            phase_name: '质量门控',
+            phase_id: 'quality-gate',
+            episode: pipeline.episode,
+            overall_score: overallScore,
+            passed,
+            thresholds,
+            dimensions: result?.metrics?.dimensions || {},
+          },
+          callbackUrl,
+          callbackSecret: rpConfig.callbackSecret || process.env.REVIEW_CALLBACK_SECRET || '',
+          priority: overallScore >= thresholds.overall ? 'normal' : 'high',
+          riskScore: Math.max(0, Math.min(1, 1 - overallScore / 100)),
+        });
+
+        console.log(`[quality-gate] Submitted to review-platform: review_id=${reviewResult.reviewId}, state=${reviewResult.state}, routing=${reviewResult.routing}`);
+
+        // If degraded (review platform unavailable), just pass locally
+        if (reviewResult.degraded) {
+          return {
+            summary: { ...result?.summary, score: overallScore, action: passed ? 'pass' : 'warn' },
+            metrics: result?.metrics || {},
+            status: 'completed',
+            passed: true,  // MVP: always pass
+            scores: result?.metrics?.dimensions || {},
+          };
+        }
+
+        // Return awaiting_review sentinel so pipeline exits and waits for callback
+        return {
+          summary: { ...result?.summary, score: overallScore, action: passed ? 'pass' : 'warn' },
+          metrics: result?.metrics || {},
+          status: 'awaiting_review',
+          passed: true,
+          scores: result?.metrics?.dimensions || {},
+          review: {
+            action: 'awaiting_review',
+            review_id: reviewResult.reviewId,
+            routing: reviewResult.routing,
+          },
+        };
+      } catch (rpErr) {
+        // Fail-open: if review platform unreachable, proceed without review
+        console.warn(`[quality-gate] Review platform submission failed, proceeding without review: ${rpErr.message}`);
+      }
+
       return {
         summary: { ...result?.summary, score: overallScore, action: passed ? 'pass' : 'warn' },
         metrics: result?.metrics || {},
