@@ -192,7 +192,7 @@ services:
   kais-review-platform:
     build:
       context: ../kais-review-platform
-      dockerfile: /home/kai/.openclaw/workspace/kais-aigc-platform/docker/review-platform/Dockerfile
+      dockerfile: Dockerfile
     container_name: kais-review-platform
     restart: unless-stopped
     ports:
@@ -230,7 +230,7 @@ services:
     container_name: kais-audit-db
     restart: unless-stopped
     ports:
-      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-kais}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kais}

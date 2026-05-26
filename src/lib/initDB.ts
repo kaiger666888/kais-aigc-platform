@@ -1138,6 +1138,24 @@ export default async (knex: Knex, forceInit: boolean = false): Promise<void> => 
         table.index(["projectId"]);
       },
     },
+    // 管线运行追踪表
+    {
+      name: "kv_pipelineRun",
+      builder: (table) => {
+        table.string("id").notNullable();
+        table.integer("projectId").notNullable();
+        table.integer("scriptId");
+        table.string("state");
+        table.string("currentPhase");
+        table.integer("currentPhaseOrder");
+        table.text("config");
+        table.text("result");
+        table.integer("createTime");
+        table.integer("updateTime");
+        table.primary(["id"]);
+        table.index(["projectId"]);
+      },
+    },
     // ===== kais-core-backend v1 新增表结束 =====
     {
       name: "o_assetsRole2Audio",

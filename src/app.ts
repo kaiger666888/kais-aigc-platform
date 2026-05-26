@@ -13,6 +13,7 @@ import fs from "fs";
 import u from "@/utils";
 import jwt from "jsonwebtoken";
 import socketInit from "@/socket/index";
+import { setIo } from "@/utils/ws";
 import { isEletron } from "@/utils/getPath";
 
 const app = express();
@@ -48,6 +49,7 @@ export default async function startServe(randomPort: Boolean = false) {
   await u.writeVersion();
   const io = new Server(server, { cors: { origin: "*" } });
   socketInit(io);
+  setIo(io);
 
   if (process.env.NODE_ENV == "dev") await buildRoute();
 

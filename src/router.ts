@@ -181,6 +181,12 @@ import route177 from "./routes/v1/shots/list";
 import route178 from "./routes/v1/snapshots/index";
 import route179 from "./routes/v1/sync/batch";
 import route180 from "./routes/v1/sync/pull/[projectId]";
+import route181 from "./routes/v1/pipeline/start";
+import route182 from "./routes/v1/pipeline/callback/phase-complete";
+import route183 from "./routes/v1/pipeline/callback/phase-progress";
+import route184 from "./routes/v1/pipeline/ingest/images";
+import route185 from "./routes/v1/pipeline/ingest/videos";
+import route186 from "./routes/v1/pipeline/ingest/storyboard";
 
 export default async (app: Express) => {
   app.use("/api/agents/clearMemory", route1);
@@ -363,4 +369,10 @@ export default async (app: Express) => {
   app.use("/api/v1/snapshots", route178);
   app.use("/api/v1/sync/batch", route179);
   app.use("/api/v1/sync/pull/:projectId", route180);
+  app.use("/api/v1/pipeline/start", route181);
+  app.use("/api/v1/pipeline/callback/phase-complete", route182);
+  app.use("/api/v1/pipeline/callback/phase-progress", route183);
+  app.use("/api/v1/pipeline/ingest/images", route184);
+  app.use("/api/v1/pipeline/ingest/videos", route185);
+  app.use("/api/v1/pipeline/ingest/storyboard", route186);
 }
