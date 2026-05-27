@@ -447,7 +447,7 @@ class QualityGateV2 {
 | kais-audience | agent 调度 | 内嵌为库 |
 | kais-art-direction | agent 调度 | 内嵌为库 |
 | kais-character-designer | agent 调度 | 内嵌为库 |
-| kais-blender-pose | agent 调度 + Blender API | 保持 HTTP 调用（高配机） |
+| kais-blender-pose | agent 调度 + Blender API | 保持 HTTP 调用（本机 192.168.71.166） |
 | kais-scenario-writer | agent 调度 | 内嵌为库 |
 | kais-voice | Gold-Team / GLM API | 已在 phaseHandler 中，无需单独 skill |
 | kais-storyboard-designer | agent 调度 | 内嵌为库 |
@@ -468,7 +468,7 @@ class QualityGateV2 {
 - 方式：`child_process.execFile('python3', ['lib/scripts/xxx.py', ...])`
 
 **Layer 3 — 远程 HTTP**（需要 GPU 或特殊环境）：
-- blender-pose（高配机 Blender API）
+- blender-pose（本机 192.168.71.166 Blender API）
 - gold-team engines（FLUX/WAN/CosyVoice/ACE-Step）
 - 方式：通过 Skill Router 路由到对应服务
 

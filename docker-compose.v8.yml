@@ -24,7 +24,7 @@ services:
   # 1. kais-gold-team (统一执行 Agent) — 核心服务
   # ---------------------------------------------------------------------------
   # 负责: 调用 ComfyUI / 云端引擎执行图片/视频/音频生成任务
-  # 需要 GPU 0 (RTX 3090) — 用于本地推理加速
+  # 需要 GPU 1 (RTX 3090) — 用于本地推理加速
   # Redis Streams 消费者，接收 gold-team 任务
   # ---------------------------------------------------------------------------
   kais-gold-team:
@@ -57,7 +57,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ["0"]     # GPU 0 = RTX 3090
+              device_ids: ["1"]     # GPU 1 = RTX 3090
               capabilities: [gpu]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
@@ -99,7 +99,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ["0"]     # GPU 0 = RTX 3090
+              device_ids: ["1"]     # GPU 1 = RTX 3090
               capabilities: [gpu]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8188/system_stats')"]

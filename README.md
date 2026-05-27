@@ -143,8 +143,8 @@ CUDA_VISIBLE_DEVICES=0
 
 ## GPU 分配
 
-- **GPU 0 (RTX 3090 24GB)**: 所有 AIGC 推理 + 后处理
-- **GPU 1 (RTX 3060Ti 8GB)**: 显示 + NVENC/NVDEC + ffmpeg IO（宿主机，非 Docker）
+- **GPU 0 (RTX 3060 Ti 8GB)**: 显示 + NVENC/NVDEC + ffmpeg IO（宿主机，非 Docker）
+- **GPU 1 (RTX 3090 24GB)**: 所有 AIGC 推理 + 后处理（Docker 容器）
 
 ---
 

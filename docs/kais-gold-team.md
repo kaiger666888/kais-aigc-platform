@@ -34,7 +34,7 @@ V2 (当前)                              V6.0 (目标)
 │ │  orchestrator/     │               │  └─ Cloud Engine Pool    │
 │ └─ combo/            │               │                          │
 │                      │               │  Docker Compose 单机部署  │
-│ 双机分布式部署         │    ──→        │  RTX 3090 单卡           │
+│ 单机双 GPU 部署         │    ──→        │  RTX 3090 (GPU 1) + 3060Ti (GPU 0) │
 │ (Syncthing/SFTP/     │               │  Redis Streams 内部队列   │
 │  HTTP Callback)      │               │  V6.0 标准回调格式        │
 │                      │               │                          │
@@ -218,9 +218,9 @@ V6.0 中 "Combo" 概念重新定义：
 
 | 分离模式 | V2 现状 | V6.0 替代 |
 |---------|--------|----------|
-| Control Node (低配机) | API 调度 + 任务分发 | `src/api_server.py`（统一入口） |
-| Worker Node (高配机) | GPU 执行 + 引擎管理 | `src/local_engine_pool.py`（本地引擎池） |
-| 双机网络 | Tailscale VPN + Syncthing | Docker bridge `kais-net` |
+| Control Node (~~低配机~~ 已退役) | API 调度 + 任务分发 | `src/api_server.py`（统一入口） |
+| Worker Node (本机 192.168.71.166) | GPU 执行 + 引擎管理 | `src/local_engine_pool.py`（本地引擎池） |
+| ~~双机网络~~ | ~~Tailscale VPN + Syncthing~~ | Docker bridge `kais-net` |
 
 ---
 

@@ -113,7 +113,7 @@ HEALTHCHECK CMD ["python3", "-c", "import urllib.request; urllib.request.urlopen
 - None for smoke test (ephemeral containers)
 
 ### GPU Allocation
-- **kais-gold-team**: GPU 0 (RTX 3090, 24GB VRAM)
+- **kais-gold-team**: GPU 1 (RTX 3090, 24GB VRAM)
 - Verified via health check: `{"device":"NVIDIA GeForce RTX 3090","vram_total_mb":24576}`
 
 ---
