@@ -172,7 +172,11 @@ async function syncRequirement(phaseId, workdir, config, client) {
   // The addNovel API expects: { projectId, data: [{ index, reel, chapter, chapterData }] }
   const events = scenario?.events || [];
   if (events.length === 0) {
-    warn(phaseId, 'No events found in scenario.json');
+    // requirement phase runs before scenario is generated — this is expected
+    // Just log requirement metadata if available
+    if (requirement) {
+      info(phaseId, `Requirement synced (title=${requirement.title || '?'}, genre=${requirement.genre || '?'}), events will be synced when scenario phase completes`);
+    }
     return;
   }
 

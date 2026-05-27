@@ -478,6 +478,17 @@ async function handleReviewCallback(req, res) {
     console.log(`[callback] Pipeline ${targetPipelineId}/${targetPhaseId}: review #${review_id} ${disposition}`);
 
     if (disposition === 'approved') {
+      // Sync the approved phase output to Toonflow (now that it's fully complete)
+      if (targetPhaseId) {
+        try {
+          const { syncPhaseOutput } = await import('./toonflow-bridge.js');
+          await syncPhaseOutput(targetPhaseId, targetEntry.pipeline.workdir, targetEntry.pipeline.config);
+          console.log(`[callback] Toonflow sync for approved phase=${targetPhaseId}`);
+        } catch (syncErr) {
+          console.warn(`[callback] Toonflow sync failed for ${targetPhaseId}: ${syncErr.message}`);
+        }
+      }
+
       // Approved → resume pipeline from next phase
       targetEntry.status = 'running';
       targetEntry.pipeline.resume(null, targetEntry.config.phases || {}).then(r => {
