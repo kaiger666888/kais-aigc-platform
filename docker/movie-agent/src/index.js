@@ -80,10 +80,14 @@ async function handleCreatePipeline(req, res) {
     // Create pipeline instance
     const workdir = process.env.PIPELINE_WORKDIR || `/mnt/agents/output/pipelines/${pipelineId}`;
     const pipeline = new Pipeline({
-      ...config,
       workdir,
       projectId,
       episode,
+      config: {
+        ...config,
+        projectId,
+        episode,
+      },
     });
 
     pipelines.set(pipelineId, {
@@ -125,10 +129,14 @@ async function handleRunPipeline(req, res) {
 
     const workdir = config.workdir || process.env.PIPELINE_WORKDIR || `/mnt/agents/output/pipelines/${pipelineId}`;
     const pipeline = new Pipeline({
-      ...config,
       workdir,
       projectId,
       episode,
+      config: {
+        ...config,
+        projectId,
+        episode,
+      },
     });
 
     pipelines.set(pipelineId, {

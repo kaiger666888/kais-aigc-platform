@@ -192,7 +192,13 @@ export const phaseHandlers = {
 
   scenario: {
     after: async (pipeline, phase, phaseConfig) => {
+      // 如果没有提供 data，通过 LLM 生成剧本
+      if (!phaseConfig.data) {
+        console.log('[scenario] phaseConfig.data 为空，尝试 LLM 生成...');
+        phaseConfig.data = await _generateScenario(pipeline);
+      }
       if (!phaseConfig.data) return;
+
       try {
         const analysis = await deepAudienceAnalysis({
           script: typeof phaseConfig.data === 'string' ? phaseConfig.data : phaseConfig.data.script || JSON.stringify(phaseConfig.data),
@@ -348,8 +354,33 @@ export const phaseHandlers = {
       await mkdir(scenesDir, { recursive: true });
       await mkdir(storyboardDir, { recursive: true });
 
-      // Get events from config
-      const events = phaseConfig.events || [];
+      // Get events from config or from scenario/storyboard output
+      let events = phaseConfig.events || [];
+
+      // Try loading events from scenario output if not provided
+      if (!events.length) {
+        try {
+          const raw = await readFile(join(workdir, 'scenario.json'), 'utf-8');
+          const scenario = JSON.parse(raw);
+          events = Array.isArray(scenario) ? scenario : (scenario.events || []);
+          console.log(`[scene] Loaded ${events.length} events from scenario.json`);
+        } catch {}
+      }
+
+      // Also try storyboard for shot-based scene generation
+      if (!events.length) {
+        try {
+          const raw = await readFile(join(workdir, 'storyboard.json'), 'utf-8');
+          const sb = JSON.parse(raw);
+          events = (sb.shots || []).map((s, i) => ({
+            id: s.id || `evt-${i+1}`,
+            description: s.description || '',
+            character: s.character || '',
+          }));
+          console.log(`[scene] Loaded ${events.length} events from storyboard.json`);
+        } catch {}
+      }
+
       const artDirection = await _loadArtDirection(workdir);
       const stylePrompt = artDirection?.style || phaseConfig.style_preference || phaseConfig.artStyle || '';
       const novelContent = phaseConfig.novelContent || '';
@@ -517,7 +548,18 @@ export const phaseHandlers = {
       const workdir = pipeline.workdir;
 
       // If we have events but no storyboard data, generate shot list from events
-      const events = phaseConfig.events || [];
+      let events = phaseConfig.events || [];
+
+      // Try loading events from scenario output if not provided
+      if (!events.length) {
+        try {
+          const raw = await readFile(join(workdir, 'scenario.json'), 'utf-8');
+          const scenario = JSON.parse(raw);
+          events = Array.isArray(scenario) ? scenario : (scenario.events || []);
+          console.log(`[storyboard] Loaded ${events.length} events from scenario.json`);
+        } catch {}
+      }
+
       let shots = [];
 
       if (events.length) {
@@ -1264,6 +1306,98 @@ async function _generateCharacters(pipeline) {
   }
 }
 
+async function _generateScenario(pipeline) {
+  const req = pipeline.config || {};
+  const title = req.title || '未命名项目';
+  const genre = req.genre || '短片';
+  const characters = (req.characters || []).map(c => c.name || '角色').join(', ');
+  const script = req.script?.content || '';
+
+  // Load art direction
+  let artStyle = '';
+  try {
+    const raw = await readFile(join(pipeline.workdir, 'art_direction.json'), 'utf-8');
+    const art = JSON.parse(raw);
+    artStyle = art.style || art.description || '';
+  } catch {}
+
+  // Load requirement for theme/context
+  let theme = '';
+  try {
+    const raw = await readFile(join(pipeline.workdir, 'requirement.json'), 'utf-8');
+    const rq = JSON.parse(raw);
+    theme = rq.theme || rq.genre || '';
+  } catch {}
+
+  const prompt = `你是一个专业剧本编剧。请根据以下项目需求，编写一个完整的短视频剧本。
+
+项目: ${title}
+类型: ${genre}
+风格: ${artStyle || '由你决定'}
+主题: ${theme || '由你决定'}
+角色: ${characters || '主角'}
+${script ? `原始脚本参考:\n${script.substring(0, 2000)}` : ''}
+
+请返回 JSON 格式:
+{
+  "title": "剧本标题",
+  "synopsis": "一句话概要",
+  "events": [
+    {
+      "id": "evt-1",
+      "chapter": "开篇",
+      "description": "事件描述（包含角色动作、情感、环境）",
+      "character": "角色名",
+      "dialogue": "台词或旁白",
+      "emotion": "情感基调",
+      "scene_description": "场景视觉描述"
+    }
+  ],
+  "climax": "高潮描述",
+  "ending": "结局描述"
+}
+
+要求：
+- events 数量 8-15 个，涵盖开篇、发展、高潮、结局
+- 每个事件的 description 要具体，包含视觉细节
+- dialogue 要生动，适合配音
+- 适合 60 秒短视频节奏`;
+
+  try {
+    const result = await callLLMJson(prompt, { temperature: 0.8 });
+    // Handle both array and object responses from LLM
+    let events = [];
+    let scenarioData = result;
+    if (Array.isArray(result)) {
+      events = result;
+      scenarioData = { title, synopsis: `${title} - ${genre}风格短视频`, events };
+    } else {
+      events = result.events || [];
+      scenarioData = result;
+    }
+    console.log(`[scenario] ✅ LLM 生成剧本完成: ${events.length} 个事件`);
+    // Save to file
+    await writeFile(join(pipeline.workdir, 'scenario.json'), JSON.stringify(scenarioData, null, 2));
+    return scenarioData;
+  } catch (err) {
+    console.warn(`[scenario] LLM 生成失败: ${err.message}，使用 mock 数据`);
+    const mock = {
+      title,
+      synopsis: `${title} - ${genre}风格短视频`,
+      events: [
+        { id: 'evt-1', chapter: '开篇', description: `故事开始，${characters.split(',')[0] || '主角'}出场`, character: characters.split(',')[0] || '主角', dialogue: '在一个平凡的日子...', emotion: '平静', scene_description: '宁静的场景' },
+        { id: 'evt-2', chapter: '发展', description: '遇到挑战', character: characters.split(',')[0] || '主角', dialogue: '事情开始变得有趣了', emotion: '紧张', scene_description: '紧张的氛围' },
+        { id: 'evt-3', chapter: '高潮', description: '关键转折', character: characters.split(',')[0] || '主角', dialogue: '这一刻改变了一切', emotion: '激动', scene_description: '戏剧性场景' },
+        { id: 'evt-4', chapter: '结局', description: '故事收尾', character: characters.split(',')[0] || '主角', dialogue: '这就是答案', emotion: '温暖', scene_description: '温馨收尾' },
+      ],
+      climax: '关键转折点',
+      ending: '温暖收尾',
+    };
+    await writeFile(join(pipeline.workdir, 'scenario.json'), JSON.stringify(mock, null, 2));
+    return mock;
+  }
+}
+
 // ─── Phase 4A: Gold-Team V4.1 Engine Integrations ──────────────
 
 function _makeGtClient(pipeline) {
@@ -1577,7 +1711,25 @@ async function _loadDialogueFromScenario(workdir) {
       return lines;
     }
 
-    // Format 3: scenario.lines[] (flat structure)
+    // Format 3: scenario.events[] or scenario is array (LLM-generated format)
+    const eventList = Array.isArray(scenario) ? scenario : scenario.events;
+    if (Array.isArray(eventList)) {
+      for (const evt of eventList) {
+        const text = evt.dialogue || evt.description || '';
+        if (text) {
+          lines.push({
+            id: evt.id || `line-${lines.length + 1}`,
+            text,
+            character: evt.character || '',
+            voiceId: evt.voiceId || evt.voice_id,
+            emotion: evt.emotion || '',
+          });
+        }
+      }
+      return lines;
+    }
+
+    // Format 4: scenario.lines[] (flat structure)
     if (Array.isArray(scenario.lines)) {
       for (const l of scenario.lines) {
         lines.push({
