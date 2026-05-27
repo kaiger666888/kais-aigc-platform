@@ -175,7 +175,7 @@ async function syncRequirement(phaseId, workdir, config, client) {
     // requirement phase runs before scenario is generated — this is expected
     // Just log requirement metadata if available
     if (requirement) {
-      info(phaseId, `Requirement synced (title=${requirement.title || '?'}, genre=${requirement.genre || '?'}), events will be synced when scenario phase completes`);
+      console.log(`[toonflow-bridge:${phaseId}] Requirement synced (title=${requirement.title || '?'}, genre=${requirement.genre || '?'}), events will sync when scenario phase completes`);
     }
     return;
   }
