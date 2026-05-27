@@ -38,6 +38,9 @@ services:
       NODE_ENV: production
       PORT: 8000
       REDIS_URL: redis://redis:6379
+      MOVIE_AGENT_URL: http://kais-movie-agent:8001
+      GOLD_TEAM_URL: http://kais-aigc-platform-gold-team-1:8002
+      REVIEW_PLATFORM_URL: http://kais-review-platform:8090
       DATABASE_URL: postgresql://${POSTGRES_USER:-kais}:${POSTGRES_PASSWORD:-kais}@audit-db:5432/${POSTGRES_DB:-kais_audit}
     volumes:
       - core-data:/app/data                    # Toonflow 项目数据 (SQLite 等)
@@ -256,7 +259,7 @@ services:
     container_name: kais-redis
     restart: unless-stopped
     ports:
-      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+      - "127.0.0.1:6390:6379"
     command: redis-server --appendonly yes --maxmemory 2gb --maxmemory-policy allkeys-lru
     volumes:
       - redis-data:/data

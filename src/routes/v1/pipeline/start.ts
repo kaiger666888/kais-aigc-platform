@@ -65,27 +65,18 @@ export default router.post(
     }
 
     try {
-      const createRes = await axios.post(
-        `${MOVIE_AGENT_URL}/api/v1/pipeline/create`,
-        { project_id: String(projectId), config: config || {}, metadata: initialData },
-        { headers: { "Content-Type": "application/json" }, timeout: 15_000, validateStatus: (s) => s < 500 },
+      // movie-agent uses /api/v1/pipeline/run (create + start combined)
+      const runRes = await axios.post(
+        `${MOVIE_AGENT_URL}/api/v1/pipeline/run`,
+        { project_id: String(projectId), config: config || {}, ...initialData },
+        { headers: { "Content-Type": "application/json" }, timeout: 30_000, validateStatus: (s) => s < 500 },
       );
 
-      if (createRes.status !== 201) {
-        return res.status(502).send(error(`movie-agent create failed: ${JSON.stringify(createRes.data)}`));
+      if (runRes.status !== 200 && runRes.status !== 202 && runRes.status !== 201) {
+        return res.status(502).send(error(`movie-agent run failed: ${JSON.stringify(runRes.data)}`));
       }
 
-      const pipelineId = createRes.data.pipeline_id || createRes.data.id;
-
-      const startRes = await axios.post(
-        `${MOVIE_AGENT_URL}/api/v1/pipeline/${pipelineId}/start`,
-        {},
-        { headers: { "Content-Type": "application/json" }, timeout: 15_000, validateStatus: (s) => s < 500 },
-      );
-
-      if (startRes.status !== 202) {
-        return res.status(502).send(error(`movie-agent start failed: ${JSON.stringify(startRes.data)}`));
-      }
+      const pipelineId = runRes.data.pipeline_id || runRes.data.id;
 
       const now = Date.now();
       await u.db("kv_pipelineRun").insert({
