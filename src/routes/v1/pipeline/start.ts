@@ -68,7 +68,27 @@ export default router.post(
       // movie-agent uses /api/v1/pipeline/run (create + start combined)
       const runRes = await axios.post(
         `${MOVIE_AGENT_URL}/api/v1/pipeline/run`,
-        { project_id: String(projectId), config: config || {}, ...initialData },
+        {
+          project_id: String(projectId),
+          phases: ['requirement', 'art-direction', 'character', 'scenario', 'voice', 'storyboard', 'scene', 'camera-preview', 'camera-final', 'post-production', 'quality-gate'],
+          config: {
+            ...config,
+            goldTeam: {
+              baseUrl: process.env.GOLD_TEAM_URL || 'http://kais-aigc-platform-gold-team-1:8002',
+              enableFluxArt: true,
+              enableVideoGpu: true,
+              enableBGM: false,
+              enableSFX: false,
+            },
+            reviewPlatform: {
+              baseUrl: process.env.REVIEW_PLATFORM_URL || 'http://kais-review-platform:8090',
+            },
+            comfyui: {
+              baseUrl: process.env.COMFYUI_URL || 'http://localhost:8188',
+            },
+            ...initialData,
+          },
+        },
         { headers: { "Content-Type": "application/json" }, timeout: 30_000, validateStatus: (s) => s < 500 },
       );
 
