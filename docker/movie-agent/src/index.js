@@ -481,7 +481,7 @@ async function handleReviewCallback(req, res) {
       // Sync the approved phase output to Toonflow (now that it's fully complete)
       if (targetPhaseId) {
         try {
-          const { syncPhaseOutput } = await import('./toonflow-bridge.js');
+          const { syncPhaseOutput } = await import('../lib/toonflow-bridge.js');
           await syncPhaseOutput(targetPhaseId, targetEntry.pipeline.workdir, targetEntry.pipeline.config);
           console.log(`[callback] Toonflow sync for approved phase=${targetPhaseId}`);
         } catch (syncErr) {
