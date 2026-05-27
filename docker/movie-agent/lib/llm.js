@@ -26,7 +26,7 @@ export async function callLLM(prompt, options = {}) {
   const model = options.model || process.env.LLM_MODEL || DEFAULT_MODEL;
   const temperature = options.temperature ?? 0.8;
   const maxRetries = options.maxRetries ?? 2;
-  const timeoutMs = options.timeoutMs ?? 60000;
+  const timeoutMs = options.timeoutMs ?? 120000;
 
   const messages = [];
   if (options.system) {
