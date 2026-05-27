@@ -15,6 +15,34 @@ import { ReviewPlatformClient } from '../lib/review-platform-client.js';
 // Maps pipelineId → { pipeline, config, status, createdAt }
 const pipelines = new Map();
 
+// ─── Review reverse index: review_id → pipelineId ──────────────
+// Populated when review is submitted; persisted to pipeline state.
+const reviewIndex = new Map(); // review_id (number) → pipelineId (string)
+
+// ─── Review index helper ──────────────────────────────────────
+function rebuildReviewIndex(entry, pipelineId) {
+  // Scan pipeline state and populate reviewIndex
+  entry.pipeline._loadState().then(state => {
+    for (const [phaseId, phaseState] of Object.entries(state.phases || {})) {
+      if (phaseState.review_id) {
+        reviewIndex.set(Number(phaseState.review_id), pipelineId);
+      }
+    }
+  }).catch(() => {});
+}
+
+// ─── HMAC verification for callbacks ───────────────────────────
+import crypto from 'node:crypto';
+
+function verifyCallbackSignature(body, signatureHeader, secret) {
+  if (!secret) return true; // No secret configured → skip verification
+  if (!signatureHeader) return false;
+  const match = signatureHeader.match(/^sha256=([0-9a-f]+)$/);
+  if (!match) return false;
+  const expected = crypto.createHmac('sha256', secret).update(body).digest('hex');
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(match[1]));
+}
+
 // ─── Helpers ──────────────────────────────────────────────────
 function json(res, statusCode, data) {
   res.writeHead(statusCode, { 'Content-Type': 'application/json' });
@@ -87,6 +115,11 @@ async function handleCreatePipeline(req, res) {
         ...config,
         projectId,
         episode,
+        // Toonflow bridge config
+        scriptId: config.scriptId || null,
+        episodesId: config.episodesId || null,
+        toonflowBaseUrl: config.toonflowBaseUrl || process.env.TOONFLOW_BASE_URL || 'http://kais-core-backend:8000',
+        ossRoot: config.ossRoot || '/app/data/oss',
       },
     });
 
@@ -136,6 +169,11 @@ async function handleRunPipeline(req, res) {
         ...config,
         projectId,
         episode,
+        // Toonflow bridge config — propagated from start API
+        scriptId: body.script_id || body.scriptId || config.scriptId || null,
+        episodesId: body.episodes_id || body.episodesId || config.episodesId || null,
+        toonflowBaseUrl: config.toonflowBaseUrl || body.toonflowBaseUrl || process.env.TOONFLOW_BASE_URL || 'http://kais-core-backend:8000',
+        ossRoot: config.ossRoot || body.ossRoot || '/app/data/oss',
       },
     });
 
@@ -177,6 +215,8 @@ async function handleRunPipeline(req, res) {
         entry.status = result.success ? 'completed' : 'failed';
         entry.result = result;
         entry.completedAt = new Date().toISOString();
+        // Rebuild review index after pipeline settles (may have submitted reviews)
+        rebuildReviewIndex(entry, pipelineId);
       }
     }).catch(err => {
       console.error(`[pipeline/run] Pipeline ${pipelineId} failed:`, err);
@@ -185,6 +225,7 @@ async function handleRunPipeline(req, res) {
         entry.status = 'failed';
         entry.error = err.message;
         entry.completedAt = new Date().toISOString();
+        rebuildReviewIndex(entry, pipelineId);
       }
     });
 
@@ -280,7 +321,7 @@ async function handlePipelineResume(req, res, pipelineId) {
   entry.status = 'running';
   const fromPhase = body.from_phase || null;
 
-  pipeline.resume(fromPhase, entry.config.phases || {}).then(result => {
+  entry.pipeline.resume(fromPhase, entry.config.phases || {}).then(result => {
     entry.status = result.success ? 'completed' : 'failed';
     entry.result = result;
     entry.completedAt = new Date().toISOString();
@@ -300,6 +341,12 @@ async function handlePipelineResume(req, res, pipelineId) {
 // ─── Review callback handler ─────────────────────────────────
 // POST /api/v1/pipeline/callback/review_result
 // Receives review-platform approval/rejection callbacks and resumes pipeline.
+//
+// Supports:
+// - O(1) lookup via reviewIndex (populated during submit)
+// - Recovery from movie-agent restart: scans pipeline state dirs
+// - HMAC signature verification (optional, when secret configured)
+// - Rejected reviews: sets 'review_rejected' status (not 'failed')
 async function handleReviewCallback(req, res) {
   try {
     const rawBody = await readBody(req);
@@ -307,31 +354,99 @@ async function handleReviewCallback(req, res) {
 
     console.log(`[callback] Review callback received: review_id=${payload.review_id}, disposition=${payload.disposition}`);
 
+    // Verify HMAC signature if secret is configured
+    const signatureHeader = req.headers['x-callback-signature'] || '';
+    const callbackSecret = process.env.REVIEW_CALLBACK_SECRET || '';
+    if (callbackSecret && !verifyCallbackSignature(rawBody, signatureHeader, callbackSecret)) {
+      console.warn(`[callback] HMAC signature verification failed for review_id=${payload.review_id}`);
+      return json(res, 401, { error: 'Invalid callback signature' });
+    }
+
     const { review_id, disposition, source_system, result } = payload;
 
     if (!review_id || !disposition) {
       return json(res, 400, { error: 'Missing review_id or disposition' });
     }
 
-    // Find the pipeline that has this review_id in its state
+    // --- Phase 1: O(1) lookup via in-memory index ---
     let targetEntry = null;
-    let targetPipelineId = null;
-    for (const [pid, entry] of pipelines) {
-      try {
-        const status = await entry.pipeline.getStatus();
-        for (const phase of status.phases) {
-          // Check saved state for review_id
+    let targetPipelineId = reviewIndex.get(Number(review_id)) || reviewIndex.get(String(review_id)) || null;
+
+    if (targetPipelineId) {
+      targetEntry = pipelines.get(targetPipelineId);
+    }
+
+    // --- Phase 2: Scan in-memory pipelines (covers pipelines loaded but not yet indexed) ---
+    if (!targetEntry) {
+      for (const [pid, entry] of pipelines) {
+        try {
           const state = await entry.pipeline._loadState();
-          const phaseState = state.phases[phase.id];
-          if (phaseState && phaseState.review_id === review_id) {
-            targetEntry = entry;
-            targetPipelineId = pid;
-            break;
+          for (const phaseState of Object.values(state.phases)) {
+            if (phaseState.review_id == review_id) { // loose equality for number/string
+              targetEntry = entry;
+              targetPipelineId = pid;
+              // Backfill index
+              reviewIndex.set(Number(review_id), pid);
+              break;
+            }
           }
+          if (targetEntry) break;
+        } catch (e) {
+          // skip pipelines with broken state
         }
-        if (targetEntry) break;
+      }
+    }
+
+    // --- Phase 3: Recover from disk (movie-agent restarted, pipelines Map empty) ---
+    if (!targetEntry) {
+      const { readdir, readFile: readFileAsync } = await import('node:fs/promises');
+      const baseDir = process.env.PIPELINE_WORKDIR || '/mnt/agents/output/pipelines';
+      try {
+        const dirs = await readdir(baseDir);
+        for (const dir of dirs) {
+          const statePath = `${baseDir}/${dir}/.pipeline-state.json`;
+          try {
+            const stateRaw = await readFileAsync(statePath, 'utf-8');
+            const state = JSON.parse(stateRaw);
+            for (const [phaseId, phaseState] of Object.entries(state.phases || {})) {
+              if (phaseState.review_id == review_id) {
+                // Reconstruct pipeline from disk
+                const pipelineId = dir.startsWith('pipe-') ? dir : null;
+                // Try to match by pipelineId in directory name
+                if (!pipelineId) continue;
+                targetPipelineId = pipelineId;
+
+                const pipeline = new Pipeline({
+                  workdir: `${baseDir}/${dir}`,
+                  projectId: state.projectId || 'unknown',
+                  episode: state.episode || 'EP01',
+                  config: {},
+                });
+                // Restore _phaseFilter from state if available
+                pipeline._phaseFilter = null;
+
+                targetEntry = {
+                  pipeline,
+                  episode: state.episode || 'EP01',
+                  projectId: state.projectId || 'unknown',
+                  config: { phases: {} },
+                  status: 'awaiting_review',
+                  createdAt: state.startedAt || new Date().toISOString(),
+                };
+
+                pipelines.set(targetPipelineId, targetEntry);
+                reviewIndex.set(Number(review_id), targetPipelineId);
+                console.log(`[callback] Recovered pipeline ${targetPipelineId} from disk for review_id=${review_id}`);
+                break;
+              }
+            }
+          } catch (e) {
+            // Not a pipeline dir or corrupt state — skip
+          }
+          if (targetEntry) break;
+        }
       } catch (e) {
-        // skip pipelines with broken state
+        console.warn(`[callback] Disk recovery scan failed: ${e.message}`);
       }
     }
 
@@ -342,14 +457,16 @@ async function handleReviewCallback(req, res) {
 
     // Update the phase state based on disposition
     const state = await targetEntry.pipeline._loadState();
+    let targetPhaseId = null;
     for (const [phaseId, phaseState] of Object.entries(state.phases)) {
-      if (phaseState.review_id === review_id) {
+      if (phaseState.review_id == review_id) {
+        targetPhaseId = phaseId;
         if (disposition === 'approved') {
           phaseState.status = 'approved';
           phaseState.approvedAt = new Date().toISOString();
           phaseState.reviewResult = result || {};
         } else {
-          phaseState.status = 'rejected';
+          phaseState.status = 'review_rejected';
           phaseState.rejectedAt = new Date().toISOString();
           phaseState.reviewResult = result || {};
         }
@@ -358,10 +475,10 @@ async function handleReviewCallback(req, res) {
     }
     await targetEntry.pipeline._saveState(state);
 
-    console.log(`[callback] Pipeline ${targetPipelineId}: review #${review_id} ${disposition}`);
+    console.log(`[callback] Pipeline ${targetPipelineId}/${targetPhaseId}: review #${review_id} ${disposition}`);
 
-    // If approved, resume pipeline from the next phase
     if (disposition === 'approved') {
+      // Approved → resume pipeline from next phase
       targetEntry.status = 'running';
       targetEntry.pipeline.resume(null, targetEntry.config.phases || {}).then(r => {
         targetEntry.status = r.success ? 'completed' : 'failed';
@@ -371,17 +488,20 @@ async function handleReviewCallback(req, res) {
       }).catch(err => {
         targetEntry.status = 'failed';
         targetEntry.error = err.message;
+        targetEntry.completedAt = new Date().toISOString();
         console.error(`[callback] Pipeline ${targetPipelineId} resume failed: ${err.message}`);
       });
     } else {
-      targetEntry.status = 'failed';
-      targetEntry.error = `Review rejected: review_id=${review_id}`;
-      targetEntry.completedAt = new Date().toISOString();
+      // Rejected → pause pipeline, allow re-trigger
+      targetEntry.status = 'review_rejected';
+      targetEntry.error = `Review rejected for ${targetPhaseId}: review_id=${review_id}`;
+      console.log(`[callback] Pipeline ${targetPipelineId} paused (review_rejected) for phase ${targetPhaseId}`);
     }
 
     json(res, 200, {
       ok: true,
       pipeline_id: targetPipelineId,
+      phase: targetPhaseId,
       disposition,
       review_id,
     });
@@ -421,6 +541,56 @@ async function handleRequest(req, res) {
     return handleRunPipeline(req, res);
   }
 
+  // Review callback — must come before pipeline sub-routes to avoid :id match
+  // Already handled above at /api/v1/pipeline/callback/review_result
+
+  // POST /api/v1/pipeline/:id/resubmit-review
+  // Re-triggers a rejected review phase
+  const resubmitMatch = path.match(/^\/api\/v1\/pipeline\/([^/]+)\/resubmit-review$/);
+  if (resubmitMatch && method === 'POST') {
+    const pipelineId = resubmitMatch[1];
+    const entry = pipelines.get(pipelineId);
+    if (!entry) return json(res, 404, { error: 'Pipeline not found', pipeline_id: pipelineId });
+
+    try {
+      const body = JSON.parse(await readBody(req));
+      const phaseId = body.phase_id;
+      if (!phaseId) return json(res, 400, { error: 'phase_id is required' });
+
+      const state = await entry.pipeline._loadState();
+      const phaseState = state.phases[phaseId];
+      if (!phaseState || phaseState.status !== 'review_rejected') {
+        return json(res, 400, { error: `Phase ${phaseId} is not in review_rejected state`, current_status: phaseState?.status });
+      }
+
+      // Reset phase state so run/resume will re-execute it
+      delete state.phases[phaseId];
+      await entry.pipeline._saveState(state);
+
+      // Resume from this phase
+      entry.status = 'running';
+      entry.pipeline.resume(phaseId, entry.config.phases || {}).then(r => {
+        entry.status = r.success ? 'completed' : 'failed';
+        entry.result = r;
+        entry.completedAt = new Date().toISOString();
+      }).catch(err => {
+        entry.status = 'failed';
+        entry.error = err.message;
+        entry.completedAt = new Date().toISOString();
+      });
+
+      json(res, 202, {
+        pipeline_id: pipelineId,
+        phase: phaseId,
+        status: 'running',
+        message: `Re-running phase ${phaseId} for re-review`,
+      });
+    } catch (err) {
+      json(res, 500, { error: err.message });
+    }
+    return;
+  }
+
   // Pipeline sub-routes: /api/v1/pipeline/:id/...
   const pipelineMatch = path.match(/^\/api\/v1\/pipeline\/([^/]+)\/(.+)$/);
   if (pipelineMatch) {
@@ -458,8 +628,37 @@ const server = http.createServer((req, res) => {
   });
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log(`[movie-agent] Server listening on port ${PORT}`);
   console.log(`[movie-agent] Health: http://localhost:${PORT}/health`);
   console.log(`[movie-agent] Pipelines: http://localhost:${PORT}/api/v1/pipelines`);
+
+  // ── Startup: recover pending reviews from disk ──────────────
+  try {
+    const { readdir, readFile: readFileAsync } = await import('node:fs/promises');
+    const baseDir = process.env.PIPELINE_WORKDIR || '/mnt/agents/output/pipelines';
+    const dirs = await readdir(baseDir);
+    let recoveredCount = 0;
+    for (const dir of dirs) {
+      if (!dir.startsWith('pipe-')) continue;
+      try {
+        const stateRaw = await readFileAsync(`${baseDir}/${dir}/.pipeline-state.json`, 'utf-8');
+        const state = JSON.parse(stateRaw);
+        for (const [phaseId, phaseState] of Object.entries(state.phases || {})) {
+          if (phaseState.review_id && phaseState.status === 'awaiting_review') {
+            reviewIndex.set(Number(phaseState.review_id), dir);
+            recoveredCount++;
+          }
+        }
+      } catch (e) {
+        // skip non-pipeline dirs
+      }
+    }
+    if (recoveredCount > 0) {
+      console.log(`[movie-agent] Recovered ${recoveredCount} pending review(s) from disk`);
+    }
+  } catch (e) {
+    // Pipeline workdir may not exist yet — that's fine
+    console.log(`[movie-agent] No existing pipelines to recover`);
+  }
 });

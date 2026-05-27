@@ -15,10 +15,11 @@ export default router.post(
   validateFields({
     projectId: z.number(),
     scriptId: z.number().optional(),
+    episodesId: z.number().optional(),
     config: z.any().optional(),
   }),
   async (req, res) => {
-    const { projectId, scriptId, config } = req.body;
+    const { projectId, scriptId, episodesId, config } = req.body;
 
     const project = await u.db("o_project").where({ id: projectId }).first();
     if (!project) {
@@ -86,6 +87,12 @@ export default router.post(
             comfyui: {
               baseUrl: process.env.COMFYUI_URL || 'http://localhost:8188',
             },
+            // Toonflow bridge config
+            projectId,
+            scriptId: script?.id || scriptId || null,
+            episodesId: episodesId || script?.id || null,
+            toonflowBaseUrl: 'http://kais-core-backend:8000',
+            ossRoot: '/app/data/oss',
             ...initialData,
           },
         },

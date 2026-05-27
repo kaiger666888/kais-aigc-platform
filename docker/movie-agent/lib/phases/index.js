@@ -1754,12 +1754,12 @@ async function _loadDialogueFromScenario(workdir) {
  * Used when gold-team is unavailable.
  */
 async function _localTTSFallback(dialogueLines, ttsDir, config) {
-  const apiKey = config?.zhipuApiKey || process.env.ZHIPU_API_KEY || '';
+  const apiKey = config?.zhipuApiKey || process.env.LLM_API_KEY || '';
   const apiUrl = config?.zhipuApiUrl || process.env.ZHIPU_API_URL || 'https://open.bigmodel.cn/api/paas/v4/audio/speech';
   const assignments = [];
 
   if (!apiKey) {
-    console.warn('[voice] ZHIPU_API_KEY 未配置，本地 TTS 跳过 — 生成占位文件');
+    console.warn('[voice] LLM_API_KEY 未配置，本地 TTS 跳过 — 生成占位文件');
     for (const line of dialogueLines) {
       const placeholderFile = `${line.id || line.lineId || assignments.length + 1}.wav`;
       assignments.push({
