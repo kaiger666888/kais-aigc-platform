@@ -87,7 +87,7 @@ services:
       # LLM via Hermes/OpenClaw proxy (与 Hermes MCP server 共享配置)
       LLM_BASE_URL: ${LLM_BASE_URL:-https://open.bigmodel.cn/api/paas/v4}
       LLM_API_KEY: ${LLM_API_KEY:-}
-      LLM_MODEL: ${LLM_MODEL:-glm-4-flash}
+      LLM_MODEL: ${LLM_MODEL:-glm-5.1}
     volumes:
       - ${OUTPUT_DIR:-/mnt/agents/output}:/mnt/agents/output
     networks:
