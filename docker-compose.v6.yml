@@ -126,10 +126,15 @@ services:
       REDIS_URL: redis://redis:6379
       OUTPUT_DIR: /mnt/agents/output
       MODELS_DIR: /opt/kais/models
+      # CosyVoice2 TTS
+      COSYVOICE_ROOT: /opt/CosyVoice
+      COSYVOICE_MODEL_DIR: /opt/CosyVoice/pretrained_models/iic/CosyVoice2-0.5B
+      MPLCONFIGDIR: /tmp/matplotlib
       # 云端引擎 API Keys 从 .env 注入
     volumes:
       - ${OUTPUT_DIR:-/mnt/agents/output}:/mnt/agents/output
       - ${MODELS_DIR:-/opt/kais/models}:/opt/kais/models:ro
+      - cosyvoice-models:/opt/CosyVoice/pretrained_models
     networks:
       - kais-net
     deploy:
@@ -347,3 +352,5 @@ volumes:
     name: kais-core-data
   comfyui-custom-nodes:
     name: kais-comfyui-custom-nodes
+  cosyvoice-models:
+    name: kais-cosyvoice-models
