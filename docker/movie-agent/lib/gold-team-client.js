@@ -31,7 +31,7 @@ export class GoldTeamClient {
     baseUrl = process.env.GOLD_TEAM_URL || 'http://192.168.71.166:8900',
     apiKey = process.env.GOLD_TEAM_API_KEY || '',
     timeout = 60000,
-    callbackBaseUrl = process.env.CALLBACK_BASE_URL || 'http://192.168.71.140:3000',
+    callbackBaseUrl = process.env.CALLBACK_BASE_URL || 'http://192.168.71.166:3000',
     traceId = '',
   } = {}) {
     this._baseUrl = baseUrl.replace(/\/$/, '');

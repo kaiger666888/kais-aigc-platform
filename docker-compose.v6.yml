@@ -2,9 +2,9 @@
 # KAIS AIGC Platform V6.0 — Docker Compose
 # =============================================================================
 # 架构概览:
-#   宿主机: AMD Ryzen 7 5800X3D + RTX 3090 (24G, GPU 0) + RTX 3060Ti (8G, GPU 1)
-#   GPU 0 (3090): 所有 AIGC 推理 + 后处理
-#   GPU 1 (3060Ti): 显示 + NVENC/NVDEC + ffmpeg IO（宿主机，非 Docker）
+#   单机: AMD Ryzen 7 5800X3D + RTX 3060 Ti (8G, GPU 0) + RTX 3090 (24G, GPU 1)
+#   GPU 0 (3060Ti): 显示 + NVENC/NVDEC + ffmpeg IO（宿主机，非 Docker）
+#   GPU 1 (3090): 所有 AIGC 推理 + 后处理（Docker 容器）
 #
 # 网络: kais-net (bridge)
 # 存储: /mnt/agents/output (共享产物), /opt/kais/models (模型缓存)

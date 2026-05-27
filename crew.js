@@ -25,7 +25,7 @@ module.exports = {
 - 已有 V2 双卡拓扑（3090 + 3060Ti），32-node routing table，TopologyAwareRouter
 - combo 模式：3060Ti Combo Resident（6个轻量模型常驻30分钟）
 - hypervisor 层：gpu_health/watchdog/vram_budget/batch_scheduler/runtime_supervisor
-- kais-hub: Control Node + Worker Node（双机分布式）
+- kais-hub: Control Node + Worker Node（~~双机分布式~~ 已退役，迁移到单机）
 - 三通道通信：Syncthing/SFTP/HTTP Callback
 - workers: heavy_worker(3090)/light_worker(3060ti)/ffmpeg_worker/overflow_worker
 - journal: Redis Streams 事务日志
@@ -37,7 +37,7 @@ module.exports = {
 3. 需要删除/废弃的旧代码
 4. 与 kais-core-backend（Jellyfish 改造）的集成接口设计建议
 5. 与 kais-movie-agent 的接口契约对齐分析
-6. Docker 部署从双机分布式到单机 Docker Compose 的迁移路径`,
+6. Docker 部署从~~双机分布式~~到单机 Docker Compose 的迁移路径`,
         depth: "deep"
       },
       output: "context/audit-gold-team.md"
