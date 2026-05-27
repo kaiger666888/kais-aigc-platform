@@ -17,7 +17,6 @@ import { AssetBus } from '../asset-bus.js';
 import { PromptInjector } from '../prompt-injector.js';
 import { parseShotToGpuParams, deduplicateSceneNeeds } from '../shot-list-parser.js';
 import { AIScorer } from '../ai-scorer.js';
-import { callLLMJson } from '../llm.js';
 
 /**
  * 各阶段的 before/after 钩子
@@ -1064,45 +1063,34 @@ function _extractArtifactUrl(task, type) {
   return null;
 }
 
-// ─── LLM-based Auto-Generation Helpers ─────────────────────
+// ─── Auto-Generation Helpers (LLM stripped — data from OpenClaw Agent skill layer) ──
 
 /**
- * Generate narration lines from event data using LLM.
- * Each event becomes a narration line with voice assignment.
+ * Generate narration lines from event data.
+ * LLM 已剥离：从 config.llmResults.narration 获取外部传入数据。
+ * 如果没传，用事件描述作为旁白。
  */
 async function _generateNarrationFromEvents(events, novelContent, config) {
   const lines = [];
+  const llmNarration = config?.llmResults?.narration;
 
-  // Try LLM-based generation
-  try {
-    const eventsSummary = events.map((e, i) => `[${i + 1}] ${e.chapter} | ${e.character}: ${e.description}`).join('\n');
-    const prompt = `你是一个影视旁白编剧。根据以下事件列表，为每个事件生成一段旁白文本。
-要求：简洁、有画面感、适合语音朗读，每段不超过50字。
-
-事件列表:
-${eventsSummary}
-
-请返回 JSON 数组格式:
-[{"id": "line-1", "text": "旁白文本", "character": "角色名", "emotion": "情绪"}]`;
-
-    const result = await callLLMJson(prompt, { temperature: 0.7 });
-    const arr = Array.isArray(result) ? result : [result];
-    for (let i = 0; i < arr.length; i++) {
+  if (llmNarration && Array.isArray(llmNarration) && llmNarration.length > 0) {
+    for (let i = 0; i < llmNarration.length; i++) {
+      const item = llmNarration[i];
       lines.push({
-        id: arr[i].id || `line-${i + 1}`,
-        text: arr[i].text || events[i]?.description || '',
-        character: arr[i].character || events[i]?.character || '',
+        id: item.id || `line-${i + 1}`,
+        text: item.text || events[i]?.description || '',
+        character: item.character || events[i]?.character || '',
         voiceId: 'Vivian',
         language: 'zh',
-        emotion: arr[i].emotion || 'neutral',
+        emotion: item.emotion || 'neutral',
       });
     }
-    console.log(`[voice] LLM generated ${lines.length} narration lines`);
+    console.log(`[voice] 使用外部传入的 ${lines.length} 段旁白`);
     return lines;
-  } catch (err) {
-    console.warn(`[voice] LLM narration generation failed: ${err.message}, using event descriptions`);
   }
 
+  console.warn('[voice] 无外部旁白数据（config.llmResults.narration），使用事件描述作为旁白。请通过 OpenClaw Agent skill 层提供。');
   // Fallback: use event descriptions directly as narration
   for (let i = 0; i < events.length; i++) {
     const evt = events[i];
@@ -1118,45 +1106,30 @@ ${eventsSummary}
 }
 
 /**
- * Generate image prompts for each scene/event using LLM.
- * Combines art direction style with event descriptions.
+ * Generate image prompts for each scene/event.
+ * LLM 已剥离：从 config.llmResults.scenePrompts 获取外部传入数据。
+ * 如果没传，用事件描述+风格生成基础提示词。
  */
 async function _generateScenePrompts(events, stylePrompt, novelContent, config) {
   const scenes = [];
+  const llmScenes = config?.llmResults?.scenePrompts;
 
-  try {
-    const eventsSummary = events.map((e, i) => `[${i + 1}] ${e.character}: ${e.description}`).join('\n');
-    const prompt = `你是一个 AI 绘画提示词专家。根据以下事件列表和美术风格，为每个事件生成一个高质量的图片生成提示词。
-美术风格: ${stylePrompt || 'cinematic, high quality'}
-
-事件:
-${eventsSummary}
-
-要求：
-- 英文提示词，Stable Diffusion / FLUX 风格
-- 包含场景描述、光照、构图、氛围
-- 每个提示词 50-100 个英文单词
-
-请返回 JSON 数组:
-[{"id": "scene-1", "prompt": "...", "character": "角色名", "description": "中文场景描述"}]`;
-
-    const result = await callLLMJson(prompt, { temperature: 0.7 });
-    const arr = Array.isArray(result) ? result : [result];
-    for (let i = 0; i < arr.length; i++) {
+  if (llmScenes && Array.isArray(llmScenes) && llmScenes.length > 0) {
+    for (let i = 0; i < llmScenes.length; i++) {
+      const s = llmScenes[i];
       scenes.push({
-        id: arr[i].id || `scene-${i + 1}`,
-        prompt: arr[i].prompt || '',
-        character: arr[i].character || events[i]?.character || '',
-        description: arr[i].description || events[i]?.description || '',
+        id: s.id || `scene-${i + 1}`,
+        prompt: s.prompt || '',
+        character: s.character || events[i]?.character || '',
+        description: s.description || events[i]?.description || '',
         event: events[i]?.description || '',
       });
     }
-    console.log(`[scene] LLM generated ${scenes.length} scene prompts`);
+    console.log(`[scene] 使用外部传入的 ${scenes.length} 个场景提示词`);
     return scenes;
-  } catch (err) {
-    console.warn(`[scene] LLM scene generation failed: ${err.message}, using basic prompts`);
   }
 
+  console.warn('[scene] 无外部场景提示词数据（config.llmResults.scenePrompts），使用基础提示词。请通过 OpenClaw Agent skill 层提供。');
   // Fallback: basic prompt from event + style
   for (let i = 0; i < events.length; i++) {
     const evt = events[i];
@@ -1184,59 +1157,55 @@ async function _loadArtDirection(workdir) {
 }
 
 /**
- * Generate art direction data from requirement using LLM.
- * Falls back to mock data if LLM is unavailable.
+ * Generate art direction data.
+ * LLM 已剥离：从 config.llmResults.artDirection 获取外部传入数据。
+ * 如果没传，使用 mock 数据。
  */
 async function _generateArtDirection(pipeline) {
   const req = pipeline.config || {};
   const title = req.title || '未命名项目';
   const genre = req.genre || '短片';
-  const stylePref = req.style_preference || '';
-  const characters = (req.characters || []).map(c => c.name || '角色').join(', ');
+  const llmArt = pipeline.config?.llmResults?.artDirection;
 
-  const prompt = `你是一个动画美术总监。请根据以下项目需求，生成美术方向方案。
-
-项目: ${title}
-类型: ${genre}
-风格偏好: ${stylePref || '由你决定'}
-角色: ${characters || '待定'}
-
-请返回 JSON 格式:
-{
-  "style": "美术风格描述",
-  "style_anchor": "视觉锚点关键词",
-  "lighting": "光照风格",
-  "color_palette": ["#色值1", "#色值2", "#色值3", "#色值4"],
-  "composition": "构图原则",
-  "description": "整体美术方向描述"
-}`;
-
-  try {
-    const result = await callLLMJson(prompt, { temperature: 0.7 });
-    console.log('[art-direction] ✅ LLM 生成美术方向完成');
-    return result;
-  } catch (err) {
-    console.warn(`[art-direction] LLM 生成失败: ${err.message}，使用 mock 数据`);
-    return {
-      style: `${genre}动画风格`,
-      style_anchor: '2D animation, vibrant colors',
-      lighting: '柔和自然光，局部戏剧性光影',
-      color_palette: ['#2D5A8E', '#E8A838', '#4CAF50', '#D32F2F'],
-      composition: '三分法构图，角色居中',
-      description: `${title} 默认美术方向：${genre}风格，色彩鲜明`,
-    };
+  if (llmArt && typeof llmArt === 'object') {
+    console.log('[art-direction] ✅ 使用外部传入的美术方向');
+    return llmArt;
   }
+
+  console.warn('[art-direction] 无外部美术方向数据（config.llmResults.artDirection），使用 mock 数据。请通过 OpenClaw Agent skill 层提供。');
+  return {
+    style: `${genre}动画风格`,
+    style_anchor: '2D animation, vibrant colors',
+    lighting: '柔和自然光，局部戏剧性光影',
+    color_palette: ['#2D5A8E', '#E8A838', '#4CAF50', '#D32F2F'],
+    composition: '三分法构图，角色居中',
+    description: `${title} 默认美术方向：${genre}风格，色彩鲜明`,
+  };
 }
 
 /**
- * Generate character designs from requirement using LLM.
- * Falls back to mock data if LLM is unavailable.
+ * Generate character designs.
+ * LLM 已剥离：从 config.llmResults.characters 获取外部传入数据。
+ * 如果没传，使用 requirement 中的角色定义或 mock 数据。
  */
 async function _generateCharacters(pipeline) {
   const req = pipeline.config || {};
-  const title = req.title || '未命名项目';
-  const genre = req.genre || '短片';
   const inputCharacters = req.characters || [];
+  const llmChars = pipeline.config?.llmResults?.characters;
+
+  if (llmChars && Array.isArray(llmChars) && llmChars.length > 0) {
+    console.log(`[character] ✅ 使用外部传入的 ${llmChars.length} 个角色`);
+    return llmChars.map(c => ({
+      name: c.name || '未命名',
+      description: c.description || '',
+      core_prompt: c.description || c.name,
+      personality: c.personality || '',
+      color_scheme: c.color_scheme || [],
+      key_features: c.key_features || [],
+      refImages: [],
+      seed: null,
+    }));
+  }
 
   // 如果 requirement 里已经有角色定义（带 name），直接使用
   if (inputCharacters.length > 0 && inputCharacters.some(c => c.description)) {
@@ -1250,152 +1219,62 @@ async function _generateCharacters(pipeline) {
     }));
   }
 
-  const charNames = inputCharacters.map(c => c.name).filter(Boolean).join(', ') || '主角, 配角';
-
-  const prompt = `你是一个角色设计师。请根据以下项目需求，设计角色。
-
-项目: ${title}
-类型: ${genre}
-角色名: ${charNames}
-
-请返回 JSON 数组格式:
-[
-  {
-    "name": "角色名",
-    "description": "详细外观描述（发型、服装、体型、特征）",
-    "personality": "性格特征",
-    "color_scheme": ["主色调", "辅助色"],
-    "key_features": ["特征1", "特征2"]
-  }
-]`;
-
-  try {
-    const result = await callLLMJson(prompt, { temperature: 0.7 });
-    const characters = Array.isArray(result) ? result : [result];
-    console.log(`[character] ✅ LLM 生成了 ${characters.length} 个角色`);
-    return characters.map(c => ({
-      name: c.name || '未命名',
-      description: c.description || '',
-      core_prompt: c.description || c.name,
-      personality: c.personality || '',
-      color_scheme: c.color_scheme || [],
-      key_features: c.key_features || [],
-      refImages: [],
-      seed: null,
-    }));
-  } catch (err) {
-    console.warn(`[character] LLM 生成失败: ${err.message}，使用 mock 数据`);
-    // 从 requirement 中提取角色名
-    const mockChars = inputCharacters.length > 0
-      ? inputCharacters.map(c => ({
-          name: c.name || '未命名',
-          description: `${c.name || '角色'}默认外观`,
-          core_prompt: `${c.name || '角色'}动画角色`,
-          refImages: [],
-          seed: null,
-        }))
-      : [{
-          name: '主角',
-          description: '默认主角外观，简洁动画风格',
-          core_prompt: '动画主角角色设计',
-          refImages: [],
-          seed: null,
-        }];
-    console.log(`[character] 使用 ${mockChars.length} 个 mock 角色`);
-    return mockChars;
-  }
+  console.warn('[character] 无外部角色数据（config.llmResults.characters），使用 mock 数据。请通过 OpenClaw Agent skill 层提供。');
+  const mockChars = inputCharacters.length > 0
+    ? inputCharacters.map(c => ({
+        name: c.name || '未命名',
+        description: `${c.name || '角色'}默认外观`,
+        core_prompt: `${c.name || '角色'}动画角色`,
+        refImages: [],
+        seed: null,
+      }))
+    : [{
+        name: '主角',
+        description: '默认主角外观，简洁动画风格',
+        core_prompt: '动画主角角色设计',
+        refImages: [],
+        seed: null,
+      }];
+  console.log(`[character] 使用 ${mockChars.length} 个 mock 角色`);
+  return mockChars;
 }
 
+/**
+ * Generate scenario data.
+ * LLM 已剥离：从 config.llmResults.scenario 获取外部传入数据。
+ * 如果没传，使用 mock 数据。
+ */
 async function _generateScenario(pipeline) {
   const req = pipeline.config || {};
   const title = req.title || '未命名项目';
   const genre = req.genre || '短片';
   const characters = (req.characters || []).map(c => c.name || '角色').join(', ');
-  const script = req.script?.content || '';
+  const llmScenario = pipeline.config?.llmResults?.scenario;
 
-  // Load art direction
-  let artStyle = '';
-  try {
-    const raw = await readFile(join(pipeline.workdir, 'art_direction.json'), 'utf-8');
-    const art = JSON.parse(raw);
-    artStyle = art.style || art.description || '';
-  } catch {}
-
-  // Load requirement for theme/context
-  let theme = '';
-  try {
-    const raw = await readFile(join(pipeline.workdir, 'requirement.json'), 'utf-8');
-    const rq = JSON.parse(raw);
-    theme = rq.theme || rq.genre || '';
-  } catch {}
-
-  const prompt = `你是一个专业剧本编剧。请根据以下项目需求，编写一个完整的短视频剧本。
-
-项目: ${title}
-类型: ${genre}
-风格: ${artStyle || '由你决定'}
-主题: ${theme || '由你决定'}
-角色: ${characters || '主角'}
-${script ? `原始脚本参考:\n${script.substring(0, 2000)}` : ''}
-
-请返回 JSON 格式:
-{
-  "title": "剧本标题",
-  "synopsis": "一句话概要",
-  "events": [
-    {
-      "id": "evt-1",
-      "chapter": "开篇",
-      "description": "事件描述（包含角色动作、情感、环境）",
-      "character": "角色名",
-      "dialogue": "台词或旁白",
-      "emotion": "情感基调",
-      "scene_description": "场景视觉描述"
-    }
-  ],
-  "climax": "高潮描述",
-  "ending": "结局描述"
-}
-
-要求：
-- events 数量 8-15 个，涵盖开篇、发展、高潮、结局
-- 每个事件的 description 要具体，包含视觉细节
-- dialogue 要生动，适合配音
-- 适合 60 秒短视频节奏`;
-
-  try {
-    const result = await callLLMJson(prompt, { temperature: 0.8 });
-    // Handle both array and object responses from LLM
-    let events = [];
-    let scenarioData = result;
-    if (Array.isArray(result)) {
-      events = result;
-      scenarioData = { title, synopsis: `${title} - ${genre}风格短视频`, events };
-    } else {
-      events = result.events || [];
-      scenarioData = result;
-    }
-    console.log(`[scenario] ✅ LLM 生成剧本完成: ${events.length} 个事件`);
-    // Save to file
+  if (llmScenario && typeof llmScenario === 'object' && (llmScenario.events || Array.isArray(llmScenario))) {
+    const scenarioData = Array.isArray(llmScenario)
+      ? { title, synopsis: `${title} - ${genre}风格短视频`, events: llmScenario }
+      : llmScenario;
+    console.log(`[scenario] ✅ 使用外部传入的剧本: ${(scenarioData.events || []).length} 个事件`);
     await writeFile(join(pipeline.workdir, 'scenario.json'), JSON.stringify(scenarioData, null, 2));
     return scenarioData;
-  } catch (err) {
-    console.warn(`[scenario] LLM 生成失败: ${err.message}，使用 mock 数据`);
-    const mock = {
-      title,
-      synopsis: `${title} - ${genre}风格短视频`,
-      events: [
-        { id: 'evt-1', chapter: '开篇', description: `故事开始，${characters.split(',')[0] || '主角'}出场`, character: characters.split(',')[0] || '主角', dialogue: '在一个平凡的日子...', emotion: '平静', scene_description: '宁静的场景' },
-        { id: 'evt-2', chapter: '发展', description: '遇到挑战', character: characters.split(',')[0] || '主角', dialogue: '事情开始变得有趣了', emotion: '紧张', scene_description: '紧张的氛围' },
-        { id: 'evt-3', chapter: '高潮', description: '关键转折', character: characters.split(',')[0] || '主角', dialogue: '这一刻改变了一切', emotion: '激动', scene_description: '戏剧性场景' },
-        { id: 'evt-4', chapter: '结局', description: '故事收尾', character: characters.split(',')[0] || '主角', dialogue: '这就是答案', emotion: '温暖', scene_description: '温馨收尾' },
-      ],
-      climax: '关键转折点',
-      ending: '温暖收尾',
-    };
-    await writeFile(join(pipeline.workdir, 'scenario.json'), JSON.stringify(mock, null, 2));
-    return mock;
   }
+
+  console.warn('[scenario] 无外部剧本数据（config.llmResults.scenario），使用 mock 数据。请通过 OpenClaw Agent skill 层提供。');
+  const mock = {
+    title,
+    synopsis: `${title} - ${genre}风格短视频`,
+    events: [
+      { id: 'evt-1', chapter: '开篇', description: `故事开始，${characters.split(',')[0] || '主角'}出场`, character: characters.split(',')[0] || '主角', dialogue: '在一个平凡的日子...', emotion: '平静', scene_description: '宁静的场景' },
+      { id: 'evt-2', chapter: '发展', description: '遇到挑战', character: characters.split(',')[0] || '主角', dialogue: '事情开始变得有趣了', emotion: '紧张', scene_description: '紧张的氛围' },
+      { id: 'evt-3', chapter: '高潮', description: '关键转折', character: characters.split(',')[0] || '主角', dialogue: '这一刻改变了一切', emotion: '激动', scene_description: '戏剧性场景' },
+      { id: 'evt-4', chapter: '结局', description: '故事收尾', character: characters.split(',')[0] || '主角', dialogue: '这就是答案', emotion: '温暖', scene_description: '温馨收尾' },
+    ],
+    climax: '关键转折点',
+    ending: '温暖收尾',
+  };
+  await writeFile(join(pipeline.workdir, 'scenario.json'), JSON.stringify(mock, null, 2));
+  return mock;
 }
 
 // ─── Phase 4A: Gold-Team V4.1 Engine Integrations ──────────────
@@ -1754,12 +1633,12 @@ async function _loadDialogueFromScenario(workdir) {
  * Used when gold-team is unavailable.
  */
 async function _localTTSFallback(dialogueLines, ttsDir, config) {
-  const apiKey = config?.zhipuApiKey || process.env.LLM_API_KEY || '';
-  const apiUrl = config?.zhipuApiUrl || process.env.ZHIPU_API_URL || 'https://open.bigmodel.cn/api/paas/v4/audio/speech';
+  const apiKey = config?.zhipuApiKey || process.env.ZHIPU_API_KEY || '';
+  const apiUrl = config?.zhipuApiUrl || process.env.ZHIPU_API_URL || process.env.ZHIPU_BASE_URL?.replace(/\/+$/, '') + '/audio/speech';
   const assignments = [];
 
   if (!apiKey) {
-    console.warn('[voice] LLM_API_KEY 未配置，本地 TTS 跳过 — 生成占位文件');
+    console.warn('[voice] ZHIPU_API_KEY 未配置，本地 TTS 跳过 — 生成占位文件');
     for (const line of dialogueLines) {
       const placeholderFile = `${line.id || line.lineId || assignments.length + 1}.wav`;
       assignments.push({

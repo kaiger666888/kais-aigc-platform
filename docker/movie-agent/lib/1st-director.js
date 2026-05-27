@@ -38,115 +38,40 @@ export class FirstDirector {
   /**
    * @param {object} options
    * @param {string} [options.workdir] - 项目工作目录
-   * @param {string} [options.apiBase] - LLM API 地址 (覆盖 LLM_BASE_URL)
-   * @param {string} [options.apiKey]  - API Key (覆盖 LLM_API_KEY)
-   * @param {string} [options.model] - 模型名称
    * @param {string} [options.blueprintPath] - 蓝图保存路径
    */
   constructor(options = {}) {
     this.workdir = options.workdir || process.cwd();
-    this.apiBase = options.apiBase || process.env.LLM_BASE_URL || 'https://open.bigmodel.cn/api/paas/v4';
-    this.apiKey = options.apiKey || process.env.LLM_API_KEY || '';
-    this.model = options.model || 'glm-4-flash';
     this.blueprintPath = options.blueprintPath || 'blueprint.json';
   }
 
-  // ─── LLM 调用 ─────────────────────────────────────────
-
-  async _callLLM(prompt) {
-    if (!this.apiKey) {
-      console.warn('[1st-director] 无 API Key，返回空蓝图');
-      return null;
-    }
-    try {
-      const resp = await fetch(`${this.apiBase}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: this.model,
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.7,
-          max_tokens: 4096,
-        }),
-        signal: AbortSignal.timeout(60000),
-      });
-      if (!resp.ok) {
-        console.warn(`[1st-director] API 返回 ${resp.status}`);
-        return null;
-      }
-      const data = await resp.json();
-      const content = data.choices?.[0]?.message?.content || '';
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) return null;
-      return JSON.parse(jsonMatch[0]);
-    } catch (err) {
-      console.warn(`[1st-director] LLM 调用失败: ${err.message}`);
-      return null;
-    }
-  }
+  // ─── LLM 调用 — 已剥离 ────────────────────────────────
+  // LLM 调用已迁移至 OpenClaw Agent skill 层。
+  // 蓝图数据应通过 generateBlueprint(options.blueprintData) 传入。
 
   // ─── 四维蓝图生成 ─────────────────────────────────────
 
   /**
    * 根据需求生成四维约束蓝图
+   * LLM 已剥离：从 options.blueprintData 获取外部传入的蓝图数据。
+   * 如果没传，使用模板蓝图。
    * @param {object} requirement - 需求确认结果
    * @param {object} [options]
+   * @param {object} [options.blueprintData] - 外部传入的蓝图数据（由 OpenClaw Agent skill 层提供）
    * @returns {Promise<object>} { blueprint, dimensions, timeline, checklists }
    */
   async generateBlueprint(requirement, options = {}) {
     const durationSec = requirement.duration_sec || 60;
     const title = requirement.title || '';
-    const genre = requirement.genre || '短剧';
 
-    const prompt = `你是一个基于预测编码理论的AI短剧总导演。请为以下短片需求生成四维约束蓝图。
-
-## 需求
-- 片名: ${title}
-- 类型: ${genre}
-- 时长: ${durationSec}秒
-- 主题: ${requirement.theme || ''}
-- 角色: ${(requirement.characters || []).map(c => c.name).join(', ') || '未定'}
-- 风格偏好: ${requirement.style_preference || ''}
-
-## 四维尺度说明
-1. **神经尺度**（0.1-1s）：预测误差幅度、注意力锚点设计、归因闭环窗口（≤5s）、注意力重捕获间隔（≤8s）
-2. **情绪尺度**（3-10s）：锯齿循环（情绪不能单调）、张力递进、无平淡期（≤15s）
-3. **叙事尺度**（10-30s）：价值缺口建立、身份投射、价值兑现
-4. **社交尺度**（30-60s）：截图时刻（高视觉冲击帧）、引用候选（金句）、模因密度（每60s至少1个可传播模因）
-
-请严格按以下 JSON 格式返回：
-{
-  "title": "片名",
-  "duration_sec": ${durationSec},
-  "audience_profile": {
-    "primary_emotion": "主要情绪",
-    "age_range": "目标年龄段",
-    "viewing_context": "观看场景",
-    "attention_budget": 8,
-    "threshold": 65
-  },
-  "timeline": [
-    {"timestamp": "0-3s", "neuro": "高预测误差，注意力锚点", "emotion": "好奇/惊讶", "narrative": "建立价值缺口", "social": "hook模因"},
-    {"timestamp": "3-10s", "neuro": "归因闭环中", "emotion": "焦虑↑", "narrative": "悬念深化", "social": ""},
-    {"timestamp": "10-20s", "neuro": "新预测误差", "emotion": "期待/紧张", "narrative": "身份投射", "social": ""},
-    {"timestamp": "20-30s", "neuro": "部分归因", "emotion": "释然/反转", "narrative": "转折点", "social": ""},
-    {"timestamp": "30-45s", "neuro": "持续误差", "emotion": "高潮/震撼", "narrative": "价值兑现", "social": "截图时刻"},
-    {"timestamp": "45-${durationSec}s", "neuro": "归因闭环完成", "emotion": "满足/余韵", "narrative": "收束+余味", "social": "引用候选"}
-  ],
-  "constraints": {
-    "neuro": {"errorRange": [0.15, 0.30], "attributionWindow": 5, "captureInterval": 8},
-    "emotion": {"sawtoothCycle": true, "tensionEscalation": true, "noFlatPeriod": 15},
-    "narrative": {"valueGap": true, "identityProjection": true, "valueFulfillment": true},
-    "social": {"screenshotMoment": 1, "quoteCandidate": 1, "memeComplexity3s": true, "memeDensity": "per60s"}
-  },
-  "entropyPoints": []
-}`;
-
-    const result = await this._callLLM(prompt);
-    const blueprint = result || { ...EMPTY_BLUEPRINT, title, duration_sec: durationSec };
+    let blueprint;
+    if (options.blueprintData && typeof options.blueprintData === 'object') {
+      blueprint = { ...EMPTY_BLUEPRINT, title, duration_sec: durationSec, ...options.blueprintData };
+      console.log('[1st-director] ✅ 使用外部传入的蓝图数据');
+    } else {
+      console.warn('[1st-director] 无外部蓝图数据（options.blueprintData），使用模板蓝图。LLM 生成已迁移至 OpenClaw Agent skill 层。');
+      blueprint = { ...EMPTY_BLUEPRINT, title, duration_sec: durationSec };
+    }
 
     // 补充熵注入点
     if (blueprint.entropyPoints.length === 0) {
@@ -218,11 +143,17 @@ export class FirstDirector {
 
   /**
    * 模拟观众走查，发现断裂点和冗余点
-   * @param {object} inputs - { script?, images?, videoPath? }
-   * @param {object} [options]
+   * LLM 已剥离 — 使用规则分析或接受外部数据
+   * @param {object} inputs - { script?, images?, videoPath?, walkthroughData? }
    * @returns {Promise<object>} { 断裂点, 冗余点, 建议, walkScore }
    */
   async cognitiveWalkthrough(inputs, options = {}) {
+    // 如果外部传入了走查数据，直接使用
+    if (inputs.walkthroughData && typeof inputs.walkthroughData === 'object') {
+      return inputs.walkthroughData;
+    }
+
+    // 规则走查：简单的场景节奏分析
     let scriptContent = '';
     if (inputs.script) {
       try {
@@ -232,39 +163,24 @@ export class FirstDirector {
       } catch { /* ignore */ }
     }
 
-    if (!scriptContent && !this.apiKey) {
+    if (!scriptContent) {
       return { 断裂点: [], 冗余点: [], 建议: [], walkScore: 80 };
     }
 
-    const prompt = `你是一个基于预测编码理论的认知走查专家。请模拟观众观看以下内容时的认知过程，找出断裂点和冗余点。
+    // 基于规则的分析
+    const 断裂点 = [];
+    const 冗余点 = [];
+    const 建议 = [];
 
-## 走查维度
-1. **断裂点**：观众预期被打破但未得到解释的时刻（归因失败）
-2. **冗余点**：信息重复或节奏拖沓的时刻（预测误差过低）
-3. **建议**：具体的改进方向
-
-## 内容
-${scriptContent.slice(0, 4000)}
-
-请严格按以下 JSON 格式返回：
-{
-  "断裂点": [{"timestamp": "时间", "description": "描述", "severity": "high/medium/low"}],
-  "冗余点": [{"timestamp": "时间", "description": "描述", "severity": "high/medium/low"}],
-  "建议": ["建议1", "建议2"],
-  "walkScore": 80
-}`;
-
-    const result = await this._callLLM(prompt);
-    if (!result) {
-      return { 断裂点: [], 冗余点: [], 建议: [], walkScore: 80 };
+    // 检测过长对话（可能冗余）
+    const longDialogues = scriptContent.match(/.{100,}/g) || [];
+    if (longDialogues.length > 3) {
+      冗余点.push({ timestamp: 'mid', description: '存在多段过长对话，可能降低节奏', severity: 'medium' });
+      建议.push('精简过长的对话段落');
     }
 
-    return {
-      断裂点: result.断裂点 || [],
-      冗余点: result.冗余点 || [],
-      建议: result.建议 || [],
-      walkScore: typeof result.walkScore === 'number' ? result.walkScore : 80,
-    };
+    const walkScore = Math.max(60, 85 - 断裂点.length * 5 - 冗余点.length * 3);
+    return { 断裂点, 冗余点, 建议, walkScore };
   }
 
   // ─── 模因提取（纯代码逻辑） ─────────────────────────
