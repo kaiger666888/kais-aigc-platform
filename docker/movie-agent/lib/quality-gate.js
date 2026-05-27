@@ -135,8 +135,8 @@ export class QualityGate {
    * @param {string} [options.configPath] - 自定义配置文件路径
    * @param {string} [options.platform] - 平台预设
    * @param {string} [options.contentType] - 内容类型
-   * @param {string} [options.apiBase] - OpenAI 兼容 API 地址
-   * @param {string} [options.apiKey] - API Key
+   * @param {string} [options.apiBase] - LLM API 地址 (覆盖 LLM_BASE_URL)
+   * @param {string} [options.apiKey]  - API Key (覆盖 LLM_API_KEY)
    * @param {string} [options.visionModel] - 视觉模型名称
    * @param {string} [options.textModel] - 文本模型名称
    */
@@ -146,8 +146,8 @@ export class QualityGate {
     this.configPath = options.configPath || join(import.meta.dirname, 'gate-config.yaml');
     this.platform = options.platform || this.config.platform || 'douyin';
     this.contentType = options.contentType || this.config.genre || '短剧';
-    this.apiBase = options.apiBase || process.env.OPENAI_BASE_URL || 'https://open.bigmodel.cn/api/paas/v4';
-    this.apiKey = options.apiKey || process.env.ZHIPU_API_KEY || process.env.OPENAI_API_KEY || '';
+    this.apiBase = options.apiBase || process.env.LLM_BASE_URL || 'https://open.bigmodel.cn/api/paas/v4';
+    this.apiKey = options.apiKey || process.env.LLM_API_KEY || '';
     this.visionModel = options.visionModel || 'glm-4.6v-flash';
     this.textModel = options.textModel || 'glm-4-flash';
 

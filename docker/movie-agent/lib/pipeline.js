@@ -8,6 +8,7 @@ import crypto from 'node:crypto';
 import { GitStageManager } from './git-stage-manager.js';
 import { ReviewPlatformClient } from './review-platform-client.js';
 import { phaseHandlers } from './phases/index.js';
+import { syncPhaseOutput } from './toonflow-bridge.js';
 
 // ─── Telegram 通知 ──────────────────────────────────────────
 
@@ -385,6 +386,14 @@ export class Pipeline {
           reviewId: result.review.review_id,
           ts: new Date().toISOString(),
         }));
+
+        // Sync phase output to Toonflow (non-blocking, before waiting for review)
+        try {
+          await syncPhaseOutput(phaseId, this.workdir, this.config);
+        } catch (syncErr) {
+          console.warn(`[pipeline] Toonflow sync failed for ${phaseId}: ${syncErr.message}`);
+        }
+
         this.onPhaseComplete?.(phase, result);
         this.onProgress?.(phaseId, phase.name, 'awaiting_review');
         return result;
@@ -392,6 +401,14 @@ export class Pipeline {
 
       await this._git.init();
       await this._git.checkpoint(phase.stage, { description: phase.name, metrics: result.metrics || {} });
+
+      // Sync phase output to Toonflow (non-blocking)
+      try {
+        await syncPhaseOutput(phaseId, this.workdir, this.config);
+      } catch (syncErr) {
+        console.warn(`[pipeline] Toonflow sync failed for ${phaseId}: ${syncErr.message}`);
+      }
+
       this.onPhaseComplete?.(phase, result);
       this.onProgress?.(phaseId, phase.name, 'completed');
       return result;

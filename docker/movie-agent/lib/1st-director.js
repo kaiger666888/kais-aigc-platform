@@ -38,15 +38,15 @@ export class FirstDirector {
   /**
    * @param {object} options
    * @param {string} [options.workdir] - 项目工作目录
-   * @param {string} [options.apiBase] - OpenAI 兼容 API 地址
-   * @param {string} [options.apiKey] - API Key
+   * @param {string} [options.apiBase] - LLM API 地址 (覆盖 LLM_BASE_URL)
+   * @param {string} [options.apiKey]  - API Key (覆盖 LLM_API_KEY)
    * @param {string} [options.model] - 模型名称
    * @param {string} [options.blueprintPath] - 蓝图保存路径
    */
   constructor(options = {}) {
     this.workdir = options.workdir || process.cwd();
-    this.apiBase = options.apiBase || process.env.OPENAI_BASE_URL || 'https://open.bigmodel.cn/api/paas/v4';
-    this.apiKey = options.apiKey || process.env.ZHIPU_API_KEY || process.env.OPENAI_API_KEY || '';
+    this.apiBase = options.apiBase || process.env.LLM_BASE_URL || 'https://open.bigmodel.cn/api/paas/v4';
+    this.apiKey = options.apiKey || process.env.LLM_API_KEY || '';
     this.model = options.model || 'glm-4-flash';
     this.blueprintPath = options.blueprintPath || 'blueprint.json';
   }

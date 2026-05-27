@@ -32,7 +32,7 @@ services:
     container_name: kais-core-backend
     restart: unless-stopped
     ports:
-      - "127.0.0.1:${CORE_PORT:-8000}:8000"
+      - "${CORE_PORT:-8000}:8000"
     env_file: .env
     environment:
       NODE_ENV: production
@@ -81,7 +81,13 @@ services:
       CORE_BACKEND_URL: http://kais-core-backend:8000
       GOLD_TEAM_URL: http://kais-aigc-platform-gold-team-1:8002
       REVIEW_PLATFORM_URL: http://kais-review-platform:8090
+      REVIEW_CALLBACK_URL: http://kais-movie-agent:8001/api/v1/pipeline/callback/review_result
+      REVIEW_CALLBACK_SECRET: ${REVIEW_CALLBACK_SECRET:-}
       REDIS_URL: redis://redis:6379
+      # LLM via Hermes/OpenClaw proxy (与 Hermes MCP server 共享配置)
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://open.bigmodel.cn/api/paas/v4}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-glm-4-flash}
     volumes:
       - ${OUTPUT_DIR:-/mnt/agents/output}:/mnt/agents/output
     networks:
