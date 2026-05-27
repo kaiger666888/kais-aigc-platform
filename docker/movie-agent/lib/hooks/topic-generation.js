@@ -1,8 +1,10 @@
 /**
  * 选题发散 hook
  * 从 topic-selector-adapter.js 精简而来
+ *
+ * LLM 已剥离：generateTopics 现在从 options.topicsData 获取外部传入的选题数据。
+ * 如果未传入，返回空数组并打 warn 日志。
  */
-import { callLLMJson } from '../llm.js';
 
 /**
  * 3秒开场钩子的5种类型
@@ -76,10 +78,9 @@ ${JSON.stringify(req, null, 2)}
 }
 
 export async function generateTopics(requirement, options = {}) {
-  const prompt = buildPrompt(requirement, options);
-  try {
-    return await callLLMJson(prompt, { model: options.model });
-  } catch {
-    return [{ raw: 'generation-failed', totalScore: 0 }];
+  if (options.topicsData && Array.isArray(options.topicsData) && options.topicsData.length > 0) {
+    return options.topicsData;
   }
+  console.warn('[topic-generation] 无外部传入的选题数据（options.topicsData），返回空数组。请通过 OpenClaw Agent skill 层提供选题。');
+  return [];
 }

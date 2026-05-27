@@ -135,10 +135,6 @@ export class QualityGate {
    * @param {string} [options.configPath] - 自定义配置文件路径
    * @param {string} [options.platform] - 平台预设
    * @param {string} [options.contentType] - 内容类型
-   * @param {string} [options.apiBase] - LLM API 地址 (覆盖 LLM_BASE_URL)
-   * @param {string} [options.apiKey]  - API Key (覆盖 LLM_API_KEY)
-   * @param {string} [options.visionModel] - 视觉模型名称
-   * @param {string} [options.textModel] - 文本模型名称
    */
   constructor(options = {}) {
     this.workdir = options.workdir || process.cwd();
@@ -146,10 +142,6 @@ export class QualityGate {
     this.configPath = options.configPath || join(import.meta.dirname, 'gate-config.yaml');
     this.platform = options.platform || this.config.platform || 'douyin';
     this.contentType = options.contentType || this.config.genre || '短剧';
-    this.apiBase = options.apiBase || process.env.LLM_BASE_URL || 'https://open.bigmodel.cn/api/paas/v4';
-    this.apiKey = options.apiKey || process.env.LLM_API_KEY || '';
-    this.visionModel = options.visionModel || 'glm-4.6v-flash';
-    this.textModel = options.textModel || 'glm-4-flash';
 
     this._gateConfig = null;
     this._loadConfig(); // 构造时立即加载
@@ -249,54 +241,24 @@ export class QualityGate {
   }
 
   /**
-   * 调用 LLM 进行评分
+   * 调用 LLM 进行评分 — 已剥离
+   * LLM 调用已迁移至 OpenClaw Agent skill 层。
+   * 评分数据应通过 evaluate() 的 options.scores 参数传入。
    */
-  async _callLLM(prompt) {
-    if (!this.apiKey) {
-      console.warn('[quality-gate] 无 API Key，跳过评分');
-      return null;
-    }
-    try {
-      const resp = await fetch(`${this.apiBase}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: this.textModel,
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.3,
-          max_tokens: 1024,
-        }),
-        signal: AbortSignal.timeout(30000),
-      });
-      if (!resp.ok) {
-        console.warn(`[quality-gate] API 返回 ${resp.status}`);
-        return null;
-      }
-      const data = await resp.json();
-      const content = data.choices?.[0]?.message?.content || '';
-      // 提取 JSON
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) return null;
-      return JSON.parse(jsonMatch[0]);
-    } catch (err) {
-      console.warn(`[quality-gate] LLM 调用失败: ${err.message}`);
-      return null;
-    }
-  }
 
   /**
    * 对成品进行全面评分
    * @param {object} inputs - { script?, images?, videoPath?, title?, coverPath? }
-   * @param {object} options - { platform?, contentType? }
+   * @param {object} options - { platform?, contentType?, scores?, blueprint? }
+   * @param {object} [options.scores] - 外部传入的各维度评分（由 OpenClaw Agent skill 层提供）
+   *   形如: { hook: { score, reasons, highlights, suggestions }, ... }
    * @returns {Promise<object>} { passed, totalScore, dimensions, report, suggestions }
    */
   async evaluate(inputs, options = {}) {
     const platform = options.platform || this.platform;
     const contentType = options.contentType || this.contentType;
     const blueprint = options.blueprint || null;
+    const externalScores = options.scores || null;
 
     // 如果有蓝图，使用蓝图映射的权重和阈值
     let blueprintWeights = null;
@@ -329,12 +291,10 @@ export class QualityGate {
         const scriptPath = join(this.workdir, inputs.script);
         const raw = await readFile(scriptPath, 'utf-8');
         const parsed = JSON.parse(raw);
-        // 提取摘要
         scriptContent = this._extractScriptSummary(parsed);
         title = title || parsed.title || '';
         durationSec = durationSec || parsed.duration_sec || 60;
       } catch {
-        // 非JSON，当文本处理
         try {
           scriptContent = await readFile(join(this.workdir, inputs.script), 'utf-8');
         } catch { /* ignore */ }
@@ -347,47 +307,33 @@ export class QualityGate {
     const allReasons = [];
     const allHighlights = [];
 
-    for (const [dimKey, meta] of Object.entries(DIMENSION_META)) {
-      try {
-        const score = await this.scoreDimension(dimKey, {
-          scriptContent,
-          title,
-          durationSec,
-          contentType,
-          images: inputs.images,
-          coverPath: inputs.coverPath,
-        });
-
-        if (score) {
+    if (externalScores && typeof externalScores === 'object' && Object.keys(externalScores).length > 0) {
+      // 使用外部传入的评分数据（由 OpenClaw Agent skill 层提供）
+      for (const [dimKey, meta] of Object.entries(DIMENSION_META)) {
+        const ext = externalScores[dimKey];
+        if (ext) {
           dimensions[dimKey] = {
-            score: Math.min(score.score, meta.max),
+            score: Math.min(ext.score ?? Math.round(meta.max * 0.8), meta.max),
             max: meta.max,
-            reasons: score.reasons || [],
-            highlights: score.highlights || [],
-            suggestions: score.suggestions || [],
+            reasons: ext.reasons || [],
+            highlights: ext.highlights || [],
+            suggestions: ext.suggestions || [],
           };
-          allReasons.push(...(score.reasons || []).map(r => `[${meta.label}] ${r}`));
-          allHighlights.push(...(score.highlights || []).map(h => `[${meta.label}] ${h}`));
-          allSuggestions.push(...(score.suggestions || []).map(s => `[${meta.label}] ${s}`));
         } else {
-          // API 失败，给默认分
-          dimensions[dimKey] = {
-            score: Math.round(meta.max * 0.8),
-            max: meta.max,
-            reasons: ['API 调用失败，使用默认分'],
-            highlights: [],
-            suggestions: [],
-          };
+          dimensions[dimKey] = this._ruleBasedScore(dimKey, meta, { scriptContent, title, durationSec, contentType });
         }
-      } catch (err) {
-        console.warn(`[quality-gate] ${dimKey} 评分失败: ${err.message}`);
-        dimensions[dimKey] = {
-          score: Math.round(meta.max * 0.8),
-          max: meta.max,
-          reasons: ['评分异常，使用默认分'],
-          highlights: [],
-          suggestions: [],
-        };
+        allReasons.push(...(dimensions[dimKey].reasons || []).map(r => `[${meta.label}] ${r}`));
+        allHighlights.push(...(dimensions[dimKey].highlights || []).map(h => `[${meta.label}] ${h}`));
+        allSuggestions.push(...(dimensions[dimKey].suggestions || []).map(s => `[${meta.label}] ${s}`));
+      }
+    } else {
+      // 无外部评分，使用规则评分
+      console.warn('[quality-gate] 无外部评分数据（options.scores），使用规则评分。LLM 评分已迁移至 OpenClaw Agent skill 层。');
+      for (const [dimKey, meta] of Object.entries(DIMENSION_META)) {
+        dimensions[dimKey] = this._ruleBasedScore(dimKey, meta, { scriptContent, title, durationSec, contentType });
+        allReasons.push(...(dimensions[dimKey].reasons || []).map(r => `[${meta.label}] ${r}`));
+        allHighlights.push(...(dimensions[dimKey].highlights || []).map(h => `[${meta.label}] ${h}`));
+        allSuggestions.push(...(dimensions[dimKey].suggestions || []).map(s => `[${meta.label}] ${s}`));
       }
     }
 
@@ -430,23 +376,48 @@ export class QualityGate {
   }
 
   /**
-   * 单维度评分
+   * 单维度规则评分（不调用 LLM）
+   * 基于内容特征进行启发式评分
+   */
+  _ruleBasedScore(dimKey, meta, inputs) {
+    // 默认给 80% 分，带规则微调
+    let basePct = 0.8;
+    const reasons = ['使用规则评分（LLM 已剥离）'];
+    const highlights = [];
+    const suggestions = [];
+
+    const content = inputs.scriptContent || '';
+    const title = inputs.title || '';
+    const durationSec = inputs.durationSec || 60;
+    const contentType = inputs.contentType || '短剧';
+
+    if (dimKey === 'hook' && content.length > 0) {
+      if (content.length < 50) { basePct -= 0.1; reasons.push('内容过短，钩子可能不足'); }
+      if (/[^，。！？…]{5,30}[！？]/.test(content)) { basePct += 0.05; highlights.push('检测到情感钩子'); }
+    }
+    if (dimKey === 'structure' && content.length > 0) {
+      const sceneCount = (content.match(/场景/g) || []).length;
+      if (sceneCount >= 3) { basePct += 0.05; highlights.push(`检测到 ${sceneCount} 个场景`); }
+      if (sceneCount < 2) { basePct -= 0.1; reasons.push('场景数量偏少'); suggestions.push('增加场景变化以改善节奏'); }
+    }
+    if (dimKey === 'duration') {
+      const optimal = contentType === '娱乐' ? [15, 30] : contentType === '知识' ? [30, 60] : [30, 90];
+      if (durationSec >= optimal[0] && durationSec <= optimal[1]) { basePct += 0.1; highlights.push('时长适配良好'); }
+      else { basePct -= 0.1; reasons.push(`时长 ${durationSec}s 偏离最佳区间 ${optimal[0]}-${optimal[1]}s`); }
+    }
+
+    const score = Math.round(Math.max(0.3, Math.min(1.0, basePct)) * meta.max);
+    return { score, max: meta.max, reasons, highlights, suggestions };
+  }
+
+  /**
+   * 单维度评分 — 已剥离 LLM
+   * 现在仅执行规则评分。如需 LLM 评分，通过 evaluate(options.scores) 传入。
    */
   async scoreDimension(dimension, inputs) {
     const meta = DIMENSION_META[dimension];
     if (!meta) throw new Error(`未知维度: ${dimension}`);
-
-    const template = SCORING_PROMPTS[dimension];
-    if (!template) throw new Error(`无评分模板: ${dimension}`);
-
-    let prompt = template
-      .replace('{max}', meta.max)
-      .replace('{content}', (inputs.scriptContent || '（无内容）').slice(0, 3000))
-      .replace('{title}', inputs.title || '（无标题）')
-      .replace('{contentType}', inputs.contentType || '短剧')
-      .replace('{durationSec}', inputs.durationSec || 60);
-
-    return this._callLLM(prompt);
+    return this._ruleBasedScore(dimension, meta, inputs);
   }
 
   /**
