@@ -9,6 +9,12 @@
 
 FROM pytorch/pytorch:2.1.2-cuda12.1-cudnn8-runtime AS base
 
+# 升级 PyTorch 到 2.5.1（需要 torch.library.custom_op 支持）
+RUN pip install --no-cache-dir \
+    torch==2.5.1 \
+    --index-url https://download.pytorch.org/whl/cu121 \
+    || pip install --no-cache-dir torch==2.5.1
+
 WORKDIR /app
 
 # 系统依赖
