@@ -5,6 +5,9 @@ import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
 import { broadcastToProject } from "@/utils/ws";
 
+// Phases that require human review before the pipeline can continue
+const REVIEW_REQUIRED_PHASES = ["storyboard", "character", "scene", "camera-preview", "camera-final", "quality-gate"];
+
 const router = express.Router();
 
 const PHASE_INGEST_MAP: Record<string, string[]> = {
@@ -36,12 +39,16 @@ export default router.post(
     const { pipelineId, projectId, phase, phaseOrder, status, outputs = [], summary } = req.body;
     const now = Date.now();
 
+    // Determine next state: completed phases that require review pause as "awaiting-review"
+    const needsReview = status === "completed" && REVIEW_REQUIRED_PHASES.includes(phase);
+    const nextState = status === "completed" ? (needsReview ? "awaiting-review" : "running") : "failed";
+
     await u.db("kv_pipelineRun")
       .where({ id: pipelineId })
       .update({
         currentPhase: phase,
         currentPhaseOrder: phaseOrder ?? 0,
-        state: status === "completed" ? "running" : "failed",
+        state: nextState,
         updateTime: now,
       });
 
