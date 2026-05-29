@@ -1,4 +1,4 @@
-// @db-hash 21a2230e11d708e372a90e2efd8f4deb
+// @db-hash 9038791c9b2f5f77846d343afb9b910a
 //该文件由脚本自动生成，请勿手动修改
 
 export interface kv_audit {
@@ -21,6 +21,18 @@ export interface kv_nodeAsset {
   'seedLock'?: string | null;
   'stylePrompt'?: string | null;
   'type'?: string | null;
+}
+export interface kv_pipelineRun {
+  'config'?: string | null;
+  'createTime'?: number | null;
+  'currentPhase'?: string | null;
+  'currentPhaseOrder'?: number | null;
+  'id'?: string;
+  'projectId': number;
+  'result'?: string | null;
+  'scriptId'?: number | null;
+  'state'?: string | null;
+  'updateTime'?: number | null;
 }
 export interface kv_shot {
   'createTime'?: number | null;
@@ -286,6 +298,7 @@ export interface o_videoTrack {
 export interface DB {
   "kv_audit": kv_audit;
   "kv_nodeAsset": kv_nodeAsset;
+  "kv_pipelineRun": kv_pipelineRun;
   "kv_shot": kv_shot;
   "kv_shotGraph": kv_shotGraph;
   "kv_snapshot": kv_snapshot;

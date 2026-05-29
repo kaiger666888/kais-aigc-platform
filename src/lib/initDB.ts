@@ -1156,6 +1156,26 @@ export default async (knex: Knex, forceInit: boolean = false): Promise<void> => 
         table.index(["projectId"]);
       },
     },
+    // Toonflow 同步状态表
+    {
+      name: "kv_syncStatus",
+      builder: (table) => {
+        table.integer("id").notNullable();
+        table.string("pipelineId").notNullable();
+        table.integer("projectId").notNullable();
+        table.integer("toonflowProjectId").notNullable();
+        table.string("status"); // "completed" | "failed"
+        table.integer("syncedAssets").defaultTo(0);
+        table.integer("syncedStoryboards").defaultTo(0);
+        table.integer("syncedVideos").defaultTo(0);
+        table.text("error");
+        table.integer("syncTime").notNullable();
+        table.integer("createTime").notNullable();
+        table.primary(["id"]);
+        table.index(["pipelineId"]);
+        table.index(["projectId"]);
+      },
+    },
     // ===== kais-core-backend v1 新增表结束 =====
     {
       name: "o_assetsRole2Audio",
