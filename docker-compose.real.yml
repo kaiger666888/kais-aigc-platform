@@ -100,6 +100,9 @@ services:
       OUTPUT_DIR: /mnt/agents/output
       # Logging
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Jimeng cloud engine (via jimeng-free-api proxy on host)
+      JIMENG_BASE_URL: ${JIMENG_BASE_URL:-http://jimeng-free-api:5100}
+      JIMENG_API_KEY: ${JIMENG_API_KEY:-}
     volumes:
       - /mnt/agents/output:/mnt/agents/output
       # Mount model cache to avoid re-downloading
