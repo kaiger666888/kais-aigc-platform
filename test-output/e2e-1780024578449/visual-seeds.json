@@ -1,0 +1,76 @@
+{
+  "shots": [
+    {
+      "shot_id": "SHOT-1",
+      "seed_prompt": "shot 1 visual seed prompt",
+      "reference_style": "anime_warm",
+      "color_palette": [
+        "#F5E6D3",
+        "#D4A574",
+        "#8B6914",
+        "#F0E68C"
+      ],
+      "lighting": "warm_natural"
+    },
+    {
+      "shot_id": "SHOT-2",
+      "seed_prompt": "shot 2 visual seed prompt",
+      "reference_style": "anime_warm",
+      "color_palette": [
+        "#F5E6D3",
+        "#D4A574",
+        "#8B6914",
+        "#F0E68C"
+      ],
+      "lighting": "warm_natural"
+    },
+    {
+      "shot_id": "SHOT-3",
+      "seed_prompt": "shot 3 visual seed prompt",
+      "reference_style": "anime_warm",
+      "color_palette": [
+        "#F5E6D3",
+        "#D4A574",
+        "#8B6914",
+        "#F0E68C"
+      ],
+      "lighting": "warm_natural"
+    },
+    {
+      "shot_id": "SHOT-4",
+      "seed_prompt": "shot 4 visual seed prompt",
+      "reference_style": "anime_warm",
+      "color_palette": [
+        "#F5E6D3",
+        "#D4A574",
+        "#8B6914",
+        "#F0E68C"
+      ],
+      "lighting": "warm_natural"
+    },
+    {
+      "shot_id": "SHOT-5",
+      "seed_prompt": "shot 5 visual seed prompt",
+      "reference_style": "anime_warm",
+      "color_palette": [
+        "#F5E6D3",
+        "#D4A574",
+        "#8B6914",
+        "#F0E68C"
+      ],
+      "lighting": "warm_natural"
+    },
+    {
+      "shot_id": "SHOT-6",
+      "seed_prompt": "shot 6 visual seed prompt",
+      "reference_style": "anime_warm",
+      "color_palette": [
+        "#F5E6D3",
+        "#D4A574",
+        "#8B6914",
+        "#F0E68C"
+      ],
+      "lighting": "warm_natural"
+    }
+  ]
+}

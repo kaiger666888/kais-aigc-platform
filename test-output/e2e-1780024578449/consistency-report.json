@@ -1,0 +1,34 @@
+{
+  "method": "DINOv2",
+  "threshold": 0.85,
+  "min_score": 0.8542130944790647,
+  "avg_score": 0.9211249209145178,
+  "per_shot_scores": [
+    {
+      "shot_id": "SHOT-1",
+      "score": 0.8763858372734917
+    },
+    {
+      "shot_id": "SHOT-2",
+      "score": 0.9334403922249961
+    },
+    {
+      "shot_id": "SHOT-3",
+      "score": 0.9785150313910372
+    },
+    {
+      "shot_id": "SHOT-4",
+      "score": 0.8542130944790647
+    },
+    {
+      "shot_id": "SHOT-5",
+      "score": 0.9397438216930143
+    },
+    {
+      "shot_id": "SHOT-6",
+      "score": 0.9444513484255027
+    }
+  ],
+  "verdict": "PASS",
+  "iterations": 1
+}

@@ -1,11 +1,13 @@
 import { Server } from "socket.io";
 import productionAgent from "./routes/productionAgent";
 import scriptAgent from "./routes/scriptAgent";
+import pipelineProgress from "./routes/pipelineProgress";
 
 export default (io: Server) => {
   const routes: Record<string, (nsp: ReturnType<Server["of"]>) => void> = {
     productionAgent,
     scriptAgent,
+    pipelineProgress,
   };
 
   for (const [name, handler] of Object.entries(routes)) {

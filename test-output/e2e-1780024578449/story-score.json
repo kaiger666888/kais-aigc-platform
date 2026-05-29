@@ -1,0 +1,12 @@
+{
+  "dimensions": {
+    "narrative_arc": 0.88,
+    "emotional_depth": 0.82,
+    "character_network": 0.75,
+    "pacing_tension": 0.85,
+    "text_quality": 0.9
+  },
+  "overall": 0.84,
+  "verdict": "PASS",
+  "threshold": 0.7
+}

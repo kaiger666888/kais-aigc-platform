@@ -3,7 +3,7 @@ import u from "@/utils";
 import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
-import { broadcastToProject } from "@/utils/ws";
+import { broadcastToProject, getIo } from "@/utils/ws";
 
 // Phases that require human review before the pipeline can continue
 const REVIEW_REQUIRED_PHASES = ["storyboard", "character", "scene", "camera-preview", "camera-final", "quality-gate"];
@@ -93,6 +93,26 @@ export default router.post(
       status,
       outputCount: outputs.length,
     });
+
+    // Also emit on the dedicated pipelineProgress namespace
+    const io = getIo();
+    if (io) {
+      const nsp = io.of("/api/socket/pipelineProgress");
+      if (needsReview) {
+        nsp.to(`pipeline:${pipelineId}`).emit("pipeline:review-required", {
+          pipelineId,
+          phase,
+          status: "awaiting-review",
+        });
+      } else {
+        nsp.to(`pipeline:${pipelineId}`).emit("pipeline:phase-complete", {
+          pipelineId,
+          phase,
+          status,
+          outputCount: outputs.length,
+        });
+      }
+    }
 
     res.status(200).send(success({ message: "callback processed", phase, status }));
   },

@@ -1,0 +1,10 @@
+{
+  "input_shots": 6,
+  "bgm_file": "bgm.mp3",
+  "voice_file": "voice-final.mp3",
+  "output_file": "final-composed.mp4",
+  "duration_sec": 30,
+  "resolution": "1920x1080",
+  "fps": 24,
+  "codec": "h264"
+}

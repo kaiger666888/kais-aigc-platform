@@ -1,0 +1,26 @@
+{
+  "source": "e2e-test",
+  "method": "kais-soul-radar",
+  "insights": [
+    {
+      "id": "PP-1",
+      "description": "都市生活中人与宠物的情感连接",
+      "emotional_intensity": 0.7419099965136966,
+      "audience_resonance": 0.9286715689017792
+    },
+    {
+      "id": "PP-2",
+      "description": "独自在家的宠物的内心世界",
+      "emotional_intensity": 0.9022284807469673,
+      "audience_resonance": 0.9295738859075366
+    },
+    {
+      "id": "PP-3",
+      "description": "平凡日常中的小确幸",
+      "emotional_intensity": 0.8582702001002529,
+      "audience_resonance": 0.8644786224104478
+    }
+  ],
+  "recommendation": "基于痛点分析，建议创作方向：陪伴是最长情的告白，即使是平凡的一天",
+  "timestamp": "2026-05-29T03:16:18.450Z"
+}

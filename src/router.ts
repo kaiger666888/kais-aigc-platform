@@ -191,6 +191,7 @@ import route187 from "./routes/v1/sync/pipeline-results";
 import route188 from "./routes/v1/sync/status/[pipelineId]";
 import route189 from "./routes/v1/pipeline/callback/review-result";
 import route190 from "./routes/v1/pipeline/resume";
+import route191 from "./routes/v1/telegram/webhook";
 
 export default async (app: Express) => {
   app.use("/api/agents/clearMemory", route1);
@@ -376,6 +377,7 @@ export default async (app: Express) => {
   app.use("/api/v1/pipeline/submit-to-review", route181);
   app.use("/api/v1/pipeline/callback/review-result", route189);
   app.use("/api/v1/pipeline/resume", route190);
+  app.use("/api/v1/telegram/webhook", route191);
   app.use("/api/v1/shots/from_graph", route182);
   app.use("/api/v1/shots/list", route183);
   app.use("/api/v1/snapshots", route184);

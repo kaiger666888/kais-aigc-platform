@@ -1,0 +1,64 @@
+{
+  "shots": [
+    {
+      "shot_id": "SHOT-1",
+      "prompt": "stylized shot 1",
+      "audio_driven": true,
+      "duration_sec": 5,
+      "style_params": {
+        "cfg_scale": 7.5,
+        "steps": 30
+      }
+    },
+    {
+      "shot_id": "SHOT-2",
+      "prompt": "stylized shot 2",
+      "audio_driven": true,
+      "duration_sec": 5,
+      "style_params": {
+        "cfg_scale": 7.5,
+        "steps": 30
+      }
+    },
+    {
+      "shot_id": "SHOT-3",
+      "prompt": "stylized shot 3",
+      "audio_driven": true,
+      "duration_sec": 5,
+      "style_params": {
+        "cfg_scale": 7.5,
+        "steps": 30
+      }
+    },
+    {
+      "shot_id": "SHOT-4",
+      "prompt": "stylized shot 4",
+      "audio_driven": true,
+      "duration_sec": 5,
+      "style_params": {
+        "cfg_scale": 7.5,
+        "steps": 30
+      }
+    },
+    {
+      "shot_id": "SHOT-5",
+      "prompt": "stylized shot 5",
+      "audio_driven": true,
+      "duration_sec": 5,
+      "style_params": {
+        "cfg_scale": 7.5,
+        "steps": 30
+      }
+    },
+    {
+      "shot_id": "SHOT-6",
+      "prompt": "stylized shot 6",
+      "audio_driven": true,
+      "duration_sec": 5,
+      "style_params": {
+        "cfg_scale": 7.5,
+        "steps": 30
+      }
+    }
+  ]
+}

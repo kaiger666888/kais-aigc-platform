@@ -4,7 +4,7 @@ import axios from "axios";
 import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
-import { broadcastToProject } from "@/utils/ws";
+import { broadcastToProject, getIo } from "@/utils/ws";
 
 const router = express.Router();
 
@@ -119,6 +119,14 @@ export default router.post(
       });
 
       broadcastToProject(projectId, "pipeline:started", { pipelineId, projectId });
+
+      // Also emit on the dedicated pipelineProgress namespace
+      const io = getIo();
+      if (io) {
+        io.of("/api/socket/pipelineProgress")
+          .to(`pipeline:${pipelineId}`)
+          .emit("pipeline:started", { pipelineId, projectId, currentPhase: "requirement" });
+      }
 
       res.status(200).send(success({
         pipelineId,

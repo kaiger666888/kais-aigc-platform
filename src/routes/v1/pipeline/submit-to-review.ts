@@ -3,6 +3,7 @@ import { z } from "zod";
 import axios from "axios";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
+import { sendReviewCard } from "@/lib/telegram-review";
 
 const router = express.Router();
 
@@ -47,6 +48,7 @@ export default router.post(
     priority: z.enum(["normal", "urgent"]).optional(),
     metadata: z.record(z.any()).optional().nullable(),
     callbackUrl: z.string().url().optional().nullable(),
+    pipelineId: z.string().optional(),
   }),
   async (req, res) => {
     const {
@@ -60,6 +62,7 @@ export default router.post(
       priority = "normal",
       metadata = null,
       callbackUrl = null,
+      pipelineId: _,
     } = req.body;
 
     const reviewPayload: Record<string, any> = {
@@ -93,9 +96,25 @@ export default router.post(
         );
       }
 
+      const reviewCardId = reviewRes.data.id;
+
+      // --- Send Telegram review card (fire-and-forget) ----------------------
+      const telegramChatId = process.env.TELEGRAM_REVIEW_CHAT_ID;
+      if (telegramChatId) {
+        sendReviewCard(telegramChatId, {
+          reviewId: reviewCardId,
+          pipelineId: req.body.pipelineId || reviewCardId,
+          shotId,
+          phase,
+          assetUrl,
+          thumbnailUrl: thumbnailUrl || undefined,
+          aiScores: aiScores || undefined,
+        }).catch((e) => console.error("[submit-to-review] telegram notify failed:", e.message));
+      }
+
       return res.status(200).send(
         success({
-          reviewCardId: reviewRes.data.id,
+          reviewCardId,
           status: reviewRes.data.status,
           phase: reviewRes.data.phase,
           createdAt: reviewRes.data.created_at,

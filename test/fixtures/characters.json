@@ -1,0 +1,65 @@
+{
+  "characters": [
+    {
+      "id": "CHAR_001",
+      "name": "豆豆",
+      "role": "主角",
+      "species": "cat",
+      "breed": "橘猫",
+      "age": "2岁",
+      "personality": "好奇心旺盛、胆大心细、黏人",
+      "appearance": {
+        "fur": "橘色虎斑纹，腹部白色",
+        "eyes": "琥珀色大眼睛",
+        "body": "微胖，毛茸茸",
+        "features": "尾巴尖有一点白色，左耳有个小缺口"
+      },
+      "voice": {
+        "type": "旁白",
+        "tone": "俏皮可爱，略带慵懒",
+        "gender": "中性",
+        "style": "内心独白式，像在对观众说话"
+      },
+      "key_traits": [
+        "看到移动物体就会追逐",
+        "害怕时会把身体缩成一团",
+        "开心时会蹭人的腿"
+      ],
+      "reference_prompts": {
+        "front": "an adorable orange tabby cat with white belly, big amber eyes, fluffy, slightly chubby, anime style, warm lighting, front view, cute expression",
+        "side": "an adorable orange tabby cat with white belly, big amber eyes, fluffy, slightly chubby, anime style, warm lighting, side view, curious expression",
+        "three_quarter": "an adorable orange tabby cat with white belly, big amber eyes, fluffy, slightly chubby, anime style, warm lighting, three-quarter view, playful expression"
+      }
+    },
+    {
+      "id": "CHAR_002",
+      "name": "小林",
+      "role": "配角",
+      "species": "human",
+      "age": "28岁",
+      "gender": "女",
+      "personality": "温柔、忙碌但爱猫、有幽默感",
+      "appearance": {
+        "hair": "黑色中长发，扎低马尾",
+        "eyes": "深棕色",
+        "body": "纤细",
+        "clothing": "简单的白色T恤+牛仔裤（居家/通勤）"
+      },
+      "voice": {
+        "type": "少量台词",
+        "tone": "温柔、有亲和力",
+        "style": "日常自然说话"
+      },
+      "key_traits": [
+        "出门前会和豆豆说再见",
+        "回家第一件事是找豆豆",
+        "对豆豆的淘气又气又笑"
+      ],
+      "reference_prompts": {
+        "front": "a young Asian woman age 28, black hair in low ponytail, dark brown eyes, wearing white t-shirt and jeans, anime style, warm lighting, front view, gentle smile",
+        "side": "a young Asian woman age 28, black hair in low ponytail, wearing white t-shirt and jeans, anime style, warm lighting, side view, walking pose",
+        "three_quarter": "a young Asian woman age 28, black hair in low ponytail, wearing white t-shirt and jeans, anime style, warm lighting, three-quarter view, surprised expression"
+      }
+    }
+  ]
+}

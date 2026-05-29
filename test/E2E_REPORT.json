@@ -1,0 +1,288 @@
+{
+  "timestamp": "2026-05-29T03:16:18.455Z",
+  "projectName": "猫咪的窗台冒险",
+  "config": {
+    "autoApprove": true,
+    "skipGpu": true,
+    "goldTeamUrl": "http://localhost:8002",
+    "maxRetryCount": 3
+  },
+  "steps": [
+    {
+      "step": 1,
+      "name": "痛点调查",
+      "status": "pass",
+      "hasReviewGate": false,
+      "reviewTriggered": false,
+      "outputFiles": [
+        "pain-points.json"
+      ],
+      "durationMs": 1,
+      "details": "识别 3 个痛点，推荐主题: 陪伴是最长情的告白，即使是平凡的一天"
+    },
+    {
+      "step": 2,
+      "name": "主题选择",
+      "status": "pass",
+      "hasReviewGate": true,
+      "reviewTriggered": true,
+      "outputFiles": [
+        "theme-selection.json"
+      ],
+      "durationMs": 0,
+      "details": "选择主题: 猫咪的窗台冒险 (score: 0.92)",
+      "reviewIterations": 1,
+      "reviewAction": "approve"
+    },
+    {
+      "step": 3,
+      "name": "大纲生成",
+      "status": "pass",
+      "hasReviewGate": false,
+      "reviewTriggered": false,
+      "outputFiles": [
+        "outline.json",
+        "outline.md"
+      ],
+      "durationMs": 0,
+      "details": "三幕结构，预计 30s"
+    },
+    {
+      "step": 4,
+      "name": "大纲选择",
+      "status": "pass",
+      "hasReviewGate": true,
+      "reviewTriggered": true,
+      "outputFiles": [
+        "outline-approved.json"
+      ],
+      "durationMs": 1,
+      "details": "大纲通过审核，无修改意见",
+      "reviewIterations": 1,
+      "reviewAction": "approve"
+    },
+    {
+      "step": 5,
+      "name": "剧本生成",
+      "status": "pass",
+      "hasReviewGate": false,
+      "reviewTriggered": false,
+      "outputFiles": [
+        "script.json",
+        "script.md"
+      ],
+      "durationMs": 0,
+      "details": "剧本: 6 句台词, 6 个镜头"
+    },
+    {
+      "step": 6,
+      "name": "剧本选择",
+      "status": "pass",
+      "hasReviewGate": true,
+      "reviewTriggered": true,
+      "outputFiles": [
+        "script-approved.json",
+        "story-score.json"
+      ],
+      "durationMs": 0,
+      "details": "剧本评分: 0.84 (PASS), 阈值: 0.7",
+      "reviewIterations": 1,
+      "reviewAction": "approve"
+    },
+    {
+      "step": 7,
+      "name": "主角生成",
+      "status": "pass",
+      "hasReviewGate": false,
+      "reviewTriggered": false,
+      "outputFiles": [],
+      "durationMs": 0,
+      "details": "生成 2 个角色 × 3 视角 = 6 张图"
+    },
+    {
+      "step": 8,
+      "name": "主角选择",
+      "status": "pass",
+      "hasReviewGate": true,
+      "reviewTriggered": true,
+      "outputFiles": [
+        "soul-pack.json"
+      ],
+      "durationMs": 1,
+      "details": "soul-pack.json 包含 2 个角色",
+      "reviewIterations": 1,
+      "reviewAction": "approve"
+    },
+    {
+      "step": 9,
+      "name": "场景生成",
+      "status": "pass",
+      "hasReviewGate": false,
+      "reviewTriggered": false,
+      "outputFiles": [],
+      "durationMs": 0,
+      "details": "生成 3 场景 × 2 视角 = 6 张图"
+    },
+    {
+      "step": 10,
+      "name": "场景选择",
+      "status": "pass",
+      "hasReviewGate": true,
+      "reviewTriggered": true,
+      "outputFiles": [
+        "geometry-bed.json"
+      ],
+      "durationMs": 0,
+      "details": "geometry-bed.json 包含 3 个场景",
+      "reviewIterations": 1,
+      "reviewAction": "approve"
+    },
+    {
+      "step": 11,
+      "name": "时空剧本",
+      "status": "pass",
+      "hasReviewGate": true,
+      "reviewTriggered": true,
+      "outputFiles": [
+        "spatio-temporal-script.json"
+      ],
+      "durationMs": 1,
+      "details": "时空剧本: 6 个镜头, 总时长 30s",
+      "reviewIterations": 1,
+      "reviewAction": "approve"
+    },
+    {
+      "step": 12,
+      "name": "剧本锁定",
+      "status": "pass",
+      "hasReviewGate": true,
+      "reviewTriggered": true,
+      "outputFiles": [
+        "script-locked.json"
+      ],
+      "durationMs": 0,
+      "details": "剧本锁定: 评分 0.87, 6 镜头, 30s",
+      "reviewIterations": 1,
+      "reviewAction": "approve"
+    },
+    {
+      "step": 13,
+      "name": "种子骨架",
+      "status": "pass",
+      "hasReviewGate": true,
+      "reviewTriggered": true,
+      "outputFiles": [
+        "visual-seeds.json",
+        "voice-skeleton.json"
+      ],
+      "durationMs": 0,
+      "details": "视觉种子: 6 镜头, 声音骨架: 2 角色",
+      "reviewIterations": 1,
+      "reviewAction": "approve"
+    },
+    {
+      "step": 14,
+      "name": "运镜预览",
+      "status": "pass",
+      "hasReviewGate": true,
+      "reviewTriggered": true,
+      "outputFiles": [
+        "camera-plan.json",
+        "preview-shot-*.mp4"
+      ],
+      "durationMs": 1,
+      "details": "运镜计划: 6 镜头",
+      "reviewIterations": 2,
+      "reviewAction": "approve"
+    },
+    {
+      "step": 15,
+      "name": "AI风格化",
+      "status": "pass",
+      "hasReviewGate": true,
+      "reviewTriggered": true,
+      "outputFiles": [
+        "style-preview.png",
+        "seedance-package.json"
+      ],
+      "durationMs": 0,
+      "details": "风格化: 6 镜头, 一致性: 0.91",
+      "reviewIterations": 1,
+      "reviewAction": "approve"
+    },
+    {
+      "step": 16,
+      "name": "一致性检查",
+      "status": "pass",
+      "hasReviewGate": false,
+      "reviewTriggered": false,
+      "outputFiles": [
+        "consistency-report.json"
+      ],
+      "durationMs": 0,
+      "details": "一致性: avg=0.921, min=0.854 → PASS"
+    },
+    {
+      "step": 17,
+      "name": "云端视频",
+      "status": "pass",
+      "hasReviewGate": true,
+      "reviewTriggered": true,
+      "outputFiles": [
+        "final-shot-*.mp4"
+      ],
+      "durationMs": 0,
+      "details": "云端视频: 6 个终版镜头生成完成",
+      "reviewIterations": 1,
+      "reviewAction": "approve"
+    },
+    {
+      "step": 18,
+      "name": "BGM闭环",
+      "status": "pass",
+      "hasReviewGate": false,
+      "reviewTriggered": false,
+      "outputFiles": [
+        "bgm.mp3",
+        "voice-final.mp3"
+      ],
+      "durationMs": 1,
+      "details": "BGM: 30s, 配音: 0 句"
+    },
+    {
+      "step": 19,
+      "name": "FFmpeg合成",
+      "status": "pass",
+      "hasReviewGate": false,
+      "reviewTriggered": false,
+      "outputFiles": [
+        "final-composed.mp4"
+      ],
+      "durationMs": 0,
+      "details": "合成: 6 镜头 → 1920x1080 30s"
+    },
+    {
+      "step": 20,
+      "name": "质检交付",
+      "status": "pass",
+      "hasReviewGate": false,
+      "reviewTriggered": false,
+      "outputFiles": [
+        "delivery-report.json",
+        "final-video.mp4"
+      ],
+      "durationMs": 0,
+      "details": "质检: 92/100 (PASS)"
+    }
+  ],
+  "summary": {
+    "total": 20,
+    "passed": 20,
+    "failed": 0,
+    "skipped": 0,
+    "reviewGatesTotal": 11,
+    "reviewGatesTriggered": 11,
+    "totalDurationMs": 6,
+    "finalOutput": "/data/workspace/kais-aigc-platform/test-output/e2e-1780024578449/final-video.mp4"
+  }
+}

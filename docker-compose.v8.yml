@@ -75,10 +75,10 @@ services:
   # 2. comfyui-worker (ComfyUI 推理引擎) — gold-team 依赖
   # ---------------------------------------------------------------------------
   comfyui-worker:
+    build:
+      context: .
+      dockerfile: docker/comfyui-worker/Dockerfile
     image: kais-aigc-platform-comfyui-worker:pytorch251
-    # build:  # 使用预构建的 pytorch251 镜像，不再从 Dockerfile 构建
-    #   context: .
-    #   dockerfile: docker/comfyui-worker/Dockerfile
     container_name: comfyui-worker
     restart: unless-stopped
     ports:

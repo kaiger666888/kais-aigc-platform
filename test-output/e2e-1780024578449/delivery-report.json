@@ -1,0 +1,43 @@
+{
+  "method": "kais-movie-gate",
+  "checks": [
+    {
+      "name": "视频完整性",
+      "status": "PASS",
+      "details": "6 镜头完整，无黑帧"
+    },
+    {
+      "name": "音频同步",
+      "status": "PASS",
+      "details": "A/V offset < 50ms"
+    },
+    {
+      "name": "分辨率",
+      "status": "PASS",
+      "details": "1920x1080"
+    },
+    {
+      "name": "帧率",
+      "status": "PASS",
+      "details": "24fps"
+    },
+    {
+      "name": "一致性",
+      "status": "PASS",
+      "details": "DINOv2 avg > 0.90"
+    },
+    {
+      "name": "时长",
+      "status": "PASS",
+      "details": "30s (目标: 30s)"
+    }
+  ],
+  "overall_verdict": "PASS",
+  "score": 92,
+  "delivery": {
+    "file": "final-video.mp4",
+    "size_mb": 15.2,
+    "duration_sec": 30,
+    "format": "mp4/h264"
+  }
+}

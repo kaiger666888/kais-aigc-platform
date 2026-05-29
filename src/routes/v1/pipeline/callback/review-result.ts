@@ -3,7 +3,7 @@ import u from "@/utils";
 import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
-import { broadcastToProject } from "@/utils/ws";
+import { broadcastToProject, getIo } from "@/utils/ws";
 
 const router = express.Router();
 
@@ -112,6 +112,21 @@ export default router.post(
       action,
       feedback: feedback || null,
     });
+
+    // Also emit on the dedicated pipelineProgress namespace
+    const io = getIo();
+    if (io) {
+      io.of("/api/socket/pipelineProgress")
+        .to(`pipeline:${pipelineId}`)
+        .emit("pipeline:review-result", {
+          pipelineId,
+          reviewId,
+          shotId,
+          phase,
+          action,
+          feedback: feedback || null,
+        });
+    }
 
     res.status(200).send(
       success({

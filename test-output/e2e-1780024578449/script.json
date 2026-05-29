@@ -1,0 +1,123 @@
+{
+  "title": "猫咪的窗台冒险",
+  "genre": "温馨日常",
+  "target_duration_sec": 30,
+  "premise": "一只好奇心旺盛的橘猫，在主人出门后偷偷跳上窗台，经历了一场小小的冒险",
+  "pain_points": [
+    "都市生活中人与宠物的情感连接",
+    "独自在家的宠物的内心世界",
+    "平凡日常中的小确幸"
+  ],
+  "scenes": [
+    {
+      "id": "S1",
+      "name": "离别清晨",
+      "location": "公寓客厅",
+      "time_of_day": "清晨",
+      "description": "主人匆忙出门上班，橘猫'豆豆'目送主人关门。阳光透过窗帘洒进来，豆豆跳上窗台。",
+      "mood": "温暖/略带寂寞",
+      "key_action": "主人关门 → 豆豆目送 → 跳上窗台",
+      "duration_sec": 10
+    },
+    {
+      "id": "S2",
+      "name": "窗台奇遇",
+      "location": "公寓窗台（室外视角）",
+      "time_of_day": "上午",
+      "description": "豆豆在窗台上发现一只蝴蝶，追逐蝴蝶差点掉下去，幸好抓住了花盆。蝴蝶飞走了，豆豆安全回到窗台中央。",
+      "mood": "紧张→轻松→有趣",
+      "key_action": "发现蝴蝶 → 追逐 → 差点掉落 → 抓住花盆 → 安全",
+      "duration_sec": 12
+    },
+    {
+      "id": "S3",
+      "name": "重逢时刻",
+      "location": "公寓客厅/门口",
+      "time_of_day": "傍晚",
+      "description": "夕阳西下，豆豆在窗台睡着了。门锁转动的声音惊醒了它，豆豆跳下窗台冲向门口。主人推门进来，豆豆蹭着主人的腿。主人抱起豆豆望向窗台，看到被打翻的花盆，相视一笑。",
+      "mood": "温馨/治愈",
+      "key_action": "豆豆睡着 → 被惊醒 → 冲向门口 → 主人进门 → 蹭腿/拥抱 → 发现花盆 → 相视一笑",
+      "duration_sec": 8
+    }
+  ],
+  "theme": "陪伴是最长情的告白，即使是平凡的一天",
+  "narrative_arc": "平静开端 → 紧张发展 → 温暖回归",
+  "target_audience": "宠物爱好者 / 都市白领 / 短视频受众",
+  "tone": "治愈、轻松、微幽默",
+  "dialogue": [
+    {
+      "scene": "S1",
+      "character": "豆豆（旁白）",
+      "line": "又是一个人留在家里的日子……",
+      "type": "narration"
+    },
+    {
+      "scene": "S1",
+      "character": "小林",
+      "line": "豆豆乖，妈妈很快就回来！",
+      "type": "dialogue"
+    },
+    {
+      "scene": "S2",
+      "character": "豆豆（旁白）",
+      "line": "哇！那是什么？好漂亮！",
+      "type": "narration"
+    },
+    {
+      "scene": "S2",
+      "character": "豆豆（旁白）",
+      "line": "啊——！差点掉下去了！",
+      "type": "narration"
+    },
+    {
+      "scene": "S3",
+      "character": "豆豆（旁白）",
+      "line": "这个声音……是主人回来了！",
+      "type": "narration"
+    },
+    {
+      "scene": "S3",
+      "character": "小林",
+      "line": "豆豆！我回来啦！嗯？花盆怎么……",
+      "type": "dialogue"
+    }
+  ],
+  "shots": [
+    {
+      "scene_id": "S1",
+      "shot_index": 1,
+      "description": "离别清晨 - 全景",
+      "duration": 5
+    },
+    {
+      "scene_id": "S1",
+      "shot_index": 2,
+      "description": "离别清晨 - 特写",
+      "duration": 5
+    },
+    {
+      "scene_id": "S2",
+      "shot_index": 1,
+      "description": "窗台奇遇 - 全景",
+      "duration": 6
+    },
+    {
+      "scene_id": "S2",
+      "shot_index": 2,
+      "description": "窗台奇遇 - 特写",
+      "duration": 6
+    },
+    {
+      "scene_id": "S3",
+      "shot_index": 1,
+      "description": "重逢时刻 - 全景",
+      "duration": 4
+    },
+    {
+      "scene_id": "S3",
+      "shot_index": 2,
+      "description": "重逢时刻 - 特写",
+      "duration": 4
+    }
+  ]
+}
