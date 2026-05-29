@@ -1,4 +1,4 @@
-// @routes-hash cd225e02d35239b60d465b649779e574
+// @routes-hash 4c1c4d32fb3478b2488944899af1e4ca
 import { Express } from "express";
 
 import route1 from "./routes/agents/clearMemory";
@@ -173,20 +173,24 @@ import route169 from "./routes/task/taskDetails";
 import route170 from "./routes/test/test";
 import route171 from "./routes/v1/assets/from_node";
 import route172 from "./routes/v1/audit/index";
-import route173 from "./routes/v1/pipeline/render-shot";
-import route174 from "./routes/v1/pipeline/status/[taskId]";
-import route175 from "./routes/v1/pipeline/submit-to-review";
-import route176 from "./routes/v1/shots/from_graph";
-import route177 from "./routes/v1/shots/list";
-import route178 from "./routes/v1/snapshots/index";
-import route179 from "./routes/v1/sync/batch";
-import route180 from "./routes/v1/sync/pull/[projectId]";
-import route181 from "./routes/v1/pipeline/start";
-import route182 from "./routes/v1/pipeline/callback/phase-complete";
-import route183 from "./routes/v1/pipeline/callback/phase-progress";
-import route184 from "./routes/v1/pipeline/ingest/images";
-import route185 from "./routes/v1/pipeline/ingest/videos";
-import route186 from "./routes/v1/pipeline/ingest/storyboard";
+import route173 from "./routes/v1/pipeline/callback/phase-complete";
+import route174 from "./routes/v1/pipeline/callback/phase-progress";
+import route175 from "./routes/v1/pipeline/ingest/images";
+import route176 from "./routes/v1/pipeline/ingest/storyboard";
+import route177 from "./routes/v1/pipeline/ingest/videos";
+import route178 from "./routes/v1/pipeline/render-shot";
+import route179 from "./routes/v1/pipeline/start";
+import route180 from "./routes/v1/pipeline/status/[taskId]";
+import route181 from "./routes/v1/pipeline/submit-to-review";
+import route182 from "./routes/v1/shots/from_graph";
+import route183 from "./routes/v1/shots/list";
+import route184 from "./routes/v1/snapshots/index";
+import route185 from "./routes/v1/sync/batch";
+import route186 from "./routes/v1/sync/pull/[projectId]";
+import route187 from "./routes/v1/sync/pipeline-results";
+import route188 from "./routes/v1/sync/status/[pipelineId]";
+import route189 from "./routes/v1/pipeline/callback/review-result";
+import route190 from "./routes/v1/pipeline/resume";
 
 export default async (app: Express) => {
   app.use("/api/agents/clearMemory", route1);
@@ -361,18 +365,22 @@ export default async (app: Express) => {
   app.use("/api/test/test", route170);
   app.use("/api/v1/assets/from_node", route171);
   app.use("/api/v1/audit", route172);
-  app.use("/api/v1/pipeline/render-shot", route173);
-  app.use("/api/v1/pipeline/status/:taskId", route174);
-  app.use("/api/v1/pipeline/submit-to-review", route175);
-  app.use("/api/v1/shots/from_graph", route176);
-  app.use("/api/v1/shots/list", route177);
-  app.use("/api/v1/snapshots", route178);
-  app.use("/api/v1/sync/batch", route179);
-  app.use("/api/v1/sync/pull/:projectId", route180);
-  app.use("/api/v1/pipeline/start", route181);
-  app.use("/api/v1/pipeline/callback/phase-complete", route182);
-  app.use("/api/v1/pipeline/callback/phase-progress", route183);
-  app.use("/api/v1/pipeline/ingest/images", route184);
-  app.use("/api/v1/pipeline/ingest/videos", route185);
-  app.use("/api/v1/pipeline/ingest/storyboard", route186);
+  app.use("/api/v1/pipeline/callback/phase-complete", route173);
+  app.use("/api/v1/pipeline/callback/phase-progress", route174);
+  app.use("/api/v1/pipeline/ingest/images", route175);
+  app.use("/api/v1/pipeline/ingest/storyboard", route176);
+  app.use("/api/v1/pipeline/ingest/videos", route177);
+  app.use("/api/v1/pipeline/render-shot", route178);
+  app.use("/api/v1/pipeline/start", route179);
+  app.use("/api/v1/pipeline/status/:taskId", route180);
+  app.use("/api/v1/pipeline/submit-to-review", route181);
+  app.use("/api/v1/pipeline/callback/review-result", route189);
+  app.use("/api/v1/pipeline/resume", route190);
+  app.use("/api/v1/shots/from_graph", route182);
+  app.use("/api/v1/shots/list", route183);
+  app.use("/api/v1/snapshots", route184);
+  app.use("/api/v1/sync/batch", route185);
+  app.use("/api/v1/sync/pull/:projectId", route186);
+  app.use("/api/v1/sync/pipeline-results", route187);
+  app.use("/api/v1/sync/status/:pipelineId", route188);
 }
