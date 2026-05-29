@@ -1,0 +1,37 @@
+{
+  "title": "猫咪的窗台冒险",
+  "genre": "温馨日常",
+  "acts": [
+    {
+      "act": 1,
+      "name": "离别清晨",
+      "scenes": [
+        "S1"
+      ],
+      "summary": "主人出门，猫咪独自在家"
+    },
+    {
+      "act": 2,
+      "name": "窗台奇遇",
+      "scenes": [
+        "S2"
+      ],
+      "summary": "猫咪追逐蝴蝶的小冒险"
+    },
+    {
+      "act": 3,
+      "name": "重逢时刻",
+      "scenes": [
+        "S3"
+      ],
+      "summary": "主人回家，温馨重逢"
+    }
+  ],
+  "character_arcs": [
+    {
+      "character": "豆豆",
+      "arc": "寂寞 → 兴奋 → 紧张 → 安全感 → 幸福"
+    }
+  ],
+  "duration_estimate_sec": 30
+}

@@ -1,0 +1,45 @@
+{
+  "characters": [
+    {
+      "id": "CHAR_001",
+      "name": "豆豆",
+      "role": "主角",
+      "visual_seeds": {
+        "front": "character-CHAR_001-front.png",
+        "side": "character-CHAR_001-side.png",
+        "three_quarter": "character-CHAR_001-three_quarter.png"
+      },
+      "voice_profile": {
+        "type": "旁白",
+        "tone": "俏皮可爱，略带慵懒",
+        "gender": "中性",
+        "style": "内心独白式，像在对观众说话"
+      },
+      "personality_traits": [
+        "看到移动物体就会追逐",
+        "害怕时会把身体缩成一团",
+        "开心时会蹭人的腿"
+      ]
+    },
+    {
+      "id": "CHAR_002",
+      "name": "小林",
+      "role": "配角",
+      "visual_seeds": {
+        "front": "character-CHAR_002-front.png",
+        "side": "character-CHAR_002-side.png",
+        "three_quarter": "character-CHAR_002-three_quarter.png"
+      },
+      "voice_profile": {
+        "type": "少量台词",
+        "tone": "温柔、有亲和力",
+        "style": "日常自然说话"
+      },
+      "personality_traits": [
+        "出门前会和豆豆说再见",
+        "回家第一件事是找豆豆",
+        "对豆豆的淘气又气又笑"
+      ]
+    }
+  ]
+}

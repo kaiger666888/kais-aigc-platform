@@ -1,0 +1,46 @@
+{
+  "shots": [
+    {
+      "shot_id": "SHOT-1",
+      "camera_movement": "static",
+      "angle": "eye_level",
+      "duration_sec": 5,
+      "preview_file": "preview-shot-1.mp4"
+    },
+    {
+      "shot_id": "SHOT-2",
+      "camera_movement": "slow_push",
+      "angle": "low",
+      "duration_sec": 5,
+      "preview_file": "preview-shot-2.mp4"
+    },
+    {
+      "shot_id": "SHOT-3",
+      "camera_movement": "static",
+      "angle": "high",
+      "duration_sec": 5,
+      "preview_file": "preview-shot-3.mp4"
+    },
+    {
+      "shot_id": "SHOT-4",
+      "camera_movement": "slow_push",
+      "angle": "eye_level",
+      "duration_sec": 5,
+      "preview_file": "preview-shot-4.mp4"
+    },
+    {
+      "shot_id": "SHOT-5",
+      "camera_movement": "static",
+      "angle": "low",
+      "duration_sec": 5,
+      "preview_file": "preview-shot-5.mp4"
+    },
+    {
+      "shot_id": "SHOT-6",
+      "camera_movement": "slow_push",
+      "angle": "high",
+      "duration_sec": 5,
+      "preview_file": "preview-shot-6.mp4"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "selected": {
+    "id": "T1",
+    "title": "猫咪的窗台冒险",
+    "score": 0.92
+  },
+  "candidates": [
+    {
+      "id": "T1",
+      "title": "猫咪的窗台冒险",
+      "score": 0.92
+    },
+    {
+      "id": "T2",
+      "title": "流浪猫回家记",
+      "score": 0.78
+    },
+    {
+      "id": "T3",
+      "title": "猫与鱼缸的对峙",
+      "score": 0.65
+    }
+  ],
+  "method": "auto-approve"
+}

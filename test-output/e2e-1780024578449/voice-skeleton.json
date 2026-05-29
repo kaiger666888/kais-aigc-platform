@@ -1,0 +1,16 @@
+{
+  "voice_profiles": [
+    {
+      "character_id": "CHAR_001",
+      "voice_type": "旁白",
+      "tone": "俏皮可爱，略带慵懒",
+      "lines": []
+    },
+    {
+      "character_id": "CHAR_002",
+      "voice_type": "少量台词",
+      "tone": "温柔、有亲和力",
+      "lines": []
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "scenes": [
+    {
+      "id": "S1",
+      "name": "离别清晨",
+      "location": "公寓客厅",
+      "time_of_day": "清晨",
+      "layout": "16:9",
+      "reference_images": [
+        "scene-S1-1.png",
+        "scene-S1-2.png"
+      ]
+    },
+    {
+      "id": "S2",
+      "name": "窗台奇遇",
+      "location": "公寓窗台（室外视角）",
+      "time_of_day": "上午",
+      "layout": "16:9",
+      "reference_images": [
+        "scene-S2-1.png",
+        "scene-S2-2.png"
+      ]
+    },
+    {
+      "id": "S3",
+      "name": "重逢时刻",
+      "location": "公寓客厅/门口",
+      "time_of_day": "傍晚",
+      "layout": "16:9",
+      "reference_images": [
+        "scene-S3-1.png",
+        "scene-S3-2.png"
+      ]
+    }
+  ]
+}
