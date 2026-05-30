@@ -1,4 +1,4 @@
-// @db-hash 9038791c9b2f5f77846d343afb9b910a
+// @db-hash 28bf4ad82d8421cda2b6b8f4a66bb694
 //该文件由脚本自动生成，请勿手动修改
 
 export interface kv_audit {
@@ -67,6 +67,19 @@ export interface kv_syncEvent {
   'projectId': number;
   'timestamp'?: number | null;
   'type'?: string | null;
+}
+export interface kv_syncStatus {
+  'createTime': number;
+  'error'?: string | null;
+  'id'?: number;
+  'pipelineId': string;
+  'projectId': number;
+  'status'?: string | null;
+  'syncedAssets'?: number | null;
+  'syncedStoryboards'?: number | null;
+  'syncedVideos'?: number | null;
+  'syncTime': number;
+  'toonflowProjectId': number;
 }
 export interface memories {
   'content': string;
@@ -303,6 +316,7 @@ export interface DB {
   "kv_shotGraph": kv_shotGraph;
   "kv_snapshot": kv_snapshot;
   "kv_syncEvent": kv_syncEvent;
+  "kv_syncStatus": kv_syncStatus;
   "memories": memories;
   "o_agentDeploy": o_agentDeploy;
   "o_agentWorkData": o_agentWorkData;
