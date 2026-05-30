@@ -26,6 +26,7 @@ export interface AssetNodeData {
   assetType: 'role' | 'tool' | 'scene' | 'clip'
   assetId: number
   prompt: string
+  filePath: string | null
   thumbnailUrl: string | null
   state: NodeState
   progress?: number
@@ -39,6 +40,7 @@ export interface StoryboardNodeData {
   storyboardId: number
   duration: number
   prompt: string
+  filePath: string | null
   thumbnailUrl: string | null
   state: NodeState
   linkedAssetIds: number[]

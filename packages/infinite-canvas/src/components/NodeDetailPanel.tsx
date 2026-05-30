@@ -213,9 +213,8 @@ function AssetDetail({ data, onImageClick }: { data: AssetNodeData; onImageClick
   const typeLabels: Record<string, string> = {
     role: '角色', tool: '道具', scene: '场景', clip: '片段',
   }
-  const fullImageUrl = data.thumbnailUrl
-    ? `/oss/${(data.thumbnailUrl as string).replace(/^\/oss\//, '')}`
-    : null
+  // 优先使用 filePath（原始高清图），回退到 thumbnailUrl
+  const fullImageUrl = (data.filePath as string) || (data.thumbnailUrl as string) || null
 
   return (
     <>
@@ -287,9 +286,8 @@ function AssetDetail({ data, onImageClick }: { data: AssetNodeData; onImageClick
 // ─── 分镜详情 ──────────────────────────────────────────────
 
 function StoryboardDetail({ data, onImageClick }: { data: StoryboardNodeData; onImageClick: (src: string) => void }) {
-  const fullImageUrl = data.thumbnailUrl
-    ? `/oss/${(data.thumbnailUrl as string).replace(/^\/oss\//, '')}`
-    : null
+  // 优先使用 filePath（原始高清图），回退到 thumbnailUrl
+  const fullImageUrl = (data.filePath as string) || (data.thumbnailUrl as string) || null
 
   return (
     <>

@@ -69,7 +69,7 @@ export default function CanvasContextMenu({
     const id = `video-${Date.now()}`
     const data: VideoNodeData = {
       label: '新视频', type: 'video', videoId: 0,
-      thumbnailUrl: null, state: 'idle',
+      filePath: null, thumbnailUrl: null, state: 'idle',
     }
     setNodes((nds) => [...nds, {
       id, type: 'video', position: { x: x + 400, y }, data,
