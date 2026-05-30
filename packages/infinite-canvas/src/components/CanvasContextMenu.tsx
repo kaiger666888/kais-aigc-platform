@@ -1,6 +1,7 @@
+import { useState, type JSX } from 'react'
 import type { Node, Edge } from '@xyflow/react'
 import type { AssetNodeData, StoryboardNodeData, VideoNodeData } from '../types/canvas'
-import { executeNode } from '../services/canvasApi'
+import { executeNode, approveNode, rejectNode } from '../services/canvasApi'
 
 interface CanvasContextMenuProps {
   x: number
@@ -23,6 +24,9 @@ type MenuItem = {
 export default function CanvasContextMenu({
   x, y, nodeId, onClose, projectId, episodesId, setNodes, setEdges,
 }: CanvasContextMenuProps) {
+  const [showRejectInput, setShowRejectInput] = useState(false)
+  const [rejectReason, setRejectReason] = useState('')
+
   const handleDelete = () => {
     if (!nodeId) return
     setNodes((nds) => nds.filter((n) => n.id !== nodeId))
@@ -74,6 +78,32 @@ export default function CanvasContextMenu({
     setNodes((nds) => [...nds, {
       id, type: 'video', position: { x: x + 400, y }, data,
     }])
+    onClose()
+  }
+
+  const handleApprove = async () => {
+    if (!nodeId) return
+    try {
+      await approveNode(projectId, episodesId, nodeId)
+      setNodes((nds) => nds.map((n) =>
+        n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: 'approved' } } : n
+      ))
+    } catch (err) {
+      console.error('审核通过失败:', err)
+    }
+    onClose()
+  }
+
+  const handleReject = async () => {
+    if (!nodeId || !rejectReason.trim()) return
+    try {
+      await rejectNode(projectId, episodesId, nodeId, rejectReason.trim())
+      setNodes((nds) => nds.map((n) =>
+        n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: 'rejected' } } : n
+      ))
+    } catch (err) {
+      console.error('驳回失败:', err)
+    }
     onClose()
   }
 
@@ -138,6 +168,118 @@ export default function CanvasContextMenu({
           </div>
         )
       })}
+
+      {/* 审核操作区域 */}
+      {nodeId && (
+        <>
+          <div style={{ height: 1, background: '#45475a', margin: '4px 0' }} />
+          <div style={{ padding: '4px 12px 2px', fontSize: 11, color: '#a6adc8', fontWeight: 600 }}>
+            📋 审核操作
+          </div>
+          <div
+            onClick={handleApprove}
+            style={{
+              padding: '6px 12px',
+              borderRadius: 4,
+              cursor: 'pointer',
+              fontSize: 12,
+              color: '#a6e3a1',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+            onMouseEnter={(e) => {
+              (e.target as HTMLElement).style.background = '#313244'
+            }}
+            onMouseLeave={(e) => {
+              (e.target as HTMLElement).style.background = 'transparent'
+            }}
+          >
+            <span>✅</span>
+            <span>审核通过</span>
+          </div>
+          {!showRejectInput ? (
+            <div
+              onClick={() => setShowRejectInput(true)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: 4,
+                cursor: 'pointer',
+                fontSize: 12,
+                color: '#f38ba8',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+              onMouseEnter={(e) => {
+                (e.target as HTMLElement).style.background = '#313244'
+              }}
+              onMouseLeave={(e) => {
+                (e.target as HTMLElement).style.background = 'transparent'
+              }}
+            >
+              <span>❌</span>
+              <span>驳回</span>
+            </div>
+          ) : (
+            <div style={{ padding: '4px 8px' }}>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="输入驳回原因..."
+                autoFocus
+                style={{
+                  width: '100%',
+                  height: 60,
+                  background: '#11111b',
+                  border: '1px solid #45475a',
+                  borderRadius: 4,
+                  color: '#cdd6f4',
+                  fontSize: 11,
+                  padding: 6,
+                  resize: 'none',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+              <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+                <button
+                  onClick={handleReject}
+                  disabled={!rejectReason.trim()}
+                  style={{
+                    flex: 1,
+                    padding: '4px 8px',
+                    borderRadius: 4,
+                    border: 'none',
+                    background: rejectReason.trim() ? '#f38ba8' : '#45475a',
+                    color: '#1e1e2e',
+                    fontSize: 11,
+                    cursor: rejectReason.trim() ? 'pointer' : 'not-allowed',
+                    fontWeight: 600,
+                  }}
+                >
+                  确认驳回
+                </button>
+                <button
+                  onClick={() => { setShowRejectInput(false); setRejectReason('') }}
+                  style={{
+                    flex: 1,
+                    padding: '4px 8px',
+                    borderRadius: 4,
+                    border: 'none',
+                    background: '#313244',
+                    color: '#a6adc8',
+                    fontSize: 11,
+                    cursor: 'pointer',
+                  }}
+                >
+                  取消
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }
