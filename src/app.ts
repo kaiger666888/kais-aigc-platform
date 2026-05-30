@@ -99,6 +99,15 @@ export default async function startServe(randomPort: Boolean = false) {
     console.warn("静态网站目录不存在:", webDir);
   }
 
+  // 无限画布：从 data/web/infinite-canvas 提供独立 SPA
+  const canvasDir = path.join(webDir, "infinite-canvas");
+  if (fs.existsSync(canvasDir)) {
+    app.use("/infinite-canvas", express.static(canvasDir, { acceptRanges: false }));
+    app.get("/infinite-canvas/{*path}", (_req, res) => {
+      res.sendFile(path.join(canvasDir, "index.html"));
+    });
+  }
+
   app.get("/health", (_req, res) => {
     res.json({ status: "ok", service: "kais-core-backend", version: "6.0.0" });
   });
@@ -107,7 +116,7 @@ export default async function startServe(randomPort: Boolean = false) {
   // so that deep links like /project, /production work without JWT
   app.use((req, res, next) => {
     if (req.method !== "GET") return next();
-    if (req.path.startsWith("/api/") || req.path.startsWith("/oss/") || req.path.startsWith("/assets/") || req.path.startsWith("/skills/")) {
+    if (req.path.startsWith("/api/") || req.path.startsWith("/oss/") || req.path.startsWith("/assets/") || req.path.startsWith("/skills/") || req.path.startsWith("/infinite-canvas")) {
       return next();
     }
     if (req.path.match(/\.[^/]+$/)) {
@@ -134,6 +143,8 @@ export default async function startServe(randomPort: Boolean = false) {
     // 静态前端文件（Toonflow UI）
     if (req.path === "/" || req.path === "/index.html") return next();
     if (req.path.startsWith("/assets/") || req.path.endsWith(".js") || req.path.endsWith(".css") || req.path.endsWith(".ico") || req.path.endsWith(".map")) return next();
+    // 无限画布页面
+    if (req.path.startsWith("/infinite-canvas")) return next();
     // V6.0 API routes: pass through without auth (internal service mesh)
     if (req.path.startsWith("/api/v1/")) {
       (req as any).user = { source: "v6-internal" };
