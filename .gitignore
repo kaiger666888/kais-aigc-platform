@@ -64,3 +64,4 @@ docker/review-platform
 
 # Build artifacts (copied by build.sh from skill repos)
 docker/movie-agent/src/
+server.log
