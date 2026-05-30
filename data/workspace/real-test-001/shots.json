@@ -1,0 +1,94 @@
+{
+  "shots": [
+    {
+      "shot_id": 1,
+      "scene_id": 1,
+      "duration": 5,
+      "camera": "全景转中景",
+      "action": "细雨绵绵，瘦小的小橘蜷缩在咖啡店玻璃门外的脚垫上，浑身湿透，瑟瑟发抖。",
+      "dialogue": "（雨声淅沥）",
+      "characters": ["小橘"],
+      "image_urls": [
+        "https://p26-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/56fe529ad2ba43e0bace4c23e652d1b3~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=4JsCGgxqIrynWwL3OM9agrWRd%2BI%3D&format=.png",
+        "https://p11-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/072af35d461544daa7d2f539fe2bba3d~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=HT%2BoFsnJh7%2F7YxXolSdNZjYAThg%3D&format=.png",
+        "https://p11-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/e81d8f597981442b914d0fd76399542d~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=%2FEQwy3VUAtRBbD8s9m%2BlY5dZr1w%3D&format=.png",
+        "https://p26-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/9a6cb0d7e5b1495486d2d912e546e8a4~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=EAd%2BIqRHFcR1fA9bDp%2BCd2J3FHM%3D&format=.png"
+      ]
+    },
+    {
+      "shot_id": 2,
+      "scene_id": 1,
+      "duration": 5,
+      "camera": "特写",
+      "action": "小橘用小爪子轻轻拍打起雾的玻璃，露出左耳的小缺口，眼神渴望地望着店内温暖的灯光。",
+      "dialogue": "喵……（微弱可怜的猫叫声）",
+      "characters": ["小橘"],
+      "image_urls": [
+        "https://p11-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/fa27c771667447dc996e25d3d8efbc51~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=n%2FLZyfSwICiBmOnfGZpdKDgHjRA%3D&format=.png",
+        "https://p11-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/0ebf7e7079ff4f818e84278b1f768be9~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=QoS8FQKnfscVNSAHpXqdAWukomc%3D&format=.png",
+        "https://p11-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/cab92798573b494daf27cbddc03ac524~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=uyCPmdAiGMOOJWC5%2FWufB9dgNbI%3D&format=.png",
+        "https://p11-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/5dafdfd13a6c4480ac80c50d3b7dcee2~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=uUPoJ9zZY0lcKbaykY1NIg2Rdlg%3D&format=.png"
+      ]
+    },
+    {
+      "shot_id": 3,
+      "scene_id": 2,
+      "duration": 5,
+      "camera": "中景",
+      "action": "玻璃门被推开，风铃轻响。林夏蹲下身，温柔地将湿漉漉的小橘抱入怀中。",
+      "dialogue": "（风铃声清脆）林夏：小可怜，快进来吧。",
+      "characters": ["小橘", "林夏"],
+      "image_urls": [
+        "https://p11-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/b4b2188f441b462589932da0b434dd57~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=d9RsYDJ8vrkVLsNPlCfVS00a3lQ%3D&format=.png",
+        "https://p26-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/7b9e6ac76f8f48059fcf7ca367503044~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=76ppWKOsytbCLyecP9bgNzURTz4%3D&format=.png",
+        "https://p26-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/95bdbad880af4052a8ee8564ab0053a6~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=Ik83QF6fy2lYZUg3Jk9uRPiAxN8%3D&format=.png",
+        "https://p26-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/cc47cf894d9d49f79bd016bbe4ab2124~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=Z2vxxaPlJX3aa1JpOf6JshRGJj8%3D&format=.png"
+      ]
+    },
+    {
+      "shot_id": 4,
+      "scene_id": 2,
+      "duration": 5,
+      "camera": "近景转特写",
+      "action": "林夏用干毛巾仔细擦拭小橘，随后将盛着温牛奶的小白瓷碟推到它面前，小橘低头舔舐，发出满足的呼噜声。",
+      "dialogue": "（毛巾摩擦声，猫咪呼噜呼噜声）",
+      "characters": ["小橘", "林夏"],
+      "image_urls": [
+        "https://p26-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/fc77599241d64f138d72a68e7c99dc63~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=oD8Co308OIK3YKLXkTyNgCCkMSg%3D&format=.png",
+        "https://p11-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/4100676748ab450dad0a27659f9908af~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=6fizcz5jkzqwePYuALQXgtpDRSE%3D&format=.png",
+        "https://p26-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/0806b8739ddc462eb8e29e8f61208072~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=NHv82X3KQ8%2BcP3DcZG8UKlwcH%2FA%3D&format=.png",
+        "https://p26-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/13ca03ab746341ccb9c6d42a1affb530~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=c3HJCfNTPRKzzTct2hPWX8FBy8Q%3D&format=.png"
+      ]
+    },
+    {
+      "shot_id": 5,
+      "scene_id": 3,
+      "duration": 5,
+      "camera": "全景",
+      "action": "阳光透过落地窗洒满原木地板，毛发蓬松的小橘戴着迷你领结，慵懒地趴在收银台旁的软垫上，客人笑着摸摸它的头。",
+      "dialogue": "（轻柔治愈的背景音乐起）",
+      "characters": ["小橘", "客人"],
+      "image_urls": [
+        "https://p11-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/a04964523af94620a21b3e9a5cf79a88~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=ET%2F6my4TkH0X6BhDAKSEiqVCaaI%3D&format=.png",
+        "https://p26-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/994884cccae24c1dadd1c9d774fbddcc~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=%2BEiKvmpq%2BaFfeWVyXytl%2FnhUfwY%3D&format=.png",
+        "https://p11-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/670fb4c33a9e4365859dc7669d7461ef~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=Qh8cA7NhzvCI6e5NYat%2FMsDFptY%3D&format=.png",
+        "https://p26-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/c9ae245e5278454887980ebdbe055631~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=Om1%2FKb0GKMgyp7fi0D0bTzrNcRE%3D&format=.png"
+      ]
+    },
+    {
+      "shot_id": 6,
+      "scene_id": 3,
+      "duration": 5,
+      "camera": "中景",
+      "action": "林夏微笑着将咖啡递给客人，转头看向小橘，一人一猫相视，岁月静好。",
+      "dialogue": "林夏：今天也是好天气呢。",
+      "characters": ["小橘", "林夏", "客人"],
+      "image_urls": [
+        "https://p11-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/e779c3888078483bb63daf7856a65541~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=bw1gF5t7vz2sDd7dkLT00o3SnSQ%3D&format=.png",
+        "https://p26-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/cc1075a4ea5a4483849fa0b2f9874c8b~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=%2BaVD6NG1u1cLAl0EBOcdbtvUk%2FU%3D&format=.png",
+        "https://p26-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/411b2fdae3fc40e7a6c06dcb7235669d~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=HfPObN%2BI%2BgfeYuG9P4%2FzdUfx9Jg%3D&format=.png",
+        "https://p11-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/87696fe75b9649e0b91e78f585eda577~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=M1w6AnpoLoF4P88OtPzOAb88bHU%3D&format=.png"
+      ]
+    }
+  ]
+}

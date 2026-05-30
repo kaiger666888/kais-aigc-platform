@@ -1,0 +1,14 @@
+# Generated media — too large for git
+*.mp4
+*.wav
+images/
+videos/
+# Old test fragments (tiny but unnecessary)
+wan_bf16_v2.mp4
+wan_final.mp4
+wan_final_v3.mp4
+wan_retry.mp4
+wan_t2v_cat.mp4
+wan_t2v_shot1.mp4
+wan_vae_f32.mp4
+wan_shot1_rain.mp4

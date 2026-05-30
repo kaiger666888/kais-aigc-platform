@@ -1,0 +1,46 @@
+{
+  "scenes": [
+    {
+      "scene_id": 1,
+      "location": "咖啡店门口",
+      "weather": "雨天",
+      "time_of_day": "下午",
+      "description": "细雨绵绵，一只瘦小的橘猫蜷缩在咖啡店玻璃门外的脚垫上，浑身湿透，瑟瑟发抖。它用小爪子轻轻拍打着起雾的玻璃，眼神渴望地望着店内温暖的灯光。",
+      "mood": "凄冷、惹人怜惜",
+      "image_urls": [
+        "https://p26-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/09bced94171d40738ec11ac31dd2da0b~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780034400&x-signature=Yk3PYJcAfs2Q0fYXlh%2BzRdolzME%3D&format=.png",
+        "https://p11-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/18698cbb93334bc4b71771ed74b9413d~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780034400&x-signature=OnrNZWdbh3CUdL2%2BQl36l1b0nNQ%3D&format=.png",
+        "https://p26-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/85f2ed1c907b4e3193604714f24dff17~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780034400&x-signature=KIOaeS6%2FRVu6%2BKr3fEuRMPqlxhM%3D&format=.png",
+        "https://p11-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/55b3fe1a2d4646b28d2d321754ea5ade~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780034400&x-signature=9h82FQK%2BVocFwM8lI3L9DSw666c%3D&format=.png"
+      ]
+    },
+    {
+      "scene_id": 2,
+      "location": "咖啡店内",
+      "weather": "室内",
+      "time_of_day": "下午",
+      "description": "玻璃门被推开，风铃轻响。店员温柔地抱起湿漉漉的小猫，用干毛巾仔细擦拭。随后，一个小白瓷碟盛着温牛奶推到小猫面前，小猫低头舔舐，发出满足的呼噜声。",
+      "mood": "温暖、安心、治愈",
+      "image_urls": [
+        "https://p11-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/9584877f08a84716bd2f2ace00369a64~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780034400&x-signature=w2ni9nwyEQG%2Bsdq8L00H2a57fgI%3D&format=.png",
+        "https://p11-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/b1db442efa7142abb1621a9e8d1a5332~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780034400&x-signature=t0IrZsxfZHQpYm3izdC427sof4M%3D&format=.png",
+        "https://p26-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/a35e190fd900483998b6168347075ba9~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780034400&x-signature=Sg%2Bhywm9Q9N%2F9wBcxCamz6WyZXc%3D&format=.png",
+        "https://p26-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/a882e43731ce495dac17c44351b732a9~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780034400&x-signature=xLzNXFGZOSAN5vmwPZAy9Yap6LQ%3D&format=.png"
+      ]
+    },
+    {
+      "scene_id": 3,
+      "location": "咖啡店内",
+      "weather": "晴朗",
+      "time_of_day": "早晨",
+      "description": "阳光透过落地窗洒满原木地板，橘猫毛发蓬松，慵懒地趴在收银台旁专属的软垫上。它戴着迷你领结，客人们笑着摸摸它的头，店员递上咖啡，一人一猫相视，岁月静好。",
+      "mood": "明媚、幸福、温馨",
+      "image_urls": [
+        "https://p26-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/81edc3e8a7d9487ea943f93d11912226~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=CwyKqwCJU2%2B6NEtLrG27f8gLHZI%3D&format=.png",
+        "https://p26-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/d0238e96f264446a8da71cd8e03fc3a7~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=cEhaNVEabD9ZgF1jj3cUaqG%2FgCI%3D&format=.png",
+        "https://p11-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/14b181b3dedc4b09ace6760865f4c182~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=En3oKrDAvODreoLnb0IbIMmS1UI%3D&format=.png",
+        "https://p11-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/78673476cf4e4921845a695c5c2abc99~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780038000&x-signature=DYBA6yc4CufwMcbMLKw7YO9BFKE%3D&format=.png"
+      ]
+    }
+  ]
+}

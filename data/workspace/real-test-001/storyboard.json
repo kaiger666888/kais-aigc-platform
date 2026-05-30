@@ -1,0 +1,60 @@
+{
+  "total_shots": 6,
+  "total_duration": 30,
+  "shots": [
+    {
+      "shot_id": 1,
+      "scene_id": 1,
+      "duration": 5,
+      "camera": "全景转中景",
+      "action": "细雨绵绵，瘦小的小橘蜷缩在咖啡店玻璃门外的脚垫上，浑身湿透，瑟瑟发抖。",
+      "dialogue": "（雨声淅沥）",
+      "characters": ["小橘"]
+    },
+    {
+      "shot_id": 2,
+      "scene_id": 1,
+      "duration": 5,
+      "camera": "特写",
+      "action": "小橘用小爪子轻轻拍打起雾的玻璃，露出左耳的小缺口，眼神渴望地望着店内温暖的灯光。",
+      "dialogue": "喵……（微弱可怜的猫叫声）",
+      "characters": ["小橘"]
+    },
+    {
+      "shot_id": 3,
+      "scene_id": 2,
+      "duration": 5,
+      "camera": "中景",
+      "action": "玻璃门被推开，风铃轻响。林夏蹲下身，温柔地将湿漉漉的小橘抱入怀中。",
+      "dialogue": "（风铃声清脆）林夏：小可怜，快进来吧。",
+      "characters": ["小橘", "林夏"]
+    },
+    {
+      "shot_id": 4,
+      "scene_id": 2,
+      "duration": 5,
+      "camera": "近景转特写",
+      "action": "林夏用干毛巾仔细擦拭小橘，随后将盛着温牛奶的小白瓷碟推到它面前，小橘低头舔舐，发出满足的呼噜声。",
+      "dialogue": "（毛巾摩擦声，猫咪呼噜呼噜声）",
+      "characters": ["小橘", "林夏"]
+    },
+    {
+      "shot_id": 5,
+      "scene_id": 3,
+      "duration": 5,
+      "camera": "全景",
+      "action": "阳光透过落地窗洒满原木地板，毛发蓬松的小橘戴着迷你领结，慵懒地趴在收银台旁的软垫上，客人笑着摸摸它的头。",
+      "dialogue": "（轻柔治愈的背景音乐起）",
+      "characters": ["小橘", "客人"]
+    },
+    {
+      "shot_id": 6,
+      "scene_id": 3,
+      "duration": 5,
+      "camera": "中景",
+      "action": "林夏微笑着将咖啡递给客人，转头看向小橘，一人一猫相视，岁月静好。",
+      "dialogue": "林夏：今天也是好天气呢。",
+      "characters": ["小橘", "林夏", "客人"]
+    }
+  ]
+}
