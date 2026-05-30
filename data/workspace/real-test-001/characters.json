@@ -1,0 +1,34 @@
+{
+  "characters": [
+    {
+      "id": "char1",
+      "name": "小橘",
+      "type": "橘猫",
+      "age": "6个月",
+      "features": "左耳有个小缺口",
+      "personality": "可爱、温暖",
+      "description": "一只可爱的橘猫，6个月大，左耳有个小缺口，毛发蓬松，眼睛明亮",
+      "image_urls": [
+        "https://p11-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/7ee26717c3ba4442970c9df60bececc4~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780034400&x-signature=0uwqvkpSD%2BJiAgb7wcnGH5BPmhs%3D&format=.png",
+        "https://p26-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/032e312dde5445968d0f625a9734c925~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780034400&x-signature=AK8T7NAAAYk5TY4novld4eWyxhY%3D&format=.png",
+        "https://p11-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/fd1c579ad2fa4c759b628a4b596e184b~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780034400&x-signature=FOB4IZjmVZyPw57qMbR%2BG7H6qsM%3D&format=.png",
+        "https://p11-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/bd1c6ab19d604caf96001b94ef8dd839~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780034400&x-signature=NkbtLCYqPZWiHgaUDe96wCj7GwU%3D&format=.png"
+      ]
+    },
+    {
+      "id": "char2",
+      "name": "林夏",
+      "type": "人类",
+      "age": "25岁",
+      "features": "温柔咖啡店店员",
+      "personality": "温柔、善良",
+      "description": "25岁亚洲女性，温柔咖啡店店员，穿着简约围裙，黑色长发扎成低马尾，眼神温暖，微笑，清新自然",
+      "image_urls": [
+        "https://p26-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/5c7604c5491146a8be9d0c7f8fa12e91~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780034400&x-signature=YHbet5oRDGbCPxZHeklhp1Ltpco%3D&format=.png",
+        "https://p11-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/5a892e44a2504c2aa525eff823003806~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780034400&x-signature=f7WsHt2DnnmSTGoTdJW9qcPhuZw%3D&format=.png",
+        "https://p26-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/2791c389759d463ca656128dd72b6b9f~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780034400&x-signature=YgAsJgwTbS5DGaqWbPd2382h1qE%3D&format=.png",
+        "https://p26-dreamina-sign.byteimg.com/tos-cn-i-tb4s082cfz/6268bad3382e4ccba999c2095ce5b10c~tplv-tb4s082cfz-aigc_resize:0:0.png?lk3s=7c3bb0db&x-expires=1780034400&x-signature=g74%2BI23IBiPcqnpMVtGUzSiwpOo%3D&format=.png"
+      ]
+    }
+  ]
+}
