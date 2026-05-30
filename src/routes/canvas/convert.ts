@@ -86,11 +86,12 @@ export default router.post(
 
       function getNodeReview(nodeId: string) {
         const m = reviewMapping[nodeId];
-        if (!m) return { reviewStatus: null, aiScore: null, isWinner: null };
+        if (!m) return { reviewStatus: null, aiScore: null, isWinner: null, routingDecision: null };
         return {
           reviewStatus: m.reviewStatus ?? null,
           aiScore: m.aiScore ?? null,
           isWinner: m.isWinner ?? null,
+          routingDecision: m.routingDecision ?? null,
         };
       }
 
@@ -149,10 +150,10 @@ export default router.post(
             prompt: asset.prompt ?? "",
             filePath: asset.filePath ? `/oss/${asset.filePath}` : null,
             thumbnailUrl,
-            ...(() => { const r = getNodeReview(nodeId); return { reviewStatus: r.reviewStatus, aiScore: r.aiScore, isWinner: r.isWinner }; })(),
+            ...(() => { const r = getNodeReview(nodeId); return { reviewStatus: r.reviewStatus, aiScore: r.aiScore, isWinner: r.isWinner, routingDecision: r.routingDecision }; })(),
           },
           state,
-          ...(() => { const r = getNodeReview(nodeId); return { reviewStatus: r.reviewStatus, aiScore: r.aiScore, isWinner: r.isWinner }; })(),
+          ...(() => { const r = getNodeReview(nodeId); return { reviewStatus: r.reviewStatus, aiScore: r.aiScore, isWinner: r.isWinner, routingDecision: r.routingDecision }; })(),
         });
 
         links.push({
@@ -194,10 +195,10 @@ export default router.post(
             filePath: sb.filePath ? `/oss/${sb.filePath}` : null,
             thumbnailUrl,
             linkedAssetIds: assets2SbMap[sb.id] ?? [],
-            ...(() => { const r = getNodeReview(nodeId); return { reviewStatus: r.reviewStatus, aiScore: r.aiScore, isWinner: r.isWinner }; })(),
+            ...(() => { const r = getNodeReview(nodeId); return { reviewStatus: r.reviewStatus, aiScore: r.aiScore, isWinner: r.isWinner, routingDecision: r.routingDecision }; })(),
           },
           state,
-          ...(() => { const r = getNodeReview(nodeId); return { reviewStatus: r.reviewStatus, aiScore: r.aiScore, isWinner: r.isWinner }; })(),
+          ...(() => { const r = getNodeReview(nodeId); return { reviewStatus: r.reviewStatus, aiScore: r.aiScore, isWinner: r.isWinner, routingDecision: r.routingDecision }; })(),
         });
 
         // 连接关联资产到分镜
@@ -262,10 +263,10 @@ export default router.post(
             filePath: video.filePath ?? null,
             thumbnailUrl,
             duration: track.duration ? +track.duration : (video.time ? +video.time : 0),
-            ...(() => { const r = getNodeReview(nodeId); return { reviewStatus: r.reviewStatus, aiScore: r.aiScore, isWinner: r.isWinner }; })(),
+            ...(() => { const r = getNodeReview(nodeId); return { reviewStatus: r.reviewStatus, aiScore: r.aiScore, isWinner: r.isWinner, routingDecision: r.routingDecision }; })(),
           },
           state: videoState,
-          ...(() => { const r = getNodeReview(nodeId); return { reviewStatus: r.reviewStatus, aiScore: r.aiScore, isWinner: r.isWinner }; })(),
+          ...(() => { const r = getNodeReview(nodeId); return { reviewStatus: r.reviewStatus, aiScore: r.aiScore, isWinner: r.isWinner, routingDecision: r.routingDecision }; })(),
         });
 
         // 连接分镜 → 视频节点

@@ -4,6 +4,9 @@ export type NodeState = 'idle' | 'pending' | 'running' | 'success' | 'error' | '
 /** 审核状态 */
 export type ReviewStatus = 'awaiting_audit' | 'approved' | 'rejected'
 
+/** 路由决策 — 决定审核方式 */
+export type RoutingDecision = 'AUTO' | 'HUMAN' | 'AI_AUDIT' | 'BLOCK'
+
 /** 5维 AI 评分 */
 export interface AIScore {
   aesthetics: number | null
@@ -47,6 +50,7 @@ export interface AssetNodeData {
   reviewStatus?: ReviewStatus
   aiScore?: AIScore | null
   isWinner?: boolean
+  routingDecision?: RoutingDecision
 }
 
 /** 分镜节点数据 */
@@ -64,6 +68,7 @@ export interface StoryboardNodeData {
   reviewStatus?: ReviewStatus
   aiScore?: AIScore | null
   isWinner?: boolean
+  routingDecision?: RoutingDecision
 }
 
 /** 视频节点数据 */
@@ -79,6 +84,7 @@ export interface VideoNodeData {
   reviewStatus?: ReviewStatus
   aiScore?: AIScore | null
   isWinner?: boolean
+  routingDecision?: RoutingDecision
 }
 
 /** 连线数据 */
@@ -146,6 +152,7 @@ export interface FlowGraphNode {
   reviewStatus?: ReviewStatus
   aiScore?: AIScore | null
   isWinner?: boolean
+  routingDecision?: RoutingDecision
 }
 
 export interface FlowGraphLink {

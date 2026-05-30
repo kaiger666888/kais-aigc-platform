@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
-import type { AssetNodeData, NodeState } from '../../types/canvas'
+import type { AssetNodeData, NodeState, RoutingDecision } from '../../types/canvas'
 import { stateColors } from '../../utils/styles'
 import ScoreBadge from '../ScoreBadge'
 
@@ -15,6 +15,7 @@ function getNodeBorderStyle(data: AssetNodeData): string {
   if (data.reviewStatus === 'rejected') return '#f38ba8'
   if (data.reviewStatus === 'awaiting_audit') return '#f9e2af'
   if (data.reviewStatus === 'approved') return '#a6e3a1'
+  if (data.routingDecision === 'BLOCK') return '#89b4fa'
   return stateColors[data.state]
 }
 
@@ -105,7 +106,7 @@ function AssetNodeComponent({ data }: NodeProps<AssetNodeType>) {
         </div>
       )}
 
-      <ScoreBadge score={data.aiScore?.overall as number | null | undefined} />
+      <ScoreBadge score={data.aiScore?.overall as number | null | undefined} routingDecision={data.routingDecision as RoutingDecision | undefined} />
 
       <Handle
         type="source"
