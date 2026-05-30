@@ -24,6 +24,7 @@ import VideoNodeComponent from './nodes/VideoNode'
 import CanvasEdgeComponent from './edges/CanvasEdge'
 import CanvasContextMenu from './CanvasContextMenu'
 import ProjectSelector from './ProjectSelector'
+import NodeDetailPanel from './NodeDetailPanel'
 
 import type { NodeState } from '../types/canvas'
 import { flowGraphToCanvas, canvasToFlowGraph } from '../utils/flowDataMapper'
@@ -62,6 +63,7 @@ function CanvasInner() {
   const [menuPos, setMenuPos] = useState<{ x: number; y: number; nodeId?: string } | null>(null)
   const [hasData, setHasData] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null)
   const reactFlow = useReactFlow()
 
   const initialParams = getInitialParams()
@@ -161,7 +163,14 @@ function CanvasInner() {
     })
   }, [])
 
-  const onPaneClick = useCallback(() => setMenuPos(null), [])
+  const onPaneClick = useCallback(() => {
+    setMenuPos(null)
+    setSelectedNode(null)
+  }, [])
+
+  const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
+    setSelectedNode(node)
+  }, [])
 
   const handleSave = useCallback(async () => {
     if (!projectId || !episodesId) return
@@ -233,7 +242,7 @@ function CanvasInner() {
       )}
 
       {/* 画布区域 */}
-      <div style={{ width: '100%', height: 'calc(100vh - 48px)' }}>
+      <div style={{ width: '100%', height: 'calc(100vh - 48px)', position: 'relative' }}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -245,6 +254,7 @@ function CanvasInner() {
           defaultEdgeOptions={{ type: 'canvas' }}
           onNodeContextMenu={onNodeContextMenu}
           onPaneClick={onPaneClick}
+          onNodeClick={onNodeClick}
           fitView={hasData}
           fitViewOptions={{ padding: 0.2 }}
           selectionOnDrag
@@ -309,6 +319,11 @@ function CanvasInner() {
             />
           )}
         </ReactFlow>
+
+        <NodeDetailPanel
+          node={selectedNode}
+          onClose={() => setSelectedNode(null)}
+        />
       </div>
     </>
   )

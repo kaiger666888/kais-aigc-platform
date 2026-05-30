@@ -50,6 +50,7 @@ export interface VideoNodeData {
   label: string
   type: 'video'
   videoId: number
+  filePath: string | null
   thumbnailUrl: string | null
   state: NodeState
   duration?: number
