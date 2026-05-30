@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import type { Node } from '@xyflow/react'
-import type { ScriptNodeData, AssetNodeData, StoryboardNodeData, VideoNodeData, NodeState } from '../types/canvas'
+import type { ScriptNodeData, AssetNodeData, StoryboardNodeData, VideoNodeData, NodeState, ReviewStatus } from '../types/canvas'
 import { stateColors } from '../utils/styles'
 
 type NodeData = ScriptNodeData | AssetNodeData | StoryboardNodeData | VideoNodeData
@@ -95,6 +95,25 @@ export default function NodeDetailPanel({ node, onClose }: Props) {
           )}
           {type === 'video' && (
             <VideoDetail data={data as VideoNodeData} />
+          )}
+
+          {/* 审核信息 */}
+          {(data.reviewStatus || data.aiScore) && (
+            <>
+              <SectionLabel>审核信息</SectionLabel>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                <ReviewStatusBadge status={data.reviewStatus as ReviewStatus | undefined} />
+              </div>
+              {data.aiScore && (data.aiScore as any).overall != null && (
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  <ScoreDim label="美学" value={(data.aiScore as any).aesthetics} />
+                  <ScoreDim label="一致性" value={(data.aiScore as any).consistency} />
+                  <ScoreDim label="合规" value={(data.aiScore as any).compliance} />
+                  <ScoreDim label="技术" value={(data.aiScore as any).technicalQuality} />
+                  <ScoreDim label="音频" value={(data.aiScore as any).audioMatch} />
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -411,5 +430,48 @@ function VideoDetail({ data }: { data: VideoNodeData }) {
       <SectionLabel>生成状态</SectionLabel>
       <StateBadge state={data.state as NodeState} />
     </>
+  )
+}
+
+// ─── 审核相关组件 ──────────────────────────────────────────
+
+function ReviewStatusBadge({ status }: { status: ReviewStatus | undefined }) {
+  if (!status) return null
+  const config: Record<string, { label: string; bg: string }> = {
+    awaiting_audit: { label: '待审核', bg: '#f9e2af' },
+    approved: { label: '已通过', bg: '#a6e3a1' },
+    rejected: { label: '已驳回', bg: '#f38ba8' },
+  }
+  const c = config[status]
+  if (!c) return null
+  return (
+    <span style={{
+      padding: '2px 10px',
+      borderRadius: 4,
+      fontSize: 11,
+      background: c.bg,
+      color: '#1e1e2e',
+      fontWeight: 600,
+    }}>
+      {c.label}
+    </span>
+  )
+}
+
+function ScoreDim({ label, value }: { label: string; value: number | null | undefined }) {
+  if (value == null) return null
+  const pct = Math.round(value * 100)
+  const color = value >= 0.8 ? '#a6e3a1' : value >= 0.5 ? '#f9e2af' : '#f38ba8'
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: 2,
+      minWidth: 50,
+    }}>
+      <span style={{ fontSize: 16, fontWeight: 700, color }}>{pct}</span>
+      <span style={{ fontSize: 10, color: '#a6adc8' }}>{label}</span>
+    </div>
   )
 }

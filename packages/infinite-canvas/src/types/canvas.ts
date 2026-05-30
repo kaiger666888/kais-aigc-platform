@@ -1,6 +1,20 @@
 /** 节点执行状态 */
 export type NodeState = 'idle' | 'pending' | 'running' | 'success' | 'error' | 'cached'
 
+/** 审核状态 */
+export type ReviewStatus = 'awaiting_audit' | 'approved' | 'rejected'
+
+/** 5维 AI 评分 */
+export interface AIScore {
+  aesthetics: number | null
+  consistency: number | null
+  compliance: number | null
+  technicalQuality: number | null
+  audioMatch: number | null
+  overall: number | null
+  source: string | null
+}
+
 /** 连线数据类型，用于着色 */
 export type LinkDataType = 'text' | 'image' | 'video' | 'data'
 
@@ -30,6 +44,9 @@ export interface AssetNodeData {
   thumbnailUrl: string | null
   state: NodeState
   progress?: number
+  reviewStatus?: ReviewStatus
+  aiScore?: AIScore | null
+  isWinner?: boolean
 }
 
 /** 分镜节点数据 */
@@ -44,6 +61,9 @@ export interface StoryboardNodeData {
   thumbnailUrl: string | null
   state: NodeState
   linkedAssetIds: number[]
+  reviewStatus?: ReviewStatus
+  aiScore?: AIScore | null
+  isWinner?: boolean
 }
 
 /** 视频节点数据 */
@@ -56,6 +76,9 @@ export interface VideoNodeData {
   thumbnailUrl: string | null
   state: NodeState
   duration?: number
+  reviewStatus?: ReviewStatus
+  aiScore?: AIScore | null
+  isWinner?: boolean
 }
 
 /** 连线数据 */
@@ -120,6 +143,9 @@ export interface FlowGraphNode {
   state: NodeState
   progress?: number
   groupId?: string
+  reviewStatus?: ReviewStatus
+  aiScore?: AIScore | null
+  isWinner?: boolean
 }
 
 export interface FlowGraphLink {
@@ -129,6 +155,7 @@ export interface FlowGraphLink {
   target: string
   targetHandle?: string
   dataType: LinkDataType
+  isInactive?: boolean
 }
 
 export interface FlowGraphGroup {

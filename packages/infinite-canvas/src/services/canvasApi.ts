@@ -146,3 +146,27 @@ export async function executeNode(
   const json = await res.json()
   if (json.code !== 200 && json.code !== 0) throw new Error(json.message || '执行节点失败')
 }
+
+// ─── 审核 ─────────────────────────────────────────────
+
+/** 审核通过 */
+export async function approveNode(projectId: number, episodesId: number, nodeId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/canvas/review/approve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectId, episodesId, nodeId }),
+  })
+  const json = await res.json()
+  if (json.code !== 200 && json.code !== 0) throw new Error(json.message || '审核操作失败')
+}
+
+/** 驳回 */
+export async function rejectNode(projectId: number, episodesId: number, nodeId: string, reason: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/canvas/review/reject`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectId, episodesId, nodeId, reason }),
+  })
+  const json = await res.json()
+  if (json.code !== 200 && json.code !== 0) throw new Error(json.message || '审核操作失败')
+}

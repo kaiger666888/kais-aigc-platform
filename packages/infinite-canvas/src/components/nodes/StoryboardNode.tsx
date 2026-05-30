@@ -2,19 +2,36 @@ import { memo } from 'react'
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
 import type { StoryboardNodeData, NodeState } from '../../types/canvas'
 import { stateColors } from '../../utils/styles'
+import ScoreBadge from '../ScoreBadge'
 
 type StoryboardNodeType = Node<StoryboardNodeData, 'storyboard'>
+
+function getNodeBorderStyle(data: StoryboardNodeData): string {
+  if (data.isWinner === false) return '#585b70'
+  if (data.reviewStatus === 'rejected') return '#f38ba8'
+  if (data.reviewStatus === 'awaiting_audit') return '#f9e2af'
+  if (data.reviewStatus === 'approved') return '#a6e3a1'
+  return stateColors[data.state]
+}
+
+function getNodeContainerStyle(data: StoryboardNodeData): React.CSSProperties {
+  if (data.isWinner === false) return { opacity: 0.4, filter: 'grayscale(100%)' }
+  if (data.reviewStatus === 'rejected') return { opacity: 0.5, filter: 'grayscale(60%)' }
+  return {}
+}
 
 function StoryboardNodeComponent({ data }: NodeProps<StoryboardNodeType>) {
   return (
     <div style={{
       background: '#1e1e2e',
       borderRadius: 8,
-      border: `2px solid ${stateColors[data.state]}`,
+      border: `2px solid ${getNodeBorderStyle(data)}`,
       padding: 12,
       width: 260,
       color: '#cdd6f4',
       fontSize: 12,
+      position: 'relative',
+      ...getNodeContainerStyle(data),
     }}>
       <Handle
         type="target"
@@ -88,6 +105,8 @@ function StoryboardNodeComponent({ data }: NodeProps<StoryboardNodeType>) {
           ))}
         </div>
       )}
+
+      <ScoreBadge score={data.aiScore?.overall as number | null | undefined} />
 
       <Handle
         type="source"

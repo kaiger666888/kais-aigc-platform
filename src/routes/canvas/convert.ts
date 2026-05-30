@@ -67,6 +67,33 @@ export default router.post(
         assets2SbMap[r.storyboardId].push(r.assetId);
       });
 
+      // ─── 查询审核数据 ──────────────────────────────────
+      const reviewKey = `reviewStatus-${episodesId}`;
+      const reviewRow = await u.db("o_agentWorkData")
+        .where("projectId", String(projectId))
+        .andWhere("episodesId", String(episodesId))
+        .andWhere("key", reviewKey)
+        .first();
+
+      let reviewMapping: Record<string, any> = {};
+      if (reviewRow?.data) {
+        try {
+          reviewMapping = typeof reviewRow.data === "string"
+            ? JSON.parse(reviewRow.data)
+            : reviewRow.data;
+        } catch { reviewMapping = {}; }
+      }
+
+      function getNodeReview(nodeId: string) {
+        const m = reviewMapping[nodeId];
+        if (!m) return { reviewStatus: null, aiScore: null, isWinner: null };
+        return {
+          reviewStatus: m.reviewStatus ?? null,
+          aiScore: m.aiScore ?? null,
+          isWinner: m.isWinner ?? null,
+        };
+      }
+
       // ─── 构建节点和边 ────────────────────────────────
       const nodes: any[] = [];
       const links: any[] = [];
@@ -122,8 +149,10 @@ export default router.post(
             prompt: asset.prompt ?? "",
             filePath: asset.filePath ? `/oss/${asset.filePath}` : null,
             thumbnailUrl,
+            ...(() => { const r = getNodeReview(nodeId); return { reviewStatus: r.reviewStatus, aiScore: r.aiScore, isWinner: r.isWinner }; })(),
           },
           state,
+          ...(() => { const r = getNodeReview(nodeId); return { reviewStatus: r.reviewStatus, aiScore: r.aiScore, isWinner: r.isWinner }; })(),
         });
 
         links.push({
@@ -165,8 +194,10 @@ export default router.post(
             filePath: sb.filePath ? `/oss/${sb.filePath}` : null,
             thumbnailUrl,
             linkedAssetIds: assets2SbMap[sb.id] ?? [],
+            ...(() => { const r = getNodeReview(nodeId); return { reviewStatus: r.reviewStatus, aiScore: r.aiScore, isWinner: r.isWinner }; })(),
           },
           state,
+          ...(() => { const r = getNodeReview(nodeId); return { reviewStatus: r.reviewStatus, aiScore: r.aiScore, isWinner: r.isWinner }; })(),
         });
 
         // 连接关联资产到分镜
@@ -231,8 +262,10 @@ export default router.post(
             filePath: video.filePath ?? null,
             thumbnailUrl,
             duration: track.duration ? +track.duration : (video.time ? +video.time : 0),
+            ...(() => { const r = getNodeReview(nodeId); return { reviewStatus: r.reviewStatus, aiScore: r.aiScore, isWinner: r.isWinner }; })(),
           },
           state: videoState,
+          ...(() => { const r = getNodeReview(nodeId); return { reviewStatus: r.reviewStatus, aiScore: r.aiScore, isWinner: r.isWinner }; })(),
         });
 
         // 连接分镜 → 视频节点
