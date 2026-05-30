@@ -20,6 +20,7 @@ const ASSET_GAP_Y = 220;
 const SB_START_X = 400;
 const SB_START_Y = 500;
 const SB_GAP_X = 300;
+const VIDEO_START_Y = SB_START_Y + 350;
 
 export default router.post(
   "/",
@@ -177,6 +178,70 @@ export default router.post(
               dataType: "image",
             });
           }
+        }
+      }
+
+      // 4. 视频节点（从 o_videoTrack 和 o_video 读取）
+      const videoTrackData = await u.db("o_videoTrack")
+        .where("scriptId", episodesId)
+        .andWhere("projectId", projectId);
+
+      const videoTrackIds = videoTrackData.map((t: any) => t.id);
+      const videoData = videoTrackIds.length > 0
+        ? await u.db("o_video").whereIn("videoTrackId", videoTrackIds)
+        : [];
+
+      // 建立 trackId → 分镜节点id 的映射
+      const track2Storyboard = new Map<number, string>();
+      for (const sb of storyboardData) {
+        if (sb.trackId) track2Storyboard.set(sb.trackId, `storyboard-${sb.id}`);
+      }
+
+      for (let i = 0; i < videoTrackData.length; i++) {
+        const track = videoTrackData[i];
+        const selectedVideoId = track.videoId || track.selectVideoId;
+        const video = selectedVideoId
+          ? videoData.find((v: any) => v.id === selectedVideoId)
+          : videoData.find((v: any) => v.videoTrackId === track.id);
+
+        if (!video) continue;
+
+        const nodeId = `video-${video.id}`;
+        const videoState = video.state === "已完成" ? "success"
+          : video.state === "生成中" ? "running"
+          : video.state === "生成失败" ? "error"
+          : "idle";
+
+        let thumbnailUrl: string | null = null;
+        if (video.filePath) {
+          thumbnailUrl = `/oss/${video.filePath}`;
+        }
+
+        nodes.push({
+          id: nodeId,
+          type: "video",
+          position: { x: SB_START_X + i * SB_GAP_X, y: VIDEO_START_Y },
+          size: { width: 260, height: 180 },
+          data: {
+            label: `视频 ${i + 1}`,
+            type: "video",
+            videoId: video.id,
+            filePath: video.filePath ?? null,
+            thumbnailUrl,
+            duration: track.duration ? +track.duration : (video.time ? +video.time : 0),
+          },
+          state: videoState,
+        });
+
+        // 连接分镜 → 视频节点
+        const storyboardNodeId = track2Storyboard.get(track.id);
+        if (storyboardNodeId) {
+          links.push({
+            id: `e-${edgeId++}`,
+            source: storyboardNodeId,
+            target: nodeId,
+            dataType: "video",
+          });
         }
       }
 
