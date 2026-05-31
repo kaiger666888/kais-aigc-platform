@@ -295,6 +295,50 @@ export default router.post(
       };
 
       res.status(200).send(success(graph));
+
+      // ─── 异步自动评分：缺少 aiScore 的图片节点 ──────────
+      setTimeout(async () => {
+        try {
+          const { scoreImageWithRetry } = await import("@/lib/ai-scorer");
+          for (const node of graph.nodes) {
+            if (node.data?.aiScore) continue; // 已有评分，跳过
+            const imageUrl = node.data?.thumbnailUrl || node.data?.filePath;
+            if (!imageUrl || !imageUrl.startsWith("/")) continue; // 只处理本地图片
+            try {
+              const score = await scoreImageWithRetry(imageUrl);
+              // 写入 reviewMapping
+              const reviewKey = `reviewStatus-${episodesId}`;
+              const reviewRow = await u.db("o_agentWorkData")
+                .where("projectId", String(projectId))
+                .andWhere("episodesId", String(episodesId))
+                .andWhere("key", reviewKey)
+                .first();
+              let mapping: Record<string, any> = {};
+              if (reviewRow?.data) {
+                try { mapping = typeof reviewRow.data === "string" ? JSON.parse(reviewRow.data) : reviewRow.data; } catch { mapping = {}; }
+              }
+              if (!mapping[node.id]) mapping[node.id] = {};
+              mapping[node.id].aiScore = score;
+              const mappingStr = JSON.stringify(mapping);
+              if (reviewRow) {
+                await u.db("o_agentWorkData").where("id", reviewRow.id).update({ data: mappingStr });
+              } else {
+                await u.db("o_agentWorkData").insert({ projectId: String(projectId), episodesId: String(episodesId), key: reviewKey, data: mappingStr });
+              }
+              console.log(`[auto-score] ${node.id} → overall=${score.overall}`);
+              // 广播
+              try {
+                const { broadcastToProject } = await import("@/routes/canvas/ws-broadcast");
+                broadcastToProject(projectId, "node:state", { nodeId: node.id, state: "scored", aiScore: score });
+              } catch {}
+            } catch (err: any) {
+              console.warn(`[auto-score] ${node.id} 评分失败:`, err.message);
+            }
+          }
+        } catch (err) {
+          console.error("[auto-score] 异步评分启动失败:", err);
+        }
+      }, 2000); // 2秒后开始，不阻塞返回
     } catch (err) {
       console.error("[canvas:convert] 转换项目数据失败:", err);
       res.status(500).send(error("转换项目数据失败"));
