@@ -1,19 +1,15 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect } from 'react'
 import {
   ReactFlow,
   ReactFlowProvider,
   Background,
   Controls,
   MiniMap,
-  useNodesState,
-  useEdgesState,
   addEdge,
   type OnConnect,
   type Connection,
   Panel,
   useReactFlow,
-  type Node,
-  type Edge,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 
@@ -28,12 +24,12 @@ import ProjectSelector from './ProjectSelector'
 import NodeDetailPanel from './NodeDetailPanel'
 import LoadingOverlay from './LoadingOverlay'
 
-import type { NodeState, ReviewStatus } from '../types/canvas'
-import { CanvasActionsContext } from './CanvasActionsContext'
+import type { NodeState } from '../types/canvas'
+import { useCanvasStore } from '../store/canvasStore'
+import { ToastContainer } from '../hooks/useToast'
 import { flowGraphToCanvas, canvasToFlowGraph } from '../utils/flowDataMapper'
 import { loadCanvasGraph, saveCanvasGraph, convertProjectData } from '../services/canvasApi'
 import { useCanvasSocket } from '../hooks/useCanvasSocket'
-import { useToast, ToastContainer } from '../hooks/useToast'
 import { theme, miniMapNodeColors } from '../theme/catppuccin'
 import { LAYOUT, VIEWPORT } from '../constants'
 
@@ -61,18 +57,37 @@ function getInitialParams(): { projectId: number | null; episodesId: number | nu
 }
 
 function CanvasInner() {
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
-  const [loading, setLoading] = useState(false)
-  const [loadError, setLoadError] = useState<string | null>(null)
-  const [projectId, setProjectId] = useState<number | null>(null)
-  const [episodesId, setEpisodesId] = useState<number | null>(null)
-  const [menuPos, setMenuPos] = useState<{ x: number; y: number; nodeId?: string } | null>(null)
-  const [hasData, setHasData] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [selectedNode, setSelectedNode] = useState<Node | null>(null)
   const reactFlow = useReactFlow()
-  const { toasts, showToast, dismiss: dismissToast } = useToast()
+
+  const nodes = useCanvasStore((s) => s.nodes)
+  const edges = useCanvasStore((s) => s.edges)
+  const setNodes = useCanvasStore((s) => s.setNodes)
+  const setEdges = useCanvasStore((s) => s.setEdges)
+  const onNodesChange = useCanvasStore((s) => s.onNodesChange)
+  const onEdgesChange = useCanvasStore((s) => s.onEdgesChange)
+
+  const loading = useCanvasStore((s) => s.loading)
+  const setLoading = useCanvasStore((s) => s.setLoading)
+  const loadError = useCanvasStore((s) => s.loadError)
+  const setLoadError = useCanvasStore((s) => s.setLoadError)
+  const hasData = useCanvasStore((s) => s.hasData)
+  const setHasData = useCanvasStore((s) => s.setHasData)
+  const saving = useCanvasStore((s) => s.saving)
+  const setSaving = useCanvasStore((s) => s.setSaving)
+
+  const projectId = useCanvasStore((s) => s.projectId)
+  const episodesId = useCanvasStore((s) => s.episodesId)
+  const setProject = useCanvasStore((s) => s.setProject)
+
+  const menuPos = useCanvasStore((s) => s.menuPos)
+  const setMenuPos = useCanvasStore((s) => s.setMenuPos)
+  const selectedNode = useCanvasStore((s) => s.selectedNode)
+  const setSelectedNode = useCanvasStore((s) => s.setSelectedNode)
+
+  const showToast = useCanvasStore((s) => s.showToast)
+  const toasts = useCanvasStore((s) => s.toasts)
+  const dismissToast = useCanvasStore((s) => s.dismissToast)
+  const selectWinner = useCanvasStore((s) => s.selectWinner)
 
   const initialParams = getInitialParams()
 
@@ -80,7 +95,7 @@ function CanvasInner() {
     projectId: projectId ?? 0,
     onNodeStateChange: (nodeId: string, state: NodeState, progress?: number) => {
       setNodes((nds) =>
-        nds.map((n) =>
+        (nds as any[]).map((n) =>
           n.id === nodeId
             ? { ...n, data: { ...n.data, state, ...(progress != null && { progress }) } }
             : n,
@@ -89,7 +104,7 @@ function CanvasInner() {
     },
     onNodePreviewUpdate: (nodeId: string, thumbnailUrl: string) => {
       setNodes((nds) =>
-        nds.map((n) =>
+        (nds as any[]).map((n) =>
           n.id === nodeId
             ? { ...n, data: { ...n.data, thumbnailUrl } }
             : n,
@@ -97,7 +112,7 @@ function CanvasInner() {
       )
     },
     onNewAsset: (nodeId: string, data: Record<string, unknown>) => {
-      setNodes((nds) => [...nds, {
+      setNodes((nds) => [...(nds as any[]), {
         id: nodeId,
         type: 'asset',
         position: { x: LAYOUT.NEW_NODE_X_MIN + Math.random() * LAYOUT.NEW_NODE_X_RANGE, y: LAYOUT.NEW_NODE_Y_MIN + Math.random() * LAYOUT.NEW_NODE_Y_RANGE },
@@ -109,8 +124,7 @@ function CanvasInner() {
   const loadCanvas = useCallback(async (pid: number, eid: number) => {
     setLoading(true)
     setLoadError(null)
-    setProjectId(pid)
-    setEpisodesId(eid)
+    setProject(pid, eid)
 
     try {
       const savedGraph = await loadCanvasGraph(pid, eid)
@@ -143,21 +157,21 @@ function CanvasInner() {
     } finally {
       setLoading(false)
     }
-  }, [setNodes, setEdges])
+  }, [setNodes, setEdges, setLoading, setLoadError, setProject, setHasData])
 
   const onConnect: OnConnect = useCallback(
     (params: Connection) => {
       setEdges((eds) =>
         addEdge(
           { ...params, type: 'canvas', data: { dataType: 'data' } },
-          eds,
-        ),
+          eds as any[],
+        ) as any[]
       )
     },
     [setEdges],
   )
 
-  const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
+  const onNodeContextMenu = useCallback((event: React.MouseEvent, node: any) => {
     event.preventDefault()
     const container = (event.currentTarget as HTMLElement).closest('.react-flow')
     const rect = container?.getBoundingClientRect()
@@ -166,16 +180,16 @@ function CanvasInner() {
       y: event.clientY - (rect?.top ?? 0),
       nodeId: node.id,
     })
-  }, [])
+  }, [setMenuPos])
 
   const onPaneClick = useCallback(() => {
     setMenuPos(null)
     setSelectedNode(null)
-  }, [])
+  }, [setMenuPos, setSelectedNode])
 
-  const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
+  const onNodeClick = useCallback((_event: React.MouseEvent, node: any) => {
     setSelectedNode(node)
-  }, [])
+  }, [setSelectedNode])
 
   const handleSave = useCallback(async () => {
     if (!projectId || !episodesId) return
@@ -189,73 +203,18 @@ function CanvasInner() {
     } finally {
       setSaving(false)
     }
-  }, [nodes, edges, projectId, episodesId, reactFlow])
+  }, [nodes, edges, projectId, episodesId, reactFlow, setSaving])
 
-  const miniMapNodeColor = useCallback((node: Node) => {
+  const miniMapNodeColor = useCallback((node: any) => {
     return miniMapNodeColors[node.type || ''] ?? theme.border.dim
   }, [])
 
-  // ─── 审核操作（乐观更新 + Toast） ─────────────────────────
-  const approveNode = useCallback((nodeId: string) => {
-    setNodes((nds) => nds.map((n) =>
-      n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: 'approved' } } : n
-    ))
-    showToast(`审核通过: ${nodeId}`, 'success')
-  }, [setNodes, showToast])
-
-  const rejectNode = useCallback((nodeId: string) => {
-    setNodes((nds) => nds.map((n) =>
-      n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: 'rejected' } } : n
-    ))
-    showToast(`已驳回: ${nodeId}`, 'warning')
-  }, [setNodes, showToast])
-
-  // ─── 变体优胜选择 ─────────────────────────────────────────
-  const selectWinner = useCallback((nodeId: string) => {
-    const node = nodes.find((n) => n.id === nodeId)
-    const variantGroupId = node?.data.variantGroupId as string | undefined
-    if (!variantGroupId) {
-      showToast('该节点不属于变体组', 'warning')
-      return
-    }
-    setNodes((nds) => nds.map((n) => {
-      const vg = n.data.variantGroupId as string | undefined
-      if (vg !== variantGroupId) return n
-      if (n.id === nodeId) {
-        return { ...n, data: { ...n.data, isWinner: true, reviewStatus: 'approved' } }
-      }
-      return { ...n, data: { ...n.data, isWinner: false } }
-    }))
-    setEdges((eds) => eds.map((e) => {
-      const targetNode = nodes.find((n) => n.id === e.target)
-      if (targetNode && targetNode.data.variantGroupId === variantGroupId && e.target !== nodeId) {
-        return { ...e, data: { ...e.data, isInactive: true } }
-      }
-      return e
-    }))
-    showToast(`已选为优胜: ${nodeId}`, 'success')
-  }, [setNodes, setEdges, nodes, showToast])
-
-  const canvasActions = {
-    approveNode,
-    rejectNode,
-    selectWinner,
-    showToast,
-    projectId: projectId ?? 0,
-    episodesId: episodesId ?? 0,
-  }
-
   // 全屏加载 — 骨架屏
   if (loading && !hasData) {
-    return (
-      <CanvasActionsContext.Provider value={canvasActions}>
-        <LoadingOverlay />
-      </CanvasActionsContext.Provider>
-    )
+    return <LoadingOverlay />
   }
 
   return (
-    <CanvasActionsContext.Provider value={canvasActions}>
     <>
       {/* 顶部导航栏 */}
       <div style={topBarStyle}>
@@ -364,10 +323,6 @@ function CanvasInner() {
               onClose={() => setMenuPos(null)}
               projectId={projectId}
               episodesId={episodesId}
-              setNodes={setNodes}
-              setEdges={setEdges}
-              showToast={showToast}
-              onSelectWinner={selectWinner}
             />
           )}
         </ReactFlow>
@@ -379,7 +334,6 @@ function CanvasInner() {
       </div>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </>
-    </CanvasActionsContext.Provider>
   )
 }
 

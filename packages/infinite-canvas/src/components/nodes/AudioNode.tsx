@@ -7,7 +7,7 @@ import { NODE_SIZES } from '../../constants'
 import ScoreBadge from '../ScoreBadge'
 import ReviewActionButtons from '../ReviewActionButtons'
 import VariantBadge from '../VariantBadge'
-import { useCanvasActions } from '../CanvasActionsContext'
+import { useCanvasStore } from '../../store/canvasStore'
 
 type AudioNodeType = Node<AudioNodeData, 'audio'>
 
@@ -20,7 +20,8 @@ function formatTime(s: number): string {
 const BAR_COUNT = 24
 
 function AudioNodeComponent({ data, id }: NodeProps<AudioNodeType>) {
-  const { approveNode, rejectNode } = useCanvasActions()
+  const approveNode = useCanvasStore((s) => s.approveNode)
+  const rejectNode = useCanvasStore((s) => s.rejectNode)
   const [playing, setPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(data.duration ?? 0)
