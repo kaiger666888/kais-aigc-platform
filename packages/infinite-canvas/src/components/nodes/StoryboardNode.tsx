@@ -5,6 +5,7 @@ import { stateColors, getNodeBorderColor, getNodeContainerStyle } from '../../ut
 import { theme } from '../../theme/catppuccin'
 import { NODE_SIZES } from '../../constants'
 import ScoreBadge from '../ScoreBadge'
+import ScoreMiniBar from '../ScoreMiniBar'
 import ReviewActionButtons from '../ReviewActionButtons'
 import VariantBadge from '../VariantBadge'
 import { useCanvasActions } from '../CanvasActionsContext'
@@ -84,6 +85,7 @@ function StoryboardNodeComponent({ data, id }: NodeProps<StoryboardNodeType>) {
       )}
 
       <ScoreBadge score={data.aiScore?.overall as number | null | undefined} routingDecision={data.routingDecision as RoutingDecision | undefined} />
+      <ScoreMiniBar score={data.aiScore as any} />
 
       <Handle type="source" position={Position.Right} style={{ background: theme.handle.storyboard, width: 8, height: 8 }} />
     </div>
