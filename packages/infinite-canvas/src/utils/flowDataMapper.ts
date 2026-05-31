@@ -34,6 +34,7 @@ export function flowDataToCanvas(
 
   // 2. 资产节点（网格布局）
   const assetNodesMap = new Map<number, string>()
+  const VARIANT_GROUP_ID = 'vg-char-role'
   flowData.assets?.forEach((asset, i) => {
     const nodeId = `asset-${asset.id}`
     assetNodesMap.set(asset.id, nodeId)
@@ -46,6 +47,8 @@ export function flowDataToCanvas(
       : deriveState === '生成失败' ? 'error'
       : 'idle'
 
+    // 变体组标记：前2个资产组成变体组（演示用）
+    const isVariant = asset.type === 'role' && i < 2
     const data: AssetNodeData = {
       label: asset.name,
       type: 'asset',
@@ -55,6 +58,12 @@ export function flowDataToCanvas(
       filePath: null,
       thumbnailUrl: asset.derive?.[0]?.src ?? null,
       state,
+      ...(isVariant && {
+        variantGroupId: VARIANT_GROUP_ID,
+        variantIndex: i,
+        isWinner: i === 0, // 第一个为优胜者
+        reviewStatus: i === 0 ? 'approved' : 'awaiting_audit',
+      }),
     }
     nodes.push({
       id: nodeId,

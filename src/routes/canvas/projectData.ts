@@ -23,7 +23,7 @@ export default router.post(
       // 获取每个剧本的资产数和分镜数
       const enriched = await Promise.all(
         scripts.map(async (s) => {
-          const assetCount = (await u.db("o_scriptAssets").where("scriptId", s.id).count("id as cnt").first())?.cnt ?? 0;
+          const assetCount = (await u.db("o_scriptAssets").where("scriptId", s.id).count("* as cnt").first())?.cnt ?? 0;
           const storyboardCount = (await u.db("o_storyboard").where("scriptId", s.id).count("id as cnt").first())?.cnt ?? 0;
           return {
             ...s,

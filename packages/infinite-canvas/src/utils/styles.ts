@@ -60,7 +60,7 @@ export function getNodeContainerStyle(opts: {
   isWinner?: boolean
   reviewStatus?: string
 }): React.CSSProperties {
-  if (opts.isWinner === false) return { opacity: 0.4, filter: 'grayscale(100%)' }
+  if (opts.isWinner === false) return { opacity: 0.55, filter: 'grayscale(80%)' }
   if (opts.reviewStatus === 'rejected') return { opacity: 0.5, filter: 'grayscale(60%)' }
   return {}
 }

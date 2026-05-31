@@ -51,6 +51,8 @@ export interface AssetNodeData {
   aiScore?: AIScore | null
   isWinner?: boolean
   routingDecision?: RoutingDecision
+  variantGroupId?: string
+  variantIndex?: number
 }
 
 /** 分镜节点数据 */
@@ -69,6 +71,8 @@ export interface StoryboardNodeData {
   aiScore?: AIScore | null
   isWinner?: boolean
   routingDecision?: RoutingDecision
+  variantGroupId?: string
+  variantIndex?: number
 }
 
 /** 视频节点数据 */
@@ -85,6 +89,16 @@ export interface VideoNodeData {
   aiScore?: AIScore | null
   isWinner?: boolean
   routingDecision?: RoutingDecision
+  variantGroupId?: string
+  variantIndex?: number
+}
+
+/** 变体组 — 同一分镜下的多个候选资产 */
+export interface VariantGroup {
+  groupId: string
+  parentNodeId: string
+  variantNodeIds: string[]
+  winnerNodeId?: string
 }
 
 /** 连线数据 */
@@ -137,6 +151,7 @@ export interface FlowGraph {
   nodes: FlowGraphNode[]
   links: FlowGraphLink[]
   groups: FlowGraphGroup[]
+  variantGroups?: VariantGroup[]
   viewport?: { x: number; y: number; zoom: number }
 }
 
@@ -153,6 +168,8 @@ export interface FlowGraphNode {
   aiScore?: AIScore | null
   isWinner?: boolean
   routingDecision?: RoutingDecision
+  variantGroupId?: string
+  variantIndex?: number
 }
 
 export interface FlowGraphLink {

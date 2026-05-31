@@ -5,6 +5,9 @@ import { stateColors, getNodeBorderColor, getNodeContainerStyle } from '../../ut
 import { theme } from '../../theme/catppuccin'
 import { NODE_SIZES } from '../../constants'
 import ScoreBadge from '../ScoreBadge'
+import ReviewActionButtons from '../ReviewActionButtons'
+import VariantBadge from '../VariantBadge'
+import { useCanvasActions } from '../CanvasActionsContext'
 
 type AssetNodeType = Node<AssetNodeData, 'asset'>
 
@@ -12,7 +15,12 @@ const typeIcons: Record<string, string> = {
   role: '👤', tool: '🔧', scene: '🏞️', clip: '🎬',
 }
 
-function AssetNodeComponent({ data }: NodeProps<AssetNodeType>) {
+function AssetNodeComponent({ data, id }: NodeProps<AssetNodeType>) {
+  const { approveNode, rejectNode } = useCanvasActions()
+
+  const isLoser = data.isWinner === false
+  const hasVariant = data.variantGroupId != null
+
   return (
     <div style={{
       background: theme.bg.card,
@@ -25,10 +33,36 @@ function AssetNodeComponent({ data }: NodeProps<AssetNodeType>) {
       position: 'relative',
       ...getNodeContainerStyle(data),
     }}>
+      {/* 变体标签 */}
+      <VariantBadge
+        variantIndex={data.variantIndex as number | undefined}
+        isWinner={data.isWinner === true}
+        isLoser={isLoser}
+      />
+
+      {/* 优胜者金色边框 */}
+      {data.isWinner === true && (
+        <div style={{
+          position: 'absolute',
+          inset: -3,
+          borderRadius: 10,
+          border: `2px solid ${catppuccinGold}`,
+          pointerEvents: 'none',
+          boxShadow: `0 0 12px ${catppuccinGold}40`,
+        }} />
+      )}
+
       <Handle
         type="target"
         position={Position.Left}
         style={{ background: theme.handle.asset, width: 8, height: 8 }}
+      />
+
+      {/* 内联审核按钮 */}
+      <ReviewActionButtons
+        reviewStatus={data.reviewStatus}
+        onApprove={() => approveNode(id)}
+        onReject={() => rejectNode(id)}
       />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
@@ -103,6 +137,8 @@ function AssetNodeComponent({ data }: NodeProps<AssetNodeType>) {
     </div>
   )
 }
+
+const catppuccinGold = '#f9e2af'
 
 function StateBadge({ state }: { state: NodeState }) {
   const labels: Record<NodeState, string> = {

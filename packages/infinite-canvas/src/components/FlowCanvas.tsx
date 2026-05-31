@@ -27,7 +27,8 @@ import ProjectSelector from './ProjectSelector'
 import NodeDetailPanel from './NodeDetailPanel'
 import LoadingOverlay from './LoadingOverlay'
 
-import type { NodeState } from '../types/canvas'
+import type { NodeState, ReviewStatus } from '../types/canvas'
+import { CanvasActionsContext } from './CanvasActionsContext'
 import { flowGraphToCanvas, canvasToFlowGraph } from '../utils/flowDataMapper'
 import { loadCanvasGraph, saveCanvasGraph, convertProjectData } from '../services/canvasApi'
 import { useCanvasSocket } from '../hooks/useCanvasSocket'
@@ -192,12 +193,67 @@ function CanvasInner() {
     return miniMapNodeColors[node.type || ''] ?? theme.border.dim
   }, [])
 
+  // ─── 审核操作（乐观更新 + Toast） ─────────────────────────
+  const approveNode = useCallback((nodeId: string) => {
+    setNodes((nds) => nds.map((n) =>
+      n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: 'approved' } } : n
+    ))
+    showToast(`审核通过: ${nodeId}`, 'success')
+  }, [setNodes, showToast])
+
+  const rejectNode = useCallback((nodeId: string) => {
+    setNodes((nds) => nds.map((n) =>
+      n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: 'rejected' } } : n
+    ))
+    showToast(`已驳回: ${nodeId}`, 'warning')
+  }, [setNodes, showToast])
+
+  // ─── 变体优胜选择 ─────────────────────────────────────────
+  const selectWinner = useCallback((nodeId: string) => {
+    const node = nodes.find((n) => n.id === nodeId)
+    const variantGroupId = node?.data.variantGroupId as string | undefined
+    if (!variantGroupId) {
+      showToast('该节点不属于变体组', 'warning')
+      return
+    }
+    setNodes((nds) => nds.map((n) => {
+      const vg = n.data.variantGroupId as string | undefined
+      if (vg !== variantGroupId) return n
+      if (n.id === nodeId) {
+        return { ...n, data: { ...n.data, isWinner: true, reviewStatus: 'approved' } }
+      }
+      return { ...n, data: { ...n.data, isWinner: false } }
+    }))
+    setEdges((eds) => eds.map((e) => {
+      const targetNode = nodes.find((n) => n.id === e.target)
+      if (targetNode && targetNode.data.variantGroupId === variantGroupId && e.target !== nodeId) {
+        return { ...e, data: { ...e.data, isInactive: true } }
+      }
+      return e
+    }))
+    showToast(`已选为优胜: ${nodeId}`, 'success')
+  }, [setNodes, setEdges, nodes, showToast])
+
+  const canvasActions = {
+    approveNode,
+    rejectNode,
+    selectWinner,
+    showToast,
+    projectId: projectId ?? 0,
+    episodesId: episodesId ?? 0,
+  }
+
   // 全屏加载 — 骨架屏
   if (loading && !hasData) {
-    return <LoadingOverlay />
+    return (
+      <CanvasActionsContext.Provider value={canvasActions}>
+        <LoadingOverlay />
+      </CanvasActionsContext.Provider>
+    )
   }
 
   return (
+    <CanvasActionsContext.Provider value={canvasActions}>
     <>
       {/* 顶部导航栏 */}
       <div style={topBarStyle}>
@@ -309,6 +365,7 @@ function CanvasInner() {
               setNodes={setNodes}
               setEdges={setEdges}
               showToast={showToast}
+              onSelectWinner={selectWinner}
             />
           )}
         </ReactFlow>
@@ -320,6 +377,7 @@ function CanvasInner() {
       </div>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </>
+    </CanvasActionsContext.Provider>
   )
 }
 
@@ -388,6 +446,7 @@ export default function FlowCanvas() {
       <style>{`
         @keyframes spin { to { transform: rotate(360deg) } }
         @keyframes toast-in { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+        .react-flow__node:hover > div > div:first-of-type > button { opacity: 1 !important; }
       `}</style>
     </div>
   )

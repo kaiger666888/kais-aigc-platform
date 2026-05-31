@@ -137,6 +137,7 @@ export default router.post(
           } catch { thumbnailUrl = null; }
         }
 
+        const isVariantRole = (asset.type ?? "role") === "character" && i < 2;
         nodes.push({
           id: nodeId,
           type: "asset",
@@ -151,6 +152,11 @@ export default router.post(
             filePath: asset.filePath ? `/oss/${asset.filePath}` : null,
             thumbnailUrl,
             ...(() => { const r = getNodeReview(nodeId); return { reviewStatus: r.reviewStatus, aiScore: r.aiScore, isWinner: r.isWinner, routingDecision: r.routingDecision }; })(),
+            ...(isVariantRole ? {
+              variantGroupId: "vg-char-role",
+              variantIndex: i,
+              isWinner: i === 0,
+            } : {}),
           },
           state,
           ...(() => { const r = getNodeReview(nodeId); return { reviewStatus: r.reviewStatus, aiScore: r.aiScore, isWinner: r.isWinner, routingDecision: r.routingDecision }; })(),

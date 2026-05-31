@@ -16,6 +16,7 @@ interface CanvasContextMenuProps {
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>
   setEdges: React.Dispatch<React.SetStateAction<Edge[]>>
   showToast: (message: string, type?: ToastType) => void
+  onSelectWinner?: (nodeId: string) => void
 }
 
 type MenuItem = {
@@ -26,7 +27,7 @@ type MenuItem = {
 }
 
 export default function CanvasContextMenu({
-  x, y, nodeId, onClose, projectId, episodesId, setNodes, setEdges, showToast,
+  x, y, nodeId, onClose, projectId, episodesId, setNodes, setEdges, showToast, onSelectWinner,
 }: CanvasContextMenuProps) {
   const [showRejectInput, setShowRejectInput] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
@@ -128,6 +129,20 @@ export default function CanvasContextMenu({
       { label: '删除节点', icon: '🗑', action: handleDelete, danger: true },
     )
     items.push({ label: '---', icon: '', action: () => {} })
+
+    // 变体优胜选择（仅在变体组内节点上显示）
+    if (onSelectWinner) {
+      items.push({
+        label: '🏆 选为优胜',
+        icon: '🏆',
+        action: () => {
+          // 从菜单上下文无法直接拿到 variantGroupId，通过 DOM 事件冒泡获取
+          onSelectWinner(nodeId)
+          onClose()
+        },
+      })
+      items.push({ label: '---', icon: '', action: () => {} })
+    }
   }
 
   items.push(
