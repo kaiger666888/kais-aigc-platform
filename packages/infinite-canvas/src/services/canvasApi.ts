@@ -267,3 +267,12 @@ export async function rejectNode(
 ): Promise<void> {
   await apiCall<void>('/canvas/review/reject', { projectId, episodesId, nodeId, reason }, { cancelToken })
 }
+
+export async function requestNodeScore(
+  projectId: number,
+  episodesId: number,
+  nodeId: string,
+  cancelToken?: CancelToken,
+): Promise<{ overall: number; quality: number; aesthetic: number; storyConsistency: number; promptAdherence: number; emotionImpact: number; reasoning?: string }> {
+  return await apiCall<any>('/canvas/review/score', { projectId, episodesId, nodeId }, { cancelToken, timeout: 60000 })
+}

@@ -34,6 +34,7 @@ import route30 from "./routes/canvas/projectData";
 import route31 from "./routes/canvas/projects";
 import route32 from "./routes/canvas/review/approve";
 import route33 from "./routes/canvas/review/reject";
+import route33b from "./routes/canvas/review/score";
 import route34 from "./routes/canvas/save";
 import route35 from "./routes/common/getBigImage";
 import route36 from "./routes/cornerScape/batchBindAudio";
@@ -235,6 +236,7 @@ export default async (app: Express) => {
   app.use("/api/canvas/projects", route31);
   app.use("/api/canvas/review/approve", route32);
   app.use("/api/canvas/review/reject", route33);
+  app.use("/api/canvas/review/score", route33b);
   app.use("/api/canvas/save", route34);
   app.use("/api/common/getBigImage", route35);
   app.use("/api/cornerScape/batchBindAudio", route36);

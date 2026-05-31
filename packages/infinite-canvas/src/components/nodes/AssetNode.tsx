@@ -5,6 +5,7 @@ import { stateColors, getNodeBorderColor, getNodeContainerStyle } from '../../ut
 import { theme } from '../../theme/catppuccin'
 import { NODE_SIZES } from '../../constants'
 import ScoreBadge from '../ScoreBadge'
+import ScoreMiniBar from '../ScoreMiniBar'
 import ReviewActionButtons from '../ReviewActionButtons'
 import VariantBadge from '../VariantBadge'
 import { useCanvasActions } from '../CanvasActionsContext'
@@ -128,6 +129,7 @@ function AssetNodeComponent({ data, id }: NodeProps<AssetNodeType>) {
       )}
 
       <ScoreBadge score={data.aiScore?.overall as number | null | undefined} routingDecision={data.routingDecision as RoutingDecision | undefined} />
+      <ScoreMiniBar score={data.aiScore as any} />
 
       <Handle
         type="source"

@@ -1,7 +1,7 @@
 import { useState, type JSX } from 'react'
 import type { Node, Edge } from '@xyflow/react'
 import type { AssetNodeData, StoryboardNodeData, VideoNodeData } from '../types/canvas'
-import { executeNode, approveNode, rejectNode } from '../services/canvasApi'
+import { executeNode, approveNode, rejectNode, requestNodeScore } from '../services/canvasApi'
 import type { ToastType } from '../hooks/useToast'
 import { theme } from '../theme/catppuccin'
 import { LAYOUT } from '../constants'
@@ -128,6 +128,27 @@ export default function CanvasContextMenu({
       { label: '执行节点', icon: '▶', action: handleExecute },
       { label: '删除节点', icon: '🗑', action: handleDelete, danger: true },
     )
+    items.push({ label: '---', icon: '', action: () => {} })
+
+    // AI 评分
+    items.push({
+      label: '🤖 AI 评分',
+      icon: '🤖',
+      action: async () => {
+        showToast('正在 AI 评分...', 'info')
+        try {
+          const score = await requestNodeScore(projectId, episodesId, nodeId!)
+          // 乐观更新节点评分
+          setNodes((nds) => nds.map((n) =>
+            n.id === nodeId ? { ...n, data: { ...n.data, aiScore: score } } : n
+          ))
+          showToast(`AI 评分完成: 总分 ${score.overall}`, 'success')
+        } catch (err: any) {
+          showToast(`评分失败: ${err.message}`, 'error')
+        }
+        onClose()
+      },
+    })
     items.push({ label: '---', icon: '', action: () => {} })
 
     // 变体优胜选择（仅在变体组内节点上显示）
