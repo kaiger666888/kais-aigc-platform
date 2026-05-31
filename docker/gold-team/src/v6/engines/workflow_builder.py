@@ -397,6 +397,10 @@ def build_wan_gguf_i2v_workflow(
 
     output_prefix = f"video/{task_id}" if task_id else "video/wan_gguf"
 
+    # Validate source image
+    if not source_image_path or not source_image_path.strip():
+        raise ValueError("source_image_path is required for GGUF I2V workflow")
+
     # Detect GGUF vs safetensors by extension
     use_gguf_high = high_noise_model.endswith(".gguf")
     use_gguf_low = low_noise_model.endswith(".gguf")
