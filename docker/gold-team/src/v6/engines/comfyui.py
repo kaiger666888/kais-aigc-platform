@@ -169,7 +169,7 @@ class ComfyUIEngine(BaseEngine):
 
         artifacts: list[dict[str, Any]] = []
         for node_id, node_output in outputs.items():
-            # Images
+            # Images / Videos (ComfyUI SaveVideo outputs appear in images[] with .mp4)
             for img in node_output.get("images", []):
                 filename = img.get("filename", "")
                 subfolder = img.get("subfolder", "")
@@ -178,7 +178,12 @@ class ComfyUIEngine(BaseEngine):
                     f"{self._base_url}/view?"
                     f"filename={filename}&subfolder={subfolder}&type={img_type}"
                 )
-                artifacts.append({"url": url, "type": "image", "format": "png", "node": node_id})
+                # Detect video files by extension (.mp4, .webm, .gif)
+                if filename.lower().endswith((".mp4", ".webm", ".gif")):
+                    fmt = filename.rsplit(".", 1)[-1]
+                    artifacts.append({"url": url, "type": "video", "format": fmt, "node": node_id})
+                else:
+                    artifacts.append({"url": url, "type": "image", "format": "png", "node": node_id})
 
             # Videos / animated
             for vid in node_output.get("videos", []):
