@@ -1,6 +1,7 @@
 import { memo } from 'react'
 import { BaseEdge, getBezierPath, type EdgeProps } from '@xyflow/react'
 import { edgeTypeColors } from '../../utils/styles'
+import { theme } from '../../theme/catppuccin'
 
 function CanvasEdgeComponent(props: EdgeProps) {
   const [edgePath] = getBezierPath({
@@ -16,14 +17,13 @@ function CanvasEdgeComponent(props: EdgeProps) {
   const dataType = data?.dataType ?? 'data'
   const color = edgeTypeColors[dataType] ?? edgeTypeColors.data
 
-  // 非活跃连线样式
   if (data?.isInactive) {
     return (
       <BaseEdge
         id={props.id}
         path={edgePath}
         style={{
-          stroke: '#45475a',
+          stroke: theme.border.subtle,
           strokeWidth: 1,
           strokeDasharray: '5 5',
           opacity: 0.4,

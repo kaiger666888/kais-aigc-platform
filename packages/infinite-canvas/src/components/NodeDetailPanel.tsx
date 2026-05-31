@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import type { Node } from '@xyflow/react'
 import type { ScriptNodeData, AssetNodeData, StoryboardNodeData, VideoNodeData, NodeState, ReviewStatus } from '../types/canvas'
 import { stateColors } from '../utils/styles'
+import { theme, getScoreColor } from '../theme/catppuccin'
 
 type NodeData = ScriptNodeData | AssetNodeData | StoryboardNodeData | VideoNodeData
 
@@ -33,8 +34,8 @@ export default function NodeDetailPanel({ node, onClose }: Props) {
           right: 0,
           width: 400,
           height: '100%',
-          background: '#181825',
-          borderLeft: '1px solid #313244',
+          background: theme.bg.panel,
+          borderLeft: `1px solid ${theme.border.default}`,
           zIndex: 10,
           display: 'flex',
           flexDirection: 'column',
@@ -48,13 +49,13 @@ export default function NodeDetailPanel({ node, onClose }: Props) {
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '12px 16px',
-          borderBottom: '1px solid #313244',
-          background: '#1e1e2e',
+          borderBottom: `1px solid ${theme.border.default}`,
+          background: theme.bg.card,
           flexShrink: 0,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <TypeIcon type={type} />
-            <span style={{ color: '#cdd6f4', fontWeight: 600, fontSize: 14 }}>
+            <span style={{ color: theme.text.primary, fontWeight: 600, fontSize: 14 }}>
               {data.label as string}
             </span>
             <StateBadge state={data.state as NodeState} />
@@ -64,14 +65,14 @@ export default function NodeDetailPanel({ node, onClose }: Props) {
             style={{
               background: 'none',
               border: 'none',
-              color: '#a6adc8',
+              color: theme.text.secondary,
               fontSize: 18,
               cursor: 'pointer',
               padding: '2px 6px',
               borderRadius: 4,
               lineHeight: 1,
             }}
-            onMouseEnter={(e) => { (e.target as HTMLElement).style.background = '#313244' }}
+            onMouseEnter={(e) => { (e.target as HTMLElement).style.background = theme.bg.surface }}
             onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'none' }}
           >
             ✕
@@ -98,7 +99,7 @@ export default function NodeDetailPanel({ node, onClose }: Props) {
           )}
 
           {/* 审核信息 */}
-          {(data.reviewStatus || data.aiScore) && (
+          {(!!data.reviewStatus || !!data.aiScore) && (
             <>
               <SectionLabel>审核信息</SectionLabel>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
@@ -125,7 +126,7 @@ export default function NodeDetailPanel({ node, onClose }: Props) {
           style={{
             position: 'absolute',
             inset: 0,
-            background: 'rgba(0,0,0,0.85)',
+            background: theme.chrome.lightboxOverlay,
             zIndex: 20,
             display: 'flex',
             alignItems: 'center',
@@ -141,7 +142,7 @@ export default function NodeDetailPanel({ node, onClose }: Props) {
               maxHeight: '90%',
               objectFit: 'contain',
               borderRadius: 8,
-              boxShadow: '0 0 40px rgba(0,0,0,0.5)',
+              boxShadow: `0 0 40px ${theme.chrome.shadow}`,
             }}
           />
         </div>
@@ -177,7 +178,7 @@ function StateBadge({ state }: { state: NodeState }) {
       borderRadius: 4,
       fontSize: 11,
       background: stateColors[state],
-      color: '#1e1e2e',
+      color: theme.text.onAccent,
       fontWeight: 600,
     }}>
       {labels[state]}
@@ -185,11 +186,10 @@ function StateBadge({ state }: { state: NodeState }) {
   )
 }
 
-/** 分隔标签 */
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
-      color: '#a6adc8',
+      color: theme.text.secondary,
       fontSize: 11,
       fontWeight: 600,
       textTransform: 'uppercase',
@@ -202,17 +202,15 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-// ─── 剧本详情 ──────────────────────────────────────────────
-
 function ScriptDetail({ data }: { data: ScriptNodeData }) {
   return (
     <>
       <SectionLabel>剧本内容</SectionLabel>
       <div style={{
-        background: '#11111b',
+        background: theme.bg.input,
         borderRadius: 8,
         padding: 16,
-        color: '#cdd6f4',
+        color: theme.text.primary,
         fontSize: 13,
         lineHeight: 1.8,
         whiteSpace: 'pre-wrap',
@@ -226,18 +224,14 @@ function ScriptDetail({ data }: { data: ScriptNodeData }) {
   )
 }
 
-// ─── 资产详情 ──────────────────────────────────────────────
-
 function AssetDetail({ data, onImageClick }: { data: AssetNodeData; onImageClick: (src: string) => void }) {
   const typeLabels: Record<string, string> = {
     role: '角色', tool: '道具', scene: '场景', clip: '片段',
   }
-  // 优先使用 filePath（原始高清图），回退到 thumbnailUrl
   const fullImageUrl = (data.filePath as string) || (data.thumbnailUrl as string) || null
 
   return (
     <>
-      {/* 高清大图 */}
       {fullImageUrl && (
         <>
           <SectionLabel>资产图片</SectionLabel>
@@ -246,7 +240,7 @@ function AssetDetail({ data, onImageClick }: { data: AssetNodeData; onImageClick
               borderRadius: 8,
               overflow: 'hidden',
               cursor: 'pointer',
-              border: '1px solid #313244',
+              border: `1px solid ${theme.border.default}`,
               marginBottom: 12,
             }}
             onClick={() => onImageClick(fullImageUrl)}
@@ -259,20 +253,19 @@ function AssetDetail({ data, onImageClick }: { data: AssetNodeData; onImageClick
                 display: 'block',
                 maxHeight: 400,
                 objectFit: 'contain',
-                background: '#11111b',
+                background: theme.bg.image,
               }}
             />
           </div>
         </>
       )}
 
-      {/* 资产类型 */}
       <SectionLabel>资产类型</SectionLabel>
       <span style={{
         padding: '4px 12px',
         borderRadius: 6,
-        background: '#313244',
-        color: '#89b4fa',
+        background: theme.bg.surface,
+        color: theme.node.script,
         fontSize: 12,
         fontWeight: 600,
         display: 'inline-block',
@@ -280,15 +273,14 @@ function AssetDetail({ data, onImageClick }: { data: AssetNodeData; onImageClick
         {typeLabels[data.assetType as string] ?? data.assetType as string}
       </span>
 
-      {/* Prompt 描述 */}
       {(data.prompt as string) && (
         <>
           <SectionLabel>Prompt 描述</SectionLabel>
           <div style={{
-            background: '#11111b',
+            background: theme.bg.input,
             borderRadius: 8,
             padding: 12,
-            color: '#cdd6f4',
+            color: theme.text.primary,
             fontSize: 12,
             lineHeight: 1.6,
             whiteSpace: 'pre-wrap',
@@ -302,15 +294,11 @@ function AssetDetail({ data, onImageClick }: { data: AssetNodeData; onImageClick
   )
 }
 
-// ─── 分镜详情 ──────────────────────────────────────────────
-
 function StoryboardDetail({ data, onImageClick }: { data: StoryboardNodeData; onImageClick: (src: string) => void }) {
-  // 优先使用 filePath（原始高清图），回退到 thumbnailUrl
   const fullImageUrl = (data.filePath as string) || (data.thumbnailUrl as string) || null
 
   return (
     <>
-      {/* 高清分镜图 */}
       {fullImageUrl && (
         <>
           <SectionLabel>分镜图</SectionLabel>
@@ -319,7 +307,7 @@ function StoryboardDetail({ data, onImageClick }: { data: StoryboardNodeData; on
               borderRadius: 8,
               overflow: 'hidden',
               cursor: 'pointer',
-              border: '1px solid #313244',
+              border: `1px solid ${theme.border.default}`,
               marginBottom: 12,
             }}
             onClick={() => onImageClick(fullImageUrl)}
@@ -332,28 +320,26 @@ function StoryboardDetail({ data, onImageClick }: { data: StoryboardNodeData; on
                 display: 'block',
                 maxHeight: 400,
                 objectFit: 'contain',
-                background: '#11111b',
+                background: theme.bg.image,
               }}
             />
           </div>
         </>
       )}
 
-      {/* 时长 */}
       <SectionLabel>时长</SectionLabel>
-      <div style={{ color: '#cdd6f4', fontSize: 13 }}>
+      <div style={{ color: theme.text.primary, fontSize: 13 }}>
         {data.duration as number}秒
       </div>
 
-      {/* Prompt 描述 */}
       {(data.prompt as string) && (
         <>
           <SectionLabel>Prompt 描述</SectionLabel>
           <div style={{
-            background: '#11111b',
+            background: theme.bg.input,
             borderRadius: 8,
             padding: 12,
-            color: '#cdd6f4',
+            color: theme.text.primary,
             fontSize: 12,
             lineHeight: 1.6,
             whiteSpace: 'pre-wrap',
@@ -364,7 +350,6 @@ function StoryboardDetail({ data, onImageClick }: { data: StoryboardNodeData; on
         </>
       )}
 
-      {/* 关联资产 */}
       {Array.isArray(data.linkedAssetIds) && (data.linkedAssetIds as number[]).length > 0 && (
         <>
           <SectionLabel>关联资产</SectionLabel>
@@ -373,8 +358,8 @@ function StoryboardDetail({ data, onImageClick }: { data: StoryboardNodeData; on
               <span key={aid} style={{
                 padding: '4px 10px',
                 borderRadius: 6,
-                background: '#313244',
-                color: '#89b4fa',
+                background: theme.bg.surface,
+                color: theme.node.script,
                 fontSize: 12,
                 fontWeight: 600,
               }}>
@@ -388,14 +373,11 @@ function StoryboardDetail({ data, onImageClick }: { data: StoryboardNodeData; on
   )
 }
 
-// ─── 视频详情 ──────────────────────────────────────────────
-
 function VideoDetail({ data }: { data: VideoNodeData }) {
   const videoSrc = data.filePath ? `/oss/${data.filePath}` : null
 
   return (
     <>
-      {/* 视频播放器 */}
       {videoSrc && (
         <>
           <SectionLabel>视频播放</SectionLabel>
@@ -405,8 +387,8 @@ function VideoDetail({ data }: { data: VideoNodeData }) {
             style={{
               width: '100%',
               borderRadius: 8,
-              background: '#11111b',
-              border: '1px solid #313244',
+              background: theme.bg.image,
+              border: `1px solid ${theme.border.default}`,
             }}
             poster={data.thumbnailUrl as string | undefined}
           >
@@ -416,31 +398,27 @@ function VideoDetail({ data }: { data: VideoNodeData }) {
         </>
       )}
 
-      {/* 时长 */}
       {data.duration != null && (
         <>
           <SectionLabel>时长</SectionLabel>
-          <div style={{ color: '#cdd6f4', fontSize: 13 }}>
+          <div style={{ color: theme.text.primary, fontSize: 13 }}>
             {data.duration as number}秒
           </div>
         </>
       )}
 
-      {/* 生成状态 */}
       <SectionLabel>生成状态</SectionLabel>
       <StateBadge state={data.state as NodeState} />
     </>
   )
 }
 
-// ─── 审核相关组件 ──────────────────────────────────────────
-
 function ReviewStatusBadge({ status }: { status: ReviewStatus | undefined }) {
   if (!status) return null
   const config: Record<string, { label: string; bg: string }> = {
-    awaiting_audit: { label: '待审核', bg: '#f9e2af' },
-    approved: { label: '已通过', bg: '#a6e3a1' },
-    rejected: { label: '已驳回', bg: '#f38ba8' },
+    awaiting_audit: { label: '待审核', bg: theme.status.awaiting },
+    approved: { label: '已通过', bg: theme.status.approved },
+    rejected: { label: '已驳回', bg: theme.status.rejected },
   }
   const c = config[status]
   if (!c) return null
@@ -450,7 +428,7 @@ function ReviewStatusBadge({ status }: { status: ReviewStatus | undefined }) {
       borderRadius: 4,
       fontSize: 11,
       background: c.bg,
-      color: '#1e1e2e',
+      color: theme.text.onAccent,
       fontWeight: 600,
     }}>
       {c.label}
@@ -461,7 +439,6 @@ function ReviewStatusBadge({ status }: { status: ReviewStatus | undefined }) {
 function ScoreDim({ label, value }: { label: string; value: number | null | undefined }) {
   if (value == null) return null
   const pct = Math.round(value * 100)
-  const color = value >= 0.8 ? '#a6e3a1' : value >= 0.5 ? '#f9e2af' : '#f38ba8'
   return (
     <div style={{
       display: 'flex',
@@ -470,8 +447,8 @@ function ScoreDim({ label, value }: { label: string; value: number | null | unde
       gap: 2,
       minWidth: 50,
     }}>
-      <span style={{ fontSize: 16, fontWeight: 700, color }}>{pct}</span>
-      <span style={{ fontSize: 10, color: '#a6adc8' }}>{label}</span>
+      <span style={{ fontSize: 16, fontWeight: 700, color: getScoreColor(value) }}>{pct}</span>
+      <span style={{ fontSize: 10, color: theme.text.secondary }}>{label}</span>
     </div>
   )
 }

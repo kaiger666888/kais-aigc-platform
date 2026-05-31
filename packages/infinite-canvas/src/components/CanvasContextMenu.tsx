@@ -2,6 +2,9 @@ import { useState, type JSX } from 'react'
 import type { Node, Edge } from '@xyflow/react'
 import type { AssetNodeData, StoryboardNodeData, VideoNodeData } from '../types/canvas'
 import { executeNode, approveNode, rejectNode } from '../services/canvasApi'
+import type { ToastType } from '../hooks/useToast'
+import { theme } from '../theme/catppuccin'
+import { LAYOUT } from '../constants'
 
 interface CanvasContextMenuProps {
   x: number
@@ -12,6 +15,7 @@ interface CanvasContextMenuProps {
   episodesId: number
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>
   setEdges: React.Dispatch<React.SetStateAction<Edge[]>>
+  showToast: (message: string, type?: ToastType) => void
 }
 
 type MenuItem = {
@@ -22,7 +26,7 @@ type MenuItem = {
 }
 
 export default function CanvasContextMenu({
-  x, y, nodeId, onClose, projectId, episodesId, setNodes, setEdges,
+  x, y, nodeId, onClose, projectId, episodesId, setNodes, setEdges, showToast,
 }: CanvasContextMenuProps) {
   const [showRejectInput, setShowRejectInput] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
@@ -39,8 +43,9 @@ export default function CanvasContextMenu({
     try {
       const nodeType = nodeId.split('-')[0]
       await executeNode(projectId, episodesId, nodeId, nodeType)
-    } catch (err) {
-      console.error('执行节点失败:', err)
+      showToast('节点执行已触发', 'success')
+    } catch (err: any) {
+      showToast(err.message || '执行节点失败', 'error')
     }
     onClose()
   }
@@ -49,10 +54,10 @@ export default function CanvasContextMenu({
     const id = `asset-${Date.now()}`
     const data: AssetNodeData = {
       label: '新资产', type: 'asset', assetType: 'role', assetId: 0,
-      prompt: '', thumbnailUrl: null, state: 'idle',
+      prompt: '', filePath: null, thumbnailUrl: null, state: 'idle',
     }
     setNodes((nds) => [...nds, {
-      id, type: 'asset', position: { x: x + 400, y }, data,
+      id, type: 'asset', position: { x: x + LAYOUT.CONTEXT_MENU_ADD_OFFSET_X, y }, data,
     }])
     onClose()
   }
@@ -61,10 +66,10 @@ export default function CanvasContextMenu({
     const id = `storyboard-${Date.now()}`
     const data: StoryboardNodeData = {
       label: '新分镜', type: 'storyboard', storyboardId: 0, duration: 3,
-      prompt: '', thumbnailUrl: null, state: 'idle', linkedAssetIds: [],
+      prompt: '', filePath: null, thumbnailUrl: null, state: 'idle', linkedAssetIds: [],
     }
     setNodes((nds) => [...nds, {
-      id, type: 'storyboard', position: { x: x + 400, y }, data,
+      id, type: 'storyboard', position: { x: x + LAYOUT.CONTEXT_MENU_ADD_OFFSET_X, y }, data,
     }])
     onClose()
   }
@@ -76,35 +81,43 @@ export default function CanvasContextMenu({
       filePath: null, thumbnailUrl: null, state: 'idle',
     }
     setNodes((nds) => [...nds, {
-      id, type: 'video', position: { x: x + 400, y }, data,
+      id, type: 'video', position: { x: x + LAYOUT.CONTEXT_MENU_ADD_OFFSET_X, y }, data,
     }])
     onClose()
   }
 
   const handleApprove = async () => {
     if (!nodeId) return
+    setNodes((nds) => nds.map((n) =>
+      n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: 'approved' } } : n
+    ))
+    onClose()
     try {
       await approveNode(projectId, episodesId, nodeId)
+      showToast('审核通过', 'success')
+    } catch (err: any) {
       setNodes((nds) => nds.map((n) =>
-        n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: 'approved' } } : n
+        n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: 'awaiting_audit' } } : n
       ))
-    } catch (err) {
-      console.error('审核通过失败:', err)
+      showToast(err.message || '审核通过失败', 'error')
     }
-    onClose()
   }
 
   const handleReject = async () => {
     if (!nodeId || !rejectReason.trim()) return
+    setNodes((nds) => nds.map((n) =>
+      n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: 'rejected' } } : n
+    ))
+    onClose()
     try {
       await rejectNode(projectId, episodesId, nodeId, rejectReason.trim())
+      showToast('已驳回', 'warning')
+    } catch (err: any) {
       setNodes((nds) => nds.map((n) =>
-        n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: 'rejected' } } : n
+        n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: 'awaiting_audit' } } : n
       ))
-    } catch (err) {
-      console.error('驳回失败:', err)
+      showToast(err.message || '驳回失败', 'error')
     }
-    onClose()
   }
 
   const items: MenuItem[] = []
@@ -130,17 +143,17 @@ export default function CanvasContextMenu({
         left: x,
         top: y,
         zIndex: 100,
-        background: '#1e1e2e',
-        border: '1px solid #313244',
+        background: theme.bg.card,
+        border: `1px solid ${theme.border.default}`,
         borderRadius: 8,
         padding: 4,
         minWidth: 160,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+        boxShadow: `0 4px 12px ${theme.chrome.shadow}`,
       }}
     >
       {items.map((item, i) => {
         if (item.label === '---') {
-          return <div key={i} style={{ height: 1, background: '#313244', margin: '4px 0' }} />
+          return <div key={i} style={{ height: 1, background: theme.border.default, margin: '4px 0' }} />
         }
         return (
           <div
@@ -151,13 +164,13 @@ export default function CanvasContextMenu({
               borderRadius: 4,
               cursor: 'pointer',
               fontSize: 12,
-              color: item.danger ? '#f38ba8' : '#cdd6f4',
+              color: item.danger ? theme.status.rejected : theme.text.primary,
               display: 'flex',
               alignItems: 'center',
               gap: 8,
             }}
             onMouseEnter={(e) => {
-              (e.target as HTMLElement).style.background = '#313244'
+              (e.target as HTMLElement).style.background = theme.bg.surface
             }}
             onMouseLeave={(e) => {
               (e.target as HTMLElement).style.background = 'transparent'
@@ -172,8 +185,8 @@ export default function CanvasContextMenu({
       {/* 审核操作区域 */}
       {nodeId && (
         <>
-          <div style={{ height: 1, background: '#45475a', margin: '4px 0' }} />
-          <div style={{ padding: '4px 12px 2px', fontSize: 11, color: '#a6adc8', fontWeight: 600 }}>
+          <div style={{ height: 1, background: theme.border.subtle, margin: '4px 0' }} />
+          <div style={{ padding: '4px 12px 2px', fontSize: 11, color: theme.text.secondary, fontWeight: 600 }}>
             📋 审核操作
           </div>
           <div
@@ -183,13 +196,13 @@ export default function CanvasContextMenu({
               borderRadius: 4,
               cursor: 'pointer',
               fontSize: 12,
-              color: '#a6e3a1',
+              color: theme.status.approved,
               display: 'flex',
               alignItems: 'center',
               gap: 8,
             }}
             onMouseEnter={(e) => {
-              (e.target as HTMLElement).style.background = '#313244'
+              (e.target as HTMLElement).style.background = theme.bg.surface
             }}
             onMouseLeave={(e) => {
               (e.target as HTMLElement).style.background = 'transparent'
@@ -206,13 +219,13 @@ export default function CanvasContextMenu({
                 borderRadius: 4,
                 cursor: 'pointer',
                 fontSize: 12,
-                color: '#f38ba8',
+                color: theme.status.rejected,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
               }}
               onMouseEnter={(e) => {
-                (e.target as HTMLElement).style.background = '#313244'
+                (e.target as HTMLElement).style.background = theme.bg.surface
               }}
               onMouseLeave={(e) => {
                 (e.target as HTMLElement).style.background = 'transparent'
@@ -231,10 +244,10 @@ export default function CanvasContextMenu({
                 style={{
                   width: '100%',
                   height: 60,
-                  background: '#11111b',
-                  border: '1px solid #45475a',
+                  background: theme.bg.input,
+                  border: `1px solid ${theme.border.subtle}`,
                   borderRadius: 4,
-                  color: '#cdd6f4',
+                  color: theme.text.primary,
                   fontSize: 11,
                   padding: 6,
                   resize: 'none',
@@ -251,8 +264,8 @@ export default function CanvasContextMenu({
                     padding: '4px 8px',
                     borderRadius: 4,
                     border: 'none',
-                    background: rejectReason.trim() ? '#f38ba8' : '#45475a',
-                    color: '#1e1e2e',
+                    background: rejectReason.trim() ? theme.button.danger : theme.border.subtle,
+                    color: theme.text.onAccent,
                     fontSize: 11,
                     cursor: rejectReason.trim() ? 'pointer' : 'not-allowed',
                     fontWeight: 600,
@@ -267,8 +280,8 @@ export default function CanvasContextMenu({
                     padding: '4px 8px',
                     borderRadius: 4,
                     border: 'none',
-                    background: '#313244',
-                    color: '#a6adc8',
+                    background: theme.button.ghost,
+                    color: theme.text.secondary,
                     fontSize: 11,
                     cursor: 'pointer',
                   }}

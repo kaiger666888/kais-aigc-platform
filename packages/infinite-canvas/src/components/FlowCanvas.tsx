@@ -25,11 +25,15 @@ import CanvasEdgeComponent from './edges/CanvasEdge'
 import CanvasContextMenu from './CanvasContextMenu'
 import ProjectSelector from './ProjectSelector'
 import NodeDetailPanel from './NodeDetailPanel'
+import LoadingOverlay from './LoadingOverlay'
 
 import type { NodeState } from '../types/canvas'
 import { flowGraphToCanvas, canvasToFlowGraph } from '../utils/flowDataMapper'
 import { loadCanvasGraph, saveCanvasGraph, convertProjectData } from '../services/canvasApi'
 import { useCanvasSocket } from '../hooks/useCanvasSocket'
+import { useToast, ToastContainer } from '../hooks/useToast'
+import { theme, miniMapNodeColors } from '../theme/catppuccin'
+import { LAYOUT, VIEWPORT } from '../constants'
 
 const nodeTypes = {
   script: ScriptNodeComponent,
@@ -65,6 +69,7 @@ function CanvasInner() {
   const [saving, setSaving] = useState(false)
   const [selectedNode, setSelectedNode] = useState<Node | null>(null)
   const reactFlow = useReactFlow()
+  const { toasts, showToast, dismiss: dismissToast } = useToast()
 
   const initialParams = getInitialParams()
 
@@ -92,7 +97,7 @@ function CanvasInner() {
       setNodes((nds) => [...nds, {
         id: nodeId,
         type: 'asset',
-        position: { x: 400 + Math.random() * 600, y: 50 + Math.random() * 400 },
+        position: { x: LAYOUT.NEW_NODE_X_MIN + Math.random() * LAYOUT.NEW_NODE_X_RANGE, y: LAYOUT.NEW_NODE_Y_MIN + Math.random() * LAYOUT.NEW_NODE_Y_RANGE },
         data,
       }])
     },
@@ -105,14 +110,12 @@ function CanvasInner() {
     setEpisodesId(eid)
 
     try {
-      // 先尝试加载已保存的画布图
       const savedGraph = await loadCanvasGraph(pid, eid)
       if (savedGraph?.nodes?.length) {
         const { nodes: loadedNodes, edges: loadedEdges } = flowGraphToCanvas(savedGraph)
         setNodes(loadedNodes)
         setEdges(loadedEdges)
       } else {
-        // 从数据库转换项目数据
         const graph = await convertProjectData(pid, eid)
         if (graph?.nodes?.length) {
           const { nodes: convertedNodes, edges: convertedEdges } = flowGraphToCanvas(graph)
@@ -126,7 +129,6 @@ function CanvasInner() {
       }
       setHasData(true)
 
-      // 更新 URL（不刷新页面）
       const url = new URL(window.location.href)
       url.searchParams.set('projectId', String(pid))
       url.searchParams.set('episodesId', String(eid))
@@ -187,22 +189,12 @@ function CanvasInner() {
   }, [nodes, edges, projectId, episodesId, reactFlow])
 
   const miniMapNodeColor = useCallback((node: Node) => {
-    const colors: Record<string, string> = {
-      script: '#89b4fa', asset: '#a6e3a1', storyboard: '#f9e2af', video: '#cba6f7',
-    }
-    return colors[node.type || ''] ?? '#585b70'
+    return miniMapNodeColors[node.type || ''] ?? theme.border.dim
   }, [])
 
-  // 全屏加载
+  // 全屏加载 — 骨架屏
   if (loading && !hasData) {
-    return (
-      <div style={overlayStyle}>
-        <div style={loadingBoxStyle}>
-          <div style={spinnerStyle} />
-          <div style={{ color: '#cdd6f4', marginTop: 16, fontSize: 14 }}>加载画布数据...</div>
-        </div>
-      </div>
-    )
+    return <LoadingOverlay />
   }
 
   return (
@@ -211,8 +203,8 @@ function CanvasInner() {
       <div style={topBarStyle}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <a href="/" style={backLinkStyle}>← 返回 Toonflow</a>
-          <div style={{ width: 1, height: 20, background: '#313244' }} />
-          <span style={{ color: '#89b4fa', fontWeight: 600, fontSize: 14 }}>无限画布</span>
+          <div style={{ width: 1, height: 20, background: theme.border.default }} />
+          <span style={{ color: theme.node.script, fontWeight: 600, fontSize: 14 }}>无限画布</span>
         </div>
 
         <ProjectSelector
@@ -222,7 +214,7 @@ function CanvasInner() {
         />
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <span style={{ color: connected ? '#a6e3a1' : '#f38ba8', fontSize: 11 }}>
+          <span style={{ color: connected ? theme.status.connected : theme.status.disconnected, fontSize: 11 }}>
             {connected ? '● 已连接' : '○ 未连接'}
           </span>
         </div>
@@ -234,7 +226,7 @@ function CanvasInner() {
           <span>{loadError}</span>
           <button
             onClick={() => setLoadError(null)}
-            style={{ background: 'none', border: 'none', color: '#f38ba8', cursor: 'pointer', marginLeft: 8 }}
+            style={{ background: 'none', border: 'none', color: theme.status.rejected, cursor: 'pointer', marginLeft: 8 }}
           >
             x
           </button>
@@ -256,29 +248,29 @@ function CanvasInner() {
           onPaneClick={onPaneClick}
           onNodeClick={onNodeClick}
           fitView={hasData}
-          fitViewOptions={{ padding: 0.2 }}
+          fitViewOptions={{ padding: VIEWPORT.fitViewPadding }}
           selectionOnDrag
           panOnDrag={[1]}
           selectionKeyCode="Shift"
-          style={{ background: '#11111b' }}
+          style={{ background: theme.bg.canvas }}
           proOptions={{ hideAttribution: true }}
         >
-          <Background color="#313244" gap={20} size={1} />
+          <Background color={theme.border.default} gap={20} size={1} />
           <Controls
             position="bottom-right"
-            style={{ background: '#1e1e2e', borderRadius: 8, border: '1px solid #313244' }}
+            style={{ background: theme.bg.card, borderRadius: 8, border: `1px solid ${theme.border.default}` }}
           />
           <MiniMap
             nodeColor={miniMapNodeColor}
-            maskColor="rgba(17,17,27,0.8)"
-            style={{ background: '#1e1e2e', border: '1px solid #313244', borderRadius: 8 }}
+            maskColor={theme.chrome.miniMapMask}
+            style={{ background: theme.bg.card, border: `1px solid ${theme.border.default}`, borderRadius: 8 }}
           />
 
           <Panel position="top-left" style={{ display: 'flex', gap: 8, marginTop: 4 }}>
             <ToolbarButton onClick={handleSave} disabled={saving || !projectId}>
               {saving ? '保存中...' : '💾 保存'}
             </ToolbarButton>
-            <ToolbarButton onClick={() => reactFlow.fitView({ padding: 0.2 })}>
+            <ToolbarButton onClick={() => reactFlow.fitView({ padding: VIEWPORT.fitViewPadding })}>
               🔍 适配视图
             </ToolbarButton>
           </Panel>
@@ -287,18 +279,18 @@ function CanvasInner() {
           {!hasData && !loading && (
             <Panel position="top-center" style={{ marginTop: 60 }}>
               <div style={{
-                background: '#1e1e2e',
-                border: '1px solid #313244',
+                background: theme.bg.card,
+                border: `1px solid ${theme.border.default}`,
                 borderRadius: 12,
                 padding: '32px 48px',
                 textAlign: 'center',
                 maxWidth: 400,
               }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>🎨</div>
-                <div style={{ color: '#cdd6f4', fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+                <div style={{ color: theme.text.primary, fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
                   欢迎使用无限画布
                 </div>
-                <div style={{ color: '#a6adc8', fontSize: 13, lineHeight: 1.6 }}>
+                <div style={{ color: theme.text.secondary, fontSize: 13, lineHeight: 1.6 }}>
                   请从上方选择项目和剧本来加载数据，<br/>
                   或从 Toonflow 项目页面点击「无限画布」进入。
                 </div>
@@ -316,6 +308,7 @@ function CanvasInner() {
               episodesId={episodesId}
               setNodes={setNodes}
               setEdges={setEdges}
+              showToast={showToast}
             />
           )}
         </ReactFlow>
@@ -325,6 +318,7 @@ function CanvasInner() {
           onClose={() => setSelectedNode(null)}
         />
       </div>
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </>
   )
 }
@@ -335,9 +329,9 @@ function ToolbarButton({ onClick, children, disabled }: { onClick: () => void; c
       onClick={onClick}
       disabled={disabled}
       style={{
-        background: '#1e1e2e',
-        color: disabled ? '#585b70' : '#cdd6f4',
-        border: '1px solid #313244',
+        background: theme.bg.card,
+        color: disabled ? theme.text.disabled : theme.text.primary,
+        border: `1px solid ${theme.border.default}`,
         borderRadius: 6,
         padding: '6px 12px',
         fontSize: 12,
@@ -358,14 +352,14 @@ const topBarStyle: React.CSSProperties = {
   justifyContent: 'space-between',
   height: 48,
   padding: '0 16px',
-  background: '#181825',
-  borderBottom: '1px solid #313244',
+  background: theme.chrome.topBar,
+  borderBottom: `1px solid ${theme.border.default}`,
   gap: 12,
   overflow: 'hidden',
 }
 
 const backLinkStyle: React.CSSProperties = {
-  color: '#a6adc8',
+  color: theme.text.secondary,
   textDecoration: 'none',
   fontSize: 13,
   whiteSpace: 'nowrap',
@@ -379,34 +373,10 @@ const errorBarStyle: React.CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   padding: '6px 16px',
-  background: '#302030',
-  borderBottom: '1px solid #f38ba844',
-  color: '#f38ba8',
+  background: theme.chrome.errorBar,
+  borderBottom: `1px solid ${theme.chrome.errorBorder}`,
+  color: theme.status.rejected,
   fontSize: 12,
-}
-
-const overlayStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: '100vw',
-  height: '100vh',
-  background: '#11111b',
-}
-
-const loadingBoxStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-}
-
-const spinnerStyle: React.CSSProperties = {
-  width: 40,
-  height: 40,
-  border: '3px solid #313244',
-  borderTopColor: '#89b4fa',
-  borderRadius: '50%',
-  animation: 'spin 0.8s linear infinite',
 }
 
 export default function FlowCanvas() {
@@ -415,7 +385,10 @@ export default function FlowCanvas() {
       <ReactFlowProvider>
         <CanvasInner />
       </ReactFlowProvider>
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg) } }
+        @keyframes toast-in { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+      `}</style>
     </div>
   )
 }

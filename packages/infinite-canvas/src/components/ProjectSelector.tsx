@@ -3,6 +3,7 @@ import {
   fetchProjects, fetchProjectScripts,
   type ProjectInfo, type ScriptInfo,
 } from '../services/canvasApi'
+import { theme } from '../theme/catppuccin'
 
 interface ProjectSelectorProps {
   initialProjectId?: number | null
@@ -20,7 +21,6 @@ export default function ProjectSelector({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // 加载项目列表
   useEffect(() => {
     let cancelled = false
     async function load() {
@@ -39,7 +39,6 @@ export default function ProjectSelector({
     return () => { cancelled = true }
   }, [])
 
-  // 切换项目时加载剧本
   useEffect(() => {
     if (!selectedProjectId) { setScripts([]); return }
     let cancelled = false
@@ -53,7 +52,6 @@ export default function ProjectSelector({
     return () => { cancelled = true }
   }, [selectedProjectId])
 
-  // 初始化自动加载
   useEffect(() => {
     if (initialProjectId && initialEpisodesId) {
       onSelect(initialProjectId, initialEpisodesId)
@@ -124,15 +122,15 @@ export default function ProjectSelector({
         加载画布
       </button>
 
-      {error && <span style={{ color: '#f38ba8', fontSize: 11 }}>{error}</span>}
+      {error && <span style={{ color: theme.status.rejected, fontSize: 11 }}>{error}</span>}
     </div>
   )
 }
 
 const selectStyle: React.CSSProperties = {
-  background: '#181825',
-  color: '#cdd6f4',
-  border: '1px solid #313244',
+  background: theme.bg.panel,
+  color: theme.text.primary,
+  border: `1px solid ${theme.border.default}`,
   borderRadius: 6,
   padding: '6px 10px',
   fontSize: 12,
@@ -141,8 +139,8 @@ const selectStyle: React.CSSProperties = {
 }
 
 const buttonStyle: React.CSSProperties = {
-  background: '#89b4fa',
-  color: '#1e1e2e',
+  background: theme.button.primary,
+  color: theme.text.onAccent,
   border: 'none',
   borderRadius: 6,
   padding: '6px 14px',

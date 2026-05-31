@@ -2,19 +2,21 @@ import { memo } from 'react'
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
 import type { ScriptNodeData, NodeState } from '../../types/canvas'
 import { stateColors } from '../../utils/styles'
+import { theme } from '../../theme/catppuccin'
+import { NODE_SIZES } from '../../constants'
 
 type ScriptNodeType = Node<ScriptNodeData, 'script'>
 
 function ScriptNodeComponent({ data }: NodeProps<ScriptNodeType>) {
   return (
     <div style={{
-      background: '#1e1e2e',
+      background: theme.bg.card,
       borderRadius: 8,
       border: `2px solid ${stateColors[data.state]}`,
       padding: 12,
-      minWidth: 240,
-      maxWidth: 280,
-      color: '#cdd6f4',
+      minWidth: NODE_SIZES.script.minWidth,
+      maxWidth: NODE_SIZES.script.maxWidth,
+      color: theme.text.primary,
       fontSize: 12,
     }}>
       <div style={{
@@ -30,13 +32,13 @@ function ScriptNodeComponent({ data }: NodeProps<ScriptNodeType>) {
       </div>
 
       <div style={{
-        background: '#181825',
+        background: theme.bg.panel,
         borderRadius: 4,
         padding: 8,
         maxHeight: 120,
         overflow: 'hidden',
         lineHeight: 1.5,
-        color: '#a6adc8',
+        color: theme.text.secondary,
         fontSize: 11,
       }}>
         {(data.content as string) || '暂无剧本内容'}
@@ -45,7 +47,7 @@ function ScriptNodeComponent({ data }: NodeProps<ScriptNodeType>) {
       <Handle
         type="source"
         position={Position.Right}
-        style={{ background: '#89b4fa', width: 8, height: 8 }}
+        style={{ background: theme.handle.script, width: 8, height: 8 }}
       />
     </div>
   )
@@ -63,7 +65,7 @@ function StateBadge({ state }: { state: NodeState }) {
       borderRadius: 4,
       fontSize: 10,
       background: stateColors[state],
-      color: '#1e1e2e',
+      color: theme.text.onAccent,
       fontWeight: 600,
     }}>
       {labels[state]}
