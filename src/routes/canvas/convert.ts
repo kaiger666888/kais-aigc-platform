@@ -21,6 +21,7 @@ const SB_START_X = 400;
 const SB_START_Y = 500;
 const SB_GAP_X = 300;
 const VIDEO_START_Y = SB_START_Y + 350;
+const AUDIO_START_Y = VIDEO_START_Y + 250;
 
 export default router.post(
   "/",
@@ -284,6 +285,67 @@ export default router.post(
             target: nodeId,
             dataType: "video",
           });
+        }
+      }
+
+      // 5. 音频节点（从 o_assetsRole2Audio 关联表读取）
+      const assetsRoleIds = assetsData.map((a: any) => a.id);
+      const audioLinks = assetsRoleIds.length > 0
+        ? await u.db("o_assetsRole2Audio").whereIn("assetsRoleId", assetsRoleIds)
+        : [];
+
+      if (audioLinks.length > 0) {
+        const audioFileIds = [...new Set(audioLinks.map((l: any) => l.audioId))];
+        const audioFiles = audioFileIds.length > 0
+          ? await u.db("o_audio").whereIn("id", audioFileIds)
+          : [];
+        const audioMap: Record<number, any> = {};
+        audioFiles.forEach((a: any) => { audioMap[a.id] = a; });
+
+        for (let i = 0; i < audioLinks.length; i++) {
+          const link = audioLinks[i];
+          const audio = audioMap[link.audioId];
+          if (!audio) continue;
+
+          const nodeId = `audio-${audio.id}`;
+          const audioState = audio.state === "已完成" ? "success"
+            : audio.state === "生成中" ? "running"
+            : audio.state === "生成失败" ? "error"
+            : "idle";
+
+          let filePath: string | null = null;
+          if (audio.filePath) {
+            filePath = `/oss/${audio.filePath}`;
+          }
+
+          nodes.push({
+            id: nodeId,
+            type: "audio",
+            position: { x: SB_START_X + i * SB_GAP_X, y: AUDIO_START_Y },
+            size: { width: 260, height: 180 },
+            data: {
+              label: audio.name ?? `音频 ${i + 1}`,
+              type: "audio",
+              audioId: audio.id,
+              filePath,
+              thumbnailUrl: null,
+              duration: audio.duration ? +audio.duration : 0,
+              ...(() => { const r = getNodeReview(nodeId); return { reviewStatus: r.reviewStatus, aiScore: r.aiScore, isWinner: r.isWinner, routingDecision: r.routingDecision }; })(),
+            },
+            state: audioState,
+            ...(() => { const r = getNodeReview(nodeId); return { reviewStatus: r.reviewStatus, aiScore: r.aiScore, isWinner: r.isWinner, routingDecision: r.routingDecision }; })(),
+          });
+
+          // 连接资产 → 音频
+          const assetNodeId = assetNodeMap.get(link.assetsRoleId);
+          if (assetNodeId) {
+            links.push({
+              id: `e-${edgeId++}`,
+              source: assetNodeId,
+              target: nodeId,
+              dataType: "audio",
+            });
+          }
         }
       }
 

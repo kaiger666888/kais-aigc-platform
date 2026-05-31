@@ -16,6 +16,7 @@ export const edgeTypeColors: Record<string, string> = {
   text: theme.edge.text,
   image: theme.edge.image,
   video: theme.edge.video,
+  audio: theme.edge.audio,
   data: theme.edge.data,
 }
 

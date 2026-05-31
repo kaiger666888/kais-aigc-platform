@@ -21,6 +21,7 @@ import ScriptNodeComponent from './nodes/ScriptNode'
 import AssetNodeComponent from './nodes/AssetNode'
 import StoryboardNodeComponent from './nodes/StoryboardNode'
 import VideoNodeComponent from './nodes/VideoNode'
+import AudioNodeComponent from './nodes/AudioNode'
 import CanvasEdgeComponent from './edges/CanvasEdge'
 import CanvasContextMenu from './CanvasContextMenu'
 import ProjectSelector from './ProjectSelector'
@@ -41,6 +42,7 @@ const nodeTypes = {
   asset: AssetNodeComponent,
   storyboard: StoryboardNodeComponent,
   video: VideoNodeComponent,
+  audio: AudioNodeComponent,
 }
 
 const edgeTypes = {

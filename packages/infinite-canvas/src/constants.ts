@@ -4,6 +4,7 @@ export const NODE_SIZES = {
   asset: { width: 240, thumbnailHeight: 100 },
   storyboard: { width: 260, thumbnailHeight: 120 },
   video: { width: 240, thumbnailHeight: 130 },
+  audio: { width: 240 },
   /** 持久化时使用的默认节点尺寸 */
   defaultPersistSize: { width: 260, height: 180 },
 } as const
