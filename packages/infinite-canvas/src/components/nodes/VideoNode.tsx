@@ -26,7 +26,7 @@ function VideoNodeComponent({ data, id }: NodeProps<VideoNodeType>) {
   const [volume, setVolume] = useState(1)
   const videoRef = useRef<HTMLVideoElement>(null)
 
-  const videoSrc = (data.thumbnailUrl ?? data.filePath) as string | null
+  const videoSrc = (data.filePath ?? data.thumbnailUrl) as string | null
 
   const togglePlay = useCallback(() => {
     if (!videoRef.current || !videoSrc) return
@@ -74,6 +74,16 @@ function VideoNodeComponent({ data, id }: NodeProps<VideoNodeType>) {
       videoRef.current.pause()
     }
   }, [playing])
+
+  useEffect(() => {
+    return () => {
+      if (videoRef.current) {
+        videoRef.current.pause()
+        videoRef.current.removeAttribute('src')
+        videoRef.current.load()
+      }
+    }
+  }, [])
 
   return (
     <div style={{

@@ -59,6 +59,16 @@ function AudioNodeComponent({ data, id }: NodeProps<AudioNodeType>) {
     if (!playing && audioRef.current) audioRef.current.pause()
   }, [playing])
 
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current.removeAttribute('src')
+        audioRef.current.load()
+      }
+    }
+  }, [])
+
   // Generate bar heights for waveform visualization
   const bars = Array.from({ length: BAR_COUNT }, (_, i) => {
     const seed = ((data.audioId * 17 + i * 31) % 100) / 100
