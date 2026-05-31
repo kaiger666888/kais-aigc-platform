@@ -1,8 +1,7 @@
 import { useState, type JSX } from 'react'
-import type { Node, Edge } from '@xyflow/react'
 import type { AssetNodeData, StoryboardNodeData, VideoNodeData } from '../types/canvas'
 import { executeNode, approveNode, rejectNode, requestNodeScore } from '../services/canvasApi'
-import type { ToastType } from '../hooks/useToast'
+import { useCanvasStore } from '../store/canvasStore'
 import { theme } from '../theme/catppuccin'
 import { LAYOUT } from '../constants'
 
@@ -13,10 +12,6 @@ interface CanvasContextMenuProps {
   onClose: () => void
   projectId: number
   episodesId: number
-  setNodes: React.Dispatch<React.SetStateAction<Node[]>>
-  setEdges: React.Dispatch<React.SetStateAction<Edge[]>>
-  showToast: (message: string, type?: ToastType) => void
-  onSelectWinner?: (nodeId: string) => void
 }
 
 type MenuItem = {
@@ -27,10 +22,15 @@ type MenuItem = {
 }
 
 export default function CanvasContextMenu({
-  x, y, nodeId, onClose, projectId, episodesId, setNodes, setEdges, showToast, onSelectWinner,
+  x, y, nodeId, onClose, projectId, episodesId,
 }: CanvasContextMenuProps) {
   const [showRejectInput, setShowRejectInput] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
+
+  const setNodes = useCanvasStore((s) => s.setNodes)
+  const setEdges = useCanvasStore((s) => s.setEdges)
+  const showToast = useCanvasStore((s) => s.showToast)
+  const selectWinner = useCanvasStore((s) => s.selectWinner)
 
   const handleDelete = () => {
     if (!nodeId) return
@@ -138,7 +138,6 @@ export default function CanvasContextMenu({
         showToast('正在 AI 评分...', 'info')
         try {
           const score = await requestNodeScore(projectId, episodesId, nodeId!)
-          // 乐观更新节点评分
           setNodes((nds) => nds.map((n) =>
             n.id === nodeId ? { ...n, data: { ...n.data, aiScore: score } } : n
           ))
@@ -151,19 +150,16 @@ export default function CanvasContextMenu({
     })
     items.push({ label: '---', icon: '', action: () => {} })
 
-    // 变体优胜选择（仅在变体组内节点上显示）
-    if (onSelectWinner) {
-      items.push({
-        label: '🏆 选为优胜',
-        icon: '🏆',
-        action: () => {
-          // 从菜单上下文无法直接拿到 variantGroupId，通过 DOM 事件冒泡获取
-          onSelectWinner(nodeId)
-          onClose()
-        },
-      })
-      items.push({ label: '---', icon: '', action: () => {} })
-    }
+    // 变体优胜选择
+    items.push({
+      label: '🏆 选为优胜',
+      icon: '🏆',
+      action: () => {
+        selectWinner(nodeId)
+        onClose()
+      },
+    })
+    items.push({ label: '---', icon: '', action: () => {} })
   }
 
   items.push(

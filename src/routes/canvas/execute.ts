@@ -6,6 +6,30 @@ import { validateFields } from "@/middleware/middleware";
 import { broadcastToProject } from "@/utils/ws";
 const router = express.Router();
 
+/** 随机延迟 5-15 秒 */
+function randomDelay(): number {
+  return 5000 + Math.floor(Math.random() * 10000);
+}
+
+/** 广播多步进度：0% → 30% → 60% → 90% → 100% */
+async function simulateExecution(
+  projectId: number,
+  nodeId: string,
+): Promise<void> {
+  const steps = [0, 0.3, 0.6, 0.9, 1.0];
+  const totalDuration = randomDelay();
+  const stepDelay = Math.floor(totalDuration / steps.length);
+
+  for (let i = 0; i < steps.length; i++) {
+    await new Promise((r) => setTimeout(r, stepDelay));
+    broadcastToProject(projectId, "execution:progress", {
+      nodeId,
+      state: "running",
+      progress: steps[i],
+    });
+  }
+}
+
 /** 触发节点执行 */
 export default router.post(
   "/",
@@ -23,17 +47,17 @@ export default router.post(
       broadcastToProject(projectId, "node:state", {
         nodeId,
         state: "running",
+        progress: 0,
       });
 
       // 根据节点类型触发对应的生成逻辑
       switch (nodeType) {
         case "asset": {
-          // 资产图片生成：复用现有生成接口
           const assetId = parseInt(nodeId.replace("asset-", ""), 10);
           if (!isNaN(assetId)) {
-            // 触发资产图片生成（异步，进度通过 Socket 推送）
             setImmediate(async () => {
               try {
+                await simulateExecution(projectId, nodeId);
                 broadcastToProject(projectId, "node:state", {
                   nodeId,
                   state: "success",
@@ -49,11 +73,11 @@ export default router.post(
           break;
         }
         case "storyboard": {
-          // 分镜图片生成
           const sbId = parseInt(nodeId.replace("storyboard-", ""), 10);
           if (!isNaN(sbId)) {
             setImmediate(async () => {
               try {
+                await simulateExecution(projectId, nodeId);
                 broadcastToProject(projectId, "node:state", {
                   nodeId,
                   state: "success",
@@ -66,6 +90,40 @@ export default router.post(
               }
             });
           }
+          break;
+        }
+        case "video": {
+          setImmediate(async () => {
+            try {
+              await simulateExecution(projectId, nodeId);
+              broadcastToProject(projectId, "node:state", {
+                nodeId,
+                state: "success",
+              });
+            } catch (err) {
+              broadcastToProject(projectId, "node:state", {
+                nodeId,
+                state: "error",
+              });
+            }
+          });
+          break;
+        }
+        case "audio": {
+          setImmediate(async () => {
+            try {
+              await simulateExecution(projectId, nodeId);
+              broadcastToProject(projectId, "node:state", {
+                nodeId,
+                state: "success",
+              });
+            } catch (err) {
+              broadcastToProject(projectId, "node:state", {
+                nodeId,
+                state: "error",
+              });
+            }
+          });
           break;
         }
         default:

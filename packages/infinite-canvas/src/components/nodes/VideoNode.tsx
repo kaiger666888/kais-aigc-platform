@@ -7,7 +7,7 @@ import { NODE_SIZES } from '../../constants'
 import ScoreBadge from '../ScoreBadge'
 import ReviewActionButtons from '../ReviewActionButtons'
 import VariantBadge from '../VariantBadge'
-import { useCanvasActions } from '../CanvasActionsContext'
+import { useCanvasStore } from '../../store/canvasStore'
 
 type VideoNodeType = Node<VideoNodeData, 'video'>
 
@@ -18,7 +18,8 @@ function formatTime(s: number): string {
 }
 
 function VideoNodeComponent({ data, id }: NodeProps<VideoNodeType>) {
-  const { approveNode, rejectNode } = useCanvasActions()
+  const approveNode = useCanvasStore((s) => s.approveNode)
+  const rejectNode = useCanvasStore((s) => s.rejectNode)
   const [playing, setPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)

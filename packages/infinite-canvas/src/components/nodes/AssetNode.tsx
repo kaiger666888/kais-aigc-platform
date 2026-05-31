@@ -8,7 +8,7 @@ import ScoreBadge from '../ScoreBadge'
 import ScoreMiniBar from '../ScoreMiniBar'
 import ReviewActionButtons from '../ReviewActionButtons'
 import VariantBadge from '../VariantBadge'
-import { useCanvasActions } from '../CanvasActionsContext'
+import { useCanvasStore } from '../../store/canvasStore'
 
 type AssetNodeType = Node<AssetNodeData, 'asset'>
 
@@ -17,7 +17,8 @@ const typeIcons: Record<string, string> = {
 }
 
 function AssetNodeComponent({ data, id }: NodeProps<AssetNodeType>) {
-  const { approveNode, rejectNode } = useCanvasActions()
+  const approveNode = useCanvasStore((s) => s.approveNode)
+  const rejectNode = useCanvasStore((s) => s.rejectNode)
 
   const isLoser = data.isWinner === false
   const hasVariant = data.variantGroupId != null

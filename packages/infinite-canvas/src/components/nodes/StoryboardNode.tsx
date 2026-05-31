@@ -8,12 +8,13 @@ import ScoreBadge from '../ScoreBadge'
 import ScoreMiniBar from '../ScoreMiniBar'
 import ReviewActionButtons from '../ReviewActionButtons'
 import VariantBadge from '../VariantBadge'
-import { useCanvasActions } from '../CanvasActionsContext'
+import { useCanvasStore } from '../../store/canvasStore'
 
 type StoryboardNodeType = Node<StoryboardNodeData, 'storyboard'>
 
 function StoryboardNodeComponent({ data, id }: NodeProps<StoryboardNodeType>) {
-  const { approveNode, rejectNode } = useCanvasActions()
+  const approveNode = useCanvasStore((s) => s.approveNode)
+  const rejectNode = useCanvasStore((s) => s.rejectNode)
 
   return (
     <div style={{
