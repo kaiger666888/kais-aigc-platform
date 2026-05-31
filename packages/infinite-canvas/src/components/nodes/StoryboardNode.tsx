@@ -1,35 +1,22 @@
 import { memo } from 'react'
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
 import type { StoryboardNodeData, NodeState, RoutingDecision } from '../../types/canvas'
-import { stateColors } from '../../utils/styles'
+import { stateColors, getNodeBorderColor, getNodeContainerStyle } from '../../utils/styles'
+import { theme } from '../../theme/catppuccin'
+import { NODE_SIZES } from '../../constants'
 import ScoreBadge from '../ScoreBadge'
 
 type StoryboardNodeType = Node<StoryboardNodeData, 'storyboard'>
 
-function getNodeBorderStyle(data: StoryboardNodeData): string {
-  if (data.isWinner === false) return '#585b70'
-  if (data.reviewStatus === 'rejected') return '#f38ba8'
-  if (data.reviewStatus === 'awaiting_audit') return '#f9e2af'
-  if (data.reviewStatus === 'approved') return '#a6e3a1'
-  if (data.routingDecision === 'BLOCK') return '#89b4fa'
-  return stateColors[data.state]
-}
-
-function getNodeContainerStyle(data: StoryboardNodeData): React.CSSProperties {
-  if (data.isWinner === false) return { opacity: 0.4, filter: 'grayscale(100%)' }
-  if (data.reviewStatus === 'rejected') return { opacity: 0.5, filter: 'grayscale(60%)' }
-  return {}
-}
-
 function StoryboardNodeComponent({ data }: NodeProps<StoryboardNodeType>) {
   return (
     <div style={{
-      background: '#1e1e2e',
+      background: theme.bg.card,
       borderRadius: 8,
-      border: `2px solid ${getNodeBorderStyle(data)}`,
+      border: `2px solid ${getNodeBorderColor(data)}`,
       padding: 12,
-      width: 260,
-      color: '#cdd6f4',
+      width: NODE_SIZES.storyboard.width,
+      color: theme.text.primary,
       fontSize: 12,
       position: 'relative',
       ...getNodeContainerStyle(data),
@@ -37,7 +24,7 @@ function StoryboardNodeComponent({ data }: NodeProps<StoryboardNodeType>) {
       <Handle
         type="target"
         position={Position.Left}
-        style={{ background: '#a6e3a1', width: 8, height: 8 }}
+        style={{ background: theme.handle.storyboard, width: 8, height: 8 }}
       />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
@@ -48,8 +35,8 @@ function StoryboardNodeComponent({ data }: NodeProps<StoryboardNodeType>) {
           padding: '1px 6px',
           borderRadius: 4,
           fontSize: 10,
-          background: '#313244',
-          color: '#a6adc8',
+          background: theme.bg.surface,
+          color: theme.text.secondary,
         }}>
           {data.duration as number}s
         </span>
@@ -58,10 +45,10 @@ function StoryboardNodeComponent({ data }: NodeProps<StoryboardNodeType>) {
 
       <div style={{
         width: '100%',
-        height: 120,
+        height: NODE_SIZES.storyboard.thumbnailHeight,
         borderRadius: 4,
         overflow: 'hidden',
-        background: '#181825',
+        background: theme.bg.panel,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -75,17 +62,17 @@ function StoryboardNodeComponent({ data }: NodeProps<StoryboardNodeType>) {
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
         ) : (
-          <span style={{ color: '#585b70', fontSize: 28 }}>🎬</span>
+          <span style={{ color: theme.text.disabled, fontSize: 28 }}>🎬</span>
         )}
         <div style={{
           position: 'absolute',
           bottom: 4,
           right: 4,
-          background: 'rgba(0,0,0,0.6)',
+          background: theme.chrome.thumbnailOverlay,
           padding: '1px 5px',
           borderRadius: 3,
           fontSize: 10,
-          color: '#cdd6f4',
+          color: theme.text.primary,
         }}>
           {data.duration as number}s
         </div>
@@ -97,9 +84,9 @@ function StoryboardNodeComponent({ data }: NodeProps<StoryboardNodeType>) {
             <span key={aid} style={{
               padding: '1px 5px',
               borderRadius: 3,
-              background: '#313244',
+              background: theme.bg.surface,
               fontSize: 10,
-              color: '#89b4fa',
+              color: theme.node.script,
             }}>
               #{aid}
             </span>
@@ -112,7 +99,7 @@ function StoryboardNodeComponent({ data }: NodeProps<StoryboardNodeType>) {
       <Handle
         type="source"
         position={Position.Right}
-        style={{ background: '#a6e3a1', width: 8, height: 8 }}
+        style={{ background: theme.handle.storyboard, width: 8, height: 8 }}
       />
     </div>
   )
@@ -129,7 +116,7 @@ function StateBadge({ state }: { state: NodeState }) {
       borderRadius: 4,
       fontSize: 10,
       background: stateColors[state],
-      color: '#1e1e2e',
+      color: theme.text.onAccent,
       fontWeight: 600,
     }}>
       {labels[state]}

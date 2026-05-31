@@ -1,35 +1,22 @@
 import { memo } from 'react'
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
 import type { VideoNodeData, NodeState, RoutingDecision } from '../../types/canvas'
-import { stateColors } from '../../utils/styles'
+import { stateColors, getNodeBorderColor, getNodeContainerStyle } from '../../utils/styles'
+import { theme } from '../../theme/catppuccin'
+import { NODE_SIZES } from '../../constants'
 import ScoreBadge from '../ScoreBadge'
 
 type VideoNodeType = Node<VideoNodeData, 'video'>
 
-function getNodeBorderStyle(data: VideoNodeData): string {
-  if (data.isWinner === false) return '#585b70'
-  if (data.reviewStatus === 'rejected') return '#f38ba8'
-  if (data.reviewStatus === 'awaiting_audit') return '#f9e2af'
-  if (data.reviewStatus === 'approved') return '#a6e3a1'
-  if (data.routingDecision === 'BLOCK') return '#89b4fa'
-  return stateColors[data.state]
-}
-
-function getNodeContainerStyle(data: VideoNodeData): React.CSSProperties {
-  if (data.isWinner === false) return { opacity: 0.4, filter: 'grayscale(100%)' }
-  if (data.reviewStatus === 'rejected') return { opacity: 0.5, filter: 'grayscale(60%)' }
-  return {}
-}
-
 function VideoNodeComponent({ data }: NodeProps<VideoNodeType>) {
   return (
     <div style={{
-      background: '#1e1e2e',
+      background: theme.bg.card,
       borderRadius: 8,
-      border: `2px solid ${getNodeBorderStyle(data)}`,
+      border: `2px solid ${getNodeBorderColor(data)}`,
       padding: 12,
-      width: 240,
-      color: '#cdd6f4',
+      width: NODE_SIZES.video.width,
+      color: theme.text.primary,
       fontSize: 12,
       position: 'relative',
       ...getNodeContainerStyle(data),
@@ -37,24 +24,24 @@ function VideoNodeComponent({ data }: NodeProps<VideoNodeType>) {
       <Handle
         type="target"
         position={Position.Left}
-        style={{ background: '#cba6f7', width: 8, height: 8 }}
+        style={{ background: theme.handle.video, width: 8, height: 8 }}
       />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
         <span style={{ fontSize: 16 }}>🎥</span>
         <span style={{ fontWeight: 600 }}>视频</span>
         {data.duration != null && (
-          <span style={{ fontSize: 10, color: '#a6adc8' }}>{data.duration as number}s</span>
+          <span style={{ fontSize: 10, color: theme.text.secondary }}>{data.duration as number}s</span>
         )}
         <StateBadge state={data.state} />
       </div>
 
       <div style={{
         width: '100%',
-        height: 130,
+        height: NODE_SIZES.video.thumbnailHeight,
         borderRadius: 4,
         overflow: 'hidden',
-        background: '#181825',
+        background: theme.bg.panel,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -67,7 +54,7 @@ function VideoNodeComponent({ data }: NodeProps<VideoNodeType>) {
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
         ) : (
-          <span style={{ color: '#585b70', fontSize: 40 }}>▶</span>
+          <span style={{ color: theme.text.disabled, fontSize: 40 }}>▶</span>
         )}
         {data.state === 'running' && (
           <div style={{
@@ -76,12 +63,12 @@ function VideoNodeComponent({ data }: NodeProps<VideoNodeType>) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'rgba(0,0,0,0.3)',
+            background: theme.chrome.videoOverlay,
           }}>
             <div style={{
               width: 36,
               height: 36,
-              border: '3px solid #f9e2af',
+              border: `3px solid ${theme.node.storyboard}`,
               borderTopColor: 'transparent',
               borderRadius: '50%',
               animation: 'spin 1s linear infinite',
@@ -95,7 +82,7 @@ function VideoNodeComponent({ data }: NodeProps<VideoNodeType>) {
       <Handle
         type="source"
         position={Position.Right}
-        style={{ background: '#cba6f7', width: 8, height: 8 }}
+        style={{ background: theme.handle.video, width: 8, height: 8 }}
       />
 
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
@@ -115,7 +102,7 @@ function StateBadge({ state }: { state: NodeState }) {
       borderRadius: 4,
       fontSize: 10,
       background: stateColors[state],
-      color: '#1e1e2e',
+      color: theme.text.onAccent,
       fontWeight: 600,
     }}>
       {labels[state]}

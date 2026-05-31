@@ -7,18 +7,7 @@ import type {
   LegacyFlowData,
   FlowGraph,
 } from '../types/canvas'
-
-// ─── 布局常量 ───────────────────────────────────────────────
-
-const SCRIPT_X = 50
-const SCRIPT_Y = 50
-const ASSET_START_X = 400
-const ASSET_Y = 50
-const ASSET_GAP_X = 280
-const ASSET_GAP_Y = 220
-const SB_START_X = 400
-const SB_START_Y = 500
-const SB_GAP_X = 300
+import { LAYOUT, NODE_SIZES } from '../constants'
 
 /** 将现有 FlowData 转换为画布节点和边 */
 export function flowDataToCanvas(
@@ -39,7 +28,7 @@ export function flowDataToCanvas(
   nodes.push({
     id: scriptNodeId,
     type: 'script',
-    position: { x: SCRIPT_X, y: SCRIPT_Y },
+    position: { x: LAYOUT.SCRIPT_X, y: LAYOUT.SCRIPT_Y },
     data: scriptData,
   })
 
@@ -63,13 +52,14 @@ export function flowDataToCanvas(
       assetType: asset.type,
       assetId: asset.id,
       prompt: asset.prompt,
+      filePath: null,
       thumbnailUrl: asset.derive?.[0]?.src ?? null,
       state,
     }
     nodes.push({
       id: nodeId,
       type: 'asset',
-      position: { x: ASSET_START_X + col * ASSET_GAP_X, y: ASSET_Y + row * ASSET_GAP_Y },
+      position: { x: LAYOUT.ASSET_START_X + col * LAYOUT.ASSET_GAP_X, y: LAYOUT.ASSET_Y + row * LAYOUT.ASSET_GAP_Y },
       data,
     })
 
@@ -98,6 +88,7 @@ export function flowDataToCanvas(
       storyboardId: sb.id,
       duration: sb.duration,
       prompt: sb.prompt,
+      filePath: null,
       thumbnailUrl: sb.src ?? null,
       state,
       linkedAssetIds: sb.associateAssetsIds ?? [],
@@ -105,7 +96,7 @@ export function flowDataToCanvas(
     nodes.push({
       id: nodeId,
       type: 'storyboard',
-      position: { x: SB_START_X + i * SB_GAP_X, y: SB_START_Y },
+      position: { x: LAYOUT.SB_START_X + i * LAYOUT.SB_GAP_X, y: LAYOUT.SB_START_Y },
       data,
     })
 
@@ -137,7 +128,7 @@ export function canvasToFlowGraph(
       id: n.id,
       type: (n.data as any)?.type ?? n.type ?? 'asset',
       position: n.position,
-      size: { width: 260, height: 180 },
+      size: { width: NODE_SIZES.defaultPersistSize.width, height: NODE_SIZES.defaultPersistSize.height },
       data: n.data as Record<string, unknown>,
       state: (n.data as any)?.state ?? 'idle',
       progress: (n.data as any)?.progress,

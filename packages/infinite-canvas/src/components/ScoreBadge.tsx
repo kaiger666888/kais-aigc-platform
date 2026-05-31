@@ -1,16 +1,11 @@
 import type { RoutingDecision } from '../types/canvas'
-
-function getScoreColor(score: number): string {
-  if (score >= 0.8) return '#a6e3a1'
-  if (score >= 0.5) return '#f9e2af'
-  return '#f38ba8'
-}
+import { theme, getScoreColor } from '../theme/catppuccin'
 
 const routingConfig: Record<RoutingDecision, { label: string; bg: string }> = {
-  AUTO: { label: '自动', bg: '#89b4fa' },
-  HUMAN: { label: '人工', bg: '#f9e2af' },
-  AI_AUDIT: { label: 'AI辅助', bg: '#cba6f7' },
-  BLOCK: { label: '免审', bg: '#585b70' },
+  AUTO: { label: '自动', bg: theme.routing.AUTO },
+  HUMAN: { label: '人工', bg: theme.routing.HUMAN },
+  AI_AUDIT: { label: 'AI辅助', bg: theme.routing.AI_AUDIT },
+  BLOCK: { label: '免审', bg: theme.routing.BLOCK },
 }
 
 export default function ScoreBadge({
@@ -46,10 +41,10 @@ export default function ScoreBadge({
             height: 28,
             borderRadius: '50%',
             background: getScoreColor(score!),
-            color: '#1e1e2e',
+            color: theme.text.onAccent,
             fontSize: 11,
             fontWeight: 700,
-            border: '2px solid #1e1e2e',
+            border: `2px solid ${theme.bg.card}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -66,8 +61,8 @@ export default function ScoreBadge({
             fontSize: 9,
             fontWeight: 600,
             background: routing.bg,
-            color: '#1e1e2e',
-            border: '1px solid #1e1e2e',
+            color: theme.text.onAccent,
+            border: `1px solid ${theme.bg.card}`,
             whiteSpace: 'nowrap',
           }}
         >

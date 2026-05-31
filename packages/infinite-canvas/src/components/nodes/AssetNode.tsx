@@ -1,7 +1,9 @@
 import { memo } from 'react'
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
 import type { AssetNodeData, NodeState, RoutingDecision } from '../../types/canvas'
-import { stateColors } from '../../utils/styles'
+import { stateColors, getNodeBorderColor, getNodeContainerStyle } from '../../utils/styles'
+import { theme } from '../../theme/catppuccin'
+import { NODE_SIZES } from '../../constants'
 import ScoreBadge from '../ScoreBadge'
 
 type AssetNodeType = Node<AssetNodeData, 'asset'>
@@ -10,30 +12,15 @@ const typeIcons: Record<string, string> = {
   role: '👤', tool: '🔧', scene: '🏞️', clip: '🎬',
 }
 
-function getNodeBorderStyle(data: AssetNodeData): string {
-  if (data.isWinner === false) return '#585b70'
-  if (data.reviewStatus === 'rejected') return '#f38ba8'
-  if (data.reviewStatus === 'awaiting_audit') return '#f9e2af'
-  if (data.reviewStatus === 'approved') return '#a6e3a1'
-  if (data.routingDecision === 'BLOCK') return '#89b4fa'
-  return stateColors[data.state]
-}
-
-function getNodeContainerStyle(data: AssetNodeData): React.CSSProperties {
-  if (data.isWinner === false) return { opacity: 0.4, filter: 'grayscale(100%)' }
-  if (data.reviewStatus === 'rejected') return { opacity: 0.5, filter: 'grayscale(60%)' }
-  return {}
-}
-
 function AssetNodeComponent({ data }: NodeProps<AssetNodeType>) {
   return (
     <div style={{
-      background: '#1e1e2e',
+      background: theme.bg.card,
       borderRadius: 8,
-      border: `2px solid ${getNodeBorderStyle(data)}`,
+      border: `2px solid ${getNodeBorderColor(data)}`,
       padding: 12,
-      width: 240,
-      color: '#cdd6f4',
+      width: NODE_SIZES.asset.width,
+      color: theme.text.primary,
       fontSize: 12,
       position: 'relative',
       ...getNodeContainerStyle(data),
@@ -41,7 +28,7 @@ function AssetNodeComponent({ data }: NodeProps<AssetNodeType>) {
       <Handle
         type="target"
         position={Position.Left}
-        style={{ background: '#89b4fa', width: 8, height: 8 }}
+        style={{ background: theme.handle.asset, width: 8, height: 8 }}
       />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
@@ -54,10 +41,10 @@ function AssetNodeComponent({ data }: NodeProps<AssetNodeType>) {
 
       <div style={{
         width: '100%',
-        height: 100,
+        height: NODE_SIZES.asset.thumbnailHeight,
         borderRadius: 4,
         overflow: 'hidden',
-        background: '#181825',
+        background: theme.bg.panel,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -70,7 +57,7 @@ function AssetNodeComponent({ data }: NodeProps<AssetNodeType>) {
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
         ) : (
-          <span style={{ color: '#585b70', fontSize: 28 }}>
+          <span style={{ color: theme.text.disabled, fontSize: 28 }}>
             {typeIcons[data.assetType as string] || '📦'}
           </span>
         )}
@@ -80,7 +67,7 @@ function AssetNodeComponent({ data }: NodeProps<AssetNodeType>) {
         <div style={{
           width: '100%',
           height: 4,
-          background: '#313244',
+          background: theme.bg.surface,
           borderRadius: 2,
           overflow: 'hidden',
           marginBottom: 6,
@@ -96,7 +83,7 @@ function AssetNodeComponent({ data }: NodeProps<AssetNodeType>) {
 
       {data.prompt && (
         <div style={{
-          color: '#a6adc8',
+          color: theme.text.secondary,
           fontSize: 10,
           overflow: 'hidden',
           textOverflow: 'ellipsis',
@@ -111,7 +98,7 @@ function AssetNodeComponent({ data }: NodeProps<AssetNodeType>) {
       <Handle
         type="source"
         position={Position.Right}
-        style={{ background: '#89b4fa', width: 8, height: 8 }}
+        style={{ background: theme.handle.asset, width: 8, height: 8 }}
       />
     </div>
   )
@@ -128,7 +115,7 @@ function StateBadge({ state }: { state: NodeState }) {
       borderRadius: 4,
       fontSize: 10,
       background: stateColors[state],
-      color: '#1e1e2e',
+      color: theme.text.onAccent,
       fontWeight: 600,
     }}>
       {labels[state]}
