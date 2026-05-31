@@ -68,6 +68,7 @@ export const theme = {
     asset: catppuccin.green,
     storyboard: catppuccin.yellow,
     video: catppuccin.mauve,
+    audio: catppuccin.pink,
   },
 
   // Node state colors
@@ -85,6 +86,7 @@ export const theme = {
     text: catppuccin.blue,
     image: catppuccin.green,
     video: catppuccin.mauve,
+    audio: catppuccin.pink,
     data: catppuccin.surface2,
   },
 
@@ -118,6 +120,7 @@ export const theme = {
     asset: catppuccin.blue,
     storyboard: catppuccin.green,
     video: catppuccin.mauve,
+    audio: catppuccin.pink,
   },
 
   // UI chrome
@@ -146,6 +149,7 @@ export const miniMapNodeColors: Record<string, string> = {
   asset: catppuccin.green,
   storyboard: catppuccin.yellow,
   video: catppuccin.mauve,
+  audio: catppuccin.pink,
 }
 
 /** Get score color by threshold */

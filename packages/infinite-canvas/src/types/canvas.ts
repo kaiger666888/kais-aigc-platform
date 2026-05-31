@@ -19,10 +19,10 @@ export interface AIScore {
 }
 
 /** 连线数据类型，用于着色 */
-export type LinkDataType = 'text' | 'image' | 'video' | 'data'
+export type LinkDataType = 'text' | 'image' | 'video' | 'audio' | 'data'
 
 /** 画布节点类型枚举 */
-export type CanvasNodeType = 'script' | 'asset' | 'storyboard' | 'video'
+export type CanvasNodeType = 'script' | 'asset' | 'storyboard' | 'video' | 'audio'
 
 // ─── 自定义节点数据（带索引签名以兼容 React Flow v12） ──────────
 
@@ -83,6 +83,24 @@ export interface VideoNodeData {
   videoId: number
   filePath: string | null
   thumbnailUrl: string | null
+  state: NodeState
+  duration?: number
+  reviewStatus?: ReviewStatus
+  aiScore?: AIScore | null
+  isWinner?: boolean
+  routingDecision?: RoutingDecision
+  variantGroupId?: string
+  variantIndex?: number
+}
+
+/** 音频节点数据 */
+export interface AudioNodeData {
+  [key: string]: unknown
+  label: string
+  type: 'audio'
+  audioId: number
+  filePath?: string | null
+  thumbnailUrl?: string | null
   state: NodeState
   duration?: number
   reviewStatus?: ReviewStatus
