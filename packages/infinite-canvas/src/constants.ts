@@ -23,6 +23,10 @@ export const LAYOUT = {
   SB_START_X: 400,
   SB_START_Y: 500,
   SB_GAP_X: 300,
+  /** 视频横向排列起始位置 */
+  VIDEO_START_Y: 850,
+  /** 音频横向排列起始位置 */
+  AUDIO_START_Y: 1100,
   /** 右键添加节点的偏移量 */
   CONTEXT_MENU_ADD_OFFSET_X: 400,
   /** 新建资产节点随机位置范围 */

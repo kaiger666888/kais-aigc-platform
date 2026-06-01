@@ -3,6 +3,8 @@ import type {
   ScriptNodeData,
   AssetNodeData,
   StoryboardNodeData,
+  VideoNodeData,
+  AudioNodeData,
   NodeState,
   LegacyFlowData,
   FlowGraph,
@@ -117,6 +119,88 @@ export function flowDataToCanvas(
           source: sourceId,
           target: nodeId,
           data: { dataType: 'image' },
+        })
+      }
+    }
+  })
+
+  // 4. 视频节点（横向排列）
+  const storyboardNodesMap = new Map<number, string>()
+  sortedSb.forEach((sb, i) => {
+    storyboardNodesMap.set(sb.id, `storyboard-${sb.id}`)
+  })
+
+  const sortedVideos = [...(flowData.videos ?? [])]
+  sortedVideos.forEach((v, i) => {
+    const nodeId = `video-${v.id}`
+    const state: NodeState = v.state === '已完成' ? 'success'
+      : v.state === '生成中' ? 'running'
+      : v.state === '生成失败' ? 'error'
+      : 'idle'
+
+    const data: VideoNodeData = {
+      label: `视频 ${i + 1}`,
+      type: 'video',
+      videoId: v.id,
+      filePath: v.filePath ?? null,
+      thumbnailUrl: v.thumbnailUrl ?? null,
+      duration: v.duration,
+      state,
+    }
+    nodes.push({
+      id: nodeId,
+      type: 'video',
+      position: { x: LAYOUT.SB_START_X + i * LAYOUT.SB_GAP_X, y: LAYOUT.VIDEO_START_Y },
+      data,
+    })
+
+    // 连接分镜 → 视频
+    if (v.trackId) {
+      const sourceId = storyboardNodesMap.get(v.trackId)
+      if (sourceId) {
+        edges.push({
+          id: `e-${edgeId++}`,
+          source: sourceId,
+          target: nodeId,
+          data: { dataType: 'video' },
+        })
+      }
+    }
+  })
+
+  // 5. 音频节点（横向排列）
+  const sortedAudios = [...(flowData.audios ?? [])]
+  sortedAudios.forEach((a, i) => {
+    const nodeId = `audio-${a.id}`
+    const state: NodeState = a.state === '已完成' ? 'success'
+      : a.state === '生成中' ? 'running'
+      : a.state === '生成失败' ? 'error'
+      : 'idle'
+
+    const data: AudioNodeData = {
+      label: a.name ?? `音频 ${i + 1}`,
+      type: 'audio',
+      audioId: a.id,
+      filePath: a.filePath ?? null,
+      duration: a.duration,
+      state,
+    }
+    nodes.push({
+      id: nodeId,
+      type: 'audio',
+      position: { x: LAYOUT.SB_START_X + i * LAYOUT.SB_GAP_X, y: LAYOUT.AUDIO_START_Y },
+      data,
+    })
+
+    // 连接资产 → 音频
+    if (a.assetsRoleId) {
+      const sourceId = assetNodesMap.get(a.assetsRoleId)
+      if (sourceId) {
+        edges.push({
+          id: `e-${edgeId++}`,
+          source: sourceId,
+          target: nodeId,
+          data: { dataType: 'audio' },
         })
       }
     }

@@ -155,12 +155,33 @@ export interface LegacyStoryboardItem {
   state?: string
 }
 
+export interface LegacyVideoItem {
+  id: number
+  name?: string
+  filePath?: string | null
+  thumbnailUrl?: string | null
+  duration?: number
+  state?: string
+  trackId?: number
+}
+
+export interface LegacyAudioItem {
+  id: number
+  name?: string
+  filePath?: string | null
+  duration?: number
+  state?: string
+  assetsRoleId?: number
+}
+
 export interface LegacyFlowData {
   script: string
   scriptPlan: string
   assets: LegacyAssetItem[]
   storyboardTable: string
   storyboard: LegacyStoryboardItem[]
+  videos?: LegacyVideoItem[]
+  audios?: LegacyAudioItem[]
 }
 
 // ─── 画布图模型（持久化用） ───────────────────────────────────
