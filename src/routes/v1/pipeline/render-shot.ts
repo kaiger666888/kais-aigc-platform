@@ -70,16 +70,16 @@ export default router.post(
     const taskParams: Record<string, any> = {
       shotId: shot.id,
       projectId: shot.projectId,
-      prompt: shot.prompt || shot.description || "",
+      prompt: shot.prompt || (shot as any).description || "",
       shotIndex: shot.shotIndex,
     };
 
     // Include image reference if available
-    if (shot.referenceImage) {
-      taskParams.reference_image = shot.referenceImage;
+    if ((shot as any).referenceImage) {
+      taskParams.reference_image = (shot as any).referenceImage;
     }
-    if (shot.style) {
-      taskParams.style = shot.style;
+    if ((shot as any).style) {
+      taskParams.style = (shot as any).style;
     }
 
     // Generate a deterministic task ID for idempotency
@@ -120,7 +120,7 @@ export default router.post(
           estimatedStartSec: goldRes.data.estimated_start_sec,
           shotData: {
             id: shot.id,
-            prompt: shot.prompt || shot.description,
+            prompt: shot.prompt || (shot as any).description,
             shotIndex: shot.shotIndex,
           },
         }),

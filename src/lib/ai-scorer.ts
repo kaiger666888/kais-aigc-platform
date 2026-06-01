@@ -1,7 +1,7 @@
 /**
  * AI 图片评分器 — 调用智谱 GLM-4V-Flash 对图片进行 5 维度评分
  */
-import u from "@/utils";
+import { readFile } from "fs/promises";
 
 const ZHIPU_API_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
 const ZHIPU_API_KEY = process.env.ZHIPU_API_KEY || "";
@@ -40,7 +40,7 @@ async function imageToBase64(imagePath: string): Promise<{ base64: string; mimeT
   }
 
   try {
-    imageBuffer = await u.readBinary(filePath);
+    imageBuffer = await readFile(filePath);
   } catch {
     throw new Error(`无法读取图片文件: ${filePath}`);
   }

@@ -34,7 +34,7 @@ export default router.post(
     phase: z.enum(["storyboard", "character", "image", "video", "audio", "compose"]),
     assetUrl: z.string().min(1),
     thumbnailUrl: z.string().optional().nullable(),
-    narrativeContext: z.record(z.any()).optional().nullable(),
+    narrativeContext: z.record(z.string(), z.any()).optional().nullable(),
     aiScores: z
       .object({
         aesthetics: z.number().min(0).max(10).optional(),
@@ -46,7 +46,7 @@ export default router.post(
       .optional()
       .nullable(),
     priority: z.enum(["normal", "urgent"]).optional(),
-    metadata: z.record(z.any()).optional().nullable(),
+    metadata: z.record(z.string(), z.any()).optional().nullable(),
     callbackUrl: z.string().url().optional().nullable(),
     pipelineId: z.string().optional(),
   }),

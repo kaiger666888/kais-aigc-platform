@@ -201,7 +201,7 @@ export default router.post(
             prompt: sb.prompt ?? "",
             filePath: sb.filePath ? `/oss/${sb.filePath}` : null,
             thumbnailUrl,
-            linkedAssetIds: assets2SbMap[sb.id] ?? [],
+            linkedAssetIds: assets2SbMap[sb.id!] ?? [],
             ...(() => { const r = getNodeReview(nodeId); return { reviewStatus: r.reviewStatus, aiScore: r.aiScore, isWinner: r.isWinner, routingDecision: r.routingDecision }; })(),
           },
           state,
@@ -209,7 +209,7 @@ export default router.post(
         });
 
         // 连接关联资产到分镜
-        for (const aid of assets2SbMap[sb.id] ?? []) {
+        for (const aid of assets2SbMap[sb.id!] ?? []) {
           const sourceId = assetNodeMap.get(aid);
           if (sourceId) {
             links.push({
@@ -277,7 +277,7 @@ export default router.post(
         });
 
         // 连接分镜 → 视频节点
-        const storyboardNodeId = track2Storyboard.get(track.id);
+        const storyboardNodeId = track2Storyboard.get(track.id!);
         if (storyboardNodeId) {
           links.push({
             id: `e-${edgeId++}`,
@@ -295,7 +295,7 @@ export default router.post(
         : [];
 
       if (audioLinks.length > 0) {
-        const audioFileIds = [...new Set(audioLinks.map((l: any) => l.audioId))];
+        const audioFileIds = [...new Set(audioLinks.map((l: any) => l.assetsAudioId))];
         const audioFiles = audioFileIds.length > 0
           ? await u.db("o_audio").whereIn("id", audioFileIds)
           : [];
@@ -304,7 +304,7 @@ export default router.post(
 
         for (let i = 0; i < audioLinks.length; i++) {
           const link = audioLinks[i];
-          const audio = audioMap[link.audioId];
+          const audio = audioMap[link.assetsAudioId!];
           if (!audio) continue;
 
           const nodeId = `audio-${audio.id}`;
@@ -337,7 +337,7 @@ export default router.post(
           });
 
           // 连接资产 → 音频
-          const assetNodeId = assetNodeMap.get(link.assetsRoleId);
+          const assetNodeId = assetNodeMap.get(link.assetsRoleId!);
           if (assetNodeId) {
             links.push({
               id: `e-${edgeId++}`,
@@ -385,12 +385,12 @@ export default router.post(
               if (reviewRow) {
                 await u.db("o_agentWorkData").where("id", reviewRow.id).update({ data: mappingStr });
               } else {
-                await u.db("o_agentWorkData").insert({ projectId: String(projectId), episodesId: String(episodesId), key: reviewKey, data: mappingStr });
+                await u.db("o_agentWorkData").insert({ projectId: String(projectId) as any, episodesId: String(episodesId) as any, key: reviewKey, data: mappingStr });
               }
               console.log(`[auto-score] ${node.id} → overall=${score.overall}`);
               // 广播
               try {
-                const { broadcastToProject } = await import("@/routes/canvas/ws-broadcast");
+                const { broadcastToProject } = await import("@/utils/ws");
                 broadcastToProject(projectId, "node:state", { nodeId: node.id, state: "scored", aiScore: score });
               } catch {}
             } catch (err: any) {

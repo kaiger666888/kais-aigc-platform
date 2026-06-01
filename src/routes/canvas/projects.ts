@@ -14,8 +14,8 @@ export default router.post("/", async (_req, res) => {
     // 附带每个项目的剧本数量和资产数量
     const enriched = await Promise.all(
       projects.map(async (p) => {
-        const scriptCount = (await u.db("o_script").where("projectId", p.id).count("id as cnt").first())?.cnt ?? 0;
-        const assetCount = (await u.db("o_assets").where("projectId", p.id).whereNull("assetsId").count("id as cnt").first())?.cnt ?? 0;
+        const scriptCount = Number(((await u.db("o_script").where("projectId", p.id).count("id as cnt").first()) as any)?.cnt ?? 0);
+        const assetCount = Number(((await u.db("o_assets").where("projectId", p.id).whereNull("assetsId").count("id as cnt").first()) as any)?.cnt ?? 0);
         return { ...p, scriptCount, assetCount };
       }),
     );

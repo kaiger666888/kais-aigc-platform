@@ -19,15 +19,17 @@ export default async function handler(req: any, res: any) {
 
     if (nodeId.startsWith("asset-")) {
       const assetId = nodeId.replace("asset-", "");
-      const asset = await u.db("o_scriptAssets").where("id", assetId).first();
-      if (!asset) return res.json({ code: 404, msg: "资产不存在" });
-      imagePath = asset.filePath || asset.src || null;
-      promptText = asset.prompt || undefined;
+      const assetRow = await u.db("o_scriptAssets").where("id", assetId).first();
+      if (!assetRow) return res.json({ code: 404, msg: "资产不存在" });
+      const imageRow = assetRow.assetId ? await u.db("o_image").where("assetsId", assetRow.assetId).first() : null;
+      imagePath = (imageRow as any)?.filePath || null;
+      const assetData = assetRow.assetId ? await u.db("o_assets").where("id", assetRow.assetId).first() : null;
+      promptText = (assetData as any)?.prompt || undefined;
     } else if (nodeId.startsWith("storyboard-")) {
       const sbId = nodeId.replace("storyboard-", "");
-      const sb = await u.db("o_storyboards").where("id", sbId).first();
+      const sb = await u.db("o_storyboard").where("id", sbId).first();
       if (!sb) return res.json({ code: 404, msg: "分镜不存在" });
-      imagePath = sb.filePath || sb.src || null;
+      imagePath = sb.filePath || null;
       promptText = sb.prompt || undefined;
     } else {
       return res.json({ code: 400, msg: "不支持的节点类型" });
@@ -66,11 +68,11 @@ export default async function handler(req: any, res: any) {
     if (existing) {
       await u.db("o_agentWorkData")
         .where("id", existing.id)
-        .update({ data: mappingStr, updatedAt: new Date().toISOString() });
+        .update({ data: mappingStr });
     } else {
       await u.db("o_agentWorkData").insert({
-        projectId: String(projectId),
-        episodesId: String(episodesId),
+        projectId: String(projectId) as any,
+        episodesId: String(episodesId) as any,
         key: reviewKey,
         data: mappingStr,
       });
@@ -78,7 +80,7 @@ export default async function handler(req: any, res: any) {
 
     // 4. 广播更新
     try {
-      const { broadcastToProject } = await import("@/routes/canvas/ws-broadcast");
+      const { broadcastToProject } = await import("@/utils/ws");
       broadcastToProject(projectId, "node:state", {
         nodeId,
         state: "scored",
