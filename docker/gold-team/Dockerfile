@@ -2,6 +2,10 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Use TUNA mirror for apt
+RUN sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
+    sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list 2>/dev/null || true
+
 RUN apt-get update && \
     apt-get install -y --no-install-recommends curl git ffmpeg libsndfile1 gcc g++ && \
     rm -rf /var/lib/apt/lists/*
@@ -32,7 +36,9 @@ RUN pip install --no-cache-dir \
     wetext \
     pyworld \
     matcha-tts \
+    tqdm \
     torchcodec \
+    x-transformers \
     -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # Patch librosa numba caching issue
@@ -53,7 +59,8 @@ USER kais
 
 ENV PORT=8002
 ENV COSYVOICE_ROOT=/opt/CosyVoice
-ENV COSYVOICE_MODEL_DIR=/opt/CosyVoice/pretrained_models/iic/CosyVoice2-0.5B
+ENV COSYVOICE_MODEL_DIR=/opt/CosyVoice/pretrained_models/FunAudioLLM/Fun-CosyVoice3-0.5B-2512
+ENV COSYVOICE_LLM_WEIGHT=llm.rl.pt
 ENV MPLCONFIGDIR=/tmp/matplotlib
 
 EXPOSE 8002
