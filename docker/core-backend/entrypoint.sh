@@ -16,6 +16,9 @@ IMAGE_DIR="/app/image-assets"
 # Create data directory if it doesn't exist (fresh volume)
 mkdir -p "$DATA_DIR"
 
+# Fix ownership: volume files may be owned by different UID than kais user
+chown -R kais:kais "$DATA_DIR" 2>/dev/null || true
+
 # Copy static assets from image to data volume on every start.
 # Using cp -a to preserve attributes; overwrites existing files with image versions.
 if [ -d "$IMAGE_DIR" ]; then

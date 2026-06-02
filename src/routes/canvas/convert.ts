@@ -114,6 +114,139 @@ export default router.post(
         };
       }
 
+      // ─── 文件系统扫描：Pipeline 产物回填 ────────────
+      // Pipeline 创建的项目可能没写 filePath 到 Toonflow 表。
+      // 扫描 /mnt/agents/output/ 目录，按名称/项目ID匹配图片并回写。
+      const OUTPUT_DIR = process.env.OUTPUT_DIR || '/mnt/agents/output';
+      const fs = await import('fs');
+      const path = await import('path');
+
+      async function scanOutputForImages() {
+        try {
+          const entries = await fs.promises.readdir(OUTPUT_DIR, { withFileTypes: true });
+          const imageExtensions = new Set(['.png', '.jpg', '.jpeg', '.webp']);
+          const results: Record<string, string> = {}; // key: "asset-{id}" or "storyboard-{id}", value: relative path
+
+          // 构建所有目录下图片文件的索引
+          const imageMap = new Map<string, string>(); // dirName → first image relPath
+          for (const entry of entries) {
+            if (!entry.isDirectory()) continue;
+            const dirPath = path.join(OUTPUT_DIR, entry.name);
+            try {
+              const files = await fs.promises.readdir(dirPath);
+              const imgFile = files.find(f => imageExtensions.has(path.extname(f).toLowerCase()));
+              if (imgFile) imageMap.set(entry.name, `${entry.name}/${imgFile}`);
+            } catch {}
+          }
+          console.log(`[canvas:scan] 扫到 ${imageMap.size} 个含图片目录`);
+
+          // 1. 匹配资产图片：char-* / e2e-char-* 目录按时间倒序分配给无 filePath 的资产
+          const charDirs = [...imageMap.keys()].filter(d => d.toLowerCase().includes('char'));
+          charDirs.sort((a, b) => {
+            try {
+              return fs.statSync(path.join(OUTPUT_DIR, b)).mtimeMs - fs.statSync(path.join(OUTPUT_DIR, a)).mtimeMs;
+            } catch { return 0; }
+          });
+          const usedDirs = new Set<string>();
+          let charIdx = 0;
+          for (const asset of assetsData) {
+            if (asset.filePath) continue;
+            if (charIdx >= charDirs.length) break;
+            const dirName = charDirs[charIdx++];
+            results[`asset-${asset.id}`] = imageMap.get(dirName)!;
+            usedDirs.add(dirName);
+            console.log(`[canvas:scan] 资产 ${asset.id} "${asset.name}" → ${dirName}`);
+          }
+
+          // 2. 匹配分镜图片
+          const sceneDirs = [...imageMap.keys()]
+            .filter(d => !usedDirs.has(d))
+            .filter(d => /scene|demo|volvo|s[0-9]/.test(d.toLowerCase()));
+          sceneDirs.sort();
+          for (const sb of storyboardData) {
+            if (sb.filePath) continue;
+            const sbIndex = sb.index ?? 0;
+            const patterns = [`scene-s${sbIndex+1}`, `scene${sbIndex+1}`, `demo-v2-s${sbIndex.toString().padStart(2,'0')}`, `demo-v3-s${sbIndex.toString().padStart(2,'0')}`, `volvo-s${sbIndex+1}`];
+            let matched = false;
+            for (const dirName of sceneDirs) {
+              if (patterns.some(p => dirName.toLowerCase().includes(p))) {
+                results[`storyboard-${sb.id}`] = imageMap.get(dirName)!;
+                matched = true;
+                break;
+              }
+            }
+            if (!matched && sbIndex < sceneDirs.length) {
+              results[`storyboard-${sb.id}`] = imageMap.get(sceneDirs[sbIndex])!;
+            }
+            if (results[`storyboard-${sb.id}`]) {
+              console.log(`[canvas:scan] 分镜 ${sb.id} → ${results[`storyboard-${sb.id}`]}`);
+            }
+          }
+
+          // 3. 回写数据库
+          for (const [key, relPath] of Object.entries(results)) {
+            if (key.startsWith('asset-')) {
+              const assetId = parseInt(key.replace('asset-', ''));
+              await backfillAssetImage(assetId, relPath);
+            } else if (key.startsWith('storyboard-')) {
+              const sbId = parseInt(key.replace('storyboard-', ''));
+              await u.db('o_storyboard').where('id', sbId).update({ filePath: relPath });
+            }
+          }
+
+          return results;
+        } catch (err) {
+          console.warn('[canvas:convert] 文件系统扫描失败:', err);
+          return {};
+        }
+      }
+
+      async function backfillAssetImage(assetId: number, relPath: string) {
+        try {
+          const existingImage = await u.db('o_image').where('filePath', relPath).first();
+          if (existingImage) {
+            await u.db('o_assets').where('id', assetId).update({ imageId: existingImage.id });
+            return;
+          }
+          const [imageId] = await u.db('o_image').insert({ filePath: relPath, state: '已完成' });
+          await u.db('o_assets').where('id', assetId).update({ imageId });
+          console.log(`[canvas:scan] 图片 ${imageId} → 资产 ${assetId}`);
+        } catch (err) {
+          console.warn(`[canvas:scan] 回写资产图片失败 ${assetId}:`, err);
+        }
+      }
+
+      // 执行扫描（异步，不阻塞主流程太久）
+      const fsScanResults = await scanOutputForImages();
+
+      // 如果扫描到了新数据，重新获取资产和分镜数据
+      if (Object.keys(fsScanResults).length > 0) {
+        // 重新获取资产数据（可能已有 imageId）
+        const updatedAssets = await u.db('o_assets')
+          .leftJoin('o_image', 'o_assets.imageId', 'o_image.id')
+          .select('o_assets.*', 'o_image.filePath', 'o_image.state as imageState')
+          .whereIn('o_assets.id', assetIds)
+          .andWhere('o_assets.projectId', projectId)
+          .whereNull('o_assets.assetsId');
+        // 用更新后的数据替换
+        for (let i = 0; i < updatedAssets.length && i < assetsData.length; i++) {
+          if (updatedAssets[i].filePath) {
+            assetsData[i].filePath = updatedAssets[i].filePath;
+            assetsData[i].imageState = updatedAssets[i].imageState;
+          }
+        }
+        // 重新获取分镜数据
+        const updatedSb = await u.db('o_storyboard')
+          .where('scriptId', episodesId)
+          .orderBy('index', 'asc');
+        for (const usb of updatedSb) {
+          const idx = storyboardData.findIndex(s => s.id === usb.id);
+          if (idx >= 0 && usb.filePath) {
+            storyboardData[idx].filePath = usb.filePath;
+          }
+        }
+      }
+
       // ─── 构建节点和边 ────────────────────────────────
       const nodes: any[] = [];
       const links: any[] = [];

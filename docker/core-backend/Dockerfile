@@ -46,6 +46,7 @@ RUN chmod +x ./entrypoint.sh
 # Create non-root user
 RUN groupadd -r kais && useradd -r -g kais kais && \
     chown -R kais:kais /app
+#USER root
 USER kais
 
 ENV NODE_ENV=production
