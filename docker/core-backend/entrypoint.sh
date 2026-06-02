@@ -21,7 +21,10 @@ mkdir -p "$DATA_DIR"
 if [ -d "$IMAGE_DIR" ]; then
   echo "[entrypoint] Syncing static assets from image to data volume..."
   
-  # Sync web/ (frontend static files)
+    # Sync web/ (frontend static files)
+  # Strategy: remove the old web/ dir entirely, then copy fresh from image.
+  # infinite-canvas/ is already baked into the image-assets/web/infinite-canvas/
+  # and will be preserved through the full rm+cp cycle.
   if [ -d "$IMAGE_DIR/web" ]; then
     rm -rf "$DATA_DIR/web"
     cp -a "$IMAGE_DIR/web" "$DATA_DIR/web"

@@ -40,8 +40,17 @@ export default router.post(
         .first();
 
       // 2. 获取资产
+      // 策略: 先从 o_scriptAssets 关联表查，如果为空则直接查项目下所有资产（兼容 Pipeline 创建的项目）
       const scriptAssets = await u.db("o_scriptAssets").where("scriptId", episodesId);
-      const assetIds = scriptAssets.map((i: any) => i.assetId);
+      let assetIds = scriptAssets.map((i: any) => i.assetId);
+
+      if (assetIds.length === 0) {
+        // Pipeline 创建的项目可能没写 o_scriptAssets，退而查项目下所有资产
+        const fallbackAssets = await u.db("o_assets")
+          .where("projectId", projectId)
+          .whereNull("assetsId");
+        assetIds = fallbackAssets.map((a: any) => a.id);
+      }
 
       const assetsData = assetIds.length > 0
         ? await u.db("o_assets")
@@ -58,6 +67,7 @@ export default router.post(
         .orderBy("index", "asc");
 
       // 获取分镜关联资产
+      // 策略: 先从 o_assets2Storyboard 查，如果为空则自动分配（Pipeline 创建的项目可能没写此表）
       const storyboardIds = storyboardData.map((s: any) => s.id);
       const assets2Storyboard = storyboardIds.length > 0
         ? await u.db("o_assets2Storyboard").whereIn("storyboardId", storyboardIds)
@@ -67,6 +77,14 @@ export default router.post(
         if (!assets2SbMap[r.storyboardId]) assets2SbMap[r.storyboardId] = [];
         assets2SbMap[r.storyboardId].push(r.assetId);
       });
+
+      // 如果没有任何关联数据，自动将所有资产关联到所有分镜
+      const hasAnyAssetLink = Object.keys(assets2SbMap).length > 0;
+      if (!hasAnyAssetLink && assetsData.length > 0 && storyboardData.length > 0) {
+        for (const sb of storyboardData) {
+          assets2SbMap[sb.id] = assetIds;
+        }
+      }
 
       // ─── 查询审核数据 ──────────────────────────────────
       const reviewKey = `reviewStatus-${episodesId}`;

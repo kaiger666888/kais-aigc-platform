@@ -30,6 +30,12 @@ COPY data/web/ ./image-assets/web/
 COPY data/vendor/ ./image-assets/vendor/
 COPY data/version.txt ./image-assets/version.txt
 
+# === Infinite Canvas (React SPA) — separate from main Vue web assets ===
+# Not synced by entrypoint; served directly from /app/data/web/infinite-canvas
+# via express.static in app.ts. The entrypoint syncs web/ but skips
+# infinite-canvas/ (which is a read-only React SPA).
+COPY packages/infinite-canvas/dist/ ./image-assets/web/infinite-canvas/
+
 # Strip electron artifacts if any
 RUN rm -rf node_modules/electron node_modules/electron-builder 2>/dev/null; true
 
