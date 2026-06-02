@@ -88,12 +88,14 @@ services:
       COSYVOICE_ROOT: /opt/CosyVoice
       COSYVOICE_MODEL_DIR: /opt/CosyVoice/pretrained_models/FunAudioLLM/Fun-CosyVoice3-0.5B-2512
       COSYVOICE_LLM_WEIGHT: llm.rl.pt
-      # ACE-Step music generation
+      # ACE-Step music generation (dual model: xl-turbo for speed, xl-sft for quality)
       ACESTEP_ROOT: /opt/acestep
       ACESTEP_API_HOST: 127.0.0.1
       ACESTEP_API_PORT: 8010
-      ACESTEP_CONFIG_PATH: acestep-v15-turbo
+      ACESTEP_CONFIG_PATH: acestep-v15-xl-turbo
+      ACESTEP_CONFIG_PATH2: acestep-v15-xl-sft
       ACESTEP_CHECKPOINTS: /opt/acestep/checkpoints
+      ACESTEP_OFFLOAD_DIT_TO_CPU: "true"
       MPLCONFIGDIR: /tmp/matplotlib
     volumes:
       - ${OUTPUT_DIR:-/mnt/agents/output}:/mnt/agents/output

@@ -175,7 +175,7 @@ class TaskExecutor:
                             enable_vae_tiling=extra.get("enable_vae_tiling", True),
                             task_id=task.task_id,
                         )
-                        logger.info("Auto-built GGUF T2V workflow for task %s", task.task_id)
+                        logger.info("Auto-built GGUF T2V (Q8_0, ~28min) workflow for task %s", task.task_id)
                     else:
                         from src.v6.engines.workflow_builder import build_video_workflow
                         workflow = build_video_workflow(

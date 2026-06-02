@@ -49,6 +49,12 @@ RUN find /usr/local/lib/python3.11/site-packages/librosa -name "*.py" -exec \
 RUN git clone --depth 1 https://github.com/FunAudioLLM/CosyVoice.git /opt/CosyVoice || \
     echo "CosyVoice clone failed - mount or download manually"
 
+# Install ACE-Step (music generation)
+RUN git clone --depth 1 https://github.com/ace-step/ACE-Step-1.5.git /tmp/acestep-src && \
+    pip install --no-cache-dir -e /tmp/acestep-src -i https://pypi.tuna.tsinghua.edu.cn/simple && \
+    mv /tmp/acestep-src /opt/acestep/app || \
+    echo "ACE-Step install failed - will be disabled"
+
 # Copy v6 module
 COPY src/ ./src/
 COPY scripts/ ./scripts/
@@ -61,6 +67,13 @@ ENV PORT=8002
 ENV COSYVOICE_ROOT=/opt/CosyVoice
 ENV COSYVOICE_MODEL_DIR=/opt/CosyVoice/pretrained_models/FunAudioLLM/Fun-CosyVoice3-0.5B-2512
 ENV COSYVOICE_LLM_WEIGHT=llm.rl.pt
+ENV ACESTEP_ROOT=/opt/acestep
+ENV ACESTEP_API_HOST=127.0.0.1
+ENV ACESTEP_API_PORT=8010
+ENV ACESTEP_CONFIG_PATH=acestep-v15-xl-turbo
+ENV ACESTEP_CONFIG_PATH2=acestep-v15-xl-sft
+ENV ACESTEP_CHECKPOINTS=/opt/acestep/checkpoints
+ENV ACESTEP_OFFLOAD_DIT_TO_CPU=true
 ENV MPLCONFIGDIR=/tmp/matplotlib
 
 EXPOSE 8002
