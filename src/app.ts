@@ -67,6 +67,21 @@ export default async function startServe(randomPort: Boolean = false) {
   }
   console.log("文件目录:", ossDir);
   app.use("/oss", express.static(ossDir, { acceptRanges: false }));
+
+  // Pipeline 输出目录（挂载自 /mnt/agents/output，作为 /oss 的后备源）
+  const pipelineOutputDir = process.env.OUTPUT_DIR || "/mnt/agents/output";
+  if (fs.existsSync(pipelineOutputDir)) {
+    console.log("Pipeline 输出目录:", pipelineOutputDir);
+    // 将 /oss/* 路径路由到 Pipeline 输出目录（fallback: 先查 ossDir，查不到再查 pipelineOutputDir）
+    app.use("/oss", (req, res, next) => {
+      const filePath = path.join(ossDir, req.path);
+      if (fs.existsSync(filePath)) {
+        next(); // 交给前面的 express.static(ossDir)
+      } else {
+        express.static(pipelineOutputDir, { acceptRanges: false })(req, res, next);
+      }
+    });
+  }
   // skills 静态资源
   const skillsDir = u.getPath("skills");
   if (!fs.existsSync(skillsDir)) {
