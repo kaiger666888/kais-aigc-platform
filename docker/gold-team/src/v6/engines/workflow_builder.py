@@ -3,6 +3,7 @@
 Supports:
   - ComfyUI txt2img workflows (via build_txt2img_workflow)
   - ComfyUI video workflows (via build_video_workflow) — Wan2.x T2V/I2V
+  - ComfyUI GGUF workflows (via build_wan_gguf_i2v_workflow / build_wan_gguf_t2v_workflow)
   - TTS workflows (via build_tts_workflow) — subprocess-based, not ComfyUI
 """
 from __future__ import annotations
@@ -517,6 +518,164 @@ def build_wan_gguf_i2v_workflow(
                 "filename_prefix": output_prefix,
                 "format": "mp4",
                 "codec": "h264",
+            },
+        },
+    }
+
+    return workflow
+
+
+def build_wan_gguf_t2v_workflow(
+    prompt: str,
+    negative_prompt: str = "",
+    width: int = 832,
+    height: int = 480,
+    num_frames: int = 81,
+    steps: int = 30,
+    fps: int = 16,
+    seed: int | None = None,
+    model: str = "wan2.1-t2v-14b-Q8_0.gguf",
+    cfg: float = 5.0,
+    shift: float = 5.0,
+    scheduler: str = "unipc",
+    precision: str = "bf16",
+    attention_mode: str = "sdpa",
+    force_offload: bool = False,
+    enable_vae_tiling: bool = True,
+    tile_x: int = 256,
+    tile_y: int = 256,
+    tile_stride_x: int = 224,
+    tile_stride_y: int = 224,
+    t5_model_name: str = "t5xxl_fp16.safetensors",
+    vae_model_name: str = "wan_2.1_vae.safetensors",
+    t5_load_device: str = "offload_device",
+    unet_load_device: str = "main_device",
+    task_id: str = "",
+) -> dict[str, Any]:
+    """Build Wan 2.1 T2V workflow using GGUF quantized models.
+
+    Uses WanVideoWrapper nodes for single-stage T2V generation.
+    Validated on RTX 3090 24GB with Q8_0 quantization.
+
+    Args:
+        prompt: Text prompt describing the video.
+        negative_prompt: What to avoid.
+        width: Video width (16-aligned, e.g. 832).
+        height: Video height (16-aligned, e.g. 480).
+        num_frames: Number of frames (81 = ~5s at 16fps).
+        steps: Sampling steps (30 recommended for GGUF).
+        fps: Output FPS.
+        seed: Random seed (None = random).
+        model: GGUF model filename (e.g. wan2.1-t2v-14b-Q8_0.gguf,
+               wan2.1-t2v-14b-Q4_K_M.gguf).
+        cfg: CFG scale (5.0 for T2V).
+        shift: Noise shift (5.0 default).
+        scheduler: Scheduler name ("unipc", "uni_pc_bh2", "euler", etc.).
+        precision: Weight precision ("bf16").
+        attention_mode: Attention implementation ("sdpa", "flash", etc.).
+        force_offload: Force model offload after each operation.
+        enable_vae_tiling: Enable VAE tiling to reduce VRAM.
+        tile_x: VAE tile width.
+        tile_y: VAE tile height.
+        tile_stride_x: VAE tile stride X.
+        tile_stride_y: VAE tile stride Y.
+        t5_model_name: T5 text encoder model filename.
+        vae_model_name: VAE model filename.
+        t5_load_device: T5 device ("offload_device" to save VRAM).
+        unet_load_device: UNet device ("main_device" for speed).
+        task_id: For output file naming.
+
+    Returns:
+        ComfyUI API-format workflow dict.
+    """
+    import random
+    if seed is None:
+        seed = random.randint(0, 2**32 - 1)
+
+    output_prefix = f"video/{task_id}" if task_id else "video/wan_gguf_t2v"
+
+    workflow: dict[str, Any] = {
+        "1": {
+            "class_type": "LoadWanVideoT5TextEncoder",
+            "inputs": {
+                "model_name": t5_model_name,
+                "precision": precision,
+                "load_device": t5_load_device,
+            },
+        },
+        "3": {
+            "class_type": "WanVideoModelLoader",
+            "inputs": {
+                "model": model,
+                "base_precision": precision,
+                "quantization": "disabled",
+                "attention_mode": attention_mode,
+                "load_device": unet_load_device,
+            },
+        },
+        "4": {
+            "class_type": "WanVideoTextEncode",
+            "inputs": {
+                "t5": ["1", 0],
+                "positive_prompt": prompt,
+                "negative_prompt": negative_prompt,
+            },
+        },
+        "5": {
+            "class_type": "WanVideoSchedulerv2",
+            "inputs": {
+                "scheduler": scheduler,
+                "steps": steps,
+                "shift": shift,
+            },
+        },
+        "6": {
+            "class_type": "WanVideoEmptyEmbeds",
+            "inputs": {
+                "width": width,
+                "height": height,
+                "num_frames": num_frames,
+            },
+        },
+        "7": {
+            "class_type": "WanVideoSamplerv2",
+            "inputs": {
+                "model": ["3", 0],
+                "image_embeds": ["6", 0],
+                "cfg": cfg,
+                "seed": seed,
+                "force_offload": force_offload,
+                "scheduler": ["5", 0],
+                "text_embeds": ["4", 0],
+            },
+        },
+        "8": {
+            "class_type": "WanVideoVAELoader",
+            "inputs": {
+                "model_name": vae_model_name,
+                "precision": precision,
+            },
+        },
+        "9": {
+            "class_type": "WanVideoDecode",
+            "inputs": {
+                "vae": ["8", 0],
+                "samples": ["7", 0],
+                "enable_vae_tiling": enable_vae_tiling,
+                "tile_x": tile_x,
+                "tile_y": tile_y,
+                "tile_stride_x": tile_stride_x,
+                "tile_stride_y": tile_stride_y,
+            },
+        },
+        "10": {
+            "class_type": "SaveAnimatedWEBP",
+            "inputs": {
+                "images": ["9", 0],
+                "filename_prefix": output_prefix,
+                "fps": fps,
+                "lossless": False,
+                "quality": 80,
             },
         },
     }
