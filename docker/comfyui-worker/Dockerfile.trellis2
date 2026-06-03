@@ -1,0 +1,141 @@
+# =============================================================================
+# comfyui-worker:trellis2 — PyTorch 2.6 + CUDA 12.6 + Python 3.12
+# =============================================================================
+# For TRELLIS2 image-to-3D on RTX 3090 (GPU 1)
+# Build: docker build -t comfyui-worker:trellis2 -f Dockerfile.trellis2 .
+# Run:   ./start-trellis2.sh
+# =============================================================================
+
+FROM nvidia/cuda:12.6.3-cudnn-devel-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+
+# --- System packages + Python 3.12 ---
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    software-properties-common \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y --no-install-recommends \
+    python3.12 python3.12-venv python3.12-dev \
+    git git-lfs libgl1 libglib2.0-0 libjpeg-dev libpng-dev ffmpeg wget curl build-essential \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sf /usr/bin/python3.12 /usr/bin/python3 \
+    && ln -sf /usr/bin/python3.12 /usr/bin/python
+
+RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12 && \
+    python3.12 -m pip install --no-cache-dir --break-system-packages pip setuptools wheel
+
+# --- PyTorch 2.6 + cu126 ---
+RUN pip install --no-cache-dir --break-system-packages \
+    torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu126
+
+# --- ComfyUI ---
+WORKDIR /app
+RUN git clone --depth 1 https://ghfast.top/https://github.com/comfyanonymous/ComfyUI.git /app/ComfyUI
+RUN cd /app/ComfyUI && pip install --no-cache-dir --break-system-packages -r requirements.txt
+
+# --- TRELLIS2 dependencies ---
+RUN pip install --no-cache-dir --break-system-packages \
+    comfy-env==0.3.89 comfy-3d-viewers==0.2.44 comfy-sparse-attn==0.1.3 "trimesh[easy]"
+
+# --- ComfyUI custom nodes ---
+RUN cd /app/ComfyUI/custom_nodes && \
+    git clone --depth 1 https://ghfast.top/https://github.com/PozzettiAndrea/ComfyUI-TRELLIS2.git && \
+    git clone --depth 1 https://ghfast.top/https://github.com/PozzettiAndrea/ComfyUI-GeometryPack.git
+
+# --- CUDA wheels (cu126 + torch 2.6) ---
+# Uses manual extraction to avoid pip metadata issues with custom wheel names
+COPY <<'PYEOF' /tmp/install_cuda_wheels.py
+import zipfile, shutil, os, glob
+site_packages = '/usr/local/lib/python3.12/dist-packages'
+for whl in glob.glob('/tmp/cuda-wheels/*.whl'):
+    with zipfile.ZipFile(whl, 'r') as z:
+        z.extractall('/tmp/whl_extract')
+    for item in os.listdir('/tmp/whl_extract'):
+        src = os.path.join('/tmp/whl_extract', item)
+        dst = os.path.join(site_packages, item)
+        if os.path.exists(dst):
+            shutil.rmtree(dst) if os.path.isdir(dst) else os.remove(dst)
+        shutil.copytree(src, dst) if os.path.isdir(src) else shutil.copy2(src, dst)
+    shutil.rmtree('/tmp/whl_extract')
+    print(f'Installed {os.path.basename(whl)}')
+PYEOF
+
+RUN mkdir -p /tmp/cuda-wheels && cd /tmp/cuda-wheels && \
+    curl -L -o cumesh_vb.whl "https://github.com/PozzettiAndrea/cuda-wheels/releases/download/cumesh_vb-latest/cumesh_vb-1.0%2Bcu126torch2.6-cp312-cp312-manylinux_2_34_x86_64.manylinux_2_35_x86_64.whl" && \
+    curl -L -o flex_gemm_ap.whl "https://github.com/PozzettiAndrea/cuda-wheels/releases/download/flex_gemm_ap-latest/flex_gemm_ap-1.0.0%2Bcu126torch2.6-cp312-cp312-manylinux_2_34_x86_64.manylinux_2_35_x86_64.whl" && \
+    curl -L -o o_voxel_vb_ap.whl "https://github.com/PozzettiAndrea/cuda-wheels/releases/download/o_voxel_vb_ap-latest/o_voxel_vb_ap-0.0.1%2Bcu126torch2.6-cp312-cp312-manylinux_2_34_x86_64.manylinux_2_35_x86_64.whl" && \
+    curl -L -o flash_attn.whl "https://github.com/PozzettiAndrea/cuda-wheels/releases/download/flash_attn-latest/flash_attn-2.8.3%2Bcu126torch2.6-cp312-cp312-manylinux_2_34_x86_64.manylinux_2_35_x86_64.whl" && \
+    curl -L -o drtk.whl "https://github.com/PozzettiAndrea/cuda-wheels/releases/download/drtk-latest/drtk-0.1.0%2Bcu126torch2.6-cp312-cp312-manylinux_2_34_x86_64.manylinux_2_35_x86_64.whl" && \
+    python3 /tmp/install_cuda_wheels.py && rm -rf /tmp/cuda-wheels /tmp/whl_extract /tmp/install_cuda_wheels.py
+
+# --- opencv-python-headless (replaces full opencv from ComfyUI deps) ---
+RUN pip install --no-cache-dir --break-system-packages --force-reinstall opencv-python-headless
+
+# --- Model symlinks (runtime: /data/models is mounted read-only) ---
+# TRELLIS2 expects flat files in models/trellis2/ — symlink individual files
+RUN mkdir -p /app/ComfyUI/models/trellis2 && \
+    mkdir -p /app/ComfyUI/models/dinov3
+
+COPY <<'SHEOF' /app/setup-model-links.sh
+#!/bin/bash
+set -e
+echo "=== Setting up model symlinks ==="
+
+# TRELLIS2: symlink all files from /data/models/TRELLIS.2-4B/ into models/trellis2/
+SRC="/data/models/TRELLIS.2-4B"
+DST="/app/ComfyUI/models/trellis2"
+if [ -d "$SRC" ]; then
+    for f in "$SRC"/*; do
+        name=$(basename "$f")
+        link="$DST/$name"
+        if [ ! -e "$link" ]; then
+            ln -sf "$f" "$link"
+            echo "  linked $name"
+        fi
+    done
+    # Also symlink ckpts subdirectory if it exists
+    if [ -d "$SRC/ckpts" ] && [ ! -e "$DST/ckpts" ]; then
+        ln -sf "$SRC/ckpts" "$DST/ckpts"
+        echo "  linked ckpts/"
+    fi
+else
+    echo "  WARNING: $SRC not found (models volume not mounted?)"
+fi
+
+# DINOv3
+SRC2="/data/models/dinov3/model.safetensors"
+DST2="/app/ComfyUI/models/dinov3/model.safetensors"
+if [ -f "$SRC2" ] && [ ! -e "$DST2" ]; then
+    ln -sf "$SRC2" "$DST2"
+    echo "  linked dinov3/model.safetensors"
+fi
+
+echo "=== Model links done ==="
+SHEOF
+RUN chmod +x /app/setup-model-links.sh
+
+# --- Verification ---
+RUN python3 -c 'import sys; import torch; print(f"PyTorch {torch.__version__}, CUDA {torch.version.cuda}, Python {sys.version}")'
+
+# --- Entrypoint: setup model links then start ComfyUI ---
+COPY <<'ENTRYEOF' /app/entrypoint.sh
+#!/bin/bash
+set -e
+/app/setup-model-links.sh
+echo ""
+echo "=== Starting ComfyUI (TRELLIS2) ==="
+exec python3 /app/ComfyUI/main.py --listen 0.0.0.0 --port 8189
+ENTRYEOF
+RUN chmod +x /app/entrypoint.sh
+
+RUN mkdir -p /mnt/agents/output
+
+ENV COMFYUI_LISTEN=0.0.0.0
+ENV COMFYUI_PORT=8189
+ENV CUDA_HOME=/usr/local/cuda
+ENV HF_ENDPOINT=https://hf-mirror.com
+
+EXPOSE 8189
+WORKDIR /app/ComfyUI
+ENTRYPOINT ["/app/entrypoint.sh"]

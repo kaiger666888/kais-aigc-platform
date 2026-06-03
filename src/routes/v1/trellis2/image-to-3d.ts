@@ -3,6 +3,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import axios from "axios";
+import { execSync, spawnSync } from "child_process";
 import { v4 as uuidv4 } from "uuid";
 import { success, error } from "@/lib/responseFormat";
 import { TRELLIS2_CONFIG } from "./config";
@@ -39,13 +40,24 @@ export default router.post("/", upload.single("image"), async (req, res) => {
   const containerName = TRELLIS2_CONFIG.containerName;
 
   try {
-    const { execSync } = await import("child_process");
     execSync(`docker cp "${localPath}" ${containerName}:"${containerInputPath}"`, {
       timeout: 30_000,
     });
-  } catch (err: any) {
-    fs.unlinkSync(localPath);
-    return res.status(502).send(error(`Failed to upload image to ComfyUI container: ${err.message}`));
+  } catch {
+    // Fallback: pipe via stdin (needed if input dir is volume-mounted)
+    try {
+      const fileContent = fs.readFileSync(localPath);
+      const child = spawnSync("docker", ["exec", "-i", containerName, "bash", "-c", `cat > "${containerInputPath}"`], {
+        input: fileContent,
+        timeout: 30_000,
+      });
+      if (child.status !== 0) {
+        throw new Error(child.stderr?.toString() || "docker exec failed");
+      }
+    } catch (err: any) {
+      fs.unlinkSync(localPath);
+      return res.status(502).send(error(`Failed to upload image to ComfyUI container: ${err.message}`));
+    }
   }
 
   // Cleanup local staging file
@@ -73,7 +85,6 @@ export default router.post("/", upload.single("image"), async (req, res) => {
     if (comfyRes.status !== 200) {
       // Cleanup container input on failure
       try {
-        const { execSync } = await import("child_process");
         execSync(`docker exec ${containerName} rm -f ${containerInputPath}`, { timeout: 5_000 });
       } catch {}
       return res.status(502).send(error(`ComfyUI rejected prompt: ${JSON.stringify(comfyRes.data)}`));
@@ -89,7 +100,6 @@ export default router.post("/", upload.single("image"), async (req, res) => {
   } catch (err: any) {
     // Cleanup container input on failure
     try {
-      const { execSync } = await import("child_process");
       execSync(`docker exec ${containerName} rm -f ${containerInputPath}`, { timeout: 5_000 });
     } catch {}
     const msg = err.response?.data?.error?.message || err.response?.data?.node_errors || err.message || String(err);
