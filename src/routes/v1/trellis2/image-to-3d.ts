@@ -132,9 +132,12 @@ function buildPrompt(opts: {
       class_type: "LoadImage",
       inputs: { image: inputFilename },
     },
-    "11": {
-      class_type: "InvertMask",
-      inputs: { mask: ["1", 1] },
+    "99": {
+      class_type: "Trellis2RemoveBackground",
+      inputs: {
+        image: ["1", 0],
+        low_vram: true,
+      },
     },
     "68": {
       class_type: "LoadTrellis2Models",
@@ -148,8 +151,8 @@ function buildPrompt(opts: {
       class_type: "Trellis2GetConditioning",
       inputs: {
         model_config: ["68", 0],
-        image: ["1", 0],
-        mask: ["11", 0],
+        image: ["99", 0],
+        mask: ["99", 1],
         background_color: "black",
       },
     },

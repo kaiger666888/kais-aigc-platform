@@ -116,13 +116,13 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
-    # GPU support — nvidia runtime
+    # GPU support — nvidia runtime, RTX 3090 only
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
-              count: all
+              device_ids: ["1"]     # GPU 1 = RTX 3090
               capabilities: [gpu]
 
   # ─── Review Platform ─────────────────────────────────────────────

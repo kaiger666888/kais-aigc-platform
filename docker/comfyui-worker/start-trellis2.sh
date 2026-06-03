@@ -5,7 +5,7 @@ set -e
 # start-trellis2.sh — Launch TRELLIS2 ComfyUI container on GPU 1 (RTX 3090)
 # =============================================================================
 # GPU 1 = RTX 3090 24GB — TRELLIS2 needs large VRAM
-# CUDA_VISIBLE_DEVICES=0 makes PyTorch inside the container see physical GPU 1 as cuda:0
+# --gpus device=1 exposes only physical GPU 1; CUDA_VISIBLE_DEVICES=0 maps it to cuda:0 inside
 #
 # NOTE: No input volume mount! This allows `docker cp` to work correctly.
 #       The API route uses docker cp to upload files into the container.

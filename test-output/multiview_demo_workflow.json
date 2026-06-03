@@ -1,0 +1,97 @@
+{
+  "last_node_id": 9,
+  "last_link_id": 9,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "LoadImage",
+      "pos": [0, 0],
+      "size": [315, 314],
+      "widgets_values": ["multiview_demo/front.jpg"]
+    },
+    {
+      "id": 2,
+      "type": "LoadTrellis2Models",
+      "pos": [0, 400],
+      "size": [315, 80],
+      "widgets_values": ["1024_cascade"]
+    },
+    {
+      "id": 3,
+      "type": "Trellis2RemoveBackground",
+      "pos": [400, 0],
+      "size": [315, 80],
+      "widgets_values": [true]
+    },
+    {
+      "id": 4,
+      "type": "Trellis2GetConditioning",
+      "pos": [800, 0],
+      "size": [315, 120],
+      "widgets_values": ["black"]
+    },
+    {
+      "id": 5,
+      "type": "Trellis2MultiViewImageToShape",
+      "pos": [1200, 0],
+      "size": [350, 400],
+      "widgets_values": [
+        42,
+        6.5, 0.05, 12,
+        6.5, 0.05, 12,
+        49152,
+        "z",
+        2.0,
+        "black"
+      ]
+    },
+    {
+      "id": 6,
+      "type": "Trellis2ShapeToTexturedMesh",
+      "pos": [1650, 0],
+      "size": [315, 200],
+      "widgets_values": [42, 3.0, 0.20, 12]
+    },
+    {
+      "id": 7,
+      "type": "Trellis2ExportGLB",
+      "pos": [2050, 0],
+      "size": [315, 120],
+      "widgets_values": ["multiview_demo/output_multiview"]
+    },
+    {
+      "id": 8,
+      "type": "Trellis2RenderPreview",
+      "pos": [2050, 200],
+      "size": [315, 150],
+      "widgets_values": []
+    }
+  ],
+  "links": [
+    [1, 1, 0, 3, 0, "IMAGE"],
+    [2, 2, 0, 4, 0, "TRELLIS2_MODEL_CONFIG"],
+    [3, 3, 1, 4, 2, "MASK"],
+    [4, 3, 0, 5, 1, "IMAGE"],
+    [5, 3, 1, 5, 2, "MASK"],
+    [6, 2, 0, 5, 0, "TRELLIS2_MODEL_CONFIG"],
+    [7, 4, 0, 5, -1, "TRELLIS2_CONDITIONING"],
+    [8, 2, 0, 6, 0, "TRELLIS2_MODEL_CONFIG"],
+    [9, 4, 0, 6, 1, "TRELLIS2_CONDITIONING"],
+    [10, 5, 0, 6, 2, "TRELLIS2_SHAPE_SLAT"],
+    [11, 5, 2, 6, 3, "TRELLIS2_SUBS"],
+    [12, 6, 0, 7, 0, "TRELLIS2_VOXELGRID"],
+    [13, 5, 0, 8, 0, "TRIMESH"]
+  ],
+  "groups": [
+    {
+      "title": "TRELLIS.2 Multi-View Demo",
+      "bounding": [0, -50, 2400, 500]
+    }
+  ],
+  "config": {},
+  "extra": {},
+  "version": 0.4,
+  "metadata": {
+    "title": "TRELLIS.2 Multi-View Demo"
+  }
+}
