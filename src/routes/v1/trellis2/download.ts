@@ -2,23 +2,20 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import { error } from "@/lib/responseFormat";
+import { TRELLIS2_CONFIG } from "./config";
 
 const router = express.Router();
-
-const OUTPUT_DIR = process.env.OUTPUT_DIR || "/mnt/agents/output";
 
 export default router.get("/:filename", async (req, res) => {
   const { filename } = req.params;
 
-  // Prevent path traversal
   const safeName = path.basename(filename);
-  const filePath = path.join(OUTPUT_DIR, safeName);
+  const filePath = path.join(TRELLIS2_CONFIG.outputDir, safeName);
 
   if (!fs.existsSync(filePath)) {
-    // Try to copy from ComfyUI container first
     try {
       const { execSync } = await import("child_process");
-      execSync(`docker cp comfyui-trellis:/app/ComfyUI/output/${safeName} "${filePath}"`, {
+      execSync(`docker cp ${TRELLIS2_CONFIG.containerName}:${TRELLIS2_CONFIG.comfyuiOutputDir}/${safeName} "${filePath}"`, {
         timeout: 15_000,
       });
     } catch {

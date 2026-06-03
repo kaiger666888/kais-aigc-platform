@@ -1,16 +1,17 @@
 import express from "express";
 import axios from "axios";
+import path from "path";
+import fs from "fs";
 import { success, error } from "@/lib/responseFormat";
+import { TRELLIS2_CONFIG } from "./config";
 
 const router = express.Router();
-
-const TRELLIS2_COMFYUI_URL = process.env.TRELLIS2_COMFYUI_URL || "http://localhost:8189";
 
 export default router.get("/:promptId", async (req, res) => {
   const { promptId } = req.params;
 
   try {
-    const histRes = await axios.get(`${TRELLIS2_COMFYUI_URL}/history/${encodeURIComponent(promptId)}`, {
+    const histRes = await axios.get(`${TRELLIS2_CONFIG.comfyuiUrl}/history/${encodeURIComponent(promptId)}`, {
       timeout: 15_000,
       validateStatus: (s) => s < 500,
     });
@@ -25,7 +26,6 @@ export default router.get("/:promptId", async (req, res) => {
 
     const historyEntry = histRes.data[promptId];
 
-    // Check for error
     if (historyEntry.status?.status_str === "error" || historyEntry.status?.completed === false) {
       const errMsg = historyEntry.status?.messages?.join("; ") || "ComfyUI execution error";
       return res.status(200).send(success({
@@ -36,12 +36,10 @@ export default router.get("/:promptId", async (req, res) => {
       }));
     }
 
-    // Extract outputs from node 86 (ExportTrimesh)
     const outputs = historyEntry.outputs || {};
     const exportNode = outputs["86"];
 
     if (!exportNode) {
-      // Still executing — no output from export node yet
       return res.status(200).send(success({
         promptId,
         status: "executing",
@@ -49,11 +47,30 @@ export default router.get("/:promptId", async (req, res) => {
       }));
     }
 
-    const glbOutput = exportNode.meshes || [];
-    const imageOutput = exportNode.images || [];
-    const files: string[] = [...glbOutput, ...imageOutput].map((f: any) =>
-      typeof f === "string" ? f : f.filename || f.name,
-    );
+    const meshes = exportNode.meshes || [];
+    if (meshes.length === 0) {
+      return res.status(200).send(success({
+        promptId,
+        status: "executing",
+        outputs: null,
+      }));
+    }
+
+    const files = meshes.map((f: any) => {
+      const filename = typeof f === "string" ? f : f.filename || f.name;
+      const subfolder = typeof f === "string" ? "" : (f.subfolder || "");
+      const fullPath = subfolder ? `${subfolder}/${filename}` : filename;
+
+      let size: number | null = null;
+      try {
+        const localPath = path.join(TRELLIS2_CONFIG.outputDir, filename);
+        if (fs.existsSync(localPath)) {
+          size = fs.statSync(localPath).size;
+        }
+      } catch {}
+
+      return { filename, subfolder, path: fullPath, size };
+    });
 
     return res.status(200).send(success({
       promptId,

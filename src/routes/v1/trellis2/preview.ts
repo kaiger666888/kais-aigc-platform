@@ -1,11 +1,11 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
+import http from "http";
 import { success, error } from "@/lib/responseFormat";
+import { TRELLIS2_CONFIG } from "./config";
 
 const router = express.Router();
-
-const OUTPUT_DIR = process.env.OUTPUT_DIR || "/mnt/agents/output";
 
 interface AngleConfig {
   azimuth: number;
@@ -18,6 +18,39 @@ const ANGLES: AngleConfig[] = [
   { azimuth: (2 * Math.PI) / 3, polar: Math.PI / 4, suffix: "preview2" },
   { azimuth: (4 * Math.PI) / 3, polar: Math.PI / 4, suffix: "preview3" },
 ];
+
+function loadPlaywright(): any {
+  try {
+    return require("playwright");
+  } catch {}
+  try {
+    return require(require.resolve("playwright", { paths: ["/home/kai/.openclaw/workspace/node_modules"] }));
+  } catch {}
+  throw new Error("playwright module not found");
+}
+
+function serveFileOnce(filePath: string): Promise<{ url: string; close: () => void }> {
+  return new Promise((resolve, reject) => {
+    const server = http.createServer((req, res) => {
+      const stream = fs.createReadStream(filePath);
+      res.setHeader("Content-Type", "model/gltf-binary");
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      stream.on("error", () => {
+        res.statusCode = 500;
+        res.end("read error");
+      });
+      stream.pipe(res);
+    });
+    server.listen(0, "127.0.0.1", () => {
+      const addr = server.address() as any;
+      resolve({
+        url: `http://127.0.0.1:${addr.port}/model.glb`,
+        close: () => server.close(),
+      });
+    });
+    server.on("error", reject);
+  });
+}
 
 const HTML_TEMPLATE = (glbUrl: string) => `<!DOCTYPE html>
 <html><head><meta charset="utf-8">
@@ -98,13 +131,13 @@ export default router.post("/:filename", async (req, res) => {
     return res.status(400).send(error("Preview only supports GLB files"));
   }
 
-  const glbPath = path.join(OUTPUT_DIR, safeName);
+  const glbPath = path.join(TRELLIS2_CONFIG.outputDir, safeName);
+  const containerName = TRELLIS2_CONFIG.containerName;
 
-  // Ensure GLB file exists locally
   if (!fs.existsSync(glbPath)) {
     try {
       const { execSync } = await import("child_process");
-      execSync(`docker cp comfyui-trellis:/app/ComfyUI/output/${safeName} "${glbPath}"`, {
+      execSync(`docker cp ${containerName}:${TRELLIS2_CONFIG.comfyuiOutputDir}/${safeName} "${glbPath}"`, {
         timeout: 15_000,
       });
     } catch {
@@ -112,49 +145,55 @@ export default router.post("/:filename", async (req, res) => {
     }
   }
 
+  // Cleanup old preview screenshots before generating new ones
+  const baseName = path.basename(safeName, ".glb");
+  for (const angle of ANGLES) {
+    const oldPath = path.join(TRELLIS2_CONFIG.outputDir, `${baseName}_${angle.suffix}.png`);
+    try { fs.unlinkSync(oldPath); } catch {}
+  }
+
   const screenshots: string[] = [];
 
+  let fileServer: { url: string; close: () => void } | null = null;
+
   try {
-    const pw: any = require("/home/kai/.openclaw/workspace/node_modules/playwright");
+    const pw = loadPlaywright();
     const chromium: { launch: (opts: any) => Promise<any> } = pw.chromium;
+
+    // Start temp HTTP server to serve GLB file
+    fileServer = await serveFileOnce(glbPath);
+
+    const htmlContent = HTML_TEMPLATE(fileServer.url);
+    const tmpHtml = path.join(TRELLIS2_CONFIG.outputDir, `_preview_${Date.now()}.html`);
+    fs.writeFileSync(tmpHtml, htmlContent);
+
     const browser = await chromium.launch({ headless: true });
     const context = await browser.newContext({
       viewport: { width: 512, height: 512 },
     });
     const page = await context.newPage();
 
-    // Serve the GLB file via a local file URL
-    const glbFileUrl = `file://${glbPath}`;
-    const htmlContent = HTML_TEMPLATE(glbFileUrl);
-
-    // Write temp HTML
-    const tmpHtml = path.join(OUTPUT_DIR, `_preview_${Date.now()}.html`);
-    fs.writeFileSync(tmpHtml, htmlContent);
-
     await page.goto(`file://${tmpHtml}`, { waitUntil: "load", timeout: 30_000 });
 
-    // Wait for model to load
     await page.waitForFunction(() => (window as any).__modelReady, { timeout: 60_000 }).catch(() => {});
 
     const modelReady = await page.evaluate(() => (window as any).__modelReady);
     if (!modelReady) {
       await browser.close();
+      fileServer.close();
       fs.unlinkSync(tmpHtml);
       return res.status(500).send(error("Failed to load GLB model in browser"));
     }
 
-    // Take screenshots from 3 angles
     for (const angle of ANGLES) {
       const dataUrl = await page.evaluate(
         ({ azimuth, polar }: { azimuth: number; polar: number }) => (window as any).__takeScreenshot(azimuth, polar),
         { azimuth: angle.azimuth, polar: angle.polar },
       );
 
-      const baseName = path.basename(safeName, ".glb");
       const shotName = `${baseName}_${angle.suffix}.png`;
-      const shotPath = path.join(OUTPUT_DIR, shotName);
+      const shotPath = path.join(TRELLIS2_CONFIG.outputDir, shotName);
 
-      // Remove data URL prefix and save
       const base64Data = dataUrl.replace(/^data:image\/png;base64,/, "");
       fs.writeFileSync(shotPath, Buffer.from(base64Data, "base64"));
       screenshots.push(shotName);
@@ -164,6 +203,8 @@ export default router.post("/:filename", async (req, res) => {
     fs.unlinkSync(tmpHtml);
   } catch (err: any) {
     return res.status(500).send(error(`Preview generation failed: ${err.message}`));
+  } finally {
+    fileServer?.close();
   }
 
   return res.status(200).send(success({

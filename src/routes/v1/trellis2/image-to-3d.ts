@@ -5,19 +5,17 @@ import fs from "fs";
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 import { success, error } from "@/lib/responseFormat";
+import { TRELLIS2_CONFIG } from "./config";
 
 const router = express.Router();
 
-const TRELLIS2_COMFYUI_URL = process.env.TRELLIS2_COMFYUI_URL || "http://localhost:8189";
-const OUTPUT_DIR = process.env.OUTPUT_DIR || "/mnt/agents/output";
-const COMFYUI_INPUT_DIR = "/tmp/comfyui-trellis-input";
+const LOCAL_STAGING_DIR = "/tmp/comfyui-trellis-input";
 
-// Ensure local staging dir exists
-if (!fs.existsSync(COMFYUI_INPUT_DIR)) {
-  fs.mkdirSync(COMFYUI_INPUT_DIR, { recursive: true });
+if (!fs.existsSync(LOCAL_STAGING_DIR)) {
+  fs.mkdirSync(LOCAL_STAGING_DIR, { recursive: true });
 }
 
-const upload = multer({ dest: COMFYUI_INPUT_DIR });
+const upload = multer({ dest: LOCAL_STAGING_DIR });
 
 export default router.post("/", upload.single("image"), async (req, res) => {
   if (!req.file) {
@@ -34,20 +32,18 @@ export default router.post("/", upload.single("image"), async (req, res) => {
   const filenamePrefix = req.body.filename_prefix || `trellis2_${Date.now()}`;
   const fileFormat = req.body.file_format || "glb";
 
-  // Copy uploaded file to ComfyUI container input dir
   const ext = path.extname(req.file.originalname || ".png") || ".png";
   const inputFilename = `${uuidv4()}${ext}`;
   const localPath = req.file.path;
-  const containerInputPath = `/app/ComfyUI/input/${inputFilename}`;
+  const containerInputPath = `${TRELLIS2_CONFIG.comfyuiInputDir}/${inputFilename}`;
+  const containerName = TRELLIS2_CONFIG.containerName;
 
   try {
-    // docker cp the file into the ComfyUI container
     const { execSync } = await import("child_process");
-    execSync(`docker cp "${localPath}" comfyui-trellis:"${containerInputPath}"`, {
+    execSync(`docker cp "${localPath}" ${containerName}:"${containerInputPath}"`, {
       timeout: 30_000,
     });
   } catch (err: any) {
-    // Cleanup
     fs.unlinkSync(localPath);
     return res.status(502).send(error(`Failed to upload image to ComfyUI container: ${err.message}`));
   }
@@ -55,7 +51,6 @@ export default router.post("/", upload.single("image"), async (req, res) => {
   // Cleanup local staging file
   try { fs.unlinkSync(localPath); } catch {}
 
-  // Build ComfyUI prompt
   const prompt = buildPrompt({
     inputFilename,
     seed,
@@ -70,22 +65,33 @@ export default router.post("/", upload.single("image"), async (req, res) => {
   });
 
   try {
-    const comfyRes = await axios.post(`${TRELLIS2_COMFYUI_URL}/prompt`, { prompt }, {
+    const comfyRes = await axios.post(`${TRELLIS2_CONFIG.comfyuiUrl}/prompt`, { prompt }, {
       timeout: 30_000,
       validateStatus: (s) => s < 500,
     });
 
     if (comfyRes.status !== 200) {
+      // Cleanup container input on failure
+      try {
+        const { execSync } = await import("child_process");
+        execSync(`docker exec ${containerName} rm -f ${containerInputPath}`, { timeout: 5_000 });
+      } catch {}
       return res.status(502).send(error(`ComfyUI rejected prompt: ${JSON.stringify(comfyRes.data)}`));
     }
 
     const promptId = comfyRes.data.prompt_id;
     return res.status(200).send(success({
       promptId,
+      inputFilename,
       status: "pending",
       message: "Image-to-3D task submitted to ComfyUI",
     }));
   } catch (err: any) {
+    // Cleanup container input on failure
+    try {
+      const { execSync } = await import("child_process");
+      execSync(`docker exec ${containerName} rm -f ${containerInputPath}`, { timeout: 5_000 });
+    } catch {}
     const msg = err.response?.data?.error?.message || err.response?.data?.node_errors || err.message || String(err);
     return res.status(502).send(error(`ComfyUI request failed: ${msg}`));
   }
