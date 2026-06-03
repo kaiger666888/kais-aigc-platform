@@ -201,6 +201,11 @@ import route197 from "./routes/v1/sync/pipeline-results";
 import route198 from "./routes/v1/sync/pull/[projectId]";
 import route199 from "./routes/v1/sync/status/[pipelineId]";
 import route200 from "./routes/v1/telegram/webhook";
+import route201 from "./routes/v1/trellis2/image-to-3d";
+import route202 from "./routes/v1/trellis2/status";
+import route203 from "./routes/v1/trellis2/download";
+import route204 from "./routes/v1/trellis2/preview";
+import route205 from "./routes/v1/trellis2/delete";
 
 export default async (app: Express) => {
   app.use("/api/agents/clearMemory", route1);
@@ -403,4 +408,9 @@ export default async (app: Express) => {
   app.use("/api/v1/sync/pull/:projectId", route198);
   app.use("/api/v1/sync/status/:pipelineId", route199);
   app.use("/api/v1/telegram/webhook", route200);
+  app.use("/api/v1/trellis2/image-to-3d", route201);
+  app.use("/api/v1/trellis2/status", route202);
+  app.use("/api/v1/trellis2/download", route203);
+  app.use("/api/v1/trellis2/preview", route204);
+  app.use("/api/v1/trellis2", route205);
 }
