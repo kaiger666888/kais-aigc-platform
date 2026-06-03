@@ -49,11 +49,17 @@ RUN find /usr/local/lib/python3.11/site-packages/librosa -name "*.py" -exec \
 RUN git clone --depth 1 https://github.com/FunAudioLLM/CosyVoice.git /opt/CosyVoice || \
     echo "CosyVoice clone failed - mount or download manually"
 
-# Install ACE-Step (music generation)
-RUN git clone --depth 1 https://github.com/ace-step/ACE-Step-1.5.git /tmp/acestep-src && \
-    pip install --no-cache-dir -e /tmp/acestep-src -i https://pypi.tuna.tsinghua.edu.cn/simple && \
-    mv /tmp/acestep-src /opt/acestep/app || \
-    echo "ACE-Step install failed - will be disabled"
+# Install ACE-Step (music generation) — COPY from local clone to avoid build-time network issues
+# nano-vllm is a bundled local package required by ace-step (not on PyPI)
+# Both installed with --no-deps to avoid GitHub-hosted flash-attn wheel download in build
+COPY --chown=root:root additional_src/ACE-Step-1.5/ /tmp/acestep-src/
+RUN pip install --no-cache-dir --no-deps /tmp/acestep-src/acestep/third_parts/nano-vllm && \
+    pip install --no-cache-dir --no-deps /tmp/acestep-src && \
+    pip install --no-cache-dir vector-quantize-pytorch loguru einops accelerate diskcache numba \
+        lycoris-lora lightning pytorch-wavelets pywavelets typer-slim toml triton \
+        -i https://pypi.tuna.tsinghua.edu.cn/simple && \
+    mkdir -p /opt/acestep/app && cp -r /tmp/acestep-src/* /opt/acestep/app/ && \
+    rm -rf /tmp/acestep-src
 
 # Copy v6 module
 COPY src/ ./src/
