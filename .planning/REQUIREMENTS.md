@@ -74,34 +74,34 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LIPS-01 | — | Pending |
-| LIPS-02 | — | Pending |
-| LIPS-03 | — | Pending |
-| LIPS-04 | — | Pending |
-| LIPS-05 | — | Pending |
-| CHAR-01 | — | Pending |
-| CHAR-02 | — | Pending |
-| CHAR-03 | — | Pending |
-| CHAR-04 | — | Pending |
-| CHAR-05 | — | Pending |
-| CHAR-06 | — | Pending |
-| POST-01 | — | Pending |
-| POST-02 | — | Pending |
-| POST-03 | — | Pending |
-| POST-04 | — | Pending |
-| FRAM-01 | — | Pending |
-| FRAM-02 | — | Pending |
-| FRAM-03 | — | Pending |
-| FRAM-04 | — | Pending |
-| FRAM-05 | — | Pending |
-| PIPE-01 | — | Pending |
-| PIPE-02 | — | Pending |
+| LIPS-01 | Phase 1 | Pending |
+| LIPS-02 | Phase 4 | Pending |
+| LIPS-03 | Phase 4 | Pending |
+| LIPS-04 | Phase 4 | Pending |
+| LIPS-05 | Phase 4 | Pending |
+| CHAR-01 | Phase 1 | Pending |
+| CHAR-02 | Phase 3 | Pending |
+| CHAR-03 | Phase 3 | Pending |
+| CHAR-04 | Phase 3 | Pending |
+| CHAR-05 | Phase 3 | Pending |
+| CHAR-06 | Phase 3 | Pending |
+| POST-01 | Phase 2 | Pending |
+| POST-02 | Phase 2 | Pending |
+| POST-03 | Phase 2 | Pending |
+| POST-04 | Phase 2 | Pending |
+| FRAM-01 | Phase 1 | Pending |
+| FRAM-02 | Phase 5 | Pending |
+| FRAM-03 | Phase 5 | Pending |
+| FRAM-04 | Phase 5 | Pending |
+| FRAM-05 | Phase 5 | Pending |
+| PIPE-01 | Phase 6 | Pending |
+| PIPE-02 | Phase 6 | Pending |
 
 **Coverage:**
 - v1 requirements: 22 total
-- Mapped to phases: 0
-- Unmapped: 22 ⚠️
+- Mapped to phases: 22
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-06-04*
-*Last updated: 2026-06-04 after initial definition*
+*Last updated: 2026-06-04 after roadmap creation*
