@@ -206,6 +206,10 @@ import route202 from "./routes/v1/trellis2/status";
 import route203 from "./routes/v1/trellis2/download";
 import route204 from "./routes/v1/trellis2/preview";
 import route205 from "./routes/v1/trellis2/delete";
+import route206 from "./routes/v1/hunyuan3d/image-to-3d";
+import route207 from "./routes/v1/hunyuan3d/status";
+import route208 from "./routes/v1/hunyuan3d/download";
+import route209 from "./routes/v1/hunyuan3d/cancel";
 
 export default async (app: Express) => {
   app.use("/api/agents/clearMemory", route1);
@@ -413,4 +417,8 @@ export default async (app: Express) => {
   app.use("/api/v1/trellis2/download", route203);
   app.use("/api/v1/trellis2/preview", route204);
   app.use("/api/v1/trellis2", route205);
+  app.use("/api/v1/hunyuan3d/image-to-3d", route206);
+  app.use("/api/v1/hunyuan3d/status", route207);
+  app.use("/api/v1/hunyuan3d/download", route208);
+  app.use("/api/v1/hunyuan3d/cancel", route209);
 }
