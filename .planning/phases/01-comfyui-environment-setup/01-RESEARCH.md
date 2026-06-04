@@ -440,27 +440,12 @@ curl -s -X POST http://localhost:8188/prompt -H 'Content-Type: application/json'
 | A7 | RIFE models auto-download to the frame_interpolation directory listed in extra_model_paths | Model Download | May need manual download if auto-download path differs |
 | A8 | All nodes' pip dependencies are compatible with Python 3.10 + PyTorch 2.5.1 | Standard Stack | Some nodes may need newer Python or specific PyTorch |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **LatentSync v1.6 HuggingFace access**
-   - What we know: ByteDance/LatentSync-1.6 exists on HuggingFace; the node README says manual download may be needed for v1.6
-   - What's unclear: Whether the repo is gated (requires acceptance) or fully public
-   - Recommendation: Attempt `huggingface-cli download ByteDance/LatentSync-1.6` first; if blocked, use v1.5 from `ByteDance/LatentSync` (confirmed public)
-
-2. **Custom nodes mount: read-only vs read-write**
-   - What we know: Current mount is `:ro` in docker-compose.yml
-   - What's unclear: Whether LatentSync writes to its checkpoints dir at runtime or only reads
-   - Recommendation: Test with :ro first; if nodes fail, consider :rw or pre-staging all files
-
-3. **InstantID SDXL vs SD1.5 compatibility**
-   - What we know: InstantID is designed for SDXL per the README; the project uses FLUX (SDXL-based)
-   - What's unclear: Whether InstantID works with FLUX or only SDXL checkpoints
-   - Recommendation: Install the node; compatibility testing is Phase 3's responsibility
-
-4. **Disk space sufficiency**
-   - What we know: 38GB available, ~15GB needed for new models
-   - What's unclear: Whether existing models can be cleaned up to provide buffer
-   - Recommendation: Monitor df after each major download; stop if <10GB free
+1. **LatentSync v1.6 HuggingFace access** — RESOLVED: Plan 01-02 includes v1.5 fallback if v1.6 is gated. Also, host cannot access huggingface.co directly; use HF_ENDPOINT=https://hf-mirror.com for all downloads.
+2. **Custom nodes mount: read-only vs read-write** — RESOLVED: Plan 01-03 Task 1 surfaces this as a human decision checkpoint (Option A/B/C). The executor will confirm the target deployment before proceeding.
+3. **InstantID SDXL vs SD1.5 compatibility** — RESOLVED: Install the node per CHAR-01 requirement; compatibility testing with FLUX is Phase 3's responsibility.
+4. **Disk space sufficiency** — RESOLVED: ~15GB needed, ~38GB available. Plan 01-02 monitors df after each download batch; stop if <10GB free.
 
 ## Environment Availability
 
