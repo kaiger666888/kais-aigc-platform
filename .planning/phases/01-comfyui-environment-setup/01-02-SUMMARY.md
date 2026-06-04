@@ -118,3 +118,9 @@ Downloaded all remaining models. Several files already existed (CLIP vision 3.3G
 
 - The `w600k_mbf.onnx` insightface model file specified in the plan does not exist in any accessible antelopev2 repo on hf-mirror.com. The available repos include `glintr100.onnx` as a replacement. The 4 downloaded .onnx files (1k3d68, 2d106det, genderage, scrfd_10g_bnkps) are the core files required by the InstantID node.
 - The VAE config.json for LatentSync was not downloaded (only diffusion_pytorch_model.safetensors). This is not expected to cause issues as the model file is self-contained.
+
+## Self-Check: PASSED
+
+- SUMMARY.md exists at expected path
+- Commit 5f900e3 verified in git log
+- All 6 key model files verified present on filesystem
