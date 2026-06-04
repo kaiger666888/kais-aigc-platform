@@ -39,11 +39,11 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 **Wave 1**
 
-- [ ] 01-01-PLAN.md — Clone 5 custom nodes into Docker volume, install pip deps, update extra_model_paths.yaml
+- [x] 01-01-PLAN.md — Clone 5 custom nodes into Docker volume, install pip deps, update extra_model_paths.yaml
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 01-02-PLAN.md — Download all model files (~15GB) from HuggingFace via hf-mirror.com
+- [x] 01-02-PLAN.md — Download all model files (~15GB) from HuggingFace via hf-mirror.com
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -155,7 +155,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. ComfyUI Environment Setup | 0/3 | Planning complete | - |
+| 1. ComfyUI Environment Setup | 2/3 | In Progress|  |
 | 2. Post-Processing Workflows | 0/3 | Not started | - |
 | 3. Character Consistency Workflows | 0/3 | Not started | - |
 | 4. Lip Sync Engine | 0/3 | Not started | - |
