@@ -30,12 +30,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. All required models are present in /data/models/ (latentsync_unet, whisper_tiny, arcface, ipadapter models, instantid models, photomaker models, RIFE models)
   3. Each custom node appears in ComfyUI's node registry and can be instantiated in a workflow without import errors
   4. Existing workflows (Wan2.2 T2V/I2V, FLUX txt2img, CosyVoice TTS) continue to execute correctly after the new installations
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: Install all ComfyUI custom nodes and verify node registration
-- [ ] 01-02: Download and verify all required models
-- [ ] 01-03: Regression test existing workflows
+- [ ] 01-01-PLAN.md — Clone 5 custom nodes into Docker volume, install pip deps, update extra_model_paths.yaml
+- [ ] 01-02-PLAN.md — Download all model files (~15GB) from HuggingFace via hf-mirror.com
+- [ ] 01-03-PLAN.md — Restart ComfyUI, verify node registration, regression test existing workflows
 
 ### Phase 2: Post-Processing Workflows
 **Goal**: Users can submit upscale and face-restore tasks through the gold-team API and receive processed results
@@ -123,7 +123,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. ComfyUI Environment Setup | 0/3 | Not started | - |
+| 1. ComfyUI Environment Setup | 0/3 | Planning complete | - |
 | 2. Post-Processing Workflows | 0/3 | Not started | - |
 | 3. Character Consistency Workflows | 0/3 | Not started | - |
 | 4. Lip Sync Engine | 0/3 | Not started | - |
