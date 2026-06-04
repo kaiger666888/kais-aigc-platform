@@ -104,6 +104,8 @@ class EngineRouter:
         """Pick the best local engine ID for the task type."""
         if task.type == TaskType.TTS:
             return "tts-local"
+        if task.type == TaskType.IMAGE_CAPTION:
+            return "joycaption-local"
         return "comfyui-local"
 
     def _pick_cloud_engine_id(self, task: GenerationTask) -> str:

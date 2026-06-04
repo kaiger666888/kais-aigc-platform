@@ -34,6 +34,7 @@ _TASK_OUTPUT_FIELDS: dict[TaskType, dict[str, str]] = {
     TaskType.UPSCALE: {"image": "upscaled.png"},
     TaskType.FACE_RESTORE: {"image": "face_restored.png"},
     TaskType.IMAGE_TO_3D: {"image": "model.glb"},
+    TaskType.IMAGE_CAPTION: {"text": "caption.txt"},
 }
 
 
@@ -131,6 +132,49 @@ class TaskExecutor:
                         task_id=task.task_id,
                     )
                     logger.info("Auto-built TTS workflow for task %s", task.task_id)
+                elif task.type == TaskType.IMAGE_CAPTION:
+                    # JoyCaption handles image captioning directly via its own submit_and_wait
+                    source_image = task.params.get("source_image_path") or task.params.get("image_url", "")
+                    if source_image and engine.engine_id == "joycaption-local":
+                        caption_result = await engine.caption(
+                            image_url=source_image,
+                            prompt_style=task.params.get("prompt_style", "Descriptive"),
+                            processing_mode=task.params.get("processing_mode", "GPU"),
+                            caption_length=task.params.get("caption_length", "any"),
+                            extra_prompt=task.params.get("extra_prompt", ""),
+                        )
+                        if caption_result.get("status") == "completed":
+                            caption_text = caption_result.get("caption", "")
+                            outputs = TaskOutputs(text=caption_text)
+                            metadata = TaskMetadata(
+                                seed=None,
+                                cost_usd=0.0,
+                                inference_time_sec=5.0,
+                                gpu_memory_peak_gb=8.0,
+                                model_name=engine.name,
+                            )
+                            await store.update(
+                                task.task_id,
+                                status=TaskStatus.COMPLETED,
+                                outputs=outputs,
+                                metadata=metadata,
+                                progress=100.0,
+                            )
+                            logger.info("Task %s (image_caption) completed via %s", task.task_id, engine.engine_id)
+                            if task.callback_url:
+                                await send_callback(task, task.callback_url, task.callback_secret)
+                            return  # Skip the normal submit/poll loop
+                        else:
+                            await store.update(
+                                task.task_id,
+                                status=TaskStatus.FAILED,
+                                error=caption_result.get("error", "JoyCaption failed"),
+                            )
+                            logger.error("Task %s image_caption failed: %s", task.task_id, caption_result.get("error"))
+                            return
+                    else:
+                        # Non-JoyCaption engine: skip, let mock handle
+                        pass
                 elif task.type in (TaskType.VIDEO_FINAL, TaskType.VIDEO_PREVIEW):
                     extra = task.params.get("extra", {}).get("video_gen", {})
                     source_image = task.params.get("source_image_path", "")
@@ -318,6 +362,12 @@ class TaskExecutor:
             if tts_engine:
                 return tts_engine
             # Fall through to mock if TTS engine unavailable
+
+        # For image_caption tasks, prefer joycaption-local engine
+        if task.type == TaskType.IMAGE_CAPTION:
+            jc_engine = self._engines.get("joycaption-local")
+            if jc_engine:
+                return jc_engine
 
         # Direct match
         if engine_id in self._engines:

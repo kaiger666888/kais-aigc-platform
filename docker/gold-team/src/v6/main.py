@@ -60,6 +60,25 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning("ComfyUI engine init failed: %s", e)
 
+    # Register JoyCaption engine (image captioning via ComfyUI)
+    # Always attempt — health check determines availability
+    try:
+        from src.v6.engines.joycaption import JoyCaptionEngine
+        _jc_host = os.environ.get("COMFYUI_URL", "").replace("http://", "").rsplit(":", 1)[0] or COMFYUI_HOST
+        _jc_port = int(os.environ.get("COMFYUI_URL", "").rsplit(":", 1)[1].split("/")[0]) if ":" in os.environ.get("COMFYUI_URL", "") else COMFYUI_PORT
+        joycaption = JoyCaptionEngine(host=_jc_host, port=_jc_port)
+        await joycaption.start()
+        jc_health = await joycaption.health()
+        if jc_health.get("available"):
+            executor.register_engine(joycaption)
+            logger.info("JoyCaption engine registered (online) → %s:%s", _jc_host, _jc_port)
+        else:
+            logger.warning("JoyCaption engine offline at %s:%s", _jc_host, _jc_port)
+    except ImportError:
+        logger.warning("JoyCaptionEngine not available, skipping")
+    except Exception as e:
+        logger.warning("JoyCaption engine init failed: %s", e)
+
     # Register cloud engines (Jimeng/Kling/Seedance)
     try:
         from src.v6.engines.cloud_jimeng import JimengEngine
@@ -111,7 +130,6 @@ app = FastAPI(
 app.include_router(health.router)
 app.include_router(tasks.router)
 app.include_router(engines.router)
-app.include_router(engines.cap_router)
 app.include_router(events.router)
 
 

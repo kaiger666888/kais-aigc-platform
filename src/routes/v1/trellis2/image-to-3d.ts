@@ -24,12 +24,12 @@ export default router.post("/", upload.single("image"), async (req, res) => {
   }
 
   const seed = req.body.seed ? Number(req.body.seed) : Math.floor(Math.random() * 2147483647);
-  const resolution = req.body.resolution || "512";
+  const resolution = req.body.resolution || "1536";
   const maxTokens = req.body.max_tokens ? Number(req.body.max_tokens) : 262144;
-  const ssGuidanceStrength = req.body.guidance_strength ? Number(req.body.guidance_strength) : 6.5;
-  const samplingSteps = req.body.sampling_steps ? Number(req.body.sampling_steps) : 12;
-  const textureSize = req.body.texture_size ? Number(req.body.texture_size) : 2048;
-  const targetFaceCount = req.body.target_face_count ? Number(req.body.target_face_count) : 500000;
+  const ssGuidanceStrength = req.body.guidance_strength ? Number(req.body.guidance_strength) : 8.0;
+  const samplingSteps = req.body.sampling_steps ? Number(req.body.sampling_steps) : 50;
+  const textureSize = req.body.texture_size ? Number(req.body.texture_size) : 4096;
+  const targetFaceCount = req.body.target_face_count ? Number(req.body.target_face_count) : 800000;
   const filenamePrefix = req.body.filename_prefix || `trellis2_${Date.now()}`;
   const fileFormat = req.body.file_format || "glb";
 
@@ -125,7 +125,7 @@ function buildPrompt(opts: {
     targetFaceCount, filenamePrefix, fileFormat,
   } = opts;
 
-  const guidanceRescale = 0.05;
+  const guidanceRescale = 0.7;
 
   return {
     "1": {
@@ -168,6 +168,8 @@ function buildPrompt(opts: {
         shape_guidance_strength: ssGuidanceStrength,
         shape_guidance_rescale: guidanceRescale,
         shape_sampling_steps: samplingSteps,
+        ss_rescale_t: 6.0,
+        shape_slat_rescale_t: 6.0,
         max_tokens: maxTokens,
       },
     },
@@ -176,7 +178,7 @@ function buildPrompt(opts: {
       inputs: {
         trimesh: ["82", 0],
         remesh: "on",
-        "remesh.remesh_band": 1,
+        "remesh.remesh_band": 2,
         "remesh.remove_inner_faces": true,
         target_face_count: targetFaceCount,
         floater_threshold: 0.001,
@@ -199,6 +201,7 @@ function buildPrompt(opts: {
         tex_guidance_strength: 3.0,
         tex_guidance_rescale: 0.2,
         tex_sampling_steps: samplingSteps,
+        tex_slat_rescale_t: 6.0,
       },
     },
     "98": {
