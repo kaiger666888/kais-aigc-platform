@@ -2,8 +2,52 @@ import express from "express";
 import axios from "axios";
 import path from "path";
 import fs from "fs";
+import { execSync } from "child_process";
 import { success, error } from "@/lib/responseFormat";
 import { TRELLIS2_CONFIG } from "./config";
+
+const FIX_SCRIPT = "/home/kai/.openclaw/workspace/skills/kais-3d-toolkit/scripts/fix.sh";
+const fixingInProgress = new Set<string>();
+
+function fixedPathFor(filename: string) {
+  return filename.replace(/\.glb$/, "_fixed.glb");
+}
+
+function triggerPostProcess(filename: string) {
+  if (fixingInProgress.has(filename)) return;
+  fixingInProgress.add(filename);
+
+  const localPath = path.join(TRELLIS2_CONFIG.outputDir, filename);
+  const fixedName = fixedPathFor(filename);
+  const localFixedPath = path.join(TRELLIS2_CONFIG.outputDir, fixedName);
+
+  // Already fixed
+  if (fs.existsSync(localFixedPath)) {
+    fixingInProgress.delete(filename);
+    return;
+  }
+
+  // Copy from container if not local
+  if (!fs.existsSync(localPath)) {
+    try {
+      execSync(`docker cp ${TRELLIS2_CONFIG.containerName}:${TRELLIS2_CONFIG.comfyuiOutputDir}/${filename} "${localPath}"`, { timeout: 30_000 });
+    } catch {
+      console.error(`[post-process] docker cp failed for ${filename}`);
+      fixingInProgress.delete(filename);
+      return;
+    }
+  }
+
+  // Run fix.sh
+  try {
+    execSync(`bash ${FIX_SCRIPT} "${localPath}" --output "${localFixedPath}" --auto`, { timeout: 120_000 });
+    console.log(`[post-process] Fixed: ${filename} → ${fixedName}`);
+  } catch (err) {
+    console.error(`[post-process] fix.sh failed for ${filename}:`, err);
+  } finally {
+    fixingInProgress.delete(filename);
+  }
+}
 
 const router = express.Router();
 
@@ -72,12 +116,28 @@ export default router.get("/:promptId", async (req, res) => {
       return { filename, subfolder, path: fullPath, size };
     });
 
+    // Check post-process state and trigger async fix for GLB files
+    let postProcessed = false;
+    const glbFiles = files.filter((f: any) => f.filename.endsWith(".glb"));
+    if (glbFiles.length > 0) {
+      const allFixed = glbFiles.every((f: any) =>
+        fs.existsSync(path.join(TRELLIS2_CONFIG.outputDir, fixedPathFor(f.filename)))
+      );
+      postProcessed = allFixed;
+
+      // Fire-and-forget fix for unfixed GLB files
+      for (const f of glbFiles) {
+        triggerPostProcess(f.filename);
+      }
+    }
+
     return res.status(200).send(success({
       promptId,
       status: "completed",
       outputs: {
         files,
         format: "glb",
+        post_processed: postProcessed,
       },
     }));
   } catch (err: any) {
