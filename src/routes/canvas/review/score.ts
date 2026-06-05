@@ -4,11 +4,11 @@
  * Body: { projectId, episodesId, nodeId }
  */
 import u from "@/utils";
-import { scoreImageWithRetry, type AIScoreResult } from "@/lib/ai-scorer";
+import { scoreImageWithRetry, scoreCharacterConsistency, scoreDepthAccuracy, scoreUpscaleQuality, type AIScoreResult } from "@/lib/ai-scorer";
 
 export default async function handler(req: any, res: any) {
   try {
-    const { projectId, episodesId, nodeId } = req.body || {};
+    const { projectId, episodesId, nodeId, scoreType, compareImageId } = req.body || {};
     if (!projectId || !episodesId || !nodeId) {
       return res.json({ code: 400, msg: "缺少参数" });
     }
@@ -16,6 +16,7 @@ export default async function handler(req: any, res: any) {
     // 1. 查找节点的缩略图路径
     let imagePath: string | null = null;
     let promptText: string | undefined;
+    let compareImagePath: string | undefined;
 
     if (nodeId.startsWith("asset-")) {
       const assetId = nodeId.replace("asset-", "");
@@ -39,8 +40,33 @@ export default async function handler(req: any, res: any) {
       return res.json({ code: 400, msg: "该节点没有图片" });
     }
 
-    // 2. 调用 AI 评分
-    const score = await scoreImageWithRetry(imagePath, promptText);
+    // 1b. 解析对比图路径（如果有 compareImageId）
+    if (compareImageId) {
+      if (compareImageId.startsWith("asset-")) {
+        const cAssetId = compareImageId.replace("asset-", "");
+        const cAssetRow = await u.db("o_scriptAssets").where("id", cAssetId).first();
+        if (cAssetRow?.assetId) {
+          const cImageRow = await u.db("o_image").where("assetsId", cAssetRow.assetId).first();
+          compareImagePath = (cImageRow as any)?.filePath || undefined;
+        }
+      } else if (compareImageId.startsWith("storyboard-")) {
+        const cSbId = compareImageId.replace("storyboard-", "");
+        const cSb = await u.db("o_storyboard").where("id", cSbId).first();
+        compareImagePath = cSb?.filePath || undefined;
+      }
+    }
+
+    // 2. 调用 AI 评分（根据 scoreType 分支）
+    let score: AIScoreResult;
+    if (scoreType === "character" && compareImagePath) {
+      score = await scoreCharacterConsistency(imagePath, compareImagePath, promptText);
+    } else if (scoreType === "depth" && compareImagePath) {
+      score = await scoreDepthAccuracy(imagePath, compareImagePath, promptText);
+    } else if (scoreType === "upscale" && compareImagePath) {
+      score = await scoreUpscaleQuality(imagePath, compareImagePath);
+    } else {
+      score = await scoreImageWithRetry(imagePath, promptText);
+    }
 
     // 3. 写回 o_agentWorkData
     const reviewKey = `reviewStatus-${episodesId}`;

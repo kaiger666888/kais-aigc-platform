@@ -126,6 +126,61 @@ export default router.post(
           });
           break;
         }
+        case "3d": {
+          setImmediate(async () => {
+            try {
+              await simulateExecution(projectId, nodeId);
+              broadcastToProject(projectId, "node:state", { nodeId, state: "success" });
+            } catch (err) {
+              broadcastToProject(projectId, "node:state", { nodeId, state: "error" });
+            }
+          });
+          break;
+        }
+        case "variant": {
+          setImmediate(async () => {
+            try {
+              await simulateExecution(projectId, nodeId);
+              broadcastToProject(projectId, "node:state", { nodeId, state: "success" });
+            } catch (err) {
+              broadcastToProject(projectId, "node:state", { nodeId, state: "error" });
+            }
+          });
+          break;
+        }
+        case "reference": {
+          setImmediate(async () => {
+            try {
+              await simulateExecution(projectId, nodeId);
+              broadcastToProject(projectId, "node:state", { nodeId, state: "success" });
+            } catch (err) {
+              broadcastToProject(projectId, "node:state", { nodeId, state: "error" });
+            }
+          });
+          break;
+        }
+        case "upscale": {
+          setImmediate(async () => {
+            try {
+              await simulateExecution(projectId, nodeId);
+              broadcastToProject(projectId, "node:state", { nodeId, state: "success" });
+            } catch (err) {
+              broadcastToProject(projectId, "node:state", { nodeId, state: "error" });
+            }
+          });
+          break;
+        }
+        case "face_restore": {
+          setImmediate(async () => {
+            try {
+              await simulateExecution(projectId, nodeId);
+              broadcastToProject(projectId, "node:state", { nodeId, state: "success" });
+            } catch (err) {
+              broadcastToProject(projectId, "node:state", { nodeId, state: "error" });
+            }
+          });
+          break;
+        }
         default:
           console.log(`[canvas:execute] 未知节点类型: ${nodeType}`);
       }

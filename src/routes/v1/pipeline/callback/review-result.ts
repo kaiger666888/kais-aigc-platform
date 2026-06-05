@@ -27,12 +27,15 @@ export default router.post(
     reviewId: z.string().min(1),
     shotId: z.string().min(1),
     phase: z.string().min(1),
-    action: z.enum(["approve", "reject", "revise"]),
+    action: z.enum(["approve", "reject", "revise", "select", "compare"]),
     feedback: z.string().optional(),
     pipelineId: z.string().optional(),
+    winnerId: z.string().optional(),
+    compareAssets: z.array(z.string()).optional(),
+    compareScore: z.number().optional(),
   }),
   async (req, res) => {
-    const { reviewId, shotId, phase, action, feedback, pipelineId: maybePipelineId } = req.body;
+    const { reviewId, shotId, phase, action, feedback, pipelineId: maybePipelineId, winnerId, compareAssets, compareScore } = req.body;
     const now = Date.now();
 
     // --- Resolve pipeline run ------------------------------------------------
@@ -78,6 +81,8 @@ export default router.post(
       approve: "running",
       reject: "revision-needed",
       revise: "revision-needed",
+      select: "winner-selected",
+      compare: "compare-completed",
     };
 
     const updateFields: Record<string, any> = {
@@ -91,6 +96,34 @@ export default router.post(
       updateFields.currentPhaseOrder = currentOrder + 1;
       // We don't update currentPhase here — the orchestrator (OpenClaw agent)
       // will set it when it picks up the next phase.
+    } else if (action === "select" && winnerId) {
+      // select 模式: 将 winnerId 写入 o_agentWorkData reviewStatus mapping
+      const reviewKey = `reviewStatus-${pipeline.episodesId || ""}`;
+      const row = await u
+        .db("o_agentWorkData")
+        .where("projectId", String(projectId))
+        .andWhere("key", reviewKey)
+        .first();
+      if (row?.data) {
+        let mapping = typeof row.data === "string" ? JSON.parse(row.data) : row.data;
+        if (!mapping[winnerId]) mapping[winnerId] = {};
+        mapping[winnerId].isWinner = true;
+        await u.db("o_agentWorkData").where("id", row.id).update({ data: JSON.stringify(mapping) });
+      }
+      updateFields.currentPhaseOrder = (pipeline.currentPhaseOrder ?? 0) + 1;
+    } else if (action === "compare") {
+      // compare 模式: 对比完成，写入评分
+      if (compareScore !== undefined) {
+        await u.db("kv_audit").insert({
+          id: now + 1,
+          projectId,
+          action: "review:compare",
+          result: `compare-score=${compareScore}`,
+          detail: `[${phase}] comparing ${compareAssets?.join(" vs ")}`,
+          createTime: now,
+        });
+      }
+      updateFields.currentPhaseOrder = (pipeline.currentPhaseOrder ?? 0) + 1;
     } else {
       // Reject / revise: keep phase and order so the agent knows where to retry
       updateFields.currentPhase = phase;
@@ -100,7 +133,7 @@ export default router.post(
 
     // --- Broadcast via WebSocket ---------------------------------------------
     const eventType =
-      action === "approve"
+      action === "approve" || action === "select" || action === "compare"
         ? "pipeline:review-approved"
         : "pipeline:review-rejected";
 

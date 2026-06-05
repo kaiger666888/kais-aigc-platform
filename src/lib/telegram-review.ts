@@ -33,9 +33,21 @@ export interface ReviewCardData {
   thumbnailUrl?: string;
   /** Optional AI scores summary */
   aiScores?: Record<string, number>;
+  /** 对比图 B 的 URL */
+  compareAssetUrl?: string;
+  /** 区分类型 */
+  assetType?: "image" | "video" | "compare";
+  /** 多选选项 */
+  variantOptions?: Array<{
+    id: string;
+    label: string;
+    url: string;
+  }>;
+  /** 评分类型 */
+  scoreType?: "general" | "character" | "depth" | "upscale";
 }
 
-export type ReviewAction = "approve" | "reject" | "revise";
+export type ReviewAction = "approve" | "reject" | "revise" | "select";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -174,6 +186,7 @@ export async function handleReviewCallback(
     approve: "approve",
     reject: "reject",
     revise: "revise",
+    select: "select",
   };
   const apiAction = actionMap[actionStr];
   if (!apiAction) {
@@ -216,4 +229,81 @@ export async function handleReviewCallback(
     console.error("[telegram-review] callback error:", msg);
     await answerCallbackQuery(queryId, `❌ 处理失败: ${msg.slice(0, 100)}`);
   }
+}
+
+// ---------------------------------------------------------------------------
+// sendCompareReviewCard — AB 对比审核
+// ---------------------------------------------------------------------------
+
+/**
+ * 发送对比审核卡片（AB对比）
+ * 发送两张图 + approve(选A) / select(选B) / reject(都不选)
+ */
+export async function sendCompareReviewCard(card: ReviewCardData): Promise<void> {
+  const { reviewId, shotId, phase, assetUrl, compareAssetUrl, pipelineId } = card;
+  if (!assetUrl || !compareAssetUrl) throw new Error("对比审核需要两张图");
+
+  const chatId = process.env.TELEGRAM_REVIEW_CHAT_ID;
+  if (!chatId) throw new Error("TELEGRAM_REVIEW_CHAT_ID not set");
+
+  // 发送 media_group（两张图）
+  await axios.post(`${TELEGRAM_API}/sendMediaGroup`, {
+    chat_id: chatId,
+    media: [
+      { type: "photo", media: assetUrl, caption: "A: 原始" },
+      { type: "photo", media: compareAssetUrl, caption: "B: 变体" },
+    ],
+  });
+
+  // 发送 inline buttons
+  const replyMarkup = {
+    inline_keyboard: [
+      [
+        { text: "✅ 选 A", callback_data: `review:approve:${pipelineId}:${phase}:${reviewId}` },
+        { text: "🔄 选 B", callback_data: `review:select:${pipelineId}:${phase}:${reviewId}` },
+        { text: "❌ 都不要", callback_data: `review:reject:${pipelineId}:${phase}:${reviewId}` },
+      ],
+    ],
+  };
+  await axios.post(`${TELEGRAM_API}/sendMessage`, {
+    chat_id: chatId,
+    text: `📋 对比审核 [${phase}] shot: ${shotId}`,
+    reply_markup: replyMarkup,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// sendVariantReviewCard — 多选审核
+// ---------------------------------------------------------------------------
+
+/**
+ * 发送多选审核卡片（IPAdapter 多视角选一）
+ * 发送多张图 + 每张一个"选择"按钮
+ */
+export async function sendVariantReviewCard(card: ReviewCardData): Promise<void> {
+  const { reviewId, shotId, phase, variantOptions, pipelineId } = card;
+  const chatId = process.env.TELEGRAM_REVIEW_CHAT_ID;
+
+  // 发送所有变体图
+  if (variantOptions && variantOptions.length > 0) {
+    const media = variantOptions.slice(0, 10).map((opt, i) => ({
+      type: "photo" as const,
+      media: opt.url,
+      caption: `V${i + 1}: ${opt.label}`,
+    }));
+    await axios.post(`${TELEGRAM_API}/sendMediaGroup`, { chat_id: chatId, media });
+  }
+
+  // inline keyboard: 一行一个选项
+  const buttons: Array<Array<{ text: string; callback_data: string }>> =
+    variantOptions?.slice(0, 9).map((opt, i) => [
+      { text: `✅ 选 V${i + 1}: ${opt.label}`, callback_data: `review:select:${pipelineId}:${phase}:${reviewId}` },
+    ]) || [];
+  buttons.push([{ text: "❌ 都不要", callback_data: `review:reject:${pipelineId}:${phase}:${reviewId}` }]);
+
+  await axios.post(`${TELEGRAM_API}/sendMessage`, {
+    chat_id: chatId,
+    text: `📋 多选审核 [${phase}] shot: ${shotId}`,
+    reply_markup: { inline_keyboard: buttons },
+  });
 }

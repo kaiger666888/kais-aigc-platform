@@ -12,9 +12,10 @@ export default router.post(
     projectId: z.number(),
     episodesId: z.number(),
     nodeId: z.string(),
+    winnerId: z.string().optional(),
   }),
   async (req, res) => {
-    const { projectId, episodesId, nodeId } = req.body;
+    const { projectId, episodesId, nodeId, winnerId } = req.body;
 
     try {
       const reviewKey = `reviewStatus-${episodesId}`;
@@ -35,6 +36,12 @@ export default router.post(
         ...(mapping[nodeId] || {}),
         reviewStatus: "approved",
       };
+
+      // 如果有 winnerId，标记 isWinner
+      if (winnerId) {
+        if (!mapping[winnerId]) mapping[winnerId] = {};
+        mapping[winnerId].isWinner = true;
+      }
 
       if (!row) {
         await u.db("o_agentWorkData").insert({

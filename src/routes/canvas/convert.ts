@@ -22,6 +22,11 @@ const SB_START_Y = 500;
 const SB_GAP_X = 300;
 const VIDEO_START_Y = SB_START_Y + 350;
 const AUDIO_START_Y = VIDEO_START_Y + 250;
+const THREED_START_Y = ASSET_Y + 480;
+const VARIANT_OFFSET_Y = 220;
+const REF_OFFSET_X = -200;
+const UPSCALE_OFFSET_Y = 220;
+const FACERESTORE_OFFSET_Y = 440;
 
 export default router.post(
   "/",
@@ -497,6 +502,170 @@ export default router.post(
               dataType: "audio",
             });
           }
+        }
+      }
+
+      // 6. 3D 空间节点（TRELLIS2 / IMAGE_TO_3D 产物）
+      const threeDAssets = assetsData.filter((a: any) => a.type === '3d');
+
+      for (let threeDIdx = 0; threeDIdx < threeDAssets.length; threeDIdx++) {
+        const asset = threeDAssets[threeDIdx];
+        const nodeId = `3d-${asset.id}`;
+        const col = threeDIdx % 4;
+        nodes.push({
+          id: nodeId,
+          type: "3d",
+          position: { x: ASSET_START_X + col * ASSET_GAP_X, y: THREED_START_Y + Math.floor(threeDIdx / 4) * ASSET_GAP_Y },
+          size: { width: 260, height: 180 },
+          data: {
+            label: asset.name ?? "3D 空间",
+            type: "3d",
+            assetType: "3d",
+            assetId: asset.id,
+            filePath: asset.filePath ? `/oss/${asset.filePath}` : null,
+            thumbnailUrl: null,
+            format: "glb",
+            engine: "TRELLIS2",
+          },
+          state: asset.imageState === "已完成" ? "success" : "idle",
+        });
+        links.push({ id: `e-${edgeId++}`, source: scriptNodeId, target: nodeId, dataType: "3d" });
+      }
+
+      // 7. 工作流变体节点（IPAdapter / PuLID 产物）
+      const variantAssets = assetsData.filter((a: any) => a.variantGroupId);
+      const variantGroups: Record<string, any[]> = {};
+      variantAssets.forEach((a: any) => {
+        const gid = a.variantGroupId || 'default';
+        if (!variantGroups[gid]) variantGroups[gid] = [];
+        variantGroups[gid].push(a);
+      });
+
+      let variantGroupIdx = 0;
+      for (const [groupId, variants] of Object.entries(variantGroups)) {
+        for (let i = 0; i < variants.length; i++) {
+          const asset = variants[i];
+          const nodeId = `variant-${asset.id}`;
+          let thumbnailUrl: string | null = null;
+          if (asset.filePath) {
+            try { thumbnailUrl = await u.oss.getSmallImageUrl(asset.filePath); } catch { thumbnailUrl = null; }
+          }
+          nodes.push({
+            id: nodeId,
+            type: "variant",
+            position: { x: ASSET_START_X + i * 200, y: THREED_START_Y + VARIANT_OFFSET_Y + variantGroupIdx * ASSET_GAP_Y },
+            size: { width: 200, height: 160 },
+            data: {
+              label: `${asset.name || '变体'} ${i + 1}`,
+              type: "variant",
+              assetType: asset.type,
+              assetId: asset.id,
+              variantGroupId: groupId,
+              variantIndex: i,
+              variantType: (asset as any).variantType || "ipadapter",
+              filePath: asset.filePath ? `/oss/${asset.filePath}` : null,
+              thumbnailUrl,
+              isWinner: i === 0,
+            },
+            state: asset.imageState === "已完成" ? "success" : "idle",
+          });
+          const parentNodeId = `asset-${(asset as any).parentId || variants[0].id}`;
+          links.push({ id: `e-${edgeId++}`, source: parentNodeId, target: nodeId, dataType: "variant" });
+        }
+        variantGroupIdx++;
+      }
+
+      // 8. 参考图节点（深度图、ControlNet 控制图）
+      const refImages = assetIds.length > 0
+        ? await u.db("o_image").whereIn("assetsId", assetIds).where("type", "depth")
+        : [];
+
+      for (let refIdx = 0; refIdx < refImages.length; refIdx++) {
+        const ref = refImages[refIdx];
+        const nodeId = `reference-${ref.id}`;
+        let thumbnailUrl: string | null = null;
+        if (ref.filePath) {
+          try { thumbnailUrl = await u.oss.getSmallImageUrl(ref.filePath); } catch { thumbnailUrl = null; }
+        }
+        nodes.push({
+          id: nodeId,
+          type: "reference",
+          position: { x: SB_START_X + REF_OFFSET_X, y: SB_START_Y + refIdx * ASSET_GAP_Y },
+          size: { width: 200, height: 160 },
+          data: {
+            label: ref.type === 'depth' ? "深度图" : "参考图",
+            type: "reference",
+            refType: ref.type || "depth",
+            filePath: ref.filePath ? `/oss/${ref.filePath}` : null,
+            thumbnailUrl,
+          },
+          state: "success",
+        });
+        if ((ref as any).storyboardId) {
+          links.push({ id: `e-${edgeId++}`, source: nodeId, target: `storyboard-${(ref as any).storyboardId}`, dataType: "reference" });
+        }
+      }
+
+      // 9. 超分节点
+      const upscaleImages = assetIds.length > 0
+        ? await u.db("o_image").whereIn("assetsId", assetIds).where("type", "upscale")
+        : [];
+
+      for (let upsIdx = 0; upsIdx < upscaleImages.length; upsIdx++) {
+        const ups = upscaleImages[upsIdx];
+        const nodeId = `upscale-${ups.id}`;
+        let thumbnailUrl: string | null = null;
+        if (ups.filePath) {
+          try { thumbnailUrl = await u.oss.getSmallImageUrl(ups.filePath); } catch { thumbnailUrl = null; }
+        }
+        nodes.push({
+          id: nodeId,
+          type: "upscale",
+          position: { x: SB_START_X + upsIdx * SB_GAP_X, y: VIDEO_START_Y + UPSCALE_OFFSET_Y },
+          size: { width: 260, height: 160 },
+          data: {
+            label: `${(ups as any).scaleFactor || '4x'} 超分`,
+            type: "upscale",
+            scaleFactor: (ups as any).scaleFactor || 4,
+            sourceVideoId: (ups as any).sourceId,
+            filePath: ups.filePath ? `/oss/${ups.filePath}` : null,
+            thumbnailUrl,
+          },
+          state: ups.state === "已完成" ? "success" : "idle",
+        });
+        if ((ups as any).sourceId) {
+          links.push({ id: `e-${edgeId++}`, source: `video-${(ups as any).sourceId}`, target: nodeId, dataType: "upscale" });
+        }
+      }
+
+      // 10. 面部修复节点
+      const faceRestoreImages = assetIds.length > 0
+        ? await u.db("o_image").whereIn("assetsId", assetIds).where("type", "face_restore")
+        : [];
+
+      for (let frIdx = 0; frIdx < faceRestoreImages.length; frIdx++) {
+        const fr = faceRestoreImages[frIdx];
+        const nodeId = `face_restore-${fr.id}`;
+        let thumbnailUrl: string | null = null;
+        if (fr.filePath) {
+          try { thumbnailUrl = await u.oss.getSmallImageUrl(fr.filePath); } catch { thumbnailUrl = null; }
+        }
+        nodes.push({
+          id: nodeId,
+          type: "face_restore",
+          position: { x: SB_START_X + frIdx * SB_GAP_X, y: VIDEO_START_Y + FACERESTORE_OFFSET_Y },
+          size: { width: 260, height: 160 },
+          data: {
+            label: "面部修复",
+            type: "face_restore",
+            sourceUpscaleId: (fr as any).sourceId,
+            filePath: fr.filePath ? `/oss/${fr.filePath}` : null,
+            thumbnailUrl,
+          },
+          state: fr.state === "已完成" ? "success" : "idle",
+        });
+        if ((fr as any).sourceId) {
+          links.push({ id: `e-${edgeId++}`, source: `upscale-${(fr as any).sourceId}`, target: nodeId, dataType: "face_restore" });
         }
       }
 

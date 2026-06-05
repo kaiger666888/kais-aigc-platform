@@ -130,3 +130,133 @@ export async function scoreImageWithRetry(imagePath: string, prompt?: string, re
   }
   throw new Error("评分重试次数已用完");
 }
+
+// ---------------------------------------------------------------------------
+// 双图对比评分通用方法
+// ---------------------------------------------------------------------------
+
+const CHARACTER_CONSISTENCY_PROMPT = `你是一个专业的角色一致性评审专家。请对比两张图片中的角色，评估一致性。从以下维度打分（0-100）：
+
+1. quality - 画面质量
+2. aesthetic - 美学评分
+3. storyConsistency - 角色外观一致性（面部特征、服装、体型）
+4. promptAdherence - 角色特征还原度
+5. emotionImpact - 情感表现力
+
+请严格按照以下 JSON 格式返回，不要添加其他文字：
+{"overall":85,"quality":80,"aesthetic":90,"storyConsistency":90,"promptAdherence":85,"emotionImpact":80,"reasoning":"简要评价"}`;
+
+const DEPTH_ACCURACY_PROMPT = `你是一个专业的深度图评审专家。请对比场景图和深度图，评估深度图的准确性。从以下维度打分（0-100）：
+
+1. quality - 深度图质量（无伪影、连续性好）
+2. aesthetic - 深度层次是否合理
+3. storyConsistency - 深度图与场景图的一致性
+4. promptAdherence - 物体边界清晰度
+5. emotionImpact - 空间感表现力
+
+请严格按照以下 JSON 格式返回，不要添加其他文字：
+{"overall":85,"quality":80,"aesthetic":85,"storyConsistency":90,"promptAdherence":85,"emotionImpact":80,"reasoning":"简要评价"}`;
+
+const UPSCALE_QUALITY_PROMPT = `你是一个专业的图像超分评审专家。请对比原图和超分图，评估超分质量。从以下维度打分（0-100）：
+
+1. quality - 超分图清晰度和细节
+2. aesthetic - 色彩和风格保持
+3. storyConsistency - 内容一致性（无幻觉/伪影）
+4. promptAdherence - 边缘锐利度和细节增强
+5. emotionImpact - 整体视觉提升
+
+请严格按照以下 JSON 格式返回，不要添加其他文字：
+{"overall":85,"quality":85,"aesthetic":90,"storyConsistency":95,"promptAdherence":85,"emotionImpact":80,"reasoning":"简要评价"}`;
+
+/**
+ * 双图对比评分通用方法
+ */
+async function scoreDualImage(
+  image1Path: string,
+  image2Path: string,
+  prompt: string,
+): Promise<AIScoreResult> {
+  const [{ base64: base64_1, mimeType: mime1 }, { base64: base64_2, mimeType: mime2 }] =
+    await Promise.all([imageToBase64(image1Path), imageToBase64(image2Path)]);
+
+  const body = {
+    model: "glm-4v-flash",
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: prompt },
+          { type: "image_url", image_url: { url: `data:${mime1};base64,${base64_1}` } },
+          { type: "image_url", image_url: { url: `data:${mime2};base64,${base64_2}` } },
+        ],
+      },
+    ],
+    temperature: 0.2,
+    max_tokens: 500,
+  };
+
+  const res = await fetch(ZHIPU_API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${ZHIPU_API_KEY}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`GLM API 请求失败 (${res.status}): ${errText}`);
+  }
+
+  const data = await res.json();
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) throw new Error("GLM API 返回空内容");
+
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error(`无法解析 GLM 响应: ${content.slice(0, 200)}`);
+
+  const score = JSON.parse(jsonMatch[0]) as AIScoreResult;
+
+  const keys = ["overall", "quality", "aesthetic", "storyConsistency", "promptAdherence", "emotionImpact"] as const;
+  for (const k of keys) {
+    if (typeof score[k] !== "number" || isNaN(score[k])) {
+      score[k] = 50;
+    }
+    score[k] = Math.max(0, Math.min(100, Math.round(score[k])));
+  }
+
+  return score;
+}
+
+/**
+ * 角色一致性评分 — 对比生成图与参考图
+ */
+export async function scoreCharacterConsistency(
+  imagePath: string,
+  referencePath: string,
+  _prompt?: string,
+): Promise<AIScoreResult> {
+  return scoreDualImage(imagePath, referencePath, CHARACTER_CONSISTENCY_PROMPT);
+}
+
+/**
+ * 深度准确度评分 — 对比场景图与深度图
+ */
+export async function scoreDepthAccuracy(
+  imagePath: string,
+  depthImagePath: string,
+  _prompt?: string,
+): Promise<AIScoreResult> {
+  return scoreDualImage(imagePath, depthImagePath, DEPTH_ACCURACY_PROMPT);
+}
+
+/**
+ * 超分质量评分 — 对比原图与超分图
+ */
+export async function scoreUpscaleQuality(
+  originalPath: string,
+  upscaledPath: string,
+): Promise<AIScoreResult> {
+  return scoreDualImage(originalPath, upscaledPath, UPSCALE_QUALITY_PROMPT);
+}
