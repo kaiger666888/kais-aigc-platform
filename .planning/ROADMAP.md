@@ -36,7 +36,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 07-02-PLAN.md — Implement FastAPI REST API layer with all /v1/* endpoints
+- [x] 07-02-PLAN.md — Implement FastAPI REST API layer with all /v1/* endpoints
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -100,7 +100,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 7. Hermes Agent Core Service | 1/3 | In Progress|  |
+| 7. Hermes Agent Core Service | 2/3 | In Progress|  |
 | 8. Learning Loop Integration | 0/2 | Not started | - |
 | 9. Movie-Pipeline Domain Setup | 0/2 | Not started | - |
 | 10. Client Adaptation & Cutover | 0/3 | Not started | - |
