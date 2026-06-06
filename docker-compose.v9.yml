@@ -66,10 +66,10 @@ services:
       http_proxy: "${http_proxy:-}"
       https_proxy: "${https_proxy:-}"
       NO_PROXY: "localhost,127.0.0.1,172.18.0.0/16"
-      CLI_ARGS: "--highvram"
+      CLI_ARGS: "--lowvram --reserve-vram 8"
     volumes:
       - ${OUTPUT_DIR:-/mnt/agents/output}/gpu1:/mnt/agents/output/gpu1
-      - ${DATA_MODELS_DIR:-/data/models/comfyui}:/root/ComfyUI/models:ro
+      - ${DATA_MODELS_DIR:-/data/models/comfyui}:/root/ComfyUI/models:rw
       - /data/workspace/comfyui-incremental-nodes:/root/ComfyUI/custom_nodes/kais-incremental:ro
       - comfyui-cache:/tmp/hf_cache
     networks:
@@ -331,6 +331,39 @@ services:
       timeout: 5s
       retries: 3
 
+  # ---------------------------------------------------------------------------
+  # 7. hermes-agent (智能决策引擎)
+  # ---------------------------------------------------------------------------
+  # 职责: 域隔离决策引擎, 提供 decide/audit/register REST API
+  # 基于 NousResearch/hermes-agent Python 库 + FastAPI
+  # CPU-only, 无状态服务, 无 GPU 依赖
+  # 端口: 8080
+  # ---------------------------------------------------------------------------
+  hermes-agent:
+    build:
+      context: ./docker/hermes-agent
+      dockerfile: Dockerfile
+    container_name: kais-hermes-agent
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${HERMES_PORT:-8080}:8080"
+    env_file: .env
+    environment:
+      PORT: 8080
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://open.bigmodel.cn/api/paas/v4}
+      HERMES_HOME: /app/data
+    volumes:
+      - hermes-data:/app/data
+    networks:
+      - kais-net
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
   # ===========================================================================
   # Mock Profiles (开发阶段替代真实 GPU 服务)
   # ===========================================================================
@@ -379,3 +412,5 @@ volumes:
     name: kais-cosyvoice-models
   comfyui-cache:
     name: kais-comfyui-cache
+  hermes-data:
+    name: kais-hermes-data
