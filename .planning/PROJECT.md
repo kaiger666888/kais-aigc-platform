@@ -22,6 +22,10 @@ AI 短剧全链路制作平台，通过 kais-gold-team 统一执行引擎编排 
 - ✓ 云端降级 (Kling/Jimeng/Seedance) — gold-team cloud pool
 - ✓ 统一任务 API (gold-team :8002 REST) — gold-team v6
 - ✓ 图片描述 (JoyCaption) — gold-team v6
+- ✓ 域无关智能决策 API (hermes-agent REST :8080) — v1.1
+- ✓ 自学习循环 (audit → EWMA confidence → auto-learn) — v1.1
+- ✓ movie-pipeline 域注册 + 14 专家技能迁移 — v1.1
+- ✓ hermes-client.js + HERMES_DEFAULTS 降级 + Docker 部署 — v1.1
 
 ### Active
 
@@ -87,23 +91,22 @@ RTX 3090 24GB 串行调度，重模型 (Wan2.2 ~22GB) 和轻模型 (Real-ESRGAN 
 | LatentSync 选型 | 已有 ComfyUI 社区节点，基于 Whisper + diffusion，效果经过验证 | — Pending |
 | 角色 3 方案组合 | IP-Adapter FaceID (高保真) + InstantID (零样本) + PhotoMaker (多图) 覆盖不同场景 | — Pending |
 | 角色一致性不新增 TaskType | 扩展 IMAGE_DRAW/IMAGE_REFINE 的 params.extra 字段，避免枚举膨胀 | — Pending |
+| hermes-agent Python 库内嵌 | 免独立服务管理，直接 import 使用 | ✓ Good |
+| 域无关 API (domain/task/context) | 任何管线复用同一接口，不绑定电影业务 | ✓ Good |
+| EWMA alpha=0.3 | 适中的时间衰减权重 | ✓ Good |
+| Hardcoded 14 skill list | 避免动态 glob 的不确定性 | ✓ Good |
 
-## Current Milestone: v1.1 Hermes Intelligent Decision Engine
+## Current Milestone: (Planning next)
 
-**Goal:** 以 NousResearch/hermes-agent 为底座，构建通用智能决策引擎服务，为平台各管线提供自学习决策能力。
+**Goal:** TBD — start with `/gsd:new-milestone`
 
-**Target features:**
-- 域无关 REST API (decide / audit / register) — 任何管线都可通过同一接口获得智能决策
-- hermes-agent Python 库模式嵌入，利用其技能系统、记忆系统、自学习循环
-- movie-pipeline 作为首个注册域（14 专家技能 + 10 阶段参数知识迁移）
-- 替代现有 hermes-worker-agent，消除两个多余 systemd 服务
-- kais-movie-agent 管线代码零改动，仅 hermes-client.js 改 API 路径
+### Shipped: v1.1 Hermes Intelligent Decision Engine (2026-06-06)
 
-**Why hermes-agent (NousResearch, 172k stars):**
-- 内置 3 层自学习循环（技能创建 → 自我修补 → Curator 优化）
-- Python 库模式可直接嵌入，无需独立服务
-- 技能/记忆系统天然支持多域隔离
-- MCP 原生支持，可连接 OpenClaw 工具
+- 域无关 REST API (decide / audit / register / health) — hermes-agent Python 库模式
+- 自学习循环 (audit → EWMA confidence → auto-learn trigger)
+- movie-pipeline 首个域注册，14 专家技能 + 10 阶段参数知识迁移
+- hermes-client.js 适配 + HERMES_DEFAULTS 降级 + Docker 容器部署
+- 替代旧 hermes-worker-agent (:3100) 和 kais-hermes Decision API (:8080)
 
 ## Evolution
 
@@ -123,4 +126,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-06 after v1.1 milestone start*
+*Last updated: 2026-06-06 after v1.1 milestone completion*
