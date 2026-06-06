@@ -14,6 +14,7 @@ Idempotent: re-running preserves existing SOUL.md and appends to memory.
 from __future__ import annotations
 
 import json
+import shutil
 import sys
 from pathlib import Path
 
@@ -59,6 +60,26 @@ SKILLS_MANIFEST = {
 
 DOMAIN = "movie-pipeline"
 DESCRIPTION = "AI short film production pipeline - intelligent decision engine"
+
+# 14 expert skill files: 13 root-level + 1 from production_skills
+SKILL_FILES = [
+    "production_agent_decision.md",
+    "production_agent_supervision.md",
+    "production_execution_derive_assets.md",
+    "production_execution_director_plan.md",
+    "production_execution_generate_assets.md",
+    "production_execution_storyboard_gen.md",
+    "production_execution_storyboard_panel.md",
+    "production_execution_storyboard_table.md",
+    "script_agent_decision.md",
+    "script_agent_supervision.md",
+    "script_execution_adaptation.md",
+    "script_execution_script.md",
+    "script_execution_skeleton.md",
+    "storyboard_prompt_techniques.md",
+]
+
+SKILLS_SOURCE = PROJECT_ROOT / "data" / "skills"
 
 SOUL_MD_CONTENT = """\
 # Movie-Pipeline Decision Advisor
@@ -179,8 +200,27 @@ def main() -> None:
     )
     print(f"[OK] Registered domain '{DOMAIN}' with {len(TASKS)} tasks")
 
-    # Step 2: Write SOUL.md only if it does not already exist
     domain_dir = domains_dir / DOMAIN
+
+    # Step 2: Copy 14 expert skill files to domain skills directory
+    domain_skills_dir = domain_dir / "skills"
+    copied = 0
+    for filename in SKILL_FILES[:13]:
+        src = SKILLS_SOURCE / filename
+        dst = domain_skills_dir / filename
+        shutil.copy2(src, dst)
+        print(f"  [COPY] {filename}")
+        copied += 1
+    # 14th skill from production_skills/
+    shutil.copy2(
+        SKILLS_SOURCE / "production_skills" / "storyboard_prompt_techniques.md",
+        domain_skills_dir / "storyboard_prompt_techniques.md",
+    )
+    print(f"  [COPY] storyboard_prompt_techniques.md (from production_skills/)")
+    copied += 1
+    print(f"[OK] Copied {copied} skill files to {domain_skills_dir}")
+
+    # Step 3: Write SOUL.md only if it does not already exist
     soul_path = domain_dir / "SOUL.md"
     if not soul_path.exists():
         soul_path.write_text(SOUL_MD_CONTENT, encoding="utf-8")
@@ -194,7 +234,7 @@ def main() -> None:
         else:
             print(f"[SKIP] SOUL.md already exists with content, not overwriting")
 
-    # Step 3: Write seed memory to audit_history.json
+    # Step 4: Write seed memory to audit_history.json
     memory_dir = domain_dir / "memory"
     history_path = memory_dir / "audit_history.json"
 
@@ -226,6 +266,7 @@ def main() -> None:
     print(f"\n=== Registration Summary ===")
     print(f"Domain: {DOMAIN}")
     print(f"Tasks: {len(TASKS)} ({', '.join(TASKS)})")
+    print(f"Skills: {copied} files in {domain_skills_dir}")
     print(f"SOUL.md: {soul_path}")
     print(f"Seed memory: {len(seeded_tasks)} tasks in {history_path}")
 
