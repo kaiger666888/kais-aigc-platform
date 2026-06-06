@@ -86,5 +86,8 @@ data/skills/*/images/
 docker/gold-team
 docker/review-platform
 
+# ─── Claude Code local state ────────────────────────────────
+.claude/
+
 # ─── Build artifacts ────────────────────────────────────────
 docker/movie-agent/src/
