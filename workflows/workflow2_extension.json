@@ -28,7 +28,7 @@
         "Node name for S&R": "UNETLoader"
       },
       "widgets_values": [
-        "ltx-2.3-22b-distilled-fp8.safetensors",
+        "ltx-2.3-22b-distilled-mxfp8.safetensors",
         "default"
       ]
     },
@@ -95,7 +95,7 @@
     },
     {
       "id": 4,
-      "type": "LoadVideoPath",
+      "type": "VHS_LoadVideoPath",
       "pos": [
         0,
         500
