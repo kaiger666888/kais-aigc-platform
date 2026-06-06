@@ -58,7 +58,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 08-01-PLAN.md -- TDD: DomainMemory helper class (audit aggregation, EWMA confidence, auto-learn trigger, memory query)
+- [x] 08-01-PLAN.md -- TDD: DomainMemory helper class (audit aggregation, EWMA confidence, auto-learn trigger, memory query)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -106,6 +106,6 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 7. Hermes Agent Core Service | 3/3 | Complete   | 2026-06-06 |
-| 8. Learning Loop Integration | 0/2 | Not started | - |
+| 8. Learning Loop Integration | 1/2 | In Progress|  |
 | 9. Movie-Pipeline Domain Setup | 0/2 | Not started | - |
 | 10. Client Adaptation & Cutover | 0/3 | Not started | - |
