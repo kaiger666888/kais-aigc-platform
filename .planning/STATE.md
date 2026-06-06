@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-last_updated: "2026-06-06T13:21:37Z"
-last_activity: 2026-06-06 -- Completed 09-01 registration script + tests
+last_updated: "2026-06-06T13:25:54Z"
+last_activity: 2026-06-06 -- Completed 09-02 skill file migration (phase complete)
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 7
-  completed_plans: 6
-  percent: 71
+  completed_plans: 7
+  percent: 86
 ---
 
 # Project State
@@ -24,12 +24,12 @@ See: .planning/PROJECT.md (updated 2026-06-06)
 
 ## Current Position
 
-Phase: 09 (movie-pipeline-domain-setup) — EXECUTING
+Phase: 09 (movie-pipeline-domain-setup) — COMPLETE
 Plan: 2 of 2
-Status: Completed 09-01, ready for 09-02 (expert skill migration)
-Last activity: 2026-06-06 -- Completed 09-01 registration script + tests
+Status: All plans completed. Phase 09 done.
+Last activity: 2026-06-06 -- Completed 09-02 skill file migration
 
-Progress: [████████░░] 71%
+Progress: [█████████░] 86%
 
 ## Accumulated Context
 
@@ -42,6 +42,8 @@ Progress: [████████░░] 71%
 - Registration script uses direct DomainRegistry import (no HTTP dependency)
 - SOUL.md preserved on re-run; seed memory merged additively
 - FLUX default params: steps=20, guidance_scale=3.5; Wan2.2: width=832, height=480, total_steps=20
+- Hardcoded SKILL_FILES list (not glob) ensures exactly 14 files migrated
+- storyboard_table_techniques excluded; only storyboard_prompt_techniques as 14th skill
 
 ### Pending Todos
 
@@ -54,6 +56,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-06T13:21:37Z
-Stopped at: Completed 09-01-PLAN.md
-Resume file: .planning/phases/09-movie-pipeline-domain-setup/09-02-PLAN.md
+Last session: 2026-06-06T13:25:54Z
+Stopped at: Completed 09-02-PLAN.md (phase 09 complete)
+Resume file: None (phase 09 finished)

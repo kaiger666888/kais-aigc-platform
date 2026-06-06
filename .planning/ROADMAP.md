@@ -85,7 +85,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 09-02-PLAN.md -- Migrate 14 expert skills as hermes skills + verify decide returns domain-aware response
+- [x] 09-02-PLAN.md -- Migrate 14 expert skills as hermes skills + verify decide returns domain-aware response
 
 ### Phase 10: Client Adaptation & Cutover
 
