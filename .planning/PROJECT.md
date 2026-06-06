@@ -96,9 +96,12 @@ RTX 3090 24GB 串行调度，重模型 (Wan2.2 ~22GB) 和轻模型 (Real-ESRGAN 
 | EWMA alpha=0.3 | 适中的时间衰减权重 | ✓ Good |
 | Hardcoded 14 skill list | 避免动态 glob 的不确定性 | ✓ Good |
 
-## Current Milestone: (Planning next)
+## Current Milestone: v1.2 Integration Testing — Hermes-Agent
 
-**Goal:** TBD — start with `/gsd:new-milestone`
+**Goal:** 构建 hermes-agent 服务的完整集成测试体系：独立 API 测试、movie-agent 联合测试、压力稳定性测试、CI 流水线自动化。
+
+**Phases:** 11–14 (4 phases, 8 plans)
+**Key Deliverables:** docker-compose.test.yml + 集成测试套件 + 压力测试 + GitHub Actions CI
 
 ### Shipped: v1.1 Hermes Intelligent Decision Engine (2026-06-06)
 
