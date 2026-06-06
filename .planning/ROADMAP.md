@@ -9,7 +9,7 @@
 - [x] **Phase 7: Hermes Agent Core Service** - 安装 hermes-agent 并构建域无关 REST API wrapper (completed 2026-06-06)
 - [x] **Phase 8: Learning Loop Integration** - 接通 audit → memory → improve decide 自学习闭环 (completed 2026-06-06)
 - [ ] **Phase 9: Movie-Pipeline Domain Setup** - 注册首个域并迁移 14 专家知识
-- [ ] **Phase 10: Client Adaptation & Cutover** - 适配客户端、替换旧服务、端到端验证
+- [x] **Phase 10: Client Adaptation & Cutover** - 适配客户端、替换旧服务、端到端验证 (completed 2026-06-06)
 
 ## Phase Details
 
@@ -104,11 +104,11 @@ Plans:
 **Wave 1**
 
 - [x] 10-01-PLAN.md -- Create hermes-client.js (decide/audit + HERMES_DEFAULTS fallback) + unit tests
-- [ ] 10-02-PLAN.md -- Dockerfile + docker-compose hermes-agent service + migration documentation
+- [x] 10-02-PLAN.md -- Dockerfile + docker-compose hermes-agent service + migration documentation
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 10-03-PLAN.md -- End-to-end validation (health, register, decide, audit, multi-task) against Docker container
+- [x] 10-03-PLAN.md -- End-to-end validation (health, register, decide, audit, multi-task) against Docker container
 
 ## Progress
 
@@ -119,4 +119,4 @@ Plans:
 | 7. Hermes Agent Core Service | 3/3 | Complete   | 2026-06-06 |
 | 8. Learning Loop Integration | 2/2 | Complete   | 2026-06-06 |
 | 9. Movie-Pipeline Domain Setup | 2/2 | Complete   | 2026-06-06 |
-| 10. Client Adaptation & Cutover | 0/3 | Not started | - |
+| 10. Client Adaptation & Cutover | 3/3 | Complete   | 2026-06-06 |
