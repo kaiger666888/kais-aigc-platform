@@ -1,10 +1,12 @@
 .devtools
-# dependencies (bun install)
+# dependencies
 node_modules
 .vscode
+
 # output
 out
 dist
+build/*
 *.tgz
 
 # code coverage
@@ -15,6 +17,7 @@ coverage
 logs
 _.log
 report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
+server.log
 
 # dotenv environment variable files
 .env
@@ -34,34 +37,54 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # Finder (MacOS) folder config
 .DS_Store
 
-build/*
-
+# uploads
 upload/*
 uploads/*
 
+# databases
+*.sqlite
 db.sqlite
 db.sqlite-shm
 db.sqlite-wal
-
-web/*
-
-*.sqlite
-
-router.ts
-
 database.d.ts
 
-.devtools
+# auto-generated
+router.ts
+version.txt
+__pycache__/
+
+# frontend build (root level)
+web/*
+
+# ─── Data directories (runtime/generated) ───────────────────
 data/oss/*
 data/test.sqlite
-version.txt__pycache__/
+data/web/
+data/serve/
+data/models/
+data/assets/
+data/workspace/
+data/db2*.sqlite*
 
-# Independent repo (symlink)
+# Test outputs
+test-output/
+
+# Skill example images (large)
+data/skills/*/images/
+
+# ─── Large binary files ────────────────────────────────────
+*.glb
+*.mp4
+*.onnx
+*.pt
+*.pth
+*.safetensors
+*.bin
+*.pkl
+
+# ─── Independent repos (symlinks) ───────────────────────────
 docker/gold-team
-
-# Independent repo (symlink)
 docker/review-platform
 
-# Build artifacts (copied by build.sh from skill repos)
+# ─── Build artifacts ────────────────────────────────────────
 docker/movie-agent/src/
-server.log
