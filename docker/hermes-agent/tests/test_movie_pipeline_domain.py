@@ -15,6 +15,8 @@ from fastapi.testclient import TestClient
 from src.core.domain_memory import DomainMemory
 from src.core.domain_registry import DomainRegistry
 
+import shutil
+
 # 10 pipeline tasks from pipeline.js PHASES (excluding quality-gate)
 TASKS = [
     "requirement",
@@ -277,3 +279,153 @@ class TestMoviePipelineDomain:
         assert resp.status_code == 200
         data = resp.json()
         assert "skills" in data
+
+    # --- 14 skill file migration tests (Plan 02 / MOVIE-02) ---
+
+    # 14 skill files: 13 root + 1 from production_skills
+    SKILL_FILES = [
+        "production_agent_decision.md",
+        "production_agent_supervision.md",
+        "production_execution_derive_assets.md",
+        "production_execution_director_plan.md",
+        "production_execution_generate_assets.md",
+        "production_execution_storyboard_gen.md",
+        "production_execution_storyboard_panel.md",
+        "production_execution_storyboard_table.md",
+        "script_agent_decision.md",
+        "script_agent_supervision.md",
+        "script_execution_adaptation.md",
+        "script_execution_script.md",
+        "script_execution_skeleton.md",
+        "storyboard_prompt_techniques.md",
+    ]
+
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+    SKILLS_SOURCE = PROJECT_ROOT / "data" / "skills"
+
+    def _copy_skill_files(self, dest_dir: Path) -> None:
+        """Copy 14 skill .md files to the given directory (mirrors registration script)."""
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        for filename in self.SKILL_FILES[:13]:
+            shutil.copy2(self.SKILLS_SOURCE / filename, dest_dir / filename)
+        shutil.copy2(
+            self.SKILLS_SOURCE / "production_skills" / "storyboard_prompt_techniques.md",
+            dest_dir / "storyboard_prompt_techniques.md",
+        )
+
+    def test_skills_count_14(
+        self, registry: DomainRegistry, tmp_hermes_dir: Path
+    ) -> None:
+        """After copying 14 skill files, get_skills() returns 14 names."""
+        registry.register(
+            domain="movie-pipeline",
+            description="AI short film pipeline",
+            tasks=TASKS,
+            skills_manifest={},
+        )
+        skills_dir = tmp_hermes_dir / "domains" / "movie-pipeline" / "skills"
+        self._copy_skill_files(skills_dir)
+
+        skills = registry.get_skills("movie-pipeline")
+        assert len(skills) == 14
+
+    def test_skills_names(
+        self, registry: DomainRegistry, tmp_hermes_dir: Path
+    ) -> None:
+        """The 14 skill names match the expected list (no storyboard_table_techniques)."""
+        registry.register(
+            domain="movie-pipeline",
+            description="AI short film pipeline",
+            tasks=TASKS,
+            skills_manifest={},
+        )
+        skills_dir = tmp_hermes_dir / "domains" / "movie-pipeline" / "skills"
+        self._copy_skill_files(skills_dir)
+
+        expected_names = sorted([
+            "production_agent_decision",
+            "production_agent_supervision",
+            "production_execution_derive_assets",
+            "production_execution_director_plan",
+            "production_execution_generate_assets",
+            "production_execution_storyboard_gen",
+            "production_execution_storyboard_panel",
+            "production_execution_storyboard_table",
+            "script_agent_decision",
+            "script_agent_supervision",
+            "script_execution_adaptation",
+            "script_execution_script",
+            "script_execution_skeleton",
+            "storyboard_prompt_techniques",
+        ])
+        skills = registry.get_skills("movie-pipeline")
+        assert sorted(skills) == expected_names
+
+    def test_skills_api(
+        self, client: TestClient, tmp_hermes_dir: Path
+    ) -> None:
+        """GET /v1/domains/movie-pipeline/skills returns 14 skills via API."""
+        resp = client.post(
+            "/v1/register",
+            json={
+                "domain": "movie-pipeline",
+                "description": "AI short film production pipeline",
+                "tasks": TASKS,
+                "skills_manifest": {},
+            },
+        )
+        assert resp.status_code == 201
+
+        skills_dir = tmp_hermes_dir / "domains" / "movie-pipeline" / "skills"
+        self._copy_skill_files(skills_dir)
+
+        resp = client.get("/v1/domains/movie-pipeline/skills")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["domain"] == "movie-pipeline"
+        assert len(data["skills"]) == 14
+
+    def test_decide_soul_visual(self, client: TestClient) -> None:
+        """POST /v1/decide for movie-pipeline soul-visual returns valid response."""
+        client.post(
+            "/v1/register",
+            json={
+                "domain": "movie-pipeline",
+                "description": "AI short film production pipeline",
+                "tasks": TASKS,
+                "skills_manifest": {},
+            },
+        )
+
+        resp = client.post(
+            "/v1/decide",
+            json={
+                "domain": "movie-pipeline",
+                "task": "soul-visual",
+                "context": {"action": "generate_character_image"},
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "decision_id" in data
+        assert "recommendation" in data
+        assert "confidence" in data
+        assert data["confidence"] == 0.0
+        assert data["domain"] == "movie-pipeline"
+        assert data["task"] == "soul-visual"
+
+    def test_skill_files_exist_on_disk(
+        self, registry: DomainRegistry, tmp_hermes_dir: Path
+    ) -> None:
+        """All 14 .md files physically exist in the domain skills directory."""
+        registry.register(
+            domain="movie-pipeline",
+            description="AI short film pipeline",
+            tasks=TASKS,
+            skills_manifest={},
+        )
+        skills_dir = tmp_hermes_dir / "domains" / "movie-pipeline" / "skills"
+        self._copy_skill_files(skills_dir)
+
+        for filename in self.SKILL_FILES:
+            assert (skills_dir / filename).exists(), f"Missing: {filename}"
