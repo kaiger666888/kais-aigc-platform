@@ -1,0 +1,570 @@
+{
+  "last_node_id": 11,
+  "last_link_id": 12,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "WanVideoModelLoader",
+      "pos": [
+        0,
+        0
+      ],
+      "size": [
+        315,
+        180
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "WANVIDEOMODEL",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WanVideoModelLoader"
+      },
+      "widgets_values": [
+        "wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors",
+        "bf16",
+        "fp8_e4m3fn_scaled",
+        "offload_device"
+      ],
+      "title": "High Noise Model (Stage 1)"
+    },
+    {
+      "id": 2,
+      "type": "WanVideoModelLoader",
+      "pos": [
+        0,
+        250
+      ],
+      "size": [
+        315,
+        180
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "WANVIDEOMODEL",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WanVideoModelLoader"
+      },
+      "widgets_values": [
+        "wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors",
+        "bf16",
+        "fp8_e4m3fn_scaled",
+        "offload_device"
+      ],
+      "title": "Low Noise Model (Stage 2)"
+    },
+    {
+      "id": 3,
+      "type": "LoadWanVideoT5TextEncoder",
+      "pos": [
+        0,
+        500
+      ],
+      "size": [
+        315,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "wan_t5_model",
+          "type": "WANTEXTENCODER",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadWanVideoT5TextEncoder"
+      },
+      "widgets_values": [
+        "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+        "bf16",
+        "offload_device",
+        "disabled"
+      ],
+      "title": "T5 Text Encoder"
+    },
+    {
+      "id": 4,
+      "type": "WanVideoTextEncode",
+      "pos": [
+        400,
+        0
+      ],
+      "size": [
+        400,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "t5",
+          "type": "WANTEXTENCODER",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "text_embeds",
+          "type": "WANVIDEOTEXTEMBEDS",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WanVideoTextEncode"
+      },
+      "widgets_values": [
+        "cinematic film still, a young woman in red dress standing in a neon-lit alley at night, rain reflecting neon signs, moody atmosphere, 35mm film grain, volumetric lighting",
+        "blurry, low quality, distorted, watermark, text, static"
+      ],
+      "title": "Text Encode"
+    },
+    {
+      "id": 5,
+      "type": "WanVideoVAELoader",
+      "pos": [
+        0,
+        700
+      ],
+      "size": [
+        315,
+        80
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "vae",
+          "type": "WANVAE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WanVideoVAELoader"
+      },
+      "widgets_values": [
+        "wan_2.1_vae.safetensors",
+        "bf16"
+      ],
+      "title": "Wan VAE"
+    },
+    {
+      "id": 6,
+      "type": "LoadImage",
+      "pos": [
+        0,
+        850
+      ],
+      "size": [
+        315,
+        314
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "example.png",
+        "image"
+      ],
+      "title": "Start Frame Image"
+    },
+    {
+      "id": 7,
+      "type": "WanVideoImageToVideoEncode",
+      "pos": [
+        400,
+        200
+      ],
+      "size": [
+        350,
+        260
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "vae",
+          "type": "WANVAE",
+          "link": 2
+        },
+        {
+          "name": "start_image",
+          "type": "IMAGE",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image_embeds",
+          "type": "WANVIDIMAGE_EMBEDS",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WanVideoImageToVideoEncode"
+      },
+      "widgets_values": [
+        832,
+        480,
+        81,
+        0.0,
+        1.0,
+        1.0,
+        true
+      ],
+      "title": "I2V Encode (81 frames)"
+    },
+    {
+      "id": 8,
+      "type": "WanVideoSampler",
+      "pos": [
+        800,
+        0
+      ],
+      "size": [
+        400,
+        400
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "WANVIDEOMODEL",
+          "link": 4
+        },
+        {
+          "name": "image_embeds",
+          "type": "WANVIDIMAGE_EMBEDS",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "links": []
+        },
+        {
+          "name": "denoised_samples",
+          "type": "LATENT",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WanVideoSampler"
+      },
+      "widgets_values": [
+        20,
+        3.5,
+        8.0,
+        42,
+        true,
+        "euler/beta",
+        0
+      ],
+      "title": "Stage 1 Sampler (shift=8, steps=20)"
+    },
+    {
+      "id": 9,
+      "type": "WanVideoSampler",
+      "pos": [
+        800,
+        500
+      ],
+      "size": [
+        400,
+        400
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "WANVIDEOMODEL",
+          "link": 6
+        },
+        {
+          "name": "image_embeds",
+          "type": "WANVIDIMAGE_EMBEDS",
+          "link": 7
+        },
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 8
+        }
+      ],
+      "outputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "links": []
+        },
+        {
+          "name": "denoised_samples",
+          "type": "LATENT",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WanVideoSampler"
+      },
+      "widgets_values": [
+        30,
+        3.5,
+        4.0,
+        42,
+        true,
+        "euler/beta",
+        0
+      ],
+      "title": "Stage 2 Sampler (shift=4, steps=30)"
+    },
+    {
+      "id": 10,
+      "type": "WanVideoDecode",
+      "pos": [
+        1250,
+        200
+      ],
+      "size": [
+        350,
+        200
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "vae",
+          "type": "WANVAE",
+          "link": 9
+        },
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WanVideoDecode"
+      },
+      "widgets_values": [
+        false,
+        272,
+        272,
+        144,
+        128
+      ]
+    },
+    {
+      "id": 11,
+      "type": "VHS_VideoCombine",
+      "pos": [
+        1650,
+        200
+      ],
+      "size": [
+        320,
+        200
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 11
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "widgets_values": {
+        "frame_rate": 16,
+        "loop_count": 0,
+        "filename_prefix": "wan_dual_stage_i2v",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": true,
+        "trim_to_audio": false,
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "wan_dual_stage_i2v.mp4",
+            "subfolder": "",
+            "type": "output",
+            "format": "video/h264-mp4",
+            "frame_rate": 16
+          }
+        }
+      }
+    }
+  ],
+  "links": [
+    [
+      1,
+      3,
+      0,
+      4,
+      0,
+      "WANTEXTENCODER"
+    ],
+    [
+      2,
+      5,
+      0,
+      7,
+      0,
+      "WANVAE"
+    ],
+    [
+      3,
+      6,
+      0,
+      7,
+      1,
+      "IMAGE"
+    ],
+    [
+      4,
+      1,
+      0,
+      8,
+      0,
+      "WANVIDEOMODEL"
+    ],
+    [
+      5,
+      7,
+      0,
+      8,
+      1,
+      "WANVIDIMAGE_EMBEDS"
+    ],
+    [
+      6,
+      2,
+      0,
+      9,
+      0,
+      "WANVIDEOMODEL"
+    ],
+    [
+      7,
+      7,
+      0,
+      9,
+      1,
+      "WANVIDIMAGE_EMBEDS"
+    ],
+    [
+      8,
+      8,
+      0,
+      9,
+      2,
+      "LATENT"
+    ],
+    [
+      9,
+      5,
+      0,
+      10,
+      0,
+      "WANVAE"
+    ],
+    [
+      10,
+      9,
+      0,
+      10,
+      1,
+      "LATENT"
+    ],
+    [
+      11,
+      10,
+      0,
+      11,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "title": "Workflow 4: Wan 2.2 I2V Dual Stage (High+Low Noise)",
+      "bounding": [
+        -50,
+        -50,
+        2400,
+        1500
+      ],
+      "color": "#3f789e"
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 1,
+      "offset": [
+        0,
+        0
+      ]
+    },
+    "info": {
+      "name": "Workflow 4: Wan 2.2 I2V Dual Stage (High+Low Noise)",
+      "description": "Dual-stage I2V: Stage 1 (high noise, shift=8, steps=20) → Stage 2 (low noise, shift=4, steps=30, denoise=0.6). Best quality output for Wan 2.2."
+    }
+  },
+  "version": 0.4
+}

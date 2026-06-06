@@ -28,7 +28,7 @@
         "Node name for S&R": "UNETLoader"
       },
       "widgets_values": [
-        "ltx-2.3-22b-distilled-mxfp8.safetensors",
+        "ltx-2.3-22b-distilled-fp8.safetensors",
         "default"
       ]
     },
@@ -151,7 +151,7 @@
       "widgets_values": [
         832,
         480,
-        81,
+        161,
         1
       ]
     },

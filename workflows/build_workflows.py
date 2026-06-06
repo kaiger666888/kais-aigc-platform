@@ -489,6 +489,7 @@ def build_workflow3():
 
 
 if __name__ == "__main__":
+    # LTX-2.3 workflows
     workflows = [
         ("workflow1_prompt_relay_i2v.json", build_workflow1),
         ("workflow2_extension.json", build_workflow2),
@@ -501,3 +502,26 @@ if __name__ == "__main__":
         with open(path, "w", encoding="utf-8") as f:
             json.dump(wf, f, indent=2, ensure_ascii=False)
         print(f"✅ {filename} ({len(wf['nodes'])} nodes, {len(wf['links'])} links)")
+
+    # Wan 2.2 workflows (imported from build_wflows)
+    from build_wflows import (
+        build_workflow4, build_workflow5, build_workflow6,
+        build_workflow7, build_workflow8, build_workflow9,
+    )
+    wan_workflows = [
+        ("workflow4_wan_i2v_dual_stage.json", build_workflow4),
+        ("workflow5_wan_t2v.json", build_workflow5),
+        ("workflow6_wan_animate_mix.json", build_workflow6),
+        ("workflow7_wan_animate_move.json", build_workflow7),
+        ("workflow8_wan_video_extend.json", build_workflow8),
+        ("workflow9_wan_i2v_quick.json", build_workflow9),
+    ]
+
+    for filename, builder in wan_workflows:
+        wf = builder()
+        path = os.path.join(OUT_DIR, filename)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(wf, f, indent=2, ensure_ascii=False)
+        print(f"✅ {filename} ({len(wf['nodes'])} nodes, {len(wf['links'])} links)")
+
+    print(f"\nGenerated {len(workflows)} LTX + {len(wan_workflows)} Wan = {len(workflows)+len(wan_workflows)} workflows total")

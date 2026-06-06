@@ -1,0 +1,457 @@
+{
+  "last_node_id": 9,
+  "last_link_id": 9,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "WanVideoModelLoader",
+      "pos": [
+        0,
+        0
+      ],
+      "size": [
+        315,
+        180
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "WANVIDEOMODEL",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WanVideoModelLoader"
+      },
+      "widgets_values": [
+        "wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors",
+        "bf16",
+        "fp8_e4m3fn_scaled",
+        "offload_device"
+      ],
+      "title": "I2V Model (Animate)"
+    },
+    {
+      "id": 2,
+      "type": "LoadWanVideoT5TextEncoder",
+      "pos": [
+        0,
+        250
+      ],
+      "size": [
+        315,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "wan_t5_model",
+          "type": "WANTEXTENCODER",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadWanVideoT5TextEncoder"
+      },
+      "widgets_values": [
+        "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+        "bf16",
+        "offload_device",
+        "disabled"
+      ],
+      "title": "T5 Text Encoder"
+    },
+    {
+      "id": 3,
+      "type": "WanVideoTextEncode",
+      "pos": [
+        400,
+        0
+      ],
+      "size": [
+        500,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "t5",
+          "type": "WANTEXTENCODER",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "text_embeds",
+          "type": "WANVIDEOTEXTEMBEDS",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WanVideoTextEncode"
+      },
+      "widgets_values": [
+        "cinematic film still, a young woman in red dress standing in a neon-lit alley at night, rain reflecting neon signs, moody atmosphere, 35mm film grain, volumetric lighting, she gracefully dances in the rain",
+        "blurry, low quality, distorted, watermark, text, static"
+      ],
+      "title": "Text Encode"
+    },
+    {
+      "id": 4,
+      "type": "WanVideoVAELoader",
+      "pos": [
+        0,
+        450
+      ],
+      "size": [
+        315,
+        80
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "vae",
+          "type": "WANVAE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WanVideoVAELoader"
+      },
+      "widgets_values": [
+        "wan_2.1_vae.safetensors",
+        "bf16"
+      ],
+      "title": "Wan VAE"
+    },
+    {
+      "id": 5,
+      "type": "LoadImage",
+      "pos": [
+        0,
+        600
+      ],
+      "size": [
+        315,
+        314
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "character_ref.png",
+        "image"
+      ],
+      "title": "Reference Character"
+    },
+    {
+      "id": 6,
+      "type": "WanVideoAnimateEmbeds",
+      "pos": [
+        400,
+        200
+      ],
+      "size": [
+        400,
+        260
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "vae",
+          "type": "WANVAE",
+          "link": 2
+        },
+        {
+          "name": "ref_images",
+          "type": "IMAGE",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image_embeds",
+          "type": "WANVIDIMAGE_EMBEDS",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WanVideoAnimateEmbeds"
+      },
+      "widgets_values": [
+        832,
+        480,
+        81,
+        true,
+        77,
+        "disabled",
+        1.0,
+        1.0
+      ],
+      "title": "Animate Embeds (character ref)"
+    },
+    {
+      "id": 7,
+      "type": "WanVideoSampler",
+      "pos": [
+        850,
+        0
+      ],
+      "size": [
+        400,
+        400
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "WANVIDEOMODEL",
+          "link": 4
+        },
+        {
+          "name": "image_embeds",
+          "type": "WANVIDIMAGE_EMBEDS",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "links": []
+        },
+        {
+          "name": "denoised_samples",
+          "type": "LATENT",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WanVideoSampler"
+      },
+      "widgets_values": [
+        30,
+        3.5,
+        5.0,
+        42,
+        true,
+        "euler/beta",
+        0
+      ],
+      "title": "Animate Sampler"
+    },
+    {
+      "id": 8,
+      "type": "WanVideoDecode",
+      "pos": [
+        1300,
+        0
+      ],
+      "size": [
+        350,
+        200
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "vae",
+          "type": "WANVAE",
+          "link": 6
+        },
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WanVideoDecode"
+      },
+      "widgets_values": [
+        false,
+        272,
+        272,
+        144,
+        128
+      ]
+    },
+    {
+      "id": 9,
+      "type": "VHS_VideoCombine",
+      "pos": [
+        1700,
+        0
+      ],
+      "size": [
+        320,
+        200
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 8
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "widgets_values": {
+        "frame_rate": 16,
+        "loop_count": 0,
+        "filename_prefix": "wan_animate_mix",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": true,
+        "trim_to_audio": false,
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "wan_animate_mix.mp4",
+            "subfolder": "",
+            "type": "output",
+            "format": "video/h264-mp4",
+            "frame_rate": 16
+          }
+        }
+      }
+    }
+  ],
+  "links": [
+    [
+      1,
+      2,
+      0,
+      3,
+      0,
+      "WANTEXTENCODER"
+    ],
+    [
+      2,
+      4,
+      0,
+      6,
+      0,
+      "WANVAE"
+    ],
+    [
+      3,
+      5,
+      0,
+      6,
+      1,
+      "IMAGE"
+    ],
+    [
+      4,
+      1,
+      0,
+      7,
+      0,
+      "WANVIDEOMODEL"
+    ],
+    [
+      5,
+      6,
+      0,
+      7,
+      1,
+      "WANVIDIMAGE_EMBEDS"
+    ],
+    [
+      6,
+      4,
+      0,
+      8,
+      0,
+      "WANVAE"
+    ],
+    [
+      7,
+      7,
+      0,
+      8,
+      1,
+      "LATENT"
+    ],
+    [
+      8,
+      8,
+      0,
+      9,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "title": "Workflow 6: Wan 2.2 Animate Mix (Character Consistency)",
+      "bounding": [
+        -50,
+        -50,
+        2400,
+        1200
+      ],
+      "color": "#2a5f2a"
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 1,
+      "offset": [
+        0,
+        0
+      ]
+    },
+    "info": {
+      "name": "Workflow 6: Wan 2.2 Animate Mix (Character Consistency)",
+      "description": "Character consistency + style transfer. Reference image maintains character appearance while generating new motion/video."
+    }
+  },
+  "version": 0.4
+}

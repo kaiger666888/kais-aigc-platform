@@ -1,0 +1,520 @@
+{
+  "last_node_id": 10,
+  "last_link_id": 10,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "VHS_LoadVideoPath",
+      "pos": [
+        0,
+        0
+      ],
+      "size": [
+        315,
+        210
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": []
+        },
+        {
+          "name": "frame_count",
+          "type": "INT",
+          "links": []
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": []
+        },
+        {
+          "name": "video_info",
+          "type": "VHS_VIDEOINFO",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_LoadVideoPath"
+      },
+      "widgets_values": [
+        "input_video.mp4",
+        0,
+        0,
+        0,
+        "start_frame",
+        1,
+        false
+      ],
+      "title": "Load Video"
+    },
+    {
+      "id": 2,
+      "type": "GetImagesFromBatchIndexed",
+      "pos": [
+        400,
+        0
+      ],
+      "size": [
+        315,
+        60
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "GetImagesFromBatchIndexed"
+      },
+      "widgets_values": [
+        "-1"
+      ],
+      "title": "Extract Last Frame"
+    },
+    {
+      "id": 3,
+      "type": "WanVideoModelLoader",
+      "pos": [
+        0,
+        300
+      ],
+      "size": [
+        315,
+        180
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "WANVIDEOMODEL",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WanVideoModelLoader"
+      },
+      "widgets_values": [
+        "wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors",
+        "bf16",
+        "fp8_e4m3fn_scaled",
+        "offload_device"
+      ],
+      "title": "I2V Model (Extend)"
+    },
+    {
+      "id": 4,
+      "type": "LoadWanVideoT5TextEncoder",
+      "pos": [
+        0,
+        550
+      ],
+      "size": [
+        315,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "wan_t5_model",
+          "type": "WANTEXTENCODER",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadWanVideoT5TextEncoder"
+      },
+      "widgets_values": [
+        "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+        "bf16",
+        "offload_device",
+        "disabled"
+      ],
+      "title": "T5 Text Encoder"
+    },
+    {
+      "id": 5,
+      "type": "WanVideoTextEncode",
+      "pos": [
+        400,
+        200
+      ],
+      "size": [
+        500,
+        120
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "t5",
+          "type": "WANTEXTENCODER",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "text_embeds",
+          "type": "WANVIDEOTEXTEMBEDS",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WanVideoTextEncode"
+      },
+      "widgets_values": [
+        "continuation of the scene, smooth transition, consistent motion",
+        "blurry, low quality, distorted, watermark, text, static"
+      ],
+      "title": "Text Encode (Extend)"
+    },
+    {
+      "id": 6,
+      "type": "WanVideoVAELoader",
+      "pos": [
+        0,
+        750
+      ],
+      "size": [
+        315,
+        80
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "vae",
+          "type": "WANVAE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WanVideoVAELoader"
+      },
+      "widgets_values": [
+        "wan_2.1_vae.safetensors",
+        "bf16"
+      ],
+      "title": "Wan VAE"
+    },
+    {
+      "id": 7,
+      "type": "WanVideoImageToVideoEncode",
+      "pos": [
+        400,
+        400
+      ],
+      "size": [
+        350,
+        260
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "vae",
+          "type": "WANVAE",
+          "link": 3
+        },
+        {
+          "name": "start_image",
+          "type": "IMAGE",
+          "link": 4
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image_embeds",
+          "type": "WANVIDIMAGE_EMBEDS",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WanVideoImageToVideoEncode"
+      },
+      "widgets_values": [
+        832,
+        480,
+        77,
+        0.0,
+        1.0,
+        1.0,
+        true
+      ],
+      "title": "I2V Encode (77 frames extend)"
+    },
+    {
+      "id": 8,
+      "type": "WanVideoSampler",
+      "pos": [
+        800,
+        200
+      ],
+      "size": [
+        400,
+        400
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "WANVIDEOMODEL",
+          "link": 5
+        },
+        {
+          "name": "image_embeds",
+          "type": "WANVIDIMAGE_EMBEDS",
+          "link": 6
+        }
+      ],
+      "outputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "links": []
+        },
+        {
+          "name": "denoised_samples",
+          "type": "LATENT",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WanVideoSampler"
+      },
+      "widgets_values": [
+        30,
+        3.5,
+        5.0,
+        42,
+        true,
+        "euler/beta",
+        0
+      ],
+      "title": "Extend Sampler (77f)"
+    },
+    {
+      "id": 9,
+      "type": "WanVideoDecode",
+      "pos": [
+        1250,
+        200
+      ],
+      "size": [
+        350,
+        200
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "vae",
+          "type": "WANVAE",
+          "link": 7
+        },
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 8
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WanVideoDecode"
+      },
+      "widgets_values": [
+        false,
+        272,
+        272,
+        144,
+        128
+      ]
+    },
+    {
+      "id": 10,
+      "type": "VHS_VideoCombine",
+      "pos": [
+        1650,
+        200
+      ],
+      "size": [
+        320,
+        200
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 9
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "widgets_values": {
+        "frame_rate": 16,
+        "loop_count": 0,
+        "filename_prefix": "wan_extend",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": true,
+        "trim_to_audio": false,
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "wan_extend.mp4",
+            "subfolder": "",
+            "type": "output",
+            "format": "video/h264-mp4",
+            "frame_rate": 16
+          }
+        }
+      }
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "IMAGE"
+    ],
+    [
+      2,
+      4,
+      0,
+      5,
+      0,
+      "WANTEXTENCODER"
+    ],
+    [
+      3,
+      6,
+      0,
+      7,
+      0,
+      "WANVAE"
+    ],
+    [
+      4,
+      2,
+      0,
+      7,
+      1,
+      "IMAGE"
+    ],
+    [
+      5,
+      3,
+      0,
+      8,
+      0,
+      "WANVIDEOMODEL"
+    ],
+    [
+      6,
+      7,
+      0,
+      8,
+      1,
+      "WANVIDIMAGE_EMBEDS"
+    ],
+    [
+      7,
+      6,
+      0,
+      9,
+      0,
+      "WANVAE"
+    ],
+    [
+      8,
+      8,
+      0,
+      9,
+      1,
+      "LATENT"
+    ],
+    [
+      9,
+      9,
+      0,
+      10,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "title": "Workflow 8: Wan 2.2 Video Extend",
+      "bounding": [
+        -50,
+        -50,
+        2300,
+        1200
+      ],
+      "color": "#7a3f3f"
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 1,
+      "offset": [
+        0,
+        0
+      ]
+    },
+    "info": {
+      "name": "Workflow 8: Wan 2.2 Video Extend",
+      "description": "Video extension: extract last frame from existing video, generate continuation. Feed output back as input for iterative extending."
+    }
+  },
+  "version": 0.4
+}
