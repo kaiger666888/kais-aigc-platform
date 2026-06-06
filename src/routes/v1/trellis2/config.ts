@@ -5,3 +5,6 @@ export const TRELLIS2_CONFIG = {
   comfyuiInputDir: "/app/ComfyUI/input",
   comfyuiOutputDir: "/app/ComfyUI/output",
 };
+
+// NOTE: exported as route handler (no-op) because auto-router scans all .ts in routes/
+export default function configRoute() { /* config-only, no HTTP handler */ }

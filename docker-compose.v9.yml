@@ -1,0 +1,381 @@
+# =============================================================================
+# KAIS AIGC Platform V9.0 — MEGAPAK 大一统 ComfyUI 双引擎架构
+# =============================================================================
+# 核心变更 (vs V8):
+#   - ComfyUI 统一使用 yanwk/comfyui-boot:cu130-megapak-pt211 基线镜像
+#   - 双引擎: comfyui-primary (3090/24GB) + comfyui-auxiliary (3060Ti/5.5GB 可用)
+#   - 3090 职责: 视频生成(Wan 2.2/LTX)、3D(TRELLIS2)、FLUX、TRELLIS2 抽卡预览
+#   - 3060Ti 职责: 放大(4x)、背景移除(RMBG)、SDXL 预处理、轻量推理
+#   - 共享模型库 /data/models/comfyui (只读), 共享缓存, 输出按引擎隔离
+#   - 增量节点通过 /data/workspace/comfyui-incremental-nodes 挂载
+#   - 碎片容器全部清理, 统一到 compose 管理
+#
+# 架构:
+#   ┌─────────────────────────────────────────────────┐
+#   │ comfyui-primary (GPU 1/3090, :8188)            │
+#   │ Wan 2.2 I2V 14B · FLUX · LTX · TRELLIS2 · 抽卡 │
+#   │ 输出 → /mnt/agents/output/gpu1/                 │
+#   ├─────────────────────────────────────────────────┤
+#   │ comfyui-auxiliary (GPU 0/3060Ti, :8189)         │
+#   │ 4x 放大 · RMBG · SDXL 预处理 · 轻量推理         │
+#   │ 输出 → /mnt/agents/output/gpu0/                 │
+#   ├─────────────────────────────────────────────────┤
+#   │ kais-gold-team (GPU 1/3090, :8002)              │
+#   │ 调度中枢: 路由到 primary/auxiliary               │
+#   ├─────────────────────────────────────────────────┤
+#   │ kais-core-backend · redis · audit-db · review    │
+#   └─────────────────────────────────────────────────┘
+#
+# 用法:
+#   全部启动:  docker compose -f docker-compose.v9.yml up -d
+#   仅引擎:   docker compose -f docker-compose.v9.yml up -d comfyui-primary comfyui-auxiliary
+#   仅核心:   docker compose -f docker-compose.v9.yml up -d core-backend gold-team
+#   开发 mock: docker compose -f docker-compose.v9.yml --profile mock up -d
+#   停止:      docker compose -f docker-compose.v9.yml down
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # 0. comfyui-primary (3090 主生产引擎)
+  # ---------------------------------------------------------------------------
+  # 职责: 视频生成(Wan 2.2/1.4 I2V-T2V)、FLUX 图像、LTX-Video、
+  #       TRELLIS2 3D 生成、抽卡预览、大模型推理
+  # GPU: RTX 3090 24GB (device_ids: ["1"])
+  # 端口: 8188
+  # ---------------------------------------------------------------------------
+  comfyui-primary:
+    image: ${COMFYUI_BASE_IMAGE:-yanwk/comfyui-boot:cu130-megapak-pt211}
+    container_name: comfyui-primary
+    restart: unless-stopped
+    ports:
+      - "${COMFYUI_PRIMARY_PORT:-8188}:8188"
+    environment:
+      COMFYUI_LISTEN: "0.0.0.0"
+      COMFYUI_PORT: 8188
+      NVIDIA_VISIBLE_DEVICES: "1"
+      NVIDIA_DRIVER_CAPABILITIES: "compute,utility,graphics"
+      TORCH_CUDA_DISABLE_TRITON: "1"
+      TRANSFORMERS_CACHE: /tmp/hf_cache
+      TORCH_HOME: /tmp/torch_cache
+      OUTPUT_DIR: /mnt/agents/output/gpu1
+      MODELS_DIR: /data/models/comfyui
+      HF_ENDPOINT: "https://hf-mirror.com"
+      HTTP_PROXY: "${HTTP_PROXY:-}"
+      HTTPS_PROXY: "${HTTPS_PROXY:-}"
+      http_proxy: "${http_proxy:-}"
+      https_proxy: "${https_proxy:-}"
+      NO_PROXY: "localhost,127.0.0.1,172.18.0.0/16"
+      CLI_ARGS: "--highvram"
+    volumes:
+      - ${OUTPUT_DIR:-/mnt/agents/output}/gpu1:/mnt/agents/output/gpu1
+      - ${DATA_MODELS_DIR:-/data/models/comfyui}:/root/ComfyUI/models:ro
+      - /data/workspace/comfyui-incremental-nodes:/root/ComfyUI/custom_nodes/kais-incremental:ro
+      - comfyui-cache:/tmp/hf_cache
+    networks:
+      - kais-net
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["1"]
+              capabilities: [gpu]
+    shm_size: "4g"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8188/system_stats')"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 180s
+
+  # ---------------------------------------------------------------------------
+  # 1. comfyui-auxiliary (3060Ti 辅助引擎)
+  # ---------------------------------------------------------------------------
+  # 职责: 4x 放大/超分辨率、背景移除(RMBG)、SDXL 抽卡预处理、
+  #       轻量图像后处理、音频预处理
+  # GPU: RTX 3060Ti 8GB (可用 ~5.5GB, device_ids: ["0"])
+  # 端口: 8189
+  # ⚠️ 不可用于: 大模型推理 (>5GB VRAM)、视频生成、3D
+  # ---------------------------------------------------------------------------
+  comfyui-auxiliary:
+    image: ${COMFYUI_BASE_IMAGE:-yanwk/comfyui-boot:cu130-megapak-pt211}
+    container_name: comfyui-auxiliary
+    restart: unless-stopped
+    ports:
+      - "${COMFYUI_AUX_PORT:-8189}:8188"
+    environment:
+      COMFYUI_LISTEN: "0.0.0.0"
+      COMFYUI_PORT: 8188
+      NVIDIA_VISIBLE_DEVICES: "0"
+      NVIDIA_DRIVER_CAPABILITIES: "compute,utility,graphics"
+      TORCH_CUDA_DISABLE_TRITON: "1"
+      TRANSFORMERS_CACHE: /tmp/hf_cache
+      TORCH_HOME: /tmp/torch_cache
+      OUTPUT_DIR: /mnt/agents/output/gpu0
+      MODELS_DIR: /data/models/comfyui
+      HF_ENDPOINT: "https://hf-mirror.com"
+      HTTP_PROXY: "${HTTP_PROXY:-}"
+      HTTPS_PROXY: "${HTTPS_PROXY:-}"
+      http_proxy: "${http_proxy:-}"
+      https_proxy: "${https_proxy:-}"
+      NO_PROXY: "localhost,127.0.0.1,172.18.0.0/16"
+      CLI_ARGS: "--lowvram"
+    volumes:
+      - ${OUTPUT_DIR:-/mnt/agents/output}/gpu0:/mnt/agents/output/gpu0
+      - ${DATA_MODELS_DIR:-/data/models/comfyui}:/root/ComfyUI/models:ro
+      - /data/workspace/comfyui-incremental-nodes:/root/ComfyUI/custom_nodes/kais-incremental:ro
+      - comfyui-cache:/tmp/hf_cache
+    networks:
+      - kais-net
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: [gpu]
+    shm_size: "2g"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8188/system_stats')"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 180s
+
+  # ---------------------------------------------------------------------------
+  # 2. kais-core-backend (内容管理层)
+  # ---------------------------------------------------------------------------
+  kais-core-backend:
+    build:
+      context: .
+      dockerfile: docker/core-backend/Dockerfile
+    container_name: kais-core-backend
+    restart: unless-stopped
+    ports:
+      - "${CORE_PORT:-8000}:8000"
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: 8000
+      REDIS_URL: redis://redis:6379
+      GOLD_TEAM_URL: http://kais-gold-team:8002
+      REVIEW_PLATFORM_URL: http://kais-review-platform:8090
+      DATABASE_URL: postgresql://${POSTGRES_USER:-kais}:${POSTGRES_PASSWORD:-kais}@audit-db:5432/${POSTGRES_DB:-kais_audit}
+      # 双 ComfyUI 引擎端点
+      COMFYUI_PRIMARY_HOST: comfyui-primary
+      COMFYUI_PRIMARY_PORT: "8188"
+      COMFYUI_AUX_HOST: comfyui-auxiliary
+      COMFYUI_AUX_PORT: "8188"
+    volumes:
+      - core-data:/app/data
+      - ${OUTPUT_DIR:-/mnt/agents/output}:/mnt/agents/output
+    networks:
+      - kais-net
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8000/health').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      redis:
+        condition: service_healthy
+      audit-db:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # 3. kais-gold-team (统一执行 Agent) — GPU 调度中枢
+  # ---------------------------------------------------------------------------
+  # 负责: 调用 ComfyUI primary/auxiliary + 云端引擎执行任务
+  # GPU: 绑定 3090 (device_ids: ["1"])，用于 CosyVoice/ACE-Step 本地推理
+  # 路由: 根据工作流类型分发到 primary 或 auxiliary
+  # ---------------------------------------------------------------------------
+  kais-gold-team:
+    build:
+      context: ../kais-gold-team
+      dockerfile: /home/kai/.openclaw/workspace/kais-aigc-platform/docker/gold-team/Dockerfile
+    container_name: kais-gold-team
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${GOLD_TEAM_PORT:-8002}:8002"
+    env_file: .env
+    environment:
+      PORT: 8002
+      # 双 ComfyUI 引擎端点
+      COMFYUI_PRIMARY_HOST: comfyui-primary
+      COMFYUI_PRIMARY_PORT: "8188"
+      COMFYUI_AUX_HOST: comfyui-auxiliary
+      COMFYUI_AUX_PORT: "8188"
+      # 默认引擎 (向后兼容)
+      COMFYUI_URL: http://comfyui-primary:8188
+      REDIS_URL: redis://redis:6379
+      OUTPUT_DIR: /mnt/agents/output
+      MODELS_DIR: /opt/kais/models
+      # CosyVoice3 TTS (RL)
+      COSYVOICE_ROOT: /opt/CosyVoice
+      COSYVOICE_MODEL_DIR: /opt/CosyVoice/pretrained_models/FunAudioLLM/Fun-CosyVoice3-0.5B-2512
+      COSYVOICE_LLM_WEIGHT: llm.rl.pt
+      # ACE-Step music generation
+      ACESTEP_ROOT: /opt/acestep
+      ACESTEP_API_HOST: 127.0.0.1
+      ACESTEP_API_PORT: 8010
+      ACESTEP_CONFIG_PATH: acestep-v15-xl-turbo
+      ACESTEP_CONFIG_PATH2: acestep-v15-xl-sft
+      ACESTEP_CHECKPOINTS: /opt/acestep/checkpoints
+      ACESTEP_OFFLOAD_DIT_TO_CPU: "true"
+      MPLCONFIGDIR: /tmp/matplotlib
+    volumes:
+      - ${OUTPUT_DIR:-/mnt/agents/output}:/mnt/agents/output
+      - ${MODELS_DIR:-/opt/kais/models}:/opt/kais/models:ro
+      - ${DATA_MODELS_DIR:-/data/models}:/data/models
+      - cosyvoice-models:/opt/CosyVoice/pretrained_models
+      - ${ACESTEP_MODELS_DIR:-/data/models/ACE-Step1.5}:/opt/acestep/checkpoints
+    networks:
+      - kais-net
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["1"]     # GPU 1 = RTX 3090
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      redis:
+        condition: service_healthy
+      comfyui-primary:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # 4. kais-review-platform (审核平台) — OPTIONAL
+  # ---------------------------------------------------------------------------
+  kais-review-platform:
+    build:
+      context: ../kais-review-platform
+      dockerfile: Dockerfile
+    container_name: kais-review-platform
+    restart: unless-stopped
+    profiles:
+      - review
+    ports:
+      - "127.0.0.1:${REVIEW_PORT:-8090}:8090"
+    env_file: .env
+    environment:
+      PORT: 8090
+      POSTGRES_URL: postgresql+asyncpg://${POSTGRES_USER:-kais}:${POSTGRES_PASSWORD:-kais}@audit-db:5432/${POSTGRES_DB:-kais_audit}
+      API_KEY: ${REVIEW_API_KEY:-kais-review-dev-key}
+      JWT_SECRET: ${REVIEW_JWT_SECRET:-kais-review-jwt-dev-2026}
+      REDIS_URL: redis://172.18.0.1:6379/0
+      OUTPUT_DIR: /mnt/agents/output
+    volumes:
+      - ${OUTPUT_DIR:-/mnt/agents/output}:/mnt/agents/output:ro
+    networks:
+      - kais-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      audit-db:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # 5. audit-db (PostgreSQL 15)
+  # ---------------------------------------------------------------------------
+  audit-db:
+    image: postgres:15-alpine
+    container_name: kais-audit-db
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kais}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kais}
+      POSTGRES_DB: ${POSTGRES_DB:-kais_audit}
+    volumes:
+      - audit-data:/var/lib/postgresql/data
+    networks:
+      - kais-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kais}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # 6. redis (缓存 + 消息队列)
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: kais-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6390:6379"
+    command: redis-server --appendonly yes --maxmemory 2gb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    networks:
+      - kais-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ===========================================================================
+  # Mock Profiles (开发阶段替代真实 GPU 服务)
+  # ===========================================================================
+  kais-gold-team-mock:
+    build:
+      context: .
+      dockerfile: docker/gold-team/Dockerfile.mock
+    container_name: kais-gold-team-mock
+    restart: unless-stopped
+    profiles:
+      - mock
+    ports:
+      - "127.0.0.1:${GOLD_TEAM_PORT:-8002}:8002"
+    environment:
+      PORT: 8002
+      MOCK_MODE: "true"
+    volumes:
+      - ${OUTPUT_DIR:-/mnt/agents/output}:/mnt/agents/output
+    networks:
+      - kais-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  kais-net:
+    name: kais-net
+    driver: bridge
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  audit-data:
+    name: kais-audit-data
+  redis-data:
+    name: kais-redis-data
+  core-data:
+    name: kais-core-data
+  cosyvoice-models:
+    name: kais-cosyvoice-models
+  comfyui-cache:
+    name: kais-comfyui-cache
