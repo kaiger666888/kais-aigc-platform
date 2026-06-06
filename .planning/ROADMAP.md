@@ -101,9 +101,14 @@ Plans:
 
 **Plans**: 3 plans
 
-- [ ] 10-01: 修改 hermes-client.js API 路径 + 降级测试
-- [ ] 10-02: 停用旧服务 + 部署新 hermes-agent wrapper
-- [ ] 10-03: 端到端验证（movie-agent → new hermes → gold-team → audit 反馈）
+**Wave 1**
+
+- [ ] 10-01-PLAN.md -- Create hermes-client.js (decide/audit + HERMES_DEFAULTS fallback) + unit tests
+- [ ] 10-02-PLAN.md -- Dockerfile + docker-compose hermes-agent service + migration documentation
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 10-03-PLAN.md -- End-to-end validation (health, register, decide, audit, multi-task) against Docker container
 
 ## Progress
 
@@ -113,5 +118,5 @@ Plans:
 |-------|----------------|--------|-----------|
 | 7. Hermes Agent Core Service | 3/3 | Complete   | 2026-06-06 |
 | 8. Learning Loop Integration | 2/2 | Complete   | 2026-06-06 |
-| 9. Movie-Pipeline Domain Setup | 1/2 | In progress | - |
+| 9. Movie-Pipeline Domain Setup | 2/2 | Complete   | 2026-06-06 |
 | 10. Client Adaptation & Cutover | 0/3 | Not started | - |
