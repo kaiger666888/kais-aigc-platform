@@ -1,0 +1,48 @@
+# =============================================================================
+# KAIS AIGC Platform — Integration Test Environment
+# =============================================================================
+# Lightweight compose for hermes-agent integration testing.
+# Starts only hermes-agent with isolated data volume.
+#
+# Usage:
+#   Start:   docker compose -f docker-compose.test.yml up -d --build
+#   Stop:    docker compose -f docker-compose.test.yml down -v
+#   Logs:    docker compose -f docker-compose.test.yml logs -f hermes-agent
+# =============================================================================
+
+services:
+  hermes-agent:
+    build:
+      context: ./docker/hermes-agent
+      dockerfile: Dockerfile
+    container_name: kais-hermes-test
+    restart: "no"
+    ports:
+      - "${HERMES_TEST_PORT:-8090}:8080"
+    environment:
+      PORT: 8080
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://open.bigmodel.cn/api/paas/v4}
+      LLM_PROVIDER: ${LLM_PROVIDER:-zai}
+      LLM_MODEL: ${LLM_MODEL:-glm-5.1}
+      HERMES_HOME: /app/data
+      LOG_LEVEL: ${HERMES_LOG_LEVEL:-WARNING}
+    volumes:
+      - hermes-test-data:/app/data
+    networks:
+      - kais-test-net
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/v1/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+networks:
+  kais-test-net:
+    name: kais-test-net
+    driver: bridge
+
+volumes:
+  hermes-test-data:
+    name: kais-hermes-test-data
