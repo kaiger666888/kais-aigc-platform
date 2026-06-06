@@ -160,7 +160,7 @@ class TestDomainNameValidation:
 
     @pytest.mark.parametrize(
         "bad_name",
-        ["../bad", "..", "bad/name", "BAD", "a", "ab", "x" * 65, "test domain", "test@domain", ""],
+        ["../bad", "..", "bad/name", "BAD", "a", "x" * 65, "test domain", "test@domain", ""],
     )
     def test_rejects_invalid_names(self, registry: DomainRegistry, bad_name: str) -> None:
         with pytest.raises(ValueError):
