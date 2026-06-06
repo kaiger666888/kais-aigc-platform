@@ -26,6 +26,7 @@ AI 短剧全链路制作平台，通过 kais-gold-team 统一执行引擎编排 
 - ✓ 自学习循环 (audit → EWMA confidence → auto-learn) — v1.1
 - ✓ movie-pipeline 域注册 + 14 专家技能迁移 — v1.1
 - ✓ hermes-client.js + HERMES_DEFAULTS 降级 + Docker 部署 — v1.1
+- ✓ hermes-agent 集成测试体系 (42+ tests, CI pipeline) — v1.2
 
 ### Active
 
@@ -95,13 +96,21 @@ RTX 3090 24GB 串行调度，重模型 (Wan2.2 ~22GB) 和轻模型 (Real-ESRGAN 
 | 域无关 API (domain/task/context) | 任何管线复用同一接口，不绑定电影业务 | ✓ Good |
 | EWMA alpha=0.3 | 适中的时间衰减权重 | ✓ Good |
 | Hardcoded 14 skill list | 避免动态 glob 的不确定性 | ✓ Good |
+| 集成测试用真实 LLM | 不 mock，验证完整链路 | ✓ Good |
+| 测试端口 8090 | 避免与开发环境 8080 冲突 | ✓ Good |
+| Node.js 子进程测试客户端 | 复刻 test_e2e.py 模式，跨语言验证 | ✓ Good |
 
-## Current Milestone: v1.2 Integration Testing — Hermes-Agent
+## Current Milestone: (Planning next)
 
-**Goal:** 构建 hermes-agent 服务的完整集成测试体系：独立 API 测试、movie-agent 联合测试、压力稳定性测试、CI 流水线自动化。
+**Goal:** TBD — start with `/gsd:new-milestone`
 
-**Phases:** 11–14 (4 phases, 8 plans)
-**Key Deliverables:** docker-compose.test.yml + 集成测试套件 + 压力测试 + GitHub Actions CI
+### Shipped: v1.2 Integration Testing — Hermes-Agent (2026-06-07)
+
+- docker-compose.test.yml 隔离测试环境 + conftest_integration.py 共享 fixture
+- 14 个测试文件，42+ 测试用例覆盖 FR-01 ~ FR-04 全部 Must 项
+- hermes-client.js 端到端链路测试 + 降级/重试验证
+- 并发压力测试 (10 concurrent, 20 mixed) + 100-cycle 稳定性 + 容器重启恢复
+- GitHub Actions CI workflow (PR 触发) + run-integration-tests.sh + make test-integration
 
 ### Shipped: v1.1 Hermes Intelligent Decision Engine (2026-06-06)
 
@@ -129,4 +138,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-06 after v1.1 milestone completion*
+*Last updated: 2026-06-07 after v1.2 milestone completion*
