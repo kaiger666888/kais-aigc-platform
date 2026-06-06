@@ -7,7 +7,7 @@
 ## Phases
 
 - [x] **Phase 7: Hermes Agent Core Service** - 安装 hermes-agent 并构建域无关 REST API wrapper (completed 2026-06-06)
-- [ ] **Phase 8: Learning Loop Integration** - 接通 audit → memory → improve decide 自学习闭环
+- [x] **Phase 8: Learning Loop Integration** - 接通 audit → memory → improve decide 自学习闭环 (completed 2026-06-06)
 - [ ] **Phase 9: Movie-Pipeline Domain Setup** - 注册首个域并迁移 14 专家知识
 - [ ] **Phase 10: Client Adaptation & Cutover** - 适配客户端、替换旧服务、端到端验证
 
@@ -62,7 +62,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 08-02-PLAN.md -- Wire DomainMemory into DecisionEngine + add GET /v1/domains/{domain}/memory endpoint + integration tests
+- [x] 08-02-PLAN.md -- Wire DomainMemory into DecisionEngine + add GET /v1/domains/{domain}/memory endpoint + integration tests
 
 ### Phase 9: Movie-Pipeline Domain Setup
 
@@ -106,6 +106,6 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 7. Hermes Agent Core Service | 3/3 | Complete   | 2026-06-06 |
-| 8. Learning Loop Integration | 1/2 | In Progress|  |
+| 8. Learning Loop Integration | 2/2 | Complete   | 2026-06-06 |
 | 9. Movie-Pipeline Domain Setup | 0/2 | Not started | - |
 | 10. Client Adaptation & Cutover | 0/3 | Not started | - |
