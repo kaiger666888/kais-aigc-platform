@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -50,7 +51,7 @@ class TestDecisionEngineLearningLoop:
 
         for i in range(3):
             result = engine.record_audit(
-                "test-domain", f"dec-{i}", "completed", {"task": "task-a", "score": 1}
+                "test-domain", f"dec-{i}", "completed", {"task": "task-a", "score": 2}
             )
 
         assert result["recorded"] is True
@@ -88,11 +89,11 @@ class TestDecisionEngineLearningLoop:
         assert compat_path.exists()
 
     def test_decide_dynamic_confidence(
-        self, registry: DecisionEngine, tmp_hermes_dir: Path
+        self, registry: DecisionEngine, tmp_hermes_dir: Path, agent_factory: "MagicMock"
     ) -> None:
         """decide() returns non-zero confidence when DomainMemory has 3+ records."""
         registry.register("test-domain", "Test", [], {})
-        engine = DecisionEngine(registry=registry, agent_factory=None)
+        engine = DecisionEngine(registry=registry, agent_factory=agent_factory)
 
         memory_dir = tmp_hermes_dir / "domains" / "test-domain" / "memory"
         dm = DomainMemory(memory_dir)
@@ -103,11 +104,11 @@ class TestDecisionEngineLearningLoop:
         assert result["confidence"] != 0.0
 
     def test_decide_confidence_zero_below_minimum(
-        self, registry: DecisionEngine, tmp_hermes_dir: Path
+        self, registry: DecisionEngine, tmp_hermes_dir: Path, agent_factory: "MagicMock"
     ) -> None:
         """decide() returns 0.0 confidence with no prior audits."""
         registry.register("test-domain", "Test", [], {})
-        engine = DecisionEngine(registry=registry, agent_factory=None)
+        engine = DecisionEngine(registry=registry, agent_factory=agent_factory)
 
         result = engine.decide("test-domain", "task-a", {})
         assert result["confidence"] == 0.0

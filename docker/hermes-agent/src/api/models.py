@@ -134,3 +134,21 @@ class HealthResponse(BaseModel):
 class ErrorResponse(BaseModel):
     """Standard error response."""
     detail: str
+
+
+# ---------------------------------------------------------------------------
+# Memory
+# ---------------------------------------------------------------------------
+
+class MemoryTaskStat(BaseModel):
+    """Per-task memory statistics."""
+    avg_score: float
+    record_count: int
+    ewma_confidence: float
+    trend_direction: str
+
+
+class MemoryResponse(BaseModel):
+    """Response body for GET /v1/domains/{domain}/memory."""
+    task_stats: dict[str, MemoryTaskStat]
+    recent_records: list[dict]

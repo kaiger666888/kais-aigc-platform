@@ -72,7 +72,7 @@ class TestFullFlow:
         # 5. Verify audit file exists on disk
         audit_dir = tmp_hermes_dir / "domains" / "movie-pipeline" / "memory"
         assert audit_dir.is_dir()
-        audit_files = list(audit_dir.glob("*.json"))
+        audit_files = [f for f in audit_dir.glob("*.json") if f.name != "audit_history.json" and not f.name.endswith(".tmp")]
         assert len(audit_files) >= 1
 
         # Verify the audit file content
@@ -194,7 +194,7 @@ class TestLearningLoop:
                     "domain": "test-domain",
                     "decision_id": f"dec-{i}",
                     "outcome": "completed",
-                    "metrics": {"task": "task-a", "score": 1},
+                    "metrics": {"task": "task-a", "score": 2},
                 },
             )
             assert resp.status_code == 200
@@ -214,7 +214,7 @@ class TestLearningLoop:
                 "domain": "test-domain",
                 "decision_id": "dec-3",
                 "outcome": "completed",
-                "metrics": {"task": "task-a", "score": 1},
+                "metrics": {"task": "task-a", "score": 2},
             },
         )
         assert resp.status_code == 200
