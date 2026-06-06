@@ -78,8 +78,14 @@ Plans:
 
 **Plans**: 2 plans
 
-- [ ] 09-01: 注册 movie-pipeline 域 + 创建 SOUL.md + 注入 HERMES_DEFAULTS 为初始记忆
-- [ ] 09-02: 迁移 14 专家知识为 hermes 技能 + 验证 decide 返回领域相关参数
+Plans:
+**Wave 1**
+
+- [ ] 09-01-PLAN.md -- Register movie-pipeline domain + create SOUL.md + inject HERMES_DEFAULTS seed memory
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 09-02-PLAN.md -- Migrate 14 expert skills as hermes skills + verify decide returns domain-aware response
 
 ### Phase 10: Client Adaptation & Cutover
 
