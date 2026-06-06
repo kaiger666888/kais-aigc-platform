@@ -1,0 +1,105 @@
+name: Hermes-Agent Integration Tests
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'docker/hermes-agent/**'
+      - 'docker-compose.test.yml'
+      - 'Makefile'
+      - '.github/workflows/hermes-integration-test.yml'
+  workflow_dispatch:
+
+env:
+  HERMES_TEST_PORT: 8090
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    name: Hermes-Agent Integration Tests
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install test dependencies
+        run: |
+          pip install --quiet httpx pytest pytest-json-report
+
+      - name: Build hermes-agent test image
+        run: |
+          docker compose -f docker-compose.test.yml build
+
+      - name: Start hermes-agent test container
+        run: |
+          docker compose -f docker-compose.test.yml up -d
+          echo "Waiting for hermes-agent to become healthy..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:${{ env.HERMES_TEST_PORT }}/v1/health > /dev/null 2>&1; then
+              echo "hermes-agent is healthy after ${i} attempts"
+              break
+            fi
+            echo "  Waiting... ($i/30)"
+            sleep 3
+          done
+
+      - name: Run integration tests
+        id: tests
+        run: |
+          cd docker/hermes-agent
+          HERMES_URL=http://localhost:${{ env.HERMES_TEST_PORT }} python3 -m pytest \
+            tests/conftest_integration.py \
+            tests/test_*_integration.py \
+            -v \
+            --tb=short \
+            --json-report \
+            --json-report-file=../../test-results.json \
+            || echo "tests_failed=true" >> $GITHUB_OUTPUT
+
+      - name: Collect container logs on failure
+        if: steps.tests.outputs.tests_failed == 'true'
+        run: |
+          echo "=== Container Logs ==="
+          docker compose -f docker-compose.test.yml logs hermes-agent
+          echo "=== Container Status ==="
+          docker compose -f docker-compose.test.yml ps
+
+      - name: Generate test summary
+        if: always()
+        run: |
+          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+          if [ -f test-results.json ]; then
+            python3 -c "
+          import json
+          data = json.load(open('test-results.json'))
+          total = data['summary']['total']
+          passed = data['summary'].get('passed', 0)
+          failed = data['summary'].get('failed', 0)
+          skipped = data['summary'].get('skipped', 0)
+          duration = data['summary']['duration']
+          print(f'| Metric | Value |')
+          print(f'|--------|-------|')
+          print(f'| Total | {total} |')
+          print(f'| Passed | {passed} |')
+          print(f'| Failed | {failed} |')
+          print(f'| Skipped | {skipped} |')
+          print(f'| Duration | {duration:.1f}s |')
+          " >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No test results file found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Teardown
+        if: always()
+        run: |
+          docker compose -f docker-compose.test.yml down -v 2>/dev/null || true
+
+      - name: Check test result
+        if: steps.tests.outputs.tests_failed == 'true'
+        run: exit 1

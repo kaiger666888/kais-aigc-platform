@@ -5,6 +5,8 @@
 #   make test-integration          # Full suite: compose up → test → down
 #   make test-integration-quick    # Run tests against already-running container
 #   make test-integration-down     # Tear down test container
+#   make test-integration-report   # Full suite with JUnit XML report
+#   make test-integration-logs     # Collect container logs
 #   make test-unit                 # Run hermes-agent unit tests (no container)
 # =============================================================================
 
@@ -12,8 +14,9 @@ COMPOSE_TEST = docker compose -f docker-compose.test.yml
 HERMES_TEST_URL ?= http://localhost:8090
 PYTEST = cd docker/hermes-agent && python3 -m pytest
 PYTEST_INTEGRATION = cd docker/hermes-agent && HERMES_URL=$(HERMES_TEST_URL) python3 -m pytest tests/conftest_integration.py tests/test_*_integration.py -v --tb=short
+REPORT_DIR = test-reports
 
-.PHONY: test-integration test-integration-quick test-integration-down test-unit test-all
+.PHONY: test-integration test-integration-quick test-integration-down test-integration-report test-integration-logs test-unit test-all
 
 # --- Full integration test: build → up → test → down ---
 test-integration:
@@ -37,6 +40,16 @@ test-integration:
 # --- Quick: run tests against already-running container ---
 test-integration-quick:
 	HERMES_URL=$(HERMES_TEST_URL) $(PYTEST_INTEGRATION)
+
+# --- Full suite with JUnit XML report ---
+test-integration-report:
+	@mkdir -p $(REPORT_DIR)
+	./scripts/run-integration-tests.sh
+
+# --- Collect container logs ---
+test-integration-logs:
+	docker compose -f docker-compose.test.yml logs hermes-agent > $(REPORT_DIR)/hermes-container.log 2>&1 || true
+	@echo "Logs saved to $(REPORT_DIR)/hermes-container.log"
 
 # --- Tear down test container ---
 test-integration-down:
