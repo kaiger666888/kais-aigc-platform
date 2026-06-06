@@ -441,22 +441,16 @@ async def decide(req: DecideRequest):
 
 **If this table is empty:** All claims in this research were verified or cited.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Exact import path for AIAgent**
-   - What we know: AGENTS.md shows `from run_agent import AIAgent` as the canonical import
-   - What's unclear: Whether this works directly after `pip install hermes-agent` or requires cloning the repo
-   - Recommendation: First task in implementation should be `pip install hermes-agent && python3 -c "from run_agent import AIAgent"` to verify
+1. **Exact import path for AIAgent** — RESOLVED by Plan 07-01 Task 1: smoke test with `pip install hermes-agent && python3 -c "from run_agent import AIAgent"` and fallback to clone+install if pip import fails.
+   - Resolution: Plan 07-01 Task 1 explicitly verifies import and records working path.
 
-2. **AIAgent server-mode compatibility**
-   - What we know: AIAgent has `platform` parameter ("cli", "telegram", etc.) and `quiet_mode` flag
-   - What's unclear: Whether "api_server" is a valid platform value or if chat() tries to access terminal
-   - Recommendation: Test with `platform="cli", quiet_mode=True` first, then adjust if terminal access errors occur
+2. **AIAgent server-mode compatibility** — RESOLVED by Plan 07-01 Task 1: uses `platform="api_server"`, `quiet_mode=True` to prevent terminal I/O, with fallback to `platform="cli"`.
+   - Resolution: Plan 07-01 Task 1 AgentFactory uses these parameters explicitly.
 
-3. **Domain memory scoping mechanism**
-   - What we know: hermes-agent uses ~/.hermes/memories/ for persistent storage
-   - What's unclear: How to scope memory per-domain without separate HERMES_HOME directories
-   - Recommendation: Start with per-domain system prompt injection (simpler), upgrade to HERMES_HOME isolation if needed
+3. **Domain memory scoping mechanism** — RESOLVED by Plan 07-01 Task 2: per-domain AIAgent instances with system prompt injection for domain context, each with dedicated domain directory under `~/.hermes/domains/`.
+   - Resolution: DomainRegistry creates domain-specific SOUL.md context injected via system prompt per agent instance.
 
 ## Environment Availability
 

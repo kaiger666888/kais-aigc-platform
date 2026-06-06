@@ -30,8 +30,16 @@
 **Plans**: 3 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 07-01-PLAN.md — Install hermes-agent + scaffold project + build domain registry, agent factory, decision engine core
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 07-02-PLAN.md — Implement FastAPI REST API layer with all /v1/* endpoints
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 07-03-PLAN.md — Unit tests + integration tests for all Phase 7 requirements
 
 ### Phase 8: Learning Loop Integration
