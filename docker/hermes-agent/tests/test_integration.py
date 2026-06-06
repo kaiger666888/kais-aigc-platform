@@ -72,7 +72,7 @@ class TestFullFlow:
         # 5. Verify audit file exists on disk
         audit_dir = tmp_hermes_dir / "domains" / "movie-pipeline" / "memory"
         assert audit_dir.is_dir()
-        audit_files = list(audit_dir.glob("*.json"))
+        audit_files = [f for f in audit_dir.glob("*.json") if f.name != "audit_history.json" and not f.name.endswith(".tmp")]
         assert len(audit_files) >= 1
 
         # Verify the audit file content
@@ -159,3 +159,120 @@ class TestDomainIsolation:
         assert domain_a_memory.is_dir()
         files_in_a = list(domain_a_memory.glob("*.json"))
         assert len(files_in_a) >= 1, "Domain A should have at least one audit file"
+
+
+class TestLearningLoop:
+    """Integration tests for the full learning loop: decide -> audit -> memory."""
+
+    def test_learning_loop(self, client: TestClient) -> None:
+        """Full loop: register -> decide(conf=0) -> audit x3 -> decide(conf!=0) -> audit(auto_learn) -> memory."""
+        # 1. Register
+        resp = client.post(
+            "/v1/register",
+            json={
+                "domain": "test-domain",
+                "description": "Learning loop test",
+                "tasks": ["task-a"],
+                "skills_manifest": {},
+            },
+        )
+        assert resp.status_code == 201
+
+        # 2. Decide with no history -> confidence 0.0
+        resp = client.post(
+            "/v1/decide",
+            json={"domain": "test-domain", "task": "task-a", "context": {}},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["confidence"] == 0.0
+
+        # 3. Audit x3 with low scores
+        for i in range(3):
+            resp = client.post(
+                "/v1/audit",
+                json={
+                    "domain": "test-domain",
+                    "decision_id": f"dec-{i}",
+                    "outcome": "completed",
+                    "metrics": {"task": "task-a", "score": 2},
+                },
+            )
+            assert resp.status_code == 200
+
+        # 4. Decide again -> confidence should be non-zero now
+        resp = client.post(
+            "/v1/decide",
+            json={"domain": "test-domain", "task": "task-a", "context": {}},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["confidence"] != 0.0
+
+        # 5. One more audit should trigger auto_learn
+        resp = client.post(
+            "/v1/audit",
+            json={
+                "domain": "test-domain",
+                "decision_id": "dec-3",
+                "outcome": "completed",
+                "metrics": {"task": "task-a", "score": 2},
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["auto_learn_triggered"] is True
+
+        # 6. Memory endpoint shows stats
+        resp = client.get("/v1/domains/test-domain/memory")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "task-a" in data["task_stats"]
+        assert data["task_stats"]["task-a"]["record_count"] >= 4
+
+    def test_learning_loop_domain_isolation(self, client: TestClient) -> None:
+        """Domain A low scores, domain B high scores -> different confidence."""
+        # Register both domains
+        for d in ["domain-a", "domain-b"]:
+            client.post(
+                "/v1/register",
+                json={
+                    "domain": d,
+                    "description": f"Domain {d}",
+                    "tasks": ["shared-task"],
+                    "skills_manifest": {},
+                },
+            )
+
+        # Feed low scores to domain-a
+        for i in range(5):
+            client.post(
+                "/v1/audit",
+                json={
+                    "domain": "domain-a",
+                    "decision_id": f"a-dec-{i}",
+                    "outcome": "completed",
+                    "metrics": {"task": "shared-task", "score": 1},
+                },
+            )
+
+        # Feed high scores to domain-b
+        for i in range(5):
+            client.post(
+                "/v1/audit",
+                json={
+                    "domain": "domain-b",
+                    "decision_id": f"b-dec-{i}",
+                    "outcome": "completed",
+                    "metrics": {"task": "shared-task", "score": 9},
+                },
+            )
+
+        # Decide on both
+        resp_a = client.post(
+            "/v1/decide",
+            json={"domain": "domain-a", "task": "shared-task", "context": {}},
+        )
+        resp_b = client.post(
+            "/v1/decide",
+            json={"domain": "domain-b", "task": "shared-task", "context": {}},
+        )
+
+        assert resp_a.json()["confidence"] != resp_b.json()["confidence"]

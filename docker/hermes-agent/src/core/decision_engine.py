@@ -16,6 +16,7 @@ from typing import Any
 from fastapi import HTTPException
 
 from src.core.agent_factory import AgentFactory
+from src.core.domain_memory import DomainMemory
 from src.core.domain_registry import DomainRegistry
 
 logger = logging.getLogger(__name__)
@@ -49,6 +50,24 @@ class DecisionEngine:
     # Audit recording
     # ------------------------------------------------------------------
 
+    def _resolve_task(
+        self, domain: str, decision_id: str, metrics: dict[str, Any]
+    ) -> str:
+        """Resolve task name from metrics, audit file, or default to 'unknown'."""
+        task = metrics.get("task")
+        if task and isinstance(task, str):
+            return task
+        audit_path = self.registry.base_dir / domain / "memory" / f"{decision_id}.json"
+        if audit_path.exists():
+            try:
+                data = json.loads(audit_path.read_text(encoding="utf-8"))
+                task = data.get("task") or data.get("metrics", {}).get("task")
+                if task and isinstance(task, str):
+                    return task
+            except (json.JSONDecodeError, OSError):
+                pass
+        return "unknown"
+
     def record_audit(
         self,
         domain: str,
@@ -58,8 +77,8 @@ class DecisionEngine:
     ) -> dict[str, Any]:
         """Write an audit record to the domain's memory directory.
 
-        Returns {recorded: True, auto_learn_triggered: False}.
-        auto_learn is Phase 8 -- always False for now.
+        Aggregates into audit_history.json via DomainMemory and returns
+        auto_learn_triggered based on EWMA confidence threshold.
         """
         memory_dir = self.registry.base_dir / domain / "memory"
         memory_dir.mkdir(parents=True, exist_ok=True)
@@ -76,8 +95,22 @@ class DecisionEngine:
             json.dumps(record, indent=2, ensure_ascii=False), encoding="utf-8"
         )
 
+        # Aggregate into DomainMemory and check auto-learn
+        task = self._resolve_task(domain, decision_id, metrics)
+        domain_memory = DomainMemory(memory_dir)
+        domain_memory.append_record(task, record)
+        auto_learn = domain_memory.should_trigger_auto_learn(task)
+
+        if auto_learn:
+            logger.warning(
+                "Auto-learn triggered: domain=%s task=%s confidence=%.3f",
+                domain,
+                task,
+                domain_memory.get_confidence(task),
+            )
+
         logger.info("Recorded audit for domain=%s decision_id=%s", domain, decision_id)
-        return {"recorded": True, "auto_learn_triggered": False}
+        return {"recorded": True, "auto_learn_triggered": auto_learn}
 
     # ------------------------------------------------------------------
     # Decide
@@ -94,6 +127,11 @@ class DecisionEngine:
         if not self.registry.domain_exists(domain):
             raise HTTPException(status_code=404, detail=f"Domain '{domain}' not found")
 
+        # Dynamic confidence from DomainMemory
+        memory_dir = self.registry.base_dir / domain / "memory"
+        domain_memory = DomainMemory(memory_dir)
+        confidence = domain_memory.get_confidence(task)
+
         prompt = self.build_prompt(domain, task, context)
 
         # agent_factory is required for decide calls
@@ -106,7 +144,7 @@ class DecisionEngine:
         return {
             "decision_id": str(uuid.uuid4()),
             "recommendation": chat_response,
-            "confidence": 0.0,  # Static for Phase 7 -- dynamic confidence is Phase 8
+            "confidence": confidence,
             "domain": domain,
             "task": task,
             "timestamp": datetime.now(timezone.utc).isoformat(),

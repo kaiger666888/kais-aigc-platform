@@ -198,6 +198,43 @@ class TestAuditEndpoint:
 # ---------------------------------------------------------------------------
 
 
+class TestMemoryEndpoint:
+    """Tests for GET /v1/domains/{domain}/memory."""
+
+    def test_memory_endpoint_returns_summary(self, client: TestClient) -> None:
+        """After posting audits, memory endpoint returns task_stats and recent_records."""
+        _register_domain(client)
+        for i in range(3):
+            client.post(
+                "/v1/audit",
+                json={
+                    "domain": "test-domain",
+                    "decision_id": f"dec-{i}",
+                    "outcome": "completed",
+                    "metrics": {"task": "task-a", "score": 7},
+                },
+            )
+        resp = client.get("/v1/domains/test-domain/memory")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "task_stats" in data
+        assert "recent_records" in data
+
+    def test_memory_endpoint_404_unregistered(self, client: TestClient) -> None:
+        """GET /v1/domains/nonexistent/memory returns 404."""
+        resp = client.get("/v1/domains/nonexistent/memory")
+        assert resp.status_code == 404
+
+    def test_memory_endpoint_empty_domain(self, client: TestClient) -> None:
+        """GET memory on registered domain with no audits returns empty stats."""
+        _register_domain(client)
+        resp = client.get("/v1/domains/test-domain/memory")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["task_stats"] == {}
+        assert data["recent_records"] == []
+
+
 class TestHealthEndpoint:
     """Tests for GET /v1/health."""
 

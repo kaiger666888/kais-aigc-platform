@@ -27,10 +27,12 @@ from src.api.models import (
     DecideRequest,
     DecideResponse,
     HealthResponse,
+    MemoryResponse,
     RegisterRequest,
     RegisterResponse,
 )
 from src.core.decision_engine import DecisionEngine
+from src.core.domain_memory import DomainMemory
 from src.core.domain_registry import DomainRegistry
 
 logger = logging.getLogger("hermes.api.routes")
@@ -175,3 +177,25 @@ async def health(
     """Return service health status."""
     result = engine.check_health()
     return HealthResponse(**result)
+
+
+# ---------------------------------------------------------------------------
+# GET /v1/domains/{domain}/memory
+# ---------------------------------------------------------------------------
+
+@router.get("/domains/{domain}/memory", response_model=MemoryResponse)
+async def get_domain_memory(
+    domain: str,
+    registry: DomainRegistry = Depends(get_registry),
+) -> MemoryResponse:
+    """Return aggregated memory stats for a registered domain."""
+    if not registry.domain_exists(domain):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Domain '{domain}' not registered",
+        )
+
+    memory_dir = registry.base_dir / domain / "memory"
+    domain_memory = DomainMemory(memory_dir)
+    summary = domain_memory.get_summary()
+    return MemoryResponse(**summary)
