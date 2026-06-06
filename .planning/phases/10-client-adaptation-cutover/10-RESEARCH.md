@@ -551,22 +551,16 @@ def test_audit_after_decide():
 | A3 | LLM_API_KEY is present in .env file (shared by other services) | Deployment | hermes-agent cannot make LLM calls, decide returns 502. Client degrades gracefully. |
 | A4 | The old hermes-worker-agent process is not currently running on the host | Service Retirement | Port conflict if old :3100 still bound. Verify with `ss -tlnp \| grep 3100`. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **HERMES_HOME volume mount strategy**
-   - What we know: register_movie_pipeline.py writes to ~/.hermes/domains/ on the host. Container needs access to this data.
-   - What's unclear: Should the Docker volume map host ~/.hermes into container /app/data, or should registration happen inside the container?
-   - Recommendation: Mount host ~/.hermes as /app/data in the container. This is simpler and allows re-running registration from host without container restart.
+1. **HERMES_HOME volume mount strategy** (RESOLVED: mount host ~/.hermes as /app/data)
+   - Resolution: Mount host ~/.hermes as /app/data in the container. Simpler and allows re-running registration from host without container restart. Plan 10-02 implements this.
 
-2. **movie-agent networking**
-   - What we know: movie-agent is NOT in docker-compose.v9.yml. It has its own Dockerfile at docker/movie-agent/Dockerfile.
-   - What's unclear: Will movie-agent run standalone (outside Docker) or will it be added to docker-compose during this phase?
-   - Recommendation: hermes-client.js uses HERMES_URL env var with sensible default. If movie-agent runs on host, use http://localhost:8080. If in Docker, use http://kais-hermes-agent:8080. This is already handled by the env var pattern.
+2. **movie-agent networking** (RESOLVED: HERMES_URL env var with sensible default)
+   - Resolution: hermes-client.js uses HERMES_URL env var with default http://localhost:8080. If movie-agent runs on host, use http://localhost:8080. If in Docker, use http://kais-hermes-agent:8080. Plan 10-01 implements this.
 
-3. **Domain registration timing**
-   - What we know: Phase 9 created the registration script and skill files. The script needs to run against the same HERMES_HOME that the container uses.
-   - What's unclear: Whether registration was already run on the host, or needs to be run as part of Phase 10 deployment.
-   - Recommendation: E2E test should include a registration step. Deployment plan should include running register_movie_pipeline.py against the container's HERMES_HOME.
+3. **Domain registration timing** (RESOLVED: E2E test includes registration step)
+   - Resolution: E2E test (Plan 10-03) includes a registration step against the container's HERMES_HOME. Deployment plan includes running register_movie_pipeline.py as part of container startup or E2E.
 
 ## Environment Availability
 
