@@ -81,7 +81,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 09-01-PLAN.md -- Register movie-pipeline domain + create SOUL.md + inject HERMES_DEFAULTS seed memory
+- [x] 09-01-PLAN.md -- Register movie-pipeline domain + create SOUL.md + inject HERMES_DEFAULTS seed memory
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -113,5 +113,5 @@ Plans:
 |-------|----------------|--------|-----------|
 | 7. Hermes Agent Core Service | 3/3 | Complete   | 2026-06-06 |
 | 8. Learning Loop Integration | 2/2 | Complete   | 2026-06-06 |
-| 9. Movie-Pipeline Domain Setup | 0/2 | Not started | - |
+| 9. Movie-Pipeline Domain Setup | 1/2 | In progress | - |
 | 10. Client Adaptation & Cutover | 0/3 | Not started | - |

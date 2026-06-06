@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.1
-milestone_name: Hermes Intelligent Decision Engine
+milestone_name: milestone
 status: executing
-last_updated: "2026-06-06T13:17:10.384Z"
-last_activity: 2026-06-06 -- Phase 09 planning complete
+last_updated: "2026-06-06T13:21:37Z"
+last_activity: 2026-06-06 -- Completed 09-01 registration script + tests
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 7
-  completed_plans: 5
-  percent: 50
+  completed_plans: 6
+  percent: 71
 ---
 
 # Project State
@@ -20,16 +20,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-06)
 
 **Core value:** 让 AI 短剧制作流程跑通——从角色设计到成片的完整管线能自动执行并产出可交付成片
-**Current focus:** Phase 9 — movie pipeline domain setup
+**Current focus:** Phase 09 — movie-pipeline-domain-setup
 
 ## Current Position
 
-Phase: 9
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-06 -- Phase 09 planning complete
+Phase: 09 (movie-pipeline-domain-setup) — EXECUTING
+Plan: 2 of 2
+Status: Completed 09-01, ready for 09-02 (expert skill migration)
+Last activity: 2026-06-06 -- Completed 09-01 registration script + tests
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [████████░░] 71%
 
 ## Accumulated Context
 
@@ -39,6 +39,9 @@ Progress: [░░░░░░░░░░] 0%
 - 域无关 API 设计：hermes-agent 不知道"电影"，只知道 domain/task/context
 - 替代现有 hermes-worker-agent（Node.js:3100）和 kais-hermes Decision API（Python:8080）
 - kais-movie-agent 管线代码零改动，仅 hermes-client.js 改 API 路径
+- Registration script uses direct DomainRegistry import (no HTTP dependency)
+- SOUL.md preserved on re-run; seed memory merged additively
+- FLUX default params: steps=20, guidance_scale=3.5; Wan2.2: width=832, height=480, total_steps=20
 
 ### Pending Todos
 
@@ -51,4 +54,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-06
+Last session: 2026-06-06T13:21:37Z
+Stopped at: Completed 09-01-PLAN.md
+Resume file: .planning/phases/09-movie-pipeline-domain-setup/09-02-PLAN.md
