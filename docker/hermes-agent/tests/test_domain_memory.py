@@ -290,17 +290,17 @@ class TestEWMAConfidence:
     def test_ewma_weights_recent_higher(
         self, domain_memory_dir: Path
     ) -> None:
-        """Records [9, 1, 1, 1]: EWMA closer to 1 (recent) than to 9 (old)."""
+        """Records [10, 1, 1, 1]: EWMA closer to 0.1 (recent) than to 1.0 (old)."""
         dm = DomainMemory(domain_memory_dir)
-        dm.append_record("task-a", _make_record("d1", 9, "2026-01-01T00:00:00Z"))
-        dm.append_record("task-a", _make_record("d2", 1, "2026-01-01T01:00:00Z"))
-        dm.append_record("task-a", _make_record("d3", 1, "2026-01-01T02:00:00Z"))
-        dm.append_record("task-a", _make_record("d4", 1, "2026-01-01T03:00:00Z"))
+        dm.append_record("task-a", _make_record("d1", 10, "2026-01-01T00:00:00Z"))
+        dm.append_record("task-a", _make_record("d2", 0.1, "2026-01-01T01:00:00Z"))
+        dm.append_record("task-a", _make_record("d3", 0.1, "2026-01-01T02:00:00Z"))
+        dm.append_record("task-a", _make_record("d4", 0.1, "2026-01-01T03:00:00Z"))
         confidence = dm.get_confidence("task-a")
-        # Normalized: [0.9, 0.1, 0.1, 0.1]
-        # EWMA: 0.9 -> 0.3*0.1 + 0.7*0.9 = 0.66 -> 0.3*0.1 + 0.7*0.66 = 0.492 -> 0.3*0.1 + 0.7*0.492 = 0.3744
-        # Closer to 0.1 than to 0.9
-        assert confidence < 0.5  # much closer to recent (0.1) than initial (0.9)
+        # Normalized: [1.0, 0.1, 0.1, 0.1]
+        # EWMA: 1.0 -> 0.3*0.1+0.7*1.0=0.73 -> 0.3*0.1+0.7*0.73=0.541 -> 0.3*0.1+0.7*0.541=0.4087
+        # Closer to 0.1 (recent) than to 1.0 (initial)
+        assert confidence < 0.5
 
 
 # ===================================================================
