@@ -1,163 +1,97 @@
-# Roadmap: KAIS AIGC Platform — Engine Integration
+# Roadmap: Hermes Intelligent Decision Engine (v1.1)
 
 ## Overview
 
-This milestone completes the AI short drama engine by adding six capability layers to the gold-team execution engine: ComfyUI environment setup, post-processing workflows, character consistency workflows, lip sync, frame interpolation, and pipeline templates that tie everything together. The journey goes from environment preparation through increasingly complex engines, finishing with pipeline templates that orchestrate the individual engines into complete production workflows.
+以 NousResearch/hermes-agent 为底座，构建通用智能决策引擎。4 个阶段：先搭建域无关 API 和域注册机制，再接通自学习循环，然后注册 movie-pipeline 为首个域并迁移领域知识，最后适配客户端并替换旧服务。
 
 ## Phases
 
-**Phase Numbering:**
-
-- Integer phases (1, 2, 3): Planned milestone work
-- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
-
-Decimal phases appear between their surrounding integers in numeric order.
-
-- [ ] **Phase 1: ComfyUI Environment Setup** - Install all custom nodes and download models required by new workflows
-- [ ] **Phase 2: Post-Processing Workflows** - Upscale and face restore workflows using built-in ComfyUI nodes
-- [ ] **Phase 3: Character Consistency Workflows** - IP-Adapter, InstantID, and PhotoMaker face-locking workflows
-- [ ] **Phase 4: Lip Sync Engine** - LatentSync image+audio to lip-synced video engine
-- [ ] **Phase 5: Frame Interpolation** - RIFE frame interpolation workflow
-- [ ] **Phase 6: Pipeline Templates** - Talking head and character-scene pipeline templates that orchestrate all engines
+- [ ] **Phase 7: Hermes Agent Core Service** - 安装 hermes-agent 并构建域无关 REST API wrapper
+- [ ] **Phase 8: Learning Loop Integration** - 接通 audit → memory → improve decide 自学习闭环
+- [ ] **Phase 9: Movie-Pipeline Domain Setup** - 注册首个域并迁移 14 专家知识
+- [ ] **Phase 10: Client Adaptation & Cutover** - 适配客户端、替换旧服务、端到端验证
 
 ## Phase Details
 
-### Phase 1: ComfyUI Environment Setup
+### Phase 7: Hermes Agent Core Service
 
-**Goal**: All custom nodes and models are installed and verified in the ComfyUI Worker, ready for workflow execution
-**Depends on**: Nothing (first phase)
-**Requirements**: LIPS-01, CHAR-01, FRAM-01
-**Success Criteria** (what must be TRUE):
+**Goal**: hermes-agent Python 库安装可用，域无关 REST API 服务运行在 :8080，支持 decide/audit/register/health
+**Depends on**: Nothing
+**Requirements**: API-01, API-02, API-03, API-04, API-05, API-06, DOMAIN-01, DOMAIN-02, DOMAIN-03
+**Success Criteria**:
 
-  1. ComfyUI Worker starts without errors after installing all new custom nodes (LatentSync, IP-Adapter Plus, InstantID, PhotoMaker, ComfyUI-Frame-Interpolation)
-  2. All required models are present in /data/models/ (latentsync_unet, whisper_tiny, arcface, ipadapter models, instantid models, photomaker models, RIFE models)
-  3. Each custom node appears in ComfyUI's node registry and can be instantiated in a workflow without import errors
-  4. Existing workflows (Wan2.2 T2V/I2V, FLUX txt2img, CosyVoice TTS) continue to execute correctly after the new installations
+1. `from run_agent import AIAgent` 可正常调用，AIAgent.chat() 返回有效响应
+2. `POST /v1/register` 可注册一个测试域，`GET /v1/domains` 返回已注册域列表
+3. `POST /v1/decide` 对已注册域返回 `{decision_id, recommendation, confidence}`
+4. `POST /v1/audit` 接受指标并返回 `{recorded, auto_learn_triggered: false}`
+5. `GET /v1/health` 返回 hermes-agent 引擎和域注册表状态
+6. 未注册域的 decide 调用返回 404
 
 **Plans**: 3 plans
 
-Plans:
-**Wave 1**
+- [ ] 07-01: 安装 hermes-agent + 配置 ~/.hermes/ 目录结构
+- [ ] 07-02: 实现 FastAPI wrapper (decide/audit/register/health) + 域注册机制
+- [ ] 07-03: 单元测试 + 集成测试
 
-- [x] 01-01-PLAN.md — Clone 5 custom nodes into Docker volume, install pip deps, update extra_model_paths.yaml
+### Phase 8: Learning Loop Integration
 
-**Wave 2** *(blocked on Wave 1 completion)*
+**Goal**: audit 数据真正进入 hermes-agent 记忆系统，decide 的 confidence 基于历史动态计算
+**Depends on**: Phase 7
+**Requirements**: LEARN-01, LEARN-02, LEARN-03
+**Success Criteria**:
 
-- [x] 01-02-PLAN.md — Download all model files (~15GB) from HuggingFace via hf-mirror.com
+1. audit 写入的数据可通过 `GET /v1/domains/:domain/memory` 查询到
+2. 连续 3 次低分 audit 后，下次 decide 返回 `auto_learn_triggered: true`
+3. 同一 task 执行 5 次 audit 后，decide 的 confidence 值与初始值不同（说明在学习）
+4. 域 A 的 audit 数据不影响域 B 的 decide 结果
 
-**Wave 3** *(blocked on Wave 2 completion)*
+**Plans**: 2 plans
 
-- [ ] 01-03-PLAN.md — Restart ComfyUI, verify node registration, regression test existing workflows
+- [ ] 08-01: 实现 audit → hermes-agent memory 写入 + confidence 动态计算
+- [ ] 08-02: auto-learn 检测 + 技能提取触发 + 测试
 
-### Phase 2: Post-Processing Workflows
+### Phase 9: Movie-Pipeline Domain Setup
 
-**Goal**: Users can submit upscale and face-restore tasks through the gold-team API and receive processed results
-**Depends on**: Phase 1
-**Requirements**: POST-01, POST-02, POST-03, POST-04
-**Success Criteria** (what must be TRUE):
+**Goal**: movie-pipeline 域注册完成，14 专家知识转为 hermes 技能，初始参数作为记忆注入
+**Depends on**: Phase 7
+**Requirements**: MOVIE-01, MOVIE-02, MOVIE-03, MOVIE-04
+**Success Criteria**:
 
-  1. User can submit an UPSCALE task via gold-team /api/v1/tasks and receive a Real-ESRGAN super-resolution image as output
-  2. User can submit a FACE_RESTORE task via gold-team /api/v1/tasks and receive a GFPGAN/CodeFormer face-restored image as output
-  3. Executor correctly routes UPSCALE and FACE_RESTORE TaskTypes to their respective workflow builders and submits to ComfyUIEngine
-  4. Both workflows complete end-to-end: submit returns task_id, poll shows progress, callback delivers result
+1. `POST /v1/register` 注册 movie-pipeline 域含 10 个 tasks
+2. `GET /v1/domains/movie-pipeline/skills` 返回 14 个专家技能
+3. 对 soul-visual task 调用 decide，返回包含 FLUX 参数推荐（基于初始记忆）
+4. movie-pipeline 域的 SOUL.md 定义了电影管线决策顾问身份
 
-**Plans**: TBD
+**Plans**: 2 plans
 
-Plans:
+- [ ] 09-01: 注册 movie-pipeline 域 + 创建 SOUL.md + 注入 HERMES_DEFAULTS 为初始记忆
+- [ ] 09-02: 迁移 14 专家知识为 hermes 技能 + 验证 decide 返回领域相关参数
 
-- [ ] 02-01: Implement build_upscale_workflow and build_face_restore_workflow in workflow_builder.py
-- [ ] 02-02: Add UPSCALE and FACE_RESTORE routing to Executor._execute_task
-- [ ] 02-03: End-to-end test both post-processing workflows
+### Phase 10: Client Adaptation & Cutover
 
-### Phase 3: Character Consistency Workflows
+**Goal**: kais-movie-agent 连上新 hermes 服务，旧服务停用，端到端验证
+**Depends on**: Phase 8, Phase 9
+**Requirements**: CLIENT-01, CLIENT-02, CLIENT-03, REPLACE-01, REPLACE-02, REPLACE-03
+**Success Criteria**:
 
-**Goal**: Users can generate character-consistent images using three different face-locking modes through the existing IMAGE_DRAW task type
-**Depends on**: Phase 1
-**Requirements**: CHAR-02, CHAR-03, CHAR-04, CHAR-05, CHAR-06
-**Success Criteria** (what must be TRUE):
+1. hermes-client.js 调用 `/v1/decide` 和 `/v1/audit`（含 domain 字段），管线正常运行
+2. hermes 服务不可用时，movie-agent 自动降级到 HERMES_DEFAULTS，管线不中断
+3. 旧 kais-hermes.service 和 hermes-worker-agent.service 已停止并禁用
+4. 新 hermes-agent wrapper 作为 systemd service 或 Docker 容器运行并通过 health check
 
-  1. User can submit an IMAGE_DRAW task with params.extra.character_consistency.mode="ipadapter" and receive an image that preserves the reference face
-  2. User can submit an IMAGE_DRAW task with mode="instantid" and receive a zero-sample face-preserving image
-  3. User can submit an IMAGE_DRAW task with mode="photomaker" and receive a multi-reference character image
-  4. Executor IMAGE_DRAW branch routes to the correct workflow builder based on character_consistency mode in params.extra
-  5. All three workflows execute end-to-end in ComfyUI without errors
+**Plans**: 3 plans
 
-**Plans**: TBD
-
-Plans:
-
-- [ ] 03-01: Implement build_ipadapter_face_workflow, build_instantid_workflow, and build_photomaker_workflow
-- [ ] 03-02: Add character_consistency mode routing to Executor IMAGE_DRAW branch
-- [ ] 03-03: End-to-end test all three character consistency workflows
-
-### Phase 4: Lip Sync Engine
-
-**Goal**: Users can submit a lip sync task that takes a character image and audio clip and produces a lip-synced video
-**Depends on**: Phase 1
-**Requirements**: LIPS-02, LIPS-03, LIPS-04, LIPS-05
-**Success Criteria** (what must be TRUE):
-
-  1. User can submit a LIP_SYNC task with an image and audio file and receive a lip-synced video as output
-  2. TaskType enum contains LIP_SYNC = "lip_sync" and Executor has a matching routing branch
-  3. The build_lip_sync_workflow produces a valid ComfyUI workflow that chains image+audio through LatentSync nodes
-  4. Full submit-poll-callback lifecycle works: task submits, polls show progress, callback delivers the video result
-
-**Plans**: TBD
-
-Plans:
-
-- [ ] 04-01: Add LIP_SYNC to TaskType enum and implement build_lip_sync_workflow
-- [ ] 04-02: Add lip_sync routing branch to Executor._execute_task
-- [ ] 04-03: End-to-end test lip sync workflow
-
-### Phase 5: Frame Interpolation
-
-**Goal**: Users can submit a frame interpolation task that increases video smoothness by generating intermediate frames
-**Depends on**: Phase 1
-**Requirements**: FRAM-02, FRAM-03, FRAM-04, FRAM-05
-**Success Criteria** (what must be TRUE):
-
-  1. User can submit a FRAME_INTERPOLATE task with a video and receive a frame-multiplied video as output
-  2. TaskType enum contains FRAME_INTERPOLATE = "frame_interpolate" and Executor has a matching routing branch
-  3. The build_frame_interp_workflow produces a valid ComfyUI workflow that runs RIFE interpolation
-  4. Full submit-poll-callback lifecycle works end-to-end
-
-**Plans**: TBD
-
-Plans:
-
-- [ ] 05-01: Add FRAME_INTERPOLATE to TaskType enum and implement build_frame_interp_workflow
-- [ ] 05-02: Add frame_interpolate routing to Executor and end-to-end test
-
-### Phase 6: Pipeline Templates
-
-**Goal**: Users can trigger complete short drama production pipelines that orchestrate multiple engines into a single automated workflow
-**Depends on**: Phase 2, Phase 3, Phase 4
-**Requirements**: PIPE-01, PIPE-02
-**Success Criteria** (what must be TRUE):
-
-  1. User can trigger a talking_head pipeline that automatically chains image generation, lip sync, face restore, and upscale into a final delivered video
-  2. User can trigger a character_scene pipeline that automatically chains IP-Adapter face-locking, video generation, lip sync, and post-processing into a final delivered video
-  3. Each pipeline step produces verifiable intermediate output before the next step begins
-  4. Pipeline failures at any step are reported with the failed step identified and partial results preserved
-
-**Plans**: TBD
-
-Plans:
-
-- [ ] 06-01: Implement talking_head pipeline template (image_gen -> lip_sync -> face_restore -> upscale)
-- [ ] 06-02: Implement character_scene pipeline template (ipadapter -> video_gen -> lip_sync -> postprocess)
+- [ ] 10-01: 修改 hermes-client.js API 路径 + 降级测试
+- [ ] 10-02: 停用旧服务 + 部署新 hermes-agent wrapper
+- [ ] 10-03: 端到端验证（movie-agent → new hermes → gold-team → audit 反馈）
 
 ## Progress
 
-**Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
+**Execution Order:** 7 → 8 (parallel with 9) → 10
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. ComfyUI Environment Setup | 2/3 | In Progress|  |
-| 2. Post-Processing Workflows | 0/3 | Not started | - |
-| 3. Character Consistency Workflows | 0/3 | Not started | - |
-| 4. Lip Sync Engine | 0/3 | Not started | - |
-| 5. Frame Interpolation | 0/2 | Not started | - |
-| 6. Pipeline Templates | 0/2 | Not started | - |
+| 7. Hermes Agent Core Service | 0/3 | Not started | - |
+| 8. Learning Loop Integration | 0/2 | Not started | - |
+| 9. Movie-Pipeline Domain Setup | 0/2 | Not started | - |
+| 10. Client Adaptation & Cutover | 0/3 | Not started | - |

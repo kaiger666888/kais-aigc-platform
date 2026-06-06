@@ -1,107 +1,105 @@
-# Requirements: KAIS AIGC Platform — Engine Integration
+# Requirements: Hermes Intelligent Decision Engine (v1.1)
 
-**Defined:** 2026-06-04
-**Core Value:** 让 AI 短剧制作流程跑通——从角色设计到成片的完整管线能自动执行并产出可交付成片
+**Defined:** 2026-06-06
+**Core Value:** 以 NousResearch/hermes-agent 为底座，构建通用智能决策引擎，让管线任务越做越聪明
 
 ## v1 Requirements
 
-Requirements for AI 短剧引擎补全 (ComfyUI 优先). Each maps to roadmap phases.
+### 通用决策 API
 
-### 口型同步 (Lip Sync)
+- [ ] **API-01**: hermes-agent Python 库模式安装并可通过 `from run_agent import AIAgent` 调用
+- [ ] **API-02**: FastAPI 服务暴露 `POST /v1/decide` 接受 `{domain, task, context}` 返回 `{decision_id, recommendation, confidence}`
+- [ ] **API-03**: FastAPI 服务暴露 `POST /v1/audit` 接受 `{domain, decision_id, outcome, metrics}` 返回 `{recorded, auto_learn_triggered}`
+- [ ] **API-04**: FastAPI 服务暴露 `POST /v1/register` 接受 `{domain, description, tasks, skills_manifest}` 注册新域
+- [ ] **API-05**: `GET /v1/domains` 列出所有已注册域，`GET /v1/domains/:domain/skills` 列出域技能
+- [ ] **API-06**: `GET /v1/health` 返回服务状态和 hermes-agent 引擎状态
 
-- [ ] **LIPS-01**: ComfyUI Worker 安装 LatentSync custom node 及依赖模型 (latentsync_unet, whisper_tiny, arcface)
-- [ ] **LIPS-02**: workflow_builder.py 新增 build_lip_sync_workflow，支持 image+audio → lip-synced video 的 ComfyUI 节点链
-- [ ] **LIPS-03**: TaskType 枚举新增 LIP_SYNC = "lip_sync"
-- [ ] **LIPS-04**: Executor._execute_task 新增 lip_sync 分支，自动构建 workflow 并提交 ComfyUIEngine
-- [ ] **LIPS-05**: 通过 gold-team /api/v1/tasks 提交 lip_sync 任务，submit → poll → callback 端到端测试通过
+### 域隔离与技能系统
 
-### 角色一致性 (Character Consistency)
+- [ ] **DOMAIN-01**: 每个域有独立的技能集（~/.hermes/domains/{domain}/skills/）和记忆（memory/）
+- [ ] **DOMAIN-02**: 域注册后 hermes-agent 自动加载该域的 SOUL.md 和技能作为决策上下文
+- [ ] **DOMAIN-03**: decide 调用仅使用目标域的技能和记忆，不同域之间互不干扰
 
-- [ ] **CHAR-01**: ComfyUI Worker 安装 IP-Adapter Plus + InstantID + PhotoMaker 节点及模型
-- [ ] **CHAR-02**: workflow_builder.py 新增 build_ipadapter_face_workflow，支持参考图面部锁定生成
-- [ ] **CHAR-03**: workflow_builder.py 新增 build_instantid_workflow，支持零样本面部保持
-- [ ] **CHAR-04**: workflow_builder.py 新增 build_photomaker_workflow，支持多参考图角色生成
-- [ ] **CHAR-05**: Executor IMAGE_DRAW 分支通过 params.extra.character_consistency.mode 路由到对应 workflow
-- [ ] **CHAR-06**: 三种角色一致性 workflow 在 ComfyUI 中端到端执行测试通过
+### 自学习循环
 
-### 后处理 (Post-Processing)
+- [ ] **LEARN-01**: audit 数据写入 hermes-agent 记忆系统（而非 JSON 文件），作为下次 decide 的上下文
+- [ ] **LEARN-02**: 连续低分触发 auto-learn（类似现有 _check_auto_learn），hermes-agent 自动提取改进技能
+- [ ] **LEARN-03**: decide 返回的 confidence 基于该域该 task 的历史成功率动态计算
 
-- [ ] **POST-01**: workflow_builder.py 新增 build_upscale_workflow (Real-ESRGAN 超分辨率)
-- [ ] **POST-02**: workflow_builder.py 新增 build_face_restore_workflow (GFPGAN/CodeFormer 人脸修复)
-- [ ] **POST-03**: Executor 路由支持已有的 UPSCALE 和 FACE_RESTORE TaskType，自动构建对应 workflow
-- [ ] **POST-04**: 超分辨率和人脸修复通过 gold-team API 端到端测试通过
+### Movie-Pipeline 域注册
 
-### 帧插值 (Frame Interpolation)
+- [ ] **MOVIE-01**: 注册 movie-pipeline 域（10 tasks: requirement-bible 到 composition）
+- [ ] **MOVIE-02**: 14 个电影专家领域知识（identity/workflow/params_guide/style_guide）转为 hermes 技能
+- [ ] **MOVIE-03**: HERMES_DEFAULTS（60+ 行参数默认值）作为 movie-pipeline 域的初始记忆注入
+- [ ] **MOVIE-04**: movie-pipeline 域的 SOUL.md 定义电影管线智能决策顾问身份
 
-- [ ] **FRAM-01**: ComfyUI Worker 安装 ComfyUI-Frame-Interpolation custom node (RIFE 模型)
-- [ ] **FRAM-02**: workflow_builder.py 新增 build_frame_interp_workflow，支持 video → frame-multiplied video
-- [ ] **FRAM-03**: TaskType 枚举新增 FRAME_INTERPOLATE = "frame_interpolate"
-- [ ] **FRAM-04**: Executor 路由支持 frame_interpolate 类型，自动构建 workflow
-- [ ] **FRAM-05**: 帧插值端到端测试通过
+### 客户端适配
 
-### Pipeline 集成
+- [ ] **CLIENT-01**: kais-movie-agent 的 hermes-client.js 改为调用 `/v1/decide` 和 `/v1/audit`（含 domain 字段）
+- [ ] **CLIENT-02**: hermes 不可用时降级到 HERMES_DEFAULTS（保持现有容错行为）
+- [ ] **CLIENT-03**: hermes-adapter.js (LLM 路由) 保持不变，不依赖新 hermes 服务
 
-- [ ] **PIPE-01**: 新增 talking_head pipeline 模板 (image_gen → lip_sync → face_restore → upscale)
-- [ ] **PIPE-02**: 新增 character_scene pipeline 模板 (ipadapter → video_gen → lip_sync → postprocess)
+### 旧服务替换
+
+- [ ] **REPLACE-01**: 新 hermes wrapper service 监听 :8080 替代旧 kais-hermes Decision API
+- [ ] **REPLACE-02**: 停用 hermes-worker-agent.service（Node.js :3100）
+- [ ] **REPLACE-03**: 新 systemd unit 或 Docker 容器部署 hermes-agent wrapper
 
 ## v2 Requirements
 
-Deferred to future milestone.
+### 额外域
 
-### 音效生成
+- **CODE-01**: code-review 域注册（安全审计、代码审查）
+- **DATA-01**: data-pipeline 域注册（ETL 优化、数据质量）
 
-- **SFX-01**: FoleyCrafter Docker 容器封装，实现 DockerAPIEngine
-- **SFX-02**: workflow_builder 或 engine 支持 video → foley audio 生成
+### 高级能力
 
-### 多语言
-
-- **LANG-01**: GPT-SoVITS 声音克隆翻译引擎集成
-- **LANG-02**: 多语言配音 pipeline 模板
+- **ADV-01**: WebSocket 实时决策推送
+- **ADV-02**: 批量决策 `POST /v1/decide/batch`
+- **ADV-03**: 域间知识迁移（一个域学到的经验可启发另一个域）
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| 视频风格迁移 (V2V Style) | 现有 Wan2.2 + prompt 够用，非短剧必需 |
-| 全自动剪辑 | 需要人工创作决策介入 |
-| 移动端审批 | 属于 review-platform 功能，非引擎范畴 |
-| LoRA fine-tuning | 角色一致性方案已够用，LoRA 训练周期长 |
-| 云端 Lip Sync | 当前无成熟云端 API，本地 ComfyUI 方案优先 |
+| hermes-agent 完整 CLI/Gateway | 只用 Python 库模式，不跑 CLI 或 Gateway |
+| 子 agent 委派 | 决策场景不需要子 agent |
+| 多平台消息网关 | 不用 hermes 的 Telegram/Discord 网关 |
+| 替代 OpenClaw 编排 | OpenClaw 继续做编排，hermes 只做决策 |
+| movie-agent 管线代码重构 | 管线代码零改动，只改 hermes-client.js |
 
 ## Traceability
 
-Which phases cover which requirements. Updated during roadmap creation.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LIPS-01 | Phase 1 | Pending |
-| LIPS-02 | Phase 4 | Pending |
-| LIPS-03 | Phase 4 | Pending |
-| LIPS-04 | Phase 4 | Pending |
-| LIPS-05 | Phase 4 | Pending |
-| CHAR-01 | Phase 1 | Pending |
-| CHAR-02 | Phase 3 | Pending |
-| CHAR-03 | Phase 3 | Pending |
-| CHAR-04 | Phase 3 | Pending |
-| CHAR-05 | Phase 3 | Pending |
-| CHAR-06 | Phase 3 | Pending |
-| POST-01 | Phase 2 | Pending |
-| POST-02 | Phase 2 | Pending |
-| POST-03 | Phase 2 | Pending |
-| POST-04 | Phase 2 | Pending |
-| FRAM-01 | Phase 1 | Pending |
-| FRAM-02 | Phase 5 | Pending |
-| FRAM-03 | Phase 5 | Pending |
-| FRAM-04 | Phase 5 | Pending |
-| FRAM-05 | Phase 5 | Pending |
-| PIPE-01 | Phase 6 | Pending |
-| PIPE-02 | Phase 6 | Pending |
+| API-01 | Phase 7 | Pending |
+| API-02 | Phase 7 | Pending |
+| API-03 | Phase 7 | Pending |
+| API-04 | Phase 7 | Pending |
+| API-05 | Phase 7 | Pending |
+| API-06 | Phase 7 | Pending |
+| DOMAIN-01 | Phase 7 | Pending |
+| DOMAIN-02 | Phase 7 | Pending |
+| DOMAIN-03 | Phase 7 | Pending |
+| LEARN-01 | Phase 8 | Pending |
+| LEARN-02 | Phase 8 | Pending |
+| LEARN-03 | Phase 8 | Pending |
+| MOVIE-01 | Phase 9 | Pending |
+| MOVIE-02 | Phase 9 | Pending |
+| MOVIE-03 | Phase 9 | Pending |
+| MOVIE-04 | Phase 9 | Pending |
+| CLIENT-01 | Phase 10 | Pending |
+| CLIENT-02 | Phase 10 | Pending |
+| CLIENT-03 | Phase 10 | Pending |
+| REPLACE-01 | Phase 10 | Pending |
+| REPLACE-02 | Phase 10 | Pending |
+| REPLACE-03 | Phase 10 | Pending |
 
 **Coverage:**
-- v1 requirements: 22 total
-- Mapped to phases: 22
-- Unmapped: 0
+- v1 requirements: 21 total
+- Mapped to phases: 21
+- Unmapped: 0 ✓
 
 ---
-*Requirements defined: 2026-06-04*
-*Last updated: 2026-06-04 after roadmap creation*
+*Requirements defined: 2026-06-06*
+*Last updated: 2026-06-06 after initial definition*

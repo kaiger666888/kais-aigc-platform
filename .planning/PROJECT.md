@@ -88,6 +88,23 @@ RTX 3090 24GB 串行调度，重模型 (Wan2.2 ~22GB) 和轻模型 (Real-ESRGAN 
 | 角色 3 方案组合 | IP-Adapter FaceID (高保真) + InstantID (零样本) + PhotoMaker (多图) 覆盖不同场景 | — Pending |
 | 角色一致性不新增 TaskType | 扩展 IMAGE_DRAW/IMAGE_REFINE 的 params.extra 字段，避免枚举膨胀 | — Pending |
 
+## Current Milestone: v1.1 Hermes Intelligent Decision Engine
+
+**Goal:** 以 NousResearch/hermes-agent 为底座，构建通用智能决策引擎服务，为平台各管线提供自学习决策能力。
+
+**Target features:**
+- 域无关 REST API (decide / audit / register) — 任何管线都可通过同一接口获得智能决策
+- hermes-agent Python 库模式嵌入，利用其技能系统、记忆系统、自学习循环
+- movie-pipeline 作为首个注册域（14 专家技能 + 10 阶段参数知识迁移）
+- 替代现有 hermes-worker-agent，消除两个多余 systemd 服务
+- kais-movie-agent 管线代码零改动，仅 hermes-client.js 改 API 路径
+
+**Why hermes-agent (NousResearch, 172k stars):**
+- 内置 3 层自学习循环（技能创建 → 自我修补 → Curator 优化）
+- Python 库模式可直接嵌入，无需独立服务
+- 技能/记忆系统天然支持多域隔离
+- MCP 原生支持，可连接 OpenClaw 工具
+
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
@@ -106,4 +123,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-04 after milestone v1.0 start*
+*Last updated: 2026-06-06 after v1.1 milestone start*
