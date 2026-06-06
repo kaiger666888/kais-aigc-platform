@@ -553,17 +553,15 @@ Sourced from the gold-team engine capabilities catalog in `docker/gold-team/src/
 
 **Note on A2:** MOVIE-01 says "requirement-bible 到 composition" but pipeline.js has no "requirement-bible" or "composition" phases. The 10 tasks in CONTEXT.md specific ideas use the pipeline.js names (requirement through post-production). The planner should confirm this mapping.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **MOVIE-01 task naming discrepancy**
+1. **MOVIE-01 task naming discrepancy** (RESOLVED: use pipeline.js PHASES ids as confirmed in CONTEXT.md)
    - What we know: MOVIE-01 says "10 tasks: requirement-bible 到 composition", but pipeline.js has 11 phases with different names (requirement through quality-gate)
-   - What's unclear: Whether "requirement-bible" = "requirement" and "composition" = "post-production" or if these are hermes-specific task names
-   - Recommendation: Use pipeline.js PHASES ids as confirmed in CONTEXT.md specific ideas (requirement, art-direction, ..., post-production)
+   - Resolution: Plans use pipeline.js PHASES ids (requirement, art-direction, ..., post-production) as confirmed in CONTEXT.md specific ideas. Quality-gate excluded (auto-evaluated, not a decision task).
 
-2. **Skill injection into decide() prompt**
+2. **Skill injection into decide() prompt** (RESOLVED: Phase 9 scope is registration only)
    - What we know: DecisionEngine.build_prompt() does NOT read skill files; skills are only listed by get_skills()
-   - What's unclear: Whether Phase 9 scope requires skills to actually influence decide() responses, or just be registered
-   - Recommendation: MOVIE-02 only requires skills to be registered and returnable via API; skill injection is a future enhancement
+   - Resolution: MOVIE-02 only requires skills to be registered and returnable via API. Skill injection into decide() is a future enhancement outside Phase 9 scope.
 
 ## Environment Availability
 
