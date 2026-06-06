@@ -56,8 +56,13 @@ Plans:
 
 **Plans**: 2 plans
 
-- [ ] 08-01: 实现 audit → hermes-agent memory 写入 + confidence 动态计算
-- [ ] 08-02: auto-learn 检测 + 技能提取触发 + 测试
+**Wave 1**
+
+- [ ] 08-01-PLAN.md -- TDD: DomainMemory helper class (audit aggregation, EWMA confidence, auto-learn trigger, memory query)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 08-02-PLAN.md -- Wire DomainMemory into DecisionEngine + add GET /v1/domains/{domain}/memory endpoint + integration tests
 
 ### Phase 9: Movie-Pipeline Domain Setup
 
