@@ -32,7 +32,7 @@
 Plans:
 **Wave 1**
 
-- [ ] 07-01-PLAN.md — Install hermes-agent + scaffold project + build domain registry, agent factory, decision engine core
+- [x] 07-01-PLAN.md — Install hermes-agent + scaffold project + build domain registry, agent factory, decision engine core
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -100,7 +100,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 7. Hermes Agent Core Service | 0/3 | Planning complete | - |
+| 7. Hermes Agent Core Service | 1/3 | In Progress|  |
 | 8. Learning Loop Integration | 0/2 | Not started | - |
 | 9. Movie-Pipeline Domain Setup | 0/2 | Not started | - |
 | 10. Client Adaptation & Cutover | 0/3 | Not started | - |
