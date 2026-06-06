@@ -29,9 +29,10 @@
 
 **Plans**: 3 plans
 
-- [ ] 07-01: 安装 hermes-agent + 配置 ~/.hermes/ 目录结构
-- [ ] 07-02: 实现 FastAPI wrapper (decide/audit/register/health) + 域注册机制
-- [ ] 07-03: 单元测试 + 集成测试
+Plans:
+- [ ] 07-01-PLAN.md — Install hermes-agent + scaffold project + build domain registry, agent factory, decision engine core
+- [ ] 07-02-PLAN.md — Implement FastAPI REST API layer with all /v1/* endpoints
+- [ ] 07-03-PLAN.md — Unit tests + integration tests for all Phase 7 requirements
 
 ### Phase 8: Learning Loop Integration
 
@@ -91,7 +92,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 7. Hermes Agent Core Service | 0/3 | Not started | - |
+| 7. Hermes Agent Core Service | 0/3 | Planning complete | - |
 | 8. Learning Loop Integration | 0/2 | Not started | - |
 | 9. Movie-Pipeline Domain Setup | 0/2 | Not started | - |
 | 10. Client Adaptation & Cutover | 0/3 | Not started | - |
