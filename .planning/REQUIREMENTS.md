@@ -35,9 +35,9 @@
 
 ### 客户端适配
 
-- [ ] **CLIENT-01**: kais-movie-agent 的 hermes-client.js 改为调用 `/v1/decide` 和 `/v1/audit`（含 domain 字段）
-- [ ] **CLIENT-02**: hermes 不可用时降级到 HERMES_DEFAULTS（保持现有容错行为）
-- [ ] **CLIENT-03**: hermes-adapter.js (LLM 路由) 保持不变，不依赖新 hermes 服务
+- [x] **CLIENT-01**: kais-movie-agent 的 hermes-client.js 改为调用 `/v1/decide` 和 `/v1/audit`（含 domain 字段）
+- [x] **CLIENT-02**: hermes 不可用时降级到 HERMES_DEFAULTS（保持现有容错行为）
+- [x] **CLIENT-03**: hermes-adapter.js (LLM 路由) 保持不变，不依赖新 hermes 服务
 
 ### 旧服务替换
 
@@ -88,9 +88,9 @@
 | MOVIE-02 | Phase 9 | Pending |
 | MOVIE-03 | Phase 9 | Pending |
 | MOVIE-04 | Phase 9 | Pending |
-| CLIENT-01 | Phase 10 | Pending |
-| CLIENT-02 | Phase 10 | Pending |
-| CLIENT-03 | Phase 10 | Pending |
+| CLIENT-01 | Phase 10 | Done |
+| CLIENT-02 | Phase 10 | Done |
+| CLIENT-03 | Phase 10 | Done |
 | REPLACE-01 | Phase 10 | Pending |
 | REPLACE-02 | Phase 10 | Pending |
 | REPLACE-03 | Phase 10 | Pending |

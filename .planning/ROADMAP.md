@@ -103,7 +103,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 10-01-PLAN.md -- Create hermes-client.js (decide/audit + HERMES_DEFAULTS fallback) + unit tests
+- [x] 10-01-PLAN.md -- Create hermes-client.js (decide/audit + HERMES_DEFAULTS fallback) + unit tests
 - [ ] 10-02-PLAN.md -- Dockerfile + docker-compose hermes-agent service + migration documentation
 
 **Wave 2** *(blocked on Wave 1 completion)*
