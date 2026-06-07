@@ -100,20 +100,32 @@ function buildFFLFWorkflow(opts: {
       inputs: { clip: ["2", 0], text: negativePrompt },
     },
     "9": {
-      class_type: "LTXVImgToVideoInplaceKJ",
+      class_type: "LTXVImgToVideoInplace",
       inputs: {
         vae: ["3", 0],
+        image: ["4", 0],
         latent: ["6", 0],
-        image_1: ["4", 0],
-        image_2: ["5", 0],
-        num_images: 2,
+        strength: 1.0,
+        bypass: false,
       },
     },
     "10": {
-      class_type: "LTXVConditioning",
-      inputs: { positive: ["7", 0], negative: ["8", 0], frame_rate: fps },
+      class_type: "LTXVAddGuide",
+      inputs: {
+        positive: ["7", 0],
+        negative: ["8", 0],
+        vae: ["3", 0],
+        latent: ["9", 0],
+        image: ["5", 0],
+        frame_idx: -1,
+        strength: 1.0,
+      },
     },
     "11": {
+      class_type: "LTXVConditioning",
+      inputs: { positive: ["10", 0], negative: ["10", 1], frame_rate: fps },
+    },
+    "12": {
       class_type: "LTX2_NAG",
       inputs: {
         model: ["1", 0],
@@ -123,12 +135,12 @@ function buildFFLFWorkflow(opts: {
         nag_inplace: nagInplace ?? true,
       },
     },
-    "12": {
+    "13": {
       class_type: "KSampler",
       inputs: {
-        model: ["11", 0],
-        positive: ["10", 0],
-        negative: ["10", 1],
+        model: ["12", 0],
+        positive: ["11", 0],
+        negative: ["11", 1],
         latent_image: ["9", 0],
         seed, steps, cfg,
         sampler_name: samplerName,
@@ -136,14 +148,14 @@ function buildFFLFWorkflow(opts: {
         denoise,
       },
     },
-    "13": {
-      class_type: "VAEDecodeTiled",
-      inputs: { samples: ["12", 0], vae: ["3", 0], tile_size: 512, overlap: 64, temporal_size: 64, temporal_overlap: 8 },
-    },
     "14": {
+      class_type: "VAEDecodeTiled",
+      inputs: { samples: ["13", 0], vae: ["3", 0], tile_size: 512, overlap: 64, temporal_size: 64, temporal_overlap: 8 },
+    },
+    "15": {
       class_type: "VHS_VideoCombine",
       inputs: {
-        images: ["13", 0],
+        images: ["14", 0],
         frame_rate: fps,
         loop_count: 0,
         filename_prefix: filenamePrefix,

@@ -1163,7 +1163,6 @@ def build_ltx_fflf_workflow(
     scheduler: str = "normal",
     denoise: float = 1.0,
     strength: float = 1.0,
-    num_blend: int = 0,
     nag_scale: float = 1.0,
     nag_alpha: float = 0.25,
     nag_tau: float = 2.5,
@@ -1177,13 +1176,13 @@ def build_ltx_fflf_workflow(
 ) -> dict[str, Any]:
     """Build LTX-2.3 FFLF (First Frame Last Frame) interpolation workflow.
 
-    Injects first and last frame into latent video, then interpolates
-    between them. Uses NAG (Normalized Attention Guidance) for quality
-    with distilled models.
+    Injects first frame via LTXVImgToVideoInplace and guides last frame
+    via LTXVAddGuide. Uses NAG for quality with distilled models.
 
     Pipeline: UNETLoader -> DualCLIPLoader -> VAELoader -> LoadImage(first) ->
               LoadImage(last) -> EmptyLTXVLatentVideo -> CLIPTextEncode(pos+neg) ->
-              LTXVImgToVideoInplaceKJ -> LTXVConditioning -> LTX2_NAG ->
+              LTXVImgToVideoInplace(first) + LTXVAddGuide(last) ->
+              LTXVConditioning -> LTX2_NAG ->
               KSampler -> VAEDecodeTiled -> VHS_VideoCombine
 
     Args:
@@ -1202,7 +1201,6 @@ def build_ltx_fflf_workflow(
         scheduler: Scheduler name.
         denoise: Denoise strength.
         strength: Image conditioning strength.
-        num_blend: Number of blend frames.
         nag_scale: NAG guidance scale (1.0 default).
         nag_alpha: NAG alpha parameter (0.25 default).
         nag_tau: NAG tau parameter (2.5 default).
@@ -1282,24 +1280,36 @@ def build_ltx_fflf_workflow(
             },
         },
         "9": {
-            "class_type": "LTXVImgToVideoInplaceKJ",
+            "class_type": "LTXVImgToVideoInplace",
             "inputs": {
                 "vae": ["3", 0],
+                "image": ["4", 0],
                 "latent": ["6", 0],
-                "image_1": ["4", 0],
-                "image_2": ["5", 0],
-                "num_images": 2,
+                "strength": strength,
+                "bypass": False,
             },
         },
         "10": {
-            "class_type": "LTXVConditioning",
+            "class_type": "LTXVAddGuide",
             "inputs": {
                 "positive": ["7", 0],
                 "negative": ["8", 0],
-                "frame_rate": float(fps),
+                "vae": ["3", 0],
+                "latent": ["9", 0],
+                "image": ["5", 0],
+                "frame_idx": -1,
+                "strength": strength,
             },
         },
         "11": {
+            "class_type": "LTXVConditioning",
+            "inputs": {
+                "positive": ["10", 0],
+                "negative": ["10", 1],
+                "frame_rate": float(fps),
+            },
+        },
+        "12": {
             "class_type": "LTX2_NAG",
             "inputs": {
                 "model": ["1", 0],
@@ -1309,12 +1319,12 @@ def build_ltx_fflf_workflow(
                 "nag_inplace": nag_inplace,
             },
         },
-        "12": {
+        "13": {
             "class_type": "KSampler",
             "inputs": {
-                "model": ["11", 0],
-                "positive": ["10", 0],
-                "negative": ["10", 1],
+                "model": ["12", 0],
+                "positive": ["11", 0],
+                "negative": ["11", 1],
                 "latent_image": ["9", 0],
                 "seed": seed,
                 "steps": steps,
@@ -1324,10 +1334,10 @@ def build_ltx_fflf_workflow(
                 "denoise": denoise,
             },
         },
-        "13": {
+        "14": {
             "class_type": "VAEDecodeTiled",
             "inputs": {
-                "samples": ["12", 0],
+                "samples": ["13", 0],
                 "vae": ["3", 0],
                 "tile_size": 512,
                 "overlap": 64,
@@ -1335,10 +1345,10 @@ def build_ltx_fflf_workflow(
                 "temporal_overlap": 8,
             },
         },
-        "14": {
+        "15": {
             "class_type": "VHS_VideoCombine",
             "inputs": {
-                "images": ["13", 0],
+                "images": ["14", 0],
                 "frame_rate": fps,
                 "loop_count": 0,
                 "filename_prefix": filename_prefix,
@@ -1354,3 +1364,4 @@ def build_ltx_fflf_workflow(
     }
 
     return workflow
+
