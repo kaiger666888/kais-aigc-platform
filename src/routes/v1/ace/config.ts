@@ -7,15 +7,15 @@ export const ACE_CONFIG = {
   defaultModel: process.env.ACE_DEFAULT_MODEL || "acestep-v15-xl-turbo",
 };
 
-/** Supported task types — map ACE-Step task_type to gold-team task_type */
+/** Supported task types — map ACE-Step task_type to gold-team TaskType enum */
 export const ACE_TASK_TYPES = {
-  text2music: "music_generation",
-  cover: "music_cover",
-  repaint: "music_repaint",
-  extract: "music_extract",
-  lego: "music_lego",
-  complete: "music_complete",
-  remix: "music_generation", // remix reuses text2music
+  text2music: "music",
+  cover: "music",
+  repaint: "music",
+  extract: "music",
+  lego: "music",
+  complete: "music",
+  remix: "music",
 } as const;
 
 /** Supported audio output formats */

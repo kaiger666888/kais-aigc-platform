@@ -30,7 +30,7 @@ const router = express.Router();
  *
  * Full params — see ACE-Step 1.5 API docs.
  */
-export default router.post("/generate", async (req, res) => {
+export default router.post("/", async (req, res) => {
   // ---- Zod validation ----
   const schema = z.object({
     // --- Task identity ---
@@ -214,11 +214,8 @@ export default router.post("/generate", async (req, res) => {
     task_id,
     type: gt_task_type,
     priority: p.priority,
-    model_preference: ACE_CONFIG.engineId,
+    model_preference: "local" as const,
     params: acestepParams,
-    extra: {
-      acestep: acestepParams,
-    },
   };
 
   if (p.callback_url) payload.callback_url = p.callback_url;

@@ -10,7 +10,7 @@ const router = express.Router();
  * List available ACE-Step models.
  * Falls back to defaults if gold-team doesn't expose a models endpoint.
  */
-export default router.get("/models", async (req, res) => {
+export default router.get("/", async (req, res) => {
   try {
     const axios = (await import("axios")).default;
     const resp = await axios.get(`${ACE_CONFIG.goldTeamUrl}/api/v1/engines`, {
