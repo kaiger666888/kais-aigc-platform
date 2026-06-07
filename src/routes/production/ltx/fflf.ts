@@ -117,10 +117,10 @@ function buildFFLFWorkflow(opts: {
       class_type: "LTX2_NAG",
       inputs: {
         model: ["1", 0],
-        scale: nagScale,
-        alpha: nagAlpha,
-        tau: nagTau,
-        inplace: true,
+        nag_scale: nagScale,
+        nag_alpha: nagAlpha,
+        nag_tau: nagTau,
+        nag_inplace: nagInplace ?? true,
       },
     },
     "12": {
@@ -138,7 +138,7 @@ function buildFFLFWorkflow(opts: {
     },
     "13": {
       class_type: "VAEDecodeTiled",
-      inputs: { samples: ["12", 0], vae: ["3", 0], tile_size: 128, overlap: 64 },
+      inputs: { samples: ["12", 0], vae: ["3", 0], tile_size: 512, overlap: 64, temporal_size: 64, temporal_overlap: 8 },
     },
     "14": {
       class_type: "VHS_VideoCombine",

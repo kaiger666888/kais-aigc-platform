@@ -862,7 +862,8 @@ def build_ltx_prompt_relay_i2v_workflow(
                 "model": ["1", 0],
                 "clip": ["2", 0],
                 "latent": ["6", 0],
-                "prompt": prompt,
+                "global_prompt": prompt,
+                "segment_lengths": "",
                 "local_prompts": local_prompts,
                 "negative": negative_prompt,
                 "epsilon": epsilon,
@@ -903,8 +904,10 @@ def build_ltx_prompt_relay_i2v_workflow(
             "inputs": {
                 "samples": ["10", 0],
                 "vae": ["3", 0],
-                "tile_size": 128,
+                "tile_size": 512,
                 "overlap": 64,
+                "temporal_size": 64,
+                "temporal_overlap": 8,
             },
         },
         "12": {
@@ -1117,8 +1120,10 @@ def build_ltx_extension_workflow(
             "inputs": {
                 "samples": ["12", 0],
                 "vae": ["3", 0],
-                "tile_size": 128,
+                "tile_size": 512,
                 "overlap": 64,
+                "temporal_size": 64,
+                "temporal_overlap": 8,
             },
         },
         "14": {
@@ -1298,10 +1303,10 @@ def build_ltx_fflf_workflow(
             "class_type": "LTX2_NAG",
             "inputs": {
                 "model": ["1", 0],
-                "scale": nag_scale,
-                "alpha": nag_alpha,
-                "tau": nag_tau,
-                "inplace": nag_inplace,
+                "nag_scale": nag_scale,
+                "nag_alpha": nag_alpha,
+                "nag_tau": nag_tau,
+                "nag_inplace": nag_inplace,
             },
         },
         "12": {
@@ -1324,8 +1329,10 @@ def build_ltx_fflf_workflow(
             "inputs": {
                 "samples": ["12", 0],
                 "vae": ["3", 0],
-                "tile_size": 128,
+                "tile_size": 512,
                 "overlap": 64,
+                "temporal_size": 64,
+                "temporal_overlap": 8,
             },
         },
         "14": {

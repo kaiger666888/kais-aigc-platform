@@ -105,12 +105,17 @@ def build_i2v_workflow(image_filename, prompt_text, negative_prompt,
                         width=480, height=480, num_frames=81, seed=0,
                         steps_stage1=20, steps_stage2=20, cfg=5.0):
     """
-    Wan 2.2 I2V Two-Stage workflow (based on official blueprint)
+    Wan 2.2 I2V Two-Stage workflow (based on official ComfyUI blueprint)
     
-    Stage 1: high_noise model, denoise 0→2 (steps_stage1 steps)
-    Stage 2: low_noise model, denoise 2→4 (steps_stage2 steps)
+    Stage 1: high_noise model, processes first half of timesteps
+    Stage 2: low_noise model, processes second half of timesteps
     
     Without LightX2V LoRA, use 20+20=40 steps for good quality.
+    With LightX2V LoRA, 4+4=8 steps is sufficient.
+    
+    Key: each stage processes steps/2 timesteps (split at midpoint)
+    Stage1: start_at_step=0, end_at_step=steps_stage1//2
+    Stage2: start_at_step=steps_stage2//2, end_at_step=steps_stage2
     """
     return {
         # ── Loaders ──
@@ -209,16 +214,16 @@ def build_i2v_workflow(image_filename, prompt_text, negative_prompt,
                 "seed": 0,
                 "control_after_generate": "randomize",
                 "steps": steps_stage1,
-                "cfg": 1.0,  # Not used in advanced mode
+                "cfg": 1.0,
                 "sampler_name": "euler",
                 "scheduler": "simple",
                 "start_at_step": 0,
-                "end_at_step": steps_stage1,
+                "end_at_step": steps_stage1 // 2,  # First half
                 "return_with_leftover_noise": "enable",
-                "model": ["5", 0],  # High noise model with shift
-                "positive": ["10", 0],  # WanImageToVideo positive
-                "negative": ["10", 1],  # WanImageToVideo negative
-                "latent_image": ["10", 2],  # WanImageToVideo latent
+                "model": ["5", 0],
+                "positive": ["10", 0],
+                "negative": ["10", 1],
+                "latent_image": ["10", 2],
             }
         },
         # ── Stage 2: Low Noise Sampler ──
@@ -233,10 +238,10 @@ def build_i2v_workflow(image_filename, prompt_text, negative_prompt,
                 "cfg": 1.0,
                 "sampler_name": "euler",
                 "scheduler": "simple",
-                "start_at_step": 0,
+                "start_at_step": steps_stage2 // 2,  # Second half
                 "end_at_step": steps_stage2,
                 "return_with_leftover_noise": "disable",
-                "model": ["6", 0],  # Low noise model with shift
+                "model": ["6", 0],
                 "positive": ["10", 0],
                 "negative": ["10", 1],
                 "latent_image": ["11", 0],  # Stage 1 output

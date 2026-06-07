@@ -101,8 +101,9 @@ function buildPromptRelayI2VWorkflow(opts: {
         model: ["1", 0],
         clip: ["2", 0],
         latent: ["6", 0],
-        prompt,
+        global_prompt:
         local_prompts: localPrompts,
+        segment_lengths: "",
         negative: negativePrompt,
         epsilon,
       },
@@ -130,7 +131,7 @@ function buildPromptRelayI2VWorkflow(opts: {
     },
     "11": {
       class_type: "VAEDecodeTiled",
-      inputs: { samples: ["10", 0], vae: ["3", 0], tile_size: 128, overlap: 64 },
+      inputs: { samples: ["10", 0], vae: ["3", 0], tile_size: 512, overlap: 64, temporal_size: 64, temporal_overlap: 8 },
     },
     "12": {
       class_type: "VHS_VideoCombine",

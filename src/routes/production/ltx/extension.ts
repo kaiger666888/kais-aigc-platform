@@ -145,7 +145,7 @@ function buildExtensionWorkflow(opts: {
     },
     "13": {
       class_type: "VAEDecodeTiled",
-      inputs: { samples: ["12", 0], vae: ["3", 0], tile_size: 128, overlap: 64 },
+      inputs: { samples: ["12", 0], vae: ["3", 0], tile_size: 512, overlap: 64, temporal_size: 64, temporal_overlap: 8 },
     },
     "14": {
       class_type: "VHS_VideoCombine",
