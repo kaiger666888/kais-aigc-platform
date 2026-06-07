@@ -91,3 +91,4 @@ docker/review-platform
 
 # ─── Build artifacts ────────────────────────────────────────
 docker/movie-agent/src/
+demo_qwen*.png
