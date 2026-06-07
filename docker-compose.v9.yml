@@ -161,6 +161,9 @@ services:
       REDIS_URL: redis://redis:6379
       GOLD_TEAM_URL: http://kais-gold-team:8002
       REVIEW_PLATFORM_URL: http://kais-review-platform:8090
+      # ACE-Step 音乐生成引擎
+      ACE_ENGINE_ID: acestep-internal
+      ACE_DEFAULT_MODEL: acestep-v15-xl-turbo
       DATABASE_URL: postgresql://${POSTGRES_USER:-kais}:${POSTGRES_PASSWORD:-kais}@audit-db:5432/${POSTGRES_DB:-kais_audit}
       # 双 ComfyUI 引擎端点
       COMFYUI_PRIMARY_HOST: comfyui-primary

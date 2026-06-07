@@ -222,6 +222,12 @@ import route218 from "./routes/v1/trellis2/download";
 import route219 from "./routes/v1/trellis2/image-to-3d";
 import route220 from "./routes/v1/trellis2/preview";
 import route221 from "./routes/v1/trellis2/status";
+import route222 from "./routes/v1/ace/config";
+import route223 from "./routes/v1/ace/generate";
+import route224 from "./routes/v1/ace/status";
+import route225 from "./routes/v1/ace/cancel";
+import route226 from "./routes/v1/ace/download";
+import route227 from "./routes/v1/ace/models";
 
 export default async (app: Express) => {
   app.use("/api/agents/clearMemory", route1);
@@ -445,4 +451,10 @@ export default async (app: Express) => {
   app.use("/api/v1/trellis2/image-to-3d", route219);
   app.use("/api/v1/trellis2/preview", route220);
   app.use("/api/v1/trellis2/status", route221);
+  app.use("/api/v1/ace/config", route222);
+  app.use("/api/v1/ace/generate", route223);
+  app.use("/api/v1/ace/status", route224);
+  app.use("/api/v1/ace/cancel", route225);
+  app.use("/api/v1/ace/download", route226);
+  app.use("/api/v1/ace/models", route227);
 }
