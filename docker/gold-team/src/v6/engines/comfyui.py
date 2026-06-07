@@ -68,6 +68,10 @@ class ComfyUIEngine(BaseEngine):
             models=[
                 "wan2.2-14b", "wan2.2-i2v-gguf",
                 "wan2.1-t2v-14b-gguf [Q8_0, ~28min/gen, RTX3090 24GB]",
+                "ltx-2.3-22b-distilled-mxfp8",
+                "ltx-2.3-22b-distilled-mxfp8 [prompt-relay-i2v]",
+                "ltx-2.3-22b-distilled-mxfp8 [extension]",
+                "ltx-2.3-22b-distilled-mxfp8 [fflf]",
                 "flux-dev", "real-esrgan", "facefusion",
             ],
         )

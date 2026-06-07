@@ -4,6 +4,7 @@ Supports:
   - ComfyUI txt2img workflows (via build_txt2img_workflow)
   - ComfyUI video workflows (via build_video_workflow) — Wan2.x T2V/I2V
   - ComfyUI GGUF workflows (via build_wan_gguf_i2v_workflow / build_wan_gguf_t2v_workflow)
+  - LTX-2.3 workflows (via build_ltx_prompt_relay_i2v / build_ltx_extension / build_ltx_fflf)
   - TTS workflows (via build_tts_workflow) — subprocess-based, not ComfyUI
 """
 from __future__ import annotations
@@ -734,3 +735,615 @@ def build_tts_workflow(
         "backend": backend,
         "output_path": output_path,
     }
+
+
+# ─── LTX-2.3 Workflows (Kijai) ───
+
+
+def build_ltx_prompt_relay_i2v_workflow(
+    prompt: str,
+    local_prompts: str,
+    source_image_path: str,
+    negative_prompt: str = "",
+    width: int = 832,
+    height: int = 480,
+    num_frames: int = 81,
+    fps: int = 25,
+    steps: int = 8,
+    cfg: float = 5.5,
+    seed: int | None = None,
+    sampler_name: str = "euler_ancestral",
+    scheduler: str = "normal",
+    denoise: float = 1.0,
+    strength: float = 1.0,
+    num_blend: int = 0,
+    epsilon: float = 0.001,
+    model_name: str = "ltx-2.3-22b-distilled-mxfp8.safetensors",
+    clip_name1: str = "gemma_3_12B_it_fp8_scaled.safetensors",
+    clip_name2: str = "ltx-2.3_text_projection_bf16.safetensors",
+    vae_name: str = "ltx2_vae/LTX23_video_vae_bf16.safetensors",
+    filename_prefix: str = "ltx_relay_i2v",
+    crf: int = 19,
+) -> dict[str, Any]:
+    """Build LTX-2.3 Prompt Relay I2V workflow with director beats.
+
+    Uses PromptRelayEncode for multi-beat temporal control via pipe-separated
+    local_prompts. Each segment describes a distinct temporal beat in the video.
+
+    Pipeline: UNETLoader -> DualCLIPLoader -> VAELoader -> LoadImage ->
+              EmptyLTXVLatentVideo -> LTXVImgToVideoConditionOnly ->
+              PromptRelayEncode -> CLIPTextEncode(neg) -> LTXVConditioning ->
+              KSampler -> VAEDecodeTiled -> VHS_VideoCombine
+
+    Args:
+        prompt: Global style/scene prompt (applied across all beats).
+        local_prompts: Pipe-separated director beats describing temporal segments.
+        source_image_path: Filename of source image in ComfyUI input folder.
+        negative_prompt: Negative prompt.
+        width: Video width (should be 32-aligned, e.g. 832).
+        height: Video height (should be 32-aligned, e.g. 480).
+        num_frames: Number of frames (81 for ~3s at 25fps).
+        fps: Output FPS.
+        steps: Sampling steps (8 for distilled).
+        cfg: CFG scale.
+        seed: Random seed (None = random).
+        sampler_name: Sampler name.
+        scheduler: Scheduler name.
+        denoise: Denoise strength.
+        strength: Image conditioning strength.
+        num_blend: Number of blend frames for smooth transition.
+        epsilon: Prompt relay epsilon for temporal smoothness.
+        model_name: UNET model filename.
+        clip_name1: First CLIP model filename.
+        clip_name2: Second CLIP model filename.
+        vae_name: VAE model filename.
+        filename_prefix: Output filename prefix.
+        crf: H.264 CRF quality (lower = better, 19 default).
+
+    Returns:
+        ComfyUI API-format workflow dict.
+    """
+    import random
+    if seed is None:
+        seed = random.randint(0, 2**32 - 1)
+
+    workflow: dict[str, Any] = {
+        "1": {
+            "class_type": "UNETLoader",
+            "inputs": {
+                "unet_name": model_name,
+                "weight_dtype": "default",
+            },
+        },
+        "2": {
+            "class_type": "DualCLIPLoader",
+            "inputs": {
+                "clip_name1": clip_name1,
+                "clip_name2": clip_name2,
+                "type": "ltxv",
+                "device": "default",
+            },
+        },
+        "3": {
+            "class_type": "VAELoader",
+            "inputs": {
+                "vae_name": vae_name,
+            },
+        },
+        "4": {
+            "class_type": "LoadImage",
+            "inputs": {
+                "image": source_image_path,
+                "upload": "image",
+            },
+        },
+        "5": {
+            "class_type": "EmptyLTXVLatentVideo",
+            "inputs": {
+                "width": width,
+                "height": height,
+                "length": num_frames,
+                "batch_size": 1,
+            },
+        },
+        "6": {
+            "class_type": "LTXVImgToVideoConditionOnly",
+            "inputs": {
+                "vae": ["3", 0],
+                "image": ["4", 0],
+                "latent": ["5", 0],
+                "strength": strength,
+                "blend_with_first": bool(num_blend),
+            },
+        },
+        "7": {
+            "class_type": "PromptRelayEncode",
+            "inputs": {
+                "model": ["1", 0],
+                "clip": ["2", 0],
+                "latent": ["6", 0],
+                "prompt": prompt,
+                "local_prompts": local_prompts,
+                "negative": negative_prompt,
+                "epsilon": epsilon,
+            },
+        },
+        "8": {
+            "class_type": "CLIPTextEncode",
+            "inputs": {
+                "clip": ["2", 0],
+                "text": negative_prompt,
+            },
+        },
+        "9": {
+            "class_type": "LTXVConditioning",
+            "inputs": {
+                "positive": ["7", 1],
+                "negative": ["8", 0],
+                "frame_rate": float(fps),
+            },
+        },
+        "10": {
+            "class_type": "KSampler",
+            "inputs": {
+                "model": ["7", 0],
+                "positive": ["9", 0],
+                "negative": ["9", 1],
+                "latent_image": ["6", 0],
+                "seed": seed,
+                "steps": steps,
+                "cfg": cfg,
+                "sampler_name": sampler_name,
+                "scheduler": scheduler,
+                "denoise": denoise,
+            },
+        },
+        "11": {
+            "class_type": "VAEDecodeTiled",
+            "inputs": {
+                "samples": ["10", 0],
+                "vae": ["3", 0],
+                "tile_size": 128,
+                "overlap": 64,
+            },
+        },
+        "12": {
+            "class_type": "VHS_VideoCombine",
+            "inputs": {
+                "images": ["11", 0],
+                "frame_rate": fps,
+                "loop_count": 0,
+                "filename_prefix": filename_prefix,
+                "format": "video/h264-mp4",
+                "pix_fmt": "yuv420p",
+                "crf": crf,
+                "save_metadata": True,
+                "trim_to_audio": False,
+                "pingpong": False,
+                "save_output": True,
+            },
+        },
+    }
+
+    return workflow
+
+
+def build_ltx_extension_workflow(
+    prompt: str,
+    source_video_path: str,
+    negative_prompt: str = "",
+    width: int = 832,
+    height: int = 480,
+    num_frames: int = 49,
+    fps: int = 25,
+    steps: int = 8,
+    cfg: float = 5.5,
+    seed: int | None = None,
+    sampler_name: str = "euler_ancestral",
+    scheduler: str = "normal",
+    denoise: float = 1.0,
+    lora_name: str = "ltx-2.3-22b-distilled-lora-384-1.1.safetensors",
+    lora_strength: float = -0.3,
+    strength: float = 1.0,
+    num_blend: int = 0,
+    model_name: str = "ltx-2.3-22b-distilled-mxfp8.safetensors",
+    clip_name1: str = "gemma_3_12B_it_fp8_scaled.safetensors",
+    clip_name2: str = "ltx-2.3_text_projection_bf16.safetensors",
+    vae_name: str = "ltx2_vae/LTX23_video_vae_bf16.safetensors",
+    filename_prefix: str = "ltx_extend",
+    crf: int = 19,
+    start_frame: int = -1,
+) -> dict[str, Any]:
+    """Build LTX-2.3 Video Extension workflow with freeze-frame LoRA.
+
+    Extracts the last frame from source video, then generates an extension.
+    Uses a LoRA (negative strength) for temporal consistency. Feed output
+    back as input for iterative extending.
+
+    Pipeline: UNETLoader -> DualCLIPLoader -> VAELoader -> VHS_LoadVideoPath ->
+              GetImagesFromBatchIndexed -> EmptyLTXVLatentVideo ->
+              CLIPTextEncode(pos+neg) -> LTXVImgToVideoConditionOnly ->
+              LoraLoaderModelOnly -> LTXVConditioning -> KSampler ->
+              VAEDecodeTiled -> VHS_VideoCombine
+
+    Args:
+        prompt: Text prompt for the extended video segment.
+        source_video_path: Filename of source video in ComfyUI input folder.
+        negative_prompt: Negative prompt.
+        width: Video width.
+        height: Video height.
+        num_frames: Number of extension frames (49 for ~2s at 25fps).
+        fps: Output FPS.
+        steps: Sampling steps.
+        cfg: CFG scale.
+        seed: Random seed (None = random).
+        sampler_name: Sampler name.
+        scheduler: Scheduler name.
+        denoise: Denoise strength.
+        lora_name: LoRA model filename for temporal consistency.
+        lora_strength: LoRA strength (negative = freeze-frame effect).
+        strength: Image conditioning strength.
+        num_blend: Number of blend frames.
+        model_name: UNET model filename.
+        clip_name1: First CLIP model filename.
+        clip_name2: Second CLIP model filename.
+        vae_name: VAE model filename.
+        filename_prefix: Output filename prefix.
+        crf: H.264 CRF quality.
+        start_frame: Frame index to extract from source (-1 = last frame).
+
+    Returns:
+        ComfyUI API-format workflow dict.
+    """
+    import random
+    if seed is None:
+        seed = random.randint(0, 2**32 - 1)
+
+    workflow: dict[str, Any] = {
+        "1": {
+            "class_type": "UNETLoader",
+            "inputs": {
+                "unet_name": model_name,
+                "weight_dtype": "default",
+            },
+        },
+        "2": {
+            "class_type": "DualCLIPLoader",
+            "inputs": {
+                "clip_name1": clip_name1,
+                "clip_name2": clip_name2,
+                "type": "ltxv",
+                "device": "default",
+            },
+        },
+        "3": {
+            "class_type": "VAELoader",
+            "inputs": {
+                "vae_name": vae_name,
+            },
+        },
+        "4": {
+            "class_type": "VHS_LoadVideoPath",
+            "inputs": {
+                "video": source_video_path,
+                "force_rate": 0,
+                "force_size": "Disabled",
+                "custom_width": 0,
+                "custom_height": 0,
+                "frame_load_cap": 0,
+                "skip_first_frames": 0,
+                "select_every_nth": 1,
+                "choose video to preview": "start_frame",
+                "videopreview": {
+                    "hidden": False,
+                    "paused": False,
+                    "params": {},
+                },
+            },
+        },
+        "5": {
+            "class_type": "GetImagesFromBatchIndexed",
+            "inputs": {
+                "images": ["4", 0],
+                "indexes": str(start_frame),
+            },
+        },
+        "6": {
+            "class_type": "EmptyLTXVLatentVideo",
+            "inputs": {
+                "width": width,
+                "height": height,
+                "length": num_frames,
+                "batch_size": 1,
+            },
+        },
+        "7": {
+            "class_type": "CLIPTextEncode",
+            "inputs": {
+                "clip": ["2", 0],
+                "text": prompt,
+            },
+        },
+        "8": {
+            "class_type": "CLIPTextEncode",
+            "inputs": {
+                "clip": ["2", 0],
+                "text": negative_prompt,
+            },
+        },
+        "9": {
+            "class_type": "LTXVImgToVideoConditionOnly",
+            "inputs": {
+                "vae": ["3", 0],
+                "image": ["5", 0],
+                "latent": ["6", 0],
+                "strength": strength,
+                "blend_with_first": bool(num_blend),
+            },
+        },
+        "10": {
+            "class_type": "LoraLoaderModelOnly",
+            "inputs": {
+                "model": ["1", 0],
+                "lora_name": lora_name,
+                "strength_model": lora_strength,
+            },
+        },
+        "11": {
+            "class_type": "LTXVConditioning",
+            "inputs": {
+                "positive": ["7", 0],
+                "negative": ["8", 0],
+                "frame_rate": float(fps),
+            },
+        },
+        "12": {
+            "class_type": "KSampler",
+            "inputs": {
+                "model": ["10", 0],
+                "positive": ["11", 0],
+                "negative": ["11", 1],
+                "latent_image": ["9", 0],
+                "seed": seed,
+                "steps": steps,
+                "cfg": cfg,
+                "sampler_name": sampler_name,
+                "scheduler": scheduler,
+                "denoise": denoise,
+            },
+        },
+        "13": {
+            "class_type": "VAEDecodeTiled",
+            "inputs": {
+                "samples": ["12", 0],
+                "vae": ["3", 0],
+                "tile_size": 128,
+                "overlap": 64,
+            },
+        },
+        "14": {
+            "class_type": "VHS_VideoCombine",
+            "inputs": {
+                "images": ["13", 0],
+                "frame_rate": fps,
+                "loop_count": 0,
+                "filename_prefix": filename_prefix,
+                "format": "video/h264-mp4",
+                "pix_fmt": "yuv420p",
+                "crf": crf,
+                "save_metadata": True,
+                "trim_to_audio": False,
+                "pingpong": False,
+                "save_output": True,
+            },
+        },
+    }
+
+    return workflow
+
+
+def build_ltx_fflf_workflow(
+    prompt: str,
+    first_frame_path: str,
+    last_frame_path: str,
+    negative_prompt: str = "",
+    width: int = 768,
+    height: int = 512,
+    num_frames: int = 161,
+    fps: int = 25,
+    steps: int = 30,
+    cfg: float = 5.5,
+    seed: int | None = None,
+    sampler_name: str = "euler_ancestral",
+    scheduler: str = "normal",
+    denoise: float = 1.0,
+    strength: float = 1.0,
+    num_blend: int = 0,
+    nag_scale: float = 1.0,
+    nag_alpha: float = 0.25,
+    nag_tau: float = 2.5,
+    nag_inplace: bool = True,
+    model_name: str = "ltx-2.3-22b-distilled-mxfp8.safetensors",
+    clip_name1: str = "gemma_3_12B_it_fp8_scaled.safetensors",
+    clip_name2: str = "ltx-2.3_text_projection_bf16.safetensors",
+    vae_name: str = "ltx2_vae/LTX23_video_vae_bf16.safetensors",
+    filename_prefix: str = "ltx_fflf",
+    crf: int = 19,
+) -> dict[str, Any]:
+    """Build LTX-2.3 FFLF (First Frame Last Frame) interpolation workflow.
+
+    Injects first and last frame into latent video, then interpolates
+    between them. Uses NAG (Normalized Attention Guidance) for quality
+    with distilled models.
+
+    Pipeline: UNETLoader -> DualCLIPLoader -> VAELoader -> LoadImage(first) ->
+              LoadImage(last) -> EmptyLTXVLatentVideo -> CLIPTextEncode(pos+neg) ->
+              LTXVImgToVideoInplaceKJ -> LTXVConditioning -> LTX2_NAG ->
+              KSampler -> VAEDecodeTiled -> VHS_VideoCombine
+
+    Args:
+        prompt: Text prompt describing the transition.
+        first_frame_path: Filename of first frame image in ComfyUI input folder.
+        last_frame_path: Filename of last frame image in ComfyUI input folder.
+        negative_prompt: Negative prompt.
+        width: Video width (768 default for FFLF).
+        height: Video height (512 default for FFLF).
+        num_frames: Number of frames (161 for ~6.4s at 25fps).
+        fps: Output FPS.
+        steps: Sampling steps (30 for FFLF quality).
+        cfg: CFG scale.
+        seed: Random seed (None = random).
+        sampler_name: Sampler name.
+        scheduler: Scheduler name.
+        denoise: Denoise strength.
+        strength: Image conditioning strength.
+        num_blend: Number of blend frames.
+        nag_scale: NAG guidance scale (1.0 default).
+        nag_alpha: NAG alpha parameter (0.25 default).
+        nag_tau: NAG tau parameter (2.5 default).
+        nag_inplace: NAG inplace mode (True default).
+        model_name: UNET model filename.
+        clip_name1: First CLIP model filename.
+        clip_name2: Second CLIP model filename.
+        vae_name: VAE model filename.
+        filename_prefix: Output filename prefix.
+        crf: H.264 CRF quality.
+
+    Returns:
+        ComfyUI API-format workflow dict.
+    """
+    import random
+    if seed is None:
+        seed = random.randint(0, 2**32 - 1)
+
+    workflow: dict[str, Any] = {
+        "1": {
+            "class_type": "UNETLoader",
+            "inputs": {
+                "unet_name": model_name,
+                "weight_dtype": "default",
+            },
+        },
+        "2": {
+            "class_type": "DualCLIPLoader",
+            "inputs": {
+                "clip_name1": clip_name1,
+                "clip_name2": clip_name2,
+                "type": "ltxv",
+                "device": "default",
+            },
+        },
+        "3": {
+            "class_type": "VAELoader",
+            "inputs": {
+                "vae_name": vae_name,
+            },
+        },
+        "4": {
+            "class_type": "LoadImage",
+            "inputs": {
+                "image": first_frame_path,
+                "upload": "image",
+            },
+        },
+        "5": {
+            "class_type": "LoadImage",
+            "inputs": {
+                "image": last_frame_path,
+                "upload": "image",
+            },
+        },
+        "6": {
+            "class_type": "EmptyLTXVLatentVideo",
+            "inputs": {
+                "width": width,
+                "height": height,
+                "length": num_frames,
+                "batch_size": 1,
+            },
+        },
+        "7": {
+            "class_type": "CLIPTextEncode",
+            "inputs": {
+                "clip": ["2", 0],
+                "text": prompt,
+            },
+        },
+        "8": {
+            "class_type": "CLIPTextEncode",
+            "inputs": {
+                "clip": ["2", 0],
+                "text": negative_prompt,
+            },
+        },
+        "9": {
+            "class_type": "LTXVImgToVideoInplaceKJ",
+            "inputs": {
+                "vae": ["3", 0],
+                "latent": ["6", 0],
+                "image_1": ["4", 0],
+                "image_2": ["5", 0],
+                "num_images": 2,
+            },
+        },
+        "10": {
+            "class_type": "LTXVConditioning",
+            "inputs": {
+                "positive": ["7", 0],
+                "negative": ["8", 0],
+                "frame_rate": float(fps),
+            },
+        },
+        "11": {
+            "class_type": "LTX2_NAG",
+            "inputs": {
+                "model": ["1", 0],
+                "scale": nag_scale,
+                "alpha": nag_alpha,
+                "tau": nag_tau,
+                "inplace": nag_inplace,
+            },
+        },
+        "12": {
+            "class_type": "KSampler",
+            "inputs": {
+                "model": ["11", 0],
+                "positive": ["10", 0],
+                "negative": ["10", 1],
+                "latent_image": ["9", 0],
+                "seed": seed,
+                "steps": steps,
+                "cfg": cfg,
+                "sampler_name": sampler_name,
+                "scheduler": scheduler,
+                "denoise": denoise,
+            },
+        },
+        "13": {
+            "class_type": "VAEDecodeTiled",
+            "inputs": {
+                "samples": ["12", 0],
+                "vae": ["3", 0],
+                "tile_size": 128,
+                "overlap": 64,
+            },
+        },
+        "14": {
+            "class_type": "VHS_VideoCombine",
+            "inputs": {
+                "images": ["13", 0],
+                "frame_rate": fps,
+                "loop_count": 0,
+                "filename_prefix": filename_prefix,
+                "format": "video/h264-mp4",
+                "pix_fmt": "yuv420p",
+                "crf": crf,
+                "save_metadata": True,
+                "trim_to_audio": False,
+                "pingpong": False,
+                "save_output": True,
+            },
+        },
+    }
+
+    return workflow
