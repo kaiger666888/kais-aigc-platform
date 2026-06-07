@@ -219,10 +219,10 @@ services:
       COSYVOICE_ROOT: /opt/CosyVoice
       COSYVOICE_MODEL_DIR: /opt/CosyVoice/pretrained_models/FunAudioLLM/Fun-CosyVoice3-0.5B-2512
       COSYVOICE_LLM_WEIGHT: llm.rl.pt
-      # ACE-Step music generation
+      # ACE-Step music generation (standalone container)
       ACESTEP_ROOT: /opt/acestep
-      ACESTEP_API_HOST: 127.0.0.1
-      ACESTEP_API_PORT: 8010
+      ACESTEP_API_HOST: kais-acestep
+      ACESTEP_API_PORT: 8001
       ACESTEP_CONFIG_PATH: acestep-v15-xl-turbo
       ACESTEP_CONFIG_PATH2: acestep-v15-xl-sft
       ACESTEP_CHECKPOINTS: /opt/acestep/checkpoints
@@ -254,6 +254,51 @@ services:
         condition: service_healthy
       comfyui-primary:
         condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # 3b. ACE-Step Music Generation API (REST server mode)
+  # ---------------------------------------------------------------------------
+  # Standalone ACE-Step 1.5 container, exposing REST API on port 8009.
+  # Gold-team's ACEStepEngine connects to this via internal network.
+  # GPU: RTX 3090 (shared, model loaded once — ~18GB VRAM for XL + 4B LM)
+  # ---------------------------------------------------------------------------
+  kais-acestep:
+    build:
+      context: ${ACESTEP_PROJECT_DIR:-../ACE-Step-1.5}
+      dockerfile: Dockerfile
+    image: kais-acestep:latest
+    container_name: kais-acestep
+    restart: unless-stopped
+    profiles:
+      - ace
+    ports:
+      - "127.0.0.1:${ACESTEP_API_PORT:-8009}:8001"
+    environment:
+      NVIDIA_VISIBLE_DEVICES: "1"     # GPU 1 = RTX 3090
+      ACESTEP_MODE: api
+      ACESTEP_API_HOST: 0.0.0.0
+      ACESTEP_API_PORT: "8001"
+      ACESTEP_CONFIG_PATH: ${ACESTEP_CONFIG_PATH:-acestep-v15-xl-turbo}
+      ACESTEP_CONFIG_PATH2: ${ACESTEP_CONFIG_PATH2:-acestep-v15-xl-sft}
+      ACESTEP_LM_MODEL_PATH: ${ACESTEP_LM_MODEL_PATH:-acestep-5Hz-lm-4B}
+      ACESTEP_LLM_BACKEND: ${ACESTEP_LM_BACKEND:-pt}
+      ACESTEP_INIT_SERVICE: "true"
+      TOKENIZERS_PARALLELISM: "false"
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+    volumes:
+      - ${ACESTEP_MODELS_DIR:-/data/models/ACE-Step1.5}:/app/checkpoints
+      - ${OUTPUT_DIR:-/mnt/agents/output}:/app/output
+      - hf-cache:/root/.cache/huggingface
+    networks:
+      - kais-net
+    shm_size: "4gb"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
 
   # ---------------------------------------------------------------------------
   # 4. kais-review-platform (审核平台) — OPTIONAL
@@ -417,3 +462,5 @@ volumes:
     name: kais-comfyui-cache
   hermes-data:
     name: kais-hermes-data
+  hf-cache:
+    name: kais-hf-cache
