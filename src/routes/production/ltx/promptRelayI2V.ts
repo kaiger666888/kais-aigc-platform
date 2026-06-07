@@ -101,7 +101,7 @@ function buildPromptRelayI2VWorkflow(opts: {
         model: ["1", 0],
         clip: ["2", 0],
         latent: ["6", 0],
-        global_prompt:
+        global_prompt: prompt,
         local_prompts: localPrompts,
         segment_lengths: "",
         negative: negativePrompt,

@@ -7,8 +7,8 @@ import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
-import { WAN22_CONFIG, WAN22_DEFAULTS } from "./config";
-import { buildI2VWorkflow } from "./workflows";
+import { WAN22_CONFIG, WAN22_DEFAULTS } from "./_shared/config";
+import { buildI2VWorkflow } from "./_shared/workflows";
 
 const router = express.Router();
 

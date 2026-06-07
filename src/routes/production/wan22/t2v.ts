@@ -3,8 +3,8 @@ import axios from "axios";
 import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
-import { WAN22_CONFIG, WAN22_DEFAULTS } from "./config";
-import { buildT2VWorkflow } from "./workflows";
+import { WAN22_CONFIG, WAN22_DEFAULTS } from "./_shared/config";
+import { buildT2VWorkflow } from "./_shared/workflows";
 
 const router = express.Router();
 
