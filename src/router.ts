@@ -213,6 +213,12 @@ import route209 from "./routes/v1/trellis2/image-to-3d";
 import route210 from "./routes/v1/trellis2/preview";
 import route211 from "./routes/v1/trellis2/status";
 
+// Wan 2.2 video generation
+import routeWan22T2V from "./routes/production/wan22/t2v";
+import routeWan22I2V from "./routes/production/wan22/i2v";
+import routeWan22FFLF from "./routes/production/wan22/fflf";
+import routeWan22MoveTrack from "./routes/production/wan22/movetrack";
+
 export default async (app: Express) => {
   app.use("/api/agents/clearMemory", route1);
   app.use("/api/agents/getMemory", route2);
@@ -313,6 +319,12 @@ export default async (app: Express) => {
   app.use("/api/production/workbench/selectVideo", route97);
   app.use("/api/production/workbench/updateVideoDuration", route98);
   app.use("/api/production/workbench/updateVideoPrompt", route99);
+
+  // Wan 2.2
+  app.use("/api/production/wan22/t2v", routeWan22T2V);
+  app.use("/api/production/wan22/i2v", routeWan22I2V);
+  app.use("/api/production/wan22/fflf", routeWan22FFLF);
+  app.use("/api/production/wan22/movetrack", routeWan22MoveTrack);
   app.use("/api/project/addDirectorManual", route100);
   app.use("/api/project/addProject", route101);
   app.use("/api/project/addVisualManual", route102);
