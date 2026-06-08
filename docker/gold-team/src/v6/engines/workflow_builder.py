@@ -1697,7 +1697,7 @@ def build_ltx_two_stage_audio_i2v_workflow(
                 "vae": ["100", 2],
                 "horizontal_tiles": 2,
                 "vertical_tiles": 2,
-                "overlap": 64,
+                "overlap": 8,
                 "last_frame_fix": True,
             },
         },
