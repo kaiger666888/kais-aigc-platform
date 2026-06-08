@@ -129,7 +129,9 @@ class TaskExecutor:
                         voice=task.params.get("voice", "default"),
                         speed=task.params.get("speed", 1.0),
                         backend=task.params.get("backend", "auto"),
+                        reference_audio=task.params.get("reference_audio", ""),
                         task_id=task.task_id,
+                        language=task.params.get("language", "auto"),
                     )
                     logger.info("Auto-built TTS workflow for task %s", task.task_id)
                 elif task.type == TaskType.IMAGE_CAPTION:
@@ -178,15 +180,21 @@ class TaskExecutor:
                 elif task.type in (TaskType.VIDEO_FINAL, TaskType.VIDEO_PREVIEW):
                     extra = task.params.get("extra", {}).get("video_gen", {})
                     source_image = task.params.get("source_image_path", "")
-                    model_type = extra.get("model_type", "gguf")
+                    model_type = extra.get("model_type", "fp8_teacache")
 
-                    if source_image and model_type == "gguf":
+                    if source_image and model_type in ("gguf", "fp8_teacache"):
                         from src.v6.engines.workflow_builder import build_wan_gguf_i2v_workflow
+
+                        # Auto-select TeaCache coefficients by resolution
+                        w = task.params.get("width", 832)
+                        h = task.params.get("height", 480)
+                        tc_coeff = "i2v_720" if max(w, h) >= 720 else "i2v_480"
+
                         workflow = build_wan_gguf_i2v_workflow(
                             prompt=task.params.get("prompt", ""),
                             negative_prompt=task.params.get("negative_prompt", ""),
-                            width=task.params.get("width", 832),
-                            height=task.params.get("height", 480),
+                            width=w,
+                            height=h,
                             num_frames=task.params.get("num_frames", 81),
                             fps=task.params.get("fps", 16),
                             seed=task.params.get("seed"),
@@ -195,9 +203,14 @@ class TaskExecutor:
                             shift=extra.get("shift", 5.0),
                             high_noise_steps=extra.get("high_noise_steps", 10),
                             total_steps=extra.get("total_steps", 20),
+                            sampler=extra.get("sampler", "euler"),
+                            scheduler=extra.get("scheduler", "beta"),
+                            teacache_rel_l1_thresh=extra.get("teacache_rel_l1_thresh", 0.25),
+                            teacache_start_percent=extra.get("teacache_start_percent", 0.1),
+                            teacache_coefficients=extra.get("teacache_coefficients", tc_coeff),
                             task_id=task.task_id,
                         )
-                        logger.info("Auto-built GGUF I2V workflow for task %s", task.task_id)
+                        logger.info("Auto-built FP8+TeaCache I2V workflow for task %s (%dx%d)", task.task_id, w, h)
                     elif not source_image and model_type == "gguf_t2v":
                         from src.v6.engines.workflow_builder import build_wan_gguf_t2v_workflow
                         workflow = build_wan_gguf_t2v_workflow(
@@ -356,12 +369,14 @@ class TaskExecutor:
 
     def _resolve_engine(self, engine_id: str, task: GenerationTask) -> Optional[BaseEngine]:
         """Resolve engine by ID, preferring real engines over mock."""
-        # For TTS tasks, always prefer tts-local engine
+        # For TTS tasks, prefer triple-track engine, then legacy tts-local
         if task.type == TaskType.TTS:
+            tts_engine = self._engines.get("tts-triple-track")
+            if tts_engine:
+                return tts_engine
             tts_engine = self._engines.get("tts-local")
             if tts_engine:
                 return tts_engine
-            # Fall through to mock if TTS engine unavailable
 
         # For image_caption tasks, prefer joycaption-local engine
         if task.type == TaskType.IMAGE_CAPTION:

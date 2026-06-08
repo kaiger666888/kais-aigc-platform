@@ -3,7 +3,7 @@
 Supports:
   - ComfyUI txt2img workflows (via build_txt2img_workflow)
   - ComfyUI video workflows (via build_video_workflow) — Wan2.x T2V/I2V
-  - ComfyUI GGUF workflows (via build_wan_gguf_i2v_workflow / build_wan_gguf_t2v_workflow)
+  - ComfyUI GGUF workflows (via build_wan_gguf_i2v_workflow / build_wan_gguf_t2v_workflow) — FP8+TeaCache I2V / GGUF T2V
   - LTX-2.3 workflows (via build_ltx_prompt_relay_i2v / build_ltx_extension / build_ltx_fflf / build_ltx_two_stage_audio_i2v)
   - TTS workflows (via build_tts_workflow) — subprocess-based, not ComfyUI
 """
@@ -348,24 +348,33 @@ def build_wan_gguf_i2v_workflow(
     total_steps: int = 20,
     sampler: str = "euler",
     scheduler: str = "beta",
-    high_noise_model: str = "HighNoise/Wan2.2-I2V-A14B-HighNoise-Q8_0.gguf",
+    high_noise_model: str = "wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors",
     high_noise_dtype: str = "fp8_e4m3fn",
     low_noise_model: str = "wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors",
     low_noise_dtype: str = "fp8_e4m3fn",
-    clip_name: str = "umt5_xxl_fp8_scaled.safetensors",
+    clip_name: str = "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
     vae_name: str = "wan_2.1_vae.safetensors",
+    teacache_rel_l1_thresh: float = 0.25,
+    teacache_start_percent: float = 0.1,
+    teacache_coefficients: str = "i2v_720",
     task_id: str = "",
 ) -> dict[str, Any]:
-    """Build Wan 2.2 I2V workflow using GGUF/FP8 quantized models.
+    """Build Wan 2.2 I2V workflow with dual-stage FP8 + TeaCache.
 
-    Two-stage sampling with separate HighNoise + LowNoise models.
-    Validated on RTX 3090 24GB — VRAM peak ~22GB via ComfyUI RAM cache.
+    Two-stage sampling: HighNoise (steps 0 to handoff) + LowNoise (handoff to end).
+    TeaCache accelerates ~2x with negligible quality loss.
+    Validated on RTX 3090 24GB — VRAM peak ~23GB, no OOM.
+
+    Benchmarks (RTX 3090, fp8_scaled, TeaCache):
+      - 480x272, 81 frames, 20 steps: ~220s
+      - 832x480, 81 frames, 20 steps: ~950s
 
     Model setup:
-      - T5 text encoder: FP8 safetensors (~5.5GB)
-      - HighNoise model: GGUF Q8_0 (~15GB) or FP8 safetensors (~7GB)
-      - LowNoise model: FP8 safetensors (~14GB)
-      - VAE: Wan2.1 (~485MB)
+      - T5 text encoder: UMT5-XXL FP8_scaled (~6.3GB)
+      - HighNoise DiT: FP8_scaled safetensors (~14GB)
+      - LowNoise DiT: FP8_scaled safetensors (~14GB)
+      - VAE: Wan2.1 (~243MB)
+      - TeaCache: rel_l1_thresh=0.25, coefficients=i2v_720
 
     Args:
         prompt: Text prompt for video generation.
@@ -382,12 +391,15 @@ def build_wan_gguf_i2v_workflow(
         total_steps: Total sampling steps.
         sampler: Sampler name ("euler").
         scheduler: Scheduler name ("beta").
-        high_noise_model: HighNoise GGUF/FP8 model filename.
+        high_noise_model: HighNoise FP8 model filename.
         high_noise_dtype: Weight dtype for high noise model.
         low_noise_model: LowNoise FP8 model filename.
         low_noise_dtype: Weight dtype for low noise model.
         clip_name: CLIP text encoder filename.
         vae_name: VAE model filename.
+        teacache_rel_l1_thresh: TeaCache threshold (0.25 default).
+        teacache_start_percent: TeaCache start percentage (0.1 = skip first 10%).
+        teacache_coefficients: TeaCache preset ("i2v_720" for 832x480, "i2v_480" for 480x272).
         task_id: For output file naming.
 
     Returns:
@@ -403,24 +415,18 @@ def build_wan_gguf_i2v_workflow(
     if not source_image_path or not source_image_path.strip():
         raise ValueError("source_image_path is required for GGUF I2V workflow")
 
-    # Detect GGUF vs safetensors by extension
-    use_gguf_high = high_noise_model.endswith(".gguf")
-    use_gguf_low = low_noise_model.endswith(".gguf")
+    output_prefix = f"video/{task_id}" if task_id else "video/wan_i2v"
 
-    def _load_unet(model_path: str, dtype: str, is_gguf: bool, node_id: str):
-        if is_gguf:
-            return {
-                "class_type": "UnetLoaderGGUF",
-                "inputs": {"unet_name": model_path, "weight_dtype": dtype},
-            }
+    # Validate source image
+    if not source_image_path or not source_image_path.strip():
+        raise ValueError("source_image_path is required for I2V workflow")
+
+    # Select TeaCache coefficients based on resolution
+    if teacache_coefficients == "auto":
+        if max(width, height) >= 720:
+            teacache_coefficients = "i2v_720"
         else:
-            return {
-                "class_type": "UNETLoader",
-                "inputs": {"unet_name": model_path, "weight_dtype": dtype},
-            }
-
-    high_noise_loader = _load_unet(high_noise_model, high_noise_dtype, use_gguf_high, "hn")
-    low_noise_loader = _load_unet(low_noise_model, low_noise_dtype, use_gguf_low, "ln")
+            teacache_coefficients = "i2v_480"
 
     workflow: dict[str, Any] = {
         "3": {
@@ -435,12 +441,34 @@ def build_wan_gguf_i2v_workflow(
             "class_type": "VAELoader",
             "inputs": {"vae_name": vae_name},
         },
-        "122": high_noise_loader,
-        "123": low_noise_loader,
+        # High Noise model
+        "122": {
+            "class_type": "UNETLoader",
+            "inputs": {"unet_name": high_noise_model, "weight_dtype": high_noise_dtype},
+        },
+        # Low Noise model
+        "123": {
+            "class_type": "UNETLoader",
+            "inputs": {"unet_name": low_noise_model, "weight_dtype": low_noise_dtype},
+        },
+        # TeaCache on high noise model (2x speedup)
+        "140": {
+            "class_type": "WanVideoTeaCacheKJ",
+            "inputs": {
+                "model": ["122", 0],
+                "rel_l1_thresh": teacache_rel_l1_thresh,
+                "start_percent": teacache_start_percent,
+                "end_percent": 1.0,
+                "cache_device": "offload_device",
+                "coefficients": teacache_coefficients,
+            },
+        },
+        # ModelSamplingSD3 for high noise (after TeaCache)
         "124": {
             "class_type": "ModelSamplingSD3",
-            "inputs": {"model": ["122", 0], "shift": shift},
+            "inputs": {"model": ["140", 0], "shift": shift},
         },
+        # ModelSamplingSD3 for low noise (no TeaCache)
         "109": {
             "class_type": "ModelSamplingSD3",
             "inputs": {"model": ["123", 0], "shift": shift},
@@ -466,7 +494,7 @@ def build_wan_gguf_i2v_workflow(
                 "start_image": ["3", 0],
             },
         },
-        # Stage 1: High Noise sampling
+        # Stage 1: High Noise sampling (TeaCache + shift applied)
         "110": {
             "class_type": "KSamplerAdvanced",
             "inputs": {
