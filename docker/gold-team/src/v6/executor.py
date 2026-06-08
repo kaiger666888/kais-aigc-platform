@@ -211,28 +211,6 @@ class TaskExecutor:
                             task_id=task.task_id,
                         )
                         logger.info("Auto-built FP8+TeaCache I2V workflow for task %s (%dx%d)", task.task_id, w, h)
-                    elif not source_image and model_type == "gguf_t2v":
-                        from src.v6.engines.workflow_builder import build_wan_gguf_t2v_workflow
-                        workflow = build_wan_gguf_t2v_workflow(
-                            prompt=task.params.get("prompt", ""),
-                            negative_prompt=task.params.get("negative_prompt", ""),
-                            width=task.params.get("width", 832),
-                            height=task.params.get("height", 480),
-                            num_frames=task.params.get("num_frames", 81),
-                            steps=extra.get("steps", 30),
-                            fps=task.params.get("fps", 16),
-                            seed=task.params.get("seed"),
-                            model=extra.get("model", "wan2.1-t2v-14b-Q8_0.gguf"),
-                            cfg=extra.get("cfg", 5.0),
-                            shift=extra.get("shift", 5.0),
-                            scheduler=extra.get("scheduler", "unipc"),
-                            precision=extra.get("precision", "bf16"),
-                            attention_mode=extra.get("attention_mode", "sdpa"),
-                            force_offload=extra.get("force_offload", False),
-                            enable_vae_tiling=extra.get("enable_vae_tiling", True),
-                            task_id=task.task_id,
-                        )
-                        logger.info("Auto-built GGUF T2V (Q8_0, ~28min) workflow for task %s", task.task_id)
                     else:
                         from src.v6.engines.workflow_builder import build_video_workflow
                         workflow = build_video_workflow(
