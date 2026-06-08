@@ -211,6 +211,29 @@ class TaskExecutor:
                             task_id=task.task_id,
                         )
                         logger.info("Auto-built FP8+TeaCache I2V workflow for task %s (%dx%d)", task.task_id, w, h)
+
+                    elif not source_image and model_type in ("fp8_teacache", "wan_t2v"):
+                        from src.v6.engines.workflow_builder import build_wan_fp8_t2v_workflow
+                        w = task.params.get("width", 832)
+                        h = task.params.get("height", 480)
+                        workflow = build_wan_fp8_t2v_workflow(
+                            prompt=task.params.get("prompt", ""),
+                            negative_prompt=task.params.get("negative_prompt", ""),
+                            width=w, height=h,
+                            num_frames=task.params.get("num_frames", 81),
+                            fps=task.params.get("fps", 16),
+                            seed=task.params.get("seed"),
+                            cfg=extra.get("cfg", 3.5), shift=extra.get("shift", 5.0),
+                            high_noise_steps=extra.get("high_noise_steps", 10),
+                            total_steps=extra.get("total_steps", 20),
+                            sampler=extra.get("sampler", "euler"),
+                            scheduler=extra.get("scheduler", "beta"),
+                            teacache_rel_l1_thresh=extra.get("teacache_rel_l1_thresh", 0.25),
+                            teacache_start_percent=extra.get("teacache_start_percent", 0.1),
+                            teacache_coefficients=extra.get("teacache_coefficients", "14B"),
+                            task_id=task.task_id,
+                        )
+                        logger.info("Auto-built FP8+TeaCache T2V workflow for task %s (%dx%d)", task.task_id, w, h)
                     else:
                         from src.v6.engines.workflow_builder import build_video_workflow
                         workflow = build_video_workflow(

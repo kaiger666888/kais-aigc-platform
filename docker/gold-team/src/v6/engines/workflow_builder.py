@@ -554,6 +554,63 @@ def build_wan_gguf_i2v_workflow(
     return workflow
 
 
+def build_wan_fp8_t2v_workflow(
+    prompt: str,
+    negative_prompt: str = "",
+    width: int = 832,
+    height: int = 480,
+    num_frames: int = 81,
+    fps: int = 16,
+    seed: int | None = None,
+    cfg: float = 3.5,
+    shift: float = 5.0,
+    high_noise_steps: int = 10,
+    total_steps: int = 20,
+    sampler: str = "euler",
+    scheduler: str = "beta",
+    high_noise_model: str = "wan2.2_t2v_high_noise_14B_fp8_scaled.safetensors",
+    high_noise_dtype: str = "fp8_e4m3fn",
+    low_noise_model: str = "wan2.2_t2v_low_noise_14B_fp8_scaled.safetensors",
+    low_noise_dtype: str = "fp8_e4m3fn",
+    clip_name: str = "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+    vae_name: str = "wan_2.1_vae.safetensors",
+    teacache_rel_l1_thresh: float = 0.25,
+    teacache_start_percent: float = 0.1,
+    teacache_coefficients: str = "14B",
+    task_id: str = "",
+) -> dict[str, Any]:
+    """Build Wan 2.2 T2V workflow with dual-stage FP8 + TeaCache.
+
+    Mirror of I2V but uses Wan22ImageToVideoLatent (no image) instead
+    of WanImageToVideo. Shares UMT5 CLIP + VAE with I2V.
+
+    Benchmarks (RTX 3090, fp8_scaled, TeaCache):
+      - 832x480, 81 frames, 20 steps: ~170s
+    """
+    import random
+    if seed is None:
+        seed = random.randint(0, 2**32 - 1)
+    output_prefix = f"video/{task_id}" if task_id else "video/wan_t2v"
+
+    workflow: dict[str, Any] = {
+        "105": {"class_type": "CLIPLoader", "inputs": {"clip_name": clip_name, "type": "wan"}},
+        "106": {"class_type": "VAELoader", "inputs": {"vae_name": vae_name}},
+        "122": {"class_type": "UNETLoader", "inputs": {"unet_name": high_noise_model, "weight_dtype": high_noise_dtype}},
+        "123": {"class_type": "UNETLoader", "inputs": {"unet_name": low_noise_model, "weight_dtype": low_noise_dtype}},
+        "140": {"class_type": "WanVideoTeaCacheKJ", "inputs": {"model": ["122", 0], "rel_l1_thresh": teacache_rel_l1_thresh, "start_percent": teacache_start_percent, "end_percent": 1.0, "cache_device": "offload_device", "coefficients": teacache_coefficients}},
+        "124": {"class_type": "ModelSamplingSD3", "inputs": {"model": ["140", 0], "shift": shift}},
+        "109": {"class_type": "ModelSamplingSD3", "inputs": {"model": ["123", 0], "shift": shift}},
+        "107": {"class_type": "CLIPTextEncode", "inputs": {"text": prompt, "clip": ["105", 0]}},
+        "125": {"class_type": "CLIPTextEncode", "inputs": {"text": negative_prompt, "clip": ["105", 0]}},
+        "128": {"class_type": "Wan22ImageToVideoLatent", "inputs": {"vae": ["106", 0], "width": width, "height": height, "length": num_frames, "batch_size": 1}},
+        "110": {"class_type": "KSamplerAdvanced", "inputs": {"add_noise": "enable", "noise_seed": seed, "start_at_step": 0, "end_at_step": high_noise_steps, "steps": total_steps, "cfg": cfg, "model": ["124", 0], "positive": ["107", 0], "negative": ["125", 0], "sampler_name": sampler, "scheduler": scheduler, "latent_image": ["128", 0], "return_with_leftover_noise": "enable"}},
+        "111": {"class_type": "KSamplerAdvanced", "inputs": {"add_noise": "disable", "noise_seed": 0, "start_at_step": high_noise_steps, "end_at_step": 10000, "steps": total_steps, "cfg": cfg, "model": ["109", 0], "positive": ["107", 0], "negative": ["125", 0], "sampler_name": sampler, "scheduler": scheduler, "latent_image": ["110", 0], "return_with_leftover_noise": "disable"}},
+        "129": {"class_type": "VAEDecode", "inputs": {"samples": ["111", 0], "vae": ["106", 0]}},
+        "117": {"class_type": "CreateVideo", "inputs": {"images": ["129", 0], "fps": float(fps)}},
+        "130": {"class_type": "SaveVideo", "inputs": {"video": ["117", 0], "filename_prefix": output_prefix, "format": "mp4", "codec": "h264"}},
+    }
+    return workflow
+
 
 def build_tts_workflow(
     text: str,
