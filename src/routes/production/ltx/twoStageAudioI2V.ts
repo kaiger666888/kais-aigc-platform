@@ -65,10 +65,13 @@ function buildTwoStageAudioI2VWorkflow(opts: {
   const stage2Seed = seed + 1;
 
   return {
-    // 100: CheckpointLoaderSimple -> MODEL[0], CLIP[0], VAE[0]
+    // 100: UNETLoader (dev transformer only, mxfp8)
     "100": {
-      class_type: "CheckpointLoaderSimple",
-      inputs: { ckpt_name: checkpointName },
+      class_type: "UNETLoader",
+      inputs: {
+        unet_name: checkpointName,
+        weight_dtype: "mxfp8",
+      },
     },
     // 101: LoraLoaderModelOnly
     "101": {
@@ -117,6 +120,11 @@ function buildTwoStageAudioI2VWorkflow(opts: {
       class_type: "EmptyLTXVLatentVideo",
       inputs: { width, height, length: numFrames, batch_size: 1 },
     },
+    // 129: VAELoader (video VAE, separate from transformer-only checkpoint)
+    "129": {
+      class_type: "VAELoader",
+      inputs: { vae_name: "ltx2_vae/LTX23_video_vae_bf16.safetensors" },
+    },
     // 125: LTXVAudioVAELoader (separate audio VAE)
     "125": {
       class_type: "LTXVAudioVAELoader",
@@ -137,7 +145,7 @@ function buildTwoStageAudioI2VWorkflow(opts: {
     "109": {
       class_type: "LTXVImgToVideoConditionOnly",
       inputs: {
-        vae: ["100", 2],
+        vae: ["129", 0],
         image: ["106", 0],
         latent: ["107", 0],
         strength,
@@ -198,7 +206,7 @@ function buildTwoStageAudioI2VWorkflow(opts: {
     "117": {
       class_type: "LTXVImgToVideoConditionOnly",
       inputs: {
-        vae: ["100", 2],
+        vae: ["129", 0],
         image: ["106", 0],
         latent: ["107", 0],
         strength: 1.0,
@@ -268,7 +276,7 @@ function buildTwoStageAudioI2VWorkflow(opts: {
       class_type: "LTXVTiledVAEDecode",
       inputs: {
         latents: ["124", 0],
-        vae: ["100", 2],
+        vae: ["129", 0],
         horizontal_tiles: 2,
         vertical_tiles: 2,
         overlap: 8,

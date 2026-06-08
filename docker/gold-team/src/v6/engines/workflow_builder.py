@@ -1525,11 +1525,18 @@ def build_ltx_two_stage_audio_i2v_workflow(
                 "batch_size": 1,
             },
         },
-        # 125: LTXVAudioVAELoader (separate audio VAE from checkpoint)
+        # 125: LTXVAudioVAELoader (separate audio VAE)
         "125": {
             "class_type": "LTXVAudioVAELoader",
             "inputs": {
                 "ckpt_name": "LTX23_audio_vae_bf16.safetensors",
+            },
+        },
+        # 129: VAELoader (video VAE, separate from transformer-only dev checkpoint)
+        "129": {
+            "class_type": "VAELoader",
+            "inputs": {
+                "vae_name": "ltx2_vae/LTX23_video_vae_bf16.safetensors",
             },
         },
         # 108: LTXVEmptyLatentAudio
@@ -1547,7 +1554,7 @@ def build_ltx_two_stage_audio_i2v_workflow(
         "109": {
             "class_type": "LTXVImgToVideoConditionOnly",
             "inputs": {
-                "vae": ["100", 2],
+                "vae": ["129", 0],
                 "image": ["106", 0],
                 "latent": ["107", 0],
                 "strength": strength,
@@ -1616,7 +1623,7 @@ def build_ltx_two_stage_audio_i2v_workflow(
         "117": {
             "class_type": "LTXVImgToVideoConditionOnly",
             "inputs": {
-                "vae": ["100", 2],
+                "vae": ["129", 0],
                 "image": ["106", 0],
                 "latent": ["107", 0],
                 "strength": 1.0,
@@ -1694,7 +1701,7 @@ def build_ltx_two_stage_audio_i2v_workflow(
             "class_type": "LTXVTiledVAEDecode",
             "inputs": {
                 "latents": ["124", 0],
-                "vae": ["100", 2],
+                "vae": ["129", 0],
                 "horizontal_tiles": 2,
                 "vertical_tiles": 2,
                 "overlap": 8,
