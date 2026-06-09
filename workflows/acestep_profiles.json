@@ -1,5 +1,5 @@
 {
-  "_doc": "ACE-Step 1.5 参数 Profile — 三个经过验证的模型组合，基于 RTX 3090 24GB 实测优化",
+  "_doc": "ACE-Step 1.5 参数 Profile — 两个经过验证的模型组合，基于 RTX 3090 24GB 实测",
   "_updated": "2026-06-10",
 
   "profiles": {
@@ -58,63 +58,6 @@
       },
       "test_script": "workflows/test_acestep_xl_sft_4blm.py",
       "workflow_json": "workflows/workflow14_acestep_sft_epic_orchestral.json"
-    },
-
-    "xl-sft-1.7b-4blm": {
-      "label": "xl-sft-1.7b-4blm — 极致质量（TE1升级1.7B）",
-      "description": "XL-SFT DiT + 1.7B TE1 + 4B TE2，50步，TE1升级提升语义理解",
-      "tier": "production",
-      "models": {
-        "diffusion_model": "acestep_v1.5_xl_sft.safetensors",
-        "text_encoder_1": "qwen_1.7b_ace15.safetensors",
-        "text_encoder_2": "qwen_4b_ace15.safetensors",
-        "vae_name": "ace_1.5_vae.safetensors"
-      },
-      "generation": {
-        "steps": 50,
-        "cfg": 7.0,
-        "sampler_name": "euler",
-        "scheduler": "normal",
-        "denoise": 1.0,
-        "infer_method": "ode",
-        "guidance_mode": "apg",
-        "use_tiled_vae": true,
-        "shift": 3.0
-      },
-      "apg": {
-        "apg_eta": 0.0,
-        "apg_momentum": -0.75,
-        "apg_norm_threshold": 2.5
-      },
-      "lm": {
-        "lm_cfg_scale": 2.0,
-        "lm_temperature": 0.85,
-        "lm_top_p": 0.9,
-        "lm_top_k": 0,
-        "lm_min_p": 0.0
-      },
-      "defaults": {
-        "duration": 120.0,
-        "bpm": 72,
-        "timesignature": "4",
-        "language": "en",
-        "keyscale": "D minor",
-        "generate_audio_codes": true,
-        "instrumental": false
-      },
-      "turbo_tag_adapter": {
-        "adaptation_strength": "aggressive",
-        "keep_unknown_tags": true,
-        "add_sft_bias_tags": true
-      },
-      "vram": "~23GB",
-      "perf": {
-        "duration_120s": "~3min",
-        "quality": "⭐⭐⭐⭐⭐",
-        "speed": "⭐⭐"
-      },
-      "test_script": "workflows/test_acestep_sft_1.7b_4b.py",
-      "note": "TE1=1.7B 比 0.6B 提升歌词语义理解，对复杂歌词/多语言有帮助"
     },
 
     "turbo-4blm": {
@@ -205,11 +148,20 @@
     }
   },
 
+  "incompatible_combos": {
+    "xl-sft-1.7b-4blm": {
+      "status": "failed",
+      "reason": "qwen_1.7b (hidden=2048) 与 qwen_4b (hidden=2560) 架构维度不兼容，ComfyUI节点CLIP合并时size mismatch"
+    },
+    "turbo-1.7blm": {
+      "status": "verified_ok",
+      "note": "0.6B TE1 + 1.7B TE2 可跑通，但质量不如 4B TE2，已弃用"
+    }
+  },
+
   "recommendations": {
     "default": "xl-sft-4blm",
     "quick_preview": "turbo-4blm",
-    "max_quality": "xl-sft-1.7b-4blm",
-    "production_pipeline": "turbo-4blm → xl-sft-4blm（先快速原型确认风格，再高质量出片）",
-    "vram_warning": "RTX 3090 24GB 运行 xl-sft-1.7b-4blm 时 VRAM 紧张，建议关闭其他GPU占用"
+    "production_pipeline": "turbo-4blm → xl-sft-4blm（先快速原型确认风格，再高质量出片）"
   }
 }

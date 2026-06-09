@@ -59,31 +59,6 @@ _ACESTEP_PROFILES = {
             "keep_unknown_tags": True, "add_sft_bias_tags": True,
         },
     },
-    "xl-sft-1.7b-4blm": {
-        "models": {
-            "diffusion_model": "acestep_v1.5_xl_sft.safetensors",
-            "text_encoder_1": "qwen_1.7b_ace15.safetensors",
-            "text_encoder_2": "qwen_4b_ace15.safetensors",
-            "vae_name": "ace_1.5_vae.safetensors",
-        },
-        "generation": {
-            "steps": 50, "cfg": 7.0, "sampler_name": "euler",
-            "scheduler": "normal", "denoise": 1.0, "infer_method": "ode",
-            "guidance_mode": "apg", "use_tiled_vae": True, "shift": 3.0,
-        },
-        "apg": {"apg_eta": 0.0, "apg_momentum": -0.75, "apg_norm_threshold": 2.5},
-        "lm": {"lm_cfg_scale": 2.0, "lm_temperature": 0.85, "lm_top_p": 0.9,
-               "lm_top_k": 0, "lm_min_p": 0.0},
-        "defaults": {
-            "duration": 120.0, "bpm": 72, "timesignature": "4",
-            "language": "en", "keyscale": "D minor",
-            "generate_audio_codes": True, "instrumental": False,
-        },
-        "tag_adapter": {
-            "adaptation_strength": "aggressive",
-            "keep_unknown_tags": True, "add_sft_bias_tags": True,
-        },
-    },
     "turbo-4blm": {
         "models": {
             "diffusion_model": "acestep_v1.5_turbo.safetensors",
