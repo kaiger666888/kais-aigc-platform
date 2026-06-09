@@ -1,0 +1,215 @@
+{
+  "_doc": "ACE-Step 1.5 参数 Profile — 三个经过验证的模型组合，基于 RTX 3090 24GB 实测优化",
+  "_updated": "2026-06-10",
+
+  "profiles": {
+    "xl-sft-4blm": {
+      "label": "xl-sft-4blm — 高质量（推荐）",
+      "description": "XL-SFT DiT + 0.6B TE1 + 4B TE2，50步，~2min，最佳质量/速度比",
+      "tier": "production",
+      "models": {
+        "diffusion_model": "acestep_v1.5_xl_sft.safetensors",
+        "text_encoder_1": "qwen_0.6b_ace15.safetensors",
+        "text_encoder_2": "qwen_4b_ace15.safetensors",
+        "vae_name": "ace_1.5_vae.safetensors"
+      },
+      "generation": {
+        "steps": 50,
+        "cfg": 7.0,
+        "sampler_name": "euler",
+        "scheduler": "normal",
+        "denoise": 1.0,
+        "infer_method": "ode",
+        "guidance_mode": "apg",
+        "use_tiled_vae": true,
+        "shift": 3.0
+      },
+      "apg": {
+        "apg_eta": 0.0,
+        "apg_momentum": -0.75,
+        "apg_norm_threshold": 2.5
+      },
+      "lm": {
+        "lm_cfg_scale": 2.0,
+        "lm_temperature": 0.85,
+        "lm_top_p": 0.9,
+        "lm_top_k": 0,
+        "lm_min_p": 0.0
+      },
+      "defaults": {
+        "duration": 120.0,
+        "bpm": 72,
+        "timesignature": "4",
+        "language": "en",
+        "keyscale": "D minor",
+        "generate_audio_codes": true,
+        "instrumental": false
+      },
+      "turbo_tag_adapter": {
+        "adaptation_strength": "aggressive",
+        "keep_unknown_tags": true,
+        "add_sft_bias_tags": true
+      },
+      "vram": "~21.5GB",
+      "perf": {
+        "duration_120s": "~2min",
+        "quality": "⭐⭐⭐⭐⭐",
+        "speed": "⭐⭐⭐"
+      },
+      "test_script": "workflows/test_acestep_xl_sft_4blm.py",
+      "workflow_json": "workflows/workflow14_acestep_sft_epic_orchestral.json"
+    },
+
+    "xl-sft-1.7b-4blm": {
+      "label": "xl-sft-1.7b-4blm — 极致质量（TE1升级1.7B）",
+      "description": "XL-SFT DiT + 1.7B TE1 + 4B TE2，50步，TE1升级提升语义理解",
+      "tier": "production",
+      "models": {
+        "diffusion_model": "acestep_v1.5_xl_sft.safetensors",
+        "text_encoder_1": "qwen_1.7b_ace15.safetensors",
+        "text_encoder_2": "qwen_4b_ace15.safetensors",
+        "vae_name": "ace_1.5_vae.safetensors"
+      },
+      "generation": {
+        "steps": 50,
+        "cfg": 7.0,
+        "sampler_name": "euler",
+        "scheduler": "normal",
+        "denoise": 1.0,
+        "infer_method": "ode",
+        "guidance_mode": "apg",
+        "use_tiled_vae": true,
+        "shift": 3.0
+      },
+      "apg": {
+        "apg_eta": 0.0,
+        "apg_momentum": -0.75,
+        "apg_norm_threshold": 2.5
+      },
+      "lm": {
+        "lm_cfg_scale": 2.0,
+        "lm_temperature": 0.85,
+        "lm_top_p": 0.9,
+        "lm_top_k": 0,
+        "lm_min_p": 0.0
+      },
+      "defaults": {
+        "duration": 120.0,
+        "bpm": 72,
+        "timesignature": "4",
+        "language": "en",
+        "keyscale": "D minor",
+        "generate_audio_codes": true,
+        "instrumental": false
+      },
+      "turbo_tag_adapter": {
+        "adaptation_strength": "aggressive",
+        "keep_unknown_tags": true,
+        "add_sft_bias_tags": true
+      },
+      "vram": "~23GB",
+      "perf": {
+        "duration_120s": "~3min",
+        "quality": "⭐⭐⭐⭐⭐",
+        "speed": "⭐⭐"
+      },
+      "test_script": "workflows/test_acestep_sft_1.7b_4b.py",
+      "note": "TE1=1.7B 比 0.6B 提升歌词语义理解，对复杂歌词/多语言有帮助"
+    },
+
+    "turbo-4blm": {
+      "label": "turbo-4blm — 快速原型（8步）",
+      "description": "Turbo DiT + 0.6B TE1 + 4B TE2，8步，~40s，适合快速试听和迭代",
+      "tier": "prototype",
+      "models": {
+        "diffusion_model": "acestep_v1.5_turbo.safetensors",
+        "text_encoder_1": "qwen_0.6b_ace15.safetensors",
+        "text_encoder_2": "qwen_4b_ace15.safetensors",
+        "vae_name": "ace_1.5_vae.safetensors"
+      },
+      "generation": {
+        "steps": 8,
+        "cfg": 1.0,
+        "sampler_name": "euler",
+        "scheduler": "normal",
+        "denoise": 1.0,
+        "infer_method": "ode",
+        "guidance_mode": "apg",
+        "use_tiled_vae": true,
+        "shift": 3.0
+      },
+      "apg": {
+        "apg_eta": 0.0,
+        "apg_momentum": -0.75,
+        "apg_norm_threshold": 2.5
+      },
+      "lm": {
+        "lm_cfg_scale": 2.0,
+        "lm_temperature": 0.85,
+        "lm_top_p": 0.9,
+        "lm_top_k": 0,
+        "lm_min_p": 0.0
+      },
+      "defaults": {
+        "duration": 30.0,
+        "bpm": 80,
+        "timesignature": "4",
+        "language": "en",
+        "keyscale": "A minor",
+        "generate_audio_codes": true,
+        "instrumental": false
+      },
+      "turbo_tag_adapter": {
+        "adaptation_strength": "balanced",
+        "keep_unknown_tags": true,
+        "add_sft_bias_tags": true
+      },
+      "vram": "~18GB",
+      "perf": {
+        "duration_30s": "~40s",
+        "quality": "⭐⭐⭐",
+        "speed": "⭐⭐⭐⭐⭐"
+      },
+      "test_script": "workflows/test_acestep_turbo_modular.py",
+      "workflow_json": "workflows/workflow13_acestep_turbo_modular.json"
+    }
+  },
+
+  "parameter_notes": {
+    "cfg_scale": {
+      "xl_sft": "7.0 — SFT模型需要高CFG强化文本引导",
+      "turbo": "1.0 — Turbo模型蒸馏后低CFG即可，过高会artifact"
+    },
+    "steps": {
+      "xl_sft": "50 — SFT标准步数，40-60可调",
+      "turbo": "8 — Turbo蒸馏步数，6-12可调"
+    },
+    "apg": {
+      "description": "Adaptive Projected Guidance，比标准CFG更稳定",
+      "eta": "0.0 — 不注入额外噪声",
+      "momentum": "-0.75 — 负动量帮助稳定生成",
+      "norm_threshold": "2.5 — 梯度裁剪阈值"
+    },
+    "lm_params": {
+      "description": "Language Model（音频LM）参数",
+      "cfg_scale": "2.0 — LM引导强度",
+      "temperature": "0.85 — 采样温度，0.8-0.9适合音乐",
+      "top_p": "0.9 — 核采样",
+      "top_k": "0 — 不限制top-k",
+      "min_p": "0.0 — 不限制最小概率"
+    },
+    "shift": "3.0 — 噪声调度偏移，影响高/低频细节平衡",
+    "turbo_tag_adapter": {
+      "strength": "aggressive(高质量)/balanced(快速原型)",
+      "sft_bias": "true — 添加SFT训练偏置标签"
+    }
+  },
+
+  "recommendations": {
+    "default": "xl-sft-4blm",
+    "quick_preview": "turbo-4blm",
+    "max_quality": "xl-sft-1.7b-4blm",
+    "production_pipeline": "turbo-4blm → xl-sft-4blm（先快速原型确认风格，再高质量出片）",
+    "vram_warning": "RTX 3090 24GB 运行 xl-sft-1.7b-4blm 时 VRAM 紧张，建议关闭其他GPU占用"
+  }
+}
