@@ -76,6 +76,11 @@ const generateOptionalSchema = z.object({
   cfg_interval_start: z.number().min(0).max(1).default(0.0),
   cfg_interval_end: z.number().min(0).max(1).default(1.0),
   shift: z.number().min(0).max(5).default(3.0),
+  repaint_auto_tiled_vae_off: z.boolean().default(true),
+  repaint_enabled: z.boolean().default(false),
+  repaint_denoise: z.number().min(0).max(1).default(0.6),
+  repaint_steps: z.number().int().min(1).max(200).default(20),
+  repaint_cfg: z.number().min(1).max(20).default(3.5),
 });
 
 const saveAudioSchema = z.object({
@@ -161,6 +166,11 @@ function buildWorkflow(p: GenerateParams) {
   const styleTagsRef = hasCaption ? ["1", 0] : "";
   const generateNodeId = hasCaption ? "2" : "5";
 
+  // Auto-disable tiled VAE for repaint (denoise < 1 + audio input)
+  const useTiledVae = (p.denoise < 1.0 && p.latent_or_audio && p.repaint_auto_tiled_vae_off)
+    ? false
+    : p.use_tiled_vae;
+
   workflow[generateNodeId] = {
     class_type: "AceStepSFTGenerate",
     inputs: {
@@ -185,7 +195,7 @@ function buildWorkflow(p: GenerateParams) {
       language: p.language,
       keyscale: p.keyscale,
       generate_audio_codes: p.generate_audio_codes,
-      use_tiled_vae: p.use_tiled_vae,
+      use_tiled_vae: useTiledVae,
       apg_eta: p.apg_eta,
       apg_momentum: p.apg_momentum,
       apg_norm_threshold: p.apg_norm_threshold,
@@ -195,8 +205,24 @@ function buildWorkflow(p: GenerateParams) {
       lm_top_p: p.lm_top_p,
       lm_top_k: p.lm_top_k,
       lm_min_p: p.lm_min_p,
+      lm_negative_prompt: p.lm_negative_prompt || "",
+      voice_boost: p.voice_boost,
+      latent_shift: p.latent_shift,
+      latent_rescale: p.latent_rescale,
+      fade_in_duration: p.fade_in_duration,
+      fade_out_duration: p.fade_out_duration,
+      guidance_interval: p.guidance_interval,
+      guidance_interval_decay: p.guidance_interval_decay,
+      min_guidance_scale: p.min_guidance_scale,
+      guidance_scale_text: p.guidance_scale_text,
+      guidance_scale_lyric: p.guidance_scale_lyric,
+      omega_scale: p.omega_scale,
+      erg_scale: p.erg_scale,
+      cfg_interval_start: p.cfg_interval_start,
+      cfg_interval_end: p.cfg_interval_end,
       style_tags: hasCaption ? styleTagsRef : "",
       batch_size: p.batch_size,
+      unload_models_after_generate: p.unload_models_after_generate,
     },
   };
 
@@ -223,9 +249,93 @@ function buildWorkflow(p: GenerateParams) {
   return workflow;
 }
 
-// ─── Poll ───────────────────────────────────────────────────────────────────
+/**
+ * Build a Repaint workflow: take generated audio and re-denoise with lower denoise
+ * to reduce vocal graininess. Uses the same model and settings but denoise < 1.0.
+ */
+function extendWithRepaint(
+  workflow: Record<string, any>,
+  p: GenerateParams,
+  generateNodeId: string,
+  saveNodeId: string,
+): void {
+  const repaintSeed = p.seed === -1
+    ? Math.floor(Math.random() * 2147483647)
+    : p.seed + 1000;
+  const repaintSteps = p.repaint_steps || 20;
+  const repaintCfg = p.repaint_cfg || 3.5;
+  const repaintDenoise = p.repaint_denoise || 0.6;
 
-/** Poll ComfyUI history until the prompt completes or times out. */
+  // Rename first save to _original
+  workflow[saveNodeId].inputs.filename_prefix = `${p.filename_prefix}_original`;
+
+  // Repaint node — linked to generation audio output via node reference
+  const repaintGenId = "5";
+  workflow[repaintGenId] = {
+    class_type: "AceStepSFTGenerate",
+    inputs: {
+      diffusion_model: p.model,
+      text_encoder_1: "qwen_0.6b_ace15.safetensors",
+      text_encoder_2: p.text_encoder_2,
+      vae_name: "ace_1.5_vae.safetensors",
+      caption: p.caption || "",
+      lyrics: p.lyrics || "[Instrumental]",
+      instrumental: p.instrumental,
+      seed: repaintSeed,
+      steps: repaintSteps,
+      cfg: repaintCfg,
+      sampler_name: p.sampler_name,
+      scheduler: p.scheduler,
+      denoise: repaintDenoise,
+      infer_method: p.infer_method,
+      guidance_mode: p.guidance_mode,
+      duration: p.duration,
+      bpm: p.bpm,
+      timesignature: p.timesignature,
+      language: p.language,
+      keyscale: p.keyscale,
+      generate_audio_codes: p.generate_audio_codes,
+      use_tiled_vae: false,
+      apg_eta: p.apg_eta,
+      apg_momentum: p.apg_momentum,
+      apg_norm_threshold: p.apg_norm_threshold,
+      shift: p.shift,
+      lm_cfg_scale: p.lm_cfg_scale,
+      lm_temperature: p.lm_temperature,
+      lm_top_p: p.lm_top_p,
+      lm_top_k: p.lm_top_k,
+      lm_min_p: p.lm_min_p,
+      voice_boost: p.voice_boost,
+      latent_shift: p.latent_shift,
+      latent_rescale: p.latent_rescale,
+      fade_in_duration: p.fade_in_duration,
+      fade_out_duration: p.fade_out_duration,
+      guidance_interval: p.guidance_interval,
+      guidance_interval_decay: p.guidance_interval_decay,
+      min_guidance_scale: p.min_guidance_scale,
+      guidance_scale_text: p.guidance_scale_text,
+      guidance_scale_lyric: p.guidance_scale_lyric,
+      omega_scale: p.omega_scale,
+      erg_scale: p.erg_scale,
+      cfg_interval_start: p.cfg_interval_start,
+      cfg_interval_end: p.cfg_interval_end,
+      batch_size: 1,
+      unload_models_after_generate: p.unload_models_after_generate,
+      latent_or_audio: [generateNodeId, 0],
+    },
+  };
+
+  // Repaint SaveAudio
+  const repaintSaveId = "6";
+  workflow[repaintSaveId] = {
+    class_type: "SaveAudio",
+    inputs: {
+      audio: [repaintGenId, 0],
+      filename_prefix: `${p.filename_prefix}_repainted`,
+    },
+  };
+}
+
 async function pollUntilComplete(
   comfyuiUrl: string,
   promptId: string,
@@ -279,6 +389,7 @@ export default router.post("/", async (req: Request, res: Response) => {
   let p: GenerateParams;
   try {
     p = await applyProfile(parsed.data);
+    console.log('[ACE Generate] repaint_enabled=' + p.repaint_enabled + ' denoise=' + p.denoise + ' voice_boost=' + p.voice_boost);
   } catch (err: any) {
     return res.status(400).send(error(`Profile error: ${err.message}`));
   }
@@ -286,6 +397,16 @@ export default router.post("/", async (req: Request, res: Response) => {
   const comfyuiUrl = ACE_CONFIG.comfyuiUrl;
   const outputDir = ACE_CONFIG.comfyuiOutputDir;
   const workflow = buildWorkflow(p);
+
+  const hasCaption = p.caption && p.caption.trim().length > 0;
+  const generateNodeId = hasCaption ? "2" : "5";
+  const saveNodeId = "4";
+
+  // Extend workflow with repaint if enabled (single ComfyUI prompt)
+  if (p.repaint_enabled) {
+    console.log('[ACE] Extending workflow with repaint, denoise=' + p.repaint_denoise);
+    extendWithRepaint(workflow, p, generateNodeId, saveNodeId);
+  }
 
   try {
     // 1. Submit prompt to ComfyUI
@@ -318,8 +439,11 @@ export default router.post("/", async (req: Request, res: Response) => {
       return res.status(500).send(error("ComfyUI generation failed"));
     }
 
+    const hasCaption = p.caption && p.caption.trim().length > 0;
+
     // 3. Extract output audio file info from SaveAudio node (node 4)
-    const audioOutput = result.outputs["4"];
+    const saveNodeId = hasCaption ? "4" : "4";
+    const audioOutput = result.outputs[saveNodeId];
     if (!audioOutput || !audioOutput.audio) {
       return res
         .status(500)
@@ -330,8 +454,7 @@ export default router.post("/", async (req: Request, res: Response) => {
     const audioPath = `${outputDir}/${audioFile.filename}`;
     const audioUrl = `/api/v1/ace/comfyui/audio/${encodeURIComponent(audioFile.filename)}`;
 
-    // 4. Return result
-    const responseData = {
+    const responseData: Record<string, any> = {
       task_id: prompt_id,
       audio_path: audioPath,
       audio_url: audioUrl,
@@ -342,6 +465,16 @@ export default router.post("/", async (req: Request, res: Response) => {
       model: p.model,
       profile: p.profile || undefined,
     };
+
+    // 4. Check for repaint output (node 6) if enabled
+    if (p.repaint_enabled && result.outputs["6"]) {
+      const repaintOutput = result.outputs["6"];
+      if (repaintOutput?.audio?.[0]) {
+        const repaintFile = repaintOutput.audio[0];
+        responseData.repaint_filename = repaintFile.filename;
+        responseData.repaint_url = `/api/v1/ace/comfyui/audio/${encodeURIComponent(repaintFile.filename)}`;
+      }
+    }
 
     // 5. Optional callback
     if (p.callback_url) {

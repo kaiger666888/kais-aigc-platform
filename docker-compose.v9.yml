@@ -66,11 +66,14 @@ services:
       http_proxy: "${http_proxy:-}"
       https_proxy: "${https_proxy:-}"
       NO_PROXY: "localhost,127.0.0.1,172.18.0.0/16"
-      CLI_ARGS: "--highvram --disable-metadata"
+      CLI_ARGS: "--disable-metadata --lowvram --output-directory /mnt/agents/output/gpu1"
     volumes:
       - ${OUTPUT_DIR:-/mnt/agents/output}/gpu1:/mnt/agents/output/gpu1
       - ${DATA_MODELS_DIR:-/data/models/comfyui}:/root/ComfyUI/models:rw
-      - /data/workspace/comfyui-incremental-nodes:/root/ComfyUI/custom_nodes/kais-incremental:ro
+      - ${ACESTEP_MODELS_DIR:-/data/models/ACE-Step1.5}:/root/ComfyUI/models/ace-step:ro
+      - /data/workspace/comfyui-incremental-nodes:/root/ComfyUI/custom_nodes/kais-incremental
+      - /data/workspace/comfyui-incremental-nodes/ComfyUI-LTXVideo:/root/ComfyUI/custom_nodes/ComfyUI-LTXVideo
+      - /data/workspace/comfyui-incremental-nodes/scripts/fix-kornia.sh:/root/user-scripts/pre-start.sh
       - comfyui-cache:/tmp/hf_cache
     networks:
       - kais-net
@@ -124,7 +127,7 @@ services:
     volumes:
       - ${OUTPUT_DIR:-/mnt/agents/output}/gpu0:/mnt/agents/output/gpu0
       - ${DATA_MODELS_DIR:-/data/models/comfyui}:/root/ComfyUI/models:ro
-      - /data/workspace/comfyui-incremental-nodes:/root/ComfyUI/custom_nodes/kais-incremental:ro
+      - /data/workspace/comfyui-incremental-nodes:/root/ComfyUI/custom_nodes/kais-incremental
       - comfyui-cache:/tmp/hf_cache
     networks:
       - kais-net
@@ -164,6 +167,13 @@ services:
       # ACE-Step 音乐生成引擎
       ACE_ENGINE_ID: acestep-internal
       ACE_DEFAULT_MODEL: acestep-v15-xl-turbo
+      ACE_DIRECT_URL: http://kais-acestep:8001
+      DOCKER_GID: "984"
+      # TTS 三轨引擎 — 现在统一走 gold-team:8002 in-process
+      TTS_ZH_URL: http://kais-gold-team:8002
+      TTS_EN_URL: http://kais-gold-team:8002
+      TTS_BILINGUAL_URL: http://kais-gold-team:8002
+      TTS_CLONE_URL: http://kais-gold-team:8002
       DATABASE_URL: postgresql://${POSTGRES_USER:-kais}:${POSTGRES_PASSWORD:-kais}@audit-db:5432/${POSTGRES_DB:-kais_audit}
       # 双 ComfyUI 引擎端点
       COMFYUI_PRIMARY_HOST: comfyui-primary
@@ -173,6 +183,9 @@ services:
     volumes:
       - core-data:/app/data
       - ${OUTPUT_DIR:-/mnt/agents/output}:/mnt/agents/output
+      - /var/run/docker.sock:/var/run/docker.sock:rw
+      - /usr/bin/docker:/usr/bin/docker:ro
+      - /home/kai/workspace/kais-aigc-platform/scripts/gpu-kill-external.sh:/usr/local/bin/gpu-kill-external.sh:ro
     networks:
       - kais-net
     healthcheck:
@@ -228,12 +241,20 @@ services:
       ACESTEP_CHECKPOINTS: /opt/acestep/checkpoints
       ACESTEP_OFFLOAD_DIT_TO_CPU: "true"
       MPLCONFIGDIR: /tmp/matplotlib
+      # TTS 三轨 — 环境变量 (TrackManager 读取)
+      GPTSOVITS_ROOT: /opt/GPT-SoVITS
+      CHATTERBOX_ROOT: /opt/chatterbox
+      TTS_IDLE_TIMEOUT: "300"
     volumes:
       - ${OUTPUT_DIR:-/mnt/agents/output}:/mnt/agents/output
       - ${MODELS_DIR:-/opt/kais/models}:/opt/kais/models:ro
       - ${DATA_MODELS_DIR:-/data/models}:/data/models
       - cosyvoice-models:/opt/CosyVoice/pretrained_models
       - ${ACESTEP_MODELS_DIR:-/data/models/ACE-Step1.5}:/opt/acestep/checkpoints
+      # TTS 三轨模型目录挂载
+      - ${GPTSOVITS_DIR:-/data/models/GPT-SoVITS}:/opt/GPT-SoVITS
+      - ${CHATTERBOX_DIR:-/data/models/chatterbox}:/opt/chatterbox
+      - hf-cache:/root/.cache/huggingface
     networks:
       - kais-net
     deploy:
@@ -383,9 +404,11 @@ services:
   # 7. hermes-agent (智能决策引擎)
   # ---------------------------------------------------------------------------
   # 职责: 域隔离决策引擎, 提供 decide/audit/register REST API
-  # 基于 NousResearch/hermes-agent Python 库 + FastAPI
+  # 基于 local fork of NousResearch/hermes-agent + FastAPI
   # CPU-only, 无状态服务, 无 GPU 依赖
   # 端口: 8080
+  # Prerequisite: ensure docker/hermes-agent/hermes-agent-source symlink
+  #   points to /data/workspace/hermes-agent (run: make hermes-link)
   # ---------------------------------------------------------------------------
   hermes-agent:
     build:

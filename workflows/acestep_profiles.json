@@ -57,7 +57,15 @@
         "speed": "⭐⭐⭐"
       },
       "test_script": "workflows/test_acestep_xl_sft_4blm.py",
-      "workflow_json": "workflows/workflow14_acestep_sft_epic_orchestral.json"
+      "workflow_json": "workflows/workflow14_acestep_sft_epic_orchestral.json",
+      "repaint": {
+        "enabled": true,
+        "description": "Repaint 后处理减轻 xl-sft 人声沙感，自动关闭 tiled VAE 避免 NaN",
+        "denoise": 0.6,
+        "steps": 20,
+        "cfg": 3.5,
+        "use_tiled_vae": false
+      }
     },
 
     "turbo-4blm": {

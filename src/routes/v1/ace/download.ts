@@ -1,38 +1,52 @@
-import express from "express";
-import path from "path";
-import fs from "fs";
-import { error } from "@/lib/responseFormat";
-import { ACE_CONFIG } from "./config";
+import express, { Router } from "express";
+import { getGpuScheduler } from "@/services/gpu";
 
 const router = express.Router();
 
-/**
- * GET /api/v1/ace/download/:filename
- *
- * Serve an ACE-Step output audio file from the shared output directory.
- */
-export default router.get("/:filename", async (req, res) => {
-  const { filename } = req.params;
-  const safeName = path.basename(filename); // prevent directory traversal
-  const filePath = path.join(ACE_CONFIG.outputDir, safeName);
+const ACE_URL = process.env.ACE_DIRECT_URL || "http://kais-acestep:8001";
 
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).send(error(`File '${safeName}' not found in output directory`));
+/**
+ * GET /api/v1/ace/download
+ *
+ * Proxy audio file download from ACE-Step container.
+ * Query param: path (URL-encoded path returned by ACE-Step)
+ * Example: /api/v1/ace/download?path=%2Fv1%2Faudio%3Fpath%3D...
+ */
+router.get("/", async (req, res) => {
+  const { path: audioPath } = req.query;
+
+  if (!audioPath || typeof audioPath !== "string") {
+    return res.status(400).json({ code: 400, message: "Missing 'path' query parameter" });
   }
 
-  const ext = path.extname(safeName).toLowerCase();
-  const contentTypes: Record<string, string> = {
-    ".mp3": "audio/mpeg",
-    ".wav": "audio/wav",
-    ".flac": "audio/flac",
-    ".opus": "audio/opus",
-    ".aac": "audio/aac",
-  };
+  try {
+    // ACE returns path like /v1/audio?path=%2Fapp%2F.cache%2F...
+    // We need to proxy through the ACE container
+    const proxyUrl = `${ACE_URL}${audioPath}`;
+    const response = await fetch(proxyUrl);
 
-  res.setHeader("Content-Type", contentTypes[ext] || "application/octet-stream");
-  res.setHeader("Content-Disposition", `attachment; filename="${safeName}"`);
+    if (!response.ok) {
+      return res.status(response.status).json({
+        code: response.status,
+        message: `ACE-Step audio fetch failed: ${response.statusText}`,
+      });
+    }
 
-  const stream = fs.createReadStream(filePath);
-  stream.on("error", () => res.status(500).send(error("Failed to read file")));
-  stream.pipe(res);
+    const contentType = response.headers.get("content-type") || "audio/mpeg";
+    const contentLength = response.headers.get("content-length");
+
+    res.setHeader("Content-Type", contentType);
+    if (contentLength) res.setHeader("Content-Length", contentLength);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+
+    const buffer = await response.arrayBuffer();
+    res.send(Buffer.from(buffer));
+  } catch (err: any) {
+    return res.status(502).json({
+      code: 502,
+      message: `Audio download failed: ${err.message}`,
+    });
+  }
 });
+
+export default router;

@@ -198,7 +198,7 @@ export default router.post(
     { name: "background", maxCount: 1 },
   ]),
   validateFields({
-    projectId: z.number(),
+    projectId: z.coerce.number(),
     prompt: z.string().min(1),
   }),
   async (req, res) => {

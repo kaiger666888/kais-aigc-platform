@@ -70,7 +70,7 @@ function buildTwoStageAudioI2VWorkflow(opts: {
       class_type: "UNETLoader",
       inputs: {
         unet_name: checkpointName,
-        weight_dtype: "mxfp8",
+        weight_dtype: "fp8_e4m3fn",
       },
     },
     // 101: LoraLoaderModelOnly
@@ -323,7 +323,7 @@ export default router.post(
     const stage1Sigmas = req.body.stage1Sigmas || "1.0, 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.421875, 0.0";
     const stage2Sampler = req.body.stage2Sampler || "euler_cfg_pp";
     const stage2Sigmas = req.body.stage2Sigmas || "0.85, 0.725, 0.4219, 0.0";
-    const checkpointName = req.body.checkpointName || "ltx-2.3-22b-dev.safetensors";
+    const checkpointName = req.body.checkpointName || LTX_DEFAULTS.modelName;
     const loraName = req.body.loraName || LTX_DEFAULTS.loraName;
     const loraStrength = Number(req.body.loraStrength) || 0.5;
     const audioVaeName = req.body.audioVaeName || "LTX23_audio_vae_bf16.safetensors";
