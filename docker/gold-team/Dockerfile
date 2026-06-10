@@ -17,7 +17,7 @@ RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua
 RUN pip install --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/cu124 -i https://pypi.tuna.tsinghua.edu.cn/simple || \
     pip install --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/cu121
 
-# Install CosyVoice dependencies
+# Install CosyVoice + Chatterbox + GPT-SoVITS dependencies
 RUN pip install --no-cache-dir \
     conformer==0.3.2 \
     diffusers \
@@ -39,6 +39,21 @@ RUN pip install --no-cache-dir \
     tqdm \
     torchcodec \
     x-transformers \
+    -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+# Chatterbox-Turbo — install --no-deps to avoid numpy/librosa conflict
+# (chatterbox requires numpy<1.26 but we use 1.26+; other deps already installed)
+RUN pip install --no-cache-dir --no-deps chatterbox-tts && \
+    pip install --no-cache-dir --no-deps \
+    safetensors \
+    sentencepiece \
+    encodec \
+    # GPT-SoVITS dependencies
+    gradio \
+    cn2an \
+    pypinyin \
+    jieba_fast \
+    wordsegment \
     -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # Patch librosa numba caching issue
@@ -66,7 +81,9 @@ COPY src/ ./src/
 COPY scripts/ ./scripts/
 
 RUN groupadd -r kais && useradd -r -g kais kais && \
-    chown -R kais:kais /app /opt/CosyVoice
+    chown -R kais:kais /app /opt/CosyVoice && \
+    mkdir -p /opt/acestep/app/gradio_outputs /opt/acestep/app/.cache && \
+    chmod -R 777 /opt/acestep/app/gradio_outputs /opt/acestep/app/.cache
 USER kais
 
 ENV PORT=8002
