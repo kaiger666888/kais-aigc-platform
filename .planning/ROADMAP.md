@@ -87,13 +87,13 @@ Plans:
   4. FLUX + TRELLIS2 full chain produces 3D output from text prompt
   5. Lip sync and frame interpolation workflows are callable and route via params.extra.mode
   6. Workflow builder routing table includes all new builders mapped to their TaskTypes
-**Plans**: TBD
+**Plans**: 4 plans in 2 waves
 
 Plans:
-- [ ] 17-01: Implement image generation workflows (flux_dev, flux_ipadapter)
-- [ ] 17-02: Implement 3D generation workflows (hunyuan3d, trellis, flux_trellis_full)
-- [ ] 17-03: Implement post-processing workflows (lipsync, frame_interpolate)
-- [ ] 17-04: Update workflow builder routing table for all new entries
+- [ ] 17-01-PLAN.md — Create test scaffold and verify existing builders (WFB-01, WFB-02, WFB-03)
+- [ ] 17-02-PLAN.md — Implement new builders: lipsync (WFB-06) and frame_interpolate (WFB-07)
+- [ ] 17-03-PLAN.md — Add TRELLIS routing to executor and router (WFB-04, WFB-05)
+- [ ] 17-04-PLAN.md — Add lip_sync and frame_interp routing to executor (WFB-08)
 
 ### Phase 18: Engine Registration & Task Routing
 **Goal**: Engines register by backend type (not by model), and TaskType routing supports params.extra for fine-grained capability selection
