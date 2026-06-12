@@ -6,7 +6,8 @@ Verifies the complete production chain:
   Step 3: VIDEO_FINAL with lip_sync → lip-synced video
   Step 4: UPSCALE with frame_interp → smooth video
   Step 5: UPSCALE (default) → super-resolution image
-  Step 6: Full chain — all 5 steps sequentially, data flows between steps
+  Step 6: FACE_RESTORE → face-restored high-res image
+  Step 7: Full chain — all 6 steps sequentially, data flows between steps
 """
 from __future__ import annotations
 
@@ -103,6 +104,12 @@ def _build_workflow_for_task(task: GenerationTask) -> dict:
                 image_name=task.params.get("image", ""),
             )
 
+    elif task.type == TaskType.FACE_RESTORE:
+        from src.v6.engines.workflow_builder import build_face_restore_workflow
+        return build_face_restore_workflow(
+            image_name=task.params.get("image", ""),
+        )
+
     raise ValueError(f"Unsupported task type for pipeline test: {task.type}")
 
 
@@ -184,8 +191,23 @@ class TestShortDramaPipeline:
         assert _find_class_type_in_workflow(workflow, "UpscaleModelLoader"), \
             "Super-resolution pipeline step must contain UpscaleModelLoader node"
 
+    def test_step6_face_restore(self):
+        """Pipeline step 6: FACE_RESTORE produces UpscaleModelLoader and ImageUpscaleWithModel nodes."""
+        task = _make_task(
+            TaskType.FACE_RESTORE,
+            params={
+                "image": "char_001_rendered.png",
+            },
+            task_id="pipeline-step-6",
+        )
+        workflow = _build_workflow_for_task(task)
+        assert _find_class_type_in_workflow(workflow, "UpscaleModelLoader"), \
+            "Face restore pipeline step must contain UpscaleModelLoader node"
+        assert _find_class_type_in_workflow(workflow, "ImageUpscaleWithModel"), \
+            "Face restore pipeline step must contain ImageUpscaleWithModel node"
+
     def test_full_pipeline_chain(self):
-        """Full chain: run all 5 steps sequentially with data flowing between steps."""
+        """Full chain: run all 6 steps sequentially with data flowing between steps."""
         # Simulated outputs from each step
         outputs: dict[str, str] = {}
 
@@ -255,7 +277,19 @@ class TestShortDramaPipeline:
         assert _find_class_type_in_workflow(workflow5, "UpscaleModelLoader")
         outputs["step5_image"] = "chain-step-5/char_hires.png"
 
+        # Step 6: Face restoration on the super-resolution image
+        task6 = _make_task(
+            TaskType.FACE_RESTORE,
+            params={
+                "image": outputs["step5_image"],
+            },
+            task_id="chain-step-6",
+        )
+        workflow6 = _build_workflow_for_task(task6)
+        assert _find_class_type_in_workflow(workflow6, "UpscaleModelLoader")
+        outputs["step6_image"] = "chain-step-6/char_face_restored.png"
+
         # Verify complete chain produced all expected outputs
-        assert len(outputs) == 5, f"Expected 5 pipeline outputs, got {len(outputs)}"
+        assert len(outputs) == 6, f"Expected 6 pipeline outputs, got {len(outputs)}"
         for key, path in outputs.items():
             assert path, f"Pipeline output '{key}' is empty"
