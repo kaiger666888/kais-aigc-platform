@@ -42,7 +42,7 @@ Complete hermes-agent integration test suite. 42+ tests, CI pipeline. 22 require
 
 - [ ] **Phase 15: Production Stability Fixes** - Fix ACE-Step container permissions and remove movie-agent dead code
 - [ ] **Phase 16: v6 Code Merge** - Merge research repo engine code into deploy repo with regression testing
-- [ ] **Phase 17: Workflow Builder Expansion** - Implement 7 missing workflow builders and update routing table
+- [x] **Phase 17: Workflow Builder Expansion** - Implement 7 missing workflow builders and update routing table (completed 2026-06-12)
 - [ ] **Phase 18: Engine Registration & Task Routing** - Unify engine registration by backend type and enable params.extra routing
 - [ ] **Phase 19: Integration Verification** - End-to-end validation that all merged engines and new workflows work through the unified API
 
@@ -169,7 +169,7 @@ Phases execute in numeric order: 15 → 16 → 17 → 18 → 19
 |-------|-----------|----------------|--------|-----------|
 | 15. Production Stability Fixes | v1.3 | 0/2 | Not started | - |
 | 16. v6 Code Merge | v1.3 | 0/3 | Not started | - |
-| 17. Workflow Builder Expansion | v1.3 | 4/4 | Complete | 2026-06-12 |
+| 17. Workflow Builder Expansion | v1.3 | 4/4 | Complete    | 2026-06-12 |
 | 18. Engine Registration & Task Routing | v1.3 | 0/3 | Not started | - |
 | 19. Integration Verification | v1.3 | 0/2 | Not started | - |
 
