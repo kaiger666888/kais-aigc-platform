@@ -44,7 +44,7 @@ Complete hermes-agent integration test suite. 42+ tests, CI pipeline. 22 require
 - [ ] **Phase 16: v6 Code Merge** - Merge research repo engine code into deploy repo with regression testing
 - [x] **Phase 17: Workflow Builder Expansion** - Implement 7 missing workflow builders and update routing table (completed 2026-06-12)
 - [x] **Phase 18: Engine Registration & Task Routing** - Unify engine registration by backend type and enable params.extra routing (completed 2026-06-12)
-- [ ] **Phase 19: Integration Verification** - End-to-end validation that all merged engines and new workflows work through the unified API
+- [x] **Phase 19: Integration Verification** - End-to-end validation that all merged engines and new workflows work through the unified API (completed 2026-06-12)
 
 ## Phase Details
 
@@ -61,7 +61,7 @@ Complete hermes-agent integration test suite. 42+ tests, CI pipeline. 22 require
   4. No source code references to movie-agent remain (imports, configs, env vars)
   5. OpenClaw Agent can be verified as the replacement for movie-agent orchestration duties
 
-**Plans**: 2 plans in 1 wave
+**Plans**: 3 plans in 2 waves
 
 Plans:
 
@@ -132,7 +132,7 @@ Plans:
   5. Submitting an IMAGE_DRAW task with IP-Adapter/InstantID/PhotoMaker params triggers the correct character consistency workflow
   6. ACE-Step (DockerPollingAPIEngine) and CloudEngine (Kling/Jimeng) continue working after registration refactor
 
-**Plans**: 2 plans in 1 wave
+**Plans**: 3 plans in 2 waves
 
 Plans:
 
@@ -153,12 +153,13 @@ Plans:
   4. ACE-Step music generation succeeds through the unified API (regression from Phase 15 fix)
   5. No movie-agent references anywhere in the running system (regression from Phase 15 cleanup)
 
-**Plans**: 2 plans in 1 wave
+**Plans**: 3 plans in 2 waves
 
 Plans:
 
-- [ ] 19-01-PLAN.md -- TaskType routing coverage + end-to-end short-drama pipeline integration tests
-- [ ] 19-02-PLAN.md -- Regression verification: ACE-Step, cloud fallback, movie-agent absence
+- [x] 19-01-PLAN.md -- TaskType routing coverage + end-to-end short-drama pipeline integration tests
+- [x] 19-02-PLAN.md -- Regression verification: ACE-Step, cloud fallback, movie-agent absence
+- [ ] 19-03-PLAN.md -- Add face restoration step to pipeline chain test (gap closure)
 
 ## Progress
 
@@ -171,7 +172,7 @@ Phases execute in numeric order: 15 → 16 → 17 → 18 → 19
 | 16. v6 Code Merge | v1.3 | 0/3 | Not started | - |
 | 17. Workflow Builder Expansion | v1.3 | 4/4 | Complete    | 2026-06-12 |
 | 18. Engine Registration & Task Routing | v1.3 | 3/3 | Complete    | 2026-06-12 |
-| 19. Integration Verification | v1.3 | 0/2 | Not started | - |
+| 19. Integration Verification | v1.3 | 2/3 | In progress | - |
 
 ### Completed Milestones
 
