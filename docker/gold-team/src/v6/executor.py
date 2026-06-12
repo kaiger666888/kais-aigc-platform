@@ -226,40 +226,146 @@ class TaskExecutor:
                             task_id=task.task_id,
                         )
                         logger.info("Auto-built Hunyuan3D workflow for task %s", task.task_id)
-                elif task.params.get("model") == "flux-dev":
-                    from src.v6.engines.workflow_builder import build_flux_dev_workflow
-                    workflow = build_flux_dev_workflow(
-                        prompt=task.params.get("prompt", ""),
-                        negative_prompt=task.params.get("negative_prompt", ""),
-                        width=task.params.get("width", 1024),
-                        height=task.params.get("height", 1024),
-                        steps=task.params.get("steps", 28),
-                        cfg_scale=task.params.get("cfg_scale", 3.5),
-                        seed=task.params.get("seed"),
-                    )
-                    logger.info("Auto-built FLUX Dev workflow for task %s", task.task_id)
-                elif task.params.get("model") == "flux-dev-ipa":
-                    from src.v6.engines.workflow_builder import build_flux_ipadapter_workflow
-                    ref_img = task.params.get("reference_image", "")
-                    if not ref_img:
-                        logger.error("flux-dev-ipa requires 'reference_image' param, task %s", task.task_id)
-                        await store.update(task.task_id, status=TaskStatus.FAILED, error="flux-dev-ipa requires 'reference_image' param")
-                        return
-                    workflow = build_flux_ipadapter_workflow(
-                        prompt=task.params.get("prompt", ""),
-                        reference_image=ref_img,
-                        negative_prompt=task.params.get("negative_prompt", ""),
-                        width=task.params.get("width", 1024),
-                        height=task.params.get("height", 1024),
-                        steps=task.params.get("steps", 28),
-                        cfg_scale=task.params.get("cfg_scale", 3.5),
-                        weight=task.params.get("weight", 0.8),
-                        start_percent=task.params.get("start_percent", 0.0),
-                        end_percent=task.params.get("end_percent", 0.8),
-                        seed=task.params.get("seed"),
-                        filename_prefix=task.params.get("filename_prefix", "flux-ipadapter"),
-                    )
-                    logger.info("Auto-built FLUX Dev + IP-Adapter workflow for task %s", task.task_id)
+                elif task.type == TaskType.IMAGE_DRAW:
+                    # -- IMAGE_DRAW routing: params.extra.mode first, then model-based fallback --
+                    extra = task.params.get("extra", {})
+                    extra_mode = extra.get("mode", "") if isinstance(extra, dict) else ""
+                    model = task.params.get("model", "")
+
+                    if extra_mode == "ipadapter":
+                        # IP-Adapter character consistency via params.extra.mode
+                        from src.v6.engines.workflow_builder import build_flux_ipadapter_workflow
+                        ref_img = task.params.get("reference_image", "")
+                        if not ref_img:
+                            logger.error("IMAGE_DRAW ipadapter requires 'reference_image' param, task %s", task.task_id)
+                            await store.update(
+                                task.task_id,
+                                status=TaskStatus.FAILED,
+                                error="IMAGE_DRAW ipadapter requires 'reference_image' param",
+                            )
+                            return
+                        workflow = build_flux_ipadapter_workflow(
+                            prompt=task.params.get("prompt", ""),
+                            reference_image=ref_img,
+                            negative_prompt=task.params.get("negative_prompt", ""),
+                            width=task.params.get("width", 1024),
+                            height=task.params.get("height", 1024),
+                            steps=task.params.get("steps", 28),
+                            cfg_scale=task.params.get("cfg_scale", 3.5),
+                            weight=task.params.get("weight", 0.8),
+                            start_percent=task.params.get("start_percent", 0.0),
+                            end_percent=task.params.get("end_percent", 0.8),
+                            seed=task.params.get("seed"),
+                            filename_prefix=task.params.get("filename_prefix", "flux-ipadapter"),
+                        )
+                        logger.info("Auto-built IP-Adapter workflow for IMAGE_DRAW task %s (extra.mode=ipadapter)", task.task_id)
+
+                    elif extra_mode == "pulid":
+                        # PuLID character consistency via params.extra.mode
+                        from src.v6.engines.workflow_builder import build_pulid_flux_workflow
+                        ref_img = task.params.get("image", "") or task.params.get("reference_image", "")
+                        if not ref_img:
+                            logger.error("IMAGE_DRAW pulid requires 'image' or 'reference_image' param, task %s", task.task_id)
+                            await store.update(
+                                task.task_id,
+                                status=TaskStatus.FAILED,
+                                error="IMAGE_DRAW pulid requires 'image' or 'reference_image' param",
+                            )
+                            return
+                        workflow = build_pulid_flux_workflow(
+                            image_name=ref_img,
+                            prompt=task.params.get("prompt", ""),
+                            negative_prompt=task.params.get("negative_prompt", ""),
+                            width=task.params.get("width", 1024),
+                            height=task.params.get("height", 1024),
+                            steps=task.params.get("steps", 28),
+                            cfg_scale=task.params.get("cfg_scale", 3.5),
+                            weight=task.params.get("weight", 1.0),
+                            seed=task.params.get("seed"),
+                            filename_prefix=task.params.get("filename_prefix", "pulid_flux"),
+                        )
+                        logger.info("Auto-built PuLID workflow for IMAGE_DRAW task %s (extra.mode=pulid)", task.task_id)
+
+                    elif extra_mode == "instantid":
+                        # InstantID character consistency (reuses IP-Adapter infrastructure)
+                        from src.v6.engines.workflow_builder import build_flux_ipadapter_workflow
+                        ref_img = task.params.get("reference_image", "")
+                        if not ref_img:
+                            logger.error("IMAGE_DRAW instantid requires 'reference_image' param, task %s", task.task_id)
+                            await store.update(
+                                task.task_id,
+                                status=TaskStatus.FAILED,
+                                error="IMAGE_DRAW instantid requires 'reference_image' param",
+                            )
+                            return
+                        workflow = build_flux_ipadapter_workflow(
+                            prompt=task.params.get("prompt", ""),
+                            reference_image=ref_img,
+                            negative_prompt=task.params.get("negative_prompt", ""),
+                            width=task.params.get("width", 1024),
+                            height=task.params.get("height", 1024),
+                            steps=task.params.get("steps", 28),
+                            cfg_scale=task.params.get("cfg_scale", 3.5),
+                            weight=task.params.get("weight", 0.8),
+                            start_percent=task.params.get("start_percent", 0.0),
+                            end_percent=task.params.get("end_percent", 0.8),
+                            seed=task.params.get("seed"),
+                            filename_prefix=task.params.get("filename_prefix", "flux-instantid"),
+                        )
+                        logger.info("Auto-built InstantID workflow for IMAGE_DRAW task %s (extra.mode=instantid, reuses IP-Adapter)", task.task_id)
+
+                    elif model == "flux-dev-ipa":
+                        # Legacy: model="flux-dev-ipa" backward compatibility
+                        from src.v6.engines.workflow_builder import build_flux_ipadapter_workflow
+                        ref_img = task.params.get("reference_image", "")
+                        if not ref_img:
+                            logger.error("flux-dev-ipa requires 'reference_image' param, task %s", task.task_id)
+                            await store.update(task.task_id, status=TaskStatus.FAILED, error="flux-dev-ipa requires 'reference_image' param")
+                            return
+                        workflow = build_flux_ipadapter_workflow(
+                            prompt=task.params.get("prompt", ""),
+                            reference_image=ref_img,
+                            negative_prompt=task.params.get("negative_prompt", ""),
+                            width=task.params.get("width", 1024),
+                            height=task.params.get("height", 1024),
+                            steps=task.params.get("steps", 28),
+                            cfg_scale=task.params.get("cfg_scale", 3.5),
+                            weight=task.params.get("weight", 0.8),
+                            start_percent=task.params.get("start_percent", 0.0),
+                            end_percent=task.params.get("end_percent", 0.8),
+                            seed=task.params.get("seed"),
+                            filename_prefix=task.params.get("filename_prefix", "flux-ipadapter"),
+                        )
+                        logger.info("Auto-built FLUX Dev + IP-Adapter workflow for task %s (legacy model=flux-dev-ipa)", task.task_id)
+
+                    elif model == "flux-dev":
+                        # Legacy: model="flux-dev"
+                        from src.v6.engines.workflow_builder import build_flux_dev_workflow
+                        workflow = build_flux_dev_workflow(
+                            prompt=task.params.get("prompt", ""),
+                            negative_prompt=task.params.get("negative_prompt", ""),
+                            width=task.params.get("width", 1024),
+                            height=task.params.get("height", 1024),
+                            steps=task.params.get("steps", 28),
+                            cfg_scale=task.params.get("cfg_scale", 3.5),
+                            seed=task.params.get("seed"),
+                        )
+                        logger.info("Auto-built FLUX Dev workflow for task %s (model=flux-dev)", task.task_id)
+
+                    else:
+                        # Default: FLUX Dev FP8 for IMAGE_DRAW
+                        from src.v6.engines.workflow_builder import build_flux_dev_workflow
+                        workflow = build_flux_dev_workflow(
+                            prompt=task.params.get("prompt", ""),
+                            negative_prompt=task.params.get("negative_prompt", ""),
+                            width=task.params.get("width", 1024),
+                            height=task.params.get("height", 1024),
+                            steps=task.params.get("steps", 28),
+                            cfg_scale=task.params.get("cfg_scale", 3.5),
+                            seed=task.params.get("seed"),
+                        )
+                        logger.info("Auto-built FLUX Dev workflow for IMAGE_DRAW task %s (default)", task.task_id)
+
                 elif task.type == TaskType.IMAGE_PULID:
                     from src.v6.engines.workflow_builder import build_pulid_flux_workflow
                     ref_img = task.params.get("image", "") or task.params.get("reference_image", "")
