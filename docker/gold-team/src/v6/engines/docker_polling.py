@@ -1,10 +1,4 @@
-"""ACE-Step polling engine — async submit + poll for music generation tasks.
-
-Supports three parameter profiles (see workflows/acestep_profiles.json):
-  - xl-sft-4blm:    High quality (XL-SFT + 0.6B TE + 4B TE2, 50 steps, ~2min)
-  - xl-sft-1.7b-4blm: Max quality (XL-SFT + 1.7B TE1 + 4B TE2, 50 steps, ~3min)
-  - turbo-4blm:      Quick prototype (Turbo + 0.6B TE + 4B TE2, 8 steps, ~40s)
-"""
+"""ACE-Step polling engine — async submit + poll for music generation tasks."""
 from __future__ import annotations
 
 import json as _json
@@ -31,97 +25,13 @@ _TASK_TYPE_MAP = {
     "music_complete": "complete",
 }
 
-# Default parameter profiles for each ACE-Step model combination
-# Sourced from workflows/acestep_profiles.json, last updated 2026-06-10
-_ACESTEP_PROFILES = {
-    "xl-sft-4blm": {
-        "models": {
-            "diffusion_model": "acestep_v1.5_xl_sft.safetensors",
-            "text_encoder_1": "qwen_0.6b_ace15.safetensors",
-            "text_encoder_2": "qwen_4b_ace15.safetensors",
-            "vae_name": "ace_1.5_vae.safetensors",
-        },
-        "generation": {
-            "steps": 50, "cfg": 7.0, "sampler_name": "euler",
-            "scheduler": "normal", "denoise": 1.0, "infer_method": "ode",
-            "guidance_mode": "apg", "use_tiled_vae": True, "shift": 3.0,
-        },
-        "apg": {"apg_eta": 0.0, "apg_momentum": -0.75, "apg_norm_threshold": 2.5},
-        "lm": {"lm_cfg_scale": 2.0, "lm_temperature": 0.85, "lm_top_p": 0.9,
-               "lm_top_k": 0, "lm_min_p": 0.0},
-        "defaults": {
-            "duration": 120.0, "bpm": 72, "timesignature": "4",
-            "language": "en", "keyscale": "D minor",
-            "generate_audio_codes": True, "instrumental": False,
-        },
-        "tag_adapter": {
-            "adaptation_strength": "aggressive",
-            "keep_unknown_tags": True, "add_sft_bias_tags": True,
-        },
-    },
-    "turbo-4blm": {
-        "models": {
-            "diffusion_model": "acestep_v1.5_turbo.safetensors",
-            "text_encoder_1": "qwen_0.6b_ace15.safetensors",
-            "text_encoder_2": "qwen_4b_ace15.safetensors",
-            "vae_name": "ace_1.5_vae.safetensors",
-        },
-        "generation": {
-            "steps": 8, "cfg": 1.0, "sampler_name": "euler",
-            "scheduler": "normal", "denoise": 1.0, "infer_method": "ode",
-            "guidance_mode": "apg", "use_tiled_vae": True, "shift": 3.0,
-        },
-        "apg": {"apg_eta": 0.0, "apg_momentum": -0.75, "apg_norm_threshold": 2.5},
-        "lm": {"lm_cfg_scale": 2.0, "lm_temperature": 0.85, "lm_top_p": 0.9,
-               "lm_top_k": 0, "lm_min_p": 0.0},
-        "defaults": {
-            "duration": 30.0, "bpm": 80, "timesignature": "4",
-            "language": "en", "keyscale": "A minor",
-            "generate_audio_codes": True, "instrumental": False,
-        },
-        "tag_adapter": {
-            "adaptation_strength": "balanced",
-            "keep_unknown_tags": True, "add_sft_bias_tags": True,
-        },
-    },
-}
-
-# Profile name mapping from API-friendly names
-_PROFILE_ALIASES = {
-    "quality": "xl-sft-4blm",
-    "max_quality": "xl-sft-1.7b-4blm",
-    "fast": "turbo-4blm",
-    "prototype": "turbo-4blm",
-}
-
 
 class DockerPollingAPIEngine(DockerAPIEngine):
-    """Engine for ACE-Step: submit task, poll for async completion, download results.
-
-    Supports parameter profiles: xl-sft-4blm, xl-sft-1.7b-4blm, turbo-4blm.
-    Use params.extra.acestep.profile to select, or "quality" / "max_quality" / "fast" aliases.
-    """
+    """Engine for ACE-Step: submit task, poll for async completion, download results."""
 
     def __init__(self, config: EngineConfig, container_mgr: ContainerManager) -> None:
         super().__init__(config, container_mgr)
         self._pending_job_id: str | None = None
-
-    @staticmethod
-    def resolve_profile(profile_name: str) -> dict[str, Any]:
-        """Resolve a profile name (or alias) to its full parameter set."""
-        resolved = _PROFILE_ALIASES.get(profile_name, profile_name)
-        if resolved not in _ACESTEP_PROFILES:
-            valid = sorted(_ACESTEP_PROFILES.keys())
-            raise ValueError(
-                f"Unknown ACE-Step profile '{profile_name}'. "
-                f"Valid: {valid}, aliases: quality/max_quality/fast"
-            )
-        return _ACESTEP_PROFILES[resolved]
-
-    @staticmethod
-    def list_profiles() -> dict[str, str]:
-        """Return {name: description} for all available profiles."""
-        return {name: p["models"]["diffusion_model"] for name, p in _ACESTEP_PROFILES.items()}
 
     async def submit(self, workflow: dict[str, Any], params: dict[str, Any] | None = None) -> str:
         """Submit to /release_task and return the real job ID."""
@@ -189,33 +99,10 @@ class DockerPollingAPIEngine(DockerAPIEngine):
     def _build_acestep_payload(
         self, task_id: str, task_type: str, params: dict[str, Any],
     ) -> dict[str, Any]:
-        """Build ACE-Step specific request payload.
-
-        If params.extra.acestep.profile is set, merge the profile defaults
-        before applying explicit overrides. Explicit params always win.
-        """
+        """Build ACE-Step specific request payload."""
         ace_params = params.get("extra", {}).get("acestep", {})
         p = {**params, **ace_params}
         p.pop("extra", None)
-
-        # Resolve and merge profile if specified
-        profile_name = p.pop("profile", None)
-        if profile_name:
-            profile = self.resolve_profile(profile_name)
-            gen = profile["generation"]
-            lm = profile["lm"]
-            apg = profile["apg"]
-            defs = profile["defaults"]
-
-            # Profile defaults as base, explicit params override
-            merged = {**defs, **lm, **apg, **gen}
-            # Remove None entries so they don't clobber explicit values
-            merged = {k: v for k, v in merged.items() if v is not None}
-            # Apply explicit params on top
-            for k, v in p.items():
-                if v is not None:
-                    merged[k] = v
-            p = merged
 
         api_task_type = _TASK_TYPE_MAP.get(task_type, "text2music")
 
@@ -235,16 +122,10 @@ class DockerPollingAPIEngine(DockerAPIEngine):
         # Add optional params (only non-None)
         for key in ("model", "global_caption", "use_format", "audio_duration",
                      "bpm", "key_scale", "time_signature", "vocal_language",
-                     "inference_steps", "guidance_scale", "shift",
-                     "cfg_scale", "temperature", "top_p", "top_k", "min_p",
-                     "duration", "language", "instrumental"):
+                     "inference_steps", "guidance_scale", "shift"):
             val = p.get(key)
             if val is not None:
-                # Map internal names to ACE-Step API names
-                api_key = key
-                if key == "audio_duration":
-                    api_key = "duration"
-                payload[api_key] = val
+                payload[key] = val
 
         # Reference audio
         ref_audio = p.get("reference_audio")

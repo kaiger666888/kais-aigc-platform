@@ -1,4 +1,9 @@
-"""Engine Router — default local RTX 3090, degrade to cloud."""
+"""Engine Router — dual ComfyUI (primary 3090 + auxiliary 3060 Ti), degrade to cloud.
+
+Hardware: Single machine with dual ComfyUI instances:
+    - comfyui-primary (RTX 3090, 24GB, :8188) — video, 3D, FLUX, heavy tasks
+    - comfyui-auxiliary (RTX 3060 Ti, 8GB/5.5GB usable, :8189) — upscale, face_restore, light refine
+"""
 from __future__ import annotations
 
 import logging
@@ -8,23 +13,52 @@ from src.v6.models.task import EnginePool, GenerationTask, ModelPreference, Task
 
 logger = logging.getLogger(__name__)
 
-# VRAM requirements by task type (GB)
-# GGUF/FP8 quantized models significantly reduce VRAM usage:
-#   - Wan 2.2 I2V 14B GGUF/FP8: ~22GB peak (vs ~28GB FP16)
-#   - T5 XXL FP8: ~5.5GB (vs ~11GB FP16)
-#   - ComfyUI RAM cache manages model swapping automatically
+# ─── Dedicated engine mappings (type → engine_id) ───
+# These task types have specialized engines that should always be preferred
+# over the generic comfyui-primary fallback.
+DEDICATED_ENGINES: dict[TaskType, str] = {
+    TaskType.IMAGE_TO_3D: "hunyuan3d-local",
+    TaskType.IMAGE_TO_3D_MV: "hunyuan3d-mv-local",
+    TaskType.MUSIC: "acestep-internal",
+    TaskType.SFX: "acestep-internal",
+    TaskType.TTS: "tts-tracker",
+    TaskType.TTS_ZH: "tts-tracker",
+    TaskType.TTS_EN: "tts-tracker",
+    TaskType.TTS_BILINGUAL: "tts-tracker",
+}
+
+# ─── Light task types routed to auxiliary ───
+# NOTE: face_restore removed — mtb face enhance not functional on either instance.
+#   Routes to primary, uses simple upscale pipeline.
+LIGHT_TASK_TYPES: set[TaskType] = {
+    TaskType.UPSCALE,
+    TaskType.IMAGE_REFINE,
+}
+
+# VRAM requirements by task type (estimates, GB)
 VRAM_ESTIMATES: dict[TaskType, float] = {
-    TaskType.VIDEO_FINAL: 22.0,      # GGUF/FP8 on RTX 3090
+    TaskType.VIDEO_FINAL: 22.0,
     TaskType.VIDEO_PREVIEW: 14.0,
     TaskType.IMAGE_DRAW: 8.0,
     TaskType.IMAGE_REFINE: 6.0,
     TaskType.TTS: 2.0,
+    TaskType.TTS_ZH: 4.0,         # GPT-SoVITS on 3090 (CUDA=0)
+    TaskType.TTS_EN: 2.0,         # Chatterbox-Turbo on 3090 (shared GPU)
+    TaskType.TTS_BILINGUAL: 6.0,  # CosyVoice on 3090
     TaskType.MUSIC: 4.0,
     TaskType.SFX: 2.0,
     TaskType.UPSCALE: 2.0,
     TaskType.FACE_RESTORE: 1.5,
     TaskType.IMAGE_TO_3D: 10.0,
+    TaskType.IMAGE_TO_3D_MV: 12.0,      # Hunyuan3D-2mv (multiview, heavier)
+    TaskType.IMAGE_PULID: 16.0,          # FLUX + PuLID
+    TaskType.IMAGE_DRAW_IPADAPTER: 16.0,  # FLUX + IP-Adapter
+    TaskType.CONTROLNET_DEPTH: 18.0,     # FLUX + ControlNet
+    TaskType.WAN_I2V: 20.0,              # Wan 2.1 14B
 }
+
+# Auxiliary VRAM cap — only accept tasks needing < 5 GB
+AUX_VRAM_CAP_GB = 5.0
 
 # Local-only task types (no cloud fallback)
 LOCAL_ONLY_TYPES: set[TaskType] = set()
@@ -36,86 +70,112 @@ CLOUD_CAPABLE: set[TaskType] = {
     TaskType.IMAGE_DRAW,
     TaskType.IMAGE_REFINE,
     TaskType.IMAGE_TO_3D,
+    TaskType.WAN_I2V,
 }
 
-# Total VRAM available on RTX 3090
+# Primary VRAM (RTX 3090)
 LOCAL_VRAM_GB = 24.0
 VRAM_HARD_CAP_GB = 23.5
 
 
 class EngineRouter:
-    """Decides which engine pool (local/cloud) a task should run on."""
+    """Decides which engine pool (local-primary / local-auxiliary / cloud) a task should run on."""
 
     def __init__(
         self,
         local_available: bool = True,
         local_vram_used_gb: float = 0.0,
+        primary_available: bool = True,
+        auxiliary_available: bool = True,
     ) -> None:
         self.local_available = local_available
         self.local_vram_used_gb = local_vram_used_gb
+        self.primary_available = primary_available
+        self.auxiliary_available = auxiliary_available
 
     def _vram_available(self) -> float:
         return max(0.0, VRAM_HARD_CAP_GB - self.local_vram_used_gb)
 
     def route(self, task: GenerationTask) -> tuple[EnginePool, str]:
+        """Route a task to an engine pool.  Returns (pool, engine_id).
+
+        Logic:
+            1. Explicit CLOUD preference → cloud
+            2. Explicit LOCAL preference → local (primary or auxiliary)
+            3. AUTO:
+               a. Light task + auxiliary healthy → auxiliary
+               b. Otherwise → primary (if healthy)
+               c. Primary down + cloud capable → cloud fallback
         """
-        Route a task to an engine pool.
-        Returns (pool, engine_id).
-        """
-        # Explicit preference
+        # ── Explicit preference ──
         if task.model_preference == ModelPreference.CLOUD:
             return EnginePool.CLOUD, self._pick_cloud_engine_id(task)
 
         if task.model_preference == ModelPreference.LOCAL:
-            if self.local_available:
+            if self.local_available or self.auxiliary_available:
                 return EnginePool.LOCAL, self._pick_local_engine_id(task)
-            return EnginePool.CLOUD, "cloud-mock"  # fallback even if forced local
-
-        # AUTO: try local first
-        if not self.local_available:
-            logger.info("Local unavailable → cloud for task %s", task.task_id)
             return EnginePool.CLOUD, "cloud-mock"
 
-        vram_needed = VRAM_ESTIMATES.get(task.type, 8.0)
-        vram_available = self._vram_available()
+        # ── AUTO routing ──
 
-        if vram_needed <= vram_available:
-            return EnginePool.LOCAL, self._pick_local_engine_id(task)
+        # Step 1: light tasks → auxiliary when available
+        if task.type in LIGHT_TASK_TYPES and self.auxiliary_available:
+            vram_needed = VRAM_ESTIMATES.get(task.type, 8.0)
+            if vram_needed <= AUX_VRAM_CAP_GB:
+                logger.info(
+                    "Light task %s (type=%s, %.1fGB) → auxiliary",
+                    task.task_id, task.type.value, vram_needed,
+                )
+                return EnginePool.LOCAL, "comfyui-auxiliary"
 
-        # Local VRAM insufficient
+        # Step 2: heavy tasks → primary when available
+        if self.local_available:
+            vram_needed = VRAM_ESTIMATES.get(task.type, 8.0)
+            vram_available = self._vram_available()
+            if vram_needed <= vram_available:
+                return EnginePool.LOCAL, self._pick_local_engine_id(task)
+
+        # Step 3: primary unavailable / VRAM insufficient → try auxiliary for light tasks
+        if task.type in LIGHT_TASK_TYPES and self.auxiliary_available:
+            vram_needed = VRAM_ESTIMATES.get(task.type, 8.0)
+            if vram_needed <= AUX_VRAM_CAP_GB:
+                logger.info(
+                    "Primary unavailable, routing light task %s → auxiliary",
+                    task.task_id,
+                )
+                return EnginePool.LOCAL, "comfyui-auxiliary"
+
+        # Step 4: cloud fallback for capable types
         if task.type in CLOUD_CAPABLE:
             logger.info(
-                "VRAM insufficient (%.1f/%.1f GB) → cloud for task %s",
-                vram_needed,
-                vram_available,
+                "Local engines unavailable/insufficient → cloud for task %s",
                 task.task_id,
             )
             return EnginePool.CLOUD, self._pick_cloud_engine_id(task)
 
-        # No cloud fallback
+        # Step 5: no fallback — queue on primary anyway
         logger.warning(
-            "VRAM insufficient and no cloud fallback for task %s (type=%s)",
-            task.task_id,
-            task.type.value,
+            "No suitable engine for task %s (type=%s), queueing on primary",
+            task.task_id, task.type.value,
         )
-        return EnginePool.LOCAL, "local-comfyui-mock"  # will queue and wait
+        return EnginePool.LOCAL, "comfyui-primary"
 
     def _pick_local_engine_id(self, task: GenerationTask) -> str:
         """Pick the best local engine ID for the task type."""
-        if task.type == TaskType.TTS:
-            return "tts-local"
-        if task.type == TaskType.IMAGE_CAPTION:
-            return "joycaption-local"
-        return "comfyui-local"
+        # Dedicated engine mappings take priority
+        if task.type in DEDICATED_ENGINES:
+            return DEDICATED_ENGINES[task.type]
+        if task.type in LIGHT_TASK_TYPES and self.auxiliary_available:
+            return "comfyui-auxiliary"
+        return "comfyui-primary"
 
     def _pick_cloud_engine_id(self, task: GenerationTask) -> str:
         """Pick the best cloud engine ID for the task type."""
         task_type = task.type.value if hasattr(task.type, 'value') else str(task.type)
-        # Priority: jimeng > kling > seedance
         if task_type in ("image_draw", "image_refine"):
             return "cloud-jimeng"
         if task_type in ("video_final", "video_preview"):
-            return "cloud-jimeng"  # jimeng supports video too
+            return "cloud-jimeng"
         return "cloud-mock"
 
 

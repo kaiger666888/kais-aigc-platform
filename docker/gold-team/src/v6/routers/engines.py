@@ -1,4 +1,9 @@
-"""Engine status and health query APIs."""
+"""Engine status and health query APIs.
+
+Hardware: Single machine (192.168.71.166) with dual GPU:
+    - GPU 0: RTX 3060 Ti 8G — display + NVENC/NVDEC + ffmpeg IO (host)
+    - GPU 1: RTX 3090 24G — CUDA inference primary
+"""
 from __future__ import annotations
 
 import time
@@ -8,7 +13,6 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 
 from src.v6.engine.cloud_pool import CLOUD_PROVIDERS, get_cloud_pool
-from src.v6.executor import get_executor as _get_executor
 from src.v6.engine.local_pool import get_local_pool
 from src.v6.engine.router import LOCAL_VRAM_GB, VRAM_HARD_CAP_GB
 from src.v6.executor import get_executor
@@ -16,137 +20,6 @@ from src.v6.models.task import TaskType, TaskStatus
 from src.v6.store import get_task_store
 
 router = APIRouter(prefix="/api/v1/engines", tags=["Engine"])
-
-# ── /api/v1/capabilities ──────────────────────────────────────────────
-cap_router = APIRouter(prefix="/api/v1", tags=["Capabilities"])
-
-_CAPABILITIES = {
-    "version": "6.0",
-    "engines": [
-        {
-            "engine_id": "comfyui-local",
-            "name": "ComfyUI Local (RTX 3090)",
-            "status": "online",
-            "vram_total_mb": 24576,
-            "vram_available_mb": 20000,
-            "supported_types": ["video_final", "video_preview", "image_draw", "image_refine", "upscale", "face_restore"],
-            "models": {
-                "wan2.2-i2v-gguf": {
-                    "description": "Wan 2.2 I2V 14B GGUF/FP8 (quantized)",
-                    "type": "video_final",
-                    "requires": ["source_image_path"],
-                    "params": {
-                        "width": {"type": "integer", "default": 832, "min": 256, "max": 1280, "description": "Video width (16-aligned)"},
-                        "height": {"type": "integer", "default": 480, "min": 256, "max": 1280, "description": "Video height (16-aligned)"},
-                        "num_frames": {"type": "integer", "default": 81, "min": 1, "max": 161, "description": "Number of frames"},
-                        "fps": {"type": "integer", "default": 16, "min": 1, "max": 60, "description": "Output FPS"},
-                        "cfg": {"type": "float", "default": 3.5, "min": 1.0, "max": 10.0, "description": "CFG scale"},
-                        "shift": {"type": "float", "default": 5.0, "min": 1.0, "max": 10.0, "description": "Noise shift"},
-                        "high_noise_steps": {"type": "integer", "default": 10, "description": "High noise sampling steps"},
-                        "total_steps": {"type": "integer", "default": 20, "description": "Total sampling steps"},
-                        "prompt": {"type": "string", "required": True, "description": "Text prompt"},
-                        "negative_prompt": {"type": "string", "default": "static, blurry, low quality", "description": "Negative prompt"},
-                        "source_image_path": {"type": "string", "required": True, "description": "Uploaded image filename in ComfyUI input folder"},
-                    },
-                    "vram_estimate_gb": 22,
-                    "quality": "high",
-                    "speed": "medium (~3-5 min for 81 frames at 832x480)",
-                    "notes": "GGUF Q8_0 + FP8 quantized. Two-stage sampling. Validated on RTX 3090 24GB.",
-                },
-                "wan2.5-t2v-preview": {
-                    "description": "Wan 2.5 T2V 1.3B Preview (fast)",
-                    "type": "video_preview",
-                    "params": {
-                        "width": {"type": "integer", "default": 832},
-                        "height": {"type": "integer", "default": 480},
-                        "num_frames": {"type": "integer", "default": 33},
-                        "fps": {"type": "integer", "default": 16},
-                        "prompt": {"type": "string", "required": True},
-                        "negative_prompt": {"type": "string", "default": ""},
-                    },
-                    "vram_estimate_gb": 8,
-                    "quality": "preview",
-                    "speed": "fast",
-                },
-                "flux-dev": {
-                    "description": "Flux Dev FP16 image generation",
-                    "type": "image_draw",
-                    "params": {
-                        "width": {"type": "integer", "default": 1024},
-                        "height": {"type": "integer", "default": 1024},
-                        "steps": {"type": "integer", "default": 20},
-                        "cfg_scale": {"type": "float", "default": 7.5},
-                        "prompt": {"type": "string", "required": True},
-                        "negative_prompt": {"type": "string", "default": ""},
-                    },
-                    "vram_estimate_gb": 18,
-                    "quality": "high",
-                    "speed": "medium",
-                },
-            },
-        },
-        {
-            "engine_id": "tts-local",
-            "name": "TTS Local (CosyVoice + Edge-TTS)",
-            "status": "online",
-            "supported_types": ["tts"],
-            "models": {
-                "cosyvoice": {
-                    "description": "CosyVoice Chinese TTS",
-                    "params": {
-                        "text": {"type": "string", "required": True},
-                        "voice": {"type": "string", "default": "default"},
-                        "speed": {"type": "float", "default": 1.0},
-                    },
-                    "quality": "high",
-                    "speed": "fast",
-                },
-                "edge-tts": {
-                    "description": "Edge TTS (fallback, multi-language)",
-                    "params": {
-                        "text": {"type": "string", "required": True},
-                        "voice": {"type": "string", "default": "zh-CN-XiaoxiaoNeural"},
-                        "speed": {"type": "float", "default": 1.0},
-                    },
-                    "quality": "medium",
-                    "speed": "fast",
-                },
-            },
-        },
-    ],
-    "task_types": {
-        "video_final": {"description": "Final quality video generation", "default_model": "wan2.2-i2v-gguf", "vram_gb": 22},
-        "video_preview": {"description": "Quick video preview", "default_model": "wan2.5-t2v-preview", "vram_gb": 8},
-        "image_draw": {"description": "Image generation from text", "default_model": "flux-dev", "vram_gb": 18},
-        "image_refine": {"description": "Image refinement", "vram_gb": 6},
-        "tts": {"description": "Text-to-speech", "default_model": "cosyvoice", "vram_gb": 2},
-        "upscale": {"description": "Image upscaling", "vram_gb": 2},
-        "face_restore": {"description": "Face restoration", "vram_gb": 1.5},
-    },
-}
-
-
-@cap_router.get("/capabilities")
-async def get_capabilities():
-    """Return full engine & model capabilities catalog.
-
-    Static declaration — no live ComfyUI queries, so it responds instantly.
-    Agents use this to pick the right engine/model/params for a task.
-    """
-    cap = dict(_CAPABILITIES)  # shallow copy to allow mutation
-
-    # Patch engine status from live executor if available
-    executor = _get_executor()
-    for engine_def in cap["engines"]:
-        live = executor.get_engine(engine_def["engine_id"])
-        if live:
-            try:
-                h = await live.health()
-                engine_def["status"] = "online" if h.get("available") else "offline"
-            except Exception:
-                pass
-
-    return cap
 
 
 @router.get("")
@@ -178,7 +51,7 @@ async def list_engines():
     # Legacy local ComfyUI
     engines.append({
         "id": "local-comfyui",
-        "name": "ComfyUI Local (RTX 3090)",
+        "name": "ComfyUI Local (RTX 3090 - inference primary)",
         "pool": "local",
         "type": "comfyui",
         "status": "online" if local_health["available"] else "offline",
