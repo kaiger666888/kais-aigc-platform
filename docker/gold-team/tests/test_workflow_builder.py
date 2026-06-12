@@ -5,6 +5,7 @@ Covers:
   WFB-01  build_flux_dev_workflow
   WFB-02  build_flux_ipadapter_workflow
   WFB-03  build_hunyuan3d_workflow
+  WFB-06  build_lipsync_workflow
 """
 from __future__ import annotations
 
@@ -16,6 +17,7 @@ from src.v6.engines.workflow_builder import (
     build_flux_dev_workflow,
     build_flux_ipadapter_workflow,
     build_hunyuan3d_workflow,
+    build_lipsync_workflow,
 )
 
 
@@ -148,3 +150,104 @@ class TestBuildHunyuan3dWorkflow:
         assert "test-123" in wf["output_path"]
         assert wf["model"] == "full"
         assert wf["steps"] == 50
+
+
+# ---------------------------------------------------------------------------
+# WFB-06: build_lipsync_workflow
+# ---------------------------------------------------------------------------
+
+class TestBuildLipsyncWorkflow:
+    """Verify LatentSync lip sync workflow node graph."""
+
+    def test_build_lipsync_workflow(self):
+        """Test 1: Returns dict with exactly 4 top-level keys (nodes '1' through '4')."""
+        wf = build_lipsync_workflow(
+            video_input="test_video.mp4",
+            audio_input="test_audio.wav",
+            seed=42,
+        )
+        assert isinstance(wf, dict)
+        assert len(wf) == 4
+        assert set(wf.keys()) == {"1", "2", "3", "4"}
+
+    def test_node1_vhs_load_video(self):
+        """Test 2: Node '1' has class_type VHS_LoadVideo with video='test_video.mp4'."""
+        wf = build_lipsync_workflow(
+            video_input="test_video.mp4",
+            audio_input="test_audio.wav",
+            seed=42,
+        )
+        assert wf["1"]["class_type"] == "VHS_LoadVideo"
+        assert wf["1"]["inputs"]["video"] == "test_video.mp4"
+
+    def test_node2_load_audio(self):
+        """Test 3: Node '2' has class_type LoadAudio with audio='test_audio.wav'."""
+        wf = build_lipsync_workflow(
+            video_input="test_video.mp4",
+            audio_input="test_audio.wav",
+            seed=42,
+        )
+        assert wf["2"]["class_type"] == "LoadAudio"
+        assert wf["2"]["inputs"]["audio"] == "test_audio.wav"
+
+    def test_node3_latentsync_links(self):
+        """Test 4: Node '3' LatentSyncNode links to node '1' output 0 and node '2' output 0."""
+        wf = build_lipsync_workflow(
+            video_input="test_video.mp4",
+            audio_input="test_audio.wav",
+            seed=42,
+        )
+        assert wf["3"]["class_type"] == "LatentSyncNode"
+        assert wf["3"]["inputs"]["images"] == ["1", 0]
+        assert wf["3"]["inputs"]["audio"] == ["2", 0]
+
+    def test_node4_vhs_videocombine(self):
+        """Test 5: Node '4' VHS_VideoCombine links to node '3' output 0 with correct format."""
+        wf = build_lipsync_workflow(
+            video_input="test_video.mp4",
+            audio_input="test_audio.wav",
+            seed=42,
+        )
+        assert wf["4"]["class_type"] == "VHS_VideoCombine"
+        assert wf["4"]["inputs"]["images"] == ["3", 0]
+        assert wf["4"]["inputs"]["format"] == "video/h264-mp4"
+        assert wf["4"]["inputs"]["frame_rate"] == 25
+
+    def test_seed_deterministic(self):
+        """Test 6: Seed is deterministic when provided (seed=42 -> LatentSyncNode seed=42)."""
+        wf = build_lipsync_workflow(
+            video_input="test_video.mp4",
+            audio_input="test_audio.wav",
+            seed=42,
+        )
+        assert wf["3"]["inputs"]["seed"] == 42
+
+    def test_custom_params_passthrough(self):
+        """Test 7: Custom params (lips_expression, inference_steps) passed to LatentSyncNode."""
+        wf = build_lipsync_workflow(
+            video_input="test_video.mp4",
+            audio_input="test_audio.wav",
+            seed=42,
+            lips_expression=2.0,
+            inference_steps=30,
+        )
+        assert wf["3"]["inputs"]["lips_expression"] == 2.0
+        assert wf["3"]["inputs"]["inference_steps"] == 30
+
+    def test_video_path_traversal_rejected(self):
+        """Test 8: Path traversal rejection: video_input containing '..' raises ValueError."""
+        with pytest.raises(ValueError, match="video_input"):
+            build_lipsync_workflow(
+                video_input="../etc/passwd",
+                audio_input="test_audio.wav",
+                seed=42,
+            )
+
+    def test_audio_path_traversal_rejected(self):
+        """Test 9: Path traversal rejection: audio_input containing '..' raises ValueError."""
+        with pytest.raises(ValueError, match="audio_input"):
+            build_lipsync_workflow(
+                video_input="test_video.mp4",
+                audio_input="../secret.wav",
+                seed=42,
+            )
