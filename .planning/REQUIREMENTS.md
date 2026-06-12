@@ -1,93 +1,100 @@
-# Requirements — v1.2 Integration Testing: Hermes-Agent
+# Requirements: kais-aigc-platform v1.3
 
-## Overview
+**Defined:** 2026-06-12
+**Core Value:** 让 AI 短剧制作流程跑通——从角色设计到成片的完整管线能自动执行并产出可交付成片
 
-为 hermes-agent 服务构建完整的集成测试体系，覆盖独立服务测试、movie-agent 联合测试、压力/稳定性测试和 CI 流水线自动化。
+## v1.3 Requirements — Architecture Alignment
 
----
+### MERGE — v6 代码合并
 
-## Functional Requirements
+- [ ] **MERGE-01**: 对比研发版 (kais-gold-team) 与部署版 (aigc-platform) v6 代码差异，生成变更清单
+- [ ] **MERGE-02**: 将研发版新增引擎代码合并回部署版（Hunyuan3D-2mv, Wan2.1 GGUF 等）
+- [ ] **MERGE-03**: 更新部署版 Dockerfile 和 Python 依赖以支持合并后代码
+- [ ] **MERGE-04**: 回归测试验证合并后所有现有功能正常
 
-### FR-01: 独立服务集成测试
+### WFB — Workflow Builder 补全
 
-hermes-agent 容器 + 真实 LLM 的全 API 端点测试。
+- [ ] **WFB-01**: 实现 `build_flux_dev_workflow`（FLUX Dev 文生图）
+- [ ] **WFB-02**: 实现 `build_flux_ipadapter_workflow`（FLUX + IP-Adapter 面部保持）
+- [ ] **WFB-03**: 实现 `build_hunyuan3d_workflow`（Hunyuan3D 3D 生成）
+- [ ] **WFB-04**: 实现 `build_trellis_image_to_3d_workflow`（TRELLIS2 图转 3D）
+- [ ] **WFB-05**: 实现 `build_flux_trellis_full_workflow`（FLUX + TRELLIS2 完整链）
+- [ ] **WFB-06**: 实现 `build_lipsync_workflow`（LatentSync 口型同步，params.extra.mode 路由）
+- [ ] **WFB-07**: 实现 `build_frame_interpolate_workflow`（RIFE 帧插值，params.extra.mode 路由）
+- [ ] **WFB-08**: 更新 workflow_builder 路由表，新增工作流注册到对应 TaskType
 
-| ID | Requirement | Priority |
-|----|-------------|----------|
-| FR-01.1 | 启动真实 hermes-agent Docker 容器，验证 /v1/health 返回正确状态 | Must |
-| FR-01.2 | POST /v1/register 注册 movie-pipeline 域，验证 201/422 幂等 | Must |
-| FR-01.3 | POST /v1/decide 对 10 个 pipeline task 逐一调用，验证返回结构 (decision_id, recommendation, confidence, domain, task, timestamp) | Must |
-| FR-01.4 | POST /v1/decide 使用 context 上下文参数，验证 LLM 接收并利用 context 生成差异化推荐 | Must |
-| FR-01.5 | POST /v1/audit 记录决策反馈，验证 audit_history.json 写入和 auto_learn 触发阈值 | Must |
-| FR-01.6 | GET /v1/domains 列出已注册域，GET /v1/domains/{domain}/skills 列出技能 | Should |
-| FR-01.7 | GET /v1/domains/{domain}/memory 返回 task_stats 和 confidence 数值 | Should |
-| FR-01.8 | 域隔离验证：注册两个域，对域 A 操作不影响域 B 的 memory/ 和 skills/ | Must |
-| FR-01.9 | 完整学习循环：decide(conf=0) → audit × N → decide(conf>0) → audit(auto_learn=true) → memory 验证 | Must |
+### TASK — TaskType 路由优化
 
-### FR-02: Movie-Agent 联合集成测试
+- [ ] **TASK-01**: 口型同步能力通过 VIDEO_FINAL 的 params.extra.mode = "lip_sync" 路由
+- [ ] **TASK-02**: 帧插值能力通过 UPSCALE 的 params.extra.mode = "frame_interp" 路由
+- [ ] **TASK-03**: 角色一致性（IP-Adapter/InstantID/PhotoMaker）通过 IMAGE_DRAW 的 params.extra 路由
+- [ ] **TASK-04**: 更新 executor/router 路由逻辑支持 params.extra 细分
 
-hermes-client.js + hermes-agent 容器的端到端链路测试。
+### ENG — Engine Registration 统一
 
-| ID | Requirement | Priority |
-|----|-------------|----------|
-| FR-02.1 | Node.js 子进程调用 hermes-client.js decide()，连接真实 hermes-agent，返回非降级结果 | Must |
-| FR-02.2 | Node.js 子进程调用 hermes-client.js audit()，记录反馈成功 | Must |
-| FR-02.3 | movie-pipeline 域注册后，从 movie-agent 侧验证 10 个 task 的 decide 通路 | Must |
-| FR-02.4 | 降级测试：hermes-agent 不可达时，hermes-client.js 返回 degraded=true 和 HERMES_DEFAULTS 参数 | Must |
-| FR-02.5 | 超时测试：hermes-agent 响应超过 5s 时，hermes-client.js 正确降级 | Should |
-| FR-02.6 | 重试测试：首次请求失败后自动重试一次 | Should |
+- [ ] **ENG-01**: 统一引擎注册为按后端类型（ComfyUI/独立API/云端/子进程）
+- [ ] **ENG-02**: ComfyUI 模型不新增 Engine 类，全部走 ComfyUIEngine + workflow_builder
+- [ ] **ENG-03**: 验证 ComfyUIEngine 双引擎自动路由（Primary/Auxiliary）
+- [ ] **ENG-04**: 验证 DockerPollingAPIEngine (ACE-Step) 和 CloudEngine 正常
 
-### FR-03: 压力与稳定性测试
+### CLN — movie-agent 清退
 
-| ID | Requirement | Priority |
-|----|-------------|----------|
-| FR-03.1 | 并发 10 个 decide 请求同时发送，全部返回 200 | Must |
-| FR-03.2 | 并发 20 个 mixed decide+audit 请求，无数据损坏或 500 错误 | Must |
-| FR-03.3 | 单次 decide 请求 LLM 响应延迟 > 30s 时不阻塞其他请求 | Should |
-| FR-03.4 | 连续 100 次 decide+audit 循环，无内存泄漏（RSS 增长 < 50MB） | Should |
-| FR-03.5 | hermes-agent 容器重启后，持久化数据 (domains/, memory/) 完整恢复 | Must |
-| FR-03.6 | 错误域/任务请求返回 4xx，不影响后续正常请求 | Must |
+- [ ] **CLN-01**: 从 Docker Compose 文件移除 movie-agent 服务定义
+- [ ] **CLN-02**: 从代码中移除 movie-agent 引用和配置
+- [ ] **CLN-03**: 确认 OpenClaw Agent 完全覆盖 movie-agent 编排功能
 
-### FR-04: CI 流水线
+### FIX — ACE-Step 权限修复
 
-| ID | Requirement | Priority |
-|----|-------------|----------|
-| FR-04.1 | docker-compose.test.yml 一键启动 hermes-agent 测试环境 | Must |
-| FR-04.2 | GitHub Actions workflow：PR 触发 → 启动容器 → 运行集成测试 → 报告结果 → 销毁环境 | Must |
-| FR-04.3 | 本地可运行：`make test-integration` 一键执行完整集成测试套件 | Must |
-| FR-04.4 | 测试报告生成：通过/失败计数、失败详情、LLM 响应延迟统计 | Should |
-| FR-04.5 | 测试失败时自动收集容器日志和健康状态 | Should |
-
----
-
-## Non-Functional Requirements
-
-| ID | Requirement |
-|----|-------------|
-| NFR-01 | 测试套件总运行时间 < 10 分钟（不含镜像构建） |
-| NFR-02 | 集成测试可重复运行，无残留状态污染（每次测试清理或使用隔离 namespace） |
-| NFR-03 | CI 中 LLM API 调用失败不产生误报（重试 + 超时合理配置） |
-| NFR-04 | 测试脚本兼容 macOS + Linux |
-
----
+- [ ] **FIX-01**: 修复 ACE-Step 容器 checkpoints 目录 volume mount 权限
+- [ ] **FIX-02**: 验证 ACE-Step 容器健康启动，不再持续重启
+- [ ] **FIX-03**: 端到端验证音乐生成通过统一 API 正常工作
 
 ## Out of Scope
 
-- 单元测试（已有 conftest.py + mock agent 覆盖）
-- movie-agent 内部管线逻辑测试（非 hermes 集成范畴）
-- LLM 推荐质量评估（主观评判，非自动化范畴）
-- 性能基准测试（benchmarking）— 后续里程碑
+| Feature | Reason |
+|---------|--------|
+| 20 步管线实现 | 属于 OpenClaw Agent skill 开发，非引擎范畴 |
+| 前端改动 | 核心后端和引擎对齐不影响前端 |
+| 云端 API 新增 | Kling/Jimeng/Seedance 已有，不需新增 |
+| 服务层重构 | 技术债务，非架构对齐核心需求 |
+| review-platform 改动 | 可选服务，不影响引擎核心 |
+
+## Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| FIX-01 | Phase 15 | Pending |
+| FIX-02 | Phase 15 | Pending |
+| FIX-03 | Phase 15 | Pending |
+| CLN-01 | Phase 15 | Pending |
+| CLN-02 | Phase 15 | Pending |
+| CLN-03 | Phase 15 | Pending |
+| MERGE-01 | Phase 16 | Pending |
+| MERGE-02 | Phase 16 | Pending |
+| MERGE-03 | Phase 16 | Pending |
+| MERGE-04 | Phase 16 | Pending |
+| WFB-01 | Phase 17 | Pending |
+| WFB-02 | Phase 17 | Pending |
+| WFB-03 | Phase 17 | Pending |
+| WFB-04 | Phase 17 | Pending |
+| WFB-05 | Phase 17 | Pending |
+| WFB-06 | Phase 17 | Pending |
+| WFB-07 | Phase 17 | Pending |
+| WFB-08 | Phase 17 | Pending |
+| ENG-01 | Phase 18 | Pending |
+| ENG-02 | Phase 18 | Pending |
+| ENG-03 | Phase 18 | Pending |
+| ENG-04 | Phase 18 | Pending |
+| TASK-01 | Phase 18 | Pending |
+| TASK-02 | Phase 18 | Pending |
+| TASK-03 | Phase 18 | Pending |
+| TASK-04 | Phase 18 | Pending |
+
+**Coverage:**
+- v1.3 requirements: 26 total
+- Mapped to phases: 26
+- Unmapped: 0
 
 ---
-
-## Success Criteria
-
-1. 所有 FR-01 ~ FR-04 Must 项全部通过
-2. CI 流水线可在 PR 上自动触发并报告结果
-3. 本地 `make test-integration` 可一键执行全部集成测试
-4. 压力测试揭示的问题已修复或有明确的 follow-up 计划
-
----
-
-*Created: 2026-06-06*
-*Milestone: v1.2 Integration Testing — Hermes-Agent*
+*Requirements defined: 2026-06-12*
+*Last updated: 2026-06-12 after roadmap creation*

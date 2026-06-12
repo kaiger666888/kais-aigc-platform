@@ -93,6 +93,8 @@ RTX 3090 24GB 串行调度，重模型 (Wan2.2 ~22GB) 和轻模型 (Real-ESRGAN 
 | 角色 3 方案组合 | IP-Adapter FaceID (高保真) + InstantID (零样本) + PhotoMaker (多图) 覆盖不同场景 | — Pending |
 | 角色一致性不新增 TaskType | 扩展 IMAGE_DRAW/IMAGE_REFINE 的 params.extra 字段，避免枚举膨胀 | — Pending |
 | hermes-agent Python 库内嵌 | 免独立服务管理，直接 import 使用 | ✓ Good |
+| 引擎按后端类型注册 | ComfyUI 走 workflow_builder，独立 API/Docker 走各自 Engine，不按模型拆类 | — Pending |
+| TaskType 保持大类 | 细分能力通过 params.extra 路由，避免枚举膨胀 | — Pending |
 | 域无关 API (domain/task/context) | 任何管线复用同一接口，不绑定电影业务 | ✓ Good |
 | EWMA alpha=0.3 | 适中的时间衰减权重 | ✓ Good |
 | Hardcoded 14 skill list | 避免动态 glob 的不确定性 | ✓ Good |
@@ -100,9 +102,25 @@ RTX 3090 24GB 串行调度，重模型 (Wan2.2 ~22GB) 和轻模型 (Real-ESRGAN 
 | 测试端口 8090 | 避免与开发环境 8080 冲突 | ✓ Good |
 | Node.js 子进程测试客户端 | 复刻 test_e2e.py 模式，跨语言验证 | ✓ Good |
 
-## Current Milestone: (Planning next)
+## Current Milestone: v1.3 Architecture Alignment — Engine Consolidation
 
-**Goal:** TBD — start with `/gsd:new-milestone`
+**Goal:** 消除 Notion V5 架构与实际代码的所有差距，统一 gold-team v6 引擎体系
+
+**Target features:**
+- v6 代码合并（消除 kais-gold-team 研发版与 aigc-platform 部署版分叉）
+- Workflow Builder 补全（flux_dev, flux_ipadapter, hunyuan3d, trellis, flux_trellis_full）
+- TaskType 优化（保持大类 + params.extra 细分，不新增枚举）
+- movie-agent 完全清退（Docker Compose + 代码引用）
+- ACE-Step 权限修复（volume mount PermissionError）
+- Engine Registration 按后端类型统一（ComfyUI/独立API/云端/子进程）
+
+**Architecture decisions:**
+1. v6 代码合并方向：研发版 → 部署版（部署版囊括研发版所有功能）
+2. 所有生成能力收归 workflow builder
+3. Engine 按后端类型注册（不按模型）
+4. TaskType 保持大类，细分走 params.extra
+5. movie-agent 完全清退，OpenClaw Agent 替代
+6. ACE-Step 保持独立容器，修权限 bug
 
 ### Shipped: v1.2 Integration Testing — Hermes-Agent (2026-06-07)
 
@@ -138,4 +156,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-07 after v1.2 milestone completion*
+*Last updated: 2026-06-12 after v1.3 milestone kickoff*
