@@ -46,15 +46,18 @@ function buildMSRWorkflow(opts: {
   seed: number;
   loraStrength: number;
   filenamePrefix: string;
+  guideStrength?: number;
 }) {
   const {
     ref1Filename, ref2Filename, backgroundFilename,
     prompt, negativePrompt,
     width, height, numFrames, msrFrameCount, fps,
     seed, loraStrength, filenamePrefix,
+    guideStrength = 1.0,
   } = opts;
 
   return {
+    // === Shared infrastructure ===
     "3": {
       class_type: "LowVRAMCheckpointLoader",
       inputs: { ckpt_name: LTX_DEFAULTS.msrModelName },
@@ -91,6 +94,22 @@ function buildMSRWorkflow(opts: {
       class_type: "EmptyLTXVLatentVideo",
       inputs: { width, height, length: numFrames, batch_size: 1 },
     },
+
+    // === Reference image loaders ===
+    "29": {
+      class_type: "LoadImage",
+      inputs: { image: ref1Filename },
+    },
+    "40": {
+      class_type: "LoadImage",
+      inputs: { image: ref2Filename },
+    },
+    "30": {
+      class_type: "LoadImage",
+      inputs: { image: backgroundFilename },
+    },
+
+    // === Path A: IC-LoRA conditioning (LiconMSR multi-frame video) ===
     "28": {
       class_type: "LiconMSR",
       inputs: {
@@ -101,18 +120,6 @@ function buildMSRWorkflow(opts: {
         "2": ["29", 0],
         background: ["30", 0],
       },
-    },
-    "29": {
-      class_type: "LoadImage",
-      inputs: { image: ref2Filename },
-    },
-    "40": {
-      class_type: "LoadImage",
-      inputs: { image: ref1Filename },
-    },
-    "30": {
-      class_type: "LoadImage",
-      inputs: { image: backgroundFilename },
     },
     "9": {
       class_type: "LTXAddVideoICLoRAGuide",
@@ -131,6 +138,49 @@ function buildMSRWorkflow(opts: {
         tile_overlap: 64,
       },
     },
+
+    // === Path B: Per-image guides (each reference image as independent keyframe) ===
+    // This is the missing piece from the original workflow.
+    // Each LTXVAddGuide encodes one image as a separate latent keyframe,
+    // allowing the model to distinguish different subjects.
+    "41": {
+      class_type: "LTXVAddGuide",
+      inputs: {
+        positive: ["7", 0],
+        negative: ["7", 1],
+        vae: ["3", 2],
+        latent: ["8", 0],
+        image: ["40", 0],
+        frame_idx: 0,
+        strength: guideStrength,
+      },
+    },
+    "42": {
+      class_type: "LTXVAddGuide",
+      inputs: {
+        positive: ["41", 0],
+        negative: ["41", 1],
+        vae: ["3", 2],
+        latent: ["41", 2],
+        image: ["29", 0],
+        frame_idx: 1,
+        strength: guideStrength,
+      },
+    },
+    "43": {
+      class_type: "LTXVAddGuide",
+      inputs: {
+        positive: ["42", 0],
+        negative: ["42", 1],
+        vae: ["3", 2],
+        latent: ["42", 2],
+        image: ["30", 0],
+        frame_idx: 2,
+        strength: guideStrength,
+      },
+    },
+
+    // === Sampler ===
     "15": {
       class_type: "RandomNoise",
       inputs: { noise_seed: seed },
@@ -159,7 +209,8 @@ function buildMSRWorkflow(opts: {
         guider: ["37", 0],
         sampler: ["13", 0],
         sigmas: ["27", 0],
-        latent_image: ["9", 2],
+        // Use per-image guide latent (Path B) instead of IC-LoRA latent (Path A)
+        latent_image: ["43", 2],
       },
     },
     "17": {
@@ -211,6 +262,7 @@ export default router.post(
     const fps = Number(req.body.fps) || 25;
     const seed = req.body.seed ? Number(req.body.seed) : Math.floor(Math.random() * 2147483647);
     const loraStrength = Number(req.body.loraStrength) || 1.0;
+    const guideStrength = Number(req.body.guideStrength) || 1.0;
     const filenamePrefix = req.body.filenamePrefix || `ltx_msr_${projectId}_${Date.now()}`;
 
     const files = req.files as Record<string, Express.Multer.File[]>;
@@ -251,7 +303,7 @@ export default router.post(
       backgroundFilename: filenames[2],
       prompt, negativePrompt,
       width, height, numFrames, msrFrameCount, fps,
-      seed, loraStrength, filenamePrefix,
+      seed, loraStrength, guideStrength, filenamePrefix,
     });
 
     try {
