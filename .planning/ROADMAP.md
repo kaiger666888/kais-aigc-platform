@@ -132,13 +132,13 @@ Plans:
   5. Submitting an IMAGE_DRAW task with IP-Adapter/InstantID/PhotoMaker params triggers the correct character consistency workflow
   6. ACE-Step (DockerPollingAPIEngine) and CloudEngine (Kling/Jimeng) continue working after registration refactor
 
-**Plans**: TBD
+**Plans**: 3 plans in 2 waves
 
 Plans:
 
-- [ ] 18-01: Refactor engine registration to backend-type grouping
-- [ ] 18-02: Implement params.extra routing in executor for lip sync, frame interpolation, character consistency
-- [ ] 18-03: Verify all engine types (ComfyUI, Docker polling, Cloud) function correctly
+- [ ] 18-01-PLAN.md — Add BackendType enum to BaseEngine and override in all engine subclasses (ENG-01, ENG-02, ENG-04)
+- [ ] 18-02-PLAN.md — Add IMAGE_DRAW params.extra.mode routing for character consistency (IP-Adapter/PuLID/InstantID) (TASK-01, TASK-02, TASK-03, TASK-04)
+- [ ] 18-03-PLAN.md — Restructure main.py registration grouping + engines API backend_type response (ENG-01, ENG-03)
 
 ### Phase 19: Integration Verification
 
@@ -153,7 +153,7 @@ Plans:
   4. ACE-Step music generation succeeds through the unified API (regression from Phase 15 fix)
   5. No movie-agent references anywhere in the running system (regression from Phase 15 cleanup)
 
-**Plans**: TBD
+**Plans**: 3 plans in 2 waves
 
 Plans:
 
