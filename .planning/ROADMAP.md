@@ -54,11 +54,11 @@ Complete hermes-agent integration test suite. 42+ tests, CI pipeline. 22 require
   3. Docker Compose files contain zero movie-agent service definitions
   4. No source code references to movie-agent remain (imports, configs, env vars)
   5. OpenClaw Agent can be verified as the replacement for movie-agent orchestration duties
-**Plans**: TBD
+**Plans**: 2 plans in 1 wave
 
 Plans:
-- [ ] 15-01: ACE-Step container permission fix and health verification
-- [ ] 15-02: movie-agent full removal from Docker Compose and codebase
+- [ ] 15-01-PLAN.md — Fix ACE-Step container permissions (user directive) and verify healthy start + music generation
+- [ ] 15-02-PLAN.md — Remove movie-agent from Docker Compose, source code, env vars, build scripts; verify OpenClaw Agent coverage
 
 ### Phase 16: v6 Code Merge
 **Goal**: Deploy repo contains all research repo engine features, verified by regression tests
