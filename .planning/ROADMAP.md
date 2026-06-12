@@ -43,7 +43,7 @@ Complete hermes-agent integration test suite. 42+ tests, CI pipeline. 22 require
 - [ ] **Phase 15: Production Stability Fixes** - Fix ACE-Step container permissions and remove movie-agent dead code
 - [ ] **Phase 16: v6 Code Merge** - Merge research repo engine code into deploy repo with regression testing
 - [x] **Phase 17: Workflow Builder Expansion** - Implement 7 missing workflow builders and update routing table (completed 2026-06-12)
-- [ ] **Phase 18: Engine Registration & Task Routing** - Unify engine registration by backend type and enable params.extra routing
+- [x] **Phase 18: Engine Registration & Task Routing** - Unify engine registration by backend type and enable params.extra routing (completed 2026-06-12)
 - [ ] **Phase 19: Integration Verification** - End-to-end validation that all merged engines and new workflows work through the unified API
 
 ## Phase Details
@@ -132,7 +132,7 @@ Plans:
   5. Submitting an IMAGE_DRAW task with IP-Adapter/InstantID/PhotoMaker params triggers the correct character consistency workflow
   6. ACE-Step (DockerPollingAPIEngine) and CloudEngine (Kling/Jimeng) continue working after registration refactor
 
-**Plans**: 3 plans in 2 waves
+**Plans**: 2 plans in 1 wave
 
 Plans:
 
@@ -153,12 +153,12 @@ Plans:
   4. ACE-Step music generation succeeds through the unified API (regression from Phase 15 fix)
   5. No movie-agent references anywhere in the running system (regression from Phase 15 cleanup)
 
-**Plans**: 3 plans in 2 waves
+**Plans**: 2 plans in 1 wave
 
 Plans:
 
-- [ ] 19-01: End-to-end pipeline validation across all TaskTypes
-- [ ] 19-02: Regression verification (ACE-Step, cloud fallback, movie-agent absence)
+- [ ] 19-01-PLAN.md -- TaskType routing coverage + end-to-end short-drama pipeline integration tests
+- [ ] 19-02-PLAN.md -- Regression verification: ACE-Step, cloud fallback, movie-agent absence
 
 ## Progress
 
