@@ -69,12 +69,12 @@ Plans:
   2. Hunyuan3D-2mv and Wan2.1 GGUF engine code from research repo runs in deploy repo
   3. Updated Dockerfile and Python dependencies build successfully
   4. All existing deploy-repo features pass regression tests after merge (video gen, image gen, TTS, cloud fallback)
-**Plans**: TBD
+**Plans**: 3 plans in 3 waves
 
 Plans:
-- [ ] 16-01: Generate diff report and change manifest (research vs deploy)
-- [ ] 16-02: Merge research engine code into deploy repo
-- [ ] 16-03: Update Dockerfile and dependencies, run regression tests
+- [ ] 16-01-PLAN.md — Generate diff report and change manifest (research vs deploy)
+- [ ] 16-02-PLAN.md — Merge research engine code into deploy repo (new files, modified files, main.py merge)
+- [ ] 16-03-PLAN.md — Update Dockerfile and dependencies, run regression tests
 
 ### Phase 17: Workflow Builder Expansion
 **Goal**: All architecture-required workflow builders exist and are registered to correct TaskTypes
