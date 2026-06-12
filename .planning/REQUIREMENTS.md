@@ -19,8 +19,8 @@
 - [ ] **WFB-03**: 实现 `build_hunyuan3d_workflow`（Hunyuan3D 3D 生成）
 - [ ] **WFB-04**: 实现 `build_trellis_image_to_3d_workflow`（TRELLIS2 图转 3D）
 - [ ] **WFB-05**: 实现 `build_flux_trellis_full_workflow`（FLUX + TRELLIS2 完整链）
-- [ ] **WFB-06**: 实现 `build_lipsync_workflow`（LatentSync 口型同步，params.extra.mode 路由）
-- [ ] **WFB-07**: 实现 `build_frame_interpolate_workflow`（RIFE 帧插值，params.extra.mode 路由）
+- [x] **WFB-06**: 实现 `build_lipsync_workflow`（LatentSync 口型同步，params.extra.mode 路由）
+- [x] **WFB-07**: 实现 `build_frame_interpolate_workflow`（RIFE 帧插值，params.extra.mode 路由）
 - [ ] **WFB-08**: 更新 workflow_builder 路由表，新增工作流注册到对应 TaskType
 
 ### TASK — TaskType 路由优化
@@ -78,8 +78,8 @@
 | WFB-03 | Phase 17 | Pending |
 | WFB-04 | Phase 17 | Pending |
 | WFB-05 | Phase 17 | Pending |
-| WFB-06 | Phase 17 | Pending |
-| WFB-07 | Phase 17 | Pending |
+| WFB-06 | Phase 17 | Complete |
+| WFB-07 | Phase 17 | Complete |
 | WFB-08 | Phase 17 | Pending |
 | ENG-01 | Phase 18 | Pending |
 | ENG-02 | Phase 18 | Pending |

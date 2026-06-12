@@ -107,11 +107,11 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 17-01-PLAN.md — Create test scaffold and verify existing builders (WFB-01, WFB-02, WFB-03)
+- [x] 17-01-PLAN.md — Create test scaffold and verify existing builders (WFB-01, WFB-02, WFB-03)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 17-02-PLAN.md — Implement new builders: lipsync (WFB-06) and frame_interpolate (WFB-07)
+- [x] 17-02-PLAN.md — Implement new builders: lipsync (WFB-06) and frame_interpolate (WFB-07)
 - [ ] 17-03-PLAN.md — Add TRELLIS routing to executor and router (WFB-04, WFB-05)
 
 **Wave 3** *(blocked on Wave 2 completion)*
@@ -169,7 +169,7 @@ Phases execute in numeric order: 15 → 16 → 17 → 18 → 19
 |-------|-----------|----------------|--------|-----------|
 | 15. Production Stability Fixes | v1.3 | 0/2 | Not started | - |
 | 16. v6 Code Merge | v1.3 | 0/3 | Not started | - |
-| 17. Workflow Builder Expansion | v1.3 | 0/4 | Not started | - |
+| 17. Workflow Builder Expansion | v1.3 | 2/4 | In progress | - |
 | 18. Engine Registration & Task Routing | v1.3 | 0/3 | Not started | - |
 | 19. Integration Verification | v1.3 | 0/2 | Not started | - |
 
