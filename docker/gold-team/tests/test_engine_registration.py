@@ -146,3 +146,80 @@ class TestBackendTypeClassification:
     def test_10_docker_cli_engine_is_docker(self):
         engine = _make_docker_cli_engine()
         assert engine.backend_type == BackendType.DOCKER
+
+
+# ===================================================================
+# Test class: ComfyUI architectural correctness (ENG-02)
+# ===================================================================
+
+class TestComfyUIArchitecture:
+    """Verify no per-model ComfyUI Engine subclasses exist."""
+
+    def test_no_comfyui_model_subclasses(self):
+        """ENG-02: No per-model Engine subclasses for ComfyUI models.
+
+        All ComfyUI models go through ComfyUIEngine + workflow_builder,
+        not through separate Engine subclasses per model.
+        The only ComfyUI-related engines are ComfyUIEngine and JoyCaptionEngine.
+        """
+        engines_dir = os.path.join(os.path.dirname(__file__), "..", "src", "v6", "engines")
+        engines_dir = os.path.abspath(engines_dir)
+
+        # Collect all classes that inherit from BaseEngine
+        comfyui_engine_classes = []
+        allowed_names = {"ComfyUIEngine", "JoyCaptionEngine"}
+
+        for filename in os.listdir(engines_dir):
+            if not filename.endswith(".py") or filename.startswith("_"):
+                continue
+            filepath = os.path.join(engines_dir, filename)
+            module_name = filename[:-3]
+
+            spec = importlib.util.spec_from_file_location(
+                f"src.v6.engines.{module_name}", filepath,
+                submodule_search_locations=[],
+            )
+            if spec is None or spec.loader is None:
+                continue
+
+            module = importlib.util.module_from_spec(spec)
+            try:
+                spec.loader.exec_module(module)
+            except Exception:
+                # Some modules require heavy deps (torch, etc.) -- skip import errors
+                continue
+
+            for attr_name, attr_value in inspect.getmembers(module, inspect.isclass):
+                if (
+                    issubclass(attr_value, BaseEngine)
+                    and attr_value is not BaseEngine
+                    and "comfyui" in attr_name.lower()
+                    and attr_name not in allowed_names
+                ):
+                    comfyui_engine_classes.append((attr_name, filename))
+
+        assert comfyui_engine_classes == [], (
+            f"Found per-model ComfyUI engine subclasses (violates ENG-02): "
+            f"{comfyui_engine_classes}"
+        )
+
+    def test_comfyui_engine_uses_workflow_builder(self):
+        """ComfyUIEngine delegates workflow construction to workflow_builder.
+
+        ComfyUIEngine should not contain any model-specific build_*_workflow
+        methods. All workflow construction goes through workflow_builder.py.
+        """
+        from src.v6.engines.comfyui import ComfyUIEngine
+
+        # Verify module source
+        assert ComfyUIEngine.__module__ == "src.v6.engines.comfyui"
+
+        # Verify no build_*_workflow methods on the class
+        build_methods = [
+            name for name in dir(ComfyUIEngine)
+            if name.startswith("build_") and name.endswith("_workflow")
+        ]
+        assert build_methods == [], (
+            f"ComfyUIEngine has model-specific workflow methods "
+            f"(should use workflow_builder): {build_methods}"
+        )
