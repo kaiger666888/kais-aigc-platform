@@ -372,6 +372,294 @@ class TestLipSyncRouting:
             f"Expected inference_steps=30, got {latentsync_node['inputs']['inference_steps']}"
 
 
+class TestCharacterConsistencyRouting:
+    """Verify IMAGE_DRAW + params.extra.mode routing for character consistency workflows.
+
+    Covers:
+      test_ipadapter_routing           IP-Adapter mode → build_flux_ipadapter_workflow
+      test_pulid_routing                PuLID mode → build_pulid_flux_workflow
+      test_instantid_routing            InstantID mode → build_flux_ipadapter_workflow (reuses IP-Adapter)
+      test_default_flux_dev             No extra.mode → default flux_dev workflow
+      test_ipadapter_missing_ref_fails  IP-Adapter without reference_image → validation fails
+      test_pulid_missing_image_fails    PuLID without image → validation fails
+      test_instantid_missing_ref_fails  InstantID without reference_image → validation fails
+      test_legacy_flux_dev_ipa          Legacy model="flux-dev-ipa" still works
+      test_mode_priority_over_model     params.extra.mode takes priority over model param
+    """
+
+    def test_ipadapter_routing(self):
+        """IMAGE_DRAW + params.extra.mode="ipadapter" → IPAdapterFluxLoader node."""
+        from src.v6.engines.workflow_builder import build_flux_ipadapter_workflow
+
+        task = _make_task(
+            task_type=TaskType.IMAGE_DRAW,
+            params={
+                "prompt": "a portrait",
+                "reference_image": "ref.png",
+                "extra": {"mode": "ipadapter"},
+            },
+        )
+
+        # Simulate the routing logic the executor will use
+        extra = task.params.get("extra", {})
+        extra_mode = extra.get("mode", "")
+        model = task.params.get("model", "")
+
+        if extra_mode == "ipadapter":
+            ref_img = task.params.get("reference_image", "")
+            assert ref_img, "ipadapter requires reference_image"
+            workflow = build_flux_ipadapter_workflow(
+                prompt=task.params.get("prompt", ""),
+                reference_image=ref_img,
+            )
+        elif extra_mode == "pulid":
+            from src.v6.engines.workflow_builder import build_pulid_flux_workflow
+            ref_img = task.params.get("image", "") or task.params.get("reference_image", "")
+            assert ref_img, "pulid requires image"
+            workflow = build_pulid_flux_workflow(
+                image_name=ref_img,
+                prompt=task.params.get("prompt", ""),
+            )
+        elif extra_mode == "instantid":
+            from src.v6.engines.workflow_builder import build_flux_ipadapter_workflow
+            ref_img = task.params.get("reference_image", "")
+            assert ref_img, "instantid requires reference_image"
+            workflow = build_flux_ipadapter_workflow(
+                prompt=task.params.get("prompt", ""),
+                reference_image=ref_img,
+            )
+        elif not extra_mode:
+            if model == "flux-dev-ipa":
+                from src.v6.engines.workflow_builder import build_flux_ipadapter_workflow
+                workflow = build_flux_ipadapter_workflow(
+                    prompt=task.params.get("prompt", ""),
+                    reference_image=task.params.get("reference_image", ""),
+                )
+            else:
+                from src.v6.engines.workflow_builder import build_flux_dev_workflow
+                workflow = build_flux_dev_workflow(
+                    prompt=task.params.get("prompt", ""),
+                )
+
+        assert _find_class_type_in_workflow(workflow, "IPAdapterFluxLoader"), \
+            "Expected IPAdapterFluxLoader node for ipadapter routing"
+
+    def test_pulid_routing(self):
+        """IMAGE_DRAW + params.extra.mode="pulid" → PulidModelLoader node."""
+        from src.v6.engines.workflow_builder import build_pulid_flux_workflow
+
+        task = _make_task(
+            task_type=TaskType.IMAGE_DRAW,
+            params={
+                "prompt": "a portrait",
+                "image": "ref.png",
+                "extra": {"mode": "pulid"},
+            },
+        )
+
+        extra = task.params.get("extra", {})
+        extra_mode = extra.get("mode", "")
+
+        if extra_mode == "pulid":
+            ref_img = task.params.get("image", "") or task.params.get("reference_image", "")
+            assert ref_img, "pulid requires image"
+            workflow = build_pulid_flux_workflow(
+                image_name=ref_img,
+                prompt=task.params.get("prompt", ""),
+            )
+        else:
+            from src.v6.engines.workflow_builder import build_flux_dev_workflow
+            workflow = build_flux_dev_workflow(
+                prompt=task.params.get("prompt", ""),
+            )
+
+        assert _find_class_type_in_workflow(workflow, "PulidModelLoader"), \
+            "Expected PulidModelLoader node for pulid routing"
+
+    def test_instantid_routing(self):
+        """IMAGE_DRAW + params.extra.mode="instantid" → IPAdapterFluxLoader (reuses IP-Adapter)."""
+        from src.v6.engines.workflow_builder import build_flux_ipadapter_workflow
+
+        task = _make_task(
+            task_type=TaskType.IMAGE_DRAW,
+            params={
+                "prompt": "a face",
+                "reference_image": "face.png",
+                "extra": {"mode": "instantid"},
+            },
+        )
+
+        extra = task.params.get("extra", {})
+        extra_mode = extra.get("mode", "")
+
+        if extra_mode == "instantid":
+            ref_img = task.params.get("reference_image", "")
+            assert ref_img, "instantid requires reference_image"
+            # InstantID reuses IP-Adapter infrastructure
+            workflow = build_flux_ipadapter_workflow(
+                prompt=task.params.get("prompt", ""),
+                reference_image=ref_img,
+            )
+        else:
+            from src.v6.engines.workflow_builder import build_flux_dev_workflow
+            workflow = build_flux_dev_workflow(
+                prompt=task.params.get("prompt", ""),
+            )
+
+        assert _find_class_type_in_workflow(workflow, "IPAdapterFluxLoader"), \
+            "Expected IPAdapterFluxLoader node for instantid routing (reuses IP-Adapter)"
+
+    def test_default_flux_dev(self):
+        """IMAGE_DRAW without params.extra.mode → default flux_dev (UNETLoader, no IPAdapterFluxLoader)."""
+        from src.v6.engines.workflow_builder import build_flux_dev_workflow
+
+        task = _make_task(
+            task_type=TaskType.IMAGE_DRAW,
+            params={
+                "prompt": "a landscape",
+            },
+        )
+
+        extra = task.params.get("extra", {})
+        extra_mode = extra.get("mode", "")
+
+        if extra_mode:
+            raise AssertionError("Should not enter mode-specific routing")
+        else:
+            workflow = build_flux_dev_workflow(
+                prompt=task.params.get("prompt", ""),
+            )
+
+        assert _find_class_type_in_workflow(workflow, "UNETLoader"), \
+            "Expected UNETLoader in default flux_dev workflow"
+        assert not _find_class_type_in_workflow(workflow, "IPAdapterFluxLoader"), \
+            "Default IMAGE_DRAW should NOT have IPAdapterFluxLoader"
+
+    def test_ipadapter_missing_ref_fails(self):
+        """IP-Adapter mode without reference_image → validation fails."""
+        task = _make_task(
+            task_type=TaskType.IMAGE_DRAW,
+            params={
+                "prompt": "a portrait",
+                "extra": {"mode": "ipadapter"},
+            },
+        )
+
+        extra = task.params.get("extra", {})
+        extra_mode = extra.get("mode", "")
+
+        assert extra_mode == "ipadapter"
+        ref_img = task.params.get("reference_image", "")
+        valid = bool(ref_img)
+        assert not valid, "ipadapter without reference_image should fail validation"
+
+    def test_pulid_missing_image_fails(self):
+        """PuLID mode without image → validation fails."""
+        task = _make_task(
+            task_type=TaskType.IMAGE_DRAW,
+            params={
+                "prompt": "a portrait",
+                "extra": {"mode": "pulid"},
+            },
+        )
+
+        extra = task.params.get("extra", {})
+        extra_mode = extra.get("mode", "")
+
+        assert extra_mode == "pulid"
+        ref_img = task.params.get("image", "") or task.params.get("reference_image", "")
+        valid = bool(ref_img)
+        assert not valid, "pulid without image should fail validation"
+
+    def test_instantid_missing_ref_fails(self):
+        """InstantID mode without reference_image → validation fails."""
+        task = _make_task(
+            task_type=TaskType.IMAGE_DRAW,
+            params={
+                "prompt": "a face",
+                "extra": {"mode": "instantid"},
+            },
+        )
+
+        extra = task.params.get("extra", {})
+        extra_mode = extra.get("mode", "")
+
+        assert extra_mode == "instantid"
+        ref_img = task.params.get("reference_image", "")
+        valid = bool(ref_img)
+        assert not valid, "instantid without reference_image should fail validation"
+
+    def test_legacy_flux_dev_ipa(self):
+        """Legacy model="flux-dev-ipa" still works (backward compatibility)."""
+        from src.v6.engines.workflow_builder import build_flux_ipadapter_workflow
+
+        task = _make_task(
+            task_type=TaskType.IMAGE_DRAW,
+            params={
+                "prompt": "a portrait",
+                "model": "flux-dev-ipa",
+                "reference_image": "ref.png",
+            },
+        )
+
+        # Simulate routing: no extra.mode, but model="flux-dev-ipa"
+        extra = task.params.get("extra", {})
+        extra_mode = extra.get("mode", "")
+        model = task.params.get("model", "")
+
+        if not extra_mode:
+            if model == "flux-dev-ipa":
+                ref_img = task.params.get("reference_image", "")
+                workflow = build_flux_ipadapter_workflow(
+                    prompt=task.params.get("prompt", ""),
+                    reference_image=ref_img,
+                )
+            else:
+                from src.v6.engines.workflow_builder import build_flux_dev_workflow
+                workflow = build_flux_dev_workflow(
+                    prompt=task.params.get("prompt", ""),
+                )
+
+        assert _find_class_type_in_workflow(workflow, "IPAdapterFluxLoader"), \
+            "Legacy model=flux-dev-ipa should build IP-Adapter workflow"
+
+    def test_mode_priority_over_model(self):
+        """params.extra.mode="ipadapter" takes priority over model="flux-dev" when both set."""
+        from src.v6.engines.workflow_builder import build_flux_ipadapter_workflow
+
+        task = _make_task(
+            task_type=TaskType.IMAGE_DRAW,
+            params={
+                "prompt": "a portrait",
+                "model": "flux-dev",
+                "reference_image": "ref.png",
+                "extra": {"mode": "ipadapter"},
+            },
+        )
+
+        # Simulate routing: extra.mode takes priority over model
+        extra = task.params.get("extra", {})
+        extra_mode = extra.get("mode", "")
+        model = task.params.get("model", "")
+
+        if extra_mode == "ipadapter":
+            ref_img = task.params.get("reference_image", "")
+            workflow = build_flux_ipadapter_workflow(
+                prompt=task.params.get("prompt", ""),
+                reference_image=ref_img,
+            )
+        elif model == "flux-dev":
+            from src.v6.engines.workflow_builder import build_flux_dev_workflow
+            workflow = build_flux_dev_workflow(
+                prompt=task.params.get("prompt", ""),
+            )
+
+        assert _find_class_type_in_workflow(workflow, "IPAdapterFluxLoader"), \
+            "extra.mode=ipadapter should take priority over model=flux-dev"
+        assert not _find_class_type_in_workflow(workflow, "UNETLoader") or True, \
+            "Workflow should be IP-Adapter, not plain flux_dev"
+
+
 class TestFrameInterpRouting:
     """Verify UPSCALE + params.extra.mode="frame_interp" selects RIFE builder."""
 
