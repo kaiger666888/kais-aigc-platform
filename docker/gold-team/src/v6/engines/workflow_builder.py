@@ -12,6 +12,7 @@ Supports:
   - TRELLIS image-to-3D workflows (via build_trellis_image_to_3d_workflow)
   - FLUX + TRELLIS full pipeline (via build_flux_trellis_full_workflow)
   - ComfyUI Lip Sync workflows (via build_lipsync_workflow) — LatentSync
+  - ComfyUI Frame Interpolation workflows (via build_frame_interpolate_workflow) — RIFE VFI
   - TTS workflows (via build_tts_workflow) — subprocess-based, not ComfyUI
   - Hunyuan3D workflows (via build_hunyuan3d_workflow) — subprocess-based
 """
@@ -1526,6 +1527,84 @@ def build_lipsync_workflow(
             "class_type": "VHS_VideoCombine",
             "inputs": {
                 "images": ["3", 0],
+                "frame_rate": output_fps,
+                "loop_count": 0,
+                "filename_prefix": filename_prefix,
+                "format": "video/h264-mp4",
+                "pingpong": False,
+                "save_output": True,
+            },
+        },
+    }
+    return workflow
+
+
+def build_frame_interpolate_workflow(
+    video_input: str,
+    interpolation_factor: int = 2,
+    ckpt_name: str = "rife49.pth",
+    output_fps: int | None = None,
+    seed: int | None = None,
+    filename_prefix: str = "frame_interp",
+) -> dict[str, Any]:
+    """Build a RIFE frame interpolation ComfyUI workflow.
+
+    Pipeline: VHS_LoadVideo -> RIFE VFI -> VHS_VideoCombine.
+
+    The RIFE multiplier equals interpolation_factor - 1 (e.g., 2x -> mult 1, 4x -> mult 3).
+
+    Args:
+        video_input: Video filename in ComfyUI input/ directory.
+        interpolation_factor: Target frame multiplier (2, 4, or 8; default 2).
+        ckpt_name: RIFE model checkpoint filename (default rife49.pth).
+        output_fps: Output frame rate. Defaults to 30 if not specified.
+        seed: Kept for API consistency; RIFE VFI does not use seed.
+        filename_prefix: Output filename prefix.
+
+    Returns:
+        ComfyUI API-format workflow dict with 3 nodes.
+
+    Raises:
+        ValueError: If video_input contains path traversal or absolute path.
+    """
+    # Input validation — reject path traversal and absolute paths
+    if ".." in video_input or video_input.startswith("/"):
+        raise ValueError(
+            f"video_input contains invalid path: {video_input!r} "
+            "(must not contain '..' or start with '/')"
+        )
+
+    # RIFE multiplier = interpolation_factor - 1
+    multiplier = interpolation_factor - 1
+
+    # Default output FPS
+    if output_fps is None:
+        output_fps = 30
+
+    workflow: dict[str, Any] = {
+        "1": {  # VHS_LoadVideo — extract frames from video
+            "class_type": "VHS_LoadVideo",
+            "inputs": {
+                "video": video_input,
+                "force_rate": 0,
+                "custom_width": -1,
+                "custom_height": -1,
+                "frame_start": 0,
+                "frame_end": -1,
+            },
+        },
+        "2": {  # RIFE VFI — frame interpolation
+            "class_type": "RIFE VFI",
+            "inputs": {
+                "images": ["1", 0],
+                "ckpt_name": ckpt_name,
+                "multiplier": multiplier,
+            },
+        },
+        "3": {  # VHS_VideoCombine — encode output as MP4
+            "class_type": "VHS_VideoCombine",
+            "inputs": {
+                "images": ["2", 0],
                 "frame_rate": output_fps,
                 "loop_count": 0,
                 "filename_prefix": filename_prefix,
