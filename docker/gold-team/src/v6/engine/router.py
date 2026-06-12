@@ -162,6 +162,11 @@ class EngineRouter:
 
     def _pick_local_engine_id(self, task: GenerationTask) -> str:
         """Pick the best local engine ID for the task type."""
+        # TRELLIS bypass: IMAGE_TO_3D + trellis/flux_trellis goes to comfyui-primary
+        if task.type == TaskType.IMAGE_TO_3D:
+            extra = task.params.get("extra", {})
+            if extra.get("engine") == "trellis" or extra.get("mode") == "flux_trellis":
+                return "comfyui-primary"
         # Dedicated engine mappings take priority
         if task.type in DEDICATED_ENGINES:
             return DEDICATED_ENGINES[task.type]

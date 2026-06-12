@@ -153,27 +153,79 @@ class TaskExecutor:
                     )
                     logger.info("Auto-built TTS workflow for task %s (lang=%s, track=%s)", task.task_id, lang, track)
                 elif task.type == TaskType.IMAGE_TO_3D:
-                    from src.v6.engines.workflow_builder import build_hunyuan3d_workflow
-                    input_image = task.params.get("input_image") or task.params.get("image", "")
-                    if not input_image:
-                        logger.error("IMAGE_TO_3D requires 'input_image' param, task %s", task.task_id)
-                        await store.update(
-                            task.task_id,
-                            status=TaskStatus.FAILED,
-                            error="IMAGE_TO_3D requires 'input_image' param",
+                    extra = task.params.get("extra", {})
+                    extra_engine = extra.get("engine", "")
+                    extra_mode = extra.get("mode", "")
+
+                    if extra_mode == "flux_trellis":
+                        # WFB-05: FLUX -> TRELLIS full pipeline
+                        from src.v6.engines.workflow_builder import build_flux_trellis_full_workflow
+                        workflow = build_flux_trellis_full_workflow(
+                            prompt=task.params.get("prompt", ""),
+                            negative_prompt=task.params.get("negative_prompt", ""),
+                            flux_steps=task.params.get("flux_steps", 20),
+                            flux_cfg=task.params.get("flux_cfg", 3.5),
+                            width=task.params.get("width", 1024),
+                            height=task.params.get("height", 1024),
+                            trellis_resolution=task.params.get("trellis_resolution", 1024),
+                            trellis_steps=task.params.get("trellis_steps", 25),
+                            trellis_cfg=task.params.get("trellis_cfg", 7.5),
+                            shape_guidance=task.params.get("shape_guidance", 0.5),
+                            texture_resolution=task.params.get("texture_resolution", 1024),
+                            pbr_channels=task.params.get("pbr_channels", "full"),
+                            output_format=task.params.get("output_format", "glb"),
+                            seed=task.params.get("seed"),
                         )
-                        return
-                    workflow = build_hunyuan3d_workflow(
-                        input_image=input_image,
-                        output_path=task.params.get("output_path", ""),
-                        model=task.params.get("model", "full"),
-                        device=task.params.get("device", "cuda:0"),
-                        steps=task.params.get("steps", 50),
-                        seed=task.params.get("seed"),
-                        model_dir=task.params.get("model_dir", ""),
-                        task_id=task.task_id,
-                    )
-                    logger.info("Auto-built Hunyuan3D workflow for task %s", task.task_id)
+                        logger.info("Auto-built FLUX+TRELLIS full pipeline workflow for task %s", task.task_id)
+                    elif extra_engine == "trellis":
+                        # WFB-04: TRELLIS image-to-3D
+                        from src.v6.engines.workflow_builder import build_trellis_image_to_3d_workflow
+                        input_image = task.params.get("input_image") or task.params.get("image", "")
+                        if not input_image:
+                            logger.error("TRELLIS IMAGE_TO_3D requires 'input_image' param, task %s", task.task_id)
+                            await store.update(
+                                task.task_id,
+                                status=TaskStatus.FAILED,
+                                error="TRELLIS IMAGE_TO_3D requires 'input_image' param",
+                            )
+                            return
+                        workflow = build_trellis_image_to_3d_workflow(
+                            image_name=input_image,
+                            resolution=task.params.get("resolution", 1024),
+                            steps=task.params.get("steps", 25),
+                            cfg_scale=task.params.get("cfg_scale", 7.5),
+                            shape_guidance=task.params.get("shape_guidance", 0.5),
+                            texture_resolution=task.params.get("texture_resolution", 1024),
+                            pbr_channels=task.params.get("pbr_channels", "full"),
+                            remove_background=task.params.get("remove_background", True),
+                            output_format=task.params.get("output_format", "glb"),
+                            seed=task.params.get("seed"),
+                            filename_prefix=task.params.get("filename_prefix", "trellis_3d"),
+                        )
+                        logger.info("Auto-built TRELLIS image-to-3D workflow for task %s", task.task_id)
+                    else:
+                        # Default: Hunyuan3D (unchanged)
+                        from src.v6.engines.workflow_builder import build_hunyuan3d_workflow
+                        input_image = task.params.get("input_image") or task.params.get("image", "")
+                        if not input_image:
+                            logger.error("IMAGE_TO_3D requires 'input_image' param, task %s", task.task_id)
+                            await store.update(
+                                task.task_id,
+                                status=TaskStatus.FAILED,
+                                error="IMAGE_TO_3D requires 'input_image' param",
+                            )
+                            return
+                        workflow = build_hunyuan3d_workflow(
+                            input_image=input_image,
+                            output_path=task.params.get("output_path", ""),
+                            model=task.params.get("model", "full"),
+                            device=task.params.get("device", "cuda:0"),
+                            steps=task.params.get("steps", 50),
+                            seed=task.params.get("seed"),
+                            model_dir=task.params.get("model_dir", ""),
+                            task_id=task.task_id,
+                        )
+                        logger.info("Auto-built Hunyuan3D workflow for task %s", task.task_id)
                 elif task.params.get("model") == "flux-dev":
                     from src.v6.engines.workflow_builder import build_flux_dev_workflow
                     workflow = build_flux_dev_workflow(
@@ -512,8 +564,14 @@ class TaskExecutor:
         regardless of what engine_id the router assigned.
         """
         # Dedicated engine routing — specialized engines override router
+        # TRELLIS bypass: IMAGE_TO_3D + trellis/flux_trellis goes to comfyui-primary
         from src.v6.engine.router import DEDICATED_ENGINES
-        dedicated_id = DEDICATED_ENGINES.get(task.type)
+        extra = task.params.get("extra", {})
+        is_trellis = (
+            task.type == TaskType.IMAGE_TO_3D
+            and (extra.get("engine") == "trellis" or extra.get("mode") == "flux_trellis")
+        )
+        dedicated_id = None if is_trellis else DEDICATED_ENGINES.get(task.type)
         if dedicated_id:
             dedicated_engine = self._engines.get(dedicated_id)
             if dedicated_engine:
