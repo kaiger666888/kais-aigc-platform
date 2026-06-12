@@ -12,6 +12,7 @@ from fastapi import FastAPI
 
 from src.v6.engine.local_pool import get_local_pool
 from src.v6.engine_pool import EnginePool, get_engine_pool
+from src.v6.engines.base import BackendType
 from src.v6.executor import get_executor
 from src.v6.engines.mock import MockEngine
 from src.v6.engines.tts import TTSTracker
@@ -51,14 +52,52 @@ COMFYUI_AUX_HOST = os.environ.get("COMFYUI_AUX_HOST", "")
 COMFYUI_AUX_PORT = int(os.environ.get("COMFYUI_AUX_PORT", "8189"))
 
 
+def _format_registration_summary(executor) -> str:
+    """Build a grouped registration summary string organised by backend type.
+
+    Returns a multi-line string like:
+        [COMFYUI]
+          comfyui-primary — ComfyUI (primary)
+          comfyui-auxiliary — ComfyUI (auxiliary)
+        [SUBPROCESS]
+          tts-http — Triple-Track TTS
+        ...
+    Empty sections are omitted.
+    """
+    section_order = [
+        BackendType.COMFYUI,
+        BackendType.SUBPROCESS,
+        BackendType.CLOUD,
+        BackendType.DOCKER,
+        BackendType.MOCK,
+    ]
+    groups: dict[BackendType, list[tuple[str, str]]] = {bt: [] for bt in section_order}
+    for engine in executor.list_engines():
+        bt = engine.backend_type
+        groups.setdefault(bt, []).append((engine.engine_id, engine.name))
+
+    lines: list[str] = []
+    for bt in section_order:
+        entries = groups.get(bt, [])
+        if not entries:
+            continue
+        lines.append(f"[{bt.value.upper()}]")
+        for eid, name in entries:
+            lines.append(f"  {eid} — {name}")
+
+    return "\n".join(lines)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     executor = get_executor()
 
+    # ── Mock ────────────────────────────────────────────────────────────
     # Always register mock engine for development
     executor.register_engine(MockEngine())
 
+    # ── Subprocess Backend ──────────────────────────────────────────────
     # ── TTS unified server (lazy-load subprocess) ────────────────────
     tts_unified_process = None
     if TTS_UNIFIED_ENABLED:
@@ -114,6 +153,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("Hunyuan3D-2mv engine init failed: %s", e)
 
+    # ── ComfyUI Backend ─────────────────────────────────────────────────
     # Register ComfyUI engine(s)
     # Dual-engine mode when COMFYUI_PRIMARY_HOST is set; otherwise legacy single-engine fallback
     if COMFYUI_ENABLED:
@@ -192,6 +232,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("JoyCaption engine init failed: %s", e)
 
+    # ── Cloud Backend ───────────────────────────────────────────────────
     # Register cloud engines (Jimeng/Kling/Seedance)
     try:
         from src.v6.engines.cloud_jimeng import JimengEngine
@@ -213,6 +254,7 @@ async def lifespan(app: FastAPI):
 
     await executor.start()
 
+    # ── Docker/YAML Backend ─────────────────────────────────────────────
     # Register local Docker engines from engines/*.yaml (routing table)
     try:
         from src.v6.config.engine_registry import VRAM_ESTIMATES, build_engine_registry
@@ -273,7 +315,7 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("Real engines available, skipping local_pool mock worker")
 
-    logger.info("kais-gold-team V6.0 started (engines: %s)", [e.engine_id for e in executor.list_engines()])
+    logger.info("kais-gold-team V6.0 started\n%s", _format_registration_summary(executor))
     yield
     # Shutdown
     await executor.stop()
