@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Architecture Alignment — Engine Consolidation
 status: executing
-stopped_at: Completed 18-02, IMAGE_DRAW params.extra.mode routing. Next: 18-03.
-last_updated: "2026-06-12T13:58:36Z"
-last_activity: 2026-06-12 -- Completed 18-02 (IMAGE_DRAW character consistency routing)
+stopped_at: Completed 18-03, engine registration grouping & API backend_type. Next: 18-04.
+last_updated: "2026-06-12T14:03:21Z"
+last_activity: 2026-06-12 -- Completed 18-03 (engine registration grouping & API backend_type)
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 12
-  completed_plans: 6
-  percent: 50
+  completed_plans: 7
+  percent: 58
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 18
-Plan: 02 complete
-Status: Ready for 18-03
-Last activity: 2026-06-12 -- Completed 18-02 (IMAGE_DRAW character consistency routing)
+Plan: 03 complete
+Status: Ready for 18-04
+Last activity: 2026-06-12 -- Completed 18-03 (engine registration grouping & API backend_type)
 
-Progress: [█████░░░░░] 50%
+Progress: [█████▓░░░░] 58%
 
 ## Performance Metrics
 
@@ -44,7 +44,7 @@ Progress: [█████░░░░░] 50%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 17 | 4 | - | - |
-| 18 | 2 | 5min | 3min |
+| 18 | 3 | 8min | 3min |
 
 *Updated after each plan completion*
 
@@ -64,6 +64,8 @@ Progress: [█████░░░░░] 50%
 - IMAGE_DRAW params.extra.mode routing takes priority over model param (ipadapter/pulid/instantid)
 - InstantID reuses IP-Adapter infrastructure (build_flux_ipadapter_workflow), no separate workflow needed
 - Unrecognized extra.mode values fall through to model-based routing (threat model T-18-02)
+- Engine registration sections labeled with backend-type comment headers, grouped summary replaces flat engine ID list
+- Legacy local-comfyui gets backend_type=comfyui, legacy cloud providers get backend_type=cloud in API response
 
 ### Pending Todos
 
@@ -84,5 +86,5 @@ Items acknowledged and carried forward from previous milestone close:
 ## Session Continuity
 
 Last session: 2026-06-12
-Stopped at: Completed 18-02, IMAGE_DRAW params.extra.mode routing. Next: 18-03.
-Resume file: .planning/phases/phase-18/18-03-PLAN.md
+Stopped at: Completed 18-03, engine registration grouping & API backend_type. Next: 18-04.
+Resume file: .planning/phases/phase-18/18-04-PLAN.md
