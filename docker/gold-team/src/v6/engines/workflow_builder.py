@@ -11,6 +11,7 @@ Supports:
   - ComfyUI Face Restore workflows (via build_face_restore_workflow)
   - TRELLIS image-to-3D workflows (via build_trellis_image_to_3d_workflow)
   - FLUX + TRELLIS full pipeline (via build_flux_trellis_full_workflow)
+  - ComfyUI Lip Sync workflows (via build_lipsync_workflow) — LatentSync
   - TTS workflows (via build_tts_workflow) — subprocess-based, not ComfyUI
   - Hunyuan3D workflows (via build_hunyuan3d_workflow) — subprocess-based
 """
@@ -1442,6 +1443,95 @@ def build_image_refine_workflow(
             "inputs": {
                 "filename_prefix": filename_prefix,
                 "images": ["8", 0],
+            },
+        },
+    }
+    return workflow
+
+
+def build_lipsync_workflow(
+    video_input: str,
+    audio_input: str,
+    seed: int | None = None,
+    lips_expression: float = 1.5,
+    inference_steps: int = 20,
+    output_fps: int = 25,
+    filename_prefix: str = "lipsync",
+) -> dict[str, Any]:
+    """Build a LatentSync lip synchronization ComfyUI workflow.
+
+    Pipeline: VHS_LoadVideo -> LoadAudio -> LatentSyncNode -> VHS_VideoCombine.
+
+    Args:
+        video_input: Video filename in ComfyUI input/ directory.
+        audio_input: Audio filename or URL (http/https allowed).
+        seed: Random seed. Random if None.
+        lips_expression: Lip expression intensity (1.0-3.0, default 1.5).
+        inference_steps: LatentSync inference steps (default 20).
+        output_fps: Output video frame rate (default 25 for LatentSync).
+        filename_prefix: Output filename prefix.
+
+    Returns:
+        ComfyUI API-format workflow dict with 4 nodes.
+
+    Raises:
+        ValueError: If video_input or audio_input contains path traversal or absolute path.
+    """
+    # Input validation — reject path traversal and absolute paths
+    if ".." in video_input or video_input.startswith("/"):
+        raise ValueError(
+            f"video_input contains invalid path: {video_input!r} "
+            "(must not contain '..' or start with '/')"
+        )
+    if not (audio_input.startswith("http://") or audio_input.startswith("https://")):
+        if ".." in audio_input or audio_input.startswith("/"):
+            raise ValueError(
+                f"audio_input contains invalid path: {audio_input!r} "
+                "(must not contain '..' or start with '/')"
+            )
+
+    import random
+    if seed is None:
+        seed = random.randint(0, 2**32 - 1)
+
+    workflow: dict[str, Any] = {
+        "1": {  # VHS_LoadVideo — extract frames from video
+            "class_type": "VHS_LoadVideo",
+            "inputs": {
+                "video": video_input,
+                "force_rate": 0,
+                "custom_width": -1,
+                "custom_height": -1,
+                "frame_start": 0,
+                "frame_end": -1,
+            },
+        },
+        "2": {  # LoadAudio — load audio waveform
+            "class_type": "LoadAudio",
+            "inputs": {
+                "audio": audio_input,
+            },
+        },
+        "3": {  # LatentSyncNode — lip sync inference
+            "class_type": "LatentSyncNode",
+            "inputs": {
+                "images": ["1", 0],
+                "audio": ["2", 0],
+                "seed": seed,
+                "lips_expression": lips_expression,
+                "inference_steps": inference_steps,
+            },
+        },
+        "4": {  # VHS_VideoCombine — encode output as MP4
+            "class_type": "VHS_VideoCombine",
+            "inputs": {
+                "images": ["3", 0],
+                "frame_rate": output_fps,
+                "loop_count": 0,
+                "filename_prefix": filename_prefix,
+                "format": "video/h264-mp4",
+                "pingpong": False,
+                "save_output": True,
             },
         },
     }
