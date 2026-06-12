@@ -116,7 +116,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 17-04-PLAN.md — Add lip_sync and frame_interp routing to executor (WFB-08)
+- [x] 17-04-PLAN.md — Add lip_sync and frame_interp routing to executor (WFB-08)
 
 ### Phase 18: Engine Registration & Task Routing
 
@@ -169,7 +169,7 @@ Phases execute in numeric order: 15 → 16 → 17 → 18 → 19
 |-------|-----------|----------------|--------|-----------|
 | 15. Production Stability Fixes | v1.3 | 0/2 | Not started | - |
 | 16. v6 Code Merge | v1.3 | 0/3 | Not started | - |
-| 17. Workflow Builder Expansion | v1.3 | 3/4 | In progress | - |
+| 17. Workflow Builder Expansion | v1.3 | 4/4 | Complete | 2026-06-12 |
 | 18. Engine Registration & Task Routing | v1.3 | 0/3 | Not started | - |
 | 19. Integration Verification | v1.3 | 0/2 | Not started | - |
 
