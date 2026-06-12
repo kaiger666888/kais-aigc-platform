@@ -24,7 +24,7 @@ from typing import Any, Optional
 
 import httpx
 
-from src.v6.engines.base import BaseEngine, EngineCapabilities, EngineStatus
+from src.v6.engines.base import BackendType, BaseEngine, EngineCapabilities, EngineStatus
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +93,10 @@ class TripleTrackTTSEngine(BaseEngine):
             vram_available_mb=24576,  # 3090 24GB
             models=["gpt_sovits", "chatterbox", "cosyvoice", "auto"],
         )
+
+    @property
+    def backend_type(self) -> BackendType:
+        return BackendType.SUBPROCESS
 
     # ── BaseEngine lifecycle ──────────────────────────────────────────
 

@@ -10,7 +10,7 @@ from typing import Any, Optional
 
 import httpx
 
-from src.v6.engines.base import BaseEngine, EngineCapabilities, EngineStatus
+from src.v6.engines.base import BackendType, BaseEngine, EngineCapabilities, EngineStatus
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +71,10 @@ class JoyCaptionEngine(BaseEngine):
                 "JoyCaption Alpha Two (Q6_K)",
             ],
         )
+
+    @property
+    def backend_type(self) -> BackendType:
+        return BackendType.COMFYUI
 
     async def start(self) -> None:
         self._http = httpx.AsyncClient(

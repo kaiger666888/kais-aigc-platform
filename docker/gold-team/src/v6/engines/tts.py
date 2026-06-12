@@ -34,7 +34,7 @@ from typing import Any, Dict, Optional
 import numpy as np
 import torch
 
-from src.v6.engines.base import BaseEngine, EngineCapabilities, EngineStatus
+from src.v6.engines.base import BackendType, BaseEngine, EngineCapabilities, EngineStatus
 
 logger = logging.getLogger(__name__)
 
@@ -595,6 +595,10 @@ class TTSTracker(BaseEngine):
             vram_available_mb=8500,
             models=["GPT-SoVITS", "Chatterbox-Turbo", "CosyVoice-300M"],
         )
+
+    @property
+    def backend_type(self) -> BackendType:
+        return BackendType.SUBPROCESS
 
     @property
     def manager(self) -> TrackManager:
