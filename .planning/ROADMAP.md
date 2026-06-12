@@ -137,7 +137,7 @@ Plans:
 Plans:
 
 - [x] 18-01-PLAN.md — Add BackendType enum to BaseEngine and override in all engine subclasses (ENG-01, ENG-02, ENG-04)
-- [ ] 18-02-PLAN.md — Add IMAGE_DRAW params.extra.mode routing for character consistency (IP-Adapter/PuLID/InstantID) (TASK-01, TASK-02, TASK-03, TASK-04)
+- [x] 18-02-PLAN.md — Add IMAGE_DRAW params.extra.mode routing for character consistency (IP-Adapter/PuLID/InstantID) (TASK-01, TASK-02, TASK-03, TASK-04)
 - [ ] 18-03-PLAN.md — Restructure main.py registration grouping + engines API backend_type response (ENG-01, ENG-03)
 
 ### Phase 19: Integration Verification
@@ -170,7 +170,7 @@ Phases execute in numeric order: 15 → 16 → 17 → 18 → 19
 | 15. Production Stability Fixes | v1.3 | 0/2 | Not started | - |
 | 16. v6 Code Merge | v1.3 | 0/3 | Not started | - |
 | 17. Workflow Builder Expansion | v1.3 | 4/4 | Complete    | 2026-06-12 |
-| 18. Engine Registration & Task Routing | v1.3 | 1/3 | In progress | - |
+| 18. Engine Registration & Task Routing | v1.3 | 2/3 | In Progress|  |
 | 19. Integration Verification | v1.3 | 0/2 | Not started | - |
 
 ### Completed Milestones

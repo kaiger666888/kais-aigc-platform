@@ -25,10 +25,10 @@
 
 ### TASK — TaskType 路由优化
 
-- [ ] **TASK-01**: 口型同步能力通过 VIDEO_FINAL 的 params.extra.mode = "lip_sync" 路由
-- [ ] **TASK-02**: 帧插值能力通过 UPSCALE 的 params.extra.mode = "frame_interp" 路由
-- [ ] **TASK-03**: 角色一致性（IP-Adapter/InstantID/PhotoMaker）通过 IMAGE_DRAW 的 params.extra 路由
-- [ ] **TASK-04**: 更新 executor/router 路由逻辑支持 params.extra 细分
+- [x] **TASK-01**: 口型同步能力通过 VIDEO_FINAL 的 params.extra.mode = "lip_sync" 路由
+- [x] **TASK-02**: 帧插值能力通过 UPSCALE 的 params.extra.mode = "frame_interp" 路由
+- [x] **TASK-03**: 角色一致性（IP-Adapter/InstantID/PhotoMaker）通过 IMAGE_DRAW 的 params.extra 路由
+- [x] **TASK-04**: 更新 executor/router 路由逻辑支持 params.extra 细分
 
 ### ENG — Engine Registration 统一
 
@@ -85,10 +85,10 @@
 | ENG-02 | Phase 18 | Pending |
 | ENG-03 | Phase 18 | Pending |
 | ENG-04 | Phase 18 | Pending |
-| TASK-01 | Phase 18 | Pending |
-| TASK-02 | Phase 18 | Pending |
-| TASK-03 | Phase 18 | Pending |
-| TASK-04 | Phase 18 | Pending |
+| TASK-01 | Phase 18 | Complete |
+| TASK-02 | Phase 18 | Complete |
+| TASK-03 | Phase 18 | Complete |
+| TASK-04 | Phase 18 | Complete |
 
 **Coverage:**
 - v1.3 requirements: 26 total
