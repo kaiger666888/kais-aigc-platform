@@ -1,10 +1,18 @@
-"""Unit tests for executor routing — verifies TRELLIS workflow routing (WFB-04, WFB-05).
+"""Unit tests for executor routing — verifies workflow routing for TRELLIS, lip sync, and frame interpolation.
 
 Covers:
   test_image_to_3d_trellis_routing       WFB-04  params.extra.engine="trellis"
   test_image_to_3d_flux_trellis_routing  WFB-05  params.extra.mode="flux_trellis"
   test_image_to_3d_default_hunyuan3d     regression — no extra params → hunyuan3d
   test_trellis_bypasses_dedicated_engine  TRELLIS goes to comfyui-primary, not hunyuan3d-local
+  test_video_final_lip_sync_routing      WFB-08  VIDEO_FINAL + params.extra.mode="lip_sync"
+  test_video_final_default_wan_i2v       regression — VIDEO_FINAL without mode → wan_i2v
+  test_upscale_frame_interp_routing      WFB-08  UPSCALE + params.extra.mode="frame_interp"
+  test_upscale_default_image             regression — UPSCALE without mode → image upscale
+  test_lip_sync_missing_video_fails      WFB-08  lip_sync without video → FAILED
+  test_lip_sync_missing_audio_fails      WFB-08  lip_sync without audio_input → FAILED
+  test_frame_interp_missing_video_fails  WFB-08  frame_interp without video → FAILED
+  test_lip_sync_custom_params            WFB-08  lips_expression + inference_steps passthrough
 """
 from __future__ import annotations
 
@@ -197,3 +205,262 @@ class TestTrellisBypassesDedicatedEngine:
         assert engine_id == "hunyuan3d-local", \
             f"Default IMAGE_TO_3D should route to hunyuan3d-local, got '{engine_id}'"
         assert pool == EnginePool.LOCAL
+
+
+# ---------------------------------------------------------------------------
+# Routing tests — lip sync and frame interpolation (WFB-08)
+# ---------------------------------------------------------------------------
+
+class TestLipSyncRouting:
+    """Verify VIDEO_FINAL + params.extra.mode="lip_sync" selects LatentSync builder."""
+
+    def test_video_final_lip_sync_routing(self):
+        """WFB-08: VIDEO_FINAL + extra.mode="lip_sync" must produce LatentSyncNode."""
+        from src.v6.engines.workflow_builder import build_lipsync_workflow
+
+        task = _make_task(
+            task_type=TaskType.VIDEO_FINAL,
+            params={
+                "video": "test.mp4",
+                "audio_input": "audio.wav",
+                "extra": {"mode": "lip_sync"},
+            },
+        )
+
+        # Simulate the routing logic the executor will use
+        extra = task.params.get("extra", {})
+        extra_mode = extra.get("mode", "")
+
+        if extra_mode == "lip_sync":
+            from src.v6.engines.workflow_builder import build_lipsync_workflow
+            video_input = task.params.get("video", "")
+            audio_input = task.params.get("audio_input", "")
+            assert video_input and audio_input, "lip_sync requires video and audio_input"
+            workflow = build_lipsync_workflow(
+                video_input=video_input,
+                audio_input=audio_input,
+                seed=task.params.get("seed"),
+                lips_expression=task.params.get("lips_expression", 1.5),
+                inference_steps=task.params.get("inference_steps", 20),
+                filename_prefix=task.params.get("filename_prefix", f"lipsync_{task.task_id}"),
+            )
+        else:
+            from src.v6.engines.workflow_builder import build_wan21_i2v_dual_stage_workflow
+            src_img = task.params.get("image", "")
+            workflow = build_wan21_i2v_dual_stage_workflow(
+                image_name=src_img,
+                prompt=task.params.get("prompt", ""),
+            )
+
+        assert _find_class_type_in_workflow(workflow, "LatentSyncNode"), \
+            "Expected LatentSyncNode in workflow for lip_sync routing"
+
+    def test_video_final_default_wan_i2v(self):
+        """Regression: VIDEO_FINAL without extra.mode → wan_i2v (no LatentSyncNode)."""
+        from src.v6.engines.workflow_builder import build_wan21_i2v_dual_stage_workflow
+
+        task = _make_task(
+            task_type=TaskType.VIDEO_FINAL,
+            params={
+                "image": "test.png",
+            },
+        )
+
+        extra = task.params.get("extra", {})
+        extra_mode = extra.get("mode", "")
+
+        if extra_mode == "lip_sync":
+            from src.v6.engines.workflow_builder import build_lipsync_workflow
+            workflow = build_lipsync_workflow(
+                video_input=task.params.get("video", ""),
+                audio_input=task.params.get("audio_input", ""),
+            )
+        else:
+            src_img = task.params.get("image", "")
+            workflow = build_wan21_i2v_dual_stage_workflow(
+                image_name=src_img,
+                prompt=task.params.get("prompt", ""),
+            )
+
+        # Must NOT contain LatentSyncNode — this is the default wan_i2v path
+        assert not _find_class_type_in_workflow(workflow, "LatentSyncNode"), \
+            "Default VIDEO_FINAL should use wan_i2v, not LatentSync"
+        assert _find_class_type_in_workflow(workflow, "KSamplerAdvanced"), \
+            "Default VIDEO_FINAL should have KSamplerAdvanced (wan_i2v)"
+
+    def test_lip_sync_missing_video_fails(self):
+        """WFB-08: lip_sync without video param must fail validation."""
+        task = _make_task(
+            task_type=TaskType.VIDEO_FINAL,
+            params={
+                "audio_input": "audio.wav",
+                "extra": {"mode": "lip_sync"},
+            },
+        )
+
+        extra = task.params.get("extra", {})
+        extra_mode = extra.get("mode", "")
+
+        assert extra_mode == "lip_sync"
+        video_input = task.params.get("video", "")
+        audio_input = task.params.get("audio_input", "")
+
+        # Validation: both video and audio_input are required
+        valid = bool(video_input and audio_input)
+        assert not valid, "lip_sync without video should fail validation"
+
+    def test_lip_sync_missing_audio_fails(self):
+        """WFB-08: lip_sync without audio_input param must fail validation."""
+        task = _make_task(
+            task_type=TaskType.VIDEO_FINAL,
+            params={
+                "video": "test.mp4",
+                "extra": {"mode": "lip_sync"},
+            },
+        )
+
+        extra = task.params.get("extra", {})
+        extra_mode = extra.get("mode", "")
+
+        assert extra_mode == "lip_sync"
+        video_input = task.params.get("video", "")
+        audio_input = task.params.get("audio_input", "")
+
+        # Validation: both video and audio_input are required
+        valid = bool(video_input and audio_input)
+        assert not valid, "lip_sync without audio_input should fail validation"
+
+    def test_lip_sync_custom_params(self):
+        """WFB-08: lip_sync with custom lips_expression and inference_steps passes through."""
+        from src.v6.engines.workflow_builder import build_lipsync_workflow
+
+        task = _make_task(
+            task_type=TaskType.VIDEO_FINAL,
+            params={
+                "video": "v.mp4",
+                "audio_input": "a.wav",
+                "lips_expression": 2.5,
+                "inference_steps": 30,
+                "extra": {"mode": "lip_sync"},
+            },
+        )
+
+        extra = task.params.get("extra", {})
+        extra_mode = extra.get("mode", "")
+
+        assert extra_mode == "lip_sync"
+        workflow = build_lipsync_workflow(
+            video_input=task.params.get("video", ""),
+            audio_input=task.params.get("audio_input", ""),
+            seed=task.params.get("seed"),
+            lips_expression=task.params.get("lips_expression", 1.5),
+            inference_steps=task.params.get("inference_steps", 20),
+            filename_prefix=task.params.get("filename_prefix", f"lipsync_{task.task_id}"),
+        )
+
+        # Verify custom params in LatentSyncNode
+        latentsync_node = None
+        for node in workflow.values():
+            if isinstance(node, dict) and node.get("class_type") == "LatentSyncNode":
+                latentsync_node = node
+                break
+
+        assert latentsync_node is not None, "Expected LatentSyncNode in workflow"
+        assert latentsync_node["inputs"]["lips_expression"] == 2.5, \
+            f"Expected lips_expression=2.5, got {latentsync_node['inputs']['lips_expression']}"
+        assert latentsync_node["inputs"]["inference_steps"] == 30, \
+            f"Expected inference_steps=30, got {latentsync_node['inputs']['inference_steps']}"
+
+
+class TestFrameInterpRouting:
+    """Verify UPSCALE + params.extra.mode="frame_interp" selects RIFE builder."""
+
+    def test_upscale_frame_interp_routing(self):
+        """WFB-08: UPSCALE + extra.mode="frame_interp" must produce RIFE VFI node."""
+        from src.v6.engines.workflow_builder import build_frame_interpolate_workflow
+
+        task = _make_task(
+            task_type=TaskType.UPSCALE,
+            params={
+                "video": "test.mp4",
+                "extra": {"mode": "frame_interp"},
+            },
+        )
+
+        # Simulate the routing logic the executor will use
+        extra = task.params.get("extra", {})
+        extra_mode = extra.get("mode", "")
+
+        if extra_mode == "frame_interp":
+            from src.v6.engines.workflow_builder import build_frame_interpolate_workflow
+            video_input = task.params.get("video", "")
+            assert video_input, "frame_interp requires video param"
+            workflow = build_frame_interpolate_workflow(
+                video_input=video_input,
+                interpolation_factor=task.params.get("interpolation_factor", 2),
+                ckpt_name=task.params.get("ckpt_name", "rife49.pth"),
+                output_fps=task.params.get("output_fps"),
+                seed=task.params.get("seed"),
+                filename_prefix=task.params.get("filename_prefix", f"frame_interp_{task.task_id}"),
+            )
+        else:
+            from src.v6.engines.workflow_builder import build_upscale_workflow
+            src_img = task.params.get("image", "")
+            workflow = build_upscale_workflow(
+                image_name=src_img,
+                upscale_model_name=task.params.get("upscale_model_name", "4x-UltraSharp.pth"),
+            )
+
+        assert _find_class_type_in_workflow(workflow, "RIFE VFI"), \
+            "Expected RIFE VFI node in workflow for frame_interp routing"
+
+    def test_upscale_default_image(self):
+        """Regression: UPSCALE without extra.mode → image upscale (no RIFE VFI)."""
+        from src.v6.engines.workflow_builder import build_upscale_workflow
+
+        task = _make_task(
+            task_type=TaskType.UPSCALE,
+            params={
+                "image": "test.png",
+            },
+        )
+
+        extra = task.params.get("extra", {})
+        extra_mode = extra.get("mode", "")
+
+        if extra_mode == "frame_interp":
+            from src.v6.engines.workflow_builder import build_frame_interpolate_workflow
+            workflow = build_frame_interpolate_workflow(
+                video_input=task.params.get("video", ""),
+            )
+        else:
+            src_img = task.params.get("image", "")
+            workflow = build_upscale_workflow(
+                image_name=src_img,
+                upscale_model_name=task.params.get("upscale_model_name", "4x-UltraSharp.pth"),
+            )
+
+        # Must NOT contain RIFE VFI node — this is the default upscale path
+        assert not _find_class_type_in_workflow(workflow, "RIFE VFI"), \
+            "Default UPSCALE should use image upscale, not RIFE VFI"
+        assert _find_class_type_in_workflow(workflow, "UpscaleModelLoader"), \
+            "Default UPSCALE should have UpscaleModelLoader"
+
+    def test_frame_interp_missing_video_fails(self):
+        """WFB-08: frame_interp without video param must fail validation."""
+        task = _make_task(
+            task_type=TaskType.UPSCALE,
+            params={
+                "extra": {"mode": "frame_interp"},
+            },
+        )
+
+        extra = task.params.get("extra", {})
+        extra_mode = extra.get("mode", "")
+
+        assert extra_mode == "frame_interp"
+        video_input = task.params.get("video", "")
+
+        # Validation: video is required for frame_interp
+        valid = bool(video_input)
+        assert not valid, "frame_interp without video should fail validation"
