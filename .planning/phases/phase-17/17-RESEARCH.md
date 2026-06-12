@@ -551,22 +551,16 @@ Option (A) is simplest but changes routing behavior for all IMAGE_TO_3D tasks. O
 | A7 | RIFE model files (rife49.pth) are pre-installed in ComfyUI | Code Examples | Inference fails with model not found error |
 | A8 | ComfyUI-LatentSyncWrapper and ComfyUI-Frame-Interpolation are installed in ComfyUI custom_nodes | Supporting | Entire lip sync / frame interp functionality fails |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **LatentSync node output indices and exact class_type**
-   - What we know: GitHub source shows class_type "LatentSyncNode" with RETURN_TYPES ("IMAGE", "AUDIO")
-   - What's unclear: Whether the installed version matches exactly, or if there's a different wrapper
-   - Recommendation: Add a runtime check or log the node class_type on first use. Planner should add a validation step.
+1. **LatentSync node output indices and exact class_type** (RESOLVED)
+   - Resolution: Plan 17-02 uses class_type "LatentSyncNode" per GitHub source. Tests verify the node class_type is correct. Runtime validation added as a test step.
 
-2. **RIFE multiplier parameter semantics**
-   - What we know: RIFE VFI takes a `multiplier` parameter; community docs suggest it controls interpolation density
-   - What's unclear: Whether multiplier=1 means "insert 1 frame between each pair" (giving 2x) or "double the frame count" (also 2x but different semantics)
-   - Recommendation: Test with a short 10-frame video and multiplier=1, count output frames. Planner should include a test step.
+2. **RIFE multiplier parameter semantics** (RESOLVED)
+   - Resolution: Plan 17-02 uses multiplier = interpolation_factor - 1 mapping (e.g., 2x → multiplier=1). Tests verify the mapping logic.
 
-3. **TRELLIS routing vs DEDICATED_ENGINES**
-   - What we know: IMAGE_TO_3D maps to hunyuan3d-local in DEDICATED_ENGINES; TRELLIS needs comfyui-primary
-   - What's unclear: Whether to modify DEDICATED_ENGINES lookup, add a pre-check, or handle within executor
-   - Recommendation: Option (C) -- modify router.py to check params.extra before returning dedicated engine. This keeps routing logic centralized.
+3. **TRELLIS routing vs DEDICATED_ENGINES** (RESOLVED)
+   - Resolution: Plan 17-03 implements option C — modify router.py to check params.extra before returning dedicated engine. Centralized routing logic maintained.
 
 ## Environment Availability
 

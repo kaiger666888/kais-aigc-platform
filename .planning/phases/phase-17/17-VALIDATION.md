@@ -2,7 +2,7 @@
 phase: 17
 slug: workflow-builder-expansion
 status: draft
-nyquist_compliant: false
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-06-12
 ---
@@ -40,13 +40,13 @@ created: 2026-06-12
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
 | 17-01-01 | 01 | 1 | WFB-01 | — | N/A | unit | `pytest tests/test_workflow_builder.py::test_build_flux_dev_workflow -x` | ❌ W0 | ⬜ pending |
 | 17-01-02 | 01 | 1 | WFB-02 | — | N/A | unit | `pytest tests/test_workflow_builder.py::test_build_flux_ipadapter_workflow -x` | ❌ W0 | ⬜ pending |
-| 17-02-01 | 02 | 1 | WFB-03 | — | N/A | unit | `pytest tests/test_workflow_builder.py::test_build_hunyuan3d_workflow -x` | ❌ W0 | ⬜ pending |
-| 17-02-02 | 02 | 1 | WFB-04 | — | N/A | unit | `pytest tests/test_executor_routing.py::test_image_to_3d_trellis_routing -x` | ❌ W0 | ⬜ pending |
-| 17-02-03 | 02 | 1 | WFB-05 | — | N/A | unit | `pytest tests/test_executor_routing.py::test_image_to_3d_flux_trellis_routing -x` | ❌ W0 | ⬜ pending |
-| 17-03-01 | 03 | 1 | WFB-06 | T-17-01 | Validate video_input/audio_input filenames reject `..` and absolute paths | unit | `pytest tests/test_workflow_builder.py::test_build_lipsync_workflow -x` | ❌ W0 | ⬜ pending |
-| 17-03-02 | 03 | 2 | WFB-07 | T-17-01 | Validate video_input filenames reject `..` and absolute paths | unit | `pytest tests/test_workflow_builder.py::test_build_frame_interpolate_workflow -x` | ❌ W0 | ⬜ pending |
-| 17-04-01 | 04 | 2 | WFB-08 | — | N/A | unit | `pytest tests/test_executor_routing.py::test_video_final_lip_sync_routing -x` | ❌ W0 | ⬜ pending |
-| 17-04-02 | 04 | 2 | WFB-08 | — | N/A | unit | `pytest tests/test_executor_routing.py::test_upscale_frame_interp_routing -x` | ❌ W0 | ⬜ pending |
+| 17-01-03 | 01 | 1 | WFB-03 | — | N/A | unit | `pytest tests/test_workflow_builder.py::test_build_hunyuan3d_workflow -x` | ❌ W0 | ⬜ pending |
+| 17-02-01 | 02 | 2 | WFB-06 | T-17-01 | Validate video_input/audio_input filenames reject `..` and absolute paths | unit | `pytest tests/test_workflow_builder.py::test_build_lipsync_workflow -x` | ❌ W0 | ⬜ pending |
+| 17-02-02 | 02 | 2 | WFB-07 | T-17-01 | Validate video_input filenames reject `..` and absolute paths | unit | `pytest tests/test_workflow_builder.py::test_build_frame_interpolate_workflow -x` | ❌ W0 | ⬜ pending |
+| 17-03-01 | 03 | 2 | WFB-04 | — | N/A | unit | `pytest tests/test_executor_routing.py::test_image_to_3d_trellis_routing -x` | ❌ W0 | ⬜ pending |
+| 17-03-02 | 03 | 2 | WFB-05 | — | N/A | unit | `pytest tests/test_executor_routing.py::test_image_to_3d_flux_trellis_routing -x` | ❌ W0 | ⬜ pending |
+| 17-04-01 | 04 | 3 | WFB-08 | — | N/A | unit | `pytest tests/test_executor_routing.py::test_video_final_lip_sync_routing -x` | ❌ W0 | ⬜ pending |
+| 17-04-02 | 04 | 3 | WFB-08 | — | N/A | unit | `pytest tests/test_executor_routing.py::test_upscale_frame_interp_routing -x` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
