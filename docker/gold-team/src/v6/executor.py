@@ -324,40 +324,94 @@ class TaskExecutor:
                     )
                     logger.info("Auto-built Wan 2.2 I2V dual-stage workflow for task %s", task.task_id)
                 elif task.type == TaskType.VIDEO_FINAL or task.type == TaskType.VIDEO_PREVIEW:
-                    # VIDEO_FINAL/VIDEO_PREVIEW = alias for wan_i2v (video output)
-                    from src.v6.engines.workflow_builder import build_wan21_i2v_dual_stage_workflow
-                    src_img = task.params.get("image", "")
-                    if not src_img:
-                        logger.error("VIDEO_FINAL/VIDEO_PREVIEW requires 'image' param, task %s", task.task_id)
-                        await store.update(task.task_id, status=TaskStatus.FAILED, error="VIDEO_FINAL/VIDEO_PREVIEW requires 'image' param")
-                        return
-                    workflow = build_wan21_i2v_dual_stage_workflow(
-                        image_name=src_img,
-                        prompt=task.params.get("prompt", ""),
-                        width=task.params.get("width", 832),
-                        height=task.params.get("height", 480),
-                        length=task.params.get("length", 81),
-                        steps=task.params.get("steps", 20),
-                        cfg=task.params.get("cfg", 3.5),
-                        shift=task.params.get("shift", 8.0),
-                        high_noise_end=task.params.get("high_noise_end", 10.0),
-                        seed=task.params.get("seed"),
-                        filename_prefix=task.params.get("filename_prefix", f"{task.type.value}_{task.task_id}"),
-                    )
-                    logger.info("Auto-built VIDEO_FINAL/VIDEO_PREVIEW workflow (=wan_i2v) for task %s", task.task_id)
+                    extra_mode = task.params.get("extra", {}).get("mode", "")
+                    if extra_mode == "lip_sync":
+                        # -- Lip Sync via LatentSync --
+                        from src.v6.engines.workflow_builder import build_lipsync_workflow
+                        video_input = task.params.get("video", "")
+                        audio_input = task.params.get("audio_input", "")
+                        if not video_input or not audio_input:
+                            logger.error(
+                                "Lip sync requires 'video' and 'audio_input' params, task %s",
+                                task.task_id,
+                            )
+                            await store.update(
+                                task.task_id,
+                                status=TaskStatus.FAILED,
+                                error="Lip sync requires 'video' and 'audio_input' params",
+                            )
+                            return
+                        workflow = build_lipsync_workflow(
+                            video_input=video_input,
+                            audio_input=audio_input,
+                            seed=task.params.get("seed"),
+                            lips_expression=task.params.get("lips_expression", 1.5),
+                            inference_steps=task.params.get("inference_steps", 20),
+                            filename_prefix=task.params.get("filename_prefix", f"lipsync_{task.task_id}"),
+                        )
+                        logger.info("Auto-built LipSync workflow for task %s", task.task_id)
+                    else:
+                        # -- VIDEO_FINAL/VIDEO_PREVIEW = wan_i2v (default) --
+                        from src.v6.engines.workflow_builder import build_wan21_i2v_dual_stage_workflow
+                        src_img = task.params.get("image", "")
+                        if not src_img:
+                            logger.error("VIDEO_FINAL/VIDEO_PREVIEW requires 'image' param, task %s", task.task_id)
+                            await store.update(task.task_id, status=TaskStatus.FAILED, error="VIDEO_FINAL/VIDEO_PREVIEW requires 'image' param")
+                            return
+                        workflow = build_wan21_i2v_dual_stage_workflow(
+                            image_name=src_img,
+                            prompt=task.params.get("prompt", ""),
+                            width=task.params.get("width", 832),
+                            height=task.params.get("height", 480),
+                            length=task.params.get("length", 81),
+                            steps=task.params.get("steps", 20),
+                            cfg=task.params.get("cfg", 3.5),
+                            shift=task.params.get("shift", 8.0),
+                            high_noise_end=task.params.get("high_noise_end", 10.0),
+                            seed=task.params.get("seed"),
+                            filename_prefix=task.params.get("filename_prefix", f"{task.type.value}_{task.task_id}"),
+                        )
+                        logger.info("Auto-built VIDEO_FINAL/VIDEO_PREVIEW workflow (=wan_i2v) for task %s", task.task_id)
                 elif task.type == TaskType.UPSCALE:
-                    from src.v6.engines.workflow_builder import build_upscale_workflow
-                    src_img = task.params.get("image", "")
-                    if not src_img:
-                        logger.error("UPSCALE requires 'image' param, task %s", task.task_id)
-                        await store.update(task.task_id, status=TaskStatus.FAILED, error="UPSCALE requires 'image' param")
-                        return
-                    workflow = build_upscale_workflow(
-                        image_name=src_img,
-                        upscale_model_name=task.params.get("upscale_model_name", "4x-UltraSharp.pth"),
-                        filename_prefix=task.params.get("filename_prefix", "upscaled"),
-                    )
-                    logger.info("Auto-built Upscale workflow for task %s", task.task_id)
+                    extra_mode = task.params.get("extra", {}).get("mode", "")
+                    if extra_mode == "frame_interp":
+                        # -- Frame Interpolation via RIFE --
+                        from src.v6.engines.workflow_builder import build_frame_interpolate_workflow
+                        video_input = task.params.get("video", "")
+                        if not video_input:
+                            logger.error(
+                                "Frame interpolation requires 'video' param, task %s",
+                                task.task_id,
+                            )
+                            await store.update(
+                                task.task_id,
+                                status=TaskStatus.FAILED,
+                                error="Frame interpolation requires 'video' param",
+                            )
+                            return
+                        workflow = build_frame_interpolate_workflow(
+                            video_input=video_input,
+                            interpolation_factor=task.params.get("interpolation_factor", 2),
+                            ckpt_name=task.params.get("ckpt_name", "rife49.pth"),
+                            output_fps=task.params.get("output_fps"),
+                            seed=task.params.get("seed"),
+                            filename_prefix=task.params.get("filename_prefix", f"frame_interp_{task.task_id}"),
+                        )
+                        logger.info("Auto-built Frame Interpolation workflow for task %s", task.task_id)
+                    else:
+                        # -- UPSCALE = image upscale (default) --
+                        from src.v6.engines.workflow_builder import build_upscale_workflow
+                        src_img = task.params.get("image", "")
+                        if not src_img:
+                            logger.error("UPSCALE requires 'image' param, task %s", task.task_id)
+                            await store.update(task.task_id, status=TaskStatus.FAILED, error="UPSCALE requires 'image' param")
+                            return
+                        workflow = build_upscale_workflow(
+                            image_name=src_img,
+                            upscale_model_name=task.params.get("upscale_model_name", "4x-UltraSharp.pth"),
+                            filename_prefix=task.params.get("filename_prefix", "upscaled"),
+                        )
+                        logger.info("Auto-built Upscale workflow for task %s", task.task_id)
                 elif task.type == TaskType.FACE_RESTORE:
                     from src.v6.engines.workflow_builder import build_face_restore_workflow
                     src_img = task.params.get("image", "")
