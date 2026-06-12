@@ -32,6 +32,15 @@ function copyToContainer(localPath: string, containerPath: string) {
   }
 }
 
+/**
+ * Build LiconMSR workflow matching official LTX-2.3 MSR sample workflow V1.
+ *
+ * Key differences from the old version:
+ * - Added full audio pipeline (LTXVAudioVAELoader → LTXVEmptyLatentAudio → LTXVConcatAVLatent → separate → LTXVAudioVAEDecode)
+ * - Removed incorrect LTXVAddGuide per-image nodes (not in official workflow)
+ * - Sampler takes AV-concatenated latent from LTXVConcatAVLatent
+ * - CreateVideo includes audio output
+ */
 function buildMSRWorkflow(opts: {
   ref1Filename: string;
   ref2Filename: string;
@@ -46,18 +55,16 @@ function buildMSRWorkflow(opts: {
   seed: number;
   loraStrength: number;
   filenamePrefix: string;
-  guideStrength?: number;
 }) {
   const {
     ref1Filename, ref2Filename, backgroundFilename,
     prompt, negativePrompt,
     width, height, numFrames, msrFrameCount, fps,
     seed, loraStrength, filenamePrefix,
-    guideStrength = 1.0,
   } = opts;
 
   return {
-    // === Shared infrastructure ===
+    // === Model & Text Encoder ===
     "3": {
       class_type: "LowVRAMCheckpointLoader",
       inputs: { ckpt_name: LTX_DEFAULTS.msrModelName },
@@ -78,6 +85,8 @@ function buildMSRWorkflow(opts: {
         strength_model: loraStrength,
       },
     },
+
+    // === Prompt Encoding ===
     "5": {
       class_type: "CLIPTextEncode",
       inputs: { text: prompt, clip: ["26", 0] },
@@ -86,16 +95,35 @@ function buildMSRWorkflow(opts: {
       class_type: "CLIPTextEncode",
       inputs: { text: negativePrompt, clip: ["26", 0] },
     },
+
+    // === Audio VAE (for AV pipeline) ===
+    "21": {
+      class_type: "LTXVAudioVAELoader",
+      inputs: { ckpt_name: LTX_DEFAULTS.msrModelName },
+    },
+
+    // === Video Conditioning ===
     "7": {
       class_type: "LTXVConditioning",
       inputs: { positive: ["5", 0], negative: ["6", 0], frame_rate: fps },
     },
+
+    // === Empty Latents ===
     "8": {
       class_type: "EmptyLTXVLatentVideo",
       inputs: { width, height, length: numFrames, batch_size: 1 },
     },
+    "22": {
+      class_type: "LTXVEmptyLatentAudio",
+      inputs: {
+        audio_vae: ["21", 0],
+        frames_number: numFrames,
+        frame_rate: fps,
+        batch_size: 1,
+      },
+    },
 
-    // === Reference image loaders ===
+    // === Reference Image Loaders ===
     "29": {
       class_type: "LoadImage",
       inputs: { image: ref1Filename },
@@ -109,7 +137,7 @@ function buildMSRWorkflow(opts: {
       inputs: { image: backgroundFilename },
     },
 
-    // === Path A: IC-LoRA conditioning (LiconMSR multi-frame video) ===
+    // === LiconMSR Multi-Reference Video ===
     "28": {
       class_type: "LiconMSR",
       inputs: {
@@ -121,6 +149,8 @@ function buildMSRWorkflow(opts: {
         background: ["30", 0],
       },
     },
+
+    // === IC-LoRA Video Guide Injection ===
     "9": {
       class_type: "LTXAddVideoICLoRAGuide",
       inputs: {
@@ -139,44 +169,12 @@ function buildMSRWorkflow(opts: {
       },
     },
 
-    // === Path B: Per-image guides (each reference image as independent keyframe) ===
-    // This is the missing piece from the original workflow.
-    // Each LTXVAddGuide encodes one image as a separate latent keyframe,
-    // allowing the model to distinguish different subjects.
-    "41": {
-      class_type: "LTXVAddGuide",
+    // === Concat AV Latents (video latent from IC-LoRA guide + empty audio latent) ===
+    "23": {
+      class_type: "LTXVConcatAVLatent",
       inputs: {
-        positive: ["7", 0],
-        negative: ["7", 1],
-        vae: ["3", 2],
-        latent: ["8", 0],
-        image: ["40", 0],
-        frame_idx: 0,
-        strength: guideStrength,
-      },
-    },
-    "42": {
-      class_type: "LTXVAddGuide",
-      inputs: {
-        positive: ["41", 0],
-        negative: ["41", 1],
-        vae: ["3", 2],
-        latent: ["41", 2],
-        image: ["29", 0],
-        frame_idx: 1,
-        strength: guideStrength,
-      },
-    },
-    "43": {
-      class_type: "LTXVAddGuide",
-      inputs: {
-        positive: ["42", 0],
-        negative: ["42", 1],
-        vae: ["3", 2],
-        latent: ["42", 2],
-        image: ["30", 0],
-        frame_idx: 2,
-        strength: guideStrength,
+        video_latent: ["9", 2],
+        audio_latent: ["22", 0],
       },
     },
 
@@ -209,26 +207,52 @@ function buildMSRWorkflow(opts: {
         guider: ["37", 0],
         sampler: ["13", 0],
         sigmas: ["27", 0],
-        // Use per-image guide latent (Path B) instead of IC-LoRA latent (Path A)
-        latent_image: ["43", 2],
+        latent_image: ["23", 0], // AV-concatenated latent
       },
     },
+
+    // === Separate AV Latents ===
+    "24": {
+      class_type: "LTXVSeparateAVLatent",
+      inputs: { av_latent: ["16", 0] },
+    },
+
+    // === Crop Guides ===
     "17": {
       class_type: "LTXVCropGuides",
       inputs: {
         positive: ["9", 0],
         negative: ["9", 1],
-        latent: ["16", 0],
+        latent: ["24", 0],
       },
     },
+
+    // === Decode Video ===
     "38": {
       class_type: "VAEDecode",
       inputs: { samples: ["17", 2], vae: ["3", 2] },
     },
+
+    // === Decode Audio ===
+    "25": {
+      class_type: "LTXVAudioVAEDecode",
+      inputs: {
+        samples: ["24", 1],
+        audio_vae: ["21", 0],
+      },
+    },
+
+    // === Create Video with Audio ===
     "19": {
       class_type: "CreateVideo",
-      inputs: { images: ["38", 0], fps },
+      inputs: {
+        images: ["38", 0],
+        audio: ["25", 0],
+        fps,
+      },
     },
+
+    // === Save ===
     "20": {
       class_type: "SaveVideo",
       inputs: {
@@ -254,16 +278,26 @@ export default router.post(
   }),
   async (req, res) => {
     const { projectId, prompt } = req.body;
-    const negativePrompt = req.body.negativePrompt || "";
+    const negativePrompt = req.body.negativePrompt || "worst quality, blurry, jittery, distorted, inconsistent appearance";
     const width = Number(req.body.width) || 1280;
-    const height = Number(req.body.height) || 1920;
-    const numFrames = Number(req.body.numFrames) || 145;
+    const height = Number(req.body.height) || 704;
+    // numFrames must satisfy 8n+1 (LTX-2.3 requirement)
+    const requestedFrames = Number(req.body.numFrames) || 0;
+    const fps = Number(req.body.fps) || 24;
     const msrFrameCount = Number(req.body.msrFrameCount) || 41;
-    const fps = Number(req.body.fps) || 25;
     const seed = req.body.seed ? Number(req.body.seed) : Math.floor(Math.random() * 2147483647);
     const loraStrength = Number(req.body.loraStrength) || 1.0;
-    const guideStrength = Number(req.body.guideStrength) || 1.0;
     const filenamePrefix = req.body.filenamePrefix || `ltx_msr_${projectId}_${Date.now()}`;
+
+    // Auto-calculate numFrames from duration (seconds) if provided
+    let numFrames: number;
+    if (requestedFrames > 0) {
+      numFrames = Math.ceil((requestedFrames - 1) / 8) * 8 + 1; // Round to nearest 8n+1
+    } else {
+      const durationSec = Number(req.body.duration) || 15;
+      const rawFrames = Math.round(durationSec * fps) + 1;
+      numFrames = Math.ceil((rawFrames - 1) / 8) * 8 + 1;
+    }
 
     const files = req.files as Record<string, Express.Multer.File[]>;
     if (!files?.ref1?.[0] || !files?.ref2?.[0] || !files?.background?.[0]) {
@@ -273,7 +307,6 @@ export default router.post(
     // Copy uploaded images to ComfyUI container
     const uploadedFiles: Express.Multer.File[] = [files.ref1[0], files.ref2[0], files.background[0]];
     const filenames: string[] = [];
-    const containerPaths: string[] = [];
 
     try {
       for (const file of uploadedFiles) {
@@ -281,11 +314,9 @@ export default router.post(
         const filename = `${uuidv4()}${ext}`;
         const containerPath = `${LTX_CONFIG.comfyuiInputDir}/${filename}`;
         filenames.push(filename);
-        containerPaths.push(containerPath);
         copyToContainer(file.path, containerPath);
       }
     } catch (err: any) {
-      // Cleanup on failure
       for (const file of uploadedFiles) {
         try { fs.unlinkSync(file.path); } catch {}
       }
@@ -303,7 +334,7 @@ export default router.post(
       backgroundFilename: filenames[2],
       prompt, negativePrompt,
       width, height, numFrames, msrFrameCount, fps,
-      seed, loraStrength, guideStrength, filenamePrefix,
+      seed, loraStrength, filenamePrefix,
     });
 
     try {
@@ -323,6 +354,7 @@ export default router.post(
         status: "pending",
         message: "LTX LiconMSR multi-reference task submitted to ComfyUI",
         filenames,
+        params: { width, height, numFrames, fps, duration: ((numFrames - 1) / fps).toFixed(1) + "s" },
       }));
     } catch (err: any) {
       const msg = err.response?.data?.error?.message || err.response?.data?.node_errors || err.message || String(err);
