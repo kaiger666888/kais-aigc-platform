@@ -66,14 +66,23 @@ services:
       http_proxy: "${http_proxy:-}"
       https_proxy: "${https_proxy:-}"
       NO_PROXY: "localhost,127.0.0.1,172.18.0.0/16"
-      CLI_ARGS: "--disable-metadata --lowvram --output-directory /mnt/agents/output/gpu1"
+      W2V_BERT_PATH: "/data/models/w2v-bert-2.0"
+      CLI_ARGS: "--disable-metadata --lowvram --bf16-text-enc --bf16-unet --output-directory /mnt/agents/output/gpu1"
     volumes:
       - ${OUTPUT_DIR:-/mnt/agents/output}/gpu1:/mnt/agents/output/gpu1
       - ${DATA_MODELS_DIR:-/data/models/comfyui}:/root/ComfyUI/models:rw
       - ${ACESTEP_MODELS_DIR:-/data/models/ACE-Step1.5}:/root/ComfyUI/models/ace-step:ro
       - /data/workspace/comfyui-incremental-nodes:/root/ComfyUI/custom_nodes/kais-incremental
       - /data/workspace/comfyui-incremental-nodes/ComfyUI-LTXVideo:/root/ComfyUI/custom_nodes/ComfyUI-LTXVideo
+      - /data/workspace/comfyui-incremental-nodes/ComfyUI-TRELLIS2:/root/ComfyUI/custom_nodes/ComfyUI-TRELLIS2
+      - /data/workspace/comfyui-incremental-nodes/ComfyUI_AIIA:/root/ComfyUI/custom_nodes/ComfyUI_AIIA
+      - /data/workspace/comfyui-incremental-nodes/ComfyUI-kaola-IndexTTS2:/root/ComfyUI/custom_nodes/ComfyUI-kaola-IndexTTS2
       - /data/workspace/comfyui-incremental-nodes/scripts/fix-kornia.sh:/root/user-scripts/pre-start.sh
+      - /data/workspace/comfyui-incremental-nodes/scripts/install-aiia-deps.sh:/root/user-scripts/install-aiia-deps.sh
+      - /data/workspace/comfyui-incremental-nodes/scripts/install-indextts2-deps.sh:/root/user-scripts/install-indextts2-deps.sh
+      - /data/models/cosyvoice:/root/ComfyUI/models/cosyvoice:rw
+      - /data/models/IndexTTS-2:/root/ComfyUI/models/IndexTTS-2:ro
+      - /data/models/w2v-bert-2.0:/data/models/w2v-bert-2.0:ro
       - comfyui-cache:/tmp/hf_cache
     networks:
       - kais-net
@@ -289,6 +298,7 @@ services:
       dockerfile: Dockerfile
     image: kais-acestep:latest
     container_name: kais-acestep
+    user: "1000:1000"
     restart: unless-stopped
     profiles:
       - ace
