@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Architecture Alignment — Engine Consolidation
 status: executing
-stopped_at: Completed 17-04, Phase 17 complete. Ready for Phase 18.
-last_updated: "2026-06-12T13:50:27.759Z"
-last_activity: 2026-06-12 -- Phase 18 planning complete
+stopped_at: Completed 18-01, BackendType enum and engine classification. Next: 18-02.
+last_updated: "2026-06-12T13:54:52Z"
+last_activity: 2026-06-12 -- Completed 18-01 (BackendType enum + engine classification)
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 12
-  completed_plans: 4
-  percent: 20
+  completed_plans: 5
+  percent: 42
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 18
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-12 -- Phase 18 planning complete
+Plan: 01 complete
+Status: Ready for 18-02
+Last activity: 2026-06-12 -- Completed 18-01 (BackendType enum + engine classification)
 
-Progress: [████░░░░░░] 44%
+Progress: [████░░░░░░] 42%
 
 ## Performance Metrics
 
@@ -43,8 +43,8 @@ Progress: [████░░░░░░] 44%
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
 | 17 | 4 | - | - |
+| 18 | 1 | 3min | 3min |
 
 *Updated after each plan completion*
 
@@ -58,6 +58,9 @@ Progress: [████░░░░░░] 44%
 - Merge direction: research repo -> deploy repo (deploy encompasses all)
 - movie-agent fully removed, OpenClaw Agent replaces
 - ACE-Step stays standalone container, fix permission bug
+- BackendType str enum with 5 values (COMFYUI/SUBPROCESS/CLOUD/DOCKER/MOCK) as engine classification system
+- BaseEngine.backend_type returns MOCK default, subclasses override; cloud/docker base classes cover all child subclasses
+- JoyCaptionEngine classified as BackendType.COMFYUI (talks to ComfyUI HTTP)
 
 ### Pending Todos
 
@@ -78,5 +81,5 @@ Items acknowledged and carried forward from previous milestone close:
 ## Session Continuity
 
 Last session: 2026-06-12
-Stopped at: Completed 17-04, Phase 17 complete. Ready for Phase 18.
-Resume file: .planning/phases/phase-18/18-01-PLAN.md
+Stopped at: Completed 18-01, BackendType enum and engine classification. Next: 18-02.
+Resume file: .planning/phases/phase-18/18-02-PLAN.md
