@@ -6,6 +6,7 @@ Covers:
   WFB-02  build_flux_ipadapter_workflow
   WFB-03  build_hunyuan3d_workflow
   WFB-06  build_lipsync_workflow
+  WFB-07  build_frame_interpolate_workflow
 """
 from __future__ import annotations
 
@@ -18,6 +19,7 @@ from src.v6.engines.workflow_builder import (
     build_flux_ipadapter_workflow,
     build_hunyuan3d_workflow,
     build_lipsync_workflow,
+    build_frame_interpolate_workflow,
 )
 
 
@@ -250,4 +252,97 @@ class TestBuildLipsyncWorkflow:
                 video_input="test_video.mp4",
                 audio_input="../secret.wav",
                 seed=42,
+            )
+
+
+# ---------------------------------------------------------------------------
+# WFB-07: build_frame_interpolate_workflow
+# ---------------------------------------------------------------------------
+
+class TestBuildFrameInterpolateWorkflow:
+    """Verify RIFE frame interpolation workflow node graph."""
+
+    def test_build_frame_interpolate_workflow(self):
+        """Test 1: Returns dict with exactly 3 top-level keys (nodes '1' through '3')."""
+        wf = build_frame_interpolate_workflow(
+            video_input="test_video.mp4",
+            seed=42,
+        )
+        assert isinstance(wf, dict)
+        assert len(wf) == 3
+        assert set(wf.keys()) == {"1", "2", "3"}
+
+    def test_node1_vhs_load_video(self):
+        """Test 2: Node '1' has class_type VHS_LoadVideo with video='test_video.mp4'."""
+        wf = build_frame_interpolate_workflow(
+            video_input="test_video.mp4",
+            seed=42,
+        )
+        assert wf["1"]["class_type"] == "VHS_LoadVideo"
+        assert wf["1"]["inputs"]["video"] == "test_video.mp4"
+
+    def test_node2_rife_vfi_links(self):
+        """Test 3: Node '2' RIFE VFI links to node '1' output 0."""
+        wf = build_frame_interpolate_workflow(
+            video_input="test_video.mp4",
+            seed=42,
+        )
+        assert wf["2"]["class_type"] == "RIFE VFI"
+        assert wf["2"]["inputs"]["images"] == ["1", 0]
+
+    def test_node3_vhs_videocombine(self):
+        """Test 4: Node '3' VHS_VideoCombine links to node '2' output 0."""
+        wf = build_frame_interpolate_workflow(
+            video_input="test_video.mp4",
+            seed=42,
+        )
+        assert wf["3"]["class_type"] == "VHS_VideoCombine"
+        assert wf["3"]["inputs"]["images"] == ["2", 0]
+        assert wf["3"]["inputs"]["format"] == "video/h264-mp4"
+
+    def test_default_multiplier(self):
+        """Test 5: Default interpolation_factor=2 maps to RIFE multiplier=1."""
+        wf = build_frame_interpolate_workflow(
+            video_input="test_video.mp4",
+            interpolation_factor=2,
+        )
+        assert wf["2"]["inputs"]["multiplier"] == 1
+
+    def test_4x_multiplier(self):
+        """Test 6: interpolation_factor=4 maps to multiplier=3."""
+        wf = build_frame_interpolate_workflow(
+            video_input="test_video.mp4",
+            interpolation_factor=4,
+        )
+        assert wf["2"]["inputs"]["multiplier"] == 3
+
+    def test_8x_multiplier(self):
+        """Test 7: interpolation_factor=8 maps to multiplier=7."""
+        wf = build_frame_interpolate_workflow(
+            video_input="test_video.mp4",
+            interpolation_factor=8,
+        )
+        assert wf["2"]["inputs"]["multiplier"] == 7
+
+    def test_custom_ckpt_name(self):
+        """Test 8: Custom ckpt_name='rife49.pth' passed to RIFE VFI node."""
+        wf = build_frame_interpolate_workflow(
+            video_input="test_video.mp4",
+            ckpt_name="rife49.pth",
+        )
+        assert wf["2"]["inputs"]["ckpt_name"] == "rife49.pth"
+
+    def test_custom_output_fps(self):
+        """Test 9: Custom output_fps=60 passed to VHS_VideoCombine."""
+        wf = build_frame_interpolate_workflow(
+            video_input="test_video.mp4",
+            output_fps=60,
+        )
+        assert wf["3"]["inputs"]["frame_rate"] == 60
+
+    def test_video_path_traversal_rejected(self):
+        """Test 10: Path traversal rejection: video_input containing '..' raises ValueError."""
+        with pytest.raises(ValueError, match="video_input"):
+            build_frame_interpolate_workflow(
+                video_input="../etc/passwd",
             )
