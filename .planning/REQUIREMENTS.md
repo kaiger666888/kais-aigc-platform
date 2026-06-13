@@ -1,100 +1,67 @@
-# Requirements: kais-aigc-platform v1.3
+# Requirements: kais-aigc-platform v1.4
 
-**Defined:** 2026-06-12
+**Defined:** 2026-06-13
 **Core Value:** 让 AI 短剧制作流程跑通——从角色设计到成片的完整管线能自动执行并产出可交付成片
 
-## v1.3 Requirements — Architecture Alignment
+## v1.4 Requirements — Production Verification + Repo Governance
 
-### MERGE — v6 代码合并
+### VERIFY — Live Runtime Verification（关闭 v1.3 deferred gaps）
 
-- [ ] **MERGE-01**: 对比研发版 (kais-gold-team) 与部署版 (aigc-platform) v6 代码差异，生成变更清单
-- [ ] **MERGE-02**: 将研发版新增引擎代码合并回部署版（Hunyuan3D-2mv, Wan2.1 GGUF 等）
-- [ ] **MERGE-03**: 更新部署版 Dockerfile 和 Python 依赖以支持合并后代码
-- [ ] **MERGE-04**: 回归测试验证合并后所有现有功能正常
+- [ ] **VERIFY-01**: `docker compose -f docker-compose.v9.yml up -d` 启动后，核心 7 服务（comfyui-primary, comfyui-auxiliary, kais-core-backend, kais-gold-team, audit-db, redis, hermes-agent）所有 healthcheck 在 start_period 内通过
+- [ ] **VERIFY-02**: `docker compose -f docker-compose.v9.yml --profile ace up -d kais-acestep` 启动后容器健康（`Status: healthy`），日志中无 `PermissionError` — 关闭 v1.3 FIX-02
+- [ ] **VERIFY-03**: 通过 `POST http://localhost:8002/api/v1/tasks {"task_type":"music", ...}` 触发 ACE-Step 生成可播放的 MP3 文件（非 mock 输出），端到端跑通 — 关闭 v1.3 FIX-03
+- [ ] **VERIFY-04**: `docker compose -f docker-compose.v9.yml build kais-core-backend kais-gold-team` 构建成功，依赖安装无错误 — 关闭 v1.3 MERGE-03
 
-### WFB — Workflow Builder 补全
+### FIX — v1.3 ENG-04 代码 Bug 修复
 
-- [x] **WFB-01**: 实现 `build_flux_dev_workflow`（FLUX Dev 文生图）
-- [x] **WFB-02**: 实现 `build_flux_ipadapter_workflow`（FLUX + IP-Adapter 面部保持）
-- [x] **WFB-03**: 实现 `build_hunyuan3d_workflow`（Hunyuan3D 3D 生成）
-- [x] **WFB-04**: 实现 `build_trellis_image_to_3d_workflow`（TRELLIS2 图转 3D）
-- [x] **WFB-05**: 实现 `build_flux_trellis_full_workflow`（FLUX + TRELLIS2 完整链）
-- [x] **WFB-06**: 实现 `build_lipsync_workflow`（LatentSync 口型同步，params.extra.mode 路由）
-- [x] **WFB-07**: 实现 `build_frame_interpolate_workflow`（RIFE 帧插值，params.extra.mode 路由）
-- [x] **WFB-08**: 更新 workflow_builder 路由表，新增工作流注册到对应 TaskType
+- [ ] **FIX-04**: `docker/gold-team/src/v6/engines/acestep.py` 的 `ACEStepEngine.backend_type` property 显式返回 `BackendType.DOCKER`（替代继承的 MOCK）— 关闭 v1.3 ENG-04
+- [ ] **FIX-05**: ACEStepEngine 在生产 `main.py` 引擎注册表中显式注册（不依赖 YAML registry 兜底），`/api/v1/engines` 响应中 ACE-Step 归类为 `backend_type: "docker"`
+- [ ] **FIX-06**: 添加回归测试 `test_acestep_backend_type`，断言 `ACEStepEngine().backend_type == BackendType.DOCKER`，防止分类回退
 
-### TASK — TaskType 路由优化
+### REPO — Sibling Repo 治理
 
-- [x] **TASK-01**: 口型同步能力通过 VIDEO_FINAL 的 params.extra.mode = "lip_sync" 路由
-- [x] **TASK-02**: 帧插值能力通过 UPSCALE 的 params.extra.mode = "frame_interp" 路由
-- [x] **TASK-03**: 角色一致性（IP-Adapter/InstantID/PhotoMaker）通过 IMAGE_DRAW 的 params.extra 路由
-- [x] **TASK-04**: 更新 executor/router 路由逻辑支持 params.extra 细分
-
-### ENG — Engine Registration 统一
-
-- [x] **ENG-01**: 统一引擎注册为按后端类型（ComfyUI/独立API/云端/子进程）
-- [x] **ENG-02**: ComfyUI 模型不新增 Engine 类，全部走 ComfyUIEngine + workflow_builder
-- [x] **ENG-03**: 验证 ComfyUIEngine 双引擎自动路由（Primary/Auxiliary）
-- [x] **ENG-04**: 验证 DockerPollingAPIEngine (ACE-Step) 和 CloudEngine 正常
-
-### CLN — movie-agent 清退
-
-- [x] **CLN-01**: 从 Docker Compose 文件移除 movie-agent 服务定义 — Phase 19 regression tests (TestMovieAgentRemoval) verify zero movie-agent references in Docker Compose files
-- [x] **CLN-02**: 从代码中移除 movie-agent 引用和配置 — Phase 19 regression tests verify zero movie-agent references in source code, imports, configs
-- [x] **CLN-03**: 确认 OpenClaw Agent 完全覆盖 movie-agent 编排功能 — OpenClaw Agent verified as replacement; movie-agent fully removed
-
-### FIX — ACE-Step 权限修复
-
-- [x] **FIX-01**: 修复 ACE-Step 容器 checkpoints 目录 volume mount 权限 — Phase 19.1 Plan 01 adds external-mode detection to ACEStepEngine; container permissions resolved by docker-compose.v9.yml user directive and external API mode
-- [x] **FIX-02**: 验证 ACE-Step 容器健康启动，不再持续重启 — ACEStepEngine external mode health-checks external container instead of launching subprocess; Phase 19 verified music generation routing
-- [x] **FIX-03**: 端到端验证音乐生成通过统一 API 正常工作 — Phase 19 regression tests verified ACE-Step music generation routing through unified API
+- [ ] **REPO-01**: 审计 19 个 sibling repo（`kais-*` 系列 + `ACE-Step-1.5` + `comfyui-incremental-nodes` + `comfyui-output`），按 **active / legacy / archived** 三态分类
+- [ ] **REPO-02**: 为每个 repo 记录四项元数据：角色描述、最后 git commit 日期、是否被 `docker-compose.v9.yml` 引用、是否被其他 repo 依赖
+- [ ] **REPO-03**: 在 `.planning/REPO-INVENTORY.md` 输出完整 repo 清单表格（含三态分类、元数据、依赖关系图）
+- [ ] **REPO-04**: 确认死亡的 repo 归档：`git mv` 到 `.archive/repos/` 目录，或在 repo 内 README 顶部加 `DEPRECATED` 标记（**不删除**，保留 git 历史）
+- [ ] **REPO-05**: 输出 Service ↔ Repo 依赖地图：每个 compose service 的 `build.context` 来自哪个 repo 或 in-tree 路径，明确边界
+- [ ] **REPO-06**: 在 `docs/REPO-MAP.md` 输出新加入者 5 分钟读懂的仓库布局文档（含 active repo 列表 + 调用关系图 + 部署入口）
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| 20 步管线实现 | 属于 OpenClaw Agent skill 开发，非引擎范畴 |
-| 前端改动 | 核心后端和引擎对齐不影响前端 |
-| 云端 API 新增 | Kling/Jimeng/Seedance 已有，不需新增 |
-| 服务层重构 | 技术债务，非架构对齐核心需求 |
-| review-platform 改动 | 可选服务，不影响引擎核心 |
+| v1.3 Nyquist VALIDATION.md 回填（phase 15/16/18/19） | 纯文档治理，不阻塞 v1.4 核心目标；后续可单独跑 `/gsd:validate-phase N` 补 |
+| v1.3 SUMMARY.md frontmatter 补全 | 同上，纯文档整理 |
+| 新功能开发（LatentSync 生产化、IP-Adapter FaceID、InstantID、PhotoMaker、Real-ESRGAN、GFPGAN、RIFE） | 属于 PROJECT.md Active 列表，留待 v1.5+ |
+| 前端改动 | v1.4 是后端/基础设施治理，前端不动 |
+| 真正物理删除死 repo | 风险过高，归档/标注 deprecated 即可（PROJECT.md 决策 #4） |
+| OpenClaw Agent skill 开发 | 属于 agent 编排层，非引擎/治理范畴 |
+| 新增 sibling repo | v1.4 是收敛而非扩张 |
 
 ## Traceability
 
-| Requirement | Phase | Status | Satisfied-By |
-|-------------|-------|--------|--------------|
-| FIX-01 | Phase 15 | Complete | Phase 19.1 |
-| FIX-02 | Phase 15 | Complete | Phase 19.1 |
-| FIX-03 | Phase 15 | Complete | Phase 19 + Phase 19.1 |
-| CLN-01 | Phase 15 | Complete | Phase 19 |
-| CLN-02 | Phase 15 | Complete | Phase 19 |
-| CLN-03 | Phase 15 | Complete | Phase 19 |
-| MERGE-01 | Phase 16 | Pending | N/A |
-| MERGE-02 | Phase 16 | Pending | N/A |
-| MERGE-03 | Phase 16 | Pending | N/A |
-| MERGE-04 | Phase 16 | Pending | N/A |
-| WFB-01 | Phase 17 | Complete | Phase 17 |
-| WFB-02 | Phase 17 | Complete | Phase 17 |
-| WFB-03 | Phase 17 | Complete | Phase 17 |
-| WFB-04 | Phase 17 | Complete | Phase 17 |
-| WFB-05 | Phase 17 | Complete | Phase 17 |
-| WFB-06 | Phase 17 | Complete | Phase 17 |
-| WFB-07 | Phase 17 | Complete | Phase 17 |
-| WFB-08 | Phase 17 | Complete | Phase 17 |
-| ENG-01 | Phase 18 | Complete | Phase 18 |
-| ENG-02 | Phase 18 | Complete | Phase 18 |
-| ENG-03 | Phase 18 | Complete | Phase 18 |
-| ENG-04 | Phase 18 | Complete | Phase 18 |
-| TASK-01 | Phase 18 | Complete | Phase 18 |
-| TASK-02 | Phase 18 | Complete | Phase 18 |
-| TASK-03 | Phase 18 | Complete | Phase 18 |
-| TASK-04 | Phase 18 | Complete | Phase 18 |
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| VERIFY-01 | TBD (roadmap) | Pending |
+| VERIFY-02 | TBD (roadmap) | Pending |
+| VERIFY-03 | TBD (roadmap) | Pending |
+| VERIFY-04 | TBD (roadmap) | Pending |
+| FIX-04 | TBD (roadmap) | Pending |
+| FIX-05 | TBD (roadmap) | Pending |
+| FIX-06 | TBD (roadmap) | Pending |
+| REPO-01 | TBD (roadmap) | Pending |
+| REPO-02 | TBD (roadmap) | Pending |
+| REPO-03 | TBD (roadmap) | Pending |
+| REPO-04 | TBD (roadmap) | Pending |
+| REPO-05 | TBD (roadmap) | Pending |
+| REPO-06 | TBD (roadmap) | Pending |
 
 **Coverage:**
-- v1.3 requirements: 26 total
-- Mapped to phases: 26
-- Unmapped: 0
+- v1.4 requirements: 13 total
+- Mapped to phases: 0 (awaiting roadmap)
+- Unmapped: 13 ⚠️
 
 ---
-*Requirements defined: 2026-06-12*
-*Last updated: 2026-06-13 after REQUIREMENTS.md reconciliation (19.1 Plan 03)*
+*Requirements defined: 2026-06-13*
+*Last updated: 2026-06-13 after v1.4 milestone kickoff*
