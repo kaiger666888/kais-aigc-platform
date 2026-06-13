@@ -7,11 +7,10 @@
 
 ### VERIFY — Live Runtime Verification（关闭 v1.3 deferred gaps）
 
-- [ ] **VERIFY-01**: `docker compose -f docker-compose.v9.yml up -d` 启动后，核心 7 服务（comfyui-primary, comfyui-auxiliary, kais-core-backend, kais-gold-team, audit-db, redis, hermes-agent）所有 healthcheck 在 start_period 内通过 *(pending gold-team image build)*
-- [ ] **VERIFY-02**: `docker compose -f docker-compose.v9.yml --profile ace up -d kais-acestep` 启动后容器健康（`Status: healthy`），日志中无 `PermissionError` — 关闭 v1.3 FIX-02 *(pending stack startup)*
-- [ ] **VERIFY-03**: 通过 `POST http://localhost:8002/api/v1/tasks {"task_type":"music", ...}` 触发 ACE-Step 生成可播放的 MP3 文件（非 mock 输出），端到端跑通 — 关闭 v1.3 FIX-03 *(pending stack startup)*
-- [x] **VERIFY-04a**: `kais-core-backend` 镜像构建成功，依赖安装无错误 — image `kais-aigc-platform-kais-core-backend` built
-- [ ] **VERIFY-04b**: `kais-gold-team` 镜像构建成功 — *first attempt surfaced transient `ReadTimeoutError` on chatterbox-tts download from pythonhosted.org; retrying with cached layers (base/python/cuda already cached, only failed pip step reruns)*
+- [x] **VERIFY-01**: `docker compose -f docker-compose.v9.yml up -d` 启动后，核心 7 服务（comfyui-primary, comfyui-auxiliary, kais-core-backend, kais-gold-team, audit-db, redis, hermes-agent）所有 healthcheck 在 start_period 内通过 *(all 7 confirmed healthy, 33min uptime at audit)*
+- [ ] **VERIFY-02**: `docker compose -f docker-compose.v9.yml --profile ace up -d kais-acestep` 启动后容器健康（`Status: healthy`），日志中无 `PermissionError` — 关闭 v1.3 FIX-02 *(❌ INFRASTRUCTURE-BLOCKED: ACE-Step Dockerfile requires `nvidia/cuda:12.8.1-runtime-ubuntu22.04` + `ghcr.io/astral-sh/uv:latest`. Chinese mirrors report "manifest unknown: 官方仓库可能已删除该镜像" for CUDA 12.8.x tags. Direct Docker Hub + ghcr.io access fail with EOF. Requires user action: VPN pull or mirror fix.)*
+- [ ] **VERIFY-03**: 通过 `POST http://localhost:8002/api/v1/tasks {"task_type":"music", ...}` 触发 ACE-Step 生成可播放的 MP3 文件（非 mock 输出），端到端跑通 — 关闭 v1.3 FIX-03 *(❌ Depends on VERIFY-02; same infrastructure blocker)*
+- [x] **VERIFY-04**: `docker compose -f docker-compose.v9.yml build kais-core-backend kais-gold-team` 构建成功，依赖安装无错误 — 关闭 v1.3 MERGE-03 *(Both images built after Dockerfile PEP 517 fix in commit e0f7fd9)*
 
 ### FIX — v1.3 ENG-04 代码 Bug 修复
 
