@@ -45,8 +45,8 @@
 
 ### FIX — ACE-Step 权限修复
 
-- [ ] **FIX-01**: 修复 ACE-Step 容器 checkpoints 目录 volume mount 权限
-- [ ] **FIX-02**: 验证 ACE-Step 容器健康启动，不再持续重启
+- [x] **FIX-01**: 修复 ACE-Step 容器 checkpoints 目录 volume mount 权限
+- [x] **FIX-02**: 验证 ACE-Step 容器健康启动，不再持续重启
 - [ ] **FIX-03**: 端到端验证音乐生成通过统一 API 正常工作
 
 ## Out of Scope
@@ -63,8 +63,8 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FIX-01 | Phase 15 | Pending |
-| FIX-02 | Phase 15 | Pending |
+| FIX-01 | Phase 19.1 | Complete |
+| FIX-02 | Phase 19.1 | Complete |
 | FIX-03 | Phase 15 | Pending |
 | CLN-01 | Phase 15 | Pending |
 | CLN-02 | Phase 15 | Pending |
