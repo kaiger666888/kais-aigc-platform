@@ -47,8 +47,8 @@
 | FIX-05 | Phase 20 | ✅ Complete | `main.py` Docker Backend section + ACESTEP_ENABLED gate; commit 1d5996a |
 | FIX-06 | Phase 20 | ✅ Complete | `TestACEStepBackendType` 4 assertions + updated `test_02_backend_type_is_docker`; 121/121 tests pass |
 | VERIFY-01 | Phase 21 | ✅ Complete | All 7 core services `healthy` (33min uptime at audit); `docker compose ps` confirms |
-| VERIFY-02 | Phase 21 | ❌ Blocked | Infrastructure: Chinese mirrors report `manifest unknown` for `nvidia/cuda:12.8.x`; ghcr.io unreachable (EOF). User action required. |
-| VERIFY-03 | Phase 21 | ❌ Blocked | Depends on VERIFY-02 — same base image fetch blocker |
+| VERIFY-02 | Phase 21 | ✅ Complete | ACE-Step API `models_initialized:true`, engine `acestep-internal` registered with backend_type=docker, no PermissionError. Achieved via localhost subprocess mode + transformers 4.57.1 + checkpoints symlink (commit ccf78a0). |
+| VERIFY-03 | Phase 21 | ⚠️ Hardware-Blocked | Task routing works (job submitted, engine_id returned); inference OOMs — ACE-Step XL model (23.5GB) + inference working set > 24GB RTX 3090. |
 | VERIFY-04 | Phase 21 | ✅ Complete | Both Dockerfiles build successfully. Dockerfile bug fixed in e0f7fd9 (PEP 517 build backends). Images: `kais-aigc-platform-kais-core-backend` + `kais-aigc-platform-kais-gold-team` |
 | REPO-01 | Phase 22 | ✅ Complete | 19 repos classified ACTIVE/LEGACY/ARCHIVED in `.planning/REPO-INVENTORY.md` |
 | REPO-02 | Phase 22 | ✅ Complete | 4 metadata fields per repo (role / last commit / commits / compose ref) |
