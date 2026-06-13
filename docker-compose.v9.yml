@@ -495,6 +495,7 @@ services:
       dockerfile: Dockerfile
     container_name: kais-lora-trainer
     restart: "no"  # 按需启动, 不自动重启
+    shm_size: "16g"  # DataLoader 需要足够共享内存
     ports:
       - "${LORA_TRAINER_PORT:-8070}:8070"
     environment:
@@ -534,6 +535,9 @@ services:
       start_period: 30s
     profiles:
       - training
+    # ⚠️ 训练时需确保 GPU 1 (3090) 有足够显存 (>15GB free)
+    # 建议先停 comfyui-primary 和 ace-step:
+    #   docker stop comfyui-primary kais-acestep
 
 # =============================================================================
 # Networks

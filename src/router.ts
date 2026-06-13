@@ -241,6 +241,9 @@ import route235 from "./routes/v1/trellis2/status";
 import route236 from "./routes/v1/tts/config";
 import route237 from "./routes/v1/tts/speak";
 import route238 from "./routes/v1/tts/status";
+import route239 from "./routes/v1/lora-train";
+import fluxSceneGen from "./routes/production/flux/sceneGenerate";
+import fluxStatus from "./routes/production/flux/status";
 
 export default async (app: Express) => {
   app.use("/api/agents/clearMemory", route1);
@@ -483,4 +486,12 @@ export default async (app: Express) => {
   app.use("/api/v1/tts/config", route236);
   app.use("/api/v1/tts/speak", route237);
   app.use("/api/v1/tts/status", route238);
+  app.use("/api/v1/lora-train", route239);
+
+  // Flux Dev FP8 — 场景一致性
+  app.use("/api/production/flux/scene-generate", fluxSceneGen);
+  app.use("/api/production/flux/storyboard", fluxSceneGen);
+  app.use("/api/production/flux/status", fluxStatus);
+  app.use("/api/production/flux/start", fluxStatus);
+  app.use("/api/production/flux/stop", fluxStatus);
 }
