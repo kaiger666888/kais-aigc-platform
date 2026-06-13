@@ -143,7 +143,11 @@ def build_prompt(
 
 
 def submit_and_wait(prompt: dict, timeout: int = 1800):
-    """Submit prompt to ComfyUI and wait for completion."""
+    """Submit prompt to ComfyUI and wait for completion.
+
+    Returns (status_dict, output_files) where output_files is a list of
+    (filename, subfolder, type) tuples.
+    """
 
     data = json.dumps({"prompt": prompt}).encode()
     req = urllib.request.Request(
@@ -164,25 +168,87 @@ def submit_and_wait(prompt: dict, timeout: int = 1800):
                     if st.get("status", {}).get("completed", False):
                         elapsed = time.time() - start
                         print(f"Done in {elapsed:.0f}s")
+                        outputs = []
                         for nid, out in st.get("outputs", {}).items():
                             for typ in out:
                                 for a in out[typ]:
                                     fn = a["filename"]
                                     sf = a.get("subfolder", "")
+                                    outputs.append((fn, sf, typ))
                                     path = f"{sf}/{fn}" if sf else fn
                                     print(f"  Output: {path}")
-                        return st
+                        return st, outputs
                     msgs = st.get("status", {}).get("messages", [])
                     for m in msgs:
                         if "error" in str(m).lower() or "exception" in str(m).lower():
                             print(f"Error: {str(m)[:500]}")
-                            return None
+                            return None, []
         except Exception:
             pass
         time.sleep(20)
 
     print("Timeout!")
-    return None
+    return None, []
+
+
+def build_repaint_prompt(
+    input_filename: str,
+    caption: str,
+    lyrics: str,
+    duration: float,
+    bpm: int,
+    keyscale: str,
+    seed: int,
+    denoise: float = 0.6,
+    steps: int = 20,
+    cfg: float = 3.5,
+    output_prefix: str = "acetest/repaint",
+):
+    """Build a Repaint prompt: take generated audio and refine it."""
+    return {
+        "1": {"class_type": "LoadAudio", "inputs": {"audio": input_filename}},
+        "5": {
+            "class_type": "AceStepSFTGenerate",
+            "inputs": {
+                "diffusion_model": "acestep_v1.5_xl_sft.safetensors",
+                "text_encoder_1": "qwen_0.6b_ace15.safetensors",
+                "text_encoder_2": "qwen_4b_ace15.safetensors",
+                "vae_name": "ace_1.5_vae.safetensors",
+                "caption": caption,
+                "lyrics": lyrics,
+                "instrumental": False,
+                "seed": seed,
+                "steps": steps,
+                "cfg": cfg,
+                "sampler_name": "euler",
+                "scheduler": "normal",
+                "denoise": denoise,
+                "infer_method": "ode",
+                "guidance_mode": "apg",
+                "duration": duration,
+                "bpm": bpm,
+                "timesignature": "4",
+                "language": "en",
+                "keyscale": keyscale,
+                "generate_audio_codes": False,
+                "use_tiled_vae": False,
+                "apg_eta": 0.0,
+                "apg_momentum": -0.75,
+                "apg_norm_threshold": 2.5,
+                "shift": 3.0,
+                "lm_cfg_scale": 2.0,
+                "lm_temperature": 0.85,
+                "lm_top_p": 0.9,
+                "lm_top_k": 0,
+                "lm_min_p": 0.0,
+                "latent_or_audio": ["1", 0],
+            },
+        },
+        "6": {
+            "class_type": "SaveAudio",
+            "inputs": {"audio": ["5", 0], "filename_prefix": output_prefix},
+        },
+    }
 
 
 def main():
@@ -195,6 +261,10 @@ def main():
     parser.add_argument("--cfg", type=float, default=7.0, help="CFG scale")
     parser.add_argument("--sampler", default="euler", help="Sampler name (euler/dpmpp_2m)")
     parser.add_argument("--output-prefix", default="acetest/epic_xl4blm", help="Output filename prefix")
+    parser.add_argument("--no-repaint", action="store_true", help="Skip Repaint post-processing")
+    parser.add_argument("--repaint-denoise", type=float, default=0.6, help="Repaint denoise strength (0.3-0.8)")
+    parser.add_argument("--repaint-steps", type=int, default=20, help="Repaint diffusion steps")
+    parser.add_argument("--repaint-cfg", type=float, default=3.5, help="Repaint CFG scale")
     args = parser.parse_args()
 
     prompt = build_prompt(
@@ -210,12 +280,43 @@ def main():
 
     print(f"Generating: {args.duration}s {args.keyscale} via XL-SFT + 4B LM...")
     print(f"  Steps: {args.steps} | CFG: {args.cfg} | Sampler: {args.sampler}")
-    result = submit_and_wait(prompt)
-    if result:
-        print("Success!")
-    else:
-        print("Failed!")
+    result, outputs = submit_and_wait(prompt)
+    if not result:
+        print("Generation failed!")
         exit(1)
+
+    # ── Repaint post-processing ────────────────────────────────────────
+    if not args.no_repaint and outputs:
+        # Find the generated audio file
+        audio_files = [(fn, sf) for fn, sf, typ in outputs if typ == "audio"]
+        if not audio_files:
+            print("No audio output found, skipping repaint.")
+        else:
+            gen_fn, gen_sf = audio_files[0]
+            print(f"\n{'='*60}")
+            print(f"Repaint: denoise={args.repaint_denoise}, steps={args.repaint_steps}, cfg={args.repaint_cfg}")
+            print(f"  Input: {gen_sf}/{gen_fn}" if gen_sf else f"  Input: {gen_fn}")
+            repaint_prefix = args.output_prefix.replace("acetest/epic_xl4blm", "acetest/repaint_xl4blm")
+            repaint_prompt = build_repaint_prompt(
+                input_filename=gen_fn,
+                caption=TURBO_TAGS,
+                lyrics=LYRICS,
+                duration=args.duration,
+                bpm=args.bpm,
+                keyscale=args.keyscale,
+                seed=args.seed + 1000,
+                denoise=args.repaint_denoise,
+                steps=args.repaint_steps,
+                cfg=args.repaint_cfg,
+                output_prefix=repaint_prefix,
+            )
+            rr, ro = submit_and_wait(repaint_prompt)
+            if rr:
+                print("Repaint complete!")
+            else:
+                print("Repaint failed (original output is still usable)")
+
+    print("\nSuccess!")
 
 
 if __name__ == "__main__":

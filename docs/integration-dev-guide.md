@@ -64,13 +64,13 @@
 ```bash
 # 开发模式（mock GPU 服务，不需要真实 GPU）
 cd /home/kai/workspace/kais-aigc-platform
-docker compose -f docker-compose.v6.yml --profile mock up -d
+docker compose -f docker-compose.v9.yml --profile mock up -d
 
 # 生产模式（需要 RTX 3090 + ComfyUI）
-docker compose -f docker-compose.v6.yml up -d
+docker compose -f docker-compose.v9.yml up -d
 
 # 检查所有服务健康
-docker compose -f docker-compose.v6.yml ps
+docker compose -f docker-compose.v9.yml ps
 curl http://localhost:8000/health  # core-backend
 curl http://localhost:8001/health  # movie-agent
 curl http://localhost:8002/health  # gold-team
@@ -87,10 +87,10 @@ curl http://localhost:8188/system_stats  # ComfyUI
 vim /home/kai/workspace/kais-aigc-platform/docker/movie-agent/src/lib/xxx.js
 
 # 2. 重建并重启该服务
-docker compose -f docker-compose.v6.yml up -d --build kais-movie-agent
+docker compose -f docker-compose.v9.yml up -d --build kais-movie-agent
 
 # 3. 查看日志
-docker compose -f docker-compose.v6.yml logs -f kais-movie-agent
+docker compose -f docker-compose.v9.yml logs -f kais-movie-agent
 ```
 
 **快速热更新（不改 Dockerfile 的情况）：**
@@ -198,5 +198,5 @@ curl http://localhost:8001/api/pipeline/pipe_XXX/status
 
 ---
 
-*最后更新：2026-05-26*
+*最后更新：2026-06-11*
 *下次更新：接口变更时*

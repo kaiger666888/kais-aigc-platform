@@ -250,14 +250,14 @@
     },
     {
       "id": 8,
-      "type": "EmptyQwenImageLayeredLatentImage",
+      "type": "EmptyLatentImage",
       "pos": [
         1200,
         0
       ],
       "size": [
         315,
-        120
+        100
       ],
       "flags": {},
       "order": 0,
@@ -276,10 +276,9 @@
       "widgets_values": [
         1024,
         1024,
-        3,
         1
       ],
-      "title": "Layered Latent (1024x1024, 3 layers)"
+      "title": "Empty Latent (1024x1024)"
     },
     {
       "id": 9,

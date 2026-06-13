@@ -43,7 +43,7 @@ module.exports = {
    ...
    \`\`\`
 
-如果有服务没运行，先尝试 \`docker compose -f docker-compose.v6.yml up -d\` 启动。如果启动失败，记录失败原因并继续（后续测试标记为 SKIP）。`,
+如果有服务没运行，先尝试 \`docker compose -f docker-compose.v9.yml up -d\` 启动。如果启动失败，记录失败原因并继续（后续测试标记为 SKIP）。`,
       },
       output: "/tmp/integration-test-results/00-env-bootstrap.md"
     },

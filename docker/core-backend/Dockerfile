@@ -39,15 +39,19 @@ COPY packages/infinite-canvas/dist/ ./image-assets/web/infinite-canvas/
 # Strip electron artifacts if any
 RUN rm -rf node_modules/electron node_modules/electron-builder 2>/dev/null; true
 
-# Copy entrypoint script
+# Mount host Docker binary instead of installing docker.io
+# (installed via docker-compose volume mount: /usr/bin/docker:/usr/bin/docker)
+RUN true
+
 COPY docker/core-backend/entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
-# Create non-root user
-RUN groupadd -r kais && useradd -r -g kais kais && \
+# Create docker group with host GID and non-root user
+RUN groupadd -g 984 docker 2>/dev/null || true && \
+    groupadd -r kais && useradd -r -g kais kais && \
+    usermod -aG docker kais && \
     chown -R kais:kais /app
-#USER root
-USER kais
+USER root
 
 ENV NODE_ENV=production
 ENV PORT=8000

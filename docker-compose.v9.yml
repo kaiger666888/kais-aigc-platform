@@ -77,9 +77,13 @@ services:
       - /data/workspace/comfyui-incremental-nodes/ComfyUI-TRELLIS2:/root/ComfyUI/custom_nodes/ComfyUI-TRELLIS2
       - /data/workspace/comfyui-incremental-nodes/ComfyUI_AIIA:/root/ComfyUI/custom_nodes/ComfyUI_AIIA
       - /data/workspace/comfyui-incremental-nodes/ComfyUI-kaola-IndexTTS2:/root/ComfyUI/custom_nodes/ComfyUI-kaola-IndexTTS2
+      - /data/workspace/comfyui-incremental-nodes/facerestore_cf:/root/ComfyUI/custom_nodes/facerestore_cf
       - /data/workspace/comfyui-incremental-nodes/scripts/fix-kornia.sh:/root/user-scripts/pre-start.sh
+      - /data/workspace/comfyui-incremental-nodes/scripts/install-insightface.sh:/root/user-scripts/install-insightface.sh
+      - /data/workspace/comfyui-incremental-nodes/scripts/install-training-deps.sh:/root/user-scripts/install-training-deps.sh
       - /data/workspace/comfyui-incremental-nodes/scripts/install-aiia-deps.sh:/root/user-scripts/install-aiia-deps.sh
       - /data/workspace/comfyui-incremental-nodes/scripts/install-indextts2-deps.sh:/root/user-scripts/install-indextts2-deps.sh
+      - /data/workspace/comfyui-incremental-nodes/scripts/install-facerestore-deps.sh:/root/user-scripts/install-facerestore-deps.sh
       - /data/models/cosyvoice:/root/ComfyUI/models/cosyvoice:rw
       - /data/models/IndexTTS-2:/root/ComfyUI/models/IndexTTS-2:ro
       - /data/models/w2v-bert-2.0:/data/models/w2v-bert-2.0:ro

@@ -33,18 +33,33 @@ function copyToContainer(localPath: string, containerPath: string) {
 }
 
 /**
- * Build LiconMSR workflow matching official LTX-2.3 MSR sample workflow V1.
- *
- * Key differences from the old version:
- * - Added full audio pipeline (LTXVAudioVAELoader → LTXVEmptyLatentAudio → LTXVConcatAVLatent → separate → LTXVAudioVAEDecode)
- * - Removed incorrect LTXVAddGuide per-image nodes (not in official workflow)
- * - Sampler takes AV-concatenated latent from LTXVConcatAVLatent
- * - CreateVideo includes audio output
+ * LiconMSR 的 frame_count 必须是 [17, 25, 33, 41] 之一。
+ * 这是参考图序列长度，不是视频时长。
+ * 视频时长由 EmptyLTXVLatentVideo.length 控制。
+ */
+const MSR_FRAME_COUNTS = [17, 25, 33, 41];
+
+function pickMSRFrameCount(refImageCount: number): number {
+  // 根据 ref 数量选合适的 frame_count：图片越多可以选更大的值
+  // 确保每张 ref 至少重复4帧以上
+  const maxByRefs = refImageCount * 8;
+  let best = MSR_FRAME_COUNTS[0];
+  for (const fc of MSR_FRAME_COUNTS) {
+    if (fc <= maxByRefs) best = fc;
+  }
+  return best;
+}
+
+// LTX-2.3 numFrames 需要 8n+1
+function roundTo8nPlus1(raw: number): number {
+  return Math.ceil((raw - 1) / 8) * 8 + 1;
+}
+
+/**
+ * Build LiconMSR workflow — 支持最多5张参考图 (ref1~ref4 + background)。
  */
 function buildMSRWorkflow(opts: {
-  ref1Filename: string;
-  ref2Filename: string;
-  backgroundFilename: string;
+  refFilenames: string[];       // 1~5 images: [ref1, ref2, ..., refN] (最后一张作为 background)
   prompt: string;
   negativePrompt: string;
   width: number;
@@ -53,15 +68,43 @@ function buildMSRWorkflow(opts: {
   msrFrameCount: number;
   fps: number;
   seed: number;
-  loraStrength: number;
   filenamePrefix: string;
 }) {
   const {
-    ref1Filename, ref2Filename, backgroundFilename,
-    prompt, negativePrompt,
+    refFilenames, prompt, negativePrompt,
     width, height, numFrames, msrFrameCount, fps,
-    seed, loraStrength, filenamePrefix,
+    seed, filenamePrefix,
   } = opts;
+
+  // refFilenames: index 0 = ref1, 1 = ref2, ... last = background
+  // LiconMSR accepts slots "1","2","3","4" + "background"
+  const backgroundFilename = refFilenames[refFilenames.length - 1];
+  const refSlots = refFilenames.slice(0, -1); // everything except last
+
+  // Assign reference images to LiconMSR input slots "1","2","3","4"
+  const msrInputs: Record<string, any> = {
+    width,
+    height,
+    frame_count: msrFrameCount,
+    background: ["30", 0],
+  };
+  const refSlotNames = ["1", "2", "3", "4"];
+  const loadImageNodes: Record<string, any> = {};
+  refSlots.forEach((filename, i) => {
+    if (i < 4) {
+      const nodeId = 40 + i; // 40, 41, 42, 43
+      loadImageNodes[String(nodeId)] = {
+        class_type: "LoadImage",
+        inputs: { image: filename },
+      };
+      msrInputs[refSlotNames[i]] = [String(nodeId), 0];
+    }
+  });
+  // background loader
+  loadImageNodes["30"] = {
+    class_type: "LoadImage",
+    inputs: { image: backgroundFilename },
+  };
 
   return {
     // === Model & Text Encoder ===
@@ -82,7 +125,7 @@ function buildMSRWorkflow(opts: {
       inputs: {
         model: ["3", 0],
         lora_name: LTX_DEFAULTS.msrLoraName,
-        strength_model: loraStrength,
+        strength_model: 1.0,
       },
     },
 
@@ -96,7 +139,7 @@ function buildMSRWorkflow(opts: {
       inputs: { text: negativePrompt, clip: ["26", 0] },
     },
 
-    // === Audio VAE (for AV pipeline) ===
+    // === Audio VAE ===
     "21": {
       class_type: "LTXVAudioVAELoader",
       inputs: { ckpt_name: LTX_DEFAULTS.msrModelName },
@@ -123,31 +166,13 @@ function buildMSRWorkflow(opts: {
       },
     },
 
-    // === Reference Image Loaders ===
-    "29": {
-      class_type: "LoadImage",
-      inputs: { image: ref1Filename },
-    },
-    "40": {
-      class_type: "LoadImage",
-      inputs: { image: ref2Filename },
-    },
-    "30": {
-      class_type: "LoadImage",
-      inputs: { image: backgroundFilename },
-    },
+    // === Reference Image Loaders (dynamic) ===
+    ...loadImageNodes,
 
     // === LiconMSR Multi-Reference Video ===
     "28": {
       class_type: "LiconMSR",
-      inputs: {
-        width,
-        height,
-        frame_count: msrFrameCount,
-        "1": ["40", 0],
-        "2": ["29", 0],
-        background: ["30", 0],
-      },
+      inputs: msrInputs,
     },
 
     // === IC-LoRA Video Guide Injection ===
@@ -169,7 +194,7 @@ function buildMSRWorkflow(opts: {
       },
     },
 
-    // === Concat AV Latents (video latent from IC-LoRA guide + empty audio latent) ===
+    // === Concat AV Latents ===
     "23": {
       class_type: "LTXVConcatAVLatent",
       inputs: {
@@ -207,7 +232,7 @@ function buildMSRWorkflow(opts: {
         guider: ["37", 0],
         sampler: ["13", 0],
         sigmas: ["27", 0],
-        latent_image: ["23", 0], // AV-concatenated latent
+        latent_image: ["23", 0],
       },
     },
 
@@ -265,49 +290,80 @@ function buildMSRWorkflow(opts: {
   };
 }
 
+// ============================================================
+// Simplified API — 只暴露用户关心的参数
+// ============================================================
+//
+// POST /api/ltx/msr (multipart/form-data)
+//
+// 必填:
+//   prompt         — 正向提示词
+//   ref1~refN      — 2~5 张参考图 (ref1 是背景图, ref2~refN 是参考图)
+//
+// 可选 (都有合理默认值):
+//   duration       — 视频秒数, 默认 3
+//   fps            — 帧率, 默认 24
+//   width          — 分辨率宽, 默认 1280
+//   height         — 分辨率高, 默认 704
+//   negativePrompt — 负向提示词, 有默认值
+//   seed           — 随机种子, 默认随机
+//   outputFilename — 输出文件名 (不含扩展名), 默认自动生成
+//   outputDir      — 容器内输出子目录, 默认 ""
+//
+// 内部自动计算 (不暴露):
+//   numFrames      = roundTo8nPlus1(duration * fps + 1)
+//   msrFrameCount  = 自动匹配最接近的 [17,25,33,41]
+
 export default router.post(
   "/",
   upload.fields([
     { name: "ref1", maxCount: 1 },
     { name: "ref2", maxCount: 1 },
-    { name: "background", maxCount: 1 },
+    { name: "ref3", maxCount: 1 },
+    { name: "ref4", maxCount: 1 },
+    { name: "ref5", maxCount: 1 },
   ]),
   validateFields({
     projectId: z.coerce.number(),
     prompt: z.string().min(1),
   }),
   async (req, res) => {
-    const { projectId, prompt } = req.body;
-    const negativePrompt = req.body.negativePrompt || "worst quality, blurry, jittery, distorted, inconsistent appearance";
+    // --- Parse user-facing params ---
+    const projectId = Number(req.body.projectId);
+    const prompt = req.body.prompt as string;
+    const duration = Number(req.body.duration) || 3;
+    const fps = Number(req.body.fps) || 24;
     const width = Number(req.body.width) || 1280;
     const height = Number(req.body.height) || 704;
-    // numFrames must satisfy 8n+1 (LTX-2.3 requirement)
-    const requestedFrames = Number(req.body.numFrames) || 0;
-    const fps = Number(req.body.fps) || 24;
-    const msrFrameCount = Number(req.body.msrFrameCount) || 41;
+    const negativePrompt = req.body.negativePrompt as string
+      || "worst quality, blurry, jittery, distorted, inconsistent appearance";
     const seed = req.body.seed ? Number(req.body.seed) : Math.floor(Math.random() * 2147483647);
-    const loraStrength = Number(req.body.loraStrength) || 1.0;
-    const filenamePrefix = req.body.filenamePrefix || `ltx_msr_${projectId}_${Date.now()}`;
+    const outputFilename = (req.body.outputFilename as string) || `ltx_msr_${projectId}_${Date.now()}`;
+    const outputDir = (req.body.outputDir as string) || "";
 
-    // Auto-calculate numFrames from duration (seconds) if provided
-    let numFrames: number;
-    if (requestedFrames > 0) {
-      numFrames = Math.ceil((requestedFrames - 1) / 8) * 8 + 1; // Round to nearest 8n+1
-    } else {
-      const durationSec = Number(req.body.duration) || 15;
-      const rawFrames = Math.round(durationSec * fps) + 1;
-      numFrames = Math.ceil((rawFrames - 1) / 8) * 8 + 1;
-    }
-
+    // --- Collect uploaded reference images (2~5) ---
     const files = req.files as Record<string, Express.Multer.File[]>;
-    if (!files?.ref1?.[0] || !files?.ref2?.[0] || !files?.background?.[0]) {
-      return res.status(400).send(error("Three reference images are required: ref1, ref2, background"));
+    const refFieldNames = ["ref1", "ref2", "ref3", "ref4", "ref5"];
+    const uploadedFiles: Express.Multer.File[] = [];
+
+    for (const name of refFieldNames) {
+      if (files?.[name]?.[0]) {
+        uploadedFiles.push(files[name][0]);
+      } else {
+        break; // stop at first missing ref
+      }
     }
 
-    // Copy uploaded images to ComfyUI container
-    const uploadedFiles: Express.Multer.File[] = [files.ref1[0], files.ref2[0], files.background[0]];
-    const filenames: string[] = [];
+    if (uploadedFiles.length < 2) {
+      return res.status(400).send(error("At least 2 reference images required (ref1, ref2). Up to 5 supported."));
+    }
 
+    // --- Auto-calculate internal params ---
+    const numFrames = roundTo8nPlus1(Math.round(duration * fps) + 1);
+    const msrFrameCount = pickMSRFrameCount(uploadedFiles.length);
+
+    // --- Copy images to ComfyUI container ---
+    const filenames: string[] = [];
     try {
       for (const file of uploadedFiles) {
         const ext = path.extname(file.originalname || ".png") || ".png";
@@ -328,13 +384,14 @@ export default router.post(
       try { fs.unlinkSync(file.path); } catch {}
     }
 
+    // --- Build & submit workflow ---
+    const filenamePrefix = outputDir ? `${outputDir}/${outputFilename}` : outputFilename;
+
     const workflow = buildMSRWorkflow({
-      ref1Filename: filenames[0],
-      ref2Filename: filenames[1],
-      backgroundFilename: filenames[2],
+      refFilenames: filenames,
       prompt, negativePrompt,
       width, height, numFrames, msrFrameCount, fps,
-      seed, loraStrength, filenamePrefix,
+      seed, filenamePrefix,
     });
 
     try {
@@ -349,12 +406,21 @@ export default router.post(
       }
 
       const promptId = comfyRes.data.prompt_id;
+      const actualDuration = ((numFrames - 1) / fps).toFixed(1);
+
       res.status(200).send(success({
         promptId,
         status: "pending",
-        message: "LTX LiconMSR multi-reference task submitted to ComfyUI",
-        filenames,
-        params: { width, height, numFrames, fps, duration: ((numFrames - 1) / fps).toFixed(1) + "s" },
+        message: "LTX LiconMSR multi-reference task submitted",
+        refCount: uploadedFiles.length,
+        params: {
+          width, height,
+          duration: `${actualDuration}s`,
+          fps,
+          msrFrameCount,
+          numFrames,
+          seed,
+        },
       }));
     } catch (err: any) {
       const msg = err.response?.data?.error?.message || err.response?.data?.node_errors || err.message || String(err);

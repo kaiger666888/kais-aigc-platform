@@ -1,1 +1,0 @@
-/home/kai/.openclaw/workspace/skills/kais-bgm/lib/bgm-selector.js
