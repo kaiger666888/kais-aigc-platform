@@ -66,10 +66,15 @@ RUN git clone --depth 1 https://github.com/FunAudioLLM/CosyVoice.git /opt/CosyVo
 
 # Install ACE-Step (music generation) — COPY from local clone to avoid build-time network issues
 # nano-vllm is a bundled local package required by ace-step (not on PyPI)
-# Both installed with --no-deps to avoid GitHub-hosted flash-attn wheel download in build
+# Both installed with --no-deps to avoid GitHub-hosted flash-attn wheel download in build.
+# Pre-install ALL required PEP 517 build backends AND their runtime deps (setuptools for
+# nano-vllm; hatchling + pathspec + pluggy + trove-classifiers for ace-step), then use
+# --no-build-isolation so pip doesn't try to re-fetch them from the mirror under
+# --index-url (which can return "no versions found" for build deps in isolated envs).
 COPY --chown=root:root additional_src/ACE-Step-1.5/ /tmp/acestep-src/
-RUN pip install --no-cache-dir --no-deps /tmp/acestep-src/acestep/third_parts/nano-vllm && \
-    pip install --no-cache-dir --no-deps /tmp/acestep-src && \
+RUN pip install --no-cache-dir "setuptools>=61" wheel hatchling pip -i https://pypi.tuna.tsinghua.edu.cn/simple && \
+    pip install --no-cache-dir --no-deps --no-build-isolation /tmp/acestep-src/acestep/third_parts/nano-vllm && \
+    pip install --no-cache-dir --no-deps --no-build-isolation /tmp/acestep-src && \
     pip install --no-cache-dir vector-quantize-pytorch loguru einops accelerate diskcache numba \
         lycoris-lora lightning pytorch-wavelets pywavelets typer-slim toml triton \
         -i https://pypi.tuna.tsinghua.edu.cn/simple && \
