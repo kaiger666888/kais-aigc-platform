@@ -45,6 +45,7 @@ Complete hermes-agent integration test suite. 42+ tests, CI pipeline. 22 require
 - [x] **Phase 17: Workflow Builder Expansion** - Implement 7 missing workflow builders and update routing table (completed 2026-06-12)
 - [x] **Phase 18: Engine Registration & Task Routing** - Unify engine registration by backend type and enable params.extra routing (completed 2026-06-12)
 - [x] **Phase 19: Integration Verification** - End-to-end validation that all merged engines and new workflows work through the unified API (completed 2026-06-12)
+- [ ] **Phase 19.1: Close v1.3 gaps** - Live runtime verification + ACEStepEngine fix + REQUIREMENTS.md reconciliation (INSERTED)
 
 ## Phase Details
 
@@ -60,6 +61,8 @@ Complete hermes-agent integration test suite. 42+ tests, CI pipeline. 22 require
   3. Docker Compose files contain zero movie-agent service definitions
   4. No source code references to movie-agent remain (imports, configs, env vars)
   5. OpenClaw Agent can be verified as the replacement for movie-agent orchestration duties
+
+*Note: Requirements FIX-01/02/03 and CLN-01/02/03 satisfied by Phases 19/19.1. See REQUIREMENTS.md traceability.*
 
 **Plans**: 3 plans in 2 waves
 
@@ -79,6 +82,8 @@ Plans:
   2. Hunyuan3D-2mv and Wan2.1 GGUF engine code from research repo runs in deploy repo
   3. Updated Dockerfile and Python dependencies build successfully
   4. All existing deploy-repo features pass regression tests after merge (video gen, image gen, TTS, cloud fallback)
+
+*Note: MERGE-01/02/03/04 remain Pending — formal diff report and merge process not executed. All functionality is present via Phases 17-19 work.*
 
 **Plans**: 3 plans in 3 waves
 
@@ -159,12 +164,12 @@ Plans:
 
 - [x] 19-01-PLAN.md -- TaskType routing coverage + end-to-end short-drama pipeline integration tests
 - [x] 19-02-PLAN.md -- Regression verification: ACE-Step, cloud fallback, movie-agent absence
-- [ ] 19-03-PLAN.md -- Add face restoration step to pipeline chain test (gap closure)
+- [x] 19-03-PLAN.md -- Add face restoration step to pipeline chain test (gap closure)
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 15 → 16 → 17 → 18 → 19
+Phases execute in numeric order: 15 → 16 → 17 → 18 → 19 → 19.1
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -172,7 +177,8 @@ Phases execute in numeric order: 15 → 16 → 17 → 18 → 19
 | 16. v6 Code Merge | v1.3 | 0/3 | Not started | - |
 | 17. Workflow Builder Expansion | v1.3 | 4/4 | Complete    | 2026-06-12 |
 | 18. Engine Registration & Task Routing | v1.3 | 3/3 | Complete    | 2026-06-12 |
-| 19. Integration Verification | v1.3 | 2/3 | In progress | - |
+| 19. Integration Verification | v1.3 | 3/3 | Complete    | 2026-06-12 |
+| 19.1. Close v1.3 gaps (INSERTED) | v1.3 | 0/3 | Not started | - |
 
 ### Completed Milestones
 
@@ -184,3 +190,15 @@ Phases execute in numeric order: 15 → 16 → 17 → 18 → 19
 | 14. CI Pipeline & Reporting | v1.2 | 2/2 | Complete | 2026-06-07 |
 | 7-10. Hermes Decision Engine | v1.1 | 10/10 | Complete | 2026-06-06 |
 | 1-6. MVP | v1.0 | - | Complete | - |
+
+### Phase 19.1: Close v1.3 gaps: live runtime verification + ACEStepEngine fix + REQUIREMENTS.md reconciliation (INSERTED)
+
+**Goal:** Validate gold-team API at runtime with live HTTP tests, fix ACEStepEngine dual-mode (external container vs subprocess), and reconcile REQUIREMENTS.md with actual completion state
+**Requirements**: FIX-01, FIX-02, FIX-03, CLN-01, CLN-02, CLN-03
+**Depends on:** Phase 19
+**Plans:** 3 plans in 1 wave
+
+Plans:
+- [ ] 19.1-01-PLAN.md — ACEStepEngine dual-mode: external container detection + unit tests (FIX-01, FIX-02)
+- [ ] 19.1-02-PLAN.md — Live runtime smoke test: health, engines, task submission via httpx (FIX-03)
+- [ ] 19.1-03-PLAN.md — REQUIREMENTS.md reconciliation: mark completed requirements, add traceability (CLN-01, CLN-02, CLN-03, FIX-01, FIX-02, FIX-03)
