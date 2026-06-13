@@ -15,8 +15,8 @@ coverage
 
 # logs
 logs
-_.log
-report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
+*.log
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 server.log
 
 # dotenv environment variable files
@@ -83,8 +83,10 @@ data/skills/*/images/
 *.pkl
 
 # ─── Independent repos (symlinks) ───────────────────────────
-docker/gold-team
-docker/review-platform
+# (docker/gold-team and docker/review-platform were previously listed here
+#  as symlinks, but gold-team is now a real tracked directory and
+#  review-platform no longer exists. Re-add `<path>` here if you bring
+#  back a symlink.)
 
 # ─── Claude Code local state ────────────────────────────────
 .claude/
@@ -92,3 +94,4 @@ docker/review-platform
 # ─── Build artifacts ────────────────────────────────────────
 docker/movie-agent/src/
 demo_qwen*.png
+docker/lora-trainer/sd-scripts/
