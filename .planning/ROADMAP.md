@@ -5,22 +5,24 @@
 - ✅ **v1.0 MVP** - Phases 1-6 (shipped)
 - ✅ **v1.1 Hermes Intelligent Decision Engine** - Phases 7-10 (shipped 2026-06-06)
 - ✅ **v1.2 Integration Testing** - Phases 11-14 (shipped 2026-06-07)
-- 🚧 **v1.3 Architecture Alignment** - Phases 15-19 (in progress)
+- ✅ **v1.3 Architecture Alignment** - Phases 15-19.1 (shipped 2026-06-13)
+- 🚧 **v1.4 Production Verification + Repo Governance** - Phases 20-22 (in progress)
 
 ## Phases
 
 **Phase Numbering:**
 
-- Integer phases (1-14): Shipped in previous milestones
-- Integer phases (15-19): Planned v1.3 milestone work
-- Decimal phases (e.g., 15.1): Urgent insertions (marked with INSERTED)
+- Integer phases (1-14): Shipped in previous milestones (v1.0-v1.2)
+- Integer phases (15-19) + decimal (19.1): Shipped v1.3 milestone
+- Integer phases (20-22): Current v1.4 milestone work
+- Decimal phases (e.g., 20.1): Urgent insertions (marked with INSERTED)
 
 Decimal phases appear between their surrounding integers in numeric order.
 
 ### ✅ Previous Milestones (Shipped)
 
 <details>
-<summary>Phases 1-14: v1.0 MVP, v1.1 Hermes, v1.2 Integration Testing</summary>
+<summary>Phases 1-19.1: v1.0 MVP, v1.1 Hermes, v1.2 Integration Testing, v1.3 Architecture Alignment</summary>
 
 #### v1.0 MVP (Phases 1-6)
 
@@ -34,171 +36,94 @@ Domain-agnostic REST API with self-learning loop. 21 requirements satisfied.
 
 Complete hermes-agent integration test suite. 42+ tests, CI pipeline. 22 requirements satisfied.
 
+#### v1.3 Architecture Alignment (Phases 15-19.1)
+
+Engine consolidation, workflow builder expansion, BackendType classification. 102/102 tests passing. Shipped 2026-06-13 with 4 deferred gaps (FIX-02/03, MERGE-03, ENG-04) carried into v1.4.
+
 </details>
 
-### 🚧 v1.3 Architecture Alignment — Engine Consolidation (In Progress)
+### 🚧 v1.4 Production Verification + Repo Governance (In Progress)
 
-**Milestone Goal:** Eliminate all gaps between Notion V5 architecture and actual codebase. Unify gold-team v6 engine system so deploy repo encompasses all research features.
+**Milestone Goal:** Close the 4 deferred v1.3 gaps with live runtime verification and ENG-04 code fix, then audit and govern the 19 sibling repos to make the warehouse layout comprehensible to newcomers.
 
-- [ ] **Phase 15: Production Stability Fixes** - Fix ACE-Step container permissions and remove movie-agent dead code
-- [ ] **Phase 16: v6 Code Merge** - Merge research repo engine code into deploy repo with regression testing
-- [x] **Phase 17: Workflow Builder Expansion** - Implement 7 missing workflow builders and update routing table (completed 2026-06-12)
-- [x] **Phase 18: Engine Registration & Task Routing** - Unify engine registration by backend type and enable params.extra routing (completed 2026-06-12)
-- [x] **Phase 19: Integration Verification** - End-to-end validation that all merged engines and new workflows work through the unified API (completed 2026-06-12)
-- [x] **Phase 19.1: Close v1.3 gaps** - Live runtime verification + ACEStepEngine fix + REQUIREMENTS.md reconciliation (INSERTED) (completed 2026-06-13)
+**Architecture decisions (v1.4):**
+1. Priority order: stabilize first (FIX → VERIFY), then govern (REPO)
+2. Phase numbering continues from v1.3 (Phase 20+)
+3. v1.3 phase directories preserved as audit evidence (NOT archived)
+4. Repo governance uses "classify, don't destroy" — `git mv` to `.archive/repos/` or DEPRECATED marker, no deletion
+
+- [ ] **Phase 20: ACEStepEngine Backend Type Fix** - Fix the ENG-04 classification bug so ACE-Step is correctly typed as DOCKER and explicitly registered
+- [ ] **Phase 21: Live Runtime Verification** - Bring up the full docker-compose.v9.yml stack and verify health, ACE-Step E2E music generation, and Dockerfile builds
+- [ ] **Phase 22: Sibling Repo Governance** - Audit 19 sibling repos, classify active/legacy/archived, archive dead repos, produce inventory + dependency map + newcomer docs
 
 ## Phase Details
 
-### Phase 15: Production Stability Fixes
+### Phase 20: ACEStepEngine Backend Type Fix
 
-**Goal**: ACE-Step container runs stably without restarts, and movie-agent is fully removed from the codebase
-**Depends on**: Nothing (first phase of v1.3, unblocks everything else)
-**Requirements**: FIX-01, FIX-02, FIX-03, CLN-01, CLN-02, CLN-03
+**Goal**: ACEStepEngine is correctly classified as BackendType.DOCKER, explicitly registered in production, and protected by a regression test so the classification cannot silently revert
+**Depends on**: Phase 19.1 (v1.3 closeout complete — codebase is the post-v1.3 baseline)
+**Requirements**: FIX-04, FIX-05, FIX-06
 **Success Criteria** (what must be TRUE):
 
-  1. ACE-Step container starts healthy and stays running (no PermissionError in logs)
-  2. Music generation request succeeds through the unified API end-to-end
-  3. Docker Compose files contain zero movie-agent service definitions
-  4. No source code references to movie-agent remain (imports, configs, env vars)
-  5. OpenClaw Agent can be verified as the replacement for movie-agent orchestration duties
+  1. `ACEStepEngine().backend_type` returns `BackendType.DOCKER` (verified by `test_acestep_backend_type` assertion — no longer inherits MOCK)
+  2. `ACEStepEngine` is explicitly instantiated and registered in `docker/gold-team/src/v6/main.py` engine registration section (not relying on YAML registry fallback)
+  3. `GET /api/v1/engines` response classifies ACE-Step under `backend_type: "docker"` (not `"mock"`)
+  4. Regression test `test_acestep_backend_type` runs in the existing test suite and passes alongside the 102 prior tests with zero regressions
 
-*Note: Requirements FIX-01/02/03 and CLN-01/02/03 satisfied by Phases 19/19.1. See REQUIREMENTS.md traceability.*
+**Plans**: TBD
 
-**Plans**: 3 plans in 2 waves
+### Phase 21: Live Runtime Verification
 
-Plans:
-
-- [ ] 15-01-PLAN.md — Fix ACE-Step container permissions (user directive) and verify healthy start + music generation
-- [ ] 15-02-PLAN.md — Remove movie-agent from Docker Compose, source code, env vars, build scripts; verify OpenClaw Agent coverage
-
-### Phase 16: v6 Code Merge
-
-**Goal**: Deploy repo contains all research repo engine features, verified by regression tests
-**Depends on**: Phase 15 (clean codebase before merging)
-**Requirements**: MERGE-01, MERGE-02, MERGE-03, MERGE-04
+**Goal**: The full docker-compose.v9.yml stack starts, passes healthchecks, and produces real (non-mock) ACE-Step music output end-to-end — closing the 3 v1.3 deferred gaps that required Docker runtime
+**Depends on**: Phase 20 (ENG-04 fix must be merged so ACE-Step is correctly classified during live verification)
+**Requirements**: VERIFY-01, VERIFY-02, VERIFY-03, VERIFY-04
 **Success Criteria** (what must be TRUE):
 
-  1. Diff report exists listing every file changed between research and deploy repos
-  2. Hunyuan3D-2mv and Wan2.1 GGUF engine code from research repo runs in deploy repo
-  3. Updated Dockerfile and Python dependencies build successfully
-  4. All existing deploy-repo features pass regression tests after merge (video gen, image gen, TTS, cloud fallback)
+  1. `docker compose -f docker-compose.v9.yml up -d` brings up the core 7 services (comfyui-primary, comfyui-auxiliary, kais-core-backend, kais-gold-team, audit-db, redis, hermes-agent) and `docker compose ps` shows all 7 as `healthy` within their `start_period` windows
+  2. `docker compose -f docker-compose.v9.yml --profile ace up -d kais-acestep` starts the ACE-Step container, `docker compose ps kais-acestep` shows `Status: healthy`, and `docker compose logs kais-acestep` contains zero `PermissionError` entries
+  3. `POST http://localhost:8002/api/v1/tasks {"task_type":"music", ...}` returns a `task_id`; polling that task reaches a terminal state with an `.mp3` output artifact larger than 0 bytes (real ACE-Step output, not mock)
+  4. `docker compose -f docker-compose.v9.yml build kais-core-backend kais-gold-team` completes with exit code 0 — both Dockerfiles build and all dependency installs succeed without errors
 
-*Note: MERGE-01/02/03/04 remain Pending — formal diff report and merge process not executed. All functionality is present via Phases 17-19 work.*
+**Notes**: This phase requires Docker runtime with GPU access (RTX 3090). Verification commands must be run on the production host, not in CI/planning context. The deferred v1.3 requirements FIX-02, FIX-03, MERGE-03 are closed here.
 
-**Plans**: 3 plans in 3 waves
+**Plans**: TBD
 
-Plans:
+### Phase 22: Sibling Repo Governance
 
-- [ ] 16-01-PLAN.md — Generate diff report and change manifest (research vs deploy)
-- [ ] 16-02-PLAN.md — Merge research engine code into deploy repo (new files, modified files, main.py merge)
-- [ ] 16-03-PLAN.md — Update Dockerfile and dependencies, run regression tests
-
-### Phase 17: Workflow Builder Expansion
-
-**Goal**: All architecture-required workflow builders exist and are registered to correct TaskTypes
-**Depends on**: Phase 16 (merged codebase as the working base)
-**Requirements**: WFB-01, WFB-02, WFB-03, WFB-04, WFB-05, WFB-06, WFB-07, WFB-08
+**Goal**: A newcomer can understand the 19-repo warehouse layout in 5 minutes — every repo is classified, dead repos are archived (not deleted), and the Service-to-Repo dependency boundary is explicit
+**Depends on**: Phase 21 (stabilization complete before governance — "先稳定再治理")
+**Requirements**: REPO-01, REPO-02, REPO-03, REPO-04, REPO-05, REPO-06
 **Success Criteria** (what must be TRUE):
 
-  1. FLUX Dev text-to-image workflow generates images via workflow_builder
-  2. FLUX + IP-Adapter face-preservation workflow produces face-consistent images
-  3. Hunyuan3D and TRELLIS2 3D generation workflows produce 3D output files
-  4. FLUX + TRELLIS2 full chain produces 3D output from text prompt
-  5. Lip sync and frame interpolation workflows are callable and route via params.extra.mode
-  6. Workflow builder routing table includes all new builders mapped to their TaskTypes
+  1. All 19 sibling repos are classified into exactly one of three states: active / legacy / archived (no repo unclassified)
+  2. `.planning/REPO-INVENTORY.md` exists with 19 rows; every row has non-empty values for all four metadata fields: role description, last git commit date, referenced-by-compose flag, referenced-by-other-repo flag
+  3. Every repo classified as dead/archived has been either `git mv`'d to `.archive/repos/` OR has a `DEPRECATED` marker at the top of its README — no repo is physically deleted, git history is preserved
+  4. `docs/REPO-MAP.md` exists and contains: (a) the active repo list, (b) a Service-to-Repo dependency map showing which `build.context` each compose service comes from, (c) a call-relationship diagram — sufficient for a newcomer to orient in under 5 minutes
+  5. No service in `docker-compose.v9.yml` has a missing or orphaned `build.context` path — every compose service's source repo is identified in the dependency map
 
-**Plans**: 4 plans in 2 waves
-
-Plans:
-**Wave 1**
-
-- [x] 17-01-PLAN.md — Create test scaffold and verify existing builders (WFB-01, WFB-02, WFB-03)
-
-**Wave 2** *(blocked on Wave 1 completion)*
-
-- [x] 17-02-PLAN.md — Implement new builders: lipsync (WFB-06) and frame_interpolate (WFB-07)
-- [x] 17-03-PLAN.md — Add TRELLIS routing to executor and router (WFB-04, WFB-05)
-
-**Wave 3** *(blocked on Wave 2 completion)*
-
-- [x] 17-04-PLAN.md — Add lip_sync and frame_interp routing to executor (WFB-08)
-
-### Phase 18: Engine Registration & Task Routing
-
-**Goal**: Engines register by backend type (not by model), and TaskType routing supports params.extra for fine-grained capability selection
-**Depends on**: Phase 17 (all workflows in place before wiring routing)
-**Requirements**: ENG-01, ENG-02, ENG-03, ENG-04, TASK-01, TASK-02, TASK-03, TASK-04
-**Success Criteria** (what must be TRUE):
-
-  1. Engine registration log shows engines grouped by backend type (ComfyUI / Independent API / Cloud / Subprocess)
-  2. No per-model Engine subclasses exist for ComfyUI models -- all go through ComfyUIEngine + workflow_builder
-  3. Submitting a VIDEO_FINAL task with params.extra.mode = "lip_sync" triggers the lip sync workflow
-  4. Submitting an UPSCALE task with params.extra.mode = "frame_interp" triggers frame interpolation
-  5. Submitting an IMAGE_DRAW task with IP-Adapter/InstantID/PhotoMaker params triggers the correct character consistency workflow
-  6. ACE-Step (DockerPollingAPIEngine) and CloudEngine (Kling/Jimeng) continue working after registration refactor
-
-**Plans**: 3 plans in 2 waves
-
-Plans:
-
-- [x] 18-01-PLAN.md — Add BackendType enum to BaseEngine and override in all engine subclasses (ENG-01, ENG-02, ENG-04)
-- [x] 18-02-PLAN.md — Add IMAGE_DRAW params.extra.mode routing for character consistency (IP-Adapter/PuLID/InstantID) (TASK-01, TASK-02, TASK-03, TASK-04)
-- [x] 18-03-PLAN.md — Restructure main.py registration grouping + engines API backend_type response (ENG-01, ENG-03)
-
-### Phase 19: Integration Verification
-
-**Goal**: Every merged engine, new workflow, and routing path works end-to-end through the unified API
-**Depends on**: Phase 18 (all wiring complete)
-**Requirements**: None (cross-cutting validation phase using requirements from Phases 15-18)
-**Success Criteria** (what must be TRUE):
-
-  1. A complete short-drama pipeline test run succeeds: character image generation, video generation, lip sync, super-resolution, face restoration, frame interpolation
-  2. Each TaskType (VIDEO, IMAGE, AUDIO, UPSCALE, VIDEO_FINAL, IMAGE_DRAW, IMAGE_REFINE) successfully routes to at least one engine
-  3. Cloud fallback still works when ComfyUI engine is unavailable
-  4. ACE-Step music generation succeeds through the unified API (regression from Phase 15 fix)
-  5. No movie-agent references anywhere in the running system (regression from Phase 15 cleanup)
-
-**Plans**: 3 plans in 2 waves
-
-Plans:
-
-- [x] 19-01-PLAN.md -- TaskType routing coverage + end-to-end short-drama pipeline integration tests
-- [x] 19-02-PLAN.md -- Regression verification: ACE-Step, cloud fallback, movie-agent absence
-- [x] 19-03-PLAN.md -- Add face restoration step to pipeline chain test (gap closure)
+**Plans**: TBD
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 15 → 16 → 17 → 18 → 19 → 19.1
+Phases execute in numeric order: 20 → 21 → 22
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 15. Production Stability Fixes | v1.3 | 0/2 | Not started | - |
-| 16. v6 Code Merge | v1.3 | 0/3 | Not started | - |
-| 17. Workflow Builder Expansion | v1.3 | 4/4 | Complete    | 2026-06-12 |
-| 18. Engine Registration & Task Routing | v1.3 | 3/3 | Complete    | 2026-06-12 |
-| 19. Integration Verification | v1.3 | 3/3 | Complete    | 2026-06-12 |
-| 19.1. Close v1.3 gaps (INSERTED) | v1.3 | 3/3 | Complete    | 2026-06-13 |
+| 20. ACEStepEngine Backend Type Fix | v1.4 | 0/0 | Not started | - |
+| 21. Live Runtime Verification | v1.4 | 0/0 | Not started | - |
+| 22. Sibling Repo Governance | v1.4 | 0/0 | Not started | - |
 
 ### Completed Milestones
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 11. Test Infrastructure | v1.2 | 2/2 | Complete | 2026-06-07 |
-| 12. Movie-Agent Joint Integration | v1.2 | 2/2 | Complete | 2026-06-07 |
-| 13. Stress & Stability Testing | v1.2 | 2/2 | Complete | 2026-06-07 |
-| 14. CI Pipeline & Reporting | v1.2 | 2/2 | Complete | 2026-06-07 |
+| 15. Production Stability Fixes | v1.3 | 2/2 | Complete | 2026-06-13 |
+| 16. v6 Code Merge | v1.3 | 3/3 | Complete | 2026-06-13 |
+| 17. Workflow Builder Expansion | v1.3 | 4/4 | Complete | 2026-06-12 |
+| 18. Engine Registration & Task Routing | v1.3 | 3/3 | Complete | 2026-06-12 |
+| 19. Integration Verification | v1.3 | 3/3 | Complete | 2026-06-12 |
+| 19.1. Close v1.3 gaps (INSERTED) | v1.3 | 3/3 | Complete | 2026-06-13 |
+| 11-14. Integration Testing | v1.2 | 8/8 | Complete | 2026-06-07 |
 | 7-10. Hermes Decision Engine | v1.1 | 10/10 | Complete | 2026-06-06 |
 | 1-6. MVP | v1.0 | - | Complete | - |
-
-### Phase 19.1: Close v1.3 gaps: live runtime verification + ACEStepEngine fix + REQUIREMENTS.md reconciliation (INSERTED)
-
-**Goal:** Validate gold-team API at runtime with live HTTP tests, fix ACEStepEngine dual-mode (external container vs subprocess), and reconcile REQUIREMENTS.md with actual completion state
-**Requirements**: FIX-01, FIX-02, FIX-03, CLN-01, CLN-02, CLN-03
-**Depends on:** Phase 19
-**Plans:** 3/3 plans complete
-
-Plans:
-- [x] 19.1-01-PLAN.md — ACEStepEngine dual-mode: external container detection + unit tests (FIX-01, FIX-02)
-- [x] 19.1-02-PLAN.md — Live runtime smoke test: health, engines, task submission via httpx (FIX-03)
-- [x] 19.1-03-PLAN.md — REQUIREMENTS.md reconciliation: mark completed requirements, add traceability (CLN-01, CLN-02, CLN-03, FIX-01, FIX-02, FIX-03)

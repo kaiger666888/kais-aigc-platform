@@ -43,25 +43,30 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| VERIFY-01 | TBD (roadmap) | Pending |
-| VERIFY-02 | TBD (roadmap) | Pending |
-| VERIFY-03 | TBD (roadmap) | Pending |
-| VERIFY-04 | TBD (roadmap) | Pending |
-| FIX-04 | TBD (roadmap) | Pending |
-| FIX-05 | TBD (roadmap) | Pending |
-| FIX-06 | TBD (roadmap) | Pending |
-| REPO-01 | TBD (roadmap) | Pending |
-| REPO-02 | TBD (roadmap) | Pending |
-| REPO-03 | TBD (roadmap) | Pending |
-| REPO-04 | TBD (roadmap) | Pending |
-| REPO-05 | TBD (roadmap) | Pending |
-| REPO-06 | TBD (roadmap) | Pending |
+| FIX-04 | Phase 20 | Pending |
+| FIX-05 | Phase 20 | Pending |
+| FIX-06 | Phase 20 | Pending |
+| VERIFY-01 | Phase 21 | Pending |
+| VERIFY-02 | Phase 21 | Pending |
+| VERIFY-03 | Phase 21 | Pending |
+| VERIFY-04 | Phase 21 | Pending |
+| REPO-01 | Phase 22 | Pending |
+| REPO-02 | Phase 22 | Pending |
+| REPO-03 | Phase 22 | Pending |
+| REPO-04 | Phase 22 | Pending |
+| REPO-05 | Phase 22 | Pending |
+| REPO-06 | Phase 22 | Pending |
 
 **Coverage:**
 - v1.4 requirements: 13 total
-- Mapped to phases: 0 (awaiting roadmap)
-- Unmapped: 13 ⚠️
+- Mapped to phases: 13 (100%)
+- Unmapped: 0
+
+**Phase distribution:**
+- Phase 20 (ACEStepEngine Backend Type Fix): 3 requirements — FIX-04, FIX-05, FIX-06
+- Phase 21 (Live Runtime Verification): 4 requirements — VERIFY-01, VERIFY-02, VERIFY-03, VERIFY-04
+- Phase 22 (Sibling Repo Governance): 6 requirements — REPO-01, REPO-02, REPO-03, REPO-04, REPO-05, REPO-06
 
 ---
 *Requirements defined: 2026-06-13*
-*Last updated: 2026-06-13 after v1.4 milestone kickoff*
+*Last updated: 2026-06-13 after v1.4 roadmap creation — traceability filled, coverage 13/13*

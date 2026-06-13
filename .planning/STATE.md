@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Production Verification + Repo Governance
 status: planning
-last_updated: "2026-06-13T12:07:34.897Z"
+last_updated: "2026-06-13T13:00:00.000Z"
 last_activity: 2026-06-13
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,17 +17,17 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-12)
+See: .planning/PROJECT.md (updated 2026-06-13)
 
 **Core value:** AI short drama production pipeline that runs end-to-end -- from character design to deliverable final video
-**Current focus:** Milestone complete
+**Current focus:** v1.4 Phase 20 — ACEStepEngine backend type fix (first phase of v1.4)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 20 (ACEStepEngine Backend Type Fix) — not started
 Plan: —
-Status: Defining requirements
-Last activity: 2026-06-13 — Milestone v1.4 started
+Status: Roadmap created, ready for `/gsd:plan-phase 20`
+Last activity: 2026-06-13 — v1.4 roadmap created (3 phases: 20, 21, 22)
 
 ## Performance Metrics
 
@@ -36,7 +36,7 @@ Last activity: 2026-06-13 — Milestone v1.4 started
 - Total plans completed: 16 (v1.3)
 - Previous milestones: v1.1 (10 plans), v1.2 (8 plans)
 
-**By Phase:**
+**By Phase (v1.3 — most recent):**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
@@ -45,13 +45,14 @@ Last activity: 2026-06-13 — Milestone v1.4 started
 | 19 | 3 | - | - |
 | 19.1 | 3 | - | - |
 
-*Updated after each plan completion*
+*v1.4 phases not yet planned — table updates after first plan execution*
 
 ## Accumulated Context
 
 ### Roadmap Evolution
 
-- Phase 19.1 inserted after Phase 19: Close v1.3 gaps: live runtime verification + ACEStepEngine fix + REQUIREMENTS.md reconciliation (URGENT)
+- **v1.4 roadmap created (2026-06-13):** 3 phases derived from 13 requirements. Phase 20 (FIX) → Phase 21 (VERIFY) → Phase 22 (REPO). Order follows PROJECT.md decision "先稳定再治理" — stabilize runtime first, then govern repos.
+- Phase 19.1 inserted in v1.3: closed partial gaps but 4 items (FIX-02/03, MERGE-03, ENG-04) remained deferred — these are the v1.4 input.
 
 ### Decisions
 
@@ -69,6 +70,10 @@ Last activity: 2026-06-13 — Milestone v1.4 started
 - Unrecognized extra.mode values fall through to model-based routing (threat model T-18-02)
 - Engine registration sections labeled with backend-type comment headers, grouped summary replaces flat engine ID list
 - Legacy local-comfyui gets backend_type=comfyui, legacy cloud providers get backend_type=cloud in API response
+- v1.4 priority: FIX before VERIFY before REPO (stabilize, then verify, then govern)
+- v1.3 phase directories preserved as audit evidence — NOT archived in v1.4
+- Repo archival strategy: `git mv` to `.archive/repos/` OR DEPRECATED marker — NO deletion (preserves git history)
+- Phase 21 (VERIFY) requires Docker runtime with GPU — must execute on production host, not CI
 
 ### Pending Todos
 
@@ -76,7 +81,7 @@ None.
 
 ### Blockers/Concerns
 
-None.
+- Phase 21 requires live Docker runtime with RTX 3090 GPU access. If runtime is unavailable during execution, VERIFY requirements will need to be deferred again. Flag explicitly in plan.
 
 ## Deferred Items
 
@@ -84,10 +89,13 @@ Items acknowledged and carried forward from previous milestone close:
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
-| *(none)* | | | |
+| v1.3 gap | FIX-02 (ACE-Step container health live verify) | v1.4 VERIFY-02 will close | v1.3 close |
+| v1.3 gap | FIX-03 (E2E music generation live verify) | v1.4 VERIFY-03 will close | v1.3 close |
+| v1.3 gap | MERGE-03 (Dockerfile build verify) | v1.4 VERIFY-04 will close | v1.3 close |
+| v1.3 gap | ENG-04 (ACEStepEngine backend_type MOCK→DOCKER) | v1.4 FIX-04/05/06 will close | v1.3 close |
 
 ## Session Continuity
 
-Last session: 2026-06-12
-Stopped at: Completed 19-01, integration verification (routing coverage + pipeline chain). Next: 19-02.
-Resume file: .planning/phases/phase-19/19-02-PLAN.md
+Last session: 2026-06-13
+Stopped at: v1.4 roadmap created. 3 phases (20, 21, 22) with 13 requirements mapped at 100% coverage.
+Resume: `/gsd:plan-phase 20` to plan the first phase (ACEStepEngine backend type fix).
