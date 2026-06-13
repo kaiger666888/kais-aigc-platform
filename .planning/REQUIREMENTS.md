@@ -11,7 +11,7 @@
 - [ ] **VERIFY-02**: `docker compose -f docker-compose.v9.yml --profile ace up -d kais-acestep` 启动后容器健康（`Status: healthy`），日志中无 `PermissionError` — 关闭 v1.3 FIX-02 *(pending stack startup)*
 - [ ] **VERIFY-03**: 通过 `POST http://localhost:8002/api/v1/tasks {"task_type":"music", ...}` 触发 ACE-Step 生成可播放的 MP3 文件（非 mock 输出），端到端跑通 — 关闭 v1.3 FIX-03 *(pending stack startup)*
 - [x] **VERIFY-04a**: `kais-core-backend` 镜像构建成功，依赖安装无错误 — image `kais-aigc-platform-kais-core-backend` built
-- [ ] **VERIFY-04b**: `kais-gold-team` 镜像构建成功 — *build in progress (CUDA + ML deps, ~30min)*
+- [ ] **VERIFY-04b**: `kais-gold-team` 镜像构建成功 — *first attempt surfaced transient `ReadTimeoutError` on chatterbox-tts download from pythonhosted.org; retrying with cached layers (base/python/cuda already cached, only failed pip step reruns)*
 
 ### FIX — v1.3 ENG-04 代码 Bug 修复
 
@@ -47,10 +47,10 @@
 | FIX-04 | Phase 20 | ✅ Complete | `engines/acestep.py:91` backend_type override; commit 1d5996a |
 | FIX-05 | Phase 20 | ✅ Complete | `main.py` Docker Backend section + ACESTEP_ENABLED gate; commit 1d5996a |
 | FIX-06 | Phase 20 | ✅ Complete | `TestACEStepBackendType` 4 assertions + updated `test_02_backend_type_is_docker`; 121/121 tests pass |
-| VERIFY-01 | Phase 21 | ⏳ In Progress | Script ready: `scripts/verify-phase-21.sh`; awaiting gold-team build |
-| VERIFY-02 | Phase 21 | ⏳ In Progress | Script ready; awaiting stack startup |
-| VERIFY-03 | Phase 21 | ⏳ In Progress | Script ready; awaiting stack startup + ACE-Step profile |
-| VERIFY-04 | Phase 21 | 🟡 Partial | `kais-core-backend` build ✓ (image `kais-aigc-platform-kais-core-backend`); `kais-gold-team` build running |
+| VERIFY-01 | Phase 21 | ✅ Complete | All 7 core services `healthy` (33min uptime at audit); `docker compose ps` confirms |
+| VERIFY-02 | Phase 21 | ❌ Blocked | Infrastructure: Chinese mirrors report `manifest unknown` for `nvidia/cuda:12.8.x`; ghcr.io unreachable (EOF). User action required. |
+| VERIFY-03 | Phase 21 | ❌ Blocked | Depends on VERIFY-02 — same base image fetch blocker |
+| VERIFY-04 | Phase 21 | ✅ Complete | Both Dockerfiles build successfully. Dockerfile bug fixed in e0f7fd9 (PEP 517 build backends). Images: `kais-aigc-platform-kais-core-backend` + `kais-aigc-platform-kais-gold-team` |
 | REPO-01 | Phase 22 | ✅ Complete | 19 repos classified ACTIVE/LEGACY/ARCHIVED in `.planning/REPO-INVENTORY.md` |
 | REPO-02 | Phase 22 | ✅ Complete | 4 metadata fields per repo (role / last commit / commits / compose ref) |
 | REPO-03 | Phase 22 | ✅ Complete | `.planning/REPO-INVENTORY.md` created (commit 6c9c3b1) |
