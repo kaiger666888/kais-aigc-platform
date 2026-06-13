@@ -45,7 +45,7 @@ Complete hermes-agent integration test suite. 42+ tests, CI pipeline. 22 require
 - [x] **Phase 17: Workflow Builder Expansion** - Implement 7 missing workflow builders and update routing table (completed 2026-06-12)
 - [x] **Phase 18: Engine Registration & Task Routing** - Unify engine registration by backend type and enable params.extra routing (completed 2026-06-12)
 - [x] **Phase 19: Integration Verification** - End-to-end validation that all merged engines and new workflows work through the unified API (completed 2026-06-12)
-- [ ] **Phase 19.1: Close v1.3 gaps** - Live runtime verification + ACEStepEngine fix + REQUIREMENTS.md reconciliation (INSERTED)
+- [x] **Phase 19.1: Close v1.3 gaps** - Live runtime verification + ACEStepEngine fix + REQUIREMENTS.md reconciliation (INSERTED) (completed 2026-06-13)
 
 ## Phase Details
 
@@ -178,7 +178,7 @@ Phases execute in numeric order: 15 → 16 → 17 → 18 → 19 → 19.1
 | 17. Workflow Builder Expansion | v1.3 | 4/4 | Complete    | 2026-06-12 |
 | 18. Engine Registration & Task Routing | v1.3 | 3/3 | Complete    | 2026-06-12 |
 | 19. Integration Verification | v1.3 | 3/3 | Complete    | 2026-06-12 |
-| 19.1. Close v1.3 gaps (INSERTED) | v1.3 | 0/3 | Not started | - |
+| 19.1. Close v1.3 gaps (INSERTED) | v1.3 | 3/3 | Complete   | 2026-06-13 |
 
 ### Completed Milestones
 
@@ -196,9 +196,9 @@ Phases execute in numeric order: 15 → 16 → 17 → 18 → 19 → 19.1
 **Goal:** Validate gold-team API at runtime with live HTTP tests, fix ACEStepEngine dual-mode (external container vs subprocess), and reconcile REQUIREMENTS.md with actual completion state
 **Requirements**: FIX-01, FIX-02, FIX-03, CLN-01, CLN-02, CLN-03
 **Depends on:** Phase 19
-**Plans:** 3 plans in 1 wave
+**Plans:** 3/3 plans complete
 
 Plans:
-- [ ] 19.1-01-PLAN.md — ACEStepEngine dual-mode: external container detection + unit tests (FIX-01, FIX-02)
-- [ ] 19.1-02-PLAN.md — Live runtime smoke test: health, engines, task submission via httpx (FIX-03)
-- [ ] 19.1-03-PLAN.md — REQUIREMENTS.md reconciliation: mark completed requirements, add traceability (CLN-01, CLN-02, CLN-03, FIX-01, FIX-02, FIX-03)
+- [x] 19.1-01-PLAN.md — ACEStepEngine dual-mode: external container detection + unit tests (FIX-01, FIX-02)
+- [x] 19.1-02-PLAN.md — Live runtime smoke test: health, engines, task submission via httpx (FIX-03)
+- [x] 19.1-03-PLAN.md — REQUIREMENTS.md reconciliation: mark completed requirements, add traceability (CLN-01, CLN-02, CLN-03, FIX-01, FIX-02, FIX-03)
