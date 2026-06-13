@@ -52,22 +52,20 @@ class TestACEStepRegression:
         engine = ACEStepEngine()
         assert isinstance(engine, BaseEngine)
 
-    def test_02_backend_type_is_subprocess(self):
-        """ACEStepEngine reports SUBPROCESS backend type.
+    def test_02_backend_type_is_docker(self):
+        """ACEStepEngine reports DOCKER backend type (v1.4 FIX-04).
 
-        ACEStepEngine runs as an internal subprocess (launches acestep
-        API server as a background process), not as a Docker container
-        or ComfyUI node.
+        ACE-Step runs in a dedicated sidecar container (kais-acestep) and is
+        polled via HTTP. Even in localhost fallback mode it spawns an isolated
+        subprocess rather than using the ComfyUI node graph or a cloud API,
+        so DOCKER is the correct classification. Previously the engine
+        inherited MOCK — the v1.3 ENG-04 bug closed by v1.4 FIX-04.
         """
         from src.v6.engines.acestep import ACEStepEngine
         engine = ACEStepEngine()
-        # ACEStepEngine does not override backend_type, so it inherits
-        # the BaseEngine default of MOCK. However, the plan specifies
-        # BackendType.DOCKER — verify the actual value to detect regressions.
-        # ACE-Step is an internal subprocess engine, so check what it reports.
-        assert engine.backend_type in (BackendType.SUBPROCESS, BackendType.MOCK), (
-            f"ACEStepEngine backend_type changed to {engine.backend_type} — "
-            f"expected SUBPROCESS or MOCK (default for engines without explicit override)"
+        assert engine.backend_type == BackendType.DOCKER, (
+            f"ACEStepEngine backend_type regression: got {engine.backend_type}, "
+            f"expected DOCKER (v1.4 FIX-04)"
         )
 
     def test_03_supported_types_includes_music(self):

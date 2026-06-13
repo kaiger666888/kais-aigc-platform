@@ -25,7 +25,7 @@ from typing import Any
 
 import httpx
 
-from src.v6.engines.base import BaseEngine, EngineCapabilities, EngineStatus
+from src.v6.engines.base import BackendType, BaseEngine, EngineCapabilities, EngineStatus
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +91,15 @@ class ACEStepEngine(BaseEngine):
     @property
     def engine_id(self) -> str:
         return "acestep-internal"
+
+    @property
+    def backend_type(self) -> BackendType:
+        # ACE-Step runs in a dedicated sidecar container (kais-acestep) and is
+        # polled via HTTP. Even in localhost/subprocess fallback mode it spawns
+        # an isolated process rather than using the ComfyUI node graph or a
+        # cloud API — so DOCKER (sidecar / external-process) is the correct
+        # classification, never MOCK. v1.4 FIX-04.
+        return BackendType.DOCKER
 
     @property
     def capabilities(self) -> EngineCapabilities:

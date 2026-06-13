@@ -51,6 +51,14 @@ COMFYUI_PRIMARY_PORT = int(os.environ.get("COMFYUI_PRIMARY_PORT", "8188"))
 COMFYUI_AUX_HOST = os.environ.get("COMFYUI_AUX_HOST", "")
 COMFYUI_AUX_PORT = int(os.environ.get("COMFYUI_AUX_PORT", "8189"))
 
+# ACE-Step music generation sidecar (v1.4 FIX-05: explicit registration)
+# Default to enabled when an external API host is configured (production compose
+# always sets ACESTEP_API_HOST=kais-acestep). Set ACESTEP_ENABLED=false to disable.
+ACESTEP_ENABLED = os.environ.get(
+    "ACESTEP_ENABLED",
+    "true" if os.environ.get("ACESTEP_API_HOST", "") else "false",
+).lower() in ("true", "1", "yes")
+
 
 def _format_registration_summary(executor) -> str:
     """Build a grouped registration summary string organised by backend type.
@@ -152,6 +160,27 @@ async def lifespan(app: FastAPI):
         logger.info("Hunyuan3D-2mv engine registered")
     except Exception as e:
         logger.warning("Hunyuan3D-2mv engine init failed: %s", e)
+
+    # ── Docker Backend ──────────────────────────────────────────────────
+    # Register ACE-Step music generation engine (sidecar container via HTTP).
+    # v1.4 FIX-05: explicit registration — previously relied on YAML registry
+    # fallback which silently missed it. Engine reports BackendType.DOCKER.
+    if ACESTEP_ENABLED:
+        try:
+            from src.v6.engines.acestep import ACEStepEngine
+            acestep_engine = ACEStepEngine()
+            await acestep_engine.start()
+            executor.register_engine(acestep_engine)
+            acestep_health = await acestep_engine.health()
+            if acestep_health.get("available"):
+                logger.info("ACE-Step engine registered (online) → %s",
+                            acestep_health.get("url", ""))
+            else:
+                logger.info("ACE-Step engine registered (offline — sidecar not running)")
+        except ImportError:
+            logger.warning("ACEStepEngine not available, skipping")
+        except Exception as e:
+            logger.warning("ACE-Step engine init failed: %s", e)
 
     # ── ComfyUI Backend ─────────────────────────────────────────────────
     # Register ComfyUI engine(s)

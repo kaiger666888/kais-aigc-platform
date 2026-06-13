@@ -15,6 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.v6.engines.acestep import ACEStepEngine, _is_external_host
+from src.v6.engines.base import BackendType
 
 
 class TestIsExternalHost:
@@ -159,3 +160,38 @@ class TestACEStepDualMode:
 
         # Should not be ready -- health-check never succeeds
         assert engine._ready is False
+
+
+class TestACEStepBackendType:
+    """Regression test for ACEStepEngine.backend_type classification.
+
+    v1.4 FIX-04 / FIX-06: ACEStepEngine previously inherited the BaseEngine
+    default of BackendType.MOCK, causing it to appear under the [MOCK] group
+    in registration logs and to report ``backend_type: "mock"`` in the
+    ``/api/v1/engines`` response — even though ACE-Step runs in a real
+    sidecar container. These tests pin the classification to DOCKER so the
+    bug cannot silently regress.
+    """
+
+    def test_backend_type_is_docker(self):
+        """ACEStepEngine.backend_type must be BackendType.DOCKER."""
+        engine = ACEStepEngine()
+        assert engine.backend_type == BackendType.DOCKER
+
+    def test_backend_type_is_not_mock(self):
+        """ACEStepEngine.backend_type must NOT be MOCK (the inherited default).
+
+        This is the direct regression guard for v1.3 ENG-04.
+        """
+        engine = ACEStepEngine()
+        assert engine.backend_type != BackendType.MOCK
+
+    def test_backend_type_is_valid_enum(self):
+        """backend_type must be a BackendType enum member (not a string)."""
+        engine = ACEStepEngine()
+        assert isinstance(engine.backend_type, BackendType)
+
+    def test_backend_type_value_string_for_api_response(self):
+        """The enum's string value matches what /api/v1/engines should return."""
+        engine = ACEStepEngine()
+        assert engine.backend_type.value == "docker"
