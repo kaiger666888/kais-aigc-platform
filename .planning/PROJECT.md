@@ -102,25 +102,34 @@ RTX 3090 24GB 串行调度，重模型 (Wan2.2 ~22GB) 和轻模型 (Real-ESRGAN 
 | 测试端口 8090 | 避免与开发环境 8080 冲突 | ✓ Good |
 | Node.js 子进程测试客户端 | 复刻 test_e2e.py 模式，跨语言验证 | ✓ Good |
 
-## Current Milestone: v1.3 Architecture Alignment — Engine Consolidation
+## Current Milestone: v1.4 Production Verification + Repo Governance
 
-**Goal:** 消除 Notion V5 架构与实际代码的所有差距，统一 gold-team v6 引擎体系
+**Goal:** 让 v1.3 架构对齐真正"跑通"（live runtime 验证 + ENG-04 修复），并梳理 15+ sibling agent repo 的存活状态、归档死 repo、明确依赖边界
 
 **Target features:**
-- v6 代码合并（消除 kais-gold-team 研发版与 aigc-platform 部署版分叉）
-- Workflow Builder 补全（flux_dev, flux_ipadapter, hunyuan3d, trellis, flux_trellis_full）
-- TaskType 优化（保持大类 + params.extra 细分，不新增枚举）
-- movie-agent 完全清退（Docker Compose + 代码引用）
-- ACE-Step 权限修复（volume mount PermissionError）
-- Engine Registration 按后端类型统一（ComfyUI/独立API/云端/子进程）
+- Live runtime 验证：docker-compose.v9.yml 全栈启动 + 健康检查 + E2E 音乐生成（关闭 FIX-02/03）
+- Dockerfile build 验证（关闭 MERGE-03）
+- ACEStepEngine 后端类型修复（关闭 ENG-04，MOCK → DOCKER）
+- Sibling repo 全面审计：active / legacy / archived 三态分类
+- 死 repo 归档：移入 archive 目录或标注 deprecated
+- Service ↔ Repo 依赖地图：明确每个 compose service 来自哪个 repo
+- README/AGENTS.md 更新：让新加入者 5 分钟看懂仓库布局
 
-**Architecture decisions:**
-1. v6 代码合并方向：研发版 → 部署版（部署版囊括研发版所有功能）
-2. 所有生成能力收归 workflow builder
-3. Engine 按后端类型注册（不按模型）
-4. TaskType 保持大类，细分走 params.extra
-5. movie-agent 完全清退，OpenClaw Agent 替代
-6. ACE-Step 保持独立容器，修权限 bug
+**Architecture decisions (v1.4):**
+1. v1.4 优先级：**先稳定再治理** — 生产验证在前，Repo 治理在后
+2. Phase 编号延续 v1.3（Phase 20+）
+3. v1.3 phase 目录**保留**（作为审计证据，不归档），v1.4 新 phase 用 `phase-20-*` 命名
+4. Repo 治理采用"分类不销毁"策略：归档到 `.archive/repos/` 或在 README 标注 deprecated，不直接删除（保留 git 历史）
+5. ENG-04 修复点：`docker/gold-team/src/v6/engines/acestep.py` 的 `backend_type` property override
+
+### Shipped: v1.3 Architecture Alignment — Engine Consolidation (2026-06-13)
+
+- v6 代码合并（研发版 → 部署版，消除分叉）
+- 7 个 workflow builder 补全（flux_dev, flux_ipadapter, hunyuan3d, trellis, flux_trellis_full, lipsync, frame_interpolate）
+- BackendType 枚举分类（COMFYUI/SUBPROCESS/CLOUD/DOCKER/MOCK）
+- movie-agent 完全清退（OpenClaw Agent 替代）
+- ACE-Step 权限修复
+- 102/102 测试通过；遗留 3 个 live runtime gap（FIX-02/03, MERGE-03）+ ENG-04 → **v1.4 关闭**
 
 ### Shipped: v1.2 Integration Testing — Hermes-Agent (2026-06-07)
 
@@ -156,4 +165,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-12 after v1.3 milestone kickoff*
+*Last updated: 2026-06-13 after v1.4 milestone kickoff*
