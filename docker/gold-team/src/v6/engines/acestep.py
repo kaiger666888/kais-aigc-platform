@@ -310,7 +310,8 @@ class ACEStepEngine(BaseEngine):
                     return
                 elif status == 2:
                     job.status = "failed"
-                    job.error = result.get("error", "ACE-Step job failed")
+                    failed_result = jobs_data[0] if isinstance(jobs_data[0], dict) else {}
+                    job.error = failed_result.get("error", "ACE-Step job failed")
                     return
                 else:
                     job.progress = min(job.progress + 5, 95.0)

@@ -88,7 +88,8 @@ COPY scripts/ ./scripts/
 RUN groupadd -r kais && useradd -r -g kais kais && \
     chown -R kais:kais /app /opt/CosyVoice && \
     mkdir -p /opt/acestep/app/gradio_outputs /opt/acestep/app/.cache && \
-    chmod -R 777 /opt/acestep/app/gradio_outputs /opt/acestep/app/.cache
+    chmod -R 777 /opt/acestep/app/gradio_outputs /opt/acestep/app/.cache && \
+    ln -sfn /opt/acestep/checkpoints /opt/acestep/app/checkpoints
 USER kais
 
 ENV PORT=8002

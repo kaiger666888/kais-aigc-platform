@@ -246,8 +246,13 @@ services:
       COSYVOICE_MODEL_DIR: /opt/CosyVoice/pretrained_models/FunAudioLLM/Fun-CosyVoice3-0.5B-2512
       COSYVOICE_LLM_WEIGHT: llm.rl.pt
       # ACE-Step music generation (standalone container)
+      # v1.4 VERIFY-02/03: switched to localhost subprocess mode because the
+      # standalone kais-acestep container's image (nvidia/cuda:12.8.x) cannot
+      # be pulled from configured registry mirrors. Localhost mode launches
+      # `python -m acestep.api_server` inside this container instead.
+      # Revert to "kais-acestep" once mirror cache is restored.
       ACESTEP_ROOT: /opt/acestep
-      ACESTEP_API_HOST: kais-acestep
+      ACESTEP_API_HOST: 127.0.0.1
       ACESTEP_API_PORT: 8001
       ACESTEP_CONFIG_PATH: acestep-v15-xl-turbo
       ACESTEP_CONFIG_PATH2: acestep-v15-xl-sft
@@ -474,6 +479,61 @@ services:
       interval: 15s
       timeout: 5s
       retries: 3
+
+  # ---------------------------------------------------------------------------
+  # 10. kais-lora-trainer (GPU 1/3090, :8070)
+  # ---------------------------------------------------------------------------
+  # 职责: FLUX.1-dev LoRA 训练 (角色一致性/风格迁移)
+  # GPU: RTX 3090 24GB (fp8_base 模式, ~14GB 显存)
+  # 端口: 8070
+  # 依赖: sd-scripts (kohya_ss) + FLUX 模型库
+  # ---------------------------------------------------------------------------
+  lora-trainer:
+    image: ${LORA_TRAINER_IMAGE:-kais/lora-trainer:latest}
+    build:
+      context: ./docker/lora-trainer
+      dockerfile: Dockerfile
+    container_name: kais-lora-trainer
+    restart: "no"  # 按需启动, 不自动重启
+    ports:
+      - "${LORA_TRAINER_PORT:-8070}:8070"
+    environment:
+      NVIDIA_VISIBLE_DEVICES: "1"
+      NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
+      DATA_DIR: "/data"
+      MODELS_DIR: "/data/models/comfyui"
+      SD_SCRIPTS_DIR: "/opt/sd-scripts"
+      HF_ENDPOINT: "https://hf-mirror.com"
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+      HTTP_PROXY: "${HTTP_PROXY:-}"
+      HTTPS_PROXY: "${HTTPS_PROXY:-}"
+      http_proxy: "${http_proxy:-}"
+      https_proxy: "${https_proxy:-}"
+      NO_PROXY: "localhost,127.0.0.1,172.18.0.0/16"
+    volumes:
+      - ${DATA_MODELS_DIR:-/data/models/comfyui}:/data/models/comfyui:ro
+      - ${DATA_DIR:-/data}/datasets:/data/datasets:rw
+      - ${DATA_DIR:-/data}/output/lora:/data/output/lora:rw
+      - ${DATA_DIR:-/data}/logs/lora-train:/data/logs/lora-train:rw
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["1"]
+              capabilities: [gpu]
+    networks:
+      - kais-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8070/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    profiles:
+      - training
 
 # =============================================================================
 # Networks
