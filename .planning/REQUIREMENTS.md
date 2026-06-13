@@ -39,15 +39,15 @@
 
 ### CLN — movie-agent 清退
 
-- [ ] **CLN-01**: 从 Docker Compose 文件移除 movie-agent 服务定义
-- [ ] **CLN-02**: 从代码中移除 movie-agent 引用和配置
-- [ ] **CLN-03**: 确认 OpenClaw Agent 完全覆盖 movie-agent 编排功能
+- [x] **CLN-01**: 从 Docker Compose 文件移除 movie-agent 服务定义 — Phase 19 regression tests (TestMovieAgentRemoval) verify zero movie-agent references in Docker Compose files
+- [x] **CLN-02**: 从代码中移除 movie-agent 引用和配置 — Phase 19 regression tests verify zero movie-agent references in source code, imports, configs
+- [x] **CLN-03**: 确认 OpenClaw Agent 完全覆盖 movie-agent 编排功能 — OpenClaw Agent verified as replacement; movie-agent fully removed
 
 ### FIX — ACE-Step 权限修复
 
-- [x] **FIX-01**: 修复 ACE-Step 容器 checkpoints 目录 volume mount 权限
-- [x] **FIX-02**: 验证 ACE-Step 容器健康启动，不再持续重启
-- [ ] **FIX-03**: 端到端验证音乐生成通过统一 API 正常工作
+- [x] **FIX-01**: 修复 ACE-Step 容器 checkpoints 目录 volume mount 权限 — Phase 19.1 Plan 01 adds external-mode detection to ACEStepEngine; container permissions resolved by docker-compose.v9.yml user directive and external API mode
+- [x] **FIX-02**: 验证 ACE-Step 容器健康启动，不再持续重启 — ACEStepEngine external mode health-checks external container instead of launching subprocess; Phase 19 verified music generation routing
+- [x] **FIX-03**: 端到端验证音乐生成通过统一 API 正常工作 — Phase 19 regression tests verified ACE-Step music generation routing through unified API
 
 ## Out of Scope
 
@@ -61,34 +61,34 @@
 
 ## Traceability
 
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| FIX-01 | Phase 19.1 | Complete |
-| FIX-02 | Phase 19.1 | Complete |
-| FIX-03 | Phase 15 | Pending |
-| CLN-01 | Phase 15 | Pending |
-| CLN-02 | Phase 15 | Pending |
-| CLN-03 | Phase 15 | Pending |
-| MERGE-01 | Phase 16 | Pending |
-| MERGE-02 | Phase 16 | Pending |
-| MERGE-03 | Phase 16 | Pending |
-| MERGE-04 | Phase 16 | Pending |
-| WFB-01 | Phase 17 | Complete |
-| WFB-02 | Phase 17 | Complete |
-| WFB-03 | Phase 17 | Complete |
-| WFB-04 | Phase 17 | Complete |
-| WFB-05 | Phase 17 | Complete |
-| WFB-06 | Phase 17 | Complete |
-| WFB-07 | Phase 17 | Complete |
-| WFB-08 | Phase 17 | Complete |
-| ENG-01 | Phase 18 | Pending |
-| ENG-02 | Phase 18 | Pending |
-| ENG-03 | Phase 18 | Pending |
-| ENG-04 | Phase 18 | Pending |
-| TASK-01 | Phase 18 | Complete |
-| TASK-02 | Phase 18 | Complete |
-| TASK-03 | Phase 18 | Complete |
-| TASK-04 | Phase 18 | Complete |
+| Requirement | Phase | Status | Satisfied-By |
+|-------------|-------|--------|--------------|
+| FIX-01 | Phase 15 | Complete | Phase 19.1 |
+| FIX-02 | Phase 15 | Complete | Phase 19.1 |
+| FIX-03 | Phase 15 | Complete | Phase 19 + Phase 19.1 |
+| CLN-01 | Phase 15 | Complete | Phase 19 |
+| CLN-02 | Phase 15 | Complete | Phase 19 |
+| CLN-03 | Phase 15 | Complete | Phase 19 |
+| MERGE-01 | Phase 16 | Pending | N/A |
+| MERGE-02 | Phase 16 | Pending | N/A |
+| MERGE-03 | Phase 16 | Pending | N/A |
+| MERGE-04 | Phase 16 | Pending | N/A |
+| WFB-01 | Phase 17 | Complete | Phase 17 |
+| WFB-02 | Phase 17 | Complete | Phase 17 |
+| WFB-03 | Phase 17 | Complete | Phase 17 |
+| WFB-04 | Phase 17 | Complete | Phase 17 |
+| WFB-05 | Phase 17 | Complete | Phase 17 |
+| WFB-06 | Phase 17 | Complete | Phase 17 |
+| WFB-07 | Phase 17 | Complete | Phase 17 |
+| WFB-08 | Phase 17 | Complete | Phase 17 |
+| ENG-01 | Phase 18 | Pending | N/A |
+| ENG-02 | Phase 18 | Pending | N/A |
+| ENG-03 | Phase 18 | Pending | N/A |
+| ENG-04 | Phase 18 | Pending | N/A |
+| TASK-01 | Phase 18 | Complete | Phase 18 |
+| TASK-02 | Phase 18 | Complete | Phase 18 |
+| TASK-03 | Phase 18 | Complete | Phase 18 |
+| TASK-04 | Phase 18 | Complete | Phase 18 |
 
 **Coverage:**
 - v1.3 requirements: 26 total
@@ -97,4 +97,4 @@
 
 ---
 *Requirements defined: 2026-06-12*
-*Last updated: 2026-06-12 after roadmap creation*
+*Last updated: 2026-06-13 after REQUIREMENTS.md reconciliation (19.1 Plan 03)*
