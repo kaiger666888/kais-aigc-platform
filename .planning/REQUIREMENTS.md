@@ -32,10 +32,10 @@
 
 ### ENG — Engine Registration 统一
 
-- [ ] **ENG-01**: 统一引擎注册为按后端类型（ComfyUI/独立API/云端/子进程）
-- [ ] **ENG-02**: ComfyUI 模型不新增 Engine 类，全部走 ComfyUIEngine + workflow_builder
-- [ ] **ENG-03**: 验证 ComfyUIEngine 双引擎自动路由（Primary/Auxiliary）
-- [ ] **ENG-04**: 验证 DockerPollingAPIEngine (ACE-Step) 和 CloudEngine 正常
+- [x] **ENG-01**: 统一引擎注册为按后端类型（ComfyUI/独立API/云端/子进程）
+- [x] **ENG-02**: ComfyUI 模型不新增 Engine 类，全部走 ComfyUIEngine + workflow_builder
+- [x] **ENG-03**: 验证 ComfyUIEngine 双引擎自动路由（Primary/Auxiliary）
+- [x] **ENG-04**: 验证 DockerPollingAPIEngine (ACE-Step) 和 CloudEngine 正常
 
 ### CLN — movie-agent 清退
 
@@ -81,10 +81,10 @@
 | WFB-06 | Phase 17 | Complete | Phase 17 |
 | WFB-07 | Phase 17 | Complete | Phase 17 |
 | WFB-08 | Phase 17 | Complete | Phase 17 |
-| ENG-01 | Phase 18 | Pending | N/A |
-| ENG-02 | Phase 18 | Pending | N/A |
-| ENG-03 | Phase 18 | Pending | N/A |
-| ENG-04 | Phase 18 | Pending | N/A |
+| ENG-01 | Phase 18 | Complete | Phase 18 |
+| ENG-02 | Phase 18 | Complete | Phase 18 |
+| ENG-03 | Phase 18 | Complete | Phase 18 |
+| ENG-04 | Phase 18 | Complete | Phase 18 |
 | TASK-01 | Phase 18 | Complete | Phase 18 |
 | TASK-02 | Phase 18 | Complete | Phase 18 |
 | TASK-03 | Phase 18 | Complete | Phase 18 |
