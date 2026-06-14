@@ -102,7 +102,25 @@ RTX 3090 24GB 串行调度，重模型 (Wan2.2 ~22GB) 和轻模型 (Real-ESRGAN 
 | 测试端口 8090 | 避免与开发环境 8080 冲突 | ✓ Good |
 | Node.js 子进程测试客户端 | 复刻 test_e2e.py 模式，跨语言验证 | ✓ Good |
 
-## Current Milestone: v1.4 Production Verification + Repo Governance
+## Current Milestone: v1.5 Architecture Hardening + Code Hygiene
+
+**Goal:** 关闭 ACE 路由收敛(commit e3d649e/e817e18)后暴露的工程配合问题 — 跨进程协调、遗留 Python 代码退役、路径分散、自动生成机制元问题、内嵌项目类型卫生
+
+**Target features:**
+- **GpuScheduler 多进程协调** — 当前模块级单例在单进程下有效,但 dev/prod 并存或 cluster 模式会状态分裂。引入 Redis 后端,所有进程共享 GPU 锁与服务状态。
+- **gold-team Python 代码彻底退役** — ACE 收敛后 Node 路由层不再调 gold-team 的 ACE 端点,但 `docker/gold-team/src/v6/engines/acestep.py`、`main.py` 注册逻辑、`engine_registry.py` 中的 acestep 条目仍是死代码(自然休眠但占盘)。本 milestone 彻底清理。
+- **输出路径变量统一** — 33 个 ComfyUI 路由各自维护 `OUTPUT_DIR`/`COMFYUI_OUTPUT_DIR`/`FLUX_OUTPUT_DIR`/`INDEXTTS2_OUTPUT_DIR`/`LTX_OUTPUT_DIR` 等,默认值不一致(有的 `/mnt/agents/output`、有的 `/mnt/agents/output/gpu1`)。统一约定。
+- **hermes-agent 内嵌项目类型卫生** — `docker/hermes-agent/_hermes_source/web/` 是内嵌的 React 项目,主工程 `yarn lint` 会扫到它的 41 个 TS 错误,污染主工程构建。需要从主 tsconfig 排除。
+- **router.ts 自动生成机制元问题** — `src/core.ts` 用 fast-glob 扫描所有 `src/routes/**/*.ts` 文件作为 route,但 config-only 文件(没有 default export 或导出空 router)被错误纳入扫描。本 milestone 在 core.ts 加跳过规则,从源头解决。
+
+**Architecture decisions (v1.5):**
+1. Phase 编号延续 v1.4(Phase 23+)
+2. v1.4 phase 目录保留(作为审计证据)
+3. 范围限定在 5 项已识别改进,不引入新功能
+4. hermes-agent 修复方式:从主 tsconfig.json exclude,不修改内嵌项目本身
+5. 输出路径统一方向:在 `src/lib/paths.ts` 加统一约定,新代码强制使用,旧代码渐进迁移
+
+## Shipped: v1.4 Production Verification + Repo Governance (2026-06-13)
 
 **Goal:** 让 v1.3 架构对齐真正"跑通"（live runtime 验证 + ENG-04 修复），并梳理 15+ sibling agent repo 的存活状态、归档死 repo、明确依赖边界
 
@@ -121,6 +139,12 @@ RTX 3090 24GB 串行调度，重模型 (Wan2.2 ~22GB) 和轻模型 (Real-ESRGAN 
 3. v1.3 phase 目录**保留**（作为审计证据，不归档），v1.4 新 phase 用 `phase-20-*` 命名
 4. Repo 治理采用"分类不销毁"策略：归档到 `.archive/repos/` 或在 README 标注 deprecated，不直接删除（保留 git 历史）
 5. ENG-04 修复点：`docker/gold-team/src/v6/engines/acestep.py` 的 `backend_type` property override
+
+**Outcome (partial):**
+- Phase 20 (ENG-04): ✅ closed via commit `1d5996a` (backend_type classification fix)
+- Phase 21 (VERIFY): ⚠ partial — VERIFY-01/02/04 closed; VERIFY-03 hardware-blocked (live music gen needs full GPU runtime)
+- Phase 22 (REPO): ✅ closed via commit `6c9c3b1` (19 sibling repos audited, movie-agent archived, REPO-MAP created)
+- Additionally shipped mid-milestone: ACE route convergence (commits e3d649e + e817e18) — accelerated v1.5 scope
 
 ### Shipped: v1.3 Architecture Alignment — Engine Consolidation (2026-06-13)
 
@@ -165,4 +189,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-13 after v1.4 milestone kickoff*
+*Last updated: 2026-06-14 after v1.5 milestone kickoff*

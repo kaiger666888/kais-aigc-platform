@@ -1,13 +1,12 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.4
-milestone_name: Production Verification + Repo Governance
-status: completed
-stopped_at: v1.4 roadmap created. 3 phases (20, 21, 22) with 13 requirements mapped at 100% coverage.
-last_updated: "2026-06-13T12:27:38.659Z"
-last_activity: 2026-06-13 -- Phase 20 marked complete
+milestone: v1.5
+milestone_name: Architecture Hardening + Code Hygiene
+status: planning
+last_updated: "2026-06-14T07:17:59.266Z"
+last_activity: 2026-06-14
 progress:
-  total_phases: 3
+  total_phases: 0
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -25,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-06-13)
 
 ## Current Position
 
-Phase: 20 — COMPLETE
-Plan: 1 of ?
-Status: Phase 20 complete
-Last activity: 2026-06-13 -- Phase 20 marked complete
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-06-14 — Milestone v1.5 started
 
 ## Performance Metrics
 
