@@ -27,6 +27,13 @@ AI 短剧全链路制作平台，通过 kais-gold-team 统一执行引擎编排 
 - ✓ movie-pipeline 域注册 + 14 专家技能迁移 — v1.1
 - ✓ hermes-client.js + HERMES_DEFAULTS 降级 + Docker 部署 — v1.1
 - ✓ hermes-agent 集成测试体系 (42+ tests, CI pipeline) — v1.2
+- ✓ ACE-Step 音乐生成迁移到 ComfyUI workflow (替代独立容器) — v1.4 (commit e3d649e)
+- ✓ ACE 路由套件收敛(14→10 端点,统一走 ComfyUI)— v1.4 (commit e3d649e)
+- ✓ GpuScheduler Redis-backed 多进程协调 — v1.5
+- ✓ gold-team ACE-Step Python 引擎彻底退役 — v1.5
+- ✓ 统一输出路径约定 (`src/lib/paths.ts`) — v1.5
+- ✓ 主工程 TypeScript 编译干净(12,447 → 0 错误)— v1.5
+- ✓ router.ts 自动生成机制根因修复(config/_shared 跳过)— v1.5
 
 ### Active
 
@@ -189,4 +196,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-14 after v1.5 milestone kickoff*
+*Last updated: 2026-06-14 after v1.5 milestone shipped*

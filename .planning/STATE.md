@@ -2,11 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Architecture Hardening + Code Hygiene
-status: planning
-last_updated: "2026-06-14T07:30:00.000Z"
-last_activity: 2026-06-14
+status: Awaiting next milestone
+stopped_at: v1.5 roadmap created. 5 phases (23-27) with 9 requirements mapped at 100% coverage.
+last_updated: "2026-06-14T13:13:15.683Z"
+last_activity: 2026-06-14 — Milestone v1.5 completed and archived
 progress:
-  total_phases: 5
+  total_phases: 8
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -24,12 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-14)
 
 ## Current Position
 
-Phase: Roadmap defined (5 phases: 23-27)
+Phase: Milestone v1.5 complete
 Plan: —
-Status: Ready to plan
-Last activity: 2026-06-14 — v1.5 roadmap created; 5 phases (23-27) derived from 9 requirements at 100% coverage
-
-Progress: [░░░░░░░░░░] 0% (0/5 phases, 0/0 plans)
+Status: Awaiting next milestone
+Last activity: 2026-06-14 — Milestone v1.5 completed and archived
 
 ## Performance Metrics
 
@@ -74,6 +73,7 @@ Progress: [░░░░░░░░░░] 0% (0/5 phases, 0/0 plans)
 - Repo archival strategy: `git mv` to `.archive/repos/` OR DEPRECATED marker — NO deletion
 
 **v1.5 milestone decisions:**
+
 - Phase numbering continues from v1.4 (Phase 23+)
 - Scope strictly limited to 5 identified improvements; no new features
 - Phases 23 (Redis) and 24 (Python cleanup) are independent — may run in parallel
@@ -110,3 +110,7 @@ Items acknowledged and carried forward from previous milestone close:
 Last session: 2026-06-14
 Stopped at: v1.5 roadmap created. 5 phases (23-27) with 9 requirements mapped at 100% coverage.
 Resume: `/gsd:plan-phase 23` to plan the first phase (GpuScheduler Redis Migration).
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone
