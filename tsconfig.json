@@ -29,6 +29,10 @@
     "data/**/*.ts",
     "dist",
     "build",
-    "packages"
+    "packages",
+    "docker/hermes-agent/_hermes_source/**",
+    "docker/comfyui-primary/custom_nodes/**",
+    "docker/gold-team/**",
+    "docker/lora-trainer/**"
   ]
 }

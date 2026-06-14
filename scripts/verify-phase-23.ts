@@ -76,7 +76,7 @@ async function testSchedulerMemoryBackend(): Promise<void> {
 
   // Try to allocate a known-unreal service to test error path
   const result = await scheduler.allocate({ serviceId: "nonexistent", caller: "test" });
-  assert(result.granted === false && result.error?.includes("Unknown service"), "allocate rejects unknown serviceId");
+  assert(result.granted === false && (result.error || "").includes("Unknown service"), "allocate rejects unknown serviceId");
 
   await store.close();
 }
