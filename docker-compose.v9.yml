@@ -177,10 +177,6 @@ services:
       REDIS_URL: redis://redis:6379
       GOLD_TEAM_URL: http://kais-gold-team:8002
       REVIEW_PLATFORM_URL: http://kais-review-platform:8090
-      # ACE-Step 音乐生成引擎
-      ACE_ENGINE_ID: acestep-internal
-      ACE_DEFAULT_MODEL: acestep-v15-xl-turbo
-      ACE_DIRECT_URL: http://kais-acestep:8001
       DOCKER_GID: "984"
       # TTS 三轨引擎 — 现在统一走 gold-team:8002 in-process
       TTS_ZH_URL: http://kais-gold-team:8002
@@ -245,19 +241,6 @@ services:
       COSYVOICE_ROOT: /opt/CosyVoice
       COSYVOICE_MODEL_DIR: /opt/CosyVoice/pretrained_models/FunAudioLLM/Fun-CosyVoice3-0.5B-2512
       COSYVOICE_LLM_WEIGHT: llm.rl.pt
-      # ACE-Step music generation (standalone container)
-      # v1.4 VERIFY-02/03: switched to localhost subprocess mode because the
-      # standalone kais-acestep container's image (nvidia/cuda:12.8.x) cannot
-      # be pulled from configured registry mirrors. Localhost mode launches
-      # `python -m acestep.api_server` inside this container instead.
-      # Revert to "kais-acestep" once mirror cache is restored.
-      ACESTEP_ROOT: /opt/acestep
-      ACESTEP_API_HOST: 127.0.0.1
-      ACESTEP_API_PORT: 8001
-      ACESTEP_CONFIG_PATH: acestep-v15-xl-turbo
-      ACESTEP_CONFIG_PATH2: acestep-v15-xl-sft
-      ACESTEP_CHECKPOINTS: /opt/acestep/checkpoints
-      ACESTEP_OFFLOAD_DIT_TO_CPU: "true"
       MPLCONFIGDIR: /tmp/matplotlib
       # TTS 三轨 — 环境变量 (TrackManager 读取)
       GPTSOVITS_ROOT: /opt/GPT-SoVITS
@@ -268,7 +251,6 @@ services:
       - ${MODELS_DIR:-/opt/kais/models}:/opt/kais/models:ro
       - ${DATA_MODELS_DIR:-/data/models}:/data/models
       - cosyvoice-models:/opt/CosyVoice/pretrained_models
-      - ${ACESTEP_MODELS_DIR:-/data/models/ACE-Step1.5}:/opt/acestep/checkpoints
       # TTS 三轨模型目录挂载
       - ${GPTSOVITS_DIR:-/data/models/GPT-SoVITS}:/opt/GPT-SoVITS
       - ${CHATTERBOX_DIR:-/data/models/chatterbox}:/opt/chatterbox
@@ -293,52 +275,6 @@ services:
         condition: service_healthy
       comfyui-primary:
         condition: service_healthy
-
-  # ---------------------------------------------------------------------------
-  # 3b. ACE-Step Music Generation API (REST server mode)
-  # ---------------------------------------------------------------------------
-  # Standalone ACE-Step 1.5 container, exposing REST API on port 8009.
-  # Gold-team's ACEStepEngine connects to this via internal network.
-  # GPU: RTX 3090 (shared, model loaded once — ~18GB VRAM for XL + 4B LM)
-  # ---------------------------------------------------------------------------
-  kais-acestep:
-    build:
-      context: ${ACESTEP_PROJECT_DIR:-../ACE-Step-1.5}
-      dockerfile: Dockerfile
-    image: kais-acestep:latest
-    container_name: kais-acestep
-    user: "1000:1000"
-    restart: unless-stopped
-    profiles:
-      - ace
-    ports:
-      - "127.0.0.1:${ACESTEP_API_PORT:-8009}:8001"
-    environment:
-      NVIDIA_VISIBLE_DEVICES: "1"     # GPU 1 = RTX 3090
-      ACESTEP_MODE: api
-      ACESTEP_API_HOST: 0.0.0.0
-      ACESTEP_API_PORT: "8001"
-      ACESTEP_CONFIG_PATH: ${ACESTEP_CONFIG_PATH:-acestep-v15-xl-turbo}
-      ACESTEP_CONFIG_PATH2: ${ACESTEP_CONFIG_PATH2:-acestep-v15-xl-sft}
-      ACESTEP_LM_MODEL_PATH: ${ACESTEP_LM_MODEL_PATH:-acestep-5Hz-lm-4B}
-      ACESTEP_LLM_BACKEND: ${ACESTEP_LM_BACKEND:-pt}
-      ACESTEP_INIT_SERVICE: "true"
-      TOKENIZERS_PARALLELISM: "false"
-      HF_HUB_OFFLINE: "1"
-      TRANSFORMERS_OFFLINE: "1"
-    volumes:
-      - ${ACESTEP_MODELS_DIR:-/data/models/ACE-Step1.5}:/app/checkpoints
-      - ${OUTPUT_DIR:-/mnt/agents/output}:/app/output
-      - hf-cache:/root/.cache/huggingface
-    networks:
-      - kais-net
-    shm_size: "4gb"
-    healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:8001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 300s
 
   # ---------------------------------------------------------------------------
   # 4. kais-review-platform (审核平台) — OPTIONAL
@@ -536,8 +472,8 @@ services:
     profiles:
       - training
     # ⚠️ 训练时需确保 GPU 1 (3090) 有足够显存 (>15GB free)
-    # 建议先停 comfyui-primary 和 ace-step:
-    #   docker stop comfyui-primary kais-acestep
+    # 建议先停 comfyui-primary 释放 VRAM:
+    #   docker stop comfyui-primary
 
 # =============================================================================
 # Networks

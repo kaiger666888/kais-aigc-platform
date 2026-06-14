@@ -7,52 +7,64 @@ const router = express.Router();
 /**
  * GET /api/v1/ace/models
  *
- * List available ACE-Step models.
- * Falls back to defaults if gold-team doesn't expose a models endpoint.
+ * List available ACE-Step models by querying ComfyUI's object_info
+ * for the AceStepSFTModelLoader node. Falls back to static defaults
+ * if ComfyUI is unreachable.
  */
-export default router.get("/", async (req, res) => {
+export default router.get("/", async (_req, res) => {
+  const comfyuiUrl = ACE_CONFIG.comfyuiUrl;
+
   try {
-    const axios = (await import("axios")).default;
-    const resp = await axios.get(`${ACE_CONFIG.goldTeamUrl}/api/v1/engines`, {
-      timeout: 5_000,
-      validateStatus: (s: number) => s < 500,
-    });
+    const resp = await fetch(
+      `${comfyuiUrl}/object_info/AceStepSFTModelLoader`,
+      { signal: AbortSignal.timeout(5_000) },
+    );
 
-    // Try to extract ACE engine info
-    const engines = resp.data?.engines || resp.data || [];
-    const aceEngine = Array.isArray(engines)
-      ? engines.find((e: any) => e.engine_id?.includes("ace") || e.name?.includes("ACE"))
-      : null;
+    if (resp.ok) {
+      const data = (await resp.json()) as {
+        AceStepSFTModelLoader?: {
+          input?: {
+            required?: Record<string, [string[] | string, ...any]>;
+          };
+        };
+      };
+      const nodeInfo = data.AceStepSFTModelLoader;
+      const diffusionInput = nodeInfo?.input?.required?.diffusion_model;
+      const models = Array.isArray(diffusionInput)
+        ? diffusionInput[0]
+        : undefined;
 
-    if (aceEngine) {
-      return res.status(200).send(success({
-        models: aceEngine.models || ["acestep-v15-xl-turbo", "acestep-v15-xl-sft"],
-        engine_id: aceEngine.engine_id || ACE_CONFIG.engineId,
-        status: aceEngine.status || "unknown",
-        capabilities: aceEngine.capabilities || null,
-      }));
+      if (Array.isArray(models) && models.length > 0) {
+        return res.status(200).send(success({
+          models,
+          engine_target: "comfyui",
+          comfyui_url: comfyuiUrl,
+          status: "live",
+        }));
+      }
     }
   } catch {
-    // Fallback to static defaults
+    // Fall through to static defaults
   }
 
-  // Static defaults when gold-team is unreachable or has no ACE info
+  // Static fallback when ComfyUI is unreachable or node not registered
   return res.status(200).send(success({
     models: [
       {
-        id: "acestep-v15-xl-turbo",
-        name: "ACE-Step 1.5 XL Turbo",
-        description: "Fast generation, good quality. Recommended for production.",
+        id: "acestep_v1.5_xl_sft.safetensors",
+        name: "ACE-Step 1.5 XL SFT",
+        description: "Highest quality, slower. Best for final output.",
         default: true,
       },
       {
-        id: "acestep-v15-xl-sft",
-        name: "ACE-Step 1.5 XL SFT",
-        description: "Highest quality, slower. Best for final output.",
+        id: "acestep_v1.5_xl_turbo.safetensors",
+        name: "ACE-Step 1.5 XL Turbo",
+        description: "Fast generation, good quality. Recommended for preview.",
         default: false,
       },
     ],
-    engine_id: ACE_CONFIG.engineId,
+    engine_target: "comfyui",
+    comfyui_url: comfyuiUrl,
     status: "cached",
     task_types: [
       { type: "text2music", label: "Text to Music", description: "Generate music from text prompt and/or lyrics" },
@@ -64,5 +76,6 @@ export default router.get("/", async (req, res) => {
       { type: "remix", label: "Remix", description: "Remix an existing audio track" },
     ],
     audio_formats: ["mp3", "wav", "flac", "opus", "aac", "wav32"],
+    note: "ComfyUI unreachable — returning cached defaults. Verify ComfyUI is running and AceStepSFT nodes are installed.",
   }));
 });

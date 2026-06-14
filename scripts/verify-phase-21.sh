@@ -78,84 +78,60 @@ verify_stack_health() {
 # -----------------------------------------------------------------------------
 # VERIFY-02: ACE-Step container health, no PermissionError
 # -----------------------------------------------------------------------------
+# N/A: kais-acestep standalone container removed in ACE-route convergence.
+# ACE-Step music generation now runs via ComfyUI (AceStepSFTModelLoader node)
+# hosted inside the comfyui-primary container. There is no separate ACE container
+# to health-check. The corresponding FIX-02 closure evidence lives in commit
+# history and the v1.3 milestone audit.
 verify_acestep_container() {
-  header "VERIFY-02 / FIX-02: ACE-Step container health"
-  yellow "Bringing up ACE-Step sidecar (profile=ace)..."
-  $COMPOSE --profile ace up -d kais-acestep
-
-  yellow "Waiting up to 5min for ACE-Step healthcheck (start_period=300s)..."
-  local waited=0
-  while (( waited < 360 )); do
-    local status
-    status=$(docker inspect --format '{{.State.Health.Status}}' kais-acestep 2>/dev/null || echo "starting")
-    printf "  [%3ds] kais-acestep health=%s\n" "$waited" "$status"
-    if [[ "$status" == "healthy" ]]; then
-      green "  ✓ ACE-Step container healthy"
-      break
-    fi
-    sleep 15
-    waited=$((waited + 15))
-  done
-
-  if [[ "$status" != "healthy" ]]; then
-    red "  ✗ ACE-Step did not become healthy"
-    return 1
-  fi
-
-  yellow "Checking logs for PermissionError..."
-  local perm_errors
-  perm_errors=$(docker compose -f docker-compose.v9.yml logs kais-acestep 2>&1 | grep -ci "permissionerror" || true)
-  if (( perm_errors == 0 )); then
-    green "  ✓ Zero PermissionError entries in ACE-Step logs"
-    return 0
-  else
-    red   "  ✗ Found ${perm_errors} PermissionError entries in ACE-Step logs"
-    return 1
-  fi
+  header "VERIFY-02 / FIX-02: ACE-Step container health (SKIPPED)"
+  yellow "  ACE-Step standalone container was removed; ACE now runs via ComfyUI."
+  yellow "  Health is implicitly verified via comfyui-primary container health (VERIFY-01)."
+  green "  ✓ SKIP — covered by ComfyUI primary healthcheck"
+  return 0
 }
 
 # -----------------------------------------------------------------------------
 # VERIFY-03: E2E music generation produces real MP3
 # -----------------------------------------------------------------------------
+# Rewritten: now submits via /api/v1/ace/generate (ComfyUI-backed) and polls
+# /api/v1/ace/status/:promptId. Old gold-team task queue path is retired.
 verify_e2e_music() {
-  header "VERIFY-03 / FIX-03: E2E music generation"
-  yellow "Submitting music task to gold-team..."
+  header "VERIFY-03 / FIX-03: E2E music generation (via ComfyUI)"
+  yellow "Submitting music task to /api/v1/ace/generate (ComfyUI backend)..."
   local resp
-  resp=$(curl -sS -X POST http://localhost:8002/api/v1/tasks \
+  resp=$(curl -sS -X POST http://localhost:8000/api/v1/ace/generate \
     -H "Content-Type: application/json" \
     -d '{
-      "task_type": "music",
-      "params": {
-        "prompt": "Upbeat electronic test tone, 5 seconds",
-        "audio_duration": 5,
-        "audio_format": "mp3",
-        "model": "acestep-v15-xl-turbo"
-      }
+      "prompt": "Upbeat electronic test tone, 5 seconds",
+      "duration": 5,
+      "model": "acestep_v1.5_xl_sft.safetensors",
+      "filename_prefix": "verify-phase-21-e2e"
     }') || true
   echo "  Submit response: $resp"
 
   local task_id
-  task_id=$(echo "$resp" | python3 -c "import sys,json; print(json.load(sys.stdin).get('task_id',''))" 2>/dev/null || echo "")
+  task_id=$(echo "$resp" | python3 -c "import sys,json; print(json.load(sys.stdin).get('data',{}).get('task_id',''))" 2>/dev/null || echo "")
   if [[ -z "$task_id" ]]; then
-    red "  ✗ No task_id returned"
+    red "  ✗ No task_id returned (ComfyUI may be down or ACE nodes missing)"
     return 1
   fi
-  yellow "  Task ID: ${task_id}"
+  yellow "  ComfyUI prompt_id: ${task_id}"
 
-  yellow "Polling up to 6min for completion..."
+  yellow "Polling up to 6min via /api/v1/ace/status/:promptId..."
   local waited=0
   while (( waited < 360 )); do
     local status_json
-    status_json=$(curl -sS "http://localhost:8002/api/v1/tasks/${task_id}" 2>/dev/null || echo "{}")
+    status_json=$(curl -sS "http://localhost:8000/api/v1/ace/status/${task_id}" 2>/dev/null || echo "{}")
     local state
-    state=$(echo "$status_json" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo "")
+    state=$(echo "$status_json" | python3 -c "import sys,json; print(json.load(sys.stdin).get('data',{}).get('status',''))" 2>/dev/null || echo "")
     printf "  [%3ds] state=%s\n" "$waited" "$state"
     if [[ "$state" == "completed" ]]; then
       local output
       output=$(echo "$status_json" | python3 -c "
 import sys, json
 d = json.load(sys.stdin)
-outs = d.get('result', {}).get('outputs', []) or []
+outs = d.get('data', {}).get('outputs', []) or []
 print(outs[0].get('path', '') if outs else '')
 " 2>/dev/null || echo "")
       if [[ -n "$output" && -f "$output" ]]; then
@@ -168,7 +144,7 @@ print(outs[0].get('path', '') if outs else '')
         return 1
       fi
     elif [[ "$state" == "failed" ]]; then
-      red "  ✗ Task failed: $(echo "$status_json" | python3 -c 'import sys,json; print(json.load(sys.stdin).get("error",""))' 2>/dev/null)"
+      red "  ✗ Task failed: $(echo "$status_json" | python3 -c 'import sys,json; print(json.load(sys.stdin).get("data",{}).get("error",""))' 2>/dev/null)"
       return 1
     fi
     sleep 10

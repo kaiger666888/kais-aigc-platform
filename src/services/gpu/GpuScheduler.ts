@@ -18,7 +18,6 @@ import type {
   ServiceProfile,
   ServiceState,
   ServiceStatus,
-  ServiceVariant,
   ServiceStartMethod,
   AllocationRequest,
   AllocationResult,
@@ -89,44 +88,6 @@ export function getRegisteredServices(): ServiceProfile[] {
       stop: { type: "script", command: "python3", args: ["/home/kai/workspace/kais-gold-team/scripts/tts_manager.py", "stop", "en"] },
       healthUrl: null,
       healthTimeoutMs: 10_000,
-      idleTimeoutMs: 10 * 60 * 1000,
-    },
-    // ACE-Step — GPU 1 (3090), 按需, 非常驻
-    {
-      id: "ace-step",
-      name: "ACE-Step Music Gen",
-      gpuId: 1,
-      vramEstMb: 17_600, // 默认 variant (turbo)
-      priority: 2,
-      category: "ace-step",
-      start: [],
-      stop: { type: "docker-stop", containerName: "kais-acestep" },
-      healthUrl: "http://kais-acestep:8001/health",
-      healthTimeoutMs: 120_000,
-      variants: [
-        {
-          variantId: "turbo",
-          displayName: "XL-turbo + 1.7B LM (pt)",
-          envVars: {
-            ACESTEP_CONFIG_PATH: "acestep-v15-xl-turbo",
-            ACESTEP_CONFIG_PATH2: "acestep-v15-xl-turbo",
-            ACESTEP_LM_MODEL_PATH: "acestep-5Hz-lm-1.7B",
-            ACESTEP_LLM_BACKEND: "pt",
-          },
-          vramEstMb: 17_600,
-        },
-        {
-          variantId: "xl-sft",
-          displayName: "XL-SFT + 1.7B LM (pt, high quality)",
-          envVars: {
-            ACESTEP_CONFIG_PATH: "acestep-v15-xl-sft",
-            ACESTEP_CONFIG_PATH2: "acestep-v15-xl-sft",
-            ACESTEP_LM_MODEL_PATH: "acestep-5Hz-lm-1.7B",
-            ACESTEP_LLM_BACKEND: "pt",
-          },
-          vramEstMb: 10_000,
-        },
-      ],
       idleTimeoutMs: 10 * 60 * 1000,
     },
     // LoRA Trainer — GPU 1 (3090), 按需启动
@@ -333,13 +294,8 @@ export class GpuScheduler {
       state.status = "starting";
       state.lastTransitionAt = new Date().toISOString();
 
-      // For ACE-Step, we need special handling: docker run with env vars
-      if (profile.id === "ace-step" && variant) {
-        await this.startAceStep(variant, profile.gpuId);
-      } else {
-        const envVars = variant?.envVars;
-        await this.executeStartStep(profile, envVars);
-      }
+      const envVars = variant?.envVars;
+      await this.executeStartStep(profile, envVars);
 
       // Wait for healthy
       if (profile.healthUrl) {
@@ -475,52 +431,6 @@ export class GpuScheduler {
     return evicted;
   }
 
-  private async startAceStep(variant: ServiceVariant, gpuId: number): Promise<void> {
-    // Remove old container if any
-    try { await execFileAsync("docker", ["stop", "kais-acestep"], { timeout: 15_000 }); } catch { /* ok */ }
-    try { await execFileAsync("docker", ["rm", "kais-acestep"], { timeout: 10_000 }); } catch {  }
-
-    // Force-free GPU: kill external processes if not enough VRAM
-    const neededFreeMb = variant.vramEstMb + 2000;
-    const currentFreeMb = await this.getGpuVramFree(gpuId);
-    if (currentFreeMb < neededFreeMb) {
-      console.log(`[GPU Scheduler] GPU ${gpuId} ${currentFreeMb}MB free < ${neededFreeMb}MB needed. Killing external processes...`);
-      await this.killExternalGpuProcesses(gpuId, neededFreeMb);
-    }
-
-    const gpu = GPU_DEVICES.find(g => g.id === gpuId)!;
-    const baseEnv: Record<string, string> = {
-      NVIDIA_VISIBLE_DEVICES: String(gpuId),
-      ACESTEP_MODE: "api",
-      ACESTEP_API_HOST: "0.0.0.0",
-      ACESTEP_API_PORT: "8001",
-      ACESTEP_INIT_SERVICE: "true",
-      TOKENIZERS_PARALLELISM: "false",
-      HF_HUB_OFFLINE: "1",
-      TRANSFORMERS_OFFLINE: "1",
-    };
-
-    // Merge variant env vars
-    const env = { ...baseEnv, ...variant.envVars };
-    const envFlags = Object.entries(env).flatMap(([k, v]) => ["-e", `${k}=${v}`]);
-
-    const args = [
-      "run", "-d",
-      "--name", "kais-acestep",
-      "--gpus", gpu.gpusFlag,
-      "--restart", "unless-stopped",
-      "--network", "kais-net",
-      "-p", "127.0.0.1:8009:8001",
-      ...envFlags,
-      "-v", "/data/models/ACE-Step1.5:/app/checkpoints",
-      "-v", "/mnt/agents/output:/app/output",
-      "--shm-size=4g",
-      "kais-acestep:latest",
-    ];
-
-    await execFileAsync("docker", args, { timeout: 30_000 });
-  }
-
   private async waitForHealthy(profile: ServiceProfile, maxMs?: number): Promise<boolean> {
     if (!profile.healthUrl) return true;
     const timeout = maxMs || profile.healthTimeoutMs;
@@ -531,13 +441,7 @@ export class GpuScheduler {
         await axios.get(profile.healthUrl, { timeout: 3_000 });
         return true;
       } catch {
-        // Check container still exists
-        if (profile.id === "ace-step") {
-          try {
-            const { stdout } = await execFileAsync("docker", ["ps", "--filter", "name=kais-acestep", "--format", "{{.Names}}"]);
-            if (stdout.trim() !== "kais-acestep") return false;
-          } catch { return false; }
-        }
+        // Health endpoint not ready yet, keep waiting
       }
     }
     return false;

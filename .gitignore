@@ -82,6 +82,21 @@ data/skills/*/images/
 *.bin
 *.pkl
 
+# ─── Runtime output / demo image assets ─────────────────────
+/output/
+/data/output/
+workflows/demo_wf*.png
+workflows/*.png
+
+# ─── LoRA training assets (large, keep config only) ─────────
+kohya-lora-training/venv/
+kohya-lora-training/pretrained_model/
+kohya-lora-training/sd-scripts-repo/
+kohya-lora-training/dataset/
+
+# ─── Node lockfile (project uses yarn) ──────────────────────
+package-lock.json
+
 # ─── Independent repos (symlinks) ───────────────────────────
 # (docker/gold-team and docker/review-platform were previously listed here
 #  as symlinks, but gold-team is now a real tracked directory and

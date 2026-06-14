@@ -1,51 +1,120 @@
 import express from "express";
-import { v4 as uuidv4 } from "uuid";
 import { success, error } from "@/lib/responseFormat";
 import { ACE_CONFIG } from "./config";
 
 const router = express.Router();
 
+interface ComfyUIHistoryEntry {
+  prompt: { [nodeId: string]: { class_type: string; inputs?: any } };
+  outputs: { [nodeId: string]: { audio?: Array<{ filename: string; subfolder?: string; type?: string }> } };
+  status: {
+    status_str?: "success" | "error";
+    completed?: boolean;
+    messages?: Array<{ type?: string; data?: any }>;
+  };
+}
+
+interface ComfyUIQueueItem {
+  number: number;
+  prompt: [string, number]; // [prompt_id, ...]
+}
+
 /**
- * GET /api/v1/ace/status/:taskId
+ * GET /api/v1/ace/status/:promptId
  *
- * Poll ACE-Step task status from gold-team, enrich with download URL.
+ * Poll task status from ComfyUI history + queue.
+ *
+ * Status mapping:
+ *   - In queue (running/queued) → { status: "queued" | "running" }
+ *   - In history with status_str=success → { status: "completed", outputs: [...] }
+ *   - In history with status_str=error   → { status: "failed", error: ... }
+ *   - Neither → { status: "unknown", hint: "expired or invalid promptId" }
  */
-export default router.get("/:taskId", async (req, res) => {
-  const { taskId } = req.params;
+export default router.get("/:promptId", async (req, res) => {
+  const { promptId } = req.params;
+  if (!promptId) {
+    return res.status(400).send(error("promptId is required"));
+  }
+
+  const comfyuiUrl = ACE_CONFIG.comfyuiUrl;
+  const outputDir = ACE_CONFIG.comfyuiOutputDir;
 
   try {
-    const axios = (await import("axios")).default;
-    const resp = await axios.get(
-      `${ACE_CONFIG.goldTeamUrl}/api/v1/tasks/${encodeURIComponent(taskId)}`,
-      { timeout: 10_000, validateStatus: (s: number) => s < 500 },
-    );
+    // 1. Check history (completed/failed)
+    const historyRes = await fetch(`${comfyuiUrl}/history/${encodeURIComponent(promptId)}`, {
+      signal: AbortSignal.timeout(5_000),
+    });
 
-    const data = resp.data;
-
-    // Enrich completed tasks with download URL
-    if (data.status === "completed" && data.outputs?.length) {
-      const outputs = data.outputs.map((o: any) => ({
-        ...o,
-        download_url: o.path
-          ? `/api/v1/ace/download/${encodeURIComponent(o.path.split("/").pop())}`
-          : null,
-      }));
-      return res.status(200).send(success({
-        ...data,
-        outputs,
-      }));
+    if (historyRes.ok) {
+      const historyData = (await historyRes.json()) as { [promptId: string]: ComfyUIHistoryEntry };
+      const entry = historyData[promptId];
+      if (entry) {
+        const statusStr = entry.status?.status_str;
+        if (statusStr === "success") {
+          // Extract audio outputs
+          const outputs: any[] = [];
+          for (const [nodeId, nodeOut] of Object.entries(entry.outputs || {})) {
+            if (nodeOut.audio?.length) {
+              for (const audio of nodeOut.audio) {
+                outputs.push({
+                  node_id: nodeId,
+                  filename: audio.filename,
+                  subfolder: audio.subfolder || "",
+                  path: `${outputDir}/${audio.filename}`,
+                  download_url: `/api/v1/ace/comfyui/audio/${encodeURIComponent(audio.filename)}`,
+                });
+              }
+            }
+          }
+          return res.status(200).send(success({
+            task_id: promptId,
+            status: "completed",
+            outputs,
+            engine: "comfyui",
+          }));
+        }
+        if (statusStr === "error") {
+          const errMsg = entry.status?.messages?.find((m: any) => m.type === "execution_error")?.data?.error_message
+            || "ComfyUI execution error";
+          return res.status(200).send(success({
+            task_id: promptId,
+            status: "failed",
+            error: errMsg,
+            engine: "comfyui",
+          }));
+        }
+      }
     }
 
-    return res.status(200).send(success(data));
+    // 2. Check queue (pending/running)
+    const queueRes = await fetch(`${comfyuiUrl}/queue`, {
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (queueRes.ok) {
+      const queueData = (await queueRes.json()) as {
+        queue_running: ComfyUIQueueItem[];
+        queue_pending: ComfyUIQueueItem[];
+      };
+      const isRunning = queueData.queue_running?.some((q) => q.prompt?.[0] === promptId);
+      const isPending = queueData.queue_pending?.some((q) => q.prompt?.[0] === promptId);
+      if (isRunning || isPending) {
+        return res.status(200).send(success({
+          task_id: promptId,
+          status: isRunning ? "running" : "queued",
+          engine: "comfyui",
+        }));
+      }
+    }
+
+    // 3. Neither — unknown / expired
+    return res.status(200).send(success({
+      task_id: promptId,
+      status: "unknown",
+      engine: "comfyui",
+      hint: "promptId not in queue or history — may have expired, been cancelled, or never submitted",
+    }));
   } catch (err: any) {
-    if (err.response?.status === 404) {
-      return res.status(404).send(error(`Task '${taskId}' not found`));
-    }
-    const msg =
-      err.response?.data?.detail?.message ||
-      err.response?.data?.error ||
-      err.message ||
-      String(err);
-    return res.status(502).send(error(`Gold-team status query failed: ${msg}`));
+    const msg = err.message || String(err);
+    return res.status(502).send(error(`ComfyUI status query failed: ${msg}`));
   }
 });
