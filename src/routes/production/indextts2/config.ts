@@ -74,3 +74,7 @@ export const NODE_TYPES = {
 } as const;
 
 // NOTE: 不导出 default，避免被 router 注册为空 middleware 阻塞后续路由
+
+import express from "express";
+const router = express.Router();
+export default router;

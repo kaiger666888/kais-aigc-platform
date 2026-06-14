@@ -7,7 +7,7 @@
 
 export const FLUX_CONFIG = {
   comfyuiUrl: process.env.FLUX_COMFYUI_URL || "http://localhost:8188",
-  containerName: process.env.FLUX_CONTAINER_NAME || "comfyui-flux",
+  containerName: process.env.FLUX_CONTAINER_NAME || "comfyui-primary",
   outputDir: process.env.FLUX_OUTPUT_DIR || "/mnt/agents/output",
   pollIntervalMs: 2000,
   pollTimeoutMs: 300_000, // 5 min (Flux 图像生成通常 < 2 min)
@@ -41,6 +41,15 @@ export const FLUX_DEFAULTS = {
   // 默认分辨率（16:9）
   defaultWidth: 1024,
   defaultHeight: 576,
+
+  // Flux Kontext Dev FP8
+  kontextModelName: "flux1-kontext-dev-fp8.safetensors",
+  kontextDefaults: {
+    steps: 28,
+    guidance: 3.5,
+    defaultWidth: 1024,
+    defaultHeight: 1024, // Kontext 更适合正方形
+  },
 };
 
 /**
@@ -58,7 +67,14 @@ export enum ConsistencyMode {
 
   /** 纯 Flux 无 LoRA（最高多样性，无一致性保证） */
   NONE = "none",
+
+  /** Flux Kontext Dev（参考图角色一致性，最佳效果） */
+  KONTEXT = "kontext",
 }
 
 // NOTE: exported as route handler (no-op) because auto-router scans all .ts in routes/
 // NOTE: 不导出 default，避免被 router 注册为空 middleware 阻塞后续路由
+
+import express from "express";
+const router = express.Router();
+export default router;
