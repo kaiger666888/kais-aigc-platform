@@ -1,13 +1,18 @@
+import { engineOutputDir, getOutputRoot } from "@/lib/paths";
+
 export const ACE_CONFIG = {
   /** Directory for ACE profile YAML presets */
   profilesDir: process.env.ACE_PROFILES_DIR || "/home/kai/ComfyUI/ace-profiles",
-  outputDir: process.env.OUTPUT_DIR || "/mnt/agents/output",
+  /** Output root — used for cross-engine paths (e.g. /api/v1/ace/download) */
+  outputDir: getOutputRoot(),
+  /** ACE-Step music output subdir (v1.5 PATH-01: <root>/ace/) */
+  aceOutputDir: engineOutputDir("ace"),
   /** Default model for generation */
   defaultModel: process.env.ACE_DEFAULT_MODEL || "acestep_v1.5_xl_sft.safetensors",
   /** ComfyUI API URL (ACE workflow execution backend) */
   comfyuiUrl: process.env.COMFYUI_URL || "http://localhost:8188",
-  /** ComfyUI host output directory */
-  comfyuiOutputDir: process.env.COMFYUI_OUTPUT_DIR || "/mnt/agents/output",
+  /** ComfyUI host output directory (where ComfyUI writes its files) */
+  comfyuiOutputDir: process.env.COMFYUI_OUTPUT_DIR || engineOutputDir("comfyui"),
 };
 
 /** Supported audio output formats */
