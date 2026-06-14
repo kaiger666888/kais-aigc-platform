@@ -1,27 +1,77 @@
 # KAIS AIGC Platform — 系统架构设计文档
 
-> **版本**: V6.0 Final  
-> **日期**: 2026-05-23  
-> **基于**: Notion V6.0 Final Architecture + 四仓库审计报告  
-> **技术栈**: FastAPI / Node.js / Electron / PostgreSQL / Redis / Docker / ComfyUI / Telegram
+> **版本**: V6.1  
+> **日期**: 2026-06-14 (updated)  
+> **基于**: Notion V6.0 Final Architecture + 四仓库审计报告 + OpenClaw/Hermes 集成  
+> **技术栈**: OpenClaw / Hermes MCP / FastAPI / Node.js / Electron / PostgreSQL / Redis / Docker / ComfyUI / Telegram
 
 ---
 
 ## 目录
 
 1. [系统全景图](#1-系统全景图)
-2. [接口契约](#2-接口契约)
-3. [数据模型](#3-数据模型)
-4. [状态机设计](#4-状态机设计)
-5. [部署拓扑](#5-部署拓扑)
-6. [迁移策略](#6-迁移策略)
-7. [风险评估](#7-风险评估)
+2. [OpenClaw + Hermes 集成层](#2-openclaw--hermes-集成层)
+3. [接口契约](#3-接口契约)
+4. [数据模型](#4-数据模型)
+5. [状态机设计](#5-状态机设计)
+6. [部署拓扑](#6-部署拓扑)
+7. [迁移策略](#7-迁移策略)
+8. [风险评估](#8-风险评估)
 
 ---
 
 ## 1. 系统全景图
 
-### 1.1 系统关系拓扑
+### 1.1 系统关系拓扑 (V6.1 — 三层架构)
+
+```mermaid
+graph TB
+    subgraph "Layer 1: OpenClaw (认知与编排)"
+        OCLAW["OpenClaw Agent<br/>(claude/glm-5.2)<br/>Telegram/Feishu"]
+        HERMES["hermes-cognitive MCP<br/>hermes_llm / hermes_plan<br/>hermes_reflect / hermes_memory<br/>hermes_evolve / hermes_learn"]
+        SKILL["kais-movie-agent<br/>(OpenClaw Skill)<br/>20-step pipeline"]
+    end
+
+    subgraph "Layer 2: kais-aigc-platform (HTTP API)"
+        KCB["kais-core-backend<br/>(Node.js)<br/>:8000"]
+        KGT["kais-gold-team<br/>(FastAPI)<br/>:8002"]
+        CUI["ComfyUI Worker<br/>(GPU 推理)<br/>:8188"]
+        ADB[("PostgreSQL 15<br/>:5432")]
+        RED[("Redis 7<br/>:6390")]
+    end
+
+    subgraph "Layer 3: IO 与外部服务"
+        FFM["ffmpeg NVENC/NVDEC<br/>(3060Ti)"]
+        CLOUD["云端引擎<br/>Kling/Jimeng/Seedance"]
+        TG["Telegram Bot"]
+    end
+
+    OCLAW -->|"MCP"| HERMES
+    OCLAW -->|"Skill calls"| SKILL
+    SKILL -->|"HTTP REST"| KCB
+    SKILL -->|"HTTP REST"| KGT
+    HERMES -.->|"LLM proxy<br/>(不经过aigc-platform)"| OCLAW
+
+    KCB -->|"SQL"| ADB
+    KCB -->|"Pub/Sub"| RED
+    KGT -->|"ComfyUI API"| CUI
+    KGT -->|"商业 API HTTPS"| CLOUD
+    KGT -->|"Redis Streams"| RED
+    KGT -->|"产物写入"| FFM
+
+    style OCLAW fill:#9B59B6,color:#fff
+    style HERMES fill:#9B59B6,color:#fff
+    style SKILL fill:#9B59B6,color:#fff
+    style KCB fill:#E8A838,color:#fff
+    style KGT fill:#E8A838,color:#fff
+    style CUI fill:#C0392B,color:#fff
+    style ADB fill:#2ECC71,color:#fff
+    style RED fill:#2ECC71,color:#fff
+```
+
+### 1.1b 旧版拓扑 (V6.0 — 保留参考)
+
+### 1.1c 系统关系拓扑 (原始)
 
 ```mermaid
 graph TB
@@ -158,9 +208,148 @@ graph TB
 
 ---
 
-## 2. 接口契约
+## 2. OpenClaw + Hermes 集成层
 
-### 2.1 kais-core-backend ↔ Toonflow（Canvas Sync API）
+> **V6.1 新增** — OpenClaw 作为唯一的 Agent 运行时和编排层，Hermes 作为认知核心。
+
+### 2.1 组件清单与代码仓库
+
+| 组件 | 代码仓库 | 本地路径 | 角色 |
+|------|---------|---------|------|
+| OpenClaw Gateway | npm全局安装 (`openclaw`) | `~/.openclaw/openclaw.json` | Agent 运行时, 渠道路由 (Telegram/Feishu), Session管理 |
+| hermes-agent (核心) | `github.com/kaiger666888/hermes-agent` (fork of NousResearch/hermes-agent) | `/data/workspace/hermes-agent` (pip editable) | 自我进化的AI框架 v0.15.1, 提供 LLM/规划/反思/记忆/进化能力 |
+| hermes-worker-agent | `github.com/kaiger666888/hermes-worker-agent` | `/home/kai/workspace/hermes-worker-agent` | MCP server 入口, 桥接 hermes 到 OpenClaw MCP 协议 |
+| hermes 配置 | — | `~/.hermes/` | MCP symlink, config.yaml, auth, sessions, memories |
+| hermes systemd | — | `~/.config/systemd/user/hermes-decision.service` | hermes 决策服务 (开机自启) |
+| kais-movie-agent | OpenClaw skill | `~/.openclaw/workspace/skills/kais-movie-agent/` | 20步制片管线 skill |
+
+### 2.2 Hermes MCP 工具一览
+
+OpenClaw agent 通过 MCP 直接调用以下工具 (不经过 kais-aigc-platform HTTP):
+
+| MCP 工具 | 功能 | 使用场景 |
+|---------|------|---------|
+| `hermes_llm` | LLM 代理 (统一监控+缓存) | 剧本生成, 对话编写, 文案创作 |
+| `hermes_llm_vision` | 多模态 LLM 代理 (文本+图像) | 画面分析, 角色一致性检查 |
+| `hermes_plan` | 任务分解 (创意意图 → 结构化执行步骤) | 管线启动时的任务规划 |
+| `hermes_reflect` | 创意反思 (完成作品 → 经验提取) | 管线完成后的质量回顾 |
+| `hermes_memory` | 专家记忆 (读写, 分 pending/global scope) | 跨 session 知识积累 |
+| `hermes_evolve` | 进化管理 (提案审核/回滚/A-B测试) | skill 自我改进 |
+| `hermes_learn` | 学习进化 (历史数据 → 改进提案) | 基于执行数据优化 |
+
+### 2.3 OpenClaw ↔ kais-aigc-platform 调用关系
+
+```
+OpenClaw Agent (kais-movie-agent skill)
+  │
+  ├── 认知层 (直接 MCP)
+  │   ├── hermes_llm → 剧本/文案/分析
+  │   ├── hermes_llm_vision → 画面质检
+  │   ├── hermes_plan → 任务分解
+  │   └── hermes_reflect → 完成后反思
+  │
+  ├── 渲染层 (HTTP → kais-aigc-platform)
+  │   ├── POST /api/production/flux/sceneGenerate → 场景图生成
+  │   ├── POST /api/production/flux/kontext-generate → 图像编辑
+  │   ├── POST /api/production/wan22/t2v → 文生视频 (Wan 2.2)
+  │   ├── POST /api/production/wan22/i2v → 图生视频 (Wan 2.2)
+  │   ├── POST /api/production/ltx/* → LTX 视频工作流
+  │   ├── POST /api/production/indextts2/speak → TTS 语音合成
+  │   ├── POST /api/v1/trellis2/image-to-3d → 3D 模型生成
+  │   ├── POST /api/v1/hunyuan3d/image-to-3d → 3D 模型生成
+  │   ├── POST /api/production/postprocess/enhance → 后处理增强
+  │   ├── POST /api/v1/lora-train → LoRA 训练
+  │   └── GET  /api/production/flux/status → 容器/模型/VRAM 状态
+  │
+  ├── 数据层 (HTTP → kais-core-backend :8000)
+  │   ├── /api/v1/pipeline/* → 管线编排
+  │   ├── /api/v1/sync/* → Canvas 同步
+  │   ├── /api/v1/shots/* → 分镜管理
+  │   └── /api/v1/assets/* → 资产管理
+  │
+  └── 审核层 (HTTP → review-platform :8090)
+      ├── /api/v1/shot-cards/* → 审核卡片
+      └── /api/v1/reviews/* → 审核流程
+```
+
+### 2.4 Hermes MCP 配置位置
+
+```json
+// ~/.openclaw/openclaw.json → mcp.servers.hermes-cognitive
+{
+  "mcp": {
+    "servers": {
+      "hermes-cognitive": {
+        "command": "python3",
+        "args": ["/home/kai/.hermes/mcp/server.py"],
+        "env": {
+          "LLM_BASE_URL": "https://open.bigmodel.cn/api/paas/v4",
+          "LLM_MODEL": "glm-5.2",
+          "HERMES_MEMORY_PATH": "/shared_memory"
+        }
+      }
+    }
+  }
+}
+```
+
+**Symlink 链:** `~/.hermes/mcp` → `/home/kai/workspace/hermes-worker-agent/hermes`
+
+### 2.5 kais-aigc-platform HTTP API 能力清单
+
+| 类别 | 端点 | 功能 |
+|------|------|------|
+| **视频生成** | | |
+| | `POST /api/production/wan22/t2v` | Wan 2.2 文生视频 |
+| | `POST /api/production/wan22/i2v` | Wan 2.2 图生视频 |
+| | `POST /api/production/wan22/fflf` | Wan 2.2 FFLF 工作流 |
+| | `POST /api/production/wan22/movetrack` | Wan 2.2 运镜跟踪 |
+| | `POST /api/production/ltx/extension` | LTX 视频延长 |
+| | `POST /api/production/ltx/fflf` | LTX FFLF 工作流 |
+| | `POST /api/production/ltx/msr` | LTX MSR 工作流 |
+| | `POST /api/production/ltx/promptRelayI2V` | LTX 提示词relay图生视频 |
+| | `POST /api/production/ltx/singularityFFLF` | LTX 奇点FFLF |
+| | `POST /api/production/ltx/twoStageAudioI2V` | LTX 两阶段音频图生视频 |
+| **图像生成** | | |
+| | `POST /api/production/flux/sceneGenerate` | Flux 场景图生成 |
+| | `POST /api/production/flux/kontext-generate` | Flux Kontext 图像编辑 |
+| | `POST /api/production/storyboard/batchGenerateImage` | 批量分镜图生成 |
+| | `POST /api/production/assets/batchGenerateAssetsImage` | 批量资产图生成 |
+| | `POST /api/production/editImage/generateFlowImage` | 图像编辑工作流 |
+| **TTS 语音** | | |
+| | `POST /api/production/indextts2/speak` | IndexTTS2 语音合成 |
+| | `POST /api/v1/tts/speak` | 通用 TTS 语音合成 |
+| **3D 生成** | | |
+| | `POST /api/v1/trellis2/image-to-3d` | TRELLIS2 图生3D |
+| | `POST /api/v1/hunyuan3d/image-to-3d` | 混元3D 图生3D |
+| **后处理** | | |
+| | `POST /api/production/postprocess/enhance` | 后处理增强 (超分/修复) |
+| **训练** | | |
+| | `POST /api/v1/lora-train` | LoRA 训练 |
+| **GPU 调度** | | |
+| | `POST /api/proxy/goldTeam` | gold-team GPU 任务代理 |
+| | `POST /api/v1/ace/generate` | ACE ComfyUI 统一生成 |
+| | `POST /api/v1/ace/comfyuiGenerate` | ACE ComfyUI 直接生成 |
+| **管线编排** | | |
+| | `POST /api/v1/pipeline/ingest/storyboard` | 管线摄入分镜 |
+| | `POST /api/v1/pipeline/ingest/images` | 管线摄入图片 |
+| | `POST /api/v1/pipeline/ingest/videos` | 管线摄入视频 |
+| | `POST /api/v1/pipeline/render-shot` | 渲染单个镜头 |
+| | `POST /api/v1/pipeline/resume` | 管线恢复 |
+| | `GET  /api/v1/pipeline/status/:taskId` | 管线状态查询 |
+| | `POST /api/v1/pipeline/submit-to-review` | 提交审核 |
+| **状态/配置** | | |
+| | `GET  /api/production/flux/status` | Flux 容器/模型/VRAM 状态 |
+| | `GET  /api/production/indextts2/status` | IndexTTS2 状态 |
+| | `GET  /api/production/postprocess/status` | 后处理状态 |
+| | `GET  /api/v1/trellis2/status` | TRELLIS2 状态 |
+| | `GET  /api/v1/hunyuan3d/status` | 混元3D 状态 |
+
+---
+
+## 3. 接口契约
+
+### 3.1 kais-core-backend ↔ Toonflow（Canvas Sync API）
 
 **传输协议**: HTTP REST + WebSocket  
 **端口**: localhost:8000  
@@ -308,7 +497,7 @@ PUT    /api/v1/shots/{shot_id}             # 更新分镜
 
 ---
 
-### 2.2 kais-movie-agent ↔ kais-core-backend（REST）
+### 3.2 kais-movie-agent ↔ kais-core-backend（REST）
 
 **传输协议**: HTTP REST  
 **网络**: Docker bridge (容器间)
@@ -391,7 +580,7 @@ POST /api/v1/snapshots
 
 ---
 
-### 2.3 kais-movie-agent ↔ kais-gold-team（统一生成 API）
+### 3.3 kais-movie-agent ↔ kais-gold-team（统一生成 API）
 
 **传输协议**: HTTP REST  
 **端口**: Docker bridge → 8002
@@ -515,7 +704,7 @@ POST {callback_url}
 
 ---
 
-### 2.4 kais-review-platform ↔ Audit DB ↔ Toonflow
+### 3.4 kais-review-platform ↔ Audit DB ↔ Toonflow
 
 **数据共享**: PostgreSQL (audit-db 容器, 数据库 `kais`)  
 **权限隔离**: Schema 级 + 角色级
@@ -595,7 +784,7 @@ GET  /api/v1/audit/merkle/verify
 
 ---
 
-### 2.5 kais-movie-agent ↔ review-platform（审核回调）
+### 3.5 kais-movie-agent ↔ review-platform（审核回调）
 
 **触发场景**: Phase 完成后质量闸门评估 → 需人工审核时
 
@@ -695,9 +884,9 @@ flowchart TD
 
 ---
 
-## 3. 数据模型
+## 4. 数据模型
 
-### 3.1 实体关系图
+### 4.1 实体关系图
 
 ```mermaid
 erDiagram
@@ -815,7 +1004,7 @@ erDiagram
     }
 ```
 
-### 3.2 Schema 定义 (JSON Schema)
+### 4.2 Schema 定义 (JSON Schema)
 
 #### Project
 
@@ -996,7 +1185,7 @@ erDiagram
 }
 ```
 
-### 3.3 枚举类型汇总
+### 4.3 枚举类型汇总
 
 | 枚举 | 值 | 用途 |
 |------|-----|------|
@@ -1011,9 +1200,9 @@ erDiagram
 
 ---
 
-## 4. 状态机设计
+## 5. 状态机设计
 
-### 4.1 管线状态机（PHASE 0~7）
+### 5.1 管线状态机（PHASE 0~7）
 
 ```mermaid
 stateDiagram-v2
@@ -1081,7 +1270,7 @@ stateDiagram-v2
     Failed --> [*]
 ```
 
-### 4.2 单 Shot 生命周期
+### 5.2 单 Shot 生命周期
 
 ```mermaid
 stateDiagram-v2
@@ -1110,7 +1299,7 @@ stateDiagram-v2
     Archived --> [*]
 ```
 
-### 4.3 审核状态机
+### 5.3 审核状态机
 
 ```mermaid
 stateDiagram-v2
@@ -1140,7 +1329,7 @@ stateDiagram-v2
     HumanRejected --> [*]: max_retry_exhausted\n→ Pipeline_Failed
 ```
 
-### 4.4 Phase 映射表（当前 11 Phase → V6.0 8 Phase）
+### 5.4 Phase 映射表（当前 11 Phase → V6.0 8 Phase）
 
 | V6.0 Phase | ID | 当前 Phase(s) | 审核门 | 内部子步骤 |
 |------------|-----|--------------|--------|-----------|
@@ -1155,9 +1344,9 @@ stateDiagram-v2
 
 ---
 
-## 5. 部署拓扑
+## 6. 部署拓扑
 
-### 5.1 Docker Compose 服务编排
+### 6.1 Docker Compose 服务编排
 
 ```yaml
 # /opt/kais/docker-compose.yml
@@ -1361,7 +1550,7 @@ networks:
     driver: bridge
 ```
 
-### 5.2 宿主机配置
+### 6.2 宿主机配置
 
 #### 3090 GPU 配置
 
@@ -1468,7 +1657,7 @@ done
 └── git-snapshots/                   # 项目版本快照
 ```
 
-### 5.3 网络架构
+### 6.3 网络架构
 
 ```mermaid
 graph TB
@@ -1533,9 +1722,9 @@ graph TB
 
 ---
 
-## 6. 迁移策略
+## 7. 迁移策略
 
-### 6.1 Gap 分析汇总
+### 7.1 Gap 分析汇总
 
 基于四仓库审计报告，核心差距如下：
 
@@ -1577,7 +1766,7 @@ graph LR
     style G8 fill:#F39C12,color:#fff
 ```
 
-### 6.2 分阶段迁移路径
+### 7.2 分阶段迁移路径
 
 #### Phase 0: 归档与基础 (Week 1-2)
 
@@ -1647,7 +1836,7 @@ graph LR
 
 **验收标准**: 全栈 docker-compose up → 端到端管线运行 → 审核 → 导出 → 快照。
 
-### 6.3 迁移依赖图
+### 7.3 迁移依赖图
 
 ```mermaid
 gantt
@@ -1692,7 +1881,7 @@ gantt
     aigc-integration 清理          :p4e, after p4d, 1d
 ```
 
-### 6.4 kais-aigc-integration 拆分归向
+### 7.4 kais-aigc-integration 拆分归向
 
 | 现有模块 | 迁入目标 | 迁移动作 | 预估工时 |
 |---------|---------|---------|---------|
@@ -1707,9 +1896,9 @@ gantt
 
 ---
 
-## 7. 风险评估
+## 8. 风险评估
 
-### 7.1 技术风险
+### 8.1 技术风险
 
 | 风险 | 影响 | 概率 | 缓解措施 |
 |------|------|------|---------|
@@ -1719,7 +1908,7 @@ gantt
 | **异步执行改造** | movie-agent 当前同步阻塞执行，改 Docker 异步需 Worker threads / 子进程 | 中 | Phase A 先保持同步（HTTP 包装），Phase B 引入异步；双模式运行降低风险 |
 | **SQLite → PostgreSQL 迁移** | Toonflow 本地 SQLite 防抖同步策略在数据量大时性能未验证 | 低 | 单机单用户场景，SQLite 够用；同步是增量的，不需要全量对比 |
 
-### 7.2 依赖风险
+### 8.2 依赖风险
 
 | 依赖 | 风险 | 缓解措施 |
 |------|------|---------|
@@ -1729,7 +1918,7 @@ gantt
 | **OpenClaw 运行时** | movie-agent 当前深度依赖 OpenClaw agent 调度，Docker 化后需保持兼容 | 保持 Pipeline 类的库调用方式不变，Docker server 是 HTTP 包装层 |
 | **Python/Node.js 双栈** | gold-team (Python) + movie-agent (Node.js) 双语言栈增加维护成本 | 接口严格 REST 化，语言差异不出容器边界 |
 
-### 7.3 兼容性风险
+### 8.3 兼容性风险
 
 | 场景 | 风险 | 缓解措施 |
 |------|------|---------|
@@ -1739,7 +1928,7 @@ gantt
 | **Docker 网络隔离** | 从双机分布式 → 单机 Docker bridge，服务发现方式变化 | 所有服务名作为 DNS 主机名（Docker Compose 内置）；环境变量配置服务 URL |
 | **文件系统路径** | 产物路径 `/mnt/agents/output/` 需跨容器一致挂载 | Docker volume 统一挂载点；环境变量配置根路径 |
 
-### 7.4 风险矩阵
+### 8.4 风险矩阵
 
 ```mermaid
 quadrantChart
@@ -1763,7 +1952,7 @@ quadrantChart
     "双语言栈": [0.3, 0.4]
 ```
 
-### 7.5 不可妥协的设计原则（底线检查）
+### 8.5 不可妥协的设计原则（底线检查）
 
 | # | 原则 | 验证方法 |
 |---|------|---------|

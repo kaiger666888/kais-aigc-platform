@@ -1,6 +1,6 @@
 # KAIS AIGC Platform — Repo Map (Newcomer Guide)
 
-**Goal:** Orient a new contributor in 5 minutes. **Last updated:** 2026-06-13 (v1.4)
+**Goal:** Orient a new contributor in 5 minutes. **Last updated:** 2026-06-14 (v1.5)
 
 ## TL;DR — What is this workspace?
 
@@ -10,7 +10,7 @@ The `/data/workspace/` directory holds **20 repositories** that together form th
 
 ---
 
-## The 5 Active Repos (Production Stack)
+## The 7 Active Repos (Production Stack)
 
 | Repo | Role | How it's wired |
 |------|------|----------------|
@@ -19,6 +19,71 @@ The `/data/workspace/` directory holds **20 repositories** that together form th
 | **kais-review-platform** | AI production pipeline review/approval platform (FastAPI + HTMX) | Build context `../kais-review-platform` for `kais-review-platform` service (profile=review) |
 | **ACE-Step-1.5** | Music generation sidecar (upstream ACE-Step fork + REST wrapper) | Build context `../ACE-Step-1.5` for `kais-acestep` service (profile=ace) |
 | **comfyui-incremental-nodes** | Custom ComfyUI node packages (LTXVideo, TRELLIS2, AIIA, IndexTTS2, facerestore) | Volume-mounted into `comfyui-primary` and `comfyui-auxiliary` |
+| **hermes-agent** | Cognitive core. Self-improving AI agent framework (fork of NousResearch/hermes-agent). Provides hermes_llm, hermes_plan, hermes_reflect, hermes_memory, hermes_evolve, hermes_learn via MCP | pip editable-install at `/data/workspace/hermes-agent`; MCP server symlinked from `~/.hermes/mcp` |
+| **hermes-worker-agent** | MCP server entry point for OpenClaw integration. Bridges hermes-agent cognitive tools to OpenClaw's MCP protocol | `/home/kai/workspace/hermes-worker-agent`; `~/.hermes/mcp` → `hermes-worker-agent/hermes` |
+| **comfyui-incremental-nodes** | Custom ComfyUI node packages (LTXVideo, TRELLIS2, AIIA, IndexTTS2, facerestore) | Volume-mounted into `comfyui-primary` and `comfyui-auxiliary` |
+
+## System Architecture (Three-Layer)
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                     Layer 1: OpenClaw (Orchestration)                │
+│                                                                      │
+│  ┌─────────────────┐  ┌──────────────────┐  ┌───────────────────┐  │
+│  │ OpenClaw Agent   │  │ hermes-cognitive │  │ kais-movie-agent  │  │
+│  │ (claude/glm)     │  │ MCP Server       │  │ OpenClaw Skill    │  │
+│  │ Telegram/Feishu  │  │                  │  │ (20-step pipeline) │  │
+│  └────────┬────────┘  └────────┬─────────┘  └─────────┬─────────┘  │
+│           │ MCP                │ LLM proxy             │ HTTP        │
+│           └────────────────────┘                       │            │
+│                                │                       │            │
+├────────────────────────────────┼───────────────────────┼────────────┤
+│                     Layer 2: kais-aigc-platform (HTTP API)          │
+│                                │                       │            │
+│  ┌─────────────────────────────▼───────────────────────▼─────────┐  │
+│  │              kais-core-backend (:8000, Node.js)               │  │
+│  │   Content layer: projects, scripts, assets, storyboard,       │  │
+│  │   novel, canvas sync, pipeline orchestration                  │  │
+│  └─────────────────────────────┬─────────────────────────────────┘  │
+│                                │                                    │
+│  ┌─────────────────────────────▼─────────────────────────────────┐  │
+│  │              kais-gold-team (:8002, FastAPI)                   │  │
+│  │   Unified execution: image, video, audio, 3D, music            │  │
+│  │   Engine Router: local (ComfyUI) ↔ cloud (Kling/Jimeng/SD)    │  │
+│  └──────┬──────────────────────────────────────┬─────────────────┘  │
+│         │                                      │                    │
+│  ┌──────▼──────┐  ┌──────────────┐  ┌─────────▼────────┐           │
+│  │ comfyui-    │  │ comfyui-     │  │ kais-acestep     │           │
+│  │ primary     │  │ auxiliary    │  │ :8009            │           │
+│  │ :8188 (3090)│  │ :8189 (3060Ti)│  │ (music, profile) │           │
+│  └─────────────┘  └──────────────┘  └──────────────────┘           │
+│                                                                      │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────────┐       │
+│  │ audit-db     │    │ redis        │    │ review-platform  │       │
+│  │ PostgreSQL15 │    │ :6390        │    │ :8090 (profile)  │       │
+│  └──────────────┘    └──────────────┘    └──────────────────┘       │
+└──────────────────────────────────────────────────────────────────────┘
+         ↑ builds from sibling repos ↑
+┌────────┴──────────┐  ┌──────────────┐  ┌─────────────────────┐
+│ kais-gold-team    │  │ ACE-Step-1.5 │  │ kais-review-platform│
+└───────────────────┘  └──────────────┘  └─────────────────────┘
+```
+
+### Layer 1: OpenClaw (Cognitive + Orchestration)
+
+| Component | Location | Role |
+|-----------|----------|------|
+| OpenClaw Gateway | `~/.openclaw/openclaw.json` | Agent runtime, channel routing (Telegram/Feishu), session management |
+| hermes-cognitive MCP | `~/.hermes/mcp` → `hermes-worker-agent/hermes` | LLM proxy, task planning, reflection, memory, evolution |
+| hermes-agent (core) | `/data/workspace/hermes-agent` (pip editable) | Self-improving AI framework v0.15.1, fork of NousResearch/hermes-agent |
+| hermes-worker-agent | `/home/kai/workspace/hermes-worker-agent` | MCP server entry, bridges hermes to OpenClaw |
+| kais-movie-agent (skill) | `~/.openclaw/workspace/skills/kais-movie-agent/` | 20-step production pipeline skill |
+
+**Key:** hermes-cognitive does NOT go through kais-aigc-platform HTTP. It's a direct MCP server consumed by OpenClaw agents.
+
+### Layer 2: kais-aigc-platform (HTTP API)
+
+See docker-compose.v9.yml section below.
 
 ## The Production Stack (docker-compose.v9.yml)
 
