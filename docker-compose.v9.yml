@@ -377,11 +377,25 @@ services:
     env_file: .env
     environment:
       PORT: 8080
+      # LLM_* env vars are OPTIONAL overrides. When unset (empty), the
+      # wrapper passes None to AIAgent and the fork loads credentials
+      # from /app/data/config.yaml + /app/data/.env (the mounted
+      # ~/.hermes/ directory). Set these only for ephemeral CI containers
+      # that lack a mounted hermes home.
       LLM_API_KEY: ${LLM_API_KEY:-}
-      LLM_BASE_URL: ${LLM_BASE_URL:-https://open.bigmodel.cn/api/paas/v4}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_PROVIDER: ${LLM_PROVIDER:-}
+      LLM_MODEL: ${LLM_MODEL:-}
       HERMES_HOME: /app/data
     volumes:
-      - hermes-data:/app/data
+      # Bind-mount the operator's ~/.hermes/ as the fork's HERMES_HOME.
+      # The fork reads config.yaml (provider/model), .env (GLM_API_KEY),
+      # and auth.json (OAuth) from here, so an operator who already ran
+      # `hermes setup` does NOT need to set LLM_API_KEY again. Read-write
+      # so domain_register calls (which write domains/<name>/) persist
+      # back to the host. This replaces the previous named volume
+      # `hermes-data`, which started empty and could not see host config.
+      - ${HOME}/.hermes:/app/data
     networks:
       - kais-net
     healthcheck:
@@ -500,7 +514,5 @@ volumes:
     name: kais-comfyui-cache
   comfyui-user:
     name: kais-comfyui-user
-  hermes-data:
-    name: kais-hermes-data
   hf-cache:
     name: kais-hf-cache

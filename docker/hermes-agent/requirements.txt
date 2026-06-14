@@ -6,3 +6,13 @@ pydantic>=2.13,<3
 pytest>=7.0
 pytest-asyncio>=0.21
 httpx>=0.24
+# MCP server (streamable-http) — exposes the decision engine to OpenClaw
+# and other MCP clients. Pin to match the upstream fork's pinned version
+# (see docker/hermes-agent/_hermes_source/pyproject.toml) to avoid
+# cross-package API drift. starlette is pinned transitively for
+# CVE-2026-48710 (BadHost).
+mcp>=1.26.0,<2
+starlette>=1.0.1,<2
+# YAML for per-domain model.yaml (task-level model routing).
+# Already a transitive dep of the fork but we use it directly here.
+pyyaml>=6.0,<7

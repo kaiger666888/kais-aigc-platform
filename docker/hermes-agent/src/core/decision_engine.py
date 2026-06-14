@@ -138,7 +138,10 @@ class DecisionEngine:
         if self.agent_factory is None:
             raise RuntimeError("AgentFactory not configured -- cannot make decisions")
 
-        agent = self.agent_factory.get_agent(domain)
+        # Pass task so the factory can pick a per-task model from the
+        # domain's model.yaml (default+tasks spec). Falls through to the
+        # domain default / global Settings when no per-task entry exists.
+        agent = self.agent_factory.get_agent(domain, task=task)
         chat_response: str = agent.chat(prompt)
 
         return {

@@ -1,0 +1,18 @@
+# Exclude unnecessary files from local hermes-agent source
+hermes-agent-source/.git
+hermes-agent-source/.venv
+hermes-agent-source/node_modules
+hermes-agent-source/__pycache__
+hermes-agent-source/.github
+hermes-agent-source/website
+hermes-agent-source/.cache
+hermes-agent-source/uv.lock
+hermes-agent-source/package-lock.json
+hermes-agent-source/*.egg-info
+hermes-agent-source/tests
+hermes-agent-source/.plans
+hermes-agent-source/plans
+hermes-agent-source/docs
+hermes-agent-source/RELEASE_*.md
+hermes-agent-source/*.png
+hermes-agent-source/*.jpg

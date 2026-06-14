@@ -95,15 +95,52 @@ def client(
 ) -> TestClient:
     """Provide a FastAPI TestClient with dependency overrides.
 
-    Overrides get_registry, get_agent_factory, get_decision_engine
-    to return the fixture instances instead of production singletons.
-    """
-    app.dependency_overrides[deps.get_registry] = lambda: registry
-    app.dependency_overrides[deps.get_agent_factory] = lambda: agent_factory
-    app.dependency_overrides[deps.get_decision_engine] = lambda: decision_engine
+    Builds a fresh FastAPI app per test (mirroring src/main.py's
+    construction) instead of reusing the module-level singleton. This is
+    required because src/main.py now mounts a FastMCP ASGI app whose
+    StreamableHTTPSessionManager can only run() once per instance —
+    reusing the same app across multiple TestClient lifespan entries
+    raises "StreamableHTTPSessionManager.run() can only be called once".
 
-    with TestClient(app) as test_client:
+    Overrides get_registry, get_agent_factory, get_decision_engine to
+    return the fixture instances instead of production singletons.
+    """
+    from fastapi import FastAPI
+    from fastapi.middleware.cors import CORSMiddleware
+
+    from src.api.routes import router as v1_router
+    from src.mcp.server import create_mcp_app
+
+    # Wire the deps module singletons so the MCP tools (which look them
+    # up via get_registry() / get_decision_engine() at call time) see the
+    # fixture instances. Same trick as test_mcp_server.py.
+    deps._registry_instance = registry
+    deps._factory_instance = agent_factory
+    deps._engine_instance = decision_engine
+
+    mcp_app = create_mcp_app()
+    test_app = FastAPI(lifespan=mcp_app.router.lifespan_context)
+    test_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    test_app.include_router(v1_router, prefix="/v1")
+    test_app.mount("/", mcp_app)
+
+    # Also wire REST dependency overrides (the routes use Depends(get_*))
+    test_app.dependency_overrides[deps.get_registry] = lambda: registry
+    test_app.dependency_overrides[deps.get_agent_factory] = lambda: agent_factory
+    test_app.dependency_overrides[deps.get_decision_engine] = (
+        lambda: decision_engine
+    )
+
+    with TestClient(test_app) as test_client:
         yield test_client
 
-    # Clean up overrides after test
-    app.dependency_overrides.clear()
+    # Clean up module-level singleton overrides after test
+    deps._registry_instance = None
+    deps._factory_instance = None
+    deps._engine_instance = None
