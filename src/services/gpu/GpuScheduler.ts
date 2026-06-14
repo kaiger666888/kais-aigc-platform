@@ -23,6 +23,8 @@ import type {
   AllocationResult,
   SchedulerState,
 } from "./types";
+import type { StateStore } from "./stateStore";
+import { MemoryStateStore } from "./memoryStateStore";
 
 const execFileAsync = promisify(execFile);
 
@@ -116,30 +118,69 @@ export const GPU_DEVICES: GpuDevice[] = [
 
 // ─── 调度器类 ─────────────────────────────────────────
 
-export class GpuScheduler {
-  private services: Map<string, ServiceState> = new Map();
-  private profiles: Map<string, ServiceProfile> = new Map();
-  private locks: Map<number, string | null> = new Map();
-  private idleTimers: Map<string, NodeJS.Timeout> = new Map();
+const LOCK_TTL_MS = 5 * 60 * 1000; // 5 min — must exceed any single allocate() duration
 
-  constructor() {
-    // Init GPU locks
-    for (const gpu of GPU_DEVICES) {
-      this.locks.set(gpu.id, null);
-    }
-    // Register services
+export class GpuScheduler {
+  /** In-process service state cache. Authoritative within this process. */
+  private services = new Map<string, ServiceState>();
+  /** In-process profile cache (immutable after construction). */
+  private profilesCache = new Map<string, ServiceProfile>();
+  /**
+   * StateStore backend (memory or redis).
+   * Authoritative for locks (cross-process coordination).
+   * Services are mirrored here for cross-process observability.
+   */
+  private store: StateStore;
+  /** Idle timers are always in-process (Node setTimeout doesn't serialize). */
+  private idleTimers = new Map<string, NodeJS.Timeout>();
+  /** Resolves when initial state has been registered into the store. */
+  private initialized: Promise<void>;
+
+  constructor(store?: StateStore) {
+    this.store = store ?? new MemoryStateStore();
+    this.initialized = this.initialize();
+  }
+
+  private async initialize(): Promise<void> {
     for (const profile of getRegisteredServices()) {
-      this.profiles.set(profile.id, profile);
-      this.services.set(profile.id, {
-        profileId: profile.id,
-        variantId: null,
-        status: "stopped",
-        instanceId: null,
-        actualVramMb: 0,
-        lastTransitionAt: null,
-        lastRequestAt: null,
-      });
+      this.profilesCache.set(profile.id, profile);
+      await this.store.setProfile(profile.id, profile);
+      // Register initial "stopped" state into the store ONLY if no prior state exists
+      // (so a second process booting up doesn't clobber an active service state
+      // written by the first process).
+      const existing = await this.store.getService(profile.id);
+      if (!existing) {
+        const initial: ServiceState = {
+          profileId: profile.id,
+          variantId: null,
+          status: "stopped",
+          instanceId: null,
+          actualVramMb: 0,
+          lastTransitionAt: null,
+          lastRequestAt: null,
+        };
+        this.services.set(profile.id, initial);
+        await this.store.setService(profile.id, initial);
+      } else {
+        // Adopt the state another process already wrote (so getState() is accurate).
+        this.services.set(profile.id, existing);
+      }
     }
+  }
+
+  /** Backend kind for diagnostics. */
+  get backendKind(): "memory" | "redis" {
+    return this.store.kind;
+  }
+
+  /**
+   * Mirror a service state update to the store (fire-and-forget).
+   * Lets other processes observe this process's actions via getState().
+   */
+  private mirrorService(serviceId: string, state: ServiceState): void {
+    this.store.setService(serviceId, state).catch((err) => {
+      console.warn(`[GpuScheduler] store.setService mirror failed for ${serviceId}:`, err);
+    });
   }
 
   // ─── GPU Query ─────────────────────────────────────
@@ -246,8 +287,9 @@ export class GpuScheduler {
    * 如果需要, 自动暂停低优先级服务; 拉起目标服务; 等待就绪。
    */
   async allocate(req: AllocationRequest): Promise<AllocationResult> {
+    await this.initialized;
     const startTime = Date.now();
-    const profile = this.profiles.get(req.serviceId);
+    const profile = this.profilesCache.get(req.serviceId);
     if (!profile) {
       return { granted: false, serviceId: req.serviceId, variantId: null, accessUrl: null, scheduledMs: 0, error: `Unknown service: ${req.serviceId}` };
     }
@@ -255,6 +297,7 @@ export class GpuScheduler {
     // Record request time
     const state = this.services.get(req.serviceId)!;
     state.lastRequestAt = new Date().toISOString();
+    this.mirrorService(req.serviceId, state);
 
     // Reset idle timer (if any)
     this.resetIdleTimer(req.serviceId);
@@ -264,21 +307,22 @@ export class GpuScheduler {
       return { granted: true, serviceId: req.serviceId, variantId: state.variantId, accessUrl: profile.healthUrl, scheduledMs: Date.now() - startTime };
     }
 
-    // Acquire GPU lock
-    const TRANSITION_LOCK_TIMEOUT_MS = 5 * 60 * 1000; // 5 min deadlock prevention
-    const gpuLock = this.locks.get(profile.gpuId);
-    if (gpuLock && gpuLock !== req.caller) {
-      return { granted: false, serviceId: req.serviceId, variantId: null, accessUrl: null, scheduledMs: 0, error: `GPU ${profile.gpuId} locked by ${gpuLock}` };
-    }
-    this.locks.set(profile.gpuId, req.caller);
-    let lockTimeout: NodeJS.Timeout | null = null;
-    const autoReleaseLock = () => {
-      if (lockTimeout) clearTimeout(lockTimeout);
-      if (this.locks.get(profile.gpuId) === req.caller) {
-        this.locks.set(profile.gpuId, null);
+    // Acquire GPU lock via store (atomic cross-process when Redis-backed)
+    const acquired = await this.store.acquireLock(profile.gpuId, req.caller, LOCK_TTL_MS);
+    if (!acquired) {
+      // Check if we already hold it (re-entrance is allowed)
+      const current = await this.store.getLock(profile.gpuId);
+      if (current !== req.caller) {
+        return { granted: false, serviceId: req.serviceId, variantId: null, accessUrl: null, scheduledMs: 0, error: `GPU ${profile.gpuId} locked by ${current}` };
       }
+    }
+    // Auto-release safety net (in-process; TTL in store is the cross-process safety net)
+    let lockTimeout: NodeJS.Timeout | null = null;
+    const autoReleaseLock = async () => {
+      if (lockTimeout) clearTimeout(lockTimeout);
+      await this.store.releaseLock(profile.gpuId, req.caller);
     };
-    lockTimeout = setTimeout(autoReleaseLock, TRANSITION_LOCK_TIMEOUT_MS);
+    lockTimeout = setTimeout(() => { void autoReleaseLock(); }, LOCK_TTL_MS);
 
     try {
       const variant = req.variantId && profile.variants
@@ -293,6 +337,7 @@ export class GpuScheduler {
       // Start the target service
       state.status = "starting";
       state.lastTransitionAt = new Date().toISOString();
+      this.mirrorService(req.serviceId, state);
 
       const envVars = variant?.envVars;
       await this.executeStartStep(profile, envVars);
@@ -300,18 +345,22 @@ export class GpuScheduler {
       // Wait for healthy
       if (profile.healthUrl) {
         state.status = "starting";
+        this.mirrorService(req.serviceId, state);
         const healthy = await this.waitForHealthy(profile);
         state.status = healthy ? "healthy" : "error";
+        this.mirrorService(req.serviceId, state);
         if (!healthy) {
           return { granted: false, serviceId: req.serviceId, variantId: variant?.variantId || null, accessUrl: null, scheduledMs: Date.now() - startTime, evictedServices: evicted, error: "Service failed health check" };
         }
       } else {
         // No health check — assume started
         state.status = "running";
+        this.mirrorService(req.serviceId, state);
       }
 
       state.variantId = variant?.variantId || null;
       state.instanceId = profile.id;
+      this.mirrorService(req.serviceId, state);
 
       // Set idle auto-release timer (use profile's configured timeout)
       const autoRelease = req.autoRelease !== false;
@@ -323,9 +372,10 @@ export class GpuScheduler {
       return { granted: true, serviceId: req.serviceId, variantId: state.variantId, accessUrl: profile.healthUrl, scheduledMs: Date.now() - startTime, evictedServices: evicted };
     } catch (err: any) {
       state.status = "error";
+      this.mirrorService(req.serviceId, state);
       return { granted: false, serviceId: req.serviceId, variantId: null, accessUrl: null, scheduledMs: Date.now() - startTime, error: err.message || String(err) };
     } finally {
-      autoReleaseLock();
+      await autoReleaseLock();
     }
   }
 
@@ -333,18 +383,21 @@ export class GpuScheduler {
    * 显式释放服务 (不等待空闲超时)。
    */
   async release(serviceId: string, caller?: string): Promise<void> {
+    await this.initialized;
     this.clearIdleTimer(serviceId);
-    const profile = this.profiles.get(serviceId);
+    const profile = this.profilesCache.get(serviceId);
     const state = this.services.get(serviceId);
     if (!profile || !state) return;
 
     if (state.status !== "stopped") {
       state.status = "stopping";
+      this.mirrorService(serviceId, state);
       await this.executeStopStep(profile);
       state.status = "stopped";
       state.instanceId = null;
       state.variantId = null;
       state.lastTransitionAt = new Date().toISOString();
+      this.mirrorService(serviceId, state);
     }
   }
 
@@ -352,9 +405,10 @@ export class GpuScheduler {
    * 释放指定 GPU 上的所有非锁定服务。
    */
   async releaseAllOnGpu(gpuId: number, exceptServiceId?: string): Promise<void> {
+    await this.initialized;
     for (const [id, state] of this.services) {
       if (id === exceptServiceId) continue;
-      const profile = this.profiles.get(id)!;
+      const profile = this.profilesCache.get(id)!;
       if (profile.gpuId === gpuId && state.status !== "stopped") {
         await this.release(id);
       }
@@ -363,14 +417,25 @@ export class GpuScheduler {
 
   /**
    * 获取调度器完整状态。
+   * Locks are read from store (cross-process authoritative).
+   * Services are read from local cache (single-process view).
    */
   async getState(): Promise<SchedulerState> {
-    const states = Array.from(this.services.values());
+    await this.initialized;
+    const lockEntries = await this.store.getAllLocks();
+    const locksObj: Record<number, string | null> = {};
+    for (const [gpuId, holder] of lockEntries) {
+      locksObj[gpuId] = holder;
+    }
+    // Ensure all known GPUs appear in the response (null if unheld)
+    for (const gpu of GPU_DEVICES) {
+      if (!(gpu.id in locksObj)) locksObj[gpu.id] = null;
+    }
     return {
       devices: GPU_DEVICES.map(g => ({ ...g })),
-      services: states,
+      services: Array.from(this.services.values()),
       pendingAllocation: null,
-      locks: Object.fromEntries(this.locks),
+      locks: locksObj,
     };
   }
 
@@ -406,24 +471,26 @@ export class GpuScheduler {
     const candidates = Array.from(this.services.values())
       .filter(s => s.status !== "stopped" && s.profileId !== caller)
       .filter(s => {
-        const p = this.profiles.get(s.profileId)!;
+        const p = this.profilesCache.get(s.profileId)!;
         return p.gpuId === gpuId;
       })
       .sort((a, b) => {
-        const pa = this.profiles.get(a.profileId)!;
-        const pb = this.profiles.get(b.profileId)!;
+        const pa = this.profilesCache.get(a.profileId)!;
+        const pb = this.profilesCache.get(b.profileId)!;
         return pb.priority - pa.priority; // lowest priority first to evict
       });
 
     let currentFree = freeMb;
     for (const candidate of candidates) {
       if (currentFree >= neededMb) break;
-      const profile = this.profiles.get(candidate.profileId)!;
+      const profile = this.profilesCache.get(candidate.profileId)!;
       candidate.status = "stopping";
+      this.mirrorService(candidate.profileId, candidate);
       await this.executeStopStep(profile);
       candidate.status = "stopped";
       candidate.instanceId = null;
       candidate.lastTransitionAt = new Date().toISOString();
+      this.mirrorService(candidate.profileId, candidate);
       currentFree = await this.getGpuVramFree(gpuId);
       evicted.push(candidate.profileId);
     }
@@ -459,7 +526,10 @@ export class GpuScheduler {
 
   private resetIdleTimer(serviceId: string): void {
     const state = this.services.get(serviceId);
-    if (state) state.lastRequestAt = new Date().toISOString();
+    if (state) {
+      state.lastRequestAt = new Date().toISOString();
+      this.mirrorService(serviceId, state);
+    }
     // Don't reset timer here — allocate() handles it
   }
 
@@ -476,10 +546,84 @@ export class GpuScheduler {
 // ─── 单例 ────────────────────────────────────────────
 
 let _instance: GpuScheduler | null = null;
+let _instancePromise: Promise<GpuScheduler> | null = null;
 
+/**
+ * Detect store backend from REDIS_URL env var.
+ * Returns a StateStore (memory or redis) plus a human-readable reason.
+ *
+ * Decision logic:
+ *   - REDIS_URL set + reachable → RedisStateStore (cross-process coordination)
+ *   - REDIS_URL set + unreachable → MemoryStateStore + WARN log (degrade gracefully)
+ *   - REDIS_URL unset → MemoryStateStore + WARN log (single-process mode)
+ */
+async function makeStore(): Promise<{ store: StateStore; reason: string }> {
+  const redisUrl = process.env.REDIS_URL;
+  if (!redisUrl) {
+    console.warn("[GpuScheduler] REDIS_URL not set — using in-memory state (single-process mode only). Multi-process coordination unavailable.");
+    return { store: new MemoryStateStore(), reason: "memory (REDIS_URL unset)" };
+  }
+  // Lazy-import to avoid loading ioredis when not needed
+  const { RedisStateStore } = await import("./redisStateStore");
+  const candidate = new RedisStateStore(redisUrl);
+  const ok = await candidate.ping();
+  if (!ok) {
+    console.warn(`[GpuScheduler] REDIS_URL=${redisUrl} set but unreachable — falling back to in-memory state. Cross-process coordination unavailable.`);
+    await candidate.close();
+    return { store: new MemoryStateStore(), reason: `memory (REDIS at ${redisUrl} unreachable)` };
+  }
+  console.log(`[GpuScheduler] Connected to Redis at ${redisUrl} — cross-process GPU coordination active.`);
+  return { store: candidate, reason: `redis (${redisUrl})` };
+}
+
+/**
+ * Synchronous getter — returns the existing instance or constructs a default
+ * memory-backed one. Prefer `getGpuSchedulerAsync()` for first call to ensure
+ * the REDIS_URL detection has completed.
+ *
+ * Behavior:
+ *   - First call: synchronously constructs with MemoryStateStore (fallback).
+ *     If REDIS_URL was set, the actual store swap happens via
+ *     `getGpuSchedulerAsync()` — most call sites should use the async version
+ *     at boot time.
+ *   - Subsequent calls: returns the cached instance.
+ */
 export function getGpuScheduler(): GpuScheduler {
   if (!_instance) {
-    _instance = new GpuScheduler();
+    _instance = new GpuScheduler(new MemoryStateStore());
+    console.warn("[GpuScheduler] Synchronous getGpuScheduler() used before async init — defaulting to memory store. Call getGpuSchedulerAsync() at boot.");
   }
   return _instance;
+}
+
+/**
+ * Async factory — preferred entry point. Detects REDIS_URL, validates
+ * reachability, then constructs the scheduler with the correct backend.
+ *
+ * Subsequent calls return the cached instance immediately.
+ */
+export async function getGpuSchedulerAsync(): Promise<GpuScheduler> {
+  if (_instance) return _instance;
+  if (_instancePromise) return _instancePromise;
+  _instancePromise = (async () => {
+    const { store, reason } = await makeStore();
+    _instance = new GpuScheduler(store);
+    await _instance["initialized"];
+    console.log(`[GpuScheduler] Initialized (backend=${reason}).`);
+    return _instance;
+  })();
+  return _instancePromise;
+}
+
+/**
+ * Test-only — reset the singleton so the next getGpuScheduler*() call
+ * re-detects the backend. Used by integration tests that need to switch
+ * backends.
+ */
+export function __resetGpuSchedulerForTests(): void {
+  if (_instance) {
+    void _instance["store"].close();
+  }
+  _instance = null;
+  _instancePromise = null;
 }
