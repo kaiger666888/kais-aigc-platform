@@ -23,6 +23,3 @@ export type PostprocessStep =
   | "depth"
   | "ultrasharp"
   | "realesrgan";
-
-const router = express.Router();
-export default router;

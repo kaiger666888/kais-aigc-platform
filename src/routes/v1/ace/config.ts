@@ -81,9 +81,3 @@ export type AceMusicLanguage = (typeof ACE_MUSIC_LANGUAGES)[number];
 /** AceStepSFT quality presets for audio output */
 export const ACE_QUALITY_PRESETS = ["V0", "64k", "96k", "128k", "192k", "320k"] as const;
 export type AceQualityPreset = (typeof ACE_QUALITY_PRESETS)[number];
-
-// NOTE: 不导出 default handler。router.ts 自动扫描会 import,但空 Express Router
-// 不匹配任何子路由时会自动 next() — 不会阻塞后续路由。
-import express from "express";
-const router = express.Router();
-export default router;

@@ -17,10 +17,3 @@ export const LTX_DEFAULTS = {
   msrLoraName: "LTX-2.3-Licon-MSR-V1.safetensors",
   msrModelName: "ltx-2.3-22b-distilled-1.1.safetensors",
 };
-
-// NOTE: exported as route handler (no-op) because auto-router scans all .ts in routes/
-// NOTE: 不导出 default，避免被 router 注册为空 middleware 阻塞后续路由
-
-import express from "express";
-const router = express.Router();
-export default router;

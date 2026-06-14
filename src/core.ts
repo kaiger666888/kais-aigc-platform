@@ -3,6 +3,30 @@ import path from "path";
 import { readFile, writeFile } from "fs/promises";
 import crypto from "crypto";
 
+/**
+ * Skip patterns for non-route files inside src/routes/.
+ *
+ * v1.5 CORE-01: previously, fast-glob scanned ALL .ts files under src/routes/
+ * and registered each as a route. Config-only files (config.ts) and shared
+ * modules (_shared/, _lib/) were incorrectly registered as empty route
+ * handlers, polluting the route table and risking silent middleware chains.
+ *
+ * These patterns are matched against the path relative to src/routes/.
+ */
+const SKIP_PATTERNS: RegExp[] = [
+  /(^|\/)config\.ts$/i,            // any path ending in config.ts
+  /(^|\/)constants\.ts$/i,         // any path ending in constants.ts
+  /(^|\/)types\.ts$/i,             // type-only modules
+  /(^|\/)_shared\//i,              // shared code dirs
+  /(^|\/)_lib\//i,                 // lib dirs
+  /(^|\/)_internal\//i,            // internal modules
+  /(^|\/)_helpers\//i,             // helper modules
+];
+
+function shouldSkip(routeKey: string): boolean {
+  return SKIP_PATTERNS.some((re) => re.test(routeKey));
+}
+
 function fileNameToRoutePath(fileName: string): string {
   let routePath = fileName.replace(/\.(ts)$/, "");
   routePath = routePath.split(path.sep).join("/");
@@ -23,17 +47,28 @@ export default async function generateRouter(): Promise<void> {
 
   const importLines: string[] = [];
   const routeModulePairs: RouteModulePair[] = [];
+  const skipped: string[] = [];
 
-  entries.forEach((entry: string, i: number) => {
+  entries.forEach((entry: string) => {
+    const routeKey = path.relative("src/routes", entry).replace(/\\/g, "/");
+    if (shouldSkip(routeKey)) {
+      skipped.push(routeKey);
+      return;
+    }
+    const i = routeModulePairs.length;
     const varName = `route${i + 1}`;
     let importPath = path.relative("src", entry).replace(/\\/g, "/");
     if (!importPath.startsWith(".")) importPath = "./" + importPath;
     importPath = importPath.replace(/\.ts$/, "");
     importLines.push(`import ${varName} from "${importPath}";`);
-    const routeKey = path.relative("src/routes", entry).replace(/\\/g, "/");
     const routePath = fileNameToRoutePath(routeKey);
     routeModulePairs.push({ routePath, varName, entry });
   });
+
+  if (skipped.length > 0) {
+    console.log(`[router-gen] Skipped ${skipped.length} non-route file(s): ${skipped.join(", ")}`);
+  }
+
   const routerData = JSON.stringify(routeModulePairs.map(({ routePath, varName }) => ({ routePath, varName })));
   const hash = crypto.createHash("md5").update(routerData).digest("hex");
 

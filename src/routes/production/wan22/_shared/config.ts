@@ -24,7 +24,3 @@ export const WAN22_DEFAULTS = {
   fps: 16,
   crf: 19,
 };
-
-// Export a no-op router so auto-scanner doesn't crash
-const router = express.Router();
-export default router;

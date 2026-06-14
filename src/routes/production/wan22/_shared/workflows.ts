@@ -88,7 +88,3 @@ export function buildMoveTrackWorkflow(opts: any) {
     "14": { class_type: "VHS_VideoCombine", inputs: { images: ["13", 0], frame_rate: fps, loop_count: 0, filename_prefix: filenamePrefix, format: "video/h264-mp4", pix_fmt: "yuv420p", crf, save_metadata: true, trim_to_audio: false, pingpong: false, save_output: true } },
   };
 }
-
-// No-op router for auto-scanner compatibility
-const router = express.Router();
-export default router;

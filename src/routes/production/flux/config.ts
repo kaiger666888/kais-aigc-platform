@@ -71,10 +71,3 @@ export enum ConsistencyMode {
   /** Flux Kontext Dev（参考图角色一致性，最佳效果） */
   KONTEXT = "kontext",
 }
-
-// NOTE: exported as route handler (no-op) because auto-router scans all .ts in routes/
-// NOTE: 不导出 default，避免被 router 注册为空 middleware 阻塞后续路由
-
-import express from "express";
-const router = express.Router();
-export default router;

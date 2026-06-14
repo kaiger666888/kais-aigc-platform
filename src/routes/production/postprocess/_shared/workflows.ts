@@ -156,7 +156,3 @@ export function buildPostprocessWorkflow(opts: PostprocessWorkflowOpts) {
 
   return nodes;
 }
-
-import express from "express";
-const router = express.Router();
-export default router;

@@ -42,10 +42,3 @@ export const TTS_CONFIG = {
 };
 
 export type TtsTrack = "zh" | "en" | "bilingual" | "clone";
-
-// NOTE: exported as route handler (no-op) because auto-router scans all .ts in routes/
-// NOTE: 不导出 default，避免被 router 注册为空 middleware 阻塞后续路由
-
-import express from "express";
-const router = express.Router();
-export default router;

@@ -167,10 +167,3 @@ async function postCallback(url: string, payload: Record<string, any>): Promise<
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
-
-// NOTE: router.ts auto-scans all .ts in src/routes/. Export an empty Express
-// router so the auto-generator can mount it without blocking subsequent
-// routes (Express Router auto-calls next() when no sub-route matches).
-import express from "express";
-const router = express.Router();
-export default router;
