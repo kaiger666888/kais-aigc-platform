@@ -19,4 +19,4 @@ export const LTX_DEFAULTS = {
 };
 
 // NOTE: exported as route handler (no-op) because auto-router scans all .ts in routes/
-export default function configRoute() { /* config-only, no HTTP handler */ }
+// NOTE: 不导出 default，避免被 router 注册为空 middleware 阻塞后续路由

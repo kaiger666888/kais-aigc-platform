@@ -73,7 +73,7 @@ import route69 from "./routes/production/editImage/updateImageFlow";
 import route70 from "./routes/production/editImage/uploadImage";
 import route71 from "./routes/production/getFlowData";
 import route72 from "./routes/production/getStoryboardData";
-import route73 from "./routes/production/ltx/config";
+// ltx/config 是纯配置文件，不导出 route handler
 import route74 from "./routes/production/ltx/extension";
 import route75 from "./routes/production/ltx/fflf";
 import route76 from "./routes/production/ltx/msr";
@@ -238,12 +238,14 @@ import route232 from "./routes/v1/trellis2/download";
 import route233 from "./routes/v1/trellis2/image-to-3d";
 import route234 from "./routes/v1/trellis2/preview";
 import route235 from "./routes/v1/trellis2/status";
-import route236 from "./routes/v1/tts/config";
+// tts/config 是纯配置文件，不导出 route handler
 import route237 from "./routes/v1/tts/speak";
 import route238 from "./routes/v1/tts/status";
 import route239 from "./routes/v1/lora-train";
 import fluxSceneGen from "./routes/production/flux/sceneGenerate";
 import fluxStatus from "./routes/production/flux/status";
+import indextts2Speak from "./routes/production/indextts2/speak";
+import indextts2Status from "./routes/production/indextts2/status";
 
 export default async (app: Express) => {
   app.use("/api/agents/clearMemory", route1);
@@ -318,7 +320,7 @@ export default async (app: Express) => {
   app.use("/api/production/editImage/uploadImage", route70);
   app.use("/api/production/getFlowData", route71);
   app.use("/api/production/getStoryboardData", route72);
-  app.use("/api/production/ltx/config", route73);
+  // ltx/config: 纯配置文件，无 HTTP 路由
   app.use("/api/production/ltx/extension", route74);
   app.use("/api/production/ltx/fflf", route75);
   app.use("/api/production/ltx/msr", route76);
@@ -483,15 +485,16 @@ export default async (app: Express) => {
   app.use("/api/v1/trellis2/image-to-3d", route233);
   app.use("/api/v1/trellis2/preview", route234);
   app.use("/api/v1/trellis2/status", route235);
-  app.use("/api/v1/tts/config", route236);
+  // tts/config: 纯配置文件，无 HTTP 路由
   app.use("/api/v1/tts/speak", route237);
   app.use("/api/v1/tts/status", route238);
   app.use("/api/v1/lora-train", route239);
 
   // Flux Dev FP8 — 场景一致性
-  app.use("/api/production/flux/scene-generate", fluxSceneGen);
-  app.use("/api/production/flux/storyboard", fluxSceneGen);
-  app.use("/api/production/flux/status", fluxStatus);
-  app.use("/api/production/flux/start", fluxStatus);
-  app.use("/api/production/flux/stop", fluxStatus);
+  app.use("/api/production/flux", fluxSceneGen);
+  app.use("/api/production/flux", fluxStatus);
+
+  // IndexTTS 2.0 — 零样本语音克隆
+  app.use("/api/production/indextts2", indextts2Speak);
+  app.use("/api/production/indextts2", indextts2Status);
 }
