@@ -40,52 +40,15 @@ def _grep_count(pattern: str, path: str, include: str = "*", exclude_pycache: bo
 
 
 # ===================================================================
-# Test class: ACE-Step regression
+# Test class: ACE-Step regression — REMOVED in v1.5
 # ===================================================================
-
-class TestACEStepRegression:
-    """Verify ACE-Step engine remains correctly registered and functional."""
-
-    def test_01_engine_instantiation(self):
-        """ACEStepEngine can be instantiated without external deps."""
-        from src.v6.engines.acestep import ACEStepEngine
-        engine = ACEStepEngine()
-        assert isinstance(engine, BaseEngine)
-
-    def test_02_backend_type_is_docker(self):
-        """ACEStepEngine reports DOCKER backend type (v1.4 FIX-04).
-
-        ACE-Step runs in a dedicated sidecar container (kais-acestep) and is
-        polled via HTTP. Even in localhost fallback mode it spawns an isolated
-        subprocess rather than using the ComfyUI node graph or a cloud API,
-        so DOCKER is the correct classification. Previously the engine
-        inherited MOCK — the v1.3 ENG-04 bug closed by v1.4 FIX-04.
-        """
-        from src.v6.engines.acestep import ACEStepEngine
-        engine = ACEStepEngine()
-        assert engine.backend_type == BackendType.DOCKER, (
-            f"ACEStepEngine backend_type regression: got {engine.backend_type}, "
-            f"expected DOCKER (v1.4 FIX-04)"
-        )
-
-    def test_03_supported_types_includes_music(self):
-        """ACEStepEngine supported_types includes 'music'."""
-        from src.v6.engines.acestep import ACEStepEngine
-        engine = ACEStepEngine()
-        cap = engine.capabilities
-        assert "music" in cap.supported_types, (
-            f"'music' not in supported_types: {cap.supported_types}"
-        )
-
-    def test_04_task_type_map_music_to_text2music(self):
-        """ACE-Step _TASK_TYPE_MAP maps 'music' to 'text2music'."""
-        from src.v6.engines import acestep
-        assert "music" in acestep._TASK_TYPE_MAP, (
-            f"'music' key missing from _TASK_TYPE_MAP: {list(acestep._TASK_TYPE_MAP.keys())}"
-        )
-        assert acestep._TASK_TYPE_MAP["music"] == "text2music", (
-            f"_TASK_TYPE_MAP['music'] = {acestep._TASK_TYPE_MAP['music']!r}, expected 'text2music'"
-        )
+# ACE-Step engine deleted from gold-team in v1.5. Music generation now
+# runs entirely through Node-layer ComfyUI routes (src/routes/v1/ace/).
+# The 4 regression tests below are obsolete:
+#   - test_01_engine_instantiation
+#   - test_02_backend_type_is_docker
+#   - test_03_supported_types_includes_music
+#   - test_04_task_type_map_music_to_text2music
 
 
 # ===================================================================

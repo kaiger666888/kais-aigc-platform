@@ -67,42 +67,23 @@ RUN git clone --depth 1 https://github.com/FunAudioLLM/CosyVoice.git /opt/CosyVo
 # Install ACE-Step (music generation) — COPY from local clone to avoid build-time network issues
 # nano-vllm is a bundled local package required by ace-step (not on PyPI)
 # Both installed with --no-deps to avoid GitHub-hosted flash-attn wheel download in build.
-# Pre-install ALL required PEP 517 build backends AND their runtime deps (setuptools for
-# nano-vllm; hatchling + pathspec + pluggy + trove-classifiers for ace-step), then use
-# --no-build-isolation so pip doesn't try to re-fetch them from the mirror under
-# --index-url (which can return "no versions found" for build deps in isolated envs).
-COPY --chown=root:root additional_src/ACE-Step-1.5/ /tmp/acestep-src/
-RUN pip install --no-cache-dir "setuptools>=61" wheel hatchling pip -i https://pypi.tuna.tsinghua.edu.cn/simple && \
-    pip install --no-cache-dir --no-deps --no-build-isolation /tmp/acestep-src/acestep/third_parts/nano-vllm && \
-    pip install --no-cache-dir --no-deps --no-build-isolation /tmp/acestep-src && \
-    pip install --no-cache-dir vector-quantize-pytorch loguru einops accelerate diskcache numba \
-        lycoris-lora lightning pytorch-wavelets pywavelets typer-slim toml triton \
-        -i https://pypi.tuna.tsinghua.edu.cn/simple && \
-    mkdir -p /opt/acestep/app && cp -r /tmp/acestep-src/* /opt/acestep/app/ && \
-    rm -rf /tmp/acestep-src
+# v1.5: ACE-Step source install removed. Music generation now runs via
+# ComfyUI workflows submitted by Node-layer routes (src/routes/v1/ace/).
+# gold-team no longer bundles acestep Python sources, /opt/acestep dir,
+# or any ACESTEP_* env vars.
 
 # Copy v6 module
 COPY src/ ./src/
 COPY scripts/ ./scripts/
 
 RUN groupadd -r kais && useradd -r -g kais kais && \
-    chown -R kais:kais /app /opt/CosyVoice && \
-    mkdir -p /opt/acestep/app/gradio_outputs /opt/acestep/app/.cache && \
-    chmod -R 777 /opt/acestep/app/gradio_outputs /opt/acestep/app/.cache && \
-    ln -sfn /opt/acestep/checkpoints /opt/acestep/app/checkpoints
+    chown -R kais:kais /app /opt/CosyVoice
 USER kais
 
 ENV PORT=8002
 ENV COSYVOICE_ROOT=/opt/CosyVoice
 ENV COSYVOICE_MODEL_DIR=/opt/CosyVoice/pretrained_models/FunAudioLLM/Fun-CosyVoice3-0.5B-2512
 ENV COSYVOICE_LLM_WEIGHT=llm.rl.pt
-ENV ACESTEP_ROOT=/opt/acestep
-ENV ACESTEP_API_HOST=127.0.0.1
-ENV ACESTEP_API_PORT=8010
-ENV ACESTEP_CONFIG_PATH=acestep-v15-xl-turbo
-ENV ACESTEP_CONFIG_PATH2=acestep-v15-xl-sft
-ENV ACESTEP_CHECKPOINTS=/opt/acestep/checkpoints
-ENV ACESTEP_OFFLOAD_DIT_TO_CPU=true
 ENV MPLCONFIGDIR=/tmp/matplotlib
 
 EXPOSE 8002

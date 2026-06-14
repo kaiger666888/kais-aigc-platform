@@ -532,20 +532,21 @@ class TaskExecutor:
                     )
                     logger.info("Auto-built Face Restore workflow for task %s", task.task_id)
                 elif task.type == TaskType.MUSIC or task.type == TaskType.SFX:
-                    # ACE-Step music generation — build workflow as a param dict
-                    workflow = {
-                        "task_type": task.type.value,
-                        "prompt": task.params.get("prompt", ""),
-                        "lyrics": task.params.get("lyrics", ""),
-                        "thinking": task.params.get("thinking", True),
-                        "sample_mode": task.params.get("sample_mode", False),
-                        "sample_query": task.params.get("sample_query", ""),
-                        "seed": task.params.get("seed", -1),
-                        "audio_format": task.params.get("audio_format", "wav"),
-                        "batch_size": task.params.get("batch_size", 1),
-                        "extra": {"acestep": task.params},
-                    }
-                    logger.info("Auto-built ACE-Step music workflow for task %s", task.task_id)
+                    # v1.5: ACE-Step music generation migrated to Node-layer ComfyUI
+                    # workflow (src/routes/v1/ace/generate.ts). gold-team no longer
+                    # builds MUSIC/SFX workflows — reject so callers know to use
+                    # /api/v1/ace/generate instead.
+                    logger.error(
+                        "MUSIC/SFX task %s rejected — gold-team no longer handles music "
+                        "generation. Use POST /api/v1/ace/generate (ComfyUI workflow) instead.",
+                        task.task_id,
+                    )
+                    await store.update(
+                        task.task_id,
+                        status=TaskStatus.FAILED,
+                        error="MUSIC/SFX not supported by gold-team since v1.5; use /api/v1/ace/generate",
+                    )
+                    return
                 elif task.type == TaskType.IMAGE_TO_3D_MV:
                     # Hunyuan3D-2mv multiview image-to-3D
                     images = task.params.get("images", [])

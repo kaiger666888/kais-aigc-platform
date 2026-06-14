@@ -16,11 +16,13 @@ logger = logging.getLogger(__name__)
 # ─── Dedicated engine mappings (type → engine_id) ───
 # These task types have specialized engines that should always be preferred
 # over the generic comfyui-primary fallback.
+# NOTE: MUSIC/SFX removed in v1.5 — gold-team no longer hosts music generation.
+# Music is now served by Node-layer routes (/api/v1/ace/generate → ComfyUI
+# /prompt). Sending MUSIC/SFX to gold-team results in task FAILED with a
+# redirect message (see src/v6/executor.py).
 DEDICATED_ENGINES: dict[TaskType, str] = {
     TaskType.IMAGE_TO_3D: "hunyuan3d-local",
     TaskType.IMAGE_TO_3D_MV: "hunyuan3d-mv-local",
-    TaskType.MUSIC: "acestep-internal",
-    TaskType.SFX: "acestep-internal",
     TaskType.TTS: "tts-tracker",
     TaskType.TTS_ZH: "tts-tracker",
     TaskType.TTS_EN: "tts-tracker",
