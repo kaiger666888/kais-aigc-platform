@@ -64,7 +64,7 @@ const startTrainSchema = z.object({
  */
 router.post(
   "/",
-  validateFields(startTrainSchema),
+  validateFields(startTrainSchema.shape),
   async (req, res) => {
     try {
       const resp = await axios.post(

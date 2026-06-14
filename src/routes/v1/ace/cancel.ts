@@ -1,6 +1,7 @@
 import express from "express";
 import { success, error } from "@/lib/responseFormat";
 import { ACE_CONFIG } from "./config";
+import { cancelCallbackTracker } from "./_shared/asyncCallback";
 
 const router = express.Router();
 
@@ -29,6 +30,7 @@ export default router.post("/:promptId", async (req, res) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ delete: [promptId] }),
+        signal: AbortSignal.timeout(5_000),
       });
       removed = queueRes.ok;
       if (!queueRes.ok) notes.push(`queue delete returned ${queueRes.status}`);
@@ -38,17 +40,24 @@ export default router.post("/:promptId", async (req, res) => {
 
     // 2. Interrupt current execution (best-effort; only effective if promptId is the running one)
     try {
-      const intrRes = await fetch(`${comfyuiUrl}/interrupt`, { method: "POST" });
+      const intrRes = await fetch(`${comfyuiUrl}/interrupt`, {
+        method: "POST",
+        signal: AbortSignal.timeout(5_000),
+      });
       interrupted = intrRes.ok;
     } catch (err: any) {
       notes.push(`interrupt failed: ${err.message}`);
     }
+
+    // 3. Cancel any in-process callback tracker for this promptId
+    const trackerCancelled = cancelCallbackTracker(promptId);
 
     return res.status(200).send(success({
       task_id: promptId,
       cancelled: removed || interrupted,
       removed_from_queue: removed,
       interrupted_running: interrupted,
+      callback_tracker_cancelled: trackerCancelled,
       message: removed
         ? "Prompt removed from queue"
         : interrupted

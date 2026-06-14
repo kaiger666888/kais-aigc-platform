@@ -67,11 +67,12 @@ services:
       https_proxy: "${https_proxy:-}"
       NO_PROXY: "localhost,127.0.0.1,172.18.0.0/16"
       W2V_BERT_PATH: "/data/models/w2v-bert-2.0"
-      CLI_ARGS: "--disable-metadata --lowvram --bf16-text-enc --bf16-unet --output-directory /mnt/agents/output/gpu1"
+      CLI_ARGS: "--disable-metadata --lowvram --bf16-text-enc --bf16-unet --output-directory /mnt/agents/output/gpu1 --queue-size 20"
     volumes:
       - ${OUTPUT_DIR:-/mnt/agents/output}/gpu1:/mnt/agents/output/gpu1
       - ${DATA_MODELS_DIR:-/data/models/comfyui}:/root/ComfyUI/models:rw
       - ${ACESTEP_MODELS_DIR:-/data/models/ACE-Step1.5}:/root/ComfyUI/models/ace-step:ro
+      - comfyui-user:/root/ComfyUI/user
       - /data/workspace/comfyui-incremental-nodes:/root/ComfyUI/custom_nodes/kais-incremental
       - /data/workspace/comfyui-incremental-nodes/ComfyUI-LTXVideo:/root/ComfyUI/custom_nodes/ComfyUI-LTXVideo
       - /data/workspace/comfyui-incremental-nodes/ComfyUI-TRELLIS2:/root/ComfyUI/custom_nodes/ComfyUI-TRELLIS2
@@ -497,6 +498,8 @@ volumes:
     name: kais-cosyvoice-models
   comfyui-cache:
     name: kais-comfyui-cache
+  comfyui-user:
+    name: kais-comfyui-user
   hermes-data:
     name: kais-hermes-data
   hf-cache:

@@ -87,7 +87,7 @@ export default router.post(
       const hasAnyAssetLink = Object.keys(assets2SbMap).length > 0;
       if (!hasAnyAssetLink && assetsData.length > 0 && storyboardData.length > 0) {
         for (const sb of storyboardData) {
-          assets2SbMap[sb.id] = assetIds;
+          if (sb.id !== undefined) assets2SbMap[sb.id] = assetIds;
         }
       }
 

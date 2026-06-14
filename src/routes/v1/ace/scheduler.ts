@@ -1,6 +1,7 @@
 import express, { Router, Request, Response } from "express";
 import { success } from "@/lib/responseFormat";
 import { getGpuScheduler } from "@/services/gpu";
+import { activeTrackerCount } from "./_shared/asyncCallback";
 
 const router = express.Router();
 
@@ -37,6 +38,7 @@ export default router.get("/", async (_req, res) => {
         last_request: s.lastRequestAt,
       })),
       locks: state.locks,
+      async_callbacks_in_flight: activeTrackerCount(),
     })
   );
 });

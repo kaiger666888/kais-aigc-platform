@@ -50,6 +50,7 @@ function buildFFLFWorkflow(opts: {
   nagScale: number;
   nagAlpha: number;
   nagTau: number;
+  nagInplace?: boolean;
   filenamePrefix: string;
   crf: number;
 }) {
@@ -57,7 +58,7 @@ function buildFFLFWorkflow(opts: {
     firstFrameFilename, lastFrameFilename, prompt, negativePrompt,
     width, height, numFrames, fps, steps, cfg, seed,
     samplerName, scheduler, denoise,
-    nagScale, nagAlpha, nagTau,
+    nagScale, nagAlpha, nagTau, nagInplace,
     filenamePrefix, crf,
   } = opts;
 

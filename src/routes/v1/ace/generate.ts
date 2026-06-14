@@ -3,6 +3,7 @@ import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { success, error } from "@/lib/responseFormat";
 import { ACE_CONFIG } from "./config";
+import { startCallbackTracker } from "./_shared/asyncCallback";
 
 const router = express.Router();
 
@@ -90,12 +91,17 @@ export default router.post("/", async (req, res) => {
 
     const clientTaskId = p.client_task_id || `ace_${uuidv4().replace(/-/g, "").slice(0, 12)}`;
 
-    // Best-effort webhook registration: client will be notified on completion.
-    // (ComfyUI itself does not invoke callbacks; downstream poller or status
-    // endpoint must trigger this. Implementation is left to a separate worker
-    // if true async completion callbacks are needed.)
+    // Register in-process callback tracker. Polls ComfyUI /history every 5s
+    // and POSTs the result to callback_url on completion/failure/timeout.
+    // Best-effort — lost on server restart; clients should still poll
+    // /api/v1/ace/status/:promptId as a fallback.
     if (p.callback_url) {
-      console.log(`[ACE Generate] callback_url registered for prompt_id=${data.prompt_id} → ${p.callback_url} (requires external poller)`);
+      startCallbackTracker({
+        promptId: data.prompt_id,
+        callbackUrl: p.callback_url,
+        comfyuiUrl,
+      });
+      console.log(`[ACE Generate] callback tracker started for prompt_id=${data.prompt_id} → ${p.callback_url}`);
     }
 
     return res.status(202).send(success({
