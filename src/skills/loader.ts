@@ -53,6 +53,19 @@ export async function loadAllFromDB(knex: Knex): Promise<number> {
   let registered = 0;
 
   for (const row of rows) {
+    // WR-03: manifest_json is typed string | null (column is nullable per
+    // database.d.ts). JSON.parse(null) does NOT throw — it coerces null to
+    // the string "null" and returns null. Without this guard, a NULL blob
+    // flows through to validateManifest(null) → {ok: false} and is logged
+    // as "invalid manifest", which misleads operators into thinking the row
+    // contained a malformed manifest when it actually contained no manifest
+    // at all. Skip NULLs explicitly with a clearer log message.
+    if (row.manifest_json == null) {
+      console.warn(
+        `[skills/loader] skipping row with NULL manifest_json for skill_id=${row.skill_id}`,
+      );
+      continue;
+    }
     try {
       const parsed = JSON.parse(row.manifest_json);
       const result = validateManifest(parsed);
