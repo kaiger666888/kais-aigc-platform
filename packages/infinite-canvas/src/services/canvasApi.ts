@@ -276,3 +276,55 @@ export async function requestNodeScore(
 ): Promise<{ overall: number; quality: number; aesthetic: number; storyConsistency: number; promptAdherence: number; emotionImpact: number; reasoning?: string }> {
   return await apiCall<any>('/canvas/review/score', { projectId, episodesId, nodeId }, { cancelToken, timeout: 60000 })
 }
+
+// ─── Skill Registry (Phase 32 CANVAS-01) ─────────────────
+
+/**
+ * Node type declaration shape returned by GET /api/v1/skills/:skillId/node-types.
+ * Mirrors `NodeTypeDecl` from src/skills/contract.ts. The canvas treats this
+ * as descriptive metadata — it does NOT drive renderer selection (the 5
+ * platform-primitive renderers stay keyed by `default_renderer`).
+ */
+export interface SkillNodeTypeDecl {
+  type: string
+  label: string
+  icon: string
+  color: string
+  data_schema_uri: string
+  default_renderer: string
+}
+
+/**
+ * Fetch the node type declarations for a registered skill. Used by the canvas
+ * to surface available node types in UI affordances (e.g. an "Add Node" menu
+ * in a future phase). Falls back to an empty array on any error — the canvas
+ * must continue to render even if the registry endpoint is unreachable.
+ *
+ * Phase 32 (CANVAS-01): the canvas loads node type metadata from the registry
+ * instead of a hardcoded list.
+ */
+export async function fetchSkillNodeTypes(
+  skillId: string,
+  cancelToken?: CancelToken,
+): Promise<SkillNodeTypeDecl[]> {
+  const url = `${API_BASE}/v1/skills/${encodeURIComponent(skillId)}/node-types`
+  const signal = cancelToken?.signal
+  try {
+    const res = await fetch(url, { method: 'GET', signal })
+    if (!res.ok) {
+      console.warn(`[canvasApi] fetchSkillNodeTypes: HTTP ${res.status} for skill '${skillId}'`)
+      return []
+    }
+    const json = (await res.json()) as { ok?: boolean; node_types?: SkillNodeTypeDecl[] }
+    if (!json.ok || !Array.isArray(json.node_types)) {
+      console.warn(`[canvasApi] fetchSkillNodeTypes: malformed response for skill '${skillId}'`, json)
+      return []
+    }
+    return json.node_types
+  } catch (err) {
+    if (cancelToken?.isCancelled) return []
+    console.warn(`[canvasApi] fetchSkillNodeTypes: request failed for skill '${skillId}'`, err)
+    return []
+  }
+}
+

@@ -18,6 +18,7 @@ import AssetNodeComponent from './nodes/AssetNode'
 import StoryboardNodeComponent from './nodes/StoryboardNode'
 import VideoNodeComponent from './nodes/VideoNode'
 import AudioNodeComponent from './nodes/AudioNode'
+import FallbackNodeComponent from './nodes/FallbackNode'
 import CanvasEdgeComponent from './edges/CanvasEdge'
 import CanvasContextMenu from './CanvasContextMenu'
 import ProjectSelector from './ProjectSelector'
@@ -28,12 +29,26 @@ import type { NodeState } from '../types/canvas'
 import { useCanvasStore } from '../store/canvasStore'
 import { ToastContainer } from '../hooks/useToast'
 import { flowGraphToCanvas, canvasToFlowGraph } from '../utils/flowDataMapper'
-import { loadCanvasGraph, saveCanvasGraph, convertProjectData } from '../services/canvasApi'
+import { loadCanvasGraph, saveCanvasGraph, convertProjectData, fetchSkillNodeTypes } from '../services/canvasApi'
 import { useCanvasSocket } from '../hooks/useCanvasSocket'
 import { theme, miniMapNodeColors } from '../theme/catppuccin'
 import { LAYOUT, VIEWPORT } from '../constants'
 
+/**
+ * Platform built-in node renderers (Phase 32 CANVAS-02).
+ *
+ * These five renderers — `script`, `asset`, `storyboard`, `video`, `audio` —
+ * are PLATFORM PRIMITIVES keyed by `default_renderer`. They are NOT movie-v1
+ * properties. A skill manifest references them via each `node_types[].default_renderer`
+ * field; future skills can declare new node types that reuse these renderers
+ * without a canvas bundle repack.
+ *
+ * `default` is the fallback for any `node.type` value that is not in the
+ * built-in map (CANVAS-03 — unknown types render via FallbackNode instead of
+ * crashing the canvas).
+ */
 const nodeTypes = {
+  default: FallbackNodeComponent,
   script: ScriptNodeComponent,
   asset: AssetNodeComponent,
   storyboard: StoryboardNodeComponent,
@@ -78,6 +93,11 @@ function CanvasInner() {
   const projectId = useCanvasStore((s) => s.projectId)
   const episodesId = useCanvasStore((s) => s.episodesId)
   const setProject = useCanvasStore((s) => s.setProject)
+
+  // Phase 32 — active skill + declared node types (registry-driven metadata)
+  const activeSkillId = useCanvasStore((s) => s.activeSkillId)
+  const declaredNodeTypes = useCanvasStore((s) => s.declaredNodeTypes)
+  const setDeclaredNodeTypes = useCanvasStore((s) => s.setDeclaredNodeTypes)
 
   const menuPos = useCanvasStore((s) => s.menuPos)
   const setMenuPos = useCanvasStore((s) => s.setMenuPos)
@@ -208,6 +228,23 @@ function CanvasInner() {
   const miniMapNodeColor = useCallback((node: any) => {
     return miniMapNodeColors[node.type || ''] ?? theme.border.dim
   }, [])
+
+  // Phase 32 CANVAS-01 — pull declared node types from the skill registry on
+  // mount. The result is descriptive metadata (used by future UI affordances
+  // like an "Add Node" menu); it does NOT drive renderer selection — the five
+  // built-in renderers (script/asset/storyboard/video/audio) are platform
+  // primitives keyed by `default_renderer`. Unknown types fall through to
+  // FallbackNode via the `default` entry in the nodeTypes map (CANVAS-03).
+  useEffect(() => {
+    let cancelled = false
+    fetchSkillNodeTypes(activeSkillId)
+      .then((decls) => {
+        if (!cancelled) setDeclaredNodeTypes(decls)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [activeSkillId, setDeclaredNodeTypes])
 
   // 全屏加载 — 骨架屏
   if (loading && !hasData) {

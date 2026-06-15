@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { applyNodeChanges, applyEdgeChanges, type Node, type Edge, type NodeChange, type EdgeChange } from '@xyflow/react'
+import type { SkillNodeTypeDecl } from '../services/canvasApi'
 
 export interface ToastItem {
   id: number
@@ -12,6 +13,14 @@ interface CanvasState {
   projectId: number | null
   episodesId: number | null
   setProject: (pid: number, eid: number) => void
+
+  // 当前激活技能 ID（Phase 32 — 由项目数据驱动；缺省 movie-v1）
+  activeSkillId: string
+  setActiveSkillId: (skillId: string) => void
+
+  // 当前激活技能声明的节点类型（Phase 32 CANVAS-01 — 从注册表拉取）
+  declaredNodeTypes: SkillNodeTypeDecl[]
+  setDeclaredNodeTypes: (decls: SkillNodeTypeDecl[]) => void
 
   // 画布节点/边
   nodes: Node[]
@@ -57,6 +66,15 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   projectId: null,
   episodesId: null,
   setProject: (pid, eid) => set({ projectId: pid, episodesId: eid }),
+
+  // 激活技能（Phase 32）
+  activeSkillId: 'movie-v1',
+  setActiveSkillId: (skillId) => set({ activeSkillId: skillId }),
+
+  // 声明的节点类型（Phase 32 — 注册表元数据，仅用于 UI 显示，
+  // 不参与渲染器选择；渲染器映射保持为平台原语）
+  declaredNodeTypes: [],
+  setDeclaredNodeTypes: (decls) => set({ declaredNodeTypes: decls }),
 
   // 节点/边
   nodes: [],
