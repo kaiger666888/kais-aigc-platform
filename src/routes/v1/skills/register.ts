@@ -40,6 +40,15 @@ import u from "@/utils";
 import { validateManifest } from "@/skills/validator";
 import { registry } from "@/skills/registry";
 
+// SECURITY (v1.6 deferral — CR-01): POST /api/v1/skills/register is
+// UNAUTHENTICATED. CONTEXT.md D-04 explicitly accepts this for v1.6 ("trusted
+// internal network; matches existing /api/v1/* routes which have no auth
+// middleware"). The platform's only network boundary today is whatever the
+// deployment reverse-proxy provides. v1.7+ MUST add an auth gate (API key,
+// mTLS, or RBAC) before exposing /register beyond the trusted perimeter —
+// see PROJECT.md deferred items. Until then, operators MUST ensure the
+// listening port is not reachable from untrusted networks.
+
 const router = express.Router();
 
 export default router.post("/", async (req, res) => {
