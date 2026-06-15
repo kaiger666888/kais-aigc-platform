@@ -4,13 +4,13 @@ milestone: v1.6
 milestone_name: Workflow Skill Contract
 status: executing
 stopped_at: v1.6 roadmap created. 7 phases (28-34) with 36 requirements mapped at 100% coverage. Serial chain 28→29→30; 31 and 32 parallelizable; 33 validation gate; 34 docs last.
-last_updated: "2026-06-15T13:43:17.424Z"
-last_activity: 2026-06-15 -- Phase 31 planning complete
+last_updated: "2026-06-15T13:56:07.826Z"
+last_activity: 2026-06-15
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 10
-  completed_plans: 6
+  completed_plans: 8
   percent: 43
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-15)
 
 **Core value:** AI creative production pipeline that runs end-to-end, pluggable across multiple creative workflows via a published skill contract
-**Current focus:** Phase 31 — pipeline callback refactor
+**Current focus:** Phase 31 — Pipeline Callback Refactor
 
 ## Current Position
 
-Phase: 31
-Plan: Not started
+Phase: 31 (Pipeline Callback Refactor) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-06-15 -- Phase 31 planning complete
+Last activity: 2026-06-15
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
@@ -50,6 +50,7 @@ Progress: [░░░░░░░░░░] 0%
 | 27 | 1 | ✅ Shipped |
 
 *v1.6 phases not yet planned — table updates after first plan execution*
+| Phase 31 P02 | ~12min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,7 @@ Progress: [░░░░░░░░░░] 0%
 - Domain-agnostic API; movie-pipeline is one domain among many
 - TS ESM/CJS interop: use standalone `.ts` script pattern, not `tsx -e` (Pitfalls B5)
 - No project test framework — stay with `verify-phase-*.ts` pattern but register in package.json (Pitfalls B3)
+- [Phase ?]: Plan 31-02: Pipeline callbacks (phase-complete, resume) resolve skill_id from kv_pipelineRun row with movie-v1 fallback; registry.phaseById replaces deleted REVIEW_REQUIRED_PHASES / PHASE_ORDER / PHASE_INGEST_MAP
 
 ### Pending Todos
 
@@ -111,6 +113,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-15
+Last session: 2026-06-15T13:53:36.906Z
 Stopped at: v1.6 roadmap created. 7 phases (28-34) with 36 requirements mapped at 100% coverage. Serial chain 28→29→30; 31 and 32 parallelizable; 33 validation gate; 34 docs last.
 Resume: `/gsd:plan-phase 28` to plan the first phase (Skill Contract Spec + TS Interface).

@@ -175,11 +175,11 @@ Plans:
 **Plans**: 4 plans
 **Wave 1**
 
-- [ ] 31-01-PLAN.md — Inline phase_taxonomy values into MOVIE_V1_MANIFEST (delete constant imports from defaultSkill.ts + patch verify-phase-30.ts) [PIPELINE-02]
+- [x] 31-01-PLAN.md — Inline phase_taxonomy values into MOVIE_V1_MANIFEST (delete constant imports from defaultSkill.ts + patch verify-phase-30.ts) [PIPELINE-02]
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 31-02-PLAN.md — Refactor phase-complete.ts + resume.ts to use registry.phaseById (delete REVIEW_REQUIRED_PHASES, PHASE_INGEST_MAP, PHASE_ORDER) [PIPELINE-01, PIPELINE-03]
+- [x] 31-02-PLAN.md — Refactor phase-complete.ts + resume.ts to use registry.phaseById (delete REVIEW_REQUIRED_PHASES, PHASE_INGEST_MAP, PHASE_ORDER) [PIPELINE-01, PIPELINE-03]
 - [ ] 31-03-PLAN.md — Refactor submit-to-review.ts to replace z.enum with z.string + registry taxonomy validation (400 vs 500 error distinction) [PIPELINE-04]
 
 **Wave 3** *(blocked on Wave 2 completion)*
@@ -263,7 +263,7 @@ v1.6: Phases 28 → 29 → 30 are strictly serial (each imports from the prior).
 | 28. Skill Contract Spec + TS Interface | v1.6 | 2/2 | Complete    | 2026-06-15 |
 | 29. DB Migration + Registry Skeleton | v1.6 | 2/2 | Complete    | 2026-06-15 |
 | 30. Default Skill Seed + REST API | v1.6 | 2/2 | Complete    | 2026-06-15 |
-| 31. Pipeline Callback Refactor | v1.6 | 0/4 | Planned | - |
+| 31. Pipeline Callback Refactor | v1.6 | 2/4 | In Progress|  |
 | 32. Canvas Node Type Registry Integration | v1.6 | 0/TBD | Not started | - |
 | 33. kais-movie-agent Compliance + E2E | v1.6 | 0/TBD | Not started | - |
 | 34. Skill Author Documentation | v1.6 | 0/TBD | Not started | - |

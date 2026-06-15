@@ -36,9 +36,9 @@ Each requirement maps to a phase in ROADMAP.md (Phase 28-34). Traceability fille
 
 ### PIPELINE — Callback Refactor (Phase 31)
 
-- [ ] **PIPELINE-01**: `src/routes/v1/pipeline/callback/phase-complete.ts` uses `registry.phaseById(skill_id, phase).requires_review` instead of `REVIEW_REQUIRED_PHASES` constant
+- [x] **PIPELINE-01**: `src/routes/v1/pipeline/callback/phase-complete.ts` uses `registry.phaseById(skill_id, phase).requires_review` instead of `REVIEW_REQUIRED_PHASES` constant
 - [ ] **PIPELINE-02**: `PHASE_INGEST_MAP` constant deleted from `src/routes/v1/pipeline/callback/phase-complete.ts`; manifest's `phase_taxonomy[].ingest_outputs` is the new descriptive source of truth. Runtime ingest branching (on `outputs[].type`) is unchanged — descriptive-field equality locked via the PIPELINE-05 equivalence test. (Runtime refactor of ingest routing deferred per CONTEXT.md `<deferred>`.)
-- [ ] **PIPELINE-03**: `src/routes/v1/pipeline/resume.ts` uses registry's phase order instead of `PHASE_ORDER` constant
+- [x] **PIPELINE-03**: `src/routes/v1/pipeline/resume.ts` uses registry's phase order instead of `PHASE_ORDER` constant
 - [ ] **PIPELINE-04**: `src/routes/v1/pipeline/submit-to-review.ts` validates phase string against registry instead of closed enum
 - [ ] **PIPELINE-05**: Equivalence test asserts new code path produces identical behavior to old constants for movie-v1 manifest (regression guard)
 
@@ -130,9 +130,9 @@ Filled during roadmap creation. Each v1.6 requirement maps to exactly one phase 
 | API-04 | Phase 30 | Complete |
 | API-05 | Phase 30 | Complete |
 | API-06 | Phase 30 | Complete |
-| PIPELINE-01 | Phase 31 | Pending |
+| PIPELINE-01 | Phase 31 | Complete |
 | PIPELINE-02 | Phase 31 | Pending |
-| PIPELINE-03 | Phase 31 | Pending |
+| PIPELINE-03 | Phase 31 | Complete |
 | PIPELINE-04 | Phase 31 | Pending |
 | PIPELINE-05 | Phase 31 | Pending |
 | CANVAS-01 | Phase 32 | Pending |
