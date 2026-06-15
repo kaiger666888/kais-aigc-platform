@@ -7,17 +7,12 @@
  *    `movie-v1` into `o_skillRegistry` and the in-memory registry. No operator
  *    action required. The platform ships with one reference skill.
  *
- * 2. Phase 31 baseline — the manifest's `phase_taxonomy[]` is a TRANSLATION
- *    of three existing hardcoded constants in the pipeline callback layer:
- *      - PHASE_ORDER             (resume.ts)            → phase_taxonomy[].order
- *      - REVIEW_REQUIRED_PHASES  (phase-complete.ts)    → phase_taxonomy[].requires_review
- *      - PHASE_INGEST_MAP        (phase-complete.ts)    → phase_taxonomy[].ingest_outputs
- *
- *    This file imports those constants — it does NOT duplicate or invent them
- *    (ROADMAP SC #5: "translation, not invention"). Phase 31 will DELETE the
- *    constants from the callback layer and the manifest below becomes the new
- *    source of truth at that point. Until then, any change to those three
- *    constants flows automatically into the derived manifest.
+ * 2. Phase 31 source-of-truth transition — the manifest's `phase_taxonomy[]`
+ *    is now a LITERAL inline array. As of Phase 31, this file is the single
+ *    source of truth for movie-v1's phase declarations. The pre-refactor
+ *    pipeline callback constants (now deleted) previously carried this data;
+ *    Phase 31 inlined their translated values here so the manifest stands on
+ *    its own with no imports from the pipeline callback layer.
  *
  * Threat model (T-30-01, T-30-02): the manifest is hardcoded descriptive
  * metadata (no credentials, no PII). A module-load-time validateManifest()
@@ -27,59 +22,10 @@
 import type { Knex } from "knex";
 import { registry } from "./registry";
 import { validateManifest } from "./validator";
-import type { SkillManifest, IngestOutput } from "./contract";
+import type { SkillManifest } from "./contract";
 
 // ---------------------------------------------------------------------------
-// Source-of-truth constants (transitional — Phase 31 will delete these).
-// These are imported, NOT redefined, so the manifest below is provably derived
-// from the existing pipeline constants.
-// ---------------------------------------------------------------------------
-import { REVIEW_REQUIRED_PHASES, PHASE_INGEST_MAP } from "@/routes/v1/pipeline/callback/phase-complete";
-import { PHASE_ORDER } from "@/routes/v1/pipeline/resume";
-
-// ---------------------------------------------------------------------------
-// Translation helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Translate a raw ingest-output array (PHASE_INGEST_MAP values) into the
- * contract's IngestOutput vocabulary. An empty array — meaning "this phase
- * produces nothing for the ingest pipeline" — becomes the explicit sentinel
- * `["none"]` (the contract's declared value for "no ingest"). Non-empty
- * arrays are passed through as-is; their values are already in the
- * `"images" | "videos" | "storyboard" | "audio"` vocabulary and the zod
- * schema will reject anything outside that set.
- *
- * Kept as a named helper (not inlined) so the translation rule is visible
- * at a glance.
- */
-function mapIngest(arr: string[]): IngestOutput[] {
-  if (arr.length === 0) return ["none"];
-  return arr as IngestOutput[];
-}
-
-/**
- * Build the phase_taxonomy[] by translating PHASE_ORDER + REVIEW_REQUIRED_PHASES
- * + PHASE_INGEST_MAP into PhaseDecl[].
- *
- * Iterating the keys of PHASE_ORDER (not PHASE_INGEST_MAP) gives the canonical
- * phase list — PHASE_INGEST_MAP has 10 entries (missing "requirement"),
- * PHASE_ORDER has 12 (the complete movie-v1 phase set). For phases absent
- * from PHASE_INGEST_MAP (currently just "requirement"), the `?? []` fallback
- * yields ["none"] via mapIngest.
- */
-function buildPhaseTaxonomy(): SkillManifest["phase_taxonomy"] {
-  return Object.keys(PHASE_ORDER).map((phaseId) => ({
-    id: phaseId,
-    order: PHASE_ORDER[phaseId],
-    label: phaseId, // Phase 33 may refine; for now the label matches the id.
-    requires_review: REVIEW_REQUIRED_PHASES.includes(phaseId),
-    ingest_outputs: mapIngest(PHASE_INGEST_MAP[phaseId] ?? []),
-  }));
-}
-
-// ---------------------------------------------------------------------------
-// MOVIE_V1_MANIFEST — the derived constant
+// MOVIE_V1_MANIFEST — the literal source of truth as of Phase 31
 // ---------------------------------------------------------------------------
 
 // WR-05 fix: runtime endpoint + healthcheck path are overridable via env vars
@@ -90,14 +36,20 @@ const SKILL_ENDPOINT = process.env.SKILL_MOVIE_V1_ENDPOINT || "http://localhost:
 const SKILL_HEALTHCHECK_PATH = process.env.SKILL_MOVIE_V1_HEALTHCHECK_PATH || "/health";
 
 /**
- * The movie-v1 SkillManifest, derived at module-load time from the three
- * imported pipeline constants (phase_taxonomy) plus hardcoded descriptive
- * fields (node_types, asset_categories, review_criteria, runtime).
+ * The movie-v1 SkillManifest — a literal constant as of Phase 31.
  *
- * Descriptive fields are minimal sensible values per CONTEXT.md
+ * The `phase_taxonomy[]` array below is inlined verbatim (12 PhaseDecl entries,
+ * order 0 through 11). The descriptive fields (node_types, asset_categories,
+ * review_criteria, runtime) are minimal sensible values per CONTEXT.md
  * "Claude's Discretion" — refined in v1.7+. node_types uses the five
  * BuiltinRenderer primitives the platform ships today; each `type` is
  * namespaced `movie-v1::<bare>` (validator enforces NODE_ID_NAMESPACING).
+ *
+ * Six phases carry `requires_review: true` (storyboard, character, scene,
+ * camera-preview, camera-final, quality-gate). Six phases carry
+ * `ingest_outputs: ["none"]` (requirement, scenario, voice, post-production,
+ * quality-gate, delivery) — the explicit "no ingest" sentinel replaces the
+ * empty-array representation the pre-refactor code used.
  */
 export const MOVIE_V1_MANIFEST: SkillManifest = {
   skill_id: "movie-v1",
@@ -153,7 +105,22 @@ export const MOVIE_V1_MANIFEST: SkillManifest = {
     },
   ],
 
-  phase_taxonomy: buildPhaseTaxonomy(),
+  // Inline literal phase_taxonomy — single source of truth as of Phase 31.
+  // 12 phases, order 0..11. Labels match ids (Phase 33 may refine).
+  phase_taxonomy: [
+    { id: "requirement", order: 0, label: "requirement", requires_review: false, ingest_outputs: ["none"] },
+    { id: "art-direction", order: 1, label: "art-direction", requires_review: false, ingest_outputs: ["images"] },
+    { id: "character", order: 2, label: "character", requires_review: true, ingest_outputs: ["images"] },
+    { id: "scenario", order: 3, label: "scenario", requires_review: false, ingest_outputs: ["none"] },
+    { id: "voice", order: 4, label: "voice", requires_review: false, ingest_outputs: ["none"] },
+    { id: "storyboard", order: 5, label: "storyboard", requires_review: true, ingest_outputs: ["storyboard"] },
+    { id: "scene", order: 6, label: "scene", requires_review: true, ingest_outputs: ["images"] },
+    { id: "camera-preview", order: 7, label: "camera-preview", requires_review: true, ingest_outputs: ["videos"] },
+    { id: "camera-final", order: 8, label: "camera-final", requires_review: true, ingest_outputs: ["videos"] },
+    { id: "post-production", order: 9, label: "post-production", requires_review: false, ingest_outputs: ["none"] },
+    { id: "quality-gate", order: 10, label: "quality-gate", requires_review: true, ingest_outputs: ["none"] },
+    { id: "delivery", order: 11, label: "delivery", requires_review: false, ingest_outputs: ["none"] },
+  ],
 
   // Descriptive asset categories (minimal — refined in v1.7+).
   asset_categories: [
@@ -188,7 +155,7 @@ export const MOVIE_V1_MANIFEST: SkillManifest = {
 // ---------------------------------------------------------------------------
 
 /**
- * Boot-time guard: validate the derived manifest immediately after building it.
+ * Boot-time guard: validate the manifest immediately after building it.
  * If the constant drifts out of contract compliance (a future code edit breaks
  * a field), this throws BEFORE boot proceeds past module load — surfacing the
  * bug at the earliest possible point with a clear cause, rather than letting
