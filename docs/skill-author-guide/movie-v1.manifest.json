@@ -1,0 +1,193 @@
+{
+  "skill_id": "movie-v1",
+  "version": "1.0",
+  "display_name": "Movie v1",
+  "description": "Reference workflow skill for movie/short-video production — script→assets→storyboard→video.",
+  "media_types": [
+    "video",
+    "image",
+    "audio"
+  ],
+  "node_types": [
+    {
+      "type": "movie-v1::script",
+      "label": "Script",
+      "icon": "page",
+      "color": "#4A90E2",
+      "data_schema_uri": "",
+      "default_renderer": "script"
+    },
+    {
+      "type": "movie-v1::asset",
+      "label": "Asset",
+      "icon": "image",
+      "color": "#7ED321",
+      "data_schema_uri": "",
+      "default_renderer": "asset"
+    },
+    {
+      "type": "movie-v1::storyboard",
+      "label": "Storyboard",
+      "icon": "film",
+      "color": "#F5A623",
+      "data_schema_uri": "",
+      "default_renderer": "storyboard"
+    },
+    {
+      "type": "movie-v1::video",
+      "label": "Video",
+      "icon": "video",
+      "color": "#D0021B",
+      "data_schema_uri": "",
+      "default_renderer": "video"
+    },
+    {
+      "type": "movie-v1::audio",
+      "label": "Audio",
+      "icon": "audio",
+      "color": "#9013FE",
+      "data_schema_uri": "",
+      "default_renderer": "audio"
+    }
+  ],
+  "phase_taxonomy": [
+    {
+      "id": "requirement",
+      "order": 0,
+      "label": "requirement",
+      "requires_review": false,
+      "ingest_outputs": [
+        "none"
+      ]
+    },
+    {
+      "id": "art-direction",
+      "order": 1,
+      "label": "art-direction",
+      "requires_review": false,
+      "ingest_outputs": [
+        "images"
+      ]
+    },
+    {
+      "id": "character",
+      "order": 2,
+      "label": "character",
+      "requires_review": true,
+      "ingest_outputs": [
+        "images"
+      ]
+    },
+    {
+      "id": "scenario",
+      "order": 3,
+      "label": "scenario",
+      "requires_review": false,
+      "ingest_outputs": [
+        "none"
+      ]
+    },
+    {
+      "id": "voice",
+      "order": 4,
+      "label": "voice",
+      "requires_review": false,
+      "ingest_outputs": [
+        "none"
+      ]
+    },
+    {
+      "id": "storyboard",
+      "order": 5,
+      "label": "storyboard",
+      "requires_review": true,
+      "ingest_outputs": [
+        "storyboard"
+      ]
+    },
+    {
+      "id": "scene",
+      "order": 6,
+      "label": "scene",
+      "requires_review": true,
+      "ingest_outputs": [
+        "images"
+      ]
+    },
+    {
+      "id": "camera-preview",
+      "order": 7,
+      "label": "camera-preview",
+      "requires_review": true,
+      "ingest_outputs": [
+        "videos"
+      ]
+    },
+    {
+      "id": "camera-final",
+      "order": 8,
+      "label": "camera-final",
+      "requires_review": true,
+      "ingest_outputs": [
+        "videos"
+      ]
+    },
+    {
+      "id": "post-production",
+      "order": 9,
+      "label": "post-production",
+      "requires_review": false,
+      "ingest_outputs": [
+        "none"
+      ]
+    },
+    {
+      "id": "quality-gate",
+      "order": 10,
+      "label": "quality-gate",
+      "requires_review": true,
+      "ingest_outputs": [
+        "none"
+      ]
+    },
+    {
+      "id": "delivery",
+      "order": 11,
+      "label": "delivery",
+      "requires_review": false,
+      "ingest_outputs": [
+        "none"
+      ]
+    }
+  ],
+  "asset_categories": [
+    {
+      "id": "character-image",
+      "label": "Character Image"
+    },
+    {
+      "id": "scene-image",
+      "label": "Scene Image"
+    },
+    {
+      "id": "voice-sample",
+      "label": "Voice Sample"
+    }
+  ],
+  "review_criteria": {
+    "auto_threshold": 0.8,
+    "human_threshold": 0.6
+  },
+  "engine_task_types": [
+    "IMAGE_DRAW",
+    "IMAGE_REFINE",
+    "VIDEO_GEN",
+    "TTS",
+    "MUSIC_GEN"
+  ],
+  "runtime": {
+    "type": "external-http",
+    "endpoint": "http://localhost:8001",
+    "healthcheck_path": "/health"
+  }
+}
