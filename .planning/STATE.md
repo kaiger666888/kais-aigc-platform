@@ -4,8 +4,8 @@ milestone: v1.6
 milestone_name: Workflow Skill Contract
 status: executing
 stopped_at: v1.6 roadmap created. 7 phases (28-34) with 36 requirements mapped at 100% coverage. Serial chain 28→29→30; 31 and 32 parallelizable; 33 validation gate; 34 docs last.
-last_updated: "2026-06-15T06:34:13.987Z"
-last_activity: 2026-06-15 -- Phase 28 planning complete
+last_updated: "2026-06-15T06:39:34.503Z"
+last_activity: 2026-06-15 -- Phase 28 execution started
 progress:
   total_phases: 7
   completed_phases: 0
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-15)
 
 **Core value:** AI creative production pipeline that runs end-to-end, pluggable across multiple creative workflows via a published skill contract
-**Current focus:** Phase 28 (Skill Contract Spec + TS Interface)
+**Current focus:** Phase 28 — skill-contract-spec-ts-interface
 
 ## Current Position
 
-Phase: 28 of 34 (Skill Contract Spec + TS Interface) — first v1.6 phase
-Plan: — (not yet planned)
-Status: Ready to execute
-Last activity: 2026-06-15 -- Phase 28 planning complete
+Phase: 28 (skill-contract-spec-ts-interface) — EXECUTING
+Plan: 1 of 2
+Status: Executing Phase 28
+Last activity: 2026-06-15 -- Phase 28 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
