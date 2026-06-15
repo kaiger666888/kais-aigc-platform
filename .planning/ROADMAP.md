@@ -88,7 +88,7 @@ ENG-04 fix shipped (commit 1d5996a). Live runtime verification partial — VERIF
 11. **Node type IDs are namespaced** `<skill_id>::<type>` (Pitfalls A3) — validator rejects bare IDs
 
 - [x] **Phase 28: Skill Contract Spec + TS Interface** — Manifest schema, zod validator, namespacing rule, descriptive-only contract principle (completed 2026-06-15)
-- [ ] **Phase 29: DB Migration + Registry Skeleton** — `o_skillRegistry` table, `o_assets` + `kv_pipelineRun` skill_id columns, orphan backfill, registry/loader singletons
+- [x] **Phase 29: DB Migration + Registry Skeleton** — `o_skillRegistry` table, `o_assets` + `kv_pipelineRun` skill_id columns, orphan backfill, registry/loader singletons (completed 2026-06-15)
 - [ ] **Phase 30: Default Skill Seed + REST API** — movie-v1 default manifest, 5 REST endpoints, zero-config boot seeding
 - [ ] **Phase 31: Pipeline Callback Refactor** — Replace 4 hardcoded phase constants with registry lookups, equivalence regression guard
 - [ ] **Phase 32: Canvas Node Type Registry Integration** — Dynamic nodeTypes map from API, built-in renderers stay, FallbackNode for unknown types
@@ -131,11 +131,11 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 29-01-PLAN.md — DB schema (o_skillRegistry table) + migration (skill_id columns on o_assets/kv_pipelineRun) + movie-v1 backfill [REGISTRY-01/02/03/04]
+- [x] 29-01-PLAN.md — DB schema (o_skillRegistry table) + migration (skill_id columns on o_assets/kv_pipelineRun) + movie-v1 backfill [REGISTRY-01/02/03/04]
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 29-02-PLAN.md — Registry singleton (src/skills/registry.ts) + boot loader (src/skills/loader.ts) + boot wiring (src/utils/db.ts) + verify-phase-29.ts runner [REGISTRY-05/06]
+- [x] 29-02-PLAN.md — Registry singleton (src/skills/registry.ts) + boot loader (src/skills/loader.ts) + boot wiring (src/utils/db.ts) + verify-phase-29.ts runner [REGISTRY-05/06]
 
 ### Phase 30: Default Skill Seed + REST API
 
@@ -242,7 +242,7 @@ v1.6: Phases 28 → 29 → 30 are strictly serial (each imports from the prior).
 | 26. Hermes TS Exclude | v1.5 | ✅ | Complete | 2026-06-14 |
 | 27. router.ts Auto-gen Fix | v1.5 | ✅ | Complete | 2026-06-14 |
 | 28. Skill Contract Spec + TS Interface | v1.6 | 2/2 | Complete    | 2026-06-15 |
-| 29. DB Migration + Registry Skeleton | v1.6 | 0/TBD | Not started | - |
+| 29. DB Migration + Registry Skeleton | v1.6 | 2/2 | Complete   | 2026-06-15 |
 | 30. Default Skill Seed + REST API | v1.6 | 0/TBD | Not started | - |
 | 31. Pipeline Callback Refactor | v1.6 | 0/TBD | Not started | - |
 | 32. Canvas Node Type Registry Integration | v1.6 | 0/TBD | Not started | - |
