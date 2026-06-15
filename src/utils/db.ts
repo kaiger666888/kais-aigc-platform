@@ -9,6 +9,7 @@ import type { DB } from "@/types/database";
 import crypto from "crypto";
 import fixDB from "@/lib/fixDB";
 import { loadAllFromDB } from "@/skills/loader";
+import { seedDefaultIfEmpty } from "@/skills/defaultSkill";
 
 type TableName = keyof DB & string;
 type RowType<TName extends TableName> = DB[TName];
@@ -39,6 +40,7 @@ const db = knex({
   await initDB(db);
   await fixDB(db);
   await loadAllFromDB(db);
+  await seedDefaultIfEmpty(db);
   if (process.env.NODE_ENV == "dev") initKnexType(db);
 })();
 
