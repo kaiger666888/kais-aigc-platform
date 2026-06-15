@@ -99,7 +99,10 @@ ENG-04 fix shipped (commit 1d5996a). Live runtime verification partial — VERIF
   2. Feeding a malformed manifest (missing required field, wrong type, bare node type ID like `script` instead of `movie-v1::script`) to `validateManifest()` returns a structured rejection naming the violated rule
   3. The spec doc cannot silently drift from the validator — either the doc is generated from the zod schema, or a field-equality test fails CI when they diverge
   4. The spec explicitly states the four "contract invariants": manifest is descriptive only, version is `major.minor` (additive minor), platform accepts any `1.x`, node type IDs are `<skill_id>::<type>`
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 28-01-PLAN.md — Create src/skills/contract.ts (SkillManifest interface + sub-types + ManifestValidationError) + src/skills/validator.ts (zod v4 schema + validateManifest with namespacing/version/strict rules)
+- [ ] 28-02-PLAN.md — Write .planning/specs/SKILL-CONTRACT.md (field reference + contract invariants + versioning rules) + src/skills/__tests__/contract.test.ts (drift test + negative validator tests) + scripts/verify-phase-28.ts runner
 
 ### Phase 29: DB Migration + Registry Skeleton
 **Goal**: The platform has a persisted skill registry (`o_skillRegistry`) with existing data backfilled to `movie-v1`, plus an in-memory registry/cache layer that later phases can look up synchronously without touching SQL
@@ -201,7 +204,7 @@ v1.6: Phases 28 → 29 → 30 are strictly serial (each imports from the prior).
 | 25. Output Path Convention | v1.5 | ✅ | Complete | 2026-06-14 |
 | 26. Hermes TS Exclude | v1.5 | ✅ | Complete | 2026-06-14 |
 | 27. router.ts Auto-gen Fix | v1.5 | ✅ | Complete | 2026-06-14 |
-| 28. Skill Contract Spec + TS Interface | v1.6 | 0/TBD | Not started | - |
+| 28. Skill Contract Spec + TS Interface | v1.6 | 0/2 | Not started | - |
 | 29. DB Migration + Registry Skeleton | v1.6 | 0/TBD | Not started | - |
 | 30. Default Skill Seed + REST API | v1.6 | 0/TBD | Not started | - |
 | 31. Pipeline Callback Refactor | v1.6 | 0/TBD | Not started | - |
