@@ -65,6 +65,15 @@ export default router.post("/", async (req, res) => {
   // 3. UPSERT into o_skillRegistry. onConflict.merge() handles re-registration
   //    of an existing skill_id (overwrites the row). Column names match the
   //    Phase 29 initDB schema verbatim.
+  //
+  //    WR-03 deferral: UPSERT permits overwriting the movie-v1 platform
+  //    default (and any other registered skill) by POSTing a manifest with
+  //    a colliding skill_id. v1.6 accepts this — single skill, trusted
+  //    network (CONTEXT.md D-04), and the register contract explicitly
+  //    permits re-registration. v1.7+ should require elevated permissions
+  //    to overwrite a "system" skill_id namespace (e.g. "movie-v1",
+  //    "platform-*") and may enforce version monotonicity
+  //    (incoming.version > existing.version). No enforcement added here.
   try {
     await u.db("o_skillRegistry")
       .insert({
