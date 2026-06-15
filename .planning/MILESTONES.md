@@ -1,5 +1,34 @@
 # Milestones
 
+## v1.6 Workflow Skill Contract (Shipped: 2026-06-15)
+
+**Status:** ✅ Archived
+**Phases:** 28–34 (7 phases) | **Requirements:** 35/36 satisfied (1 deferred — COMPLIANCE-03)
+**Automated assertions:** 277 PASSED / 1 SKIPPED / 0 FAILED across 7 verify-phase scripts
+
+**Key accomplishments:**
+
+1. **Skill Manifest Contract published** — `src/skills/contract.ts` (SkillManifest TS interface + zod v4 validator) is the single source of truth for what a workflow skill must declare. Namespaced node type IDs (`<skill_id>::<type>`), descriptive-only manifest (no executable code), `major.minor` versioning rule.
+2. **Persisted skill registry with zero-config boot** — `o_skillRegistry` table + in-memory `registry.ts` singleton + `loader.ts` boot hydration. Existing `o_assets` / `kv_pipelineRun` rows backfilled to `movie-v1`. Default seed on empty DB → no migration step required for upgrade.
+3. **REST surface for the registry** — `GET/POST /api/v1/skills/*` (list / inspect / register / node-types / phases) lets any client (OpenClaw, curl, future skill) discover and install skills at runtime.
+4. **Pipeline callbacks decoupled from movie-v1** — `phase-complete.ts`, `resume.ts`, `submit-to-review.ts` consult `registry.phaseById(skill_id, phase)` instead of the deleted `REVIEW_REQUIRED_PHASES` / `PHASE_INGEST_MAP` / `PHASE_ORDER` constants. Equivalence regression guard (`verify-phase-31.ts`) proves movie-v1 behavior is preserved bit-for-bit.
+5. **Canvas renders any skill's node types** — `packages/infinite-canvas` fetches node types from `/api/v1/skills/:skillId/node-types`; unknown types fall back to `FallbackNode` instead of crashing. No more hardcoded movie-v1 node shape in the bundle.
+6. **Skill author guide + install-ready manifest** — `docs/skill-author-guide.md` (field reference + deploy order + anti-features) and `docs/skill-author-guide/movie-v1.manifest.json` (install-ready artifact for OpenClaw workspaces).
+
+**Stats:**
+
+- Timeline: 1 day (2026-06-15, single session)
+- Git range: 4dbbe19 → b91a382 · 73 files changed (+12,640 / −608 LOC)
+- Known deferred items at close: 1 (Phase 33 COMPLIANCE-03 live Docker + GPU golden-path sign-off — environment-gated, not a code gap. See [STATE.md Deferred Items](STATE.md).)
+
+**Archive:**
+
+- Roadmap: [milestones/v1.6-ROADMAP.md](milestones/v1.6-ROADMAP.md)
+- Requirements: [milestones/v1.6-REQUIREMENTS.md](milestones/v1.6-REQUIREMENTS.md)
+- Audit: [milestones/v1.6-MILESTONE-AUDIT.md](milestones/v1.6-MILESTONE-AUDIT.md)
+
+---
+
 ## v1.5 Architecture Hardening + Code Hygiene (Shipped: 2026-06-14)
 
 **Status:** ✅ Archived
@@ -24,6 +53,7 @@
 ### Known Deferred Items at Close
 
 11 items across 5 phases — documented in audit. Highlights:
+
 - Live Redis integration test (Phase 23) — awaits `docker compose up redis`
 - Live `docker compose build kais-gold-team` (Phase 24) — awaits Docker daemon
 - 32 ComfyUI routes to migrate to paths.ts (Phase 25) — opportunistic

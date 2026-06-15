@@ -34,11 +34,25 @@ AI 短剧全链路制作平台，通过 kais-gold-team 统一执行引擎编排 
 - ✓ 统一输出路径约定 (`src/lib/paths.ts`) — v1.5
 - ✓ 主工程 TypeScript 编译干净(12,447 → 0 错误)— v1.5
 - ✓ router.ts 自动生成机制根因修复(config/_shared 跳过)— v1.5
+- ✓ Skill Manifest 契约 + zod v4 校验器 + 命名空间节点 ID (`<skill_id>::<type>`) — v1.6
+- ✓ 持久化 skill registry + 零配置启动 (`o_skillRegistry` + `registry.ts` + `loader.ts`) — v1.6
+- ✓ Skill Registry REST API (`GET/POST /api/v1/skills/*`) — v1.6
+- ✓ Pipeline callbacks 解耦 movie-v1 (注册表查询取代硬编码常量) — v1.6
+- ✓ Canvas 节点类型动态化 + FallbackNode 兜底未知类型 — v1.6
+- ✓ movie-v1 install-ready manifest + Skill 作者文档 — v1.6
 
 ### Active
 
-<!-- Current milestone scope. -->
+<!-- Next milestone (v1.7+) scope — to be defined via /gsd:new-milestone. -->
 
+- [ ] 第二参考 skill (播客/广告/互动/短视频之一) — 验证契约抽象对单 skill 之外的扩展性
+- [ ] Skill scaffolding CLI (`kais-skill new`) — 降低第三方作者入门门槛 (AUTHOR-01)
+- [ ] Skill 热重载 — 作者修改 manifest 无需重启平台 (AUTHOR-02)
+- [ ] 离线 manifest 校验 CLI (`kais-skill validate manifest.json`) — 提交前本地校验 (AUTHOR-03)
+- [ ] 单项目多 skill 共存 (MULTI-01/02/03) — 当前 v1.6 一个项目一个 skill
+- [ ] 自定义节点渲染器 HTTP 下发 (RENDER-01/02) — 当前仅 5 内置 + FallbackNode
+- [ ] 单 skill 健康追踪 + 自动禁用 (HEALTH-01/02/03) — 复用 hermes EWMA 模式
+- [ ] Phase 33 COMPLIANCE-03 实跑签收 — Docker + GPU 上跑 movie-v1 全链路（前置生产部署）
 - [ ] 口型同步引擎 (Lip Sync) — LatentSync via ComfyUI
 - [ ] 角色面部一致性 (IP-Adapter FaceID)
 - [ ] 角色零样本保持 (InstantID)
@@ -108,28 +122,33 @@ RTX 3090 24GB 串行调度，重模型 (Wan2.2 ~22GB) 和轻模型 (Real-ESRGAN 
 | 集成测试用真实 LLM | 不 mock，验证完整链路 | ✓ Good |
 | 测试端口 8090 | 避免与开发环境 8080 冲突 | ✓ Good |
 | Node.js 子进程测试客户端 | 复刻 test_e2e.py 模式，跨语言验证 | ✓ Good |
+| 契约归属平台仓库 (`src/skills/contract.ts`) | 平台是 source of truth；契约与运行时同库，避免漂移 | ✓ Good — v1.6 一次漂移都没发生 |
+| zod schema 是 spec 的真值源 | markdown 由 schema 推导或字段相等性测试 (Pitfalls C1) | ✓ Good — drift test 在 verify-phase-28 守住 |
+| 节点 ID 命名空间 `<skill_id>::<type>` | 防止多 skill 之间节点类型冲突；validator 拒绝裸 ID | ✓ Good — COMPLIANCE-04 负向测试守住 |
+| Manifest 仅描述，行为在平台侧 (Pitfalls A4) | 不允许 manifest 携带可执行代码；保持平台对行为的完全控制 | ✓ Good — 守住"反 Web3 智能合约"边界 |
+| Registry 是真值源，删除常量而非包装 | 避免"两个真值"漂移；契约升级时一处变更 (Architecture Pattern 3) | ✓ Good — PIPELINE-05 等价性回归守住 |
+| 破坏性变更允许，无 legacy adapter | kais-movie-agent 同步升级，避免长期技术债 | ✓ Good — 单一参考 skill，升级面小 |
+| 零配置默认 seed (`seedDefaultIfEmpty`) | 升级路径无需手跑迁移；empty DB 自动落 movie-v1 | ✓ Good — 23/24 CI 通过，1 留作 live 签收 |
+| 项目级单 skill (本期) | 验证抽象本身，多 skill 共存留 v1.7+ (MULTI-01..03) | ⚠️ Revisit — v1.7 必须验证多 skill 共存场景 |
 
-## Current Milestone: v1.6 Workflow Skill Contract(工作流 Skill 契约抽象)
+## Shipped: v1.6 Workflow Skill Contract(工作流 Skill 契约抽象) — 2026-06-15
 
 **Goal:** 为 kais-aigc-platform 引入"工作流 Skill 契约"抽象层,让平台停止对 kais-movie-agent 的隐式耦合——任何工作流 skill(短剧/动画/纪录片/广告/短视频/海报/音乐视频/播客/有声书/互动剧情/游戏过场)都可以注册并驱动平台,平台仅作为 skill-agnostic 基础设施。
 
-**Target features:**
-- **Skill Contract 规范文档 + TypeScript 接口** — manifest schema 定义 skill_id / version / media_types / node_types / phase_taxonomy / asset_categories / review_criteria / engine_task_types(`.planning/specs/SKILL-CONTRACT.md` + `src/skills/contract.ts`)
-- **Skill Registry(平台侧)** — 加载、校验、列举已注册 skill;`GET /api/v1/skills` API + 平台启动时 manifest 解析
-- **Canvas 节点类型注册表泛化** — Script/Asset/Storyboard/Video/Audio 从硬编码节点变为 kais-movie-agent skill 通过 manifest 贡献的节点
-- **Phase / 状态机泛化** — phase 名称由 skill manifest 声明;平台只懂 phase 推进协议,不再硬编码剧本/分镜/视频/音频等阶段名
-- **Asset schema 扩展** — `o_assets` 增加 `skill_id` + `workflow_phase` 字段(同时关闭前一轮审计识别的"阶段性资产管理"gap)
-- **kais-movie-agent 合规性升级** — 撰写 manifest 文件,以新契约注册为 skill #1;无新功能开发
-- **Skill 作者文档** — `docs/skill-author-guide.md` 指导第三方如何贡献新 skill
+**Outcome (shipped 2026-06-15):** 7 phases (28-34), 35/36 requirements satisfied, 277/278 automated assertions PASSED. Skill contract published at `src/skills/contract.ts` + `.planning/specs/SKILL-CONTRACT.md`. Registry layer (`o_skillRegistry` + `registry.ts` + `loader.ts`) replaces 3 hardcoded constants in pipeline callbacks. Canvas fetches node types dynamically. Skill author guide + install-ready manifest shipped. **1 deferred sign-off:** COMPLIANCE-03 (live Docker+GPU golden-path run) — environment-gated, not a code gap.
 
-**Architecture decisions (v1.6):**
-1. Phase 编号延续 v1.5 → 从 Phase 28 开始
-2. **契约归属**:契约规范和 TS 接口都住在 kais-aigc-platform 仓库(`src/skills/contract.ts` + `.planning/specs/SKILL-CONTRACT.md`),平台是 source of truth
-3. **破坏性变更允许** —— 不需要 legacy adapter 层兜底;kais-movie-agent 同步升级以遵守新契约
-4. **泛化导向**:目标 skill 覆盖影视变体 / 音频 / 互动 / 轻量四大类,契约必须高度泛化,不能为 movie 流程硬编码
-5. **本期不实现第二个参考 skill** —— 只验证 kais-movie-agent 在新契约下能继续工作;第二个 skill 实现留 v1.7+
-6. **不动 movie-agent 功能** —— kais-movie-agent 只做最小合规性升级(写 manifest + 注册),不开发新功能
-7. 关闭"阶段性资产管理"gap(asset schema 加 skill_id + workflow_phase)作为契约落地的副产物
+**Target features (delivered):**
+- **Skill Contract 规范文档 + TypeScript 接口** — manifest schema 定义 skill_id / version / node_types / phase_taxonomy / runtime (`.planning/specs/SKILL-CONTRACT.md` + `src/skills/contract.ts` + `src/skills/validator.ts`)
+- **Skill Registry(平台侧)** — `o_skillRegistry` 表 + `registry.ts` 单例 + `loader.ts` 启动注入;`GET/POST /api/v1/skills/*` 5 个 REST 端点
+- **Canvas 节点类型注册表泛化** — `packages/infinite-canvas` 从 API 动态加载节点类型;`FallbackNode` 兜底未知类型
+- **Phase / 状态机泛化** — `phase-complete.ts` / `resume.ts` / `submit-to-review.ts` 全部走 `registry.phaseById` 查询;3 个硬编码常量 (`REVIEW_REQUIRED_PHASES` / `PHASE_INGEST_MAP` / `PHASE_ORDER`) 已删除
+- **Asset schema 扩展** — `o_assets` 增加 `skill_id` + `workflow_phase` 字段(同时关闭前一轮审计识别的"阶段性资产管理"gap)
+- **kais-movie-agent 合规性升级** — `docs/skill-author-guide/movie-v1.manifest.json` install-ready artifact
+- **Skill 作者文档** — `docs/skill-author-guide.md` 含字段参考、部署顺序、"反特性"清单、注释化 manifest 例子
+
+**Architecture decisions (v1.6) — see Key Decisions table above for outcomes.**
+
+**Known deferred sign-off:** Phase 33 COMPLIANCE-03 (live Docker + GPU golden-path run) — 6-step checklist in `33-VERIFICATION.md`. Environment-gated, not a code gap. Carried in STATE.md → Deferred Items.
 
 ## Shipped: v1.5 Architecture Hardening + Code Hygiene (2026-06-14)
 
@@ -206,4 +225,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-15 after v1.6 milestone kickoff*
+*Last updated: 2026-06-15 after v1.6 milestone shipped*

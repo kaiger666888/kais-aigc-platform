@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Workflow Skill Contract
-status: ready_to_plan
-stopped_at: Phase 31 complete (3/4) — ready to discuss Phase 32
-last_updated: 2026-06-15T14:05:57.933Z
-last_activity: 2026-06-15
+status: Awaiting next milestone
+stopped_at: v1.6 roadmap created. 7 phases (28-34) with 36 requirements mapped at 100% coverage. Serial chain 28→29→30; 31 and 32 parallelizable; 33 validation gate; 34 docs last.
+last_updated: "2026-06-15T15:30:16.842Z"
+last_activity: 2026-06-15 — Milestone v1.6 completed and archived
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 10
-  completed_plans: 34
+  completed_plans: 9
   percent: 43
 ---
 
@@ -25,12 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-15)
 
 ## Current Position
 
-Phase: 32
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-06-15
-
-Progress: [█████████░] 90%
+Phase: Milestone v1.6 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-15 — Milestone v1.6 completed and archived
 
 ## Performance Metrics
 
@@ -111,9 +109,14 @@ Items acknowledged and carried forward from previous milestone close:
 | v1.6 out-of-scope | Multi-skill coexistence per project | v1.7+ (MULTI-01/02/03) | v1.6 kickoff |
 | v1.6 out-of-scope | Custom node renderers over HTTP | v1.7+ (RENDER-01/02); v1.6 supports 5 built-in renderers + FallbackNode only | v1.6 kickoff |
 | v1.6 out-of-scope | Per-skill health tracking / auto-disable | v1.7+ (HEALTH-01/02/03); reuse hermes EWMA pattern | v1.6 kickoff |
+| v1.6 verification | Phase 33 COMPLIANCE-03 live Docker + GPU golden-path run (6-step sign-off checklist in 33-VERIFICATION.md → Human Verification Required). CI coverage 23/24 PASSED, 1 explicitly SKIPPED. Deferred to pre-production sign-off — environment-gated, not a code gap. | human_needed | 2026-06-15 (v1.6 close) |
 
 ## Session Continuity
 
 Last session: 2026-06-15T14:01:42.135Z
 Stopped at: v1.6 roadmap created. 7 phases (28-34) with 36 requirements mapped at 100% coverage. Serial chain 28→29→30; 31 and 32 parallelizable; 33 validation gate; 34 docs last.
 Resume: `/gsd:plan-phase 28` to plan the first phase (Skill Contract Spec + TS Interface).
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone
