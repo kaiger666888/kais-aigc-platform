@@ -1,5 +1,66 @@
 # Retrospective
 
+## Milestone: v1.6 — Workflow Skill Contract
+
+**Shipped:** 2026-06-15
+**Phases:** 7 (28-34) | **Requirements:** 35/36 satisfied | **Automated assertions:** 277 PASSED / 1 SKIPPED / 0 FAILED
+
+### What Was Built
+
+- Skill Manifest contract: `src/skills/contract.ts` (TS interface) + `src/skills/validator.ts` (zod v4 schema) + `.planning/specs/SKILL-CONTRACT.md` (human-readable spec with drift test).
+- Persisted skill registry: `o_skillRegistry` table + `registry.ts` singleton + `loader.ts` boot hydration. `o_assets` and `kv_pipelineRun` extended with `skill_id`; orphan rows backfilled to `movie-v1`.
+- REST surface: `GET/POST /api/v1/skills/*` (5 endpoints — list / inspect / register / node-types / phases).
+- Pipeline callback refactor: 3 callback files (`phase-complete.ts`, `resume.ts`, `submit-to-review.ts`) consult the registry. 3 hardcoded constants deleted. Equivalence regression guard proves movie-v1 behavior is preserved bit-for-bit.
+- Canvas integration: `packages/infinite-canvas` fetches node types via API; `FallbackNode` renders unknown types.
+- Compliance + docs: install-ready `movie-v1.manifest.json` + `docs/skill-author-guide.md` (field reference, deploy order, anti-features, annotated example).
+
+### What Worked
+
+- **Single-session execution**: 7 phases (28-34) shipped start-to-finish in one 12-hour session — same velocity pattern as v1.5. The `/gsd-*` pipeline keeps the cost of phase transitions low enough that the model can carry context across the whole milestone.
+- **Verification-first phases (32/33/34)**: When the deliverable IS a verification script, skip the discuss→plan→execute→summary dance and let `verify-phase-*.ts` be the artifact. This cut ceremony without losing rigor — 23+39+22 = 84 assertions across 3 phases that would otherwise have needed plan/summary pairs.
+- **Equivalence test as a deletion license**: PIPELINE-05 (the verify-phase-31.ts equivalence regression guard) was written *before* deleting `REVIEW_REQUIRED_PHASES` / `PHASE_INGEST_MAP` / `PHASE_ORDER`. The test passing became the green light to delete. Pattern worth reusing whenever replacing a constant with a lookup.
+- **zod-as-source-of-truth**: Spec markdown is field-equality-tested against the zod schema, not hand-maintained. Zero drift across 4 phases of contract iteration.
+- **Inline execution in main context**: Per user preference ([[feedback_skip_gsd_subagent_ceremony]]), plans were implemented inline rather than spawning `gsd-executor` subagents. Saved the subagent spin-up cost on every plan and let the model keep phase context warm.
+
+### What Was Inefficient
+
+- **Phase 33's verification-vs-UAT ambiguity**: The phase has a `VERIFICATION.md` (CI assertions, 23/24 PASSED) and no SUMMARY.md, then we ran UAT and the user chose "Skip — trust CI". The two layers measure different things (CI wiring vs human-observable behavior). Phase 33 could have made the boundary explicit up-front: "this phase has no UI/UX surface — UAT reduces to running the live-stack sign-off checklist or deferring."
+- **STATE.md progress counters drift**: STATE.md still shows `completed_phases: 3` after milestone close because the counter is updated incrementally by `/gsd-*` skills but the milestone-close flow doesn't reconcile it. Not load-bearing — the manager dashboard reads disk state, not the counter — but it's noise for a human reading STATE.md.
+- **Single-sign-off gap on COMPLIANCE-03**: The Phase 33 live-stack verification was deferred to "pre-production sign-off" without naming a human owner or a deployment gate. It's tracked in STATE.md Deferred Items, but there's no committed trigger for when it actually runs.
+
+### Patterns Established
+
+- **`verify-phase-N.ts` is the regression contract**: Each phase ships a standalone TS script under `scripts/` that asserts its success criteria. No jest/vitest — runner is `tsx`. Each script distinguishes PASSED / SKIPPED / FAILED explicitly (no silent skips). Pattern reused for all 7 v1.6 phases.
+- **Equivalence test as deletion license** (see above) — formalized as "before deleting a constant the new path replaces, write the equivalence test first."
+- **Descriptive-only manifest**: Manifests carry no executable code. Platform owns behavior. This is the explicit "we are not building a Web3-style smart-contract system" invariant — called out in `docs/skill-author-guide.md` anti-features.
+- **Namespaced node IDs `<skill_id>::<type>`**: Validator rejects bare IDs at registration time. Prevents cross-skill node-type collisions when v1.7 ships a second skill.
+- **Zero-config default seed**: `seedDefaultIfEmpty()` pattern — empty DB auto-seeds `movie-v1` on boot, no migration step required. Reduces upgrade friction for downstream workspaces.
+
+### Key Lessons
+
+- **Drift prevention > drift detection**: Field-equality testing the spec markdown against the zod schema caught zero drifts because there was nothing to catch — the test existing kept authors honest. Cheaper than a post-hoc audit.
+- **Breaking-change-OK decisions age well when the blast radius is small**: v1.6 deleted 3 constants and tightened node-ID validation with no legacy adapter. Worked because the only consumer was kais-movie-agent, upgraded in lockstep. Would not work for a public API with third-party consumers — there the legacy adapter cost is justified.
+- **Verification status vocabulary matters**: `passed` / `skipped` / `failed` / `human_needed` — Phase 33's `human_needed` status let us ship v1.6 without falsifying CI green. The vocabulary is more useful than a binary pass/fail.
+- **Single reference skill validates the abstraction**: Building one skill (movie-v1) against the new contract surfaced every wrong assumption for cheap. The deferred second-skill work (MULTI-01..03) is the right next milestone because it stress-tests the multi-skill assumptions.
+
+### Cost Observations
+
+- **Sessions**: 1 (single-session execution, 2026-06-15)
+- **Timeline**: ~12 hours (11:06 → 23:24 +0800)
+- **Commits in v1.6 range**: 60+ (research → 7 phases → audit → close)
+- **Files touched**: 73 (+12,640 / −608 LOC)
+- **Model mix**: Almost all Sonnet for execution; the user's [[feedback_skip_gsd_subagent_ceremony]] preference avoided spawning `gsd-executor` Opus subagents per plan.
+- **Notable**: Per-phase verify scripts made regression paranoia cheap — 277 assertions across 7 scripts run in seconds, so re-running the full v1.6 safety net after any change is essentially free.
+
+### Tech Debt
+
+- **COMPLIANCE-03 live-stack sign-off** (environment-gated): 6-step Docker+GPU checklist in `33-VERIFICATION.md`. No owner, no trigger. Needs a deployment gate before v1.6 hits production.
+- **STATE.md progress counters** not reconciled at milestone close.
+- **Phase 33 has no SUMMARY.md**: Verification-only phases skip the SUMMARY artifact. Future verification-only phases should document this convention explicitly (perhaps in a phase README or in `.planning/specs/`).
+- **No HTTP-layer test for the new `/api/v1/skills/*` endpoints**: All registry verification was at the singleton/method level. The Express mount-path-param bug surfaced in 30-02-SUMMARY proves the HTTP layer has its own failure modes that the registry-level tests don't cover.
+
+---
+
 ## Milestone: v1.5 — Architecture Hardening + Code Hygiene
 
 **Shipped:** 2026-06-14
@@ -95,10 +156,12 @@
 
 ## Cross-Milestone Trends
 
-| Metric | v1.1 |
-|--------|------|
-| Phases | 4 |
-| Plans | 10 |
-| Requirements | 21/21 |
-| Verification | All passed |
-| Timeline | 1 day execution |
+| Metric | v1.1 | v1.5 | v1.6 |
+|--------|------|------|------|
+| Phases | 4 | 5 | 7 |
+| Plans | 10 | 5 | 8 (3 verification-only) |
+| Requirements | 21/21 | 9/9 | 35/36 (1 env-gated) |
+| Automated assertions | n/a | n/a | 277 PASSED / 1 SKIP / 0 FAIL |
+| Verification | All passed | All passed | tech_debt (0 blockers) |
+| Timeline | 1 day | 1 day | 1 day |
+| Files touched | n/a | n/a | 73 (+12,640 / −608) |
