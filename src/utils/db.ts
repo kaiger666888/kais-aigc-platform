@@ -36,12 +36,31 @@ const db = knex({
   useNullAsDefault: true,
 });
 
+// CR-02 fix: expose a bootReady promise so the HTTP entrypoint (src/app.ts)
+// can `await bootReady` before `server.listen()`. Without this, the IIFE runs
+// concurrently with HTTP startup and a request arriving between listen() and
+// seedDefaultIfEmpty() completion sees an empty registry (breaks SC #1 — empty-
+// DB boot must return movie-v1 from GET /api/v1/skills). Resolves `void` on
+// success OR failure — on failure we log and still resolve so the server
+// starts and routes can return [] / 404 gracefully rather than hanging boot.
+let _resolveBoot: () => void;
+export const bootReady: Promise<void> = new Promise((resolve) => {
+  _resolveBoot = resolve;
+});
 (async () => {
-  await initDB(db);
-  await fixDB(db);
-  await loadAllFromDB(db);
-  await seedDefaultIfEmpty(db);
-  if (process.env.NODE_ENV == "dev") initKnexType(db);
+  try {
+    await initDB(db);
+    await fixDB(db);
+    await loadAllFromDB(db);
+    await seedDefaultIfEmpty(db);
+    if (process.env.NODE_ENV === "dev") initKnexType(db);
+  } catch (err) {
+    console.error("[db] boot failed:", err);
+    // resolve anyway so app.ts listen proceeds; routes will return [] / 404
+    // gracefully (registry will be empty / partially populated).
+  } finally {
+    _resolveBoot!();
+  }
 })();
 
 const dbClient = Object.assign(<TName extends TableName>(table: TName) => db<RowType<TName>, RowType<TName>[]>(table), db);

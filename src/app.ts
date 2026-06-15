@@ -15,6 +15,7 @@ import jwt from "jsonwebtoken";
 import socketInit from "@/socket/index";
 import { setIo } from "@/utils/ws";
 import { isEletron } from "@/utils/getPath";
+import { bootReady } from "@/utils/db";
 
 const app = express();
 const server = http.createServer(app);
@@ -201,6 +202,13 @@ export default async function startServe(randomPort: Boolean = false) {
   const port = randomPort ? 0 : (parseInt(process.env.PORT || '') || 10588);
   return await new Promise((resolve) => {
     server.listen(port, async () => {
+      // CR-02: ensure the DB boot IIFE (initDB → fixDB → loadAllFromDB →
+      // seedDefaultIfEmpty) has completed before accepting requests. Without
+      // this, a request hitting GET /api/v1/skills in the ~10-500ms window
+      // between listen() and seed completion returns { skills: [] } even on
+      // a fresh-DB boot (breaks SC #1). bootReady resolves on success OR
+      // failure (on failure, routes degrade gracefully to [] / 404).
+      await bootReady;
       const address = server.address();
       const realPort = typeof address === "string" ? address : address?.port;
       console.log(`[服务启动成功]: http://localhost:${realPort}`);
