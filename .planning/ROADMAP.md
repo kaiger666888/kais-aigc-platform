@@ -93,7 +93,7 @@ ENG-04 fix shipped (commit 1d5996a). Live runtime verification partial — VERIF
 - [x] **Phase 31: Pipeline Callback Refactor** — Replace 4 hardcoded phase constants with registry lookups, equivalence regression guard (completed 2026-06-15)
 - [x] **Phase 32: Canvas Node Type Registry Integration** — Dynamic nodeTypes map from API, built-in renderers stay, FallbackNode for unknown types (completed 2026-06-15)
 - [x] **Phase 33: kais-movie-agent Compliance + E2E** — Install-ready movie-v1 manifest, live registration, E2E golden-path, negative tests (completed 2026-06-15)
-- [ ] **Phase 34: Skill Author Documentation** — Field reference, deploy order, anti-features section, annotated manifest example
+- [x] **Phase 34: Skill Author Documentation** — Field reference, deploy order, anti-features section, annotated manifest example (completed 2026-06-15)
 
 ## Phase Details
 

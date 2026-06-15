@@ -59,10 +59,10 @@ Each requirement maps to a phase in ROADMAP.md (Phase 28-34). Traceability fille
 
 ### DOCS — Skill Author Guide (Phase 34)
 
-- [ ] **DOCS-01**: `docs/skill-author-guide.md` exists with manifest field reference, examples, and versioning rules
-- [ ] **DOCS-02**: Deploy order documented — platform first → register manifest via API → upgrade OpenClaw-side skill
-- [ ] **DOCS-03**: "What NOT to do" section included — explicit anti-features (no sandboxing, no executable manifest code, no dynamic React loading)
-- [ ] **DOCS-04**: Includes the `movie-v1.manifest.json` example inline with annotated comments
+- [x] **DOCS-01**: `docs/skill-author-guide.md` exists with manifest field reference, examples, and versioning rules
+- [x] **DOCS-02**: Deploy order documented — platform first → register manifest via API → upgrade OpenClaw-side skill
+- [x] **DOCS-03**: "What NOT to do" section included — explicit anti-features (no sandboxing, no executable manifest code, no dynamic React loading)
+- [x] **DOCS-04**: Includes the `movie-v1.manifest.json` example inline with annotated comments
 
 ## v2 Requirements (Deferred to v1.7+)
 
@@ -144,10 +144,10 @@ Filled during roadmap creation. Each v1.6 requirement maps to exactly one phase 
 | COMPLIANCE-03 | Phase 33 | Human-Needed |
 | COMPLIANCE-04 | Phase 33 | Complete |
 | COMPLIANCE-05 | Phase 33 | Complete |
-| DOCS-01 | Phase 34 | Pending |
-| DOCS-02 | Phase 34 | Pending |
-| DOCS-03 | Phase 34 | Pending |
-| DOCS-04 | Phase 34 | Pending |
+| DOCS-01 | Phase 34 | Complete |
+| DOCS-02 | Phase 34 | Complete |
+| DOCS-03 | Phase 34 | Complete |
+| DOCS-04 | Phase 34 | Complete |
 
 **Coverage:**
 - v1.6 requirements: 36 total (CONTRACT: 6, REGISTRY: 6, API: 6, PIPELINE: 5, CANVAS: 4, COMPLIANCE: 5, DOCS: 4)
