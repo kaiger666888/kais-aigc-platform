@@ -51,11 +51,11 @@ Each requirement maps to a phase in ROADMAP.md (Phase 28-34). Traceability fille
 
 ### COMPLIANCE — kais-movie-agent Manifest + E2E (Phase 33)
 
-- [ ] **COMPLIANCE-01**: `movie-v1.manifest.json` exists at `docs/skill-author-guide/movie-v1.manifest.json` as install-ready artifact for OpenClaw workspace
-- [ ] **COMPLIANCE-02**: `movie-v1.manifest.json` registers successfully via `POST /api/v1/skills/register` against live platform
+- [x] **COMPLIANCE-01**: `movie-v1.manifest.json` exists at `docs/skill-author-guide/movie-v1.manifest.json` as install-ready artifact for OpenClaw workspace
+- [x] **COMPLIANCE-02**: `movie-v1.manifest.json` registers successfully via `POST /api/v1/skills/register` against live platform
 - [ ] **COMPLIANCE-03**: End-to-end test runs existing movie pipeline through refactored callbacks without regression (golden path)
-- [ ] **COMPLIANCE-04**: Negative test — registering a manifest with unknown phase does not crash platform; treats unknown phase as `requires_review: false, ingest_outputs: []`
-- [ ] **COMPLIANCE-05**: Phase 33 VERIFICATION.md distinguishes "skipped" (yellow) from "passed" (green) from "failed" (red) — no silent test skips
+- [x] **COMPLIANCE-04**: Negative test — registering a manifest with unknown phase does not crash platform; treats unknown phase as `requires_review: false, ingest_outputs: []`
+- [x] **COMPLIANCE-05**: Phase 33 VERIFICATION.md distinguishes "skipped" (yellow) from "passed" (green) from "failed" (red) — no silent test skips
 
 ### DOCS — Skill Author Guide (Phase 34)
 
@@ -139,11 +139,11 @@ Filled during roadmap creation. Each v1.6 requirement maps to exactly one phase 
 | CANVAS-02 | Phase 32 | Complete |
 | CANVAS-03 | Phase 32 | Complete |
 | CANVAS-04 | Phase 32 | Complete |
-| COMPLIANCE-01 | Phase 33 | Pending |
-| COMPLIANCE-02 | Phase 33 | Pending |
-| COMPLIANCE-03 | Phase 33 | Pending |
-| COMPLIANCE-04 | Phase 33 | Pending |
-| COMPLIANCE-05 | Phase 33 | Pending |
+| COMPLIANCE-01 | Phase 33 | Complete |
+| COMPLIANCE-02 | Phase 33 | Complete |
+| COMPLIANCE-03 | Phase 33 | Human-Needed |
+| COMPLIANCE-04 | Phase 33 | Complete |
+| COMPLIANCE-05 | Phase 33 | Complete |
 | DOCS-01 | Phase 34 | Pending |
 | DOCS-02 | Phase 34 | Pending |
 | DOCS-03 | Phase 34 | Pending |
