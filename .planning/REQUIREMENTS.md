@@ -44,10 +44,10 @@ Each requirement maps to a phase in ROADMAP.md (Phase 28-34). Traceability fille
 
 ### CANVAS — Node Type Registry Integration (Phase 32)
 
-- [ ] **CANVAS-01**: `packages/infinite-canvas` loads node types from `/api/v1/skills/:skillId/node-types` instead of hardcoded `nodeTypes` map
-- [ ] **CANVAS-02**: Built-in renderers (`script`, `asset`, `storyboard`, `video`, `audio`) remain as platform primitives — they are NOT movie-v1 properties
-- [ ] **CANVAS-03**: Unknown node types render via `FallbackNode` component (platform does not crash on unfamiliar types)
-- [ ] **CANVAS-04**: `src/routes/canvas/projectData.ts` uses registry lookup instead of hardcoded `NODE_TYPES` constant
+- [x] **CANVAS-01**: `packages/infinite-canvas` loads node types from `/api/v1/skills/:skillId/node-types` instead of hardcoded `nodeTypes` map
+- [x] **CANVAS-02**: Built-in renderers (`script`, `asset`, `storyboard`, `video`, `audio`) remain as platform primitives — they are NOT movie-v1 properties
+- [x] **CANVAS-03**: Unknown node types render via `FallbackNode` component (platform does not crash on unfamiliar types)
+- [x] **CANVAS-04**: `src/routes/canvas/projectData.ts` uses registry lookup instead of hardcoded `NODE_TYPES` constant
 
 ### COMPLIANCE — kais-movie-agent Manifest + E2E (Phase 33)
 
@@ -135,10 +135,10 @@ Filled during roadmap creation. Each v1.6 requirement maps to exactly one phase 
 | PIPELINE-03 | Phase 31 | Complete |
 | PIPELINE-04 | Phase 31 | Complete |
 | PIPELINE-05 | Phase 31 | Complete |
-| CANVAS-01 | Phase 32 | Pending |
-| CANVAS-02 | Phase 32 | Pending |
-| CANVAS-03 | Phase 32 | Pending |
-| CANVAS-04 | Phase 32 | Pending |
+| CANVAS-01 | Phase 32 | Complete |
+| CANVAS-02 | Phase 32 | Complete |
+| CANVAS-03 | Phase 32 | Complete |
+| CANVAS-04 | Phase 32 | Complete |
 | COMPLIANCE-01 | Phase 33 | Pending |
 | COMPLIANCE-02 | Phase 33 | Pending |
 | COMPLIANCE-03 | Phase 33 | Pending |
