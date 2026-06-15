@@ -27,12 +27,12 @@ Each requirement maps to a phase in ROADMAP.md (Phase 28-34). Traceability fille
 
 ### API — REST Endpoints (Phase 30)
 
-- [ ] **API-01**: `GET /api/v1/skills` returns list of registered skills (id, version, registered_at)
-- [ ] **API-02**: `GET /api/v1/skills/:skillId` returns full manifest
-- [ ] **API-03**: `POST /api/v1/skills/register` validates manifest via zod and UPSERTs into `o_skillRegistry`
-- [ ] **API-04**: `GET /api/v1/skills/:skillId/node-types` returns node type declarations
-- [ ] **API-05**: `GET /api/v1/skills/:skillId/phases` returns phase taxonomy
-- [ ] **API-06**: `defaultSkill.ts` seeds `movie-v1` manifest into `o_skillRegistry` on empty-DB boot (zero-config upgrade path)
+- [x] **API-01**: `GET /api/v1/skills` returns list of registered skills (id, version, registered_at)
+- [x] **API-02**: `GET /api/v1/skills/:skillId` returns full manifest
+- [x] **API-03**: `POST /api/v1/skills/register` validates manifest via zod and UPSERTs into `o_skillRegistry`
+- [x] **API-04**: `GET /api/v1/skills/:skillId/node-types` returns node type declarations
+- [x] **API-05**: `GET /api/v1/skills/:skillId/phases` returns phase taxonomy
+- [x] **API-06**: `defaultSkill.ts` seeds `movie-v1` manifest into `o_skillRegistry` on empty-DB boot (zero-config upgrade path)
 
 ### PIPELINE — Callback Refactor (Phase 31)
 
@@ -124,12 +124,12 @@ Filled during roadmap creation. Each v1.6 requirement maps to exactly one phase 
 | REGISTRY-04 | Phase 29 | Complete |
 | REGISTRY-05 | Phase 29 | Complete |
 | REGISTRY-06 | Phase 29 | Complete |
-| API-01 | Phase 30 | Pending |
-| API-02 | Phase 30 | Pending |
-| API-03 | Phase 30 | Pending |
-| API-04 | Phase 30 | Pending |
-| API-05 | Phase 30 | Pending |
-| API-06 | Phase 30 | Pending |
+| API-01 | Phase 30 | Complete |
+| API-02 | Phase 30 | Complete |
+| API-03 | Phase 30 | Complete |
+| API-04 | Phase 30 | Complete |
+| API-05 | Phase 30 | Complete |
+| API-06 | Phase 30 | Complete |
 | PIPELINE-01 | Phase 31 | Pending |
 | PIPELINE-02 | Phase 31 | Pending |
 | PIPELINE-03 | Phase 31 | Pending |

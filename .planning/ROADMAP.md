@@ -250,7 +250,7 @@ v1.6: Phases 28 → 29 → 30 are strictly serial (each imports from the prior).
 | 27. router.ts Auto-gen Fix | v1.5 | ✅ | Complete | 2026-06-14 |
 | 28. Skill Contract Spec + TS Interface | v1.6 | 2/2 | Complete    | 2026-06-15 |
 | 29. DB Migration + Registry Skeleton | v1.6 | 2/2 | Complete    | 2026-06-15 |
-| 30. Default Skill Seed + REST API | v1.6 | 2/2 | Complete   | 2026-06-15 |
+| 30. Default Skill Seed + REST API | v1.6 | 2/2 | Complete    | 2026-06-15 |
 | 31. Pipeline Callback Refactor | v1.6 | 0/TBD | Not started | - |
 | 32. Canvas Node Type Registry Integration | v1.6 | 0/TBD | Not started | - |
 | 33. kais-movie-agent Compliance + E2E | v1.6 | 0/TBD | Not started | - |
