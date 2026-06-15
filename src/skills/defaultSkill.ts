@@ -82,6 +82,13 @@ function buildPhaseTaxonomy(): SkillManifest["phase_taxonomy"] {
 // MOVIE_V1_MANIFEST — the derived constant
 // ---------------------------------------------------------------------------
 
+// WR-05 fix: runtime endpoint + healthcheck path are overridable via env vars
+// so containerized/remote deployments don't need to POST /register to correct
+// a hardcoded localhost:8001. The defaults match the existing kais-movie-agent
+// local-dev deployment. Read once at module load — the manifest is a constant.
+const SKILL_ENDPOINT = process.env.SKILL_MOVIE_V1_ENDPOINT || "http://localhost:8001";
+const SKILL_HEALTHCHECK_PATH = process.env.SKILL_MOVIE_V1_HEALTHCHECK_PATH || "/health";
+
 /**
  * The movie-v1 SkillManifest, derived at module-load time from the three
  * imported pipeline constants (phase_taxonomy) plus hardcoded descriptive
@@ -165,11 +172,14 @@ export const MOVIE_V1_MANIFEST: SkillManifest = {
   // lives in another repo, so the contract stays loose per ARCHITECTURE.md).
   engine_task_types: ["IMAGE_DRAW", "IMAGE_REFINE", "VIDEO_GEN", "TTS", "MUSIC_GEN"],
 
-  // Runtime block — matches existing kais-movie-agent deployment.
+  // Runtime block — endpoint/healthcheck overridable via env vars (WR-05):
+  //   SKILL_MOVIE_V1_ENDPOINT            (default http://localhost:8001)
+  //   SKILL_MOVIE_V1_HEALTHCHECK_PATH    (default /health)
+  // Defaults match the existing kais-movie-agent local-dev deployment.
   runtime: {
     type: "external-http",
-    endpoint: "http://localhost:8001",
-    healthcheck_path: "/health",
+    endpoint: SKILL_ENDPOINT,
+    healthcheck_path: SKILL_HEALTHCHECK_PATH,
   },
 };
 
