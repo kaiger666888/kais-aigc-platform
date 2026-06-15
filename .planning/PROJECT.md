@@ -109,23 +109,33 @@ RTX 3090 24GB 串行调度，重模型 (Wan2.2 ~22GB) 和轻模型 (Real-ESRGAN 
 | 测试端口 8090 | 避免与开发环境 8080 冲突 | ✓ Good |
 | Node.js 子进程测试客户端 | 复刻 test_e2e.py 模式，跨语言验证 | ✓ Good |
 
-## Current Milestone: v1.5 Architecture Hardening + Code Hygiene
+## Current Milestone: v1.6 Workflow Skill Contract(工作流 Skill 契约抽象)
+
+**Goal:** 为 kais-aigc-platform 引入"工作流 Skill 契约"抽象层,让平台停止对 kais-movie-agent 的隐式耦合——任何工作流 skill(短剧/动画/纪录片/广告/短视频/海报/音乐视频/播客/有声书/互动剧情/游戏过场)都可以注册并驱动平台,平台仅作为 skill-agnostic 基础设施。
+
+**Target features:**
+- **Skill Contract 规范文档 + TypeScript 接口** — manifest schema 定义 skill_id / version / media_types / node_types / phase_taxonomy / asset_categories / review_criteria / engine_task_types(`.planning/specs/SKILL-CONTRACT.md` + `src/skills/contract.ts`)
+- **Skill Registry(平台侧)** — 加载、校验、列举已注册 skill;`GET /api/v1/skills` API + 平台启动时 manifest 解析
+- **Canvas 节点类型注册表泛化** — Script/Asset/Storyboard/Video/Audio 从硬编码节点变为 kais-movie-agent skill 通过 manifest 贡献的节点
+- **Phase / 状态机泛化** — phase 名称由 skill manifest 声明;平台只懂 phase 推进协议,不再硬编码剧本/分镜/视频/音频等阶段名
+- **Asset schema 扩展** — `o_assets` 增加 `skill_id` + `workflow_phase` 字段(同时关闭前一轮审计识别的"阶段性资产管理"gap)
+- **kais-movie-agent 合规性升级** — 撰写 manifest 文件,以新契约注册为 skill #1;无新功能开发
+- **Skill 作者文档** — `docs/skill-author-guide.md` 指导第三方如何贡献新 skill
+
+**Architecture decisions (v1.6):**
+1. Phase 编号延续 v1.5 → 从 Phase 28 开始
+2. **契约归属**:契约规范和 TS 接口都住在 kais-aigc-platform 仓库(`src/skills/contract.ts` + `.planning/specs/SKILL-CONTRACT.md`),平台是 source of truth
+3. **破坏性变更允许** —— 不需要 legacy adapter 层兜底;kais-movie-agent 同步升级以遵守新契约
+4. **泛化导向**:目标 skill 覆盖影视变体 / 音频 / 互动 / 轻量四大类,契约必须高度泛化,不能为 movie 流程硬编码
+5. **本期不实现第二个参考 skill** —— 只验证 kais-movie-agent 在新契约下能继续工作;第二个 skill 实现留 v1.7+
+6. **不动 movie-agent 功能** —— kais-movie-agent 只做最小合规性升级(写 manifest + 注册),不开发新功能
+7. 关闭"阶段性资产管理"gap(asset schema 加 skill_id + workflow_phase)作为契约落地的副产物
+
+## Shipped: v1.5 Architecture Hardening + Code Hygiene (2026-06-14)
 
 **Goal:** 关闭 ACE 路由收敛(commit e3d649e/e817e18)后暴露的工程配合问题 — 跨进程协调、遗留 Python 代码退役、路径分散、自动生成机制元问题、内嵌项目类型卫生
 
-**Target features:**
-- **GpuScheduler 多进程协调** — 当前模块级单例在单进程下有效,但 dev/prod 并存或 cluster 模式会状态分裂。引入 Redis 后端,所有进程共享 GPU 锁与服务状态。
-- **gold-team Python 代码彻底退役** — ACE 收敛后 Node 路由层不再调 gold-team 的 ACE 端点,但 `docker/gold-team/src/v6/engines/acestep.py`、`main.py` 注册逻辑、`engine_registry.py` 中的 acestep 条目仍是死代码(自然休眠但占盘)。本 milestone 彻底清理。
-- **输出路径变量统一** — 33 个 ComfyUI 路由各自维护 `OUTPUT_DIR`/`COMFYUI_OUTPUT_DIR`/`FLUX_OUTPUT_DIR`/`INDEXTTS2_OUTPUT_DIR`/`LTX_OUTPUT_DIR` 等,默认值不一致(有的 `/mnt/agents/output`、有的 `/mnt/agents/output/gpu1`)。统一约定。
-- **hermes-agent 内嵌项目类型卫生** — `docker/hermes-agent/_hermes_source/web/` 是内嵌的 React 项目,主工程 `yarn lint` 会扫到它的 41 个 TS 错误,污染主工程构建。需要从主 tsconfig 排除。
-- **router.ts 自动生成机制元问题** — `src/core.ts` 用 fast-glob 扫描所有 `src/routes/**/*.ts` 文件作为 route,但 config-only 文件(没有 default export 或导出空 router)被错误纳入扫描。本 milestone 在 core.ts 加跳过规则,从源头解决。
-
-**Architecture decisions (v1.5):**
-1. Phase 编号延续 v1.4(Phase 23+)
-2. v1.4 phase 目录保留(作为审计证据)
-3. 范围限定在 5 项已识别改进,不引入新功能
-4. hermes-agent 修复方式:从主 tsconfig.json exclude,不修改内嵌项目本身
-5. 输出路径统一方向:在 `src/lib/paths.ts` 加统一约定,新代码强制使用,旧代码渐进迁移
+**Outcome:** 5/5 phases shipped (23-27). GpuScheduler Redis backend + gold-team Python cleanup + unified output paths + TypeScript compile clean (12,447→0 errors) + router.ts auto-gen root-cause fix. Status: tech_debt (0 blockers, 11 deferred items).
 
 ## Shipped: v1.4 Production Verification + Repo Governance (2026-06-13)
 
@@ -196,4 +206,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-14 after v1.5 milestone shipped*
+*Last updated: 2026-06-15 after v1.6 milestone kickoff*
