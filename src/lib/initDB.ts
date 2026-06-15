@@ -1186,6 +1186,18 @@ export default async (knex: Knex, forceInit: boolean = false): Promise<void> => 
         table.unique(["assetsAudioId", "assetsRoleId"]);
       },
     },
+    // ===== v1.6 Skill Contract: Skill Registry =====
+    {
+      name: "o_skillRegistry",
+      builder: (table) => {
+        table.text("skill_id").notNullable();
+        table.text("manifest_json");
+        table.text("version");
+        table.integer("active").defaultTo(1);
+        table.integer("registered_at");
+        table.primary(["skill_id"]);
+      },
+    },
   ];
 
   for (const t of tables) {

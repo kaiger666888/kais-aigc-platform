@@ -68,6 +68,18 @@ export default async (knex: Knex): Promise<void> => {
   await addColumn("o_assets", "audioBindState", "integer");
   await addColumn("o_modelPrompt", "fileName", "string");
   await addColumn("o_modelPrompt", "path", "string");
+  // ===== v1.6 Skill Contract: skill_id + workflow_phase columns =====
+  // Nullable TEXT columns, no default. Phase 31's refactored callbacks are
+  // responsible for writing these values on new rows. The one-time backfill
+  // below sets movie-v1 on all pre-existing NULL skill_id rows.
+  await addColumn("o_assets", "skill_id", "string");
+  await addColumn("o_assets", "workflow_phase", "string");
+  await addColumn("kv_pipelineRun", "skill_id", "string");
+  // One-time backfill: set skill_id='movie-v1' for every NULL row.
+  // Unconditional on projectId — orphaned assets are covered automatically.
+  // workflow_phase is intentionally NOT backfilled (Phase 31 owns the writer).
+  await db("o_assets").whereNull("skill_id").update({ skill_id: "movie-v1" });
+  await db("kv_pipelineRun").whereNull("skill_id").update({ skill_id: "movie-v1" });
   const vendorDataSelect = await u.db("o_vendorConfig").whereIn("id", ["deepseek", "atlascloud"]).select("*");
   if (!vendorDataSelect.find((i) => i.id == "deepseek")) {
     await u.db("o_vendorConfig").insert({
