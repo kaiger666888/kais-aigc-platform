@@ -43,7 +43,7 @@ import fs from "node:fs";
 import path from "node:path";
 import knex from "knex";
 import { registry } from "../src/skills/registry";
-import { validateManifest, type ManifestValidationResult } from "../src/skills/validator";
+import { validateManifest } from "../src/skills/validator";
 import {
   seedDefaultIfEmpty,
   MOVIE_V1_MANIFEST,
