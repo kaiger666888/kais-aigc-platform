@@ -4,27 +4,9 @@ import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
 import { broadcastToProject } from "@/utils/ws";
+import { registry } from "@/skills/registry";
 
 const router = express.Router();
-
-// Phase order map — hoisted to module scope (was previously inline in the
-// handler body). Exported (transitional — Phase 30 defaultSkill.ts imports
-// this to DERIVE the movie-v1 manifest's phase_taxonomy[].order. Phase 31
-// will DELETE this constant once the manifest is the source of truth.)
-export const PHASE_ORDER: Record<string, number> = {
-  requirement: 0,
-  "art-direction": 1,
-  character: 2,
-  scenario: 3,
-  voice: 4,
-  storyboard: 5,
-  scene: 6,
-  "camera-preview": 7,
-  "camera-final": 8,
-  "post-production": 9,
-  "quality-gate": 10,
-  delivery: 11,
-};
 
 /**
  * POST /api/v1/pipeline/resume
@@ -62,8 +44,30 @@ export default router.post(
       );
     }
 
-    // Determine phase order from the phase name (PHASE_ORDER hoisted to module scope above)
-    const phaseOrder = PHASE_ORDER[phase] ?? pipeline.currentPhaseOrder ?? 0;
+    // Resolve the active skill_id from the pipeline row (Phase 31 refactor).
+    // Pre-Phase-30 rows may have null skill_id; fall back to "movie-v1" with a
+    // warn so existing in-flight runs keep working.
+    let skillId = pipeline.skill_id || "movie-v1";
+    if (!pipeline.skill_id) {
+      console.warn(
+        `[resume] pipeline '${pipelineId}' has null skill_id — falling back to movie-v1.`,
+      );
+    }
+
+    // Skill-registered guard: if the skill_id (resolved or fallback) is not in
+    // the registry, surface a 500 — signals operator action needed (dropped
+    // registry row, race with boot, etc.). No silent fallback to movie-v1 here
+    // (registry contract: lookup is explicit, never scan-and-guess).
+    const skillManifest = registry.get(skillId);
+    if (!skillManifest) {
+      return res.status(500).send(error(`skill '${skillId}' not registered`));
+    }
+
+    // Determine phase order from the registry. If the phase is not in the
+    // skill's taxonomy (undefined phaseDecl), fall back to the pipeline's
+    // currentPhaseOrder, then 0 — preserves the existing ?? fallback chain.
+    const phaseDecl = registry.phaseById(skillId, phase);
+    const phaseOrder = phaseDecl?.order ?? pipeline.currentPhaseOrder ?? 0;
 
     await u.db("kv_pipelineRun").where({ id: pipelineId }).update({
       state: "running",
