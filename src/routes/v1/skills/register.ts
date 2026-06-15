@@ -48,6 +48,17 @@ import { registry } from "@/skills/registry";
 // mTLS, or RBAC) before exposing /register beyond the trusted perimeter —
 // see PROJECT.md deferred items. Until then, operators MUST ensure the
 // listening port is not reachable from untrusted networks.
+//
+// SECURITY (v1.6 deferral — WR-04): the global body-parser limit is
+// express.json({ limit: "100mb" }) (src/app.ts:60). POST /register inherits
+// this, making it a DoS surface — a 100MB payload is fully buffered into
+// memory and then runs through validateManifest's recursive zod .strict()
+// plus two .superRefine() passes before being rejected. The node_types and
+// phase_taxonomy arrays have no .max() cap, so an attacker can submit
+// thousands of entries that zod must walk before failing. v1.7+ MUST add a
+// per-route body limit (e.g. express.json({ limit: "256kb" }) scoped to
+// /register) and .max() caps on the zod arrays in src/skills/validator.ts.
+// v1.6 accepts the risk per CONTEXT.md D-04 (trusted internal network).
 
 const router = express.Router();
 
