@@ -91,9 +91,19 @@ export const registry = Object.freeze({
   register: (manifest: SkillManifest): void => {
     const result = validateManifest(manifest);
     if (result.ok === false) {
-      const firstRuleId = result.errors[0]?.ruleId ?? "UNKNOWN";
+      // WR-04: include field + message alongside ruleId. The validator
+      // produces structured errors ({ruleId, field, message}); discarding
+      // field and message left Phase 30 REST consumers with a context-free
+      // ruleId like "NODE_ID_NAMESPACING" and no way to see WHICH node type
+      // or WHY. The full first-error triple is now in the thrown message.
+      const first = result.errors[0];
       throw new Error(
-        "registry.register: manifest failed validation — " + firstRuleId,
+        "registry.register: manifest failed validation — " +
+          (first?.ruleId ?? "UNKNOWN") +
+          " at " +
+          (first?.field ?? "<root>") +
+          ": " +
+          (first?.message ?? "no detail"),
       );
     }
     // Primary index.
