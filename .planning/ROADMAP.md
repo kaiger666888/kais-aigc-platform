@@ -150,7 +150,14 @@ Plans:
   4. `GET /api/v1/skills/:skillId/node-types` and `GET /api/v1/skills/:skillId/phases` return the declared arrays from the manifest, not derived constants
   5. `movie-v1` default manifest is derived from the existing `REVIEW_REQUIRED_PHASES` / `PHASE_INGEST_MAP` / `PHASE_ORDER` constants (translation, not invention) so Phase 31 has a known baseline
 
-**Plans**: TBD
+**Plans**: 2 plans
+**Wave 1**
+
+- [ ] 30-01-PLAN.md — src/skills/defaultSkill.ts (MOVIE_V1_MANIFEST derived from REVIEW_REQUIRED_PHASES + PHASE_INGEST_MAP + PHASE_ORDER) + seedDefaultIfEmpty(knex) + boot wiring in src/utils/db.ts [API-06]
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 30-02-PLAN.md — 5 REST endpoints under /api/v1/skills/* (list/get/register/node-types/phases) + router.ts wiring (route237-241) + scripts/verify-phase-30.ts runner [API-01/02/03/04/05]
 
 ### Phase 31: Pipeline Callback Refactor
 
@@ -243,7 +250,7 @@ v1.6: Phases 28 → 29 → 30 are strictly serial (each imports from the prior).
 | 27. router.ts Auto-gen Fix | v1.5 | ✅ | Complete | 2026-06-14 |
 | 28. Skill Contract Spec + TS Interface | v1.6 | 2/2 | Complete    | 2026-06-15 |
 | 29. DB Migration + Registry Skeleton | v1.6 | 2/2 | Complete    | 2026-06-15 |
-| 30. Default Skill Seed + REST API | v1.6 | 0/TBD | Not started | - |
+| 30. Default Skill Seed + REST API | v1.6 | 0/2 | Not started | - |
 | 31. Pipeline Callback Refactor | v1.6 | 0/TBD | Not started | - |
 | 32. Canvas Node Type Registry Integration | v1.6 | 0/TBD | Not started | - |
 | 33. kais-movie-agent Compliance + E2E | v1.6 | 0/TBD | Not started | - |
