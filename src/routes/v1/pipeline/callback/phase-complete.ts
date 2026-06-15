@@ -6,11 +6,15 @@ import { validateFields } from "@/middleware/middleware";
 import { broadcastToProject, getIo } from "@/utils/ws";
 
 // Phases that require human review before the pipeline can continue
-const REVIEW_REQUIRED_PHASES = ["storyboard", "character", "scene", "camera-preview", "camera-final", "quality-gate"];
+// Exported (transitional — Phase 30 defaultSkill.ts imports these to DERIVE the
+// movie-v1 manifest. Phase 31 will DELETE these constants once the manifest is
+// the source of truth.) Behavior is unchanged for existing consumers.
+export const REVIEW_REQUIRED_PHASES = ["storyboard", "character", "scene", "camera-preview", "camera-final", "quality-gate"];
 
 const router = express.Router();
 
-const PHASE_INGEST_MAP: Record<string, string[]> = {
+// Exported (transitional — see REVIEW_REQUIRED_PHASES comment above).
+export const PHASE_INGEST_MAP: Record<string, string[]> = {
   "art-direction": ["images"],
   character: ["images"],
   scenario: [],
