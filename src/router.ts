@@ -237,6 +237,11 @@ import route233 from "./routes/v1/trellis2/preview";
 import route234 from "./routes/v1/trellis2/status";
 import route235 from "./routes/v1/tts/speak";
 import route236 from "./routes/v1/tts/status";
+import route237 from "./routes/v1/skills/list";
+import route238 from "./routes/v1/skills/register";
+import route239 from "./routes/v1/skills/get";
+import route240 from "./routes/v1/skills/node-types";
+import route241 from "./routes/v1/skills/phases";
 
 export default async (app: Express) => {
   app.use("/api/agents/clearMemory", route1);
@@ -475,4 +480,13 @@ export default async (app: Express) => {
   app.use("/api/v1/trellis2/status", route234);
   app.use("/api/v1/tts/speak", route235);
   app.use("/api/v1/tts/status", route236);
+  // Phase 30 — /api/v1/skills REST surface (API-01..API-05).
+  // CRITICAL ORDERING: the literal "/api/v1/skills/register" (route238) is
+  // registered BEFORE "/api/v1/skills/:skillId" (route239) so Express does
+  // NOT capture the literal string "register" as a skillId parameter.
+  app.use("/api/v1/skills", route237); // list  — GET /api/v1/skills
+  app.use("/api/v1/skills/register", route238); // register (literal FIRST)
+  app.use("/api/v1/skills/:skillId", route239); // get      — GET /:skillId
+  app.use("/api/v1/skills/:skillId", route240); // node-types — GET /:skillId/node-types
+  app.use("/api/v1/skills/:skillId", route241); // phases     — GET /:skillId/phases
 }
