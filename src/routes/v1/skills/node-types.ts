@@ -18,9 +18,9 @@
 import express, { Request, Response } from "express";
 import { registry } from "@/skills/registry";
 
-const router = express.Router();
+// See get.ts for why mergeParams is required (mount path carries :skillId).
+const router = express.Router({ mergeParams: true });
 
-// See get.ts for why the Request generic is needed (mount path carries :skillId).
 export default router.get("/node-types", async (req: Request<{ skillId: string }>, res: Response) => {
   const { skillId } = req.params;
   const manifest = registry.get(skillId);

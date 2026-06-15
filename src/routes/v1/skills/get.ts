@@ -19,12 +19,16 @@
 import express, { Request, Response } from "express";
 import { registry } from "@/skills/registry";
 
-const router = express.Router();
+// mergeParams: true is REQUIRED. This router is mounted at
+// `/api/v1/skills/:skillId` in router.ts (mount path carries the param), and
+// the handler path is the bare `/`. Without mergeParams, Express 4 does NOT
+// propagate the mount-path param into req.params inside this sub-router's
+// handlers — req.params.skillId would be undefined at runtime. mergeParams
+// merges the parent (mount) params into this router's req.params.
+const router = express.Router({ mergeParams: true });
 
-// `req.params.skillId` is populated by the mount path `/api/v1/skills/:skillId`
-// in router.ts. Express infers req.params from the handler path string; since
-// the handler path is the bare `/` (mount carries :skillId), we type the
-// params explicitly via the Request generic so destructuring type-checks.
+// Type the params explicitly so destructuring type-checks (Express's default
+// inferred params type is {} because the handler path has no :param).
 export default router.get("/", async (req: Request<{ skillId: string }>, res: Response) => {
   const { skillId } = req.params;
   const manifest = registry.get(skillId);
