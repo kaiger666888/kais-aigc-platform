@@ -18,12 +18,12 @@ Each requirement maps to a phase in ROADMAP.md (Phase 28-34). Traceability fille
 
 ### REGISTRY — DB Migration + Registry Skeleton (Phase 29)
 
-- [ ] **REGISTRY-01**: `o_skillRegistry` table created (NEW) with columns `skill_id` (PK), `version`, `manifest` (TEXT JSON blob), `registered_at`
-- [ ] **REGISTRY-02**: `o_assets` table extended with `skill_id` + `workflow_phase` columns (closes prior audit gap on phase asset management)
-- [ ] **REGISTRY-03**: `kv_pipelineRun` table extended with `skill_id` column (avoids join-through-`o_project` latency in callback hot path)
-- [ ] **REGISTRY-04**: Backfill migration sets existing rows to `movie-v1` using `WHERE skill_id IS NULL` (handles orphaned assets correctly)
-- [ ] **REGISTRY-05**: `src/skills/registry.ts` singleton with lookup methods: `get(skillId)`, `list()`, `phaseById(skillId, phaseId)`, `nodeTypeById(skillId, typeId)`
-- [ ] **REGISTRY-06**: `src/skills/loader.ts` boot loader hydrates in-memory cache from `o_skillRegistry` on platform start
+- [x] **REGISTRY-01**: `o_skillRegistry` table created (NEW) with columns `skill_id` (PK), `version`, `manifest` (TEXT JSON blob), `registered_at`
+- [x] **REGISTRY-02**: `o_assets` table extended with `skill_id` + `workflow_phase` columns (closes prior audit gap on phase asset management)
+- [x] **REGISTRY-03**: `kv_pipelineRun` table extended with `skill_id` column (avoids join-through-`o_project` latency in callback hot path)
+- [x] **REGISTRY-04**: Backfill migration sets existing rows to `movie-v1` using `WHERE skill_id IS NULL` (handles orphaned assets correctly)
+- [x] **REGISTRY-05**: `src/skills/registry.ts` singleton with lookup methods: `get(skillId)`, `list()`, `phaseById(skillId, phaseId)`, `nodeTypeById(skillId, typeId)`
+- [x] **REGISTRY-06**: `src/skills/loader.ts` boot loader hydrates in-memory cache from `o_skillRegistry` on platform start
 
 ### API — REST Endpoints (Phase 30)
 
@@ -118,12 +118,12 @@ Filled during roadmap creation. Each v1.6 requirement maps to exactly one phase 
 | CONTRACT-04 | Phase 28 | Complete |
 | CONTRACT-05 | Phase 28 | Complete |
 | CONTRACT-06 | Phase 28 | Complete |
-| REGISTRY-01 | Phase 29 | Pending |
-| REGISTRY-02 | Phase 29 | Pending |
-| REGISTRY-03 | Phase 29 | Pending |
-| REGISTRY-04 | Phase 29 | Pending |
-| REGISTRY-05 | Phase 29 | Pending |
-| REGISTRY-06 | Phase 29 | Pending |
+| REGISTRY-01 | Phase 29 | Complete |
+| REGISTRY-02 | Phase 29 | Complete |
+| REGISTRY-03 | Phase 29 | Complete |
+| REGISTRY-04 | Phase 29 | Complete |
+| REGISTRY-05 | Phase 29 | Complete |
+| REGISTRY-06 | Phase 29 | Complete |
 | API-01 | Phase 30 | Pending |
 | API-02 | Phase 30 | Pending |
 | API-03 | Phase 30 | Pending |

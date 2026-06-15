@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Workflow Skill Contract
-status: executing
-stopped_at: v1.6 roadmap created. 7 phases (28-34) with 36 requirements mapped at 100% coverage. Serial chain 28→29→30; 31 and 32 parallelizable; 33 validation gate; 34 docs last.
-last_updated: "2026-06-15T10:00:28.472Z"
+status: ready_to_plan
+stopped_at: Phase 29 complete (2/2) — ready to discuss Phase 30
+last_updated: 2026-06-15T10:57:30.204Z
 last_activity: 2026-06-15 -- Phase 29 planning complete
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 4
-  completed_plans: 2
+  completed_plans: 29
   percent: 14
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-15)
 
 **Core value:** AI creative production pipeline that runs end-to-end, pluggable across multiple creative workflows via a published skill contract
-**Current focus:** Phase 29 — db migration + registry skeleton
+**Current focus:** Phase 30 — default skill seed + rest api
 
 ## Current Position
 
-Phase: 29
+Phase: 30
 Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-15 -- Phase 29 planning complete
+Status: Ready to plan
+Last activity: 2026-06-15
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -36,7 +36,7 @@ Progress: [░░░░░░░░░░] 0%
 
 **Velocity:**
 
-- Total plans completed: 18 (v1.5 shipped — most recent fully-executed milestone)
+- Total plans completed: 20 (v1.5 shipped — most recent fully-executed milestone)
 - v1.5 phases (23-27) all shipped in single session 2026-06-14
 
 **By Phase (v1.5 — most recent executed):**
