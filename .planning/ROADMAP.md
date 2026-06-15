@@ -90,7 +90,7 @@ ENG-04 fix shipped (commit 1d5996a). Live runtime verification partial — VERIF
 - [x] **Phase 28: Skill Contract Spec + TS Interface** — Manifest schema, zod validator, namespacing rule, descriptive-only contract principle (completed 2026-06-15)
 - [x] **Phase 29: DB Migration + Registry Skeleton** — `o_skillRegistry` table, `o_assets` + `kv_pipelineRun` skill_id columns, orphan backfill, registry/loader singletons (completed 2026-06-15)
 - [x] **Phase 30: Default Skill Seed + REST API** — movie-v1 default manifest, 5 REST endpoints, zero-config boot seeding (completed 2026-06-15)
-- [ ] **Phase 31: Pipeline Callback Refactor** — Replace 4 hardcoded phase constants with registry lookups, equivalence regression guard
+- [x] **Phase 31: Pipeline Callback Refactor** — Replace 4 hardcoded phase constants with registry lookups, equivalence regression guard (completed 2026-06-15)
 - [ ] **Phase 32: Canvas Node Type Registry Integration** — Dynamic nodeTypes map from API, built-in renderers stay, FallbackNode for unknown types
 - [ ] **Phase 33: kais-movie-agent Compliance + E2E** — Install-ready movie-v1 manifest, live registration, E2E golden-path, negative tests
 - [ ] **Phase 34: Skill Author Documentation** — Field reference, deploy order, anti-features section, annotated manifest example
@@ -180,7 +180,7 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] 31-02-PLAN.md — Refactor phase-complete.ts + resume.ts to use registry.phaseById (delete REVIEW_REQUIRED_PHASES, PHASE_INGEST_MAP, PHASE_ORDER) [PIPELINE-01, PIPELINE-03]
-- [ ] 31-03-PLAN.md — Refactor submit-to-review.ts to replace z.enum with z.string + registry taxonomy validation (400 vs 500 error distinction) [PIPELINE-04]
+- [x] 31-03-PLAN.md — Refactor submit-to-review.ts to replace z.enum with z.string + registry taxonomy validation (400 vs 500 error distinction) [PIPELINE-04]
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -263,7 +263,7 @@ v1.6: Phases 28 → 29 → 30 are strictly serial (each imports from the prior).
 | 28. Skill Contract Spec + TS Interface | v1.6 | 2/2 | Complete    | 2026-06-15 |
 | 29. DB Migration + Registry Skeleton | v1.6 | 2/2 | Complete    | 2026-06-15 |
 | 30. Default Skill Seed + REST API | v1.6 | 2/2 | Complete    | 2026-06-15 |
-| 31. Pipeline Callback Refactor | v1.6 | 2/4 | In Progress|  |
+| 31. Pipeline Callback Refactor | v1.6 | 3/4 | Complete    | 2026-06-15 |
 | 32. Canvas Node Type Registry Integration | v1.6 | 0/TBD | Not started | - |
 | 33. kais-movie-agent Compliance + E2E | v1.6 | 0/TBD | Not started | - |
 | 34. Skill Author Documentation | v1.6 | 0/TBD | Not started | - |

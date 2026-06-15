@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Workflow Skill Contract
-status: executing
-stopped_at: v1.6 roadmap created. 7 phases (28-34) with 36 requirements mapped at 100% coverage. Serial chain 28→29→30; 31 and 32 parallelizable; 33 validation gate; 34 docs last.
-last_updated: "2026-06-15T13:56:07.826Z"
+status: ready_to_plan
+stopped_at: Phase 31 complete (3/4) — ready to discuss Phase 32
+last_updated: 2026-06-15T14:05:57.933Z
 last_activity: 2026-06-15
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 10
-  completed_plans: 8
+  completed_plans: 34
   percent: 43
 ---
 
@@ -21,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-15)
 
 **Core value:** AI creative production pipeline that runs end-to-end, pluggable across multiple creative workflows via a published skill contract
-**Current focus:** Phase 31 — Pipeline Callback Refactor
+**Current focus:** Phase 32 — canvas node type registry integration
 
 ## Current Position
 
-Phase: 31 (Pipeline Callback Refactor) — EXECUTING
-Plan: 2 of 4
-Status: Ready to execute
+Phase: 32
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-06-15
 
-Progress: [████████░░] 80%
+Progress: [█████████░] 90%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 22 (v1.5 shipped — most recent fully-executed milestone)
+- Total plans completed: 25 (v1.5 shipped — most recent fully-executed milestone)
 - v1.5 phases (23-27) all shipped in single session 2026-06-14
 
 **By Phase (v1.5 — most recent executed):**
@@ -51,6 +51,7 @@ Progress: [████████░░] 80%
 
 *v1.6 phases not yet planned — table updates after first plan execution*
 | Phase 31 P02 | ~12min | 3 tasks | 3 files |
+| Phase 31 P03 | ~10min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -113,6 +114,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-15T13:53:36.906Z
+Last session: 2026-06-15T14:01:42.135Z
 Stopped at: v1.6 roadmap created. 7 phases (28-34) with 36 requirements mapped at 100% coverage. Serial chain 28→29→30; 31 and 32 parallelizable; 33 validation gate; 34 docs last.
 Resume: `/gsd:plan-phase 28` to plan the first phase (Skill Contract Spec + TS Interface).
