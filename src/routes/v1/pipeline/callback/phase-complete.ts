@@ -4,29 +4,9 @@ import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
 import { broadcastToProject, getIo } from "@/utils/ws";
-
-// Phases that require human review before the pipeline can continue
-// Exported (transitional — Phase 30 defaultSkill.ts imports these to DERIVE the
-// movie-v1 manifest. Phase 31 will DELETE these constants once the manifest is
-// the source of truth.) Behavior is unchanged for existing consumers.
-export const REVIEW_REQUIRED_PHASES = ["storyboard", "character", "scene", "camera-preview", "camera-final", "quality-gate"];
+import { registry } from "@/skills/registry";
 
 const router = express.Router();
-
-// Exported (transitional — see REVIEW_REQUIRED_PHASES comment above).
-export const PHASE_INGEST_MAP: Record<string, string[]> = {
-  "art-direction": ["images"],
-  character: ["images"],
-  scenario: [],
-  voice: [],
-  storyboard: ["storyboard"],
-  scene: ["images"],
-  "camera-preview": ["videos"],
-  "camera-final": ["videos"],
-  "post-production": [],
-  "quality-gate": [],
-  delivery: [],
-};
 
 export default router.post(
   "/",
@@ -43,8 +23,35 @@ export default router.post(
     const { pipelineId, projectId, phase, phaseOrder, status, outputs = [], summary } = req.body;
     const now = Date.now();
 
-    // Determine next state: completed phases that require review pause as "awaiting-review"
-    const needsReview = status === "completed" && REVIEW_REQUIRED_PHASES.includes(phase);
+    // Resolve the active skill_id from the pipeline row (Phase 31 refactor).
+    // The callback must consult the registry — the registry is the single source
+    // of truth for phase declarations. Pre-Phase-30 pipeline rows may have a null
+    // skill_id; fall back to "movie-v1" with a warn so existing in-flight runs
+    // keep working (Phase 33 ensures new runs set skill_id at creation).
+    const pipeline = await u.db("kv_pipelineRun").where({ id: pipelineId }).first();
+    let skillId = pipeline?.skill_id || "movie-v1";
+    if (!pipeline?.skill_id) {
+      console.warn(
+        `[phase-complete] pipeline '${pipelineId}' has null skill_id — falling back to movie-v1. Phase 33 should ensure new runs set skill_id at creation.`,
+      );
+    }
+
+    // Skill-registered guard: if the skill_id (resolved or fallback) is not in
+    // the registry, surface a 500 — signals operator action needed (dropped
+    // registry row, race with boot, etc.). No silent fallback to movie-v1 here
+    // (registry contract: lookup is explicit, never scan-and-guess).
+    const skillManifest = registry.get(skillId);
+    if (!skillManifest) {
+      return res.status(500).send(error(`skill '${skillId}' not registered`));
+    }
+
+    // Determine next state: completed phases that require review pause as
+    // "awaiting-review". Phase declaration is read from the registry; unknown
+    // phases (not in the skill's taxonomy) default to requires_review: false
+    // (forward-compat — a skill may emit phases the platform doesn't know
+    // about yet; COMPLIANCE-04 covers this).
+    const phaseDecl = registry.phaseById(skillId, phase);
+    const needsReview = status === "completed" && (phaseDecl?.requires_review ?? false);
     const nextState = status === "completed" ? (needsReview ? "awaiting-review" : "running") : "failed";
 
     await u.db("kv_pipelineRun")
