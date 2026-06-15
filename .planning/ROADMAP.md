@@ -113,7 +113,10 @@ Plans:
   2. On platform boot with a populated `o_skillRegistry` table, `registry.list()` returns every active row without any additional SQL hit during subsequent lookups in the same process
   3. On platform boot with an empty `o_skillRegistry` table, the platform does not crash and `registry.list()` returns an empty list (default seeding is a Phase 30 concern)
   4. `registry.phaseById(skillId, phaseId)` and `registry.nodeTypeById(skillId, typeId)` return the declared object for known IDs and `undefined` for unknown IDs (no silent fallback to movie-v1)
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 29-01-PLAN.md — DB schema (o_skillRegistry table) + migration (skill_id columns on o_assets/kv_pipelineRun) + movie-v1 backfill [REGISTRY-01/02/03/04]
+- [ ] 29-02-PLAN.md — Registry singleton (src/skills/registry.ts) + boot loader (src/skills/loader.ts) + boot wiring (src/utils/db.ts) + verify-phase-29.ts runner [REGISTRY-05/06]
 
 ### Phase 30: Default Skill Seed + REST API
 **Goal**: The platform is operable end-to-end as a skill registry — it self-seeds the `movie-v1` manifest on empty-DB boot (zero-config upgrade), and exposes a REST surface that any client (OpenClaw, curl, future skill) can use to list, inspect, register, and pull node-type/phase declarations from registered skills
