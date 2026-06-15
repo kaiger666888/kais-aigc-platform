@@ -78,8 +78,27 @@ export default async (knex: Knex): Promise<void> => {
   // One-time backfill: set skill_id='movie-v1' for every NULL row.
   // Unconditional on projectId — orphaned assets are covered automatically.
   // workflow_phase is intentionally NOT backfilled (Phase 31 owns the writer).
-  await db("o_assets").whereNull("skill_id").update({ skill_id: "movie-v1" });
-  await db("kv_pipelineRun").whereNull("skill_id").update({ skill_id: "movie-v1" });
+  //
+  // WR-01: The WHERE clause (whereNull("skill_id")) is the ONLY guard. On an
+  // already-migrated DB, the count is 0 and the UPDATE is skipped — making
+  // this a natural no-op AND surfacing the migration state in boot logs. If a
+  // future writer deliberately inserts skill_id=NULL, the next boot WILL
+  // overwrite it with "movie-v1" — that is the intended behavior of this
+  // migration (NULL skill_id is treated as "pre-v1.6 legacy row"). Any code
+  // path that needs a distinct "no skill" sentinel must use an explicit
+  // non-NULL value (e.g. "none"), not NULL.
+  const nullAssetCount =
+    Number((await db("o_assets").whereNull("skill_id").count("* as c").first())?.c ?? 0);
+  if (nullAssetCount > 0) {
+    await db("o_assets").whereNull("skill_id").update({ skill_id: "movie-v1" });
+    console.log(`[fixDB] backfilled ${nullAssetCount} o_assets rows to skill_id=movie-v1`);
+  }
+  const nullRunCount =
+    Number((await db("kv_pipelineRun").whereNull("skill_id").count("* as c").first())?.c ?? 0);
+  if (nullRunCount > 0) {
+    await db("kv_pipelineRun").whereNull("skill_id").update({ skill_id: "movie-v1" });
+    console.log(`[fixDB] backfilled ${nullRunCount} kv_pipelineRun rows to skill_id=movie-v1`);
+  }
   const vendorDataSelect = await u.db("o_vendorConfig").whereIn("id", ["deepseek", "atlascloud"]).select("*");
   if (!vendorDataSelect.find((i) => i.id == "deepseek")) {
     await u.db("o_vendorConfig").insert({
