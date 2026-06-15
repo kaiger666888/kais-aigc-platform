@@ -31,6 +31,7 @@ export interface kv_pipelineRun {
   'projectId': number;
   'result'?: string | null;
   'scriptId'?: number | null;
+  'skill_id'?: string | null;
   'state'?: string | null;
   'updateTime'?: number | null;
 }
@@ -136,8 +137,10 @@ export interface o_assets {
   'promptState'?: string | null;
   'remark'?: string | null;
   'scriptId'?: number | null;
+  'skill_id'?: string | null;
   'startTime'?: number | null;
   'type'?: string | null;
+  'workflow_phase'?: string | null;
 }
 export interface o_assets2Storyboard {
   'assetId'?: number;
@@ -247,6 +250,13 @@ export interface o_skillList {
   'type': string;
   'updateTime': number;
 }
+export interface o_skillRegistry {
+  'active'?: number | null;
+  'manifest_json'?: string | null;
+  'registered_at'?: number | null;
+  'skill_id': string;
+  'version'?: string | null;
+}
 export interface o_storyboard {
   'createTime'?: number | null;
   'duration'?: string | null;
@@ -337,6 +347,7 @@ export interface DB {
   "o_setting": o_setting;
   "o_skillAttribution": o_skillAttribution;
   "o_skillList": o_skillList;
+  "o_skillRegistry": o_skillRegistry;
   "o_storyboard": o_storyboard;
   "o_tasks": o_tasks;
   "o_user": o_user;
