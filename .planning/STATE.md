@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Workflow Skill Contract
 status: planning
-last_updated: "2026-06-15T02:08:14.488Z"
+last_updated: "2026-06-15"
 last_activity: 2026-06-15
 progress:
-  total_phases: 0
+  total_phases: 7
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,68 +17,69 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-14)
+See: .planning/PROJECT.md (updated 2026-06-15)
 
-**Core value:** AI short drama production pipeline that runs end-to-end -- from character design to deliverable final video
-**Current focus:** Phase 23 (GpuScheduler Redis Migration)
+**Core value:** AI creative production pipeline that runs end-to-end, pluggable across multiple creative workflows via a published skill contract
+**Current focus:** Phase 28 (Skill Contract Spec + TS Interface)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-06-15 — Milestone v1.6 started
+Phase: 28 of 34 (Skill Contract Spec + TS Interface) — first v1.6 phase
+Plan: — (not yet planned)
+Status: Ready to plan
+Last activity: 2026-06-15 — v1.6 roadmap created; 7 phases (28-34) with 36 requirements mapped at 100% coverage
+
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 16 (v1.3 — most recent fully-planned milestone)
-- Previous milestones: v1.1 (10 plans), v1.2 (8 plans), v1.3 (13 plans incl. 19.1)
-- v1.4 phases (20-22) planned but not yet executed
+- Total plans completed: 16 (v1.5 shipped — most recent fully-executed milestone)
+- v1.5 phases (23-27) all shipped in single session 2026-06-14
 
-**By Phase (v1.3 — most recent executed):**
+**By Phase (v1.5 — most recent executed):**
 
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 17 | 4 | - | - |
-| 18 | 3 | - | - |
-| 19 | 3 | - | - |
-| 19.1 | 3 | - | - |
+| Phase | Plans | Status |
+|-------|-------|--------|
+| 23 | 1 | ✅ Shipped |
+| 24 | 1 | ✅ Shipped |
+| 25 | 1 | ✅ Shipped |
+| 26 | 1 | ✅ Shipped |
+| 27 | 1 | ✅ Shipped |
 
-*v1.4 + v1.5 phases not yet executed — table updates after first plan execution*
+*v1.6 phases not yet planned — table updates after first plan execution*
 
 ## Accumulated Context
 
 ### Roadmap Evolution
 
-- **v1.5 roadmap created (2026-06-14):** 5 phases derived from 9 requirements across 5 categories (SCHED/GOLD/PATH/HERMES/CORE). Phase 23 (Redis) → 24 (Python cleanup) → 25 (Paths) → 26 (Hermes TS exclude) → 27 (router.ts fix). Phases 23 & 24 independent (parallelizable); 25/26/27 also independent.
-- **v1.4 roadmap (2026-06-13):** 3 phases from 13 requirements (FIX-04/05/06, VERIFY-01/02/03/04, REPO-01..06). Order: 20 → 21 → 22 ("先稳定再治理").
-- **v1.3 closeout:** 102/102 tests passing. 4 deferred gaps (FIX-02/03, MERGE-03, ENG-04) carried into v1.4. Phase 19.1 inserted to close partial gaps.
-- **ACE route convergence (mid-v1.4):** Commits e3d649e + e817e18 collapsed ACE routes to Node layer — exposed the 5 v1.5 engineering-coordination gaps.
+- **v1.6 roadmap created (2026-06-15):** 7 phases (28-34) derived from 36 requirements across 7 categories (CONTRACT/REGISTRY/API/PIPELINE/CANVAS/COMPLIANCE/DOCS). Serial chain 28→29→30; 31 and 32 parallelizable; 33 is validation gate; 34 is docs.
+- **v1.5 shipped (2026-06-14):** 5 phases (23-27), 9 requirements satisfied. Status: tech_debt (0 blockers, 11 deferred items).
+- **v1.4 partial (2026-06-13):** ENG-04 fixed; VERIFY-03 hardware-blocked; 19 sibling repos audited.
+- **v1.3 closeout:** 102/102 tests passing; 4 deferred gaps carried into v1.4 (all closed).
 
 ### Decisions
 
-- Engine registration by backend type (ComfyUI/Independent API/Cloud/Subprocess), not by model
-- TaskType stays broad (VIDEO/IMAGE/AUDIO/POSTPROCESS), details via params.extra
-- All generation capabilities go through workflow_builder
-- Merge direction: research repo -> deploy repo (deploy encompasses all)
-- movie-agent fully removed, OpenClaw Agent replaces
-- ACE-Step stays standalone container, fix permission bug
-- BackendType str enum with 5 values (COMFYUI/SUBPROCESS/CLOUD/DOCKER/MOCK) as engine classification system
-- BaseEngine.backend_type returns MOCK default, subclasses override
-- v1.4 priority: FIX before VERIFY before REPO (stabilize, then verify, then govern)
-- v1.3/v1.4 phase directories preserved as audit evidence — NOT archived
-- Repo archival strategy: `git mv` to `.archive/repos/` OR DEPRECATED marker — NO deletion
+**v1.6 milestone decisions (authoritative — see PROJECT.md for full table):**
 
-**v1.5 milestone decisions:**
+- Phase numbering continues from v1.5 (Phase 28+)
+- Contract lives in platform repo (`src/skills/contract.ts`); platform is source of truth
+- Breaking changes allowed — no legacy adapter; kais-movie-agent upgraded in lockstep
+- Manifest is descriptive only; behavior stays platform-side (Pitfalls A4)
+- Registry is source of truth — delete hardcoded constants, do not wrap (Architecture Pattern 3)
+- zod schema is source of truth for spec; markdown is generated or field-equality-tested (Pitfalls C1)
+- Node type IDs are namespaced `<skill_id>::<type>`; validator rejects bare IDs (Pitfalls A3)
+- Default seed on empty DB — zero-config upgrade path (Architecture Pattern 2)
+- Only one reference skill (movie-v1) this milestone; second skill is v1.7+
 
-- Phase numbering continues from v1.4 (Phase 23+)
-- Scope strictly limited to 5 identified improvements; no new features
-- Phases 23 (Redis) and 24 (Python cleanup) are independent — may run in parallel
-- Hermes fix direction: exclude from main tsconfig.json; do NOT modify the vendored React project itself
-- Output paths: unified convention in `src/lib/paths.ts`; new code forced, old code migrated progressively (33-route migration deferred to future milestone)
-- Router auto-gen fix: source-of-truth fix is the skip rule in `src/core.ts` glob, NOT manual `router.ts` edits
+**Inherited from prior milestones:**
+
+- Engine registration by backend type, not by model
+- TaskType stays broad; details via params.extra
+- Domain-agnostic API; movie-pipeline is one domain among many
+- TS ESM/CJS interop: use standalone `.ts` script pattern, not `tsx -e` (Pitfalls B5)
+- No project test framework — stay with `verify-phase-*.ts` pattern but register in package.json (Pitfalls B3)
 
 ### Pending Todos
 
@@ -86,9 +87,11 @@ None.
 
 ### Blockers/Concerns
 
-- Phase 21 (v1.4 VERIFY) still requires live Docker runtime with RTX 3090 GPU. VERIFY-03 (E2E music gen) is hardware-blocked on 24GB GPU. Not a v1.5 concern but noted for context.
-- v1.5 Phase 23 (Redis migration) requires a Redis instance available in dev — verify `REDIS_URL` is in `.env` or docker-compose before execution.
-- v1.5 Phase 24 (Python cleanup) requires `docker compose build kais-gold-team` to rebuild image — needs Docker daemon access during execution.
+- **Phase 29 DB migration runner:** Architecture flagged the actual migration mechanism as unverified (Knex? Custom? Manual SQL?). Resolve during `/gsd:plan-phase 29`.
+- **Phase 31 regression risk (CRITICAL):** Refactoring 4 callback files is the highest-risk phase. Movie-v1 manifest MUST be generated from existing constants (Phase 30) and equivalence tests MUST be in place before the old constants are deleted.
+- **Phase 32 Electron caching:** Updated canvas bundle may not reach running Electron instances without a bundle version bump. Resolve during `/gsd:plan-phase 32`.
+- **Phase 33 E2E test framework:** Project has no jest/vitest — Phase 33 must use `verify-phase-*.ts` pattern but distinguish skip/pass/fail explicitly (Pitfalls B4). Live Docker + GPU may be required for true E2E; memory-mode acceptable for subset.
+- **OpenClaw lockstep deploy (Phase 33):** Breaking-change-OK decision applies to platform code; deployed OpenClaw workspaces also need the new manifest. `docs/skill-author-guide/movie-v1.manifest.json` is the install artifact.
 
 ## Deferred Items
 
@@ -96,20 +99,17 @@ Items acknowledged and carried forward from previous milestone close:
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
-| v1.3 gap | FIX-02 (ACE-Step container health live verify) | v1.4 VERIFY-02 will close | v1.3 close |
-| v1.3 gap | FIX-03 (E2E music generation live verify) | v1.4 VERIFY-03 will close | v1.3 close |
-| v1.3 gap | MERGE-03 (Dockerfile build verify) | v1.4 VERIFY-04 will close | v1.3 close |
-| v1.3 gap | ENG-04 (ACEStepEngine backend_type MOCK→DOCKER) | v1.4 FIX-04/05/06 will close | v1.3 close |
-| v1.5 out-of-scope | GpuScheduler wired into 32 other ComfyUI routes | Future milestone (v1.5 only builds Redis-backed state infra) | v1.5 kickoff |
-| v1.5 out-of-scope | Output path forced migration of all 33 routes | Future milestone (v1.5 only establishes convention + migration guide) | v1.5 kickoff |
-| v1.5 out-of-scope | gold-team service full retirement | Out of scope — gold-team still hosts Hunyuan3D, pipeline render, etc. | v1.5 kickoff |
+| v1.5 out-of-scope | GpuScheduler wired into 32 other ComfyUI routes | Future milestone | v1.5 kickoff |
+| v1.5 out-of-scope | Output path forced migration of all 33 routes | Future milestone | v1.5 kickoff |
+| v1.5 out-of-scope | gold-team service full retirement | Out of scope — gold-team still hosts Hunyuan3D, pipeline render | v1.5 kickoff |
+| v1.6 out-of-scope | Second reference skill (podcast/ads/interactive) | v1.7+ — validates abstraction against single skill first | v1.6 kickoff |
+| v1.6 out-of-scope | Skill scaffolding CLI / hot-reload / offline validator | v1.7+ (AUTHOR-01/02/03) | v1.6 kickoff |
+| v1.6 out-of-scope | Multi-skill coexistence per project | v1.7+ (MULTI-01/02/03) | v1.6 kickoff |
+| v1.6 out-of-scope | Custom node renderers over HTTP | v1.7+ (RENDER-01/02); v1.6 supports 5 built-in renderers + FallbackNode only | v1.6 kickoff |
+| v1.6 out-of-scope | Per-skill health tracking / auto-disable | v1.7+ (HEALTH-01/02/03); reuse hermes EWMA pattern | v1.6 kickoff |
 
 ## Session Continuity
 
-Last session: 2026-06-14
-Stopped at: v1.5 roadmap created. 5 phases (23-27) with 9 requirements mapped at 100% coverage.
-Resume: `/gsd:plan-phase 23` to plan the first phase (GpuScheduler Redis Migration).
-
-## Operator Next Steps
-
-- Start the next milestone with /gsd-new-milestone
+Last session: 2026-06-15
+Stopped at: v1.6 roadmap created. 7 phases (28-34) with 36 requirements mapped at 100% coverage. Serial chain 28→29→30; 31 and 32 parallelizable; 33 validation gate; 34 docs last.
+Resume: `/gsd:plan-phase 28` to plan the first phase (Skill Contract Spec + TS Interface).

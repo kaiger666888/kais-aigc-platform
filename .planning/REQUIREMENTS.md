@@ -112,14 +112,49 @@ Filled during roadmap creation. Each v1.6 requirement maps to exactly one phase 
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (populated by gsd-roadmapper) | — | Pending |
+| CONTRACT-01 | Phase 28 | Pending |
+| CONTRACT-02 | Phase 28 | Pending |
+| CONTRACT-03 | Phase 28 | Pending |
+| CONTRACT-04 | Phase 28 | Pending |
+| CONTRACT-05 | Phase 28 | Pending |
+| CONTRACT-06 | Phase 28 | Pending |
+| REGISTRY-01 | Phase 29 | Pending |
+| REGISTRY-02 | Phase 29 | Pending |
+| REGISTRY-03 | Phase 29 | Pending |
+| REGISTRY-04 | Phase 29 | Pending |
+| REGISTRY-05 | Phase 29 | Pending |
+| REGISTRY-06 | Phase 29 | Pending |
+| API-01 | Phase 30 | Pending |
+| API-02 | Phase 30 | Pending |
+| API-03 | Phase 30 | Pending |
+| API-04 | Phase 30 | Pending |
+| API-05 | Phase 30 | Pending |
+| API-06 | Phase 30 | Pending |
+| PIPELINE-01 | Phase 31 | Pending |
+| PIPELINE-02 | Phase 31 | Pending |
+| PIPELINE-03 | Phase 31 | Pending |
+| PIPELINE-04 | Phase 31 | Pending |
+| PIPELINE-05 | Phase 31 | Pending |
+| CANVAS-01 | Phase 32 | Pending |
+| CANVAS-02 | Phase 32 | Pending |
+| CANVAS-03 | Phase 32 | Pending |
+| CANVAS-04 | Phase 32 | Pending |
+| COMPLIANCE-01 | Phase 33 | Pending |
+| COMPLIANCE-02 | Phase 33 | Pending |
+| COMPLIANCE-03 | Phase 33 | Pending |
+| COMPLIANCE-04 | Phase 33 | Pending |
+| COMPLIANCE-05 | Phase 33 | Pending |
+| DOCS-01 | Phase 34 | Pending |
+| DOCS-02 | Phase 34 | Pending |
+| DOCS-03 | Phase 34 | Pending |
+| DOCS-04 | Phase 34 | Pending |
 
 **Coverage:**
-- v1.6 requirements: 35 total (CONTRACT: 6, REGISTRY: 6, API: 6, PIPELINE: 5, CANVAS: 4, COMPLIANCE: 5, DOCS: 4)
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 35 ⚠️ (will be 0 after roadmap creation)
+- v1.6 requirements: 36 total (CONTRACT: 6, REGISTRY: 6, API: 6, PIPELINE: 5, CANVAS: 4, COMPLIANCE: 5, DOCS: 4)
+- Mapped to phases: 36 / 36 ✓
+- Unmapped: 0
 
 ---
 
 *Requirements defined: 2026-06-15*
-*Last updated: 2026-06-15 after v1.6 milestone kickoff*
+*Last updated: 2026-06-15 after v1.6 roadmap creation — traceability populated, 36/36 requirements mapped*
