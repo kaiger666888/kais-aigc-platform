@@ -86,11 +86,18 @@ export async function loadAllFromDB(knex: Knex): Promise<number> {
     } catch (err) {
       // Covers JSON.parse failure AND any unexpected throw from register()
       // (register re-validates; if it throws, the row is bad — skip + continue).
+      // WR-02: defensive extraction — `(err as Error).message` is a type
+      // assertion, not a runtime check. If a non-Error value is thrown (a
+      // string, null, undefined, or an object without .message), the
+      // assertion would log "undefined" or, depending on the thrown value's
+      // shape, mask the real cause. Use instanceof + String() fallback so the
+      // log always carries useful diagnostic text regardless of throw type.
+      const msg = err instanceof Error ? err.message : String(err);
       console.warn(
         "[skills/loader] skipping unparseable manifest for skill_id=" +
           row.skill_id +
           " — " +
-          (err as Error).message,
+          msg,
       );
     }
   }
