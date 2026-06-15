@@ -88,13 +88,13 @@ export default async (knex: Knex): Promise<void> => {
   // path that needs a distinct "no skill" sentinel must use an explicit
   // non-NULL value (e.g. "none"), not NULL.
   const nullAssetCount =
-    Number((await db("o_assets").whereNull("skill_id").count("* as c").first())?.c ?? 0);
+    Number(((await db("o_assets").whereNull("skill_id").count("* as c").first()) as { c?: number } | undefined)?.c ?? 0);
   if (nullAssetCount > 0) {
     await db("o_assets").whereNull("skill_id").update({ skill_id: "movie-v1" });
     console.log(`[fixDB] backfilled ${nullAssetCount} o_assets rows to skill_id=movie-v1`);
   }
   const nullRunCount =
-    Number((await db("kv_pipelineRun").whereNull("skill_id").count("* as c").first())?.c ?? 0);
+    Number(((await db("kv_pipelineRun").whereNull("skill_id").count("* as c").first()) as { c?: number } | undefined)?.c ?? 0);
   if (nullRunCount > 0) {
     await db("kv_pipelineRun").whereNull("skill_id").update({ skill_id: "movie-v1" });
     console.log(`[fixDB] backfilled ${nullRunCount} kv_pipelineRun rows to skill_id=movie-v1`);
