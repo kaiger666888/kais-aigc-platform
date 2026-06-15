@@ -80,7 +80,7 @@ ENG-04 fix shipped (commit 1d5996a). Live runtime verification partial — VERIF
 10. **zod is source of truth for schema** — markdown spec generated or field-equality-tested against it (Pitfalls C1)
 11. **Node type IDs are namespaced** `<skill_id>::<type>` (Pitfalls A3) — validator rejects bare IDs
 
-- [ ] **Phase 28: Skill Contract Spec + TS Interface** — Manifest schema, zod validator, namespacing rule, descriptive-only contract principle
+- [x] **Phase 28: Skill Contract Spec + TS Interface** — Manifest schema, zod validator, namespacing rule, descriptive-only contract principle (completed 2026-06-15)
 - [ ] **Phase 29: DB Migration + Registry Skeleton** — `o_skillRegistry` table, `o_assets` + `kv_pipelineRun` skill_id columns, orphan backfill, registry/loader singletons
 - [ ] **Phase 30: Default Skill Seed + REST API** — movie-v1 default manifest, 5 REST endpoints, zero-config boot seeding
 - [ ] **Phase 31: Pipeline Callback Refactor** — Replace 4 hardcoded phase constants with registry lookups, equivalence regression guard
@@ -102,7 +102,7 @@ ENG-04 fix shipped (commit 1d5996a). Live runtime verification partial — VERIF
 **Plans**: 2 plans
 Plans:
 - [x] 28-01-PLAN.md — Create src/skills/contract.ts (SkillManifest interface + sub-types + ManifestValidationError) + src/skills/validator.ts (zod v4 schema + validateManifest with namespacing/version/strict rules)
-- [ ] 28-02-PLAN.md — Write .planning/specs/SKILL-CONTRACT.md (field reference + contract invariants + versioning rules) + src/skills/__tests__/contract.test.ts (drift test + negative validator tests) + scripts/verify-phase-28.ts runner
+- [x] 28-02-PLAN.md — Write .planning/specs/SKILL-CONTRACT.md (field reference + contract invariants + versioning rules) + src/skills/__tests__/contract.test.ts (drift test + negative validator tests) + scripts/verify-phase-28.ts runner
 
 ### Phase 29: DB Migration + Registry Skeleton
 **Goal**: The platform has a persisted skill registry (`o_skillRegistry`) with existing data backfilled to `movie-v1`, plus an in-memory registry/cache layer that later phases can look up synchronously without touching SQL
@@ -204,7 +204,7 @@ v1.6: Phases 28 → 29 → 30 are strictly serial (each imports from the prior).
 | 25. Output Path Convention | v1.5 | ✅ | Complete | 2026-06-14 |
 | 26. Hermes TS Exclude | v1.5 | ✅ | Complete | 2026-06-14 |
 | 27. router.ts Auto-gen Fix | v1.5 | ✅ | Complete | 2026-06-14 |
-| 28. Skill Contract Spec + TS Interface | v1.6 | 1/2 | In Progress|  |
+| 28. Skill Contract Spec + TS Interface | v1.6 | 2/2 | Complete   | 2026-06-15 |
 | 29. DB Migration + Registry Skeleton | v1.6 | 0/TBD | Not started | - |
 | 30. Default Skill Seed + REST API | v1.6 | 0/TBD | Not started | - |
 | 31. Pipeline Callback Refactor | v1.6 | 0/TBD | Not started | - |
