@@ -7,6 +7,25 @@ import { broadcastToProject } from "@/utils/ws";
 
 const router = express.Router();
 
+// Phase order map — hoisted to module scope (was previously inline in the
+// handler body). Exported (transitional — Phase 30 defaultSkill.ts imports
+// this to DERIVE the movie-v1 manifest's phase_taxonomy[].order. Phase 31
+// will DELETE this constant once the manifest is the source of truth.)
+export const PHASE_ORDER: Record<string, number> = {
+  requirement: 0,
+  "art-direction": 1,
+  character: 2,
+  scenario: 3,
+  voice: 4,
+  storyboard: 5,
+  scene: 6,
+  "camera-preview": 7,
+  "camera-final": 8,
+  "post-production": 9,
+  "quality-gate": 10,
+  delivery: 11,
+};
+
 /**
  * POST /api/v1/pipeline/resume
  *
@@ -43,22 +62,7 @@ export default router.post(
       );
     }
 
-    // Determine phase order from the phase name
-    const PHASE_ORDER: Record<string, number> = {
-      requirement: 0,
-      "art-direction": 1,
-      character: 2,
-      scenario: 3,
-      voice: 4,
-      storyboard: 5,
-      scene: 6,
-      "camera-preview": 7,
-      "camera-final": 8,
-      "post-production": 9,
-      "quality-gate": 10,
-      delivery: 11,
-    };
-
+    // Determine phase order from the phase name (PHASE_ORDER hoisted to module scope above)
     const phaseOrder = PHASE_ORDER[phase] ?? pipeline.currentPhaseOrder ?? 0;
 
     await u.db("kv_pipelineRun").where({ id: pipelineId }).update({
