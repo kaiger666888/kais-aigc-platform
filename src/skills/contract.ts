@@ -47,12 +47,12 @@ export type MediaType = "video" | "image" | "audio" | "3d";
 export type BuiltinRenderer = "script" | "asset" | "storyboard" | "video" | "audio";
 
 /**
- * Output categories a phase can route into the ingest pipeline. Replaces the
- * implicit values in src/routes/v1/pipeline/callback/phase-complete.ts
- * PHASE_INGEST_MAP (e.g., "art-direction" → ["images"], "storyboard" →
- * ["storyboard"], "scenario" → []). The "none" sentinel replaces the empty
- * array case so that the absence of ingestion is itself a declared value
- * (manifest is descriptive — see Pitfalls A4).
+ * Output categories a phase can route into the ingest pipeline. Populated from
+ * the skill manifest's phase_taxonomy at registration time (e.g.,
+ * "art-direction" → ["images"], "storyboard" → ["storyboard"], "scenario" →
+ * []). The "none" sentinel replaces the empty array case so that the absence
+ * of ingestion is itself a declared value (manifest is descriptive — see
+ * Pitfalls A4).
  */
 export type IngestOutput = "images" | "videos" | "storyboard" | "audio" | "none";
 
@@ -85,11 +85,10 @@ export interface NodeTypeDecl {
 }
 
 /**
- * Declares one phase in a skill's pipeline taxonomy. Replaces the four
- * hardcoded phase constants in src/routes/v1/pipeline/:
- *   - PHASE_ORDER (resume.ts) → `order`
- *   - REVIEW_REQUIRED_PHASES (phase-complete.ts) → `requires_review`
- *   - PHASE_INGEST_MAP (phase-complete.ts) → `ingest_outputs`
+ * Declares one phase in a skill's pipeline taxonomy. Populated from the skill
+ * manifest's phase_taxonomy at registration time — `order`, `requires_review`,
+ * and `ingest_outputs` are the per-phase fields the platform reads to react to
+ * phase events.
  *
  * The platform uses this as DESCRIPTIVE METADATA to react to phase events
  * (e.g., "for phase X of skill Y, is review required?"). The platform does
