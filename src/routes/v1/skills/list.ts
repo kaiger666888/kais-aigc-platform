@@ -28,7 +28,12 @@ export default router.get("/", async (_req, res) => {
   // Side SELECT to fetch registered_at alongside registry.list(). The registry
   // cache holds only descriptive manifests (Phase 29 design decision); the
   // platform metadata column lives in o_skillRegistry.
-  const rows = await u.db("o_skillRegistry").select("skill_id", "registered_at");
+  //
+  // WR-01 fix: filter active=1 to mirror src/skills/loader.ts. Without this
+  // filter, a skill whose DB row was deactivated (active=0) but is still in
+  // the in-memory cache would leak its registered_at into the summary,
+  // creating asymmetry with the loader (which only loads active=1 rows).
+  const rows = await u.db("o_skillRegistry").select("skill_id", "registered_at").where("active", 1);
   const registeredAtById = new Map<string, number>();
   for (const r of rows) {
     registeredAtById.set(r.skill_id, r.registered_at ?? 0);
