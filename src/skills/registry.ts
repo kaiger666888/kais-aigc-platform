@@ -71,6 +71,8 @@ const nodeTypeIndex = new Map<string, Map<string, NodeTypeDecl>>();
  * - `list()` — snapshot array of every registered manifest. `[]` when empty.
  * - `phaseById(skillId, phaseId)` — O(1) phase lookup. `undefined` for unknown.
  * - `nodeTypeById(skillId, typeId)` — O(1) node-type lookup. `undefined` for unknown.
+ * - `delete(skillId)` — remove a skill from all three indexes. Returns `true`
+ *   if removed, `false` if not present (idempotent). Phase 31 hot-reload / DELETE use.
  *
  * The object is frozen — callers cannot add or replace methods.
  */
@@ -152,4 +154,24 @@ export const registry = Object.freeze({
    */
   nodeTypeById: (skillId: string, typeId: string): NodeTypeDecl | undefined =>
     nodeTypeIndex.get(skillId)?.get(typeId),
+
+  /**
+   * Remove a skill from the registry. Returns `true` if the skill was
+   * present and removed, `false` if it was not present (idempotent —
+   * deleting an unknown skill is a no-op, not an error).
+   *
+   * WR-05: Phase 31 will need this when callbacks swap a skill out at
+   * runtime (e.g. a `DELETE /api/v1/skills/:id` REST handler, or a
+   * hot-reload that wants to evict before re-registering). All three
+   * indexes (manifests, phaseIndex, nodeTypeIndex) are cleared together
+   * so post-delete lookups via `get` / `phaseById` / `nodeTypeById`
+   * consistently return `undefined` for the removed skill.
+   */
+  delete: (skillId: string): boolean => {
+    const had = manifests.has(skillId);
+    manifests.delete(skillId);
+    phaseIndex.delete(skillId);
+    nodeTypeIndex.delete(skillId);
+    return had;
+  },
 });

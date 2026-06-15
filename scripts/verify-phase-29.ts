@@ -355,6 +355,44 @@ async function main(): Promise<void> {
   );
 
   // -------------------------------------------------------------------------
+  // Test 6 — registry.delete() (WR-05: Phase 31 hot-reload / DELETE API)
+  //
+  // Deletes test-skill-2 (registered in Test 4) and confirms every lookup
+  // surface (get, phaseById, nodeTypeById) consistently returns undefined
+  // afterward — the three indexes are cleared together. Re-deleting an
+  // unknown skill returns false (idempotent).
+  // -------------------------------------------------------------------------
+  console.log("\n[Test 6] registry.delete — evicts skill from all three indexes");
+
+  const listLengthBefore = registry.list().length;
+  const deleteResult = registry.delete("test-skill-2");
+  assert(
+    deleteResult === true,
+    "registry.delete: returns true when evicting a known skill",
+    `returned=${deleteResult}`,
+  );
+  assert(
+    registry.get("test-skill-2") === undefined,
+    "registry.delete: get() returns undefined after delete",
+  );
+  assert(
+    registry.phaseById("test-skill-2", "phase-b") === undefined &&
+      registry.nodeTypeById("test-skill-2", "test-skill-2::storyboard") === undefined,
+    "registry.delete: phaseById and nodeTypeById return undefined after delete (all indexes cleared)",
+  );
+  assert(
+    registry.list().length === listLengthBefore - 1,
+    "registry.delete: list() shrinks by exactly one",
+    `before=${listLengthBefore}, after=${registry.list().length}`,
+  );
+  const reDelete = registry.delete("test-skill-2");
+  assert(
+    reDelete === false,
+    "registry.delete: returns false when deleting an unknown skill (idempotent)",
+    `returned=${reDelete}`,
+  );
+
+  // -------------------------------------------------------------------------
   // Test 5 — register() rejects invalid manifest (Pitfalls A5 guard)
   // -------------------------------------------------------------------------
   console.log("\n[Test 5] register() rejects invalid manifest — throws, no corruption");
