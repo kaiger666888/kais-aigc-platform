@@ -9,12 +9,12 @@ Each requirement maps to a phase in ROADMAP.md (Phase 28-34). Traceability fille
 
 ### CONTRACT — Skill Contract Spec + TS Interface (Phase 28)
 
-- [ ] **CONTRACT-01**: SkillManifest TypeScript interface exists at `src/skills/contract.ts` declaring fields `skill_id`, `version`, `node_types[]`, `phase_taxonomy[]`, `runtime`
-- [ ] **CONTRACT-02**: zod validator at `src/skills/validator.ts` parses and rejects malformed manifests
-- [ ] **CONTRACT-03**: Spec doc at `.planning/specs/SKILL-CONTRACT.md` documents the contract; spec is generated from or field-equality-tested against the zod schema (no drift)
-- [ ] **CONTRACT-04**: Manifest versioning rule documented — `major.minor` only; minor = additive; platform accepts any `1.x` manifest at runtime
-- [ ] **CONTRACT-05**: Node type ID namespacing enforced — validator rejects bare IDs; all node types must use `<skill_id>::<type>` format
-- [ ] **CONTRACT-06**: Spec explicitly states "manifest is descriptive; behavior is platform-side" — no executable code in manifest
+- [x] **CONTRACT-01**: SkillManifest TypeScript interface exists at `src/skills/contract.ts` declaring fields `skill_id`, `version`, `node_types[]`, `phase_taxonomy[]`, `runtime`
+- [x] **CONTRACT-02**: zod validator at `src/skills/validator.ts` parses and rejects malformed manifests
+- [x] **CONTRACT-03**: Spec doc at `.planning/specs/SKILL-CONTRACT.md` documents the contract; spec is generated from or field-equality-tested against the zod schema (no drift)
+- [x] **CONTRACT-04**: Manifest versioning rule documented — `major.minor` only; minor = additive; platform accepts any `1.x` manifest at runtime
+- [x] **CONTRACT-05**: Node type ID namespacing enforced — validator rejects bare IDs; all node types must use `<skill_id>::<type>` format
+- [x] **CONTRACT-06**: Spec explicitly states "manifest is descriptive; behavior is platform-side" — no executable code in manifest
 
 ### REGISTRY — DB Migration + Registry Skeleton (Phase 29)
 
@@ -112,12 +112,12 @@ Filled during roadmap creation. Each v1.6 requirement maps to exactly one phase 
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CONTRACT-01 | Phase 28 | Pending |
-| CONTRACT-02 | Phase 28 | Pending |
-| CONTRACT-03 | Phase 28 | Pending |
-| CONTRACT-04 | Phase 28 | Pending |
-| CONTRACT-05 | Phase 28 | Pending |
-| CONTRACT-06 | Phase 28 | Pending |
+| CONTRACT-01 | Phase 28 | Complete |
+| CONTRACT-02 | Phase 28 | Complete |
+| CONTRACT-03 | Phase 28 | Complete |
+| CONTRACT-04 | Phase 28 | Complete |
+| CONTRACT-05 | Phase 28 | Complete |
+| CONTRACT-06 | Phase 28 | Complete |
 | REGISTRY-01 | Phase 29 | Pending |
 | REGISTRY-02 | Phase 29 | Pending |
 | REGISTRY-03 | Phase 29 | Pending |

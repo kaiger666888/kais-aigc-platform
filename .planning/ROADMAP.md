@@ -204,7 +204,7 @@ v1.6: Phases 28 → 29 → 30 are strictly serial (each imports from the prior).
 | 25. Output Path Convention | v1.5 | ✅ | Complete | 2026-06-14 |
 | 26. Hermes TS Exclude | v1.5 | ✅ | Complete | 2026-06-14 |
 | 27. router.ts Auto-gen Fix | v1.5 | ✅ | Complete | 2026-06-14 |
-| 28. Skill Contract Spec + TS Interface | v1.6 | 2/2 | Complete   | 2026-06-15 |
+| 28. Skill Contract Spec + TS Interface | v1.6 | 2/2 | Complete    | 2026-06-15 |
 | 29. DB Migration + Registry Skeleton | v1.6 | 0/TBD | Not started | - |
 | 30. Default Skill Seed + REST API | v1.6 | 0/TBD | Not started | - |
 | 31. Pipeline Callback Refactor | v1.6 | 0/TBD | Not started | - |
