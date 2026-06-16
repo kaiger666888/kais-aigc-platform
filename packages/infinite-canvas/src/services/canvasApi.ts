@@ -1,4 +1,4 @@
-import type { FlowGraph, LegacyFlowData } from '../types/canvas'
+import type { FlowGraph, FlowBranch, LegacyFlowData, FlowGraphNode } from '../types/canvas'
 
 const API_BASE = '/api'
 const TIMEOUT_MS = 15_000
@@ -275,6 +275,50 @@ export async function requestNodeScore(
   cancelToken?: CancelToken,
 ): Promise<{ overall: number; quality: number; aesthetic: number; storyConsistency: number; promptAdherence: number; emotionImpact: number; reasoning?: string }> {
   return await apiCall<any>('/canvas/review/score', { projectId, episodesId, nodeId }, { cancelToken, timeout: 60000 })
+}
+
+// ─── V2 节点 / 分支 / 布局 ─────────────────────────────────
+
+/** 创建节点 */
+export async function createNode(
+  projectId: number,
+  episodesId: number,
+  node: Omit<FlowGraphNode, 'id'>,
+  cancelToken?: CancelToken,
+): Promise<{ nodeId: string }> {
+  const json = await apiCall<{ data: { nodeId: string } }>('/v2/canvas/nodes', { projectId, episodesId, node }, { cancelToken })
+  return json.data
+}
+
+/** 创建分支 */
+export async function createBranch(
+  projectId: number,
+  episodesId: number,
+  branch: Omit<FlowBranch, 'id' | 'createdAt' | 'updatedAt'>,
+  cancelToken?: CancelToken,
+): Promise<{ branchId: string }> {
+  const json = await apiCall<{ data: { branchId: string } }>('/v2/canvas/branches', { projectId, episodesId, branch }, { cancelToken })
+  return json.data
+}
+
+/** 更新分支 */
+export async function updateBranch(
+  projectId: number,
+  episodesId: number,
+  branchId: string,
+  updates: Partial<Pick<FlowBranch, 'label' | 'status'>>,
+  cancelToken?: CancelToken,
+): Promise<void> {
+  await apiCall<void>(`/v2/canvas/branches/${encodeURIComponent(branchId)}`, { projectId, episodesId, ...updates }, { cancelToken })
+}
+
+/** 请求自动布局 */
+export async function requestLayout(
+  projectId: number,
+  episodesId: number,
+  cancelToken?: CancelToken,
+): Promise<void> {
+  await apiCall<void>('/v2/canvas/layout', { projectId, episodesId }, { cancelToken })
 }
 
 // ─── Skill Registry (Phase 32 CANVAS-01) ─────────────────

@@ -111,6 +111,21 @@ export interface AudioNodeData {
   variantIndex?: number
 }
 
+/** 分支状态 */
+export type BranchStatus = 'draft' | 'active' | 'paused' | 'completed' | 'archived' | 'rejected'
+
+/** 分支 */
+export interface FlowBranch {
+  id: string
+  label: string
+  parentId: string | null
+  parentNodeId: string | null
+  status: BranchStatus
+  forkReason: string
+  createdAt: string
+  updatedAt: string
+}
+
 /** 变体组 — 同一分镜下的多个候选资产 */
 export interface VariantGroup {
   groupId: string
@@ -209,6 +224,11 @@ export interface FlowGraphNode {
   routingDecision?: RoutingDecision
   variantGroupId?: string
   variantIndex?: number
+  branchId?: string
+  phaseIndex?: number
+  phaseName?: string
+  suggestion?: string
+  variantOf?: string
 }
 
 export interface FlowGraphLink {
@@ -219,6 +239,8 @@ export interface FlowGraphLink {
   targetHandle?: string
   dataType: LinkDataType
   isInactive?: boolean
+  branchId?: string
+  isExplore?: boolean
 }
 
 export interface FlowGraphGroup {
@@ -227,4 +249,23 @@ export interface FlowGraphGroup {
   position: { x: number; y: number }
   size: { width: number; height: number }
   childNodeIds: string[]
+}
+
+// ─── V2 画布图模型（分支支持） ────────────────────────────────
+
+export interface FlowGraphMeta {
+  version: '2'
+  projectId: number
+  episodesId: number
+  createdAt: string
+  updatedAt: string
+  viewport?: { x: number; y: number; zoom: number }
+}
+
+export interface FlowGraphV2 {
+  meta: FlowGraphMeta
+  nodes: FlowGraphNode[]
+  links: FlowGraphLink[]
+  branches: FlowBranch[]
+  variantGroups?: VariantGroup[]
 }

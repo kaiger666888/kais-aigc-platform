@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { applyNodeChanges, applyEdgeChanges, type Node, type Edge, type NodeChange, type EdgeChange } from '@xyflow/react'
 import type { SkillNodeTypeDecl } from '../services/canvasApi'
+import type { FlowBranch, BranchStatus } from '../types/canvas'
+import { approveNode as apiApproveNode, rejectNode as apiRejectNode } from '../services/canvasApi'
 
 export interface ToastItem {
   id: number
@@ -30,6 +32,12 @@ interface CanvasState {
   onNodesChange: (changes: NodeChange[]) => void
   onEdgesChange: (changes: EdgeChange[]) => void
 
+  // 分支
+  branches: FlowBranch[]
+  setBranches: (branches: FlowBranch[]) => void
+  addBranch: (branch: FlowBranch) => void
+  updateBranch: (branchId: string, updates: Partial<FlowBranch>) => void
+
   // 加载状态
   loading: boolean
   setLoading: (l: boolean) => void
@@ -47,9 +55,13 @@ interface CanvasState {
   setMenuPos: (pos: { x: number; y: number; nodeId?: string } | null) => void
 
   // 审核操作
-  approveNode: (nodeId: string) => void
-  rejectNode: (nodeId: string) => void
+  approveNode: (nodeId: string) => Promise<void>
+  rejectNode: (nodeId: string, feedback?: string) => Promise<void>
   selectWinner: (nodeId: string) => void
+
+  // 分支操作
+  selectBranchAsMain: (branchId: string) => void
+  archiveBranch: (branchId: string) => void
 
   // Toast
   toasts: ToastItem[]
@@ -100,6 +112,14 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     set((state) => ({ edges: applyEdgeChanges(changes, state.edges) }))
   },
 
+  // 分支
+  branches: [],
+  setBranches: (branches) => set({ branches }),
+  addBranch: (branch) => set((state) => ({ branches: [...state.branches, branch] })),
+  updateBranch: (branchId, updates) => set((state) => ({
+    branches: state.branches.map((b) => b.id === branchId ? { ...b, ...updates } : b),
+  })),
+
   // 加载
   loading: false,
   setLoading: (l) => set({ loading: l }),
@@ -116,22 +136,54 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   menuPos: null,
   setMenuPos: (pos) => set({ menuPos: pos }),
 
-  // 审核
-  approveNode: (nodeId) => {
+  // 审核 — 乐观更新 + API 调用
+  approveNode: async (nodeId) => {
+    const { projectId, episodesId, nodes, showToast } = get()
+    if (!projectId || !episodesId) return
+
+    // 乐观更新
     set((state) => ({
       nodes: state.nodes.map((n) =>
         n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: 'approved' } } : n
       ),
     }))
-    get().showToast(`审核通过: ${nodeId}`, 'success')
+
+    try {
+      await apiApproveNode(projectId, episodesId, nodeId)
+      showToast(`审核通过: ${nodeId}`, 'success')
+    } catch (err) {
+      // 回滚
+      set((state) => ({
+        nodes: state.nodes.map((n) =>
+          n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: nodes.find(nn => nn.id === nodeId)?.data?.reviewStatus ?? 'awaiting_audit' } } : n
+        ),
+      }))
+      showToast(`审核失败: ${(err as Error).message}`, 'error')
+    }
   },
-  rejectNode: (nodeId) => {
+  rejectNode: async (nodeId, feedback) => {
+    const { projectId, episodesId, nodes, showToast } = get()
+    if (!projectId || !episodesId) return
+
+    // 乐观更新
     set((state) => ({
       nodes: state.nodes.map((n) =>
         n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: 'rejected' } } : n
       ),
     }))
-    get().showToast(`已驳回: ${nodeId}`, 'warning')
+
+    try {
+      await apiRejectNode(projectId, episodesId, nodeId, feedback ?? '')
+      showToast(`已驳回: ${nodeId}`, 'warning')
+    } catch (err) {
+      // 回滚
+      set((state) => ({
+        nodes: state.nodes.map((n) =>
+          n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: nodes.find(nn => nn.id === nodeId)?.data?.reviewStatus ?? 'awaiting_audit' } } : n
+        ),
+      }))
+      showToast(`驳回失败: ${(err as Error).message}`, 'error')
+    }
   },
   selectWinner: (nodeId) => {
     const { nodes, edges, setEdges, showToast } = get()
@@ -159,6 +211,39 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       return e
     }))
     showToast(`已选为优胜: ${nodeId}`, 'success')
+  },
+
+  // 分支操作
+  selectBranchAsMain: (branchId) => {
+    const { branches, updateBranch, showToast } = get()
+    const target = branches.find((b) => b.id === branchId)
+    if (!target) {
+      showToast('分支不存在', 'error')
+      return
+    }
+    // 将其他 active 分支标记为 archived，目标分支设为 active
+    branches.forEach((b) => {
+      if (b.id === branchId) {
+        updateBranch(b.id, { status: 'active' })
+      } else if (b.status === 'active') {
+        updateBranch(b.id, { status: 'archived' })
+      }
+    })
+    showToast(`已升为主线: ${target.label}`, 'success')
+  },
+  archiveBranch: (branchId) => {
+    const { branches, updateBranch, showToast } = get()
+    const target = branches.find((b) => b.id === branchId)
+    if (!target) {
+      showToast('分支不存在', 'error')
+      return
+    }
+    if (target.status === 'active') {
+      showToast('不能归档当前主线分支', 'warning')
+      return
+    }
+    updateBranch(branchId, { status: 'archived' })
+    showToast(`已归档: ${target.label}`, 'info')
   },
 
   // Toast

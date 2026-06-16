@@ -2,6 +2,7 @@ import { memo } from 'react'
 import { BaseEdge, getBezierPath, type EdgeProps } from '@xyflow/react'
 import { edgeTypeColors } from '../../utils/styles'
 import { theme } from '../../theme/catppuccin'
+import { getBranchColor } from '../../theme/branchColors'
 
 function CanvasEdgeComponent(props: EdgeProps) {
   const [edgePath] = getBezierPath({
@@ -13,9 +14,9 @@ function CanvasEdgeComponent(props: EdgeProps) {
     targetPosition: props.targetPosition,
   })
 
-  const data = props.data as { dataType?: string; isInactive?: boolean } | undefined
+  const data = props.data as { dataType?: string; isInactive?: boolean; branchId?: string; isExplore?: boolean } | undefined
   const dataType = data?.dataType ?? 'data'
-  const color = edgeTypeColors[dataType] ?? edgeTypeColors.data
+  const branchColor = getBranchColor(data?.branchId, data?.isExplore)
 
   if (data?.isInactive) {
     return (
@@ -31,6 +32,24 @@ function CanvasEdgeComponent(props: EdgeProps) {
       />
     )
   }
+
+  if (data?.isExplore) {
+    return (
+      <BaseEdge
+        id={props.id}
+        path={edgePath}
+        style={{
+          stroke: branchColor.line,
+          strokeWidth: 2,
+          strokeDasharray: '8 4',
+        }}
+      />
+    )
+  }
+
+  const color = (data?.branchId && data?.branchId !== 'main')
+    ? branchColor.line
+    : edgeTypeColors[dataType] ?? edgeTypeColors.data
 
   return (
     <BaseEdge
