@@ -114,6 +114,91 @@ router.post(
   },
 );
 
+/** 批量创建/更新节点（upsert） */
+router.patch(
+  "/batch",
+  validateFields({
+    projectId: z.number(),
+    episodesId: z.number(),
+    nodes: z
+      .array(
+        z.object({
+          id: z.string(),
+          type: z.enum([
+            "script", "asset", "storyboard", "video", "audio",
+            "3d", "variant", "reference", "upscale", "face_restore",
+            "suggestion",
+          ]),
+          branchId: z.string(),
+          phaseIndex: z.number().int().min(0),
+          phaseName: z.string(),
+          position: z.object({ x: z.number(), y: z.number() }),
+          size: z.object({ width: z.number(), height: z.number() }),
+          data: z.record(z.string(), z.any()),
+          state: z.enum(["idle", "pending", "running", "success", "error", "skipped"]),
+          reviewStatus: z.enum(["pending", "approved", "rejected"]).optional(),
+          aiScore: z.any().optional(),
+          isWinner: z.boolean().optional(),
+          rejectReason: z.string().optional(),
+          suggestion: z.string().optional(),
+          variantOf: z.string().optional(),
+          variantGroupId: z.string().optional(),
+        }),
+      )
+      .min(1),
+  }),
+  async (req, res) => {
+    const { projectId, episodesId, nodes: nodeInputs } = req.body;
+
+    try {
+      const graph = await loadGraph(projectId, episodesId);
+      if (!graph) {
+        return res.status(404).send(error("画布数据不存在，请先保存 v2 FlowGraph"));
+      }
+
+      const branchIds = new Set(graph.branches.map((b) => b.id));
+      for (const nodeInput of nodeInputs) {
+        if (!branchIds.has(nodeInput.branchId)) {
+          return res.status(400).send(error(`分支 ${nodeInput.branchId} 不存在`));
+        }
+      }
+
+      const added: FlowNodeV2[] = [];
+      const updated: FlowNodeV2[] = [];
+
+      for (const nodeInput of nodeInputs) {
+        const existingIdx = graph.nodes.findIndex((n) => n.id === nodeInput.id);
+        if (existingIdx >= 0) {
+          Object.assign(graph.nodes[existingIdx], nodeInput);
+          updated.push(graph.nodes[existingIdx]);
+          broadcastToProject(projectId, "node:updated", {
+            node: graph.nodes[existingIdx],
+            changedFields: Object.keys(nodeInput),
+          });
+        } else {
+          const node: FlowNodeV2 = { ...nodeInput } as FlowNodeV2;
+          graph.nodes.push(node);
+          added.push(node);
+          broadcastToProject(projectId, "node:created", { node });
+        }
+      }
+
+      await saveGraph(projectId, episodesId, graph);
+
+      return res.status(200).send(
+        success({
+          added: added.length,
+          updated: updated.length,
+          nodes: [...added, ...updated],
+        }),
+      );
+    } catch (err) {
+      console.error("[v2/canvas/nodes/batch] 批量操作失败:", err);
+      return res.status(500).send(error("批量操作失败"));
+    }
+  },
+);
+
 /** 更新节点 */
 router.patch(
   "/:nodeId",
