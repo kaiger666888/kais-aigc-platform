@@ -113,6 +113,14 @@ function VideoNodeComponent({ data, id }: NodeProps<VideoNodeType>) {
 
       <Handle type="target" position={Position.Left} style={{ background: theme.handle.video, width: 8, height: 8 }} />
 
+      {/* 多对一引用：第二个 target Handle，y 偏移 +30，灰色 */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="ref-input"
+        style={{ background: theme.text.disabled, width: 8, height: 8, top: 'calc(50% + 30px)' }}
+      />
+
       <ReviewActionButtons
         reviewStatus={data.reviewStatus}
         onApprove={() => approveNode(id)}

@@ -89,6 +89,14 @@ function StoryboardNodeComponent({ data, id }: NodeProps<StoryboardNodeType>) {
       <ScoreMiniBar score={data.aiScore as any} />
 
       <Handle type="source" position={Position.Right} style={{ background: theme.handle.storyboard, width: 8, height: 8 }} />
+
+      {/* 多对一引用：第二个 source Handle，y 偏移 +30，灰色 */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="ref-output"
+        style={{ background: theme.text.disabled, width: 8, height: 8, top: 'calc(50% + 30px)' }}
+      />
     </div>
   )
 }
