@@ -217,23 +217,38 @@ export function canvasToFlowGraph(
   viewport?: { x: number; y: number; zoom: number },
 ): FlowGraph {
   return {
-    nodes: nodes.map((n) => ({
-      id: n.id,
-      type: (n.data as any)?.type ?? n.type ?? 'asset',
-      position: n.position,
-      size: { width: NODE_SIZES.defaultPersistSize.width, height: NODE_SIZES.defaultPersistSize.height },
-      data: n.data as Record<string, unknown>,
-      state: (n.data as any)?.state ?? 'idle',
-      progress: (n.data as any)?.progress,
-    })),
-    links: edges.map((e) => ({
-      id: e.id,
-      source: e.source,
-      sourceHandle: e.sourceHandle ?? undefined,
-      target: e.target,
-      targetHandle: e.targetHandle ?? undefined,
-      dataType: (e.data as any)?.dataType ?? 'data',
-    })),
+    nodes: nodes.map((n) => {
+      const d = n.data as any
+      return {
+        id: n.id,
+        type: d?.type ?? n.type ?? 'asset',
+        position: n.position,
+        size: { width: NODE_SIZES.defaultPersistSize.width, height: NODE_SIZES.defaultPersistSize.height },
+        data: n.data as Record<string, unknown>,
+        state: d?.state ?? 'idle',
+        progress: d?.progress,
+        // 分支字段：节点 data → FlowGraphNode 顶层（持久化）
+        branchId: d?.branchId,
+        phaseIndex: d?.phaseIndex,
+        phaseName: d?.phaseName,
+        suggestion: d?.suggestion,
+        variantOf: d?.variantOf,
+      }
+    }),
+    links: edges.map((e) => {
+      const d = e.data as any
+      return {
+        id: e.id,
+        source: e.source,
+        sourceHandle: e.sourceHandle ?? undefined,
+        target: e.target,
+        targetHandle: e.targetHandle ?? undefined,
+        dataType: d?.dataType ?? 'data',
+        branchId: d?.branchId,
+        isExplore: d?.isExplore,
+        isInactive: d?.isInactive,
+      }
+    }),
     groups: [],
     viewport,
   }
@@ -249,6 +264,12 @@ export function flowGraphToCanvas(graph: FlowGraph): { nodes: Node[]; edges: Edg
       ...gn.data,
       state: gn.state,
       progress: gn.progress,
+      // 分支字段：FlowGraphNode 顶层 → 节点 data（供渲染器读取）
+      branchId: gn.branchId,
+      phaseIndex: gn.phaseIndex,
+      phaseName: gn.phaseName,
+      suggestion: gn.suggestion,
+      variantOf: gn.variantOf,
     },
   }))
 
@@ -258,7 +279,12 @@ export function flowGraphToCanvas(graph: FlowGraph): { nodes: Node[]; edges: Edg
     sourceHandle: gl.sourceHandle,
     target: gl.target,
     targetHandle: gl.targetHandle,
-    data: { dataType: gl.dataType },
+    data: {
+      dataType: gl.dataType,
+      branchId: gl.branchId,
+      isExplore: gl.isExplore,
+      isInactive: gl.isInactive,
+    },
   }))
 
   return { nodes, edges }
