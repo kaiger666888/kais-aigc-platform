@@ -15,6 +15,7 @@ import route11 from "./routes/assets/delAssets";
 import route12 from "./routes/assets/delImage";
 import route13 from "./routes/assets/getAssetsApi";
 import route14 from "./routes/assets/getImage";
+import route15_asset_upload from "./routes/assets/uploadImage";
 import route15 from "./routes/assets/getMaterialData";
 import route16 from "./routes/assets/pollingImageAssets";
 import route17 from "./routes/assets/pollingPromptAssets";
@@ -242,6 +243,12 @@ import route238 from "./routes/v1/skills/register";
 import route239 from "./routes/v1/skills/get";
 import route240 from "./routes/v1/skills/node-types";
 import route241 from "./routes/v1/skills/phases";
+import v2_canvas_nodes from "./routes/canvas/v2/nodes";
+import v2_canvas_branches from "./routes/canvas/v2/branches";
+import v2_canvas_links from "./routes/canvas/v2/links";
+import v2_canvas_load from "./routes/canvas/v2/load-v2";
+import v2_canvas_save from "./routes/canvas/v2/save-v2";
+import v2_canvas_layout from "./routes/canvas/v2/layout";
 
 export default async (app: Express) => {
   app.use("/api/agents/clearMemory", route1);
@@ -258,6 +265,7 @@ export default async (app: Express) => {
   app.use("/api/assets/delImage", route12);
   app.use("/api/assets/getAssetsApi", route13);
   app.use("/api/assets/getImage", route14);
+  app.use("/api/assets/uploadImage", route15_asset_upload);
   app.use("/api/assets/getMaterialData", route15);
   app.use("/api/assets/pollingImageAssets", route16);
   app.use("/api/assets/pollingPromptAssets", route17);
@@ -489,4 +497,12 @@ export default async (app: Express) => {
   app.use("/api/v1/skills/:skillId", route239); // get      — GET /:skillId
   app.use("/api/v1/skills/:skillId", route240); // node-types — GET /:skillId/node-types
   app.use("/api/v1/skills/:skillId", route241); // phases     — GET /:skillId/phases
+
+  // ─── Canvas API v2 ────────────────────────────
+  app.use("/api/v2/canvas/nodes", v2_canvas_nodes);
+  app.use("/api/v2/canvas/branches", v2_canvas_branches);
+  app.use("/api/v2/canvas/links", v2_canvas_links);
+  app.use("/api/v2/canvas/load", v2_canvas_load);
+  app.use("/api/v2/canvas/save", v2_canvas_save);
+  app.use("/api/v2/canvas/layout", v2_canvas_layout);
 }

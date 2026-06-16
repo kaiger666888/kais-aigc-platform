@@ -3,6 +3,7 @@ import u from "@/utils";
 import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
+import { broadcastToProject } from "@/utils/ws";
 const router = express.Router();
 
 /** 驳回节点 */
@@ -56,6 +57,8 @@ export default router.post(
             updateTime: Date.now(),
           });
       }
+
+      broadcastToProject(projectId, "review:rejected", { nodeId, reason, timestamp: Date.now() });
 
       return res.status(200).send(success());
     } catch (err) {

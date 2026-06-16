@@ -3,6 +3,7 @@ import u from "@/utils";
 import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
+import { broadcastToProject } from "@/utils/ws";
 const router = express.Router();
 
 /** 审核通过节点 */
@@ -61,6 +62,8 @@ export default router.post(
             updateTime: Date.now(),
           });
       }
+
+      broadcastToProject(projectId, "review:approved", { nodeId, winnerId, timestamp: Date.now() });
 
       return res.status(200).send(success());
     } catch (err) {
