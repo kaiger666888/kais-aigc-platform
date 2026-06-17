@@ -1,0 +1,6 @@
+node_modules/
+dist/
+test-results/
+playwright-report/
+test/e2e/results/html/
+test/e2e/results/test-results.json

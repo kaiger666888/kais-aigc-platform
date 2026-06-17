@@ -1,6 +1,21 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import FlowCanvas from './components/FlowCanvas'
+import { useCanvasStore } from './store/canvasStore'
+
+// Test mode hook — 当 URL 含 ?testMode=1 时,挂载 store 控制接口到 window。
+// 用于 Playwright 测试在不依赖 React Flow 复杂 selection 模型的前提下驱动状态。
+// 仅在显式 testMode 下激活,production bundle 默认 noop。
+if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('testMode')) {
+  ;(window as any).__kaisCanvas = {
+    setSelectedNodeIds: (ids: string[]) => useCanvasStore.getState().setSelectedNodeIds(ids),
+    getSelectedNodeIds: () => useCanvasStore.getState().selectedNodeIds,
+    getOrchestration: () => useCanvasStore.getState().orchestration,
+    getNodes: () => useCanvasStore.getState().nodes,
+    showToast: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') =>
+      useCanvasStore.getState().showToast(msg, type),
+  }
+}
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
