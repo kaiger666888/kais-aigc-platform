@@ -273,6 +273,18 @@ export async function orchestrateCanvas(
   return json.data
 }
 
+// ─── 分镜构图预览 (Phase 38, Tier 2) ──────────────────────
+
+/** Phase 38 — 触发分镜构图预览 (仅 storyboard-* 节点) */
+export async function previewStoryboard(
+  projectId: number,
+  episodesId: number,
+  nodeId: string,
+  cancelToken?: CancelToken,
+): Promise<void> {
+  await apiCall<void>('/canvas/storyboard/preview', { projectId, episodesId, nodeId }, { cancelToken })
+}
+
 // ─── 审核 ─────────────────────────────────────────────
 
 /** 审核通过 */

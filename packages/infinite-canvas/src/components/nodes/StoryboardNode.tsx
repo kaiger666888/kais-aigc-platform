@@ -4,6 +4,7 @@ import type { StoryboardNodeData, NodeState, RoutingDecision, CameraMovement, Fr
 import { stateColors, getNodeBorderColor, getNodeContainerStyle } from '../../utils/styles'
 import { theme } from '../../theme/catppuccin'
 import { NODE_SIZES, METADATA_LABELS, METADATA_FIELD_ORDER } from '../../constants'
+import { previewStoryboard } from '../../services/canvasApi'
 import ScoreBadge from '../ScoreBadge'
 import ScoreMiniBar from '../ScoreMiniBar'
 import ReviewActionButtons from '../ReviewActionButtons'
@@ -15,6 +16,7 @@ type StoryboardNodeType = Node<StoryboardNodeData, 'storyboard'>
 function StoryboardNodeComponent({ data, id }: NodeProps<StoryboardNodeType>) {
   const approveNode = useCanvasStore((s) => s.approveNode)
   const rejectNode = useCanvasStore((s) => s.rejectNode)
+  const showToast = useCanvasStore((s) => s.showToast)
 
   return (
     <div style={{
@@ -88,6 +90,9 @@ function StoryboardNodeComponent({ data, id }: NodeProps<StoryboardNodeType>) {
       {/* Phase 35 — 镜头意图元数据 chips */}
       <MetadataChips data={data} />
 
+      {/* Phase 38 — 构图预览按钮 */}
+      <PreviewButton data={data} nodeId={id} showToast={showToast} />
+
       <ScoreBadge score={data.aiScore?.overall as number | null | undefined} routingDecision={data.routingDecision as RoutingDecision | undefined} />
       <ScoreMiniBar score={data.aiScore as any} />
 
@@ -97,6 +102,57 @@ function StoryboardNodeComponent({ data, id }: NodeProps<StoryboardNodeType>) {
 }
 
 const catppuccinGold = '#f9e2af'
+
+function PreviewButton({
+  data,
+  nodeId,
+  showToast,
+}: {
+  data: StoryboardNodeData
+  nodeId: string
+  showToast: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void
+}) {
+  const linkedIds = Array.isArray(data.linkedAssetIds) ? (data.linkedAssetIds as number[]) : []
+  const hasPrompt = !!(data.prompt as string)?.trim()
+  const canPreview = linkedIds.length > 0 && hasPrompt
+
+  const handleClick = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const { projectId, episodesId } = useCanvasStore.getState()
+    if (!projectId || !episodesId) {
+      showToast('未选中项目', 'warning')
+      return
+    }
+    try {
+      await previewStoryboard(projectId, episodesId, nodeId)
+      showToast('预览生成中...', 'info')
+    } catch (err: any) {
+      showToast(err.message || '预览触发失败', 'error')
+    }
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={!canPreview}
+      title={canPreview ? '基于 prompt 和关联资产生成静态构图预览' : '需先关联资产并填写 prompt'}
+      style={{
+        width: '100%',
+        padding: '4px 8px',
+        borderRadius: 4,
+        background: canPreview ? theme.bg.surface : theme.bg.panel,
+        color: canPreview ? theme.text.primary : theme.text.disabled,
+        border: `1px solid ${theme.border.subtle}`,
+        fontSize: 10,
+        cursor: canPreview ? 'pointer' : 'not-allowed',
+        marginTop: 4,
+        opacity: canPreview ? 1 : 0.6,
+      }}
+    >
+      👁 预览构图
+    </button>
+  )
+}
 
 function MetadataChips({ data }: { data: StoryboardNodeData }) {
   const chips: string[] = []
