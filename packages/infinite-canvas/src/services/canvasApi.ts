@@ -245,6 +245,34 @@ export async function executeNode(
   await apiCall<void>('/canvas/execute', { projectId, episodesId, nodeId, nodeType }, { cancelToken })
 }
 
+// ─── 一键成片 / 批量执行 (Phase 36/37) ───────────────────
+
+export interface OrchestrateResponse {
+  runId: string
+  total: number
+  skipped?: number
+  mode: 'full' | 'batch'
+}
+
+/**
+ * Phase 36 — 触发一键成片或批量执行。
+ *  - 不传 nodeIds → 全画布按拓扑序执行 (Phase 36)
+ *  - 传 nodeIds   → 仅执行指定子集 (Phase 37 批量执行)
+ */
+export async function orchestrateCanvas(
+  projectId: number,
+  episodesId: number,
+  nodeIds?: string[],
+  cancelToken?: CancelToken,
+): Promise<OrchestrateResponse> {
+  const json = await apiCall<{ data: OrchestrateResponse }>(
+    '/canvas/orchestrate',
+    { projectId, episodesId, ...(nodeIds && nodeIds.length > 0 ? { nodeIds } : {}) },
+    { cancelToken },
+  )
+  return json.data
+}
+
 // ─── 审核 ─────────────────────────────────────────────
 
 /** 审核通过 */

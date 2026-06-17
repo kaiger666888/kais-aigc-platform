@@ -55,6 +55,35 @@ interface CanvasState {
   toasts: ToastItem[]
   showToast: (message: string, type?: ToastItem['type']) => void
   dismissToast: (id: number) => void
+
+  // Phase 36 — 一键成片 / Phase 37 批量执行
+  orchestration: OrchestrationState
+  startOrchestration: (runId: string, total: number, mode: 'full' | 'batch') => void
+  updateOrchestrationProgress: (p: Partial<OrchestrationState>) => void
+  finishOrchestration: (result: { completed: number; total: number; failed: number; failedNodes: string[]; mode: 'full' | 'batch' }) => void
+  resetOrchestration: () => void
+}
+
+export interface OrchestrationState {
+  status: 'idle' | 'running' | 'done' | 'error'
+  runId: string | null
+  mode: 'full' | 'batch'
+  completed: number
+  total: number
+  failed: number
+  currentNodeId: string | null
+  failedNodes: string[]
+}
+
+const INITIAL_ORCHESTRATION: OrchestrationState = {
+  status: 'idle',
+  runId: null,
+  mode: 'full',
+  completed: 0,
+  total: 0,
+  failed: 0,
+  currentNodeId: null,
+  failedNodes: [],
 }
 
 let nextToastId = 0
@@ -180,4 +209,26 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     }
     set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }))
   },
+
+  // Phase 36/37 — 编排状态
+  orchestration: INITIAL_ORCHESTRATION,
+  startOrchestration: (runId, total, mode) => set({
+    orchestration: { ...INITIAL_ORCHESTRATION, status: 'running', runId, total, mode },
+  }),
+  updateOrchestrationProgress: (p) => set((state) => ({
+    orchestration: { ...state.orchestration, ...p, status: 'running' },
+  })),
+  finishOrchestration: (result) => set((state) => ({
+    orchestration: {
+      ...state.orchestration,
+      status: result.failed > 0 ? 'done' : 'done',
+      completed: result.completed,
+      total: result.total,
+      failed: result.failed,
+      failedNodes: result.failedNodes,
+      mode: result.mode,
+      currentNodeId: null,
+    },
+  })),
+  resetOrchestration: () => set({ orchestration: INITIAL_ORCHESTRATION }),
 }))

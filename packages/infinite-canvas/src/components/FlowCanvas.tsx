@@ -29,7 +29,7 @@ import type { NodeState } from '../types/canvas'
 import { useCanvasStore } from '../store/canvasStore'
 import { ToastContainer } from '../hooks/useToast'
 import { flowGraphToCanvas, canvasToFlowGraph } from '../utils/flowDataMapper'
-import { loadCanvasGraph, saveCanvasGraph, convertProjectData, fetchSkillNodeTypes } from '../services/canvasApi'
+import { loadCanvasGraph, saveCanvasGraph, convertProjectData, fetchSkillNodeTypes, orchestrateCanvas } from '../services/canvasApi'
 import { useCanvasSocket } from '../hooks/useCanvasSocket'
 import { theme, miniMapNodeColors } from '../theme/catppuccin'
 import { LAYOUT, VIEWPORT } from '../constants'
@@ -109,6 +109,12 @@ function CanvasInner() {
   const dismissToast = useCanvasStore((s) => s.dismissToast)
   const selectWinner = useCanvasStore((s) => s.selectWinner)
 
+  // Phase 36 — 编排状态
+  const orchestration = useCanvasStore((s) => s.orchestration)
+  const startOrchestration = useCanvasStore((s) => s.startOrchestration)
+  const updateOrchestrationProgress = useCanvasStore((s) => s.updateOrchestrationProgress)
+  const finishOrchestration = useCanvasStore((s) => s.finishOrchestration)
+
   const initialParams = getInitialParams()
 
   const { connected } = useCanvasSocket({
@@ -138,6 +144,31 @@ function CanvasInner() {
         position: { x: LAYOUT.NEW_NODE_X_MIN + Math.random() * LAYOUT.NEW_NODE_X_RANGE, y: LAYOUT.NEW_NODE_Y_MIN + Math.random() * LAYOUT.NEW_NODE_Y_RANGE },
         data,
       }])
+    },
+    onOrchestrateStart: (p) => {
+      startOrchestration(p.runId, p.total, p.mode)
+      showToast(p.mode === 'batch' ? `批量执行开始 (${p.total} 个节点)` : `一键成片开始 (${p.total} 个节点)`, 'info')
+    },
+    onOrchestrateProgress: (p) => {
+      updateOrchestrationProgress({
+        completed: p.completed,
+        total: p.total,
+        failed: p.failed,
+        currentNodeId: p.currentNodeId,
+        runId: p.runId,
+        mode: p.mode,
+      })
+    },
+    onOrchestrateDone: (p) => {
+      finishOrchestration({
+        completed: p.completed, total: p.total, failed: p.failed, failedNodes: p.failedNodes, mode: p.mode,
+      })
+      const label = p.mode === 'batch' ? '批量执行完成' : '一键成片完成'
+      if (p.failed > 0) {
+        showToast(`${label} (${p.completed}/${p.total} 成功,${p.failed} 失败): ${p.failedNodes.join(', ')}`, 'warning')
+      } else {
+        showToast(`${label} (${p.completed}/${p.total} 节点成功)`, 'success')
+      }
     },
   })
 
@@ -224,6 +255,23 @@ function CanvasInner() {
       setSaving(false)
     }
   }, [nodes, edges, projectId, episodesId, reactFlow, setSaving])
+
+  // Phase 36 — 一键成片编排触发
+  const handleOrchestrate = useCallback(async () => {
+    if (!projectId || !episodesId) return
+    if (orchestration.status === 'running') return
+    try {
+      // 先保存当前画布,确保编排器读到最新数据
+      const viewport = reactFlow.getViewport()
+      const graph = canvasToFlowGraph(nodes as any, edges as any, viewport)
+      await saveCanvasGraph(projectId, episodesId, graph)
+      // 触发编排 (mode='full',不传 nodeIds)
+      await orchestrateCanvas(projectId, episodesId)
+      // 状态由 WebSocket orchestrate:start 推送后正式进入 running
+    } catch (err: any) {
+      showToast(err.message || '一键成片触发失败', 'error')
+    }
+  }, [projectId, episodesId, orchestration.status, nodes, edges, reactFlow, showToast])
 
   const miniMapNodeColor = useCallback((node: any) => {
     return miniMapNodeColors[node.type || ''] ?? theme.border.dim
@@ -320,13 +368,41 @@ function CanvasInner() {
             style={{ background: theme.bg.card, border: `1px solid ${theme.border.default}`, borderRadius: 8 }}
           />
 
-          <Panel position="top-left" style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+          <Panel position="top-left" style={{ display: 'flex', gap: 8, marginTop: 4, alignItems: 'center' }}>
             <ToolbarButton onClick={handleSave} disabled={saving || !projectId}>
               {saving ? '保存中...' : '💾 保存'}
             </ToolbarButton>
             <ToolbarButton onClick={() => reactFlow.fitView({ padding: VIEWPORT.fitViewPadding })}>
               🔍 适配视图
             </ToolbarButton>
+            {/* Phase 36 — 一键成片 */}
+            <ToolbarButton
+              onClick={handleOrchestrate}
+              disabled={orchestration.status === 'running' || !projectId || nodes.length === 0}
+              accent
+            >
+              {orchestration.status === 'running'
+                ? `🚀 运行中 (${orchestration.completed}/${orchestration.total})`
+                : orchestration.status === 'done' && orchestration.total > 0
+                ? `🚀 完成 (${orchestration.completed}/${orchestration.total})`
+                : '🚀 一键成片'}
+            </ToolbarButton>
+            {orchestration.status === 'running' && orchestration.total > 0 && (
+              <div style={{
+                width: 120,
+                height: 6,
+                borderRadius: 3,
+                background: theme.bg.surface,
+                overflow: 'hidden',
+              }}>
+                <div style={{
+                  width: `${(orchestration.completed / orchestration.total) * 100}%`,
+                  height: '100%',
+                  background: theme.status.connected,
+                  transition: 'width 0.3s ease',
+                }} />
+              </div>
+            )}
           </Panel>
 
           {/* 空状态引导 */}
@@ -374,20 +450,21 @@ function CanvasInner() {
   )
 }
 
-function ToolbarButton({ onClick, children, disabled }: { onClick: () => void; children: React.ReactNode; disabled?: boolean }) {
+function ToolbarButton({ onClick, children, disabled, accent }: { onClick: () => void; children: React.ReactNode; disabled?: boolean; accent?: boolean }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
       style={{
-        background: theme.bg.card,
-        color: disabled ? theme.text.disabled : theme.text.primary,
-        border: `1px solid ${theme.border.default}`,
+        background: accent && !disabled ? theme.button.primary : theme.bg.card,
+        color: accent && !disabled ? theme.text.onAccent : (disabled ? theme.text.disabled : theme.text.primary),
+        border: `1px solid ${accent && !disabled ? theme.button.primary : theme.border.default}`,
         borderRadius: 6,
         padding: '6px 12px',
         fontSize: 12,
         cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.6 : 1,
+        fontWeight: accent ? 600 : 400,
       }}
     >
       {children}
