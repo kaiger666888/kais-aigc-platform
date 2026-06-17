@@ -64,4 +64,31 @@
 
 ## Traceability
 
-填入 roadmap 创建完成后。每个 REQ-ID 映射到唯一 phase。
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| STORYBOARD-01 | Phase 35 | Pending |
+| STORYBOARD-02 | Phase 35 | Pending |
+| STORYBOARD-03 | Phase 35 | Pending |
+| STORYBOARD-04 | Phase 35 | Pending |
+| STORYBOARD-05 | Phase 35 | Pending |
+| STORYBOARD-06 | Phase 35 | Pending |
+| STORYBOARD-07 | Phase 35 | Pending |
+| ORCHESTRATE-01 | Phase 36 | Pending |
+| ORCHESTRATE-02 | Phase 36 | Pending |
+| ORCHESTRATE-03 | Phase 36 | Pending |
+| ORCHESTRATE-04 | Phase 36 | Pending |
+| ORCHESTRATE-05 | Phase 36 | Pending |
+| ORCHESTRATE-06 | Phase 36 | Pending |
+| ORCHESTRATE-07 | Phase 36 | Pending |
+| BATCH-01 | Phase 37 | Pending |
+| BATCH-02 | Phase 37 | Pending |
+| BATCH-03 | Phase 37 | Pending |
+| BATCH-04 | Phase 37 | Pending |
+| BATCH-05 | Phase 37 | Pending |
+| PREVIEW-01 | Phase 38 | Pending (Tier 2 optional) |
+| PREVIEW-02 | Phase 38 | Pending (Tier 2 optional) |
+| PREVIEW-03 | Phase 38 | Pending (Tier 2 optional) |
+| PREVIEW-04 | Phase 38 | Pending (Tier 2 optional) |
+| PREVIEW-05 | Phase 38 | Pending (Tier 2 optional) |
+
+**Coverage:** 24/24 v1.7 requirements mapped. No orphans. No duplicates.
