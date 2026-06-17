@@ -45,6 +45,9 @@ interface CanvasState {
   setSelectedNode: (node: Node | null) => void
   menuPos: { x: number; y: number; nodeId?: string } | null
   setMenuPos: (pos: { x: number; y: number; nodeId?: string } | null) => void
+  // Phase 37 — 多选节点 ID (用于批量执行)
+  selectedNodeIds: string[]
+  setSelectedNodeIds: (ids: string[]) => void
 
   // 审核操作
   approveNode: (nodeId: string) => void
@@ -144,6 +147,9 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   setSelectedNode: (node) => set({ selectedNode: node }),
   menuPos: null,
   setMenuPos: (pos) => set({ menuPos: pos }),
+  // Phase 37 — 多选
+  selectedNodeIds: [],
+  setSelectedNodeIds: (ids) => set({ selectedNodeIds: ids }),
 
   // 审核
   approveNode: (nodeId) => {

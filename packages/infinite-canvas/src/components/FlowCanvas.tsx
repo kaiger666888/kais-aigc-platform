@@ -103,6 +103,9 @@ function CanvasInner() {
   const setMenuPos = useCanvasStore((s) => s.setMenuPos)
   const selectedNode = useCanvasStore((s) => s.selectedNode)
   const setSelectedNode = useCanvasStore((s) => s.setSelectedNode)
+  // Phase 37 — 多选
+  const selectedNodeIds = useCanvasStore((s) => s.selectedNodeIds)
+  const setSelectedNodeIds = useCanvasStore((s) => s.setSelectedNodeIds)
 
   const showToast = useCanvasStore((s) => s.showToast)
   const toasts = useCanvasStore((s) => s.toasts)
@@ -233,6 +236,25 @@ function CanvasInner() {
     })
   }, [setMenuPos])
 
+  // Phase 37 — 空白画布右键 (用于多选后批量执行入口)
+  const onPaneContextMenu = useCallback((event: React.MouseEvent | MouseEvent) => {
+    event.preventDefault()
+    const container = document.querySelector('.react-flow')
+    const rect = container?.getBoundingClientRect()
+    const clientX = 'clientX' in event ? event.clientX : 0
+    const clientY = 'clientY' in event ? event.clientY : 0
+    setMenuPos({
+      x: clientX - (rect?.left ?? 0),
+      y: clientY - (rect?.top ?? 0),
+      nodeId: undefined,
+    })
+  }, [setMenuPos])
+
+  // Phase 37 — 跟踪多选状态
+  const onSelectionChange = useCallback((params: { nodes: any[] }) => {
+    setSelectedNodeIds(params.nodes.map((n) => n.id))
+  }, [setSelectedNodeIds])
+
   const onPaneClick = useCallback(() => {
     setMenuPos(null)
     setSelectedNode(null)
@@ -347,8 +369,10 @@ function CanvasInner() {
           edgeTypes={edgeTypes}
           defaultEdgeOptions={{ type: 'canvas' }}
           onNodeContextMenu={onNodeContextMenu}
+          onPaneContextMenu={onPaneContextMenu}
           onPaneClick={onPaneClick}
           onNodeClick={onNodeClick}
+          onSelectionChange={onSelectionChange}
           fitView={hasData}
           fitViewOptions={{ padding: VIEWPORT.fitViewPadding }}
           selectionOnDrag
@@ -433,6 +457,7 @@ function CanvasInner() {
               x={menuPos.x}
               y={menuPos.y}
               nodeId={menuPos.nodeId}
+              selectedNodeIds={selectedNodeIds}
               onClose={() => setMenuPos(null)}
               projectId={projectId}
               episodesId={episodesId}

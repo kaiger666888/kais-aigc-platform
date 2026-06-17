@@ -1,7 +1,8 @@
 import { useState, type JSX } from 'react'
 import type { AssetNodeData, StoryboardNodeData, VideoNodeData } from '../types/canvas'
-import { executeNode, approveNode, rejectNode, requestNodeScore } from '../services/canvasApi'
+import { executeNode, approveNode, rejectNode, requestNodeScore, orchestrateCanvas, saveCanvasGraph } from '../services/canvasApi'
 import { useCanvasStore } from '../store/canvasStore'
+import { canvasToFlowGraph } from '../utils/flowDataMapper'
 import { theme } from '../theme/catppuccin'
 import { LAYOUT } from '../constants'
 
@@ -9,6 +10,7 @@ interface CanvasContextMenuProps {
   x: number
   y: number
   nodeId?: string
+  selectedNodeIds?: string[]
   onClose: () => void
   projectId: number
   episodesId: number
@@ -19,10 +21,11 @@ type MenuItem = {
   icon: string
   action: () => void
   danger?: boolean
+  accent?: boolean
 }
 
 export default function CanvasContextMenu({
-  x, y, nodeId, onClose, projectId, episodesId,
+  x, y, nodeId, selectedNodeIds, onClose, projectId, episodesId,
 }: CanvasContextMenuProps) {
   const [showRejectInput, setShowRejectInput] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
@@ -87,6 +90,28 @@ export default function CanvasContextMenu({
     onClose()
   }
 
+  // Phase 37 — 批量执行多选节点
+  const handleBatchExecute = async () => {
+    const ids = selectedNodeIds ?? []
+    if (ids.length === 0) return
+    const { orchestration, showToast, nodes, edges } = useCanvasStore.getState()
+    if (orchestration.status === 'running') {
+      showToast('已有运行中的任务,请等待完成', 'warning')
+      onClose()
+      return
+    }
+    try {
+      // 保存当前画布
+      await saveCanvasGraph(projectId, episodesId, canvasToFlowGraph(nodes as any, edges as any))
+      // 触发批量执行 (mode='batch')
+      await orchestrateCanvas(projectId, episodesId, ids)
+      showToast(`批量执行已触发 (${ids.length} 个节点)`, 'success')
+    } catch (err: any) {
+      showToast(err.message || '批量执行触发失败', 'error')
+    }
+    onClose()
+  }
+
   const handleApprove = async () => {
     if (!nodeId) return
     setNodes((nds) => nds.map((n) =>
@@ -122,6 +147,18 @@ export default function CanvasContextMenu({
   }
 
   const items: MenuItem[] = []
+
+  // Phase 37 — 多选时显示批量执行入口 (放在最顶部)
+  const multiSelectCount = (selectedNodeIds ?? []).length
+  if (multiSelectCount > 1) {
+    items.push({
+      label: `批量执行 (${multiSelectCount} 个节点)`,
+      icon: '⚡',
+      action: handleBatchExecute,
+      accent: true,
+    })
+    items.push({ label: '---', icon: '', action: () => {} })
+  }
 
   if (nodeId) {
     items.push(
@@ -196,16 +233,18 @@ export default function CanvasContextMenu({
               borderRadius: 4,
               cursor: 'pointer',
               fontSize: 12,
-              color: item.danger ? theme.status.rejected : theme.text.primary,
+              color: item.danger ? theme.status.rejected : (item.accent ? theme.text.onAccent : theme.text.primary),
+              background: item.accent ? theme.button.primary : 'transparent',
+              fontWeight: item.accent ? 600 : 400,
               display: 'flex',
               alignItems: 'center',
               gap: 8,
             }}
             onMouseEnter={(e) => {
-              (e.target as HTMLElement).style.background = theme.bg.surface
+              if (!item.accent) (e.target as HTMLElement).style.background = theme.bg.surface
             }}
             onMouseLeave={(e) => {
-              (e.target as HTMLElement).style.background = 'transparent'
+              if (!item.accent) (e.target as HTMLElement).style.background = 'transparent'
             }}
           >
             <span>{item.icon}</span>
