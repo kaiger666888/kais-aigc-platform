@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.6
-milestone_name: Workflow Skill Contract
-status: Awaiting next milestone
-stopped_at: v1.6 roadmap created. 7 phases (28-34) with 36 requirements mapped at 100% coverage. Serial chain 28→29→30; 31 and 32 parallelizable; 33 validation gate; 34 docs last.
-last_updated: "2026-06-15T15:30:16.842Z"
-last_activity: 2026-06-15 — Milestone v1.6 completed and archived
+milestone: v1.7
+milestone_name: Infinite Canvas Storyboard & Orchestration
+status: planning
+last_updated: "2026-06-17T15:57:30.076Z"
+last_activity: 2026-06-17
 progress:
-  total_phases: 7
-  completed_phases: 3
-  total_plans: 10
-  completed_plans: 9
-  percent: 43
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-06-15)
 
 ## Current Position
 
-Phase: Milestone v1.6 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-06-15 — Milestone v1.6 completed and archived
+Status: Defining requirements
+Last activity: 2026-06-17 — Milestone v1.7 started
 
 ## Performance Metrics
 

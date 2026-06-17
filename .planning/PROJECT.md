@@ -41,6 +41,23 @@ AI 短剧全链路制作平台，通过 kais-gold-team 统一执行引擎编排 
 - ✓ Canvas 节点类型动态化 + FallbackNode 兜底未知类型 — v1.6
 - ✓ movie-v1 install-ready manifest + Skill 作者文档 — v1.6
 
+## Current Milestone: v1.7 Infinite Canvas Storyboard & Orchestration
+
+**Goal:** 借鉴字节小云雀短剧 Agent 的核心差异化能力,增强无限画布——补齐分镜元数据(运镜/景别/构图/节奏)、引入"一键成片"全链路编排、解锁批量执行工作流。把零散的节点图升级为可"一键跑完"的完整短剧生产流水线。
+
+**Target features (借鉴自小云雀):**
+- **分镜元数据扩展** — Storyboard 节点新增 `cameraMovement`/`framing`/`composition`/`pacing` 字段,UI 展示为 chip,NodeDetailPanel 可编辑
+- **一键成片编排器** — 顶部 toolbar "🚀 一键成片" 按钮,按节点拓扑序(脚本→资产→分镜→视频→音频)自动批量执行整图
+- **批量执行** — 多选节点 + 右键"批量执行",并发触发(受 GPU 串行约束 → 内部仍走 GpuScheduler 队列)
+- **分镜预览**(Tier 2,如时间允许) — 分镜生成视频前展示静态构图预览卡片
+
+**Architecture decisions (v1.7):**
+1. Phase 编号延续 v1.6(Phase 35+)
+2. **借鉴范围聚焦 Tier 1** — 故事蓝图生成器(LLM 集成)与角色一致性管理(后端 schema 变更)推迟到 v1.8+,本期纯前端 + 后端编排扩展
+3. **元数据存储** — 沿用现有 `FlowGraph.data: Record<string, unknown>` 自由 schema,新字段加在 `StoryboardNodeData`,后端 `o_storyboard` 表通过 JSON column 扩展(不破坏现有 schema)
+4. **一键成片复用现有 executeNode** — 不引入新引擎,编排器在 canvas API 层循环触发,通过 WebSocket 推送进度
+5. **批量执行 = 多次 executeNode 调用** — 后端无并发,前端并行 fire-and-forget;GPU 串行由 GpuScheduler 兜底
+
 ### Active
 
 <!-- Next milestone (v1.7+) scope — to be defined via /gsd:new-milestone. -->
