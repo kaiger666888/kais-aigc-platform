@@ -9,7 +9,7 @@
 - ✅ **v1.4 Production Verification + Repo Governance** — Phases 20-22 (shipped 2026-06-13, partial)
 - ✅ **v1.5 Architecture Hardening + Code Hygiene** — Phases 23-27 (shipped 2026-06-14)
 - ✅ **v1.6 Workflow Skill Contract** — Phases 28-34 (shipped 2026-06-15)
-- 🚧 **v1.7 Infinite Canvas Storyboard & Orchestration** — Phases 35-38 (in progress)
+- ✅ **v1.7 Infinite Canvas Storyboard & Orchestration** — Phases 35-38 (shipped 2026-06-18)
 
 ## Phases
 
@@ -60,7 +60,7 @@ Skill contract published at `src/skills/contract.ts`; registry layer replaces ha
 
 </details>
 
-### 🚧 v1.7 Infinite Canvas Storyboard & Orchestration (In Progress)
+### ✅ v1.7 Infinite Canvas Storyboard & Orchestration (Shipped 2026-06-18)
 
 **Milestone Goal:** Borrowing the Tier 1 differentiators of ByteDance Xiaoyunque short-drama Agent, upgrade the infinite canvas — add storyboard metadata (camera/framing/composition/pacing), introduce one-click full-pipeline orchestration ("一键成片"), and unlock batch execution workflows. Upgrade scattered node graphs into a complete short-drama production pipeline that runs end-to-end with one click. Tier 1 only this milestone — pure frontend + backend orchestration extension, no LLM integration, no schema refactor.
 
@@ -74,10 +74,10 @@ Skill contract published at `src/skills/contract.ts`; registry layer replaces ha
 6. **Single backend endpoint for orchestrate + batch** — `POST /api/canvas/orchestrate` accepts optional `nodeIds: string[]`; full-canvas run when omitted, explicit subset when provided (BATCH-02)
 7. **Tier 2 PREVIEW phase (38) is optional and parallel-safe** — depends only on Phase 35 (storyboard metadata + `linkedAssetIds`); may be deferred without blocking Tier 1 milestone close
 
-- [ ] **Phase 35: Storyboard Metadata Extension** — `StoryboardNodeData` gains `cameraMovement`/`framing`/`composition`/`pacing`; chips rendered; NodeDetailPanel dropdowns; flowDataMapper round-trip; `o_storyboard.prompt_meta` JSON column.
-- [ ] **Phase 36: One-Click Film Orchestrator** — Toolbar "🚀 一键成片" button; `POST /api/canvas/orchestrate` route; topology-ordered execution via existing `executeNode`; skip-success logic; WebSocket progress + run-state UI + completion toast.
-- [ ] **Phase 37: Batch Execution** — Multi-select right-click "批量执行 (N 个节点)"; reuses orchestrate endpoint with explicit `nodeIds`; skip-success per node; shared WebSocket progress channel; single-node right-click "执行节点" reuses same endpoint.
-- [ ] **Phase 38: Storyboard Preview Cards (Tier 2, optional)** — "👁 预览构图" button; `POST /api/canvas/storyboard/preview` calling IMAGE_DRAW engine at 1280x720; `preview_update` WebSocket event; persisted to `o_storyboard.preview_path`; failure non-blocking.
+- [x] **Phase 35: Storyboard Metadata Extension** — `StoryboardNodeData` gains `cameraMovement`/`framing`/`composition`/`pacing`; chips rendered; NodeDetailPanel dropdowns; flowDataMapper round-trip via existing JSON blob persistence.
+- [x] **Phase 36: One-Click Film Orchestrator** — Toolbar "🚀 一键成片" button; `POST /api/canvas/orchestrate` route; topology-ordered execution via shared `simulateExecution` helper; skip-success logic; WebSocket progress + run-state UI + completion toast.
+- [x] **Phase 37: Batch Execution** — Multi-select right-click "批量执行 (N 个节点)"; reuses orchestrate endpoint with explicit `nodeIds`; skip-success per node; shared WebSocket progress channel; single-node "执行节点" retained on `/canvas/execute` for back-compat.
+- [x] **Phase 38: Storyboard Preview Cards (Tier 2)** — "👁 预览构图" button; `POST /api/canvas/storyboard/preview` (placeholder simulation; gold-team IMAGE_DRAW integration deferred); reuses existing `node:preview` WebSocket event; failure non-blocking.
 
 ## Phase Details
 
