@@ -1,9 +1,9 @@
 import { memo } from 'react'
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
-import type { StoryboardNodeData, NodeState, RoutingDecision } from '../../types/canvas'
+import type { StoryboardNodeData, NodeState, RoutingDecision, CameraMovement, Framing, Composition, Pacing } from '../../types/canvas'
 import { stateColors, getNodeBorderColor, getNodeContainerStyle } from '../../utils/styles'
 import { theme } from '../../theme/catppuccin'
-import { NODE_SIZES } from '../../constants'
+import { NODE_SIZES, METADATA_LABELS, METADATA_FIELD_ORDER } from '../../constants'
 import ScoreBadge from '../ScoreBadge'
 import ScoreMiniBar from '../ScoreMiniBar'
 import ReviewActionButtons from '../ReviewActionButtons'
@@ -85,6 +85,9 @@ function StoryboardNodeComponent({ data, id }: NodeProps<StoryboardNodeType>) {
         </div>
       )}
 
+      {/* Phase 35 — 镜头意图元数据 chips */}
+      <MetadataChips data={data} />
+
       <ScoreBadge score={data.aiScore?.overall as number | null | undefined} routingDecision={data.routingDecision as RoutingDecision | undefined} />
       <ScoreMiniBar score={data.aiScore as any} />
 
@@ -94,6 +97,39 @@ function StoryboardNodeComponent({ data, id }: NodeProps<StoryboardNodeType>) {
 }
 
 const catppuccinGold = '#f9e2af'
+
+function MetadataChips({ data }: { data: StoryboardNodeData }) {
+  const chips: string[] = []
+  for (const field of METADATA_FIELD_ORDER) {
+    const value = data[field] as CameraMovement | Framing | Composition | Pacing | undefined
+    if (value) {
+      const labels = METADATA_LABELS[field]
+      const label = (labels as Record<string, string>)[value as string]
+      if (label) chips.push(label)
+    }
+  }
+  if (chips.length === 0) return null
+  return (
+    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
+      {chips.map((label, i) => (
+        <span
+          key={i}
+          style={{
+            padding: '1px 6px',
+            borderRadius: 3,
+            background: theme.bg.panel,
+            border: `1px solid ${theme.border.subtle}`,
+            fontSize: 10,
+            color: theme.text.secondary,
+            fontWeight: 500,
+          }}
+        >
+          {label}
+        </span>
+      ))}
+    </div>
+  )
+}
 
 function StateBadge({ state }: { state: NodeState }) {
   const labels: Record<NodeState, string> = { idle: '待处理', pending: '等待中', running: '运行中', success: '完成', error: '失败', cached: '已缓存' }

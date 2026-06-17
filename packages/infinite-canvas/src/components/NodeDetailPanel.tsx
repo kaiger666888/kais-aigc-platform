@@ -1,8 +1,10 @@
 import { useState, useCallback } from 'react'
 import type { Node } from '@xyflow/react'
-import type { ScriptNodeData, AssetNodeData, StoryboardNodeData, VideoNodeData, NodeState, ReviewStatus } from '../types/canvas'
+import type { ScriptNodeData, AssetNodeData, StoryboardNodeData, VideoNodeData, NodeState, ReviewStatus, CameraMovement, Framing, Composition, Pacing } from '../types/canvas'
 import { stateColors } from '../utils/styles'
 import { theme, getScoreColor } from '../theme/catppuccin'
+import { METADATA_LABELS, METADATA_FIELD_ORDER } from '../constants'
+import { useCanvasStore } from '../store/canvasStore'
 
 type NodeData = ScriptNodeData | AssetNodeData | StoryboardNodeData | VideoNodeData
 
@@ -90,6 +92,7 @@ export default function NodeDetailPanel({ node, onClose }: Props) {
           )}
           {type === 'storyboard' && (
             <StoryboardDetail
+              nodeId={node.id}
               data={data as StoryboardNodeData}
               onImageClick={(src) => setLightboxSrc(src)}
             />
@@ -294,7 +297,7 @@ function AssetDetail({ data, onImageClick }: { data: AssetNodeData; onImageClick
   )
 }
 
-function StoryboardDetail({ data, onImageClick }: { data: StoryboardNodeData; onImageClick: (src: string) => void }) {
+function StoryboardDetail({ nodeId, data, onImageClick }: { nodeId: string; data: StoryboardNodeData; onImageClick: (src: string) => void }) {
   const fullImageUrl = (data.filePath as string) || (data.thumbnailUrl as string) || null
 
   return (
@@ -331,6 +334,10 @@ function StoryboardDetail({ data, onImageClick }: { data: StoryboardNodeData; on
       <div style={{ color: theme.text.primary, fontSize: 13 }}>
         {data.duration as number}秒
       </div>
+
+      {/* Phase 35 — 镜头意图元数据编辑器 */}
+      <SectionLabel>镜头意图</SectionLabel>
+      <MetadataEditor nodeId={nodeId} data={data} />
 
       {(data.prompt as string) && (
         <>
@@ -370,6 +377,61 @@ function StoryboardDetail({ data, onImageClick }: { data: StoryboardNodeData; on
         </>
       )}
     </>
+  )
+}
+
+const METADATA_FIELD_LABELS: Record<typeof METADATA_FIELD_ORDER[number], string> = {
+  cameraMovement: '运镜',
+  framing: '景别',
+  composition: '构图',
+  pacing: '节奏',
+}
+
+function MetadataEditor({ nodeId, data }: { nodeId: string; data: StoryboardNodeData }) {
+  const setNodes = useCanvasStore((s) => s.setNodes)
+
+  const setField = (field: typeof METADATA_FIELD_ORDER[number], value: string) => {
+    setNodes((nds) => nds.map((n) =>
+      n.id === nodeId
+        ? { ...n, data: { ...n.data, [field]: value || undefined } }
+        : n,
+    ))
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {METADATA_FIELD_ORDER.map((field) => {
+        const labels = METADATA_LABELS[field]
+        const currentValue = data[field] as string | undefined
+        return (
+          <div key={field} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 12, color: theme.text.secondary, minWidth: 36 }}>
+              {METADATA_FIELD_LABELS[field]}
+            </span>
+            <select
+              value={currentValue ?? ''}
+              onChange={(e) => setField(field, e.target.value)}
+              style={{
+                flex: 1,
+                padding: '6px 8px',
+                borderRadius: 6,
+                background: theme.bg.input,
+                border: `1px solid ${theme.border.subtle}`,
+                color: theme.text.primary,
+                fontSize: 12,
+                cursor: 'pointer',
+                outline: 'none',
+              }}
+            >
+              <option value="">— 未设置 —</option>
+              {Object.entries(labels).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </div>
+        )
+      })}
+    </div>
   )
 }
 

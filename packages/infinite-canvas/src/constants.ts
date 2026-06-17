@@ -41,3 +41,32 @@ export const VIEWPORT = {
   /** fitView 内边距 */
   fitViewPadding: 0.2,
 } as const
+
+/**
+ * Phase 35 — 分镜镜头意图元数据中文标签映射 (借鉴小云雀)。
+ * 用于 StoryboardNode 渲染器 chip 显示 + NodeDetailPanel 下拉编辑器选项。
+ */
+import type { CameraMovement, Framing, Composition, Pacing } from './types/canvas'
+
+export const METADATA_LABELS = {
+  cameraMovement: {
+    static: '固定', zoom_in: '推近', zoom_out: '拉远',
+    pan_left: '左摇', pan_right: '右摇',
+    tilt_up: '上仰', tilt_down: '下俯',
+    dolly: '推移', tracking: '跟随',
+  } as Record<CameraMovement, string>,
+  framing: {
+    wide: '远景', medium: '中景', close_up: '近景',
+    extreme_close_up: '特写', over_the_shoulder: '过肩', aerial: '航拍',
+  } as Record<Framing, string>,
+  composition: {
+    rule_of_thirds: '三分法', centered: '居中',
+    golden_ratio: '黄金比', symmetrical: '对称', leading_lines: '引导线',
+  } as Record<Composition, string>,
+  pacing: {
+    slow: '慢速', medium: '中速', fast: '快速', montage: '蒙太奇',
+  } as Record<Pacing, string>,
+} as const
+
+/** 渲染顺序 (chip 排序) */
+export const METADATA_FIELD_ORDER = ['cameraMovement', 'framing', 'composition', 'pacing'] as const

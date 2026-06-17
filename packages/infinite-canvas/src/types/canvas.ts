@@ -4,6 +4,12 @@ export type NodeState = 'idle' | 'pending' | 'running' | 'success' | 'error' | '
 /** 审核状态 */
 export type ReviewStatus = 'awaiting_audit' | 'approved' | 'rejected'
 
+/** Phase 35 — 分镜镜头意图元数据 (借鉴小云雀) */
+export type CameraMovement = 'static' | 'zoom_in' | 'zoom_out' | 'pan_left' | 'pan_right' | 'tilt_up' | 'tilt_down' | 'dolly' | 'tracking'
+export type Framing = 'wide' | 'medium' | 'close_up' | 'extreme_close_up' | 'over_the_shoulder' | 'aerial'
+export type Composition = 'rule_of_thirds' | 'centered' | 'golden_ratio' | 'symmetrical' | 'leading_lines'
+export type Pacing = 'slow' | 'medium' | 'fast' | 'montage'
+
 /** 路由决策 — 决定审核方式 */
 export type RoutingDecision = 'AUTO' | 'HUMAN' | 'AI_AUDIT' | 'BLOCK'
 
@@ -67,6 +73,11 @@ export interface StoryboardNodeData {
   thumbnailUrl: string | null
   state: NodeState
   linkedAssetIds: number[]
+  /** Phase 35 — 镜头意图元数据 */
+  cameraMovement?: CameraMovement
+  framing?: Framing
+  composition?: Composition
+  pacing?: Pacing
   reviewStatus?: ReviewStatus
   aiScore?: AIScore | null
   isWinner?: boolean
