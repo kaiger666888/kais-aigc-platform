@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.7
-milestone_name: Infinite Canvas Storyboard & Orchestration
-status: shipped
-last_updated: "2026-06-18T00:00:00.000Z"
-last_activity: 2026-06-18
+milestone: v1.8
+milestone_name: Canvas ↔ Movie-Agent V8.6 Adaptation
+status: in_progress
+last_updated: "2026-06-19T00:00:00.000Z"
+last_activity: 2026-06-19
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 4
-  completed_plans: 4
-  percent: 100
+  total_phases: 1
+  completed_phases: 0
+  total_plans: 1
+  completed_plans: 0
+  percent: 40
 ---
 
 # Project State
@@ -20,16 +20,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-17)
 
 **Core value:** AI creative production pipeline that runs end-to-end, pluggable across multiple creative workflows via a published skill contract.
-**Current focus:** v1.7 milestone shipped (Phases 35-38). Awaiting next milestone.
+**Current focus:** v1.8 milestone — reconcile v1.7 infinite canvas (master) with kais-movie-agent V8.6 (sibling repo) after drift post-d9c826c.
 
 ## Current Position
 
-Phase: v1.7 complete (Phases 35-38)
-Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-06-18 — v1.7 shipped in single session (4 phases, 24/24 requirements satisfied)
+Phase: 39 (Canvas ↔ Movie-Agent V8.6 Adaptation)
+Plan: 39-01 (3 waves — ADAPT / EXEC / VERIFY)
+Status: Wave 1 complete (merge 540f63c); Wave 2 in progress
+Last activity: 2026-06-19 — merged feature/canvas-v2 (stranded since d9c826c) into master via feature/v1.8-canvas-movie-agent-adapt branch
 
-Progress: [██████████] 100%
+Progress: [████------] 40% (4/10 v1.8 requirements verified)
 
 ## Performance Metrics
 
@@ -51,6 +51,7 @@ Progress: [██████████] 100%
 
 ### Roadmap Evolution
 
+- **v1.8 kicked off (2026-06-19):** Phase 39 — reconcile master's v1.7 canvas with kais-movie-agent V8.6 (at `/data/workspace/kais-movie-agent/`). Discovered `feature/canvas-v2` (containing `/api/v2/canvas/*` routes + FlowGraphV2 types) had been stranded since merge-base d9c826c — `canvas-client.js` in V8.6 was written against these v2 routes but they never landed on master. Wave 1 merged feature/canvas-v2 → master-side branch with single conflict resolved (useCanvasSocket — kept both event handler sets).
 - **v1.7 shipped (2026-06-18):** 4 phases (35-38), 24/24 requirements satisfied. Tier 1 storyboard metadata + one-click orchestrator + batch execution shipped; Tier 2 storyboard preview landed as placeholder (gold-team IMAGE_DRAW integration deferred to follow-up). Zero backend schema changes — new fields persist via existing JSON blob (`o_agentWorkData.canvasGraph`).
 - **v1.7 roadmap created (2026-06-17):** 4 phases (35-38) derived from 24 requirements across 4 categories (STORYBOARD / ORCHESTRATE / BATCH / CANVAS-PREVIEW). Serial Tier 1 chain 35→36→37; Phase 38 (Tier 2 preview) parallel-safe, depends only on 35.
 - **v1.6 shipped (2026-06-15):** 7 phases (28-34), 35/36 requirements satisfied (1 deferred — COMPLIANCE-03 live Docker+GPU sign-off). Skill Contract abstraction published; canvas renders any skill's node types dynamically.
@@ -113,6 +114,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-18T00:00:00
-Stopped at: v1.7 shipped — 4 phases (35-38), 24/24 requirements satisfied. Tier 1 fully delivered; Tier 2 (Phase 38) shipped as placeholder pending gold-team integration.
-Resume: `/gsd:new-milestone` for v1.8 (suggested scope: Story blueprint generator + Character consistency management per v1.7 deferred items).
+Last session: 2026-06-19T00:00:00
+Stopped at: v1.8 Phase 39 Wave 1 complete (feature/canvas-v2 merged); Wave 2 (EXEC wiring) + Wave 3 (VERIFY) pending.
+Resume: Continue Wave 2 — replace `_simulate.ts` + `storyboardPreview.ts` placeholders with real gold-team engine calls (env-gated, graceful fallback). Then Wave 3 — contract-test `canvas-client.js` against master v2 routes.
