@@ -3,6 +3,8 @@ import u from "@/utils";
 import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
+import { broadcastToProject } from "@/utils/ws";
+import { patchNodeInGraph } from "../v2/graph-helpers";
 const router = express.Router();
 
 /** 驳回节点 */
@@ -56,6 +58,23 @@ export default router.post(
             updateTime: Date.now(),
           });
       }
+
+      // 同步回写 FlowGraph node（v2 数据一致性）
+      try {
+        await patchNodeInGraph(projectId, episodesId, nodeId, {
+          reviewStatus: "rejected",
+          suggestion: reason,
+          rejectReason: reason,
+        });
+      } catch (graphErr) {
+        console.warn("[canvas:review/reject] FlowGraph 回写失败（reviewStatus 表已写入）:", graphErr);
+      }
+
+      broadcastToProject(projectId, "review:rejected", {
+        nodeId,
+        reason,
+        timestamp: Date.now(),
+      });
 
       return res.status(200).send(success());
     } catch (err) {
