@@ -55,6 +55,9 @@ services:
       COMFYUI_PORT: 8188
       NVIDIA_VISIBLE_DEVICES: "1"
       NVIDIA_DRIVER_CAPABILITIES: "compute,utility,graphics"
+      # Phase 36 follow-up: 强制 PyTorch 按 PCI 总线序,与 nvidia-smi 编号对齐
+      # 容器内只看到 1 张 GPU (隔离后),cuda:0 永远是被隔离的那张,但保持显式声明以防 NVIDIA Container Toolkit 行为变化
+      CUDA_DEVICE_ORDER: PCI_BUS_ID
       TORCH_CUDA_DISABLE_TRITON: "1"
       TRANSFORMERS_CACHE: /tmp/hf_cache
       TORCH_HOME: /tmp/torch_cache
@@ -126,6 +129,7 @@ services:
       COMFYUI_PORT: 8188
       NVIDIA_VISIBLE_DEVICES: "0"
       NVIDIA_DRIVER_CAPABILITIES: "compute,utility,graphics"
+      CUDA_DEVICE_ORDER: PCI_BUS_ID
       TORCH_CUDA_DISABLE_TRITON: "1"
       TRANSFORMERS_CACHE: /tmp/hf_cache
       TORCH_HOME: /tmp/torch_cache
@@ -236,6 +240,9 @@ services:
       # 默认引擎 (向后兼容)
       COMFYUI_URL: http://comfyui-primary:8188
       REDIS_URL: redis://redis:6379
+      # Phase 36 follow-up: 对齐 PyTorch 与 nvidia-smi GPU 编号 (PCI 总线序)
+      # gold-team 容器虽然通过 HTTP 调 ComfyUI,但也加载了 torch,保持显式声明
+      CUDA_DEVICE_ORDER: PCI_BUS_ID
       OUTPUT_DIR: /mnt/agents/output
       MODELS_DIR: /opt/kais/models
       # CosyVoice3 TTS (RL)
@@ -452,6 +459,7 @@ services:
     environment:
       NVIDIA_VISIBLE_DEVICES: "1"
       NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
+      CUDA_DEVICE_ORDER: PCI_BUS_ID
       DATA_DIR: "/data"
       MODELS_DIR: "/data/models/comfyui"
       SD_SCRIPTS_DIR: "/opt/sd-scripts"
