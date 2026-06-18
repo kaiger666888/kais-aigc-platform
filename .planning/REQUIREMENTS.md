@@ -60,13 +60,13 @@
 
 ### EXEC — Real Engine Wiring (Phase 39 Wave 2)
 
-- [ ] **EXEC-01**: `_simulate.ts` calls real gold-team engine when `GOLD_TEAM_URL` set; falls back to setTimeout simulation otherwise (graceful degradation)
-- [ ] **EXEC-02**: `storyboardPreview.ts` calls real IMAGE_DRAW engine when env configured; persists `preview_path`; falls back gracefully
-- [ ] **EXEC-03**: Node-type → TaskType mapping covers all 5 v1.7 node types (script, asset, storyboard, video, audio)
+- [x] **EXEC-01**: `_simulate.ts` calls real gold-team engine when `GOLD_TEAM_URL` set; falls back to setTimeout simulation otherwise (graceful degradation)
+- [x] **EXEC-02**: `storyboardPreview.ts` calls real IMAGE_DRAW engine when env configured; persists `preview_path`; falls back gracefully
+- [x] **EXEC-03**: Node-type → TaskType mapping covers all 5 v1.7 node types (script, asset, storyboard, video, audio)
 
 ### VERIFY — Contract Verification (Phase 39 Wave 3)
 
-- [ ] **VERIFY-01**: Every method in `/data/workspace/kais-movie-agent/lib/canvas-client.js` maps to a valid master endpoint
+- [x] **VERIFY-01**: Every method in `/data/workspace/kais-movie-agent/lib/canvas-client.js` maps to a valid master endpoint
 - [x] **VERIFY-02**: `tsc --noEmit` (root) passes after merge
 - [x] **VERIFY-03**: `tsc -b` (packages/infinite-canvas) passes after merge
 
@@ -120,11 +120,11 @@
 | ADAPT-02 | Phase 39 | ✓ Shipped |
 | ADAPT-03 | Phase 39 | ✓ Shipped |
 | ADAPT-04 | Phase 39 | ✓ Shipped |
-| EXEC-01 | Phase 39 | ⏳ Pending |
-| EXEC-02 | Phase 39 | ⏳ Pending |
-| EXEC-03 | Phase 39 | ⏳ Pending |
-| VERIFY-01 | Phase 39 | ⏳ Pending |
+| EXEC-01 | Phase 39 | ✓ Shipped |
+| EXEC-02 | Phase 39 | ✓ Shipped |
+| EXEC-03 | Phase 39 | ✓ Shipped |
+| VERIFY-01 | Phase 39 | ✓ Verified |
 | VERIFY-02 | Phase 39 | ✓ Verified |
 | VERIFY-03 | Phase 39 | ✓ Verified |
 
-**Coverage:** 24/24 v1.7 requirements + 4/10 v1.8 requirements verified. Wave 1 (ADAPT) complete; Wave 2-3 (EXEC + VERIFY) in progress.
+**Coverage:** 24/24 v1.7 requirements + 10/10 v1.8 requirements verified. All three waves (ADAPT/EXEC/VERIFY) complete.

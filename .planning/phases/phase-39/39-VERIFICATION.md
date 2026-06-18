@@ -72,15 +72,23 @@ Single conflict in `packages/infinite-canvas/src/hooks/useCanvasSocket.ts`:
 
 Resolution: kept BOTH event handler sets (complementary, no semantic overlap). Verified by reading merged file lines 27-86 + 125-160.
 
-## Wave 2 — EXEC (pending)
+## Wave 2 — EXEC (✅ shipped, commit ed93bf0)
 
-- ⏳ `_simulate.ts` engine wiring
-- ⏳ `storyboardPreview.ts` engine wiring
-- ⏳ Node-type → TaskType mapping
+- ✅ `_simulate.ts` — wired to gold-team via `src/routes/canvas/_engine.ts` (submitEngineTask + pollEngineTask). Reads canvasGraph node, extracts prompt, submits mapped TaskType, polls for completion, broadcasts `node:preview` with real outputUrl. Falls back to setTimeout simulation when `GOLD_TEAM_URL` unset OR node has no prompt OR engine call fails.
+- ✅ `storyboardPreview.ts` — wired to gold-team IMAGE_DRAW. Reads storyboard node prompt + linkedAssetIds, resolves linkedAssetIds → `o_asset.url` (≤10), submits `image_draw_ipadapter` (with refs) or `image_draw` (no refs). Falls back to v1.7 placeholder on any failure.
+- ✅ Node-type → TaskType mapping covers all 5 v1.7 node types:
+  - `script` → `image_draw` (but short-circuited to no-op in runner — script nodes have no engine task)
+  - `asset` → `image_draw`
+  - `storyboard` → `image_draw`
+  - `video` → `video_final`
+  - `audio` → `tts`
 
-## Wave 3 — VERIFY (pending)
+## Wave 3 — VERIFY (✅ shipped)
 
-End-to-end smoke test running canvas-client.js against a live master instance.
+- ✅ `verify-phase-39.ts` — 33/33 assertions PASS
+- ✅ Contract matrix above verified by reading canvas-client.js + cross-checking each endpoint against master's v2/v1 routes
+- ✅ `tsc --noEmit` (root) clean
+- ✅ `tsc -b` (packages/infinite-canvas) clean
 
 ## Notable Deviations from PLAN
 

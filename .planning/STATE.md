@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Canvas ↔ Movie-Agent V8.6 Adaptation
-status: in_progress
+status: shipped
 last_updated: "2026-06-19T00:00:00.000Z"
 last_activity: 2026-06-19
 progress:
   total_phases: 1
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 1
-  completed_plans: 0
-  percent: 40
+  completed_plans: 1
+  percent: 100
 ---
 
 # Project State
@@ -20,16 +20,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-17)
 
 **Core value:** AI creative production pipeline that runs end-to-end, pluggable across multiple creative workflows via a published skill contract.
-**Current focus:** v1.8 milestone — reconcile v1.7 infinite canvas (master) with kais-movie-agent V8.6 (sibling repo) after drift post-d9c826c.
+**Current focus:** v1.8 milestone shipped (Phase 39). Canvas + movie-agent V8.6 contract reconciled.
 
 ## Current Position
 
-Phase: 39 (Canvas ↔ Movie-Agent V8.6 Adaptation)
-Plan: 39-01 (3 waves — ADAPT / EXEC / VERIFY)
-Status: Wave 1 complete (merge 540f63c); Wave 2 in progress
-Last activity: 2026-06-19 — merged feature/canvas-v2 (stranded since d9c826c) into master via feature/v1.8-canvas-movie-agent-adapt branch
+Phase: 39 complete
+Plan: 39-01 (3 waves — ADAPT / EXEC / VERIFY — all shipped)
+Status: Ready to merge feature/v1.8-canvas-movie-agent-adapt → master
+Last activity: 2026-06-19 — verify-phase-39.ts 33/33 assertions PASSED
 
-Progress: [████------] 40% (4/10 v1.8 requirements verified)
+Progress: [██████████] 100% (10/10 v1.8 requirements verified)
 
 ## Performance Metrics
 
@@ -115,5 +115,5 @@ Items acknowledged and carried forward from previous milestone close:
 ## Session Continuity
 
 Last session: 2026-06-19T00:00:00
-Stopped at: v1.8 Phase 39 Wave 1 complete (feature/canvas-v2 merged); Wave 2 (EXEC wiring) + Wave 3 (VERIFY) pending.
-Resume: Continue Wave 2 — replace `_simulate.ts` + `storyboardPreview.ts` placeholders with real gold-team engine calls (env-gated, graceful fallback). Then Wave 3 — contract-test `canvas-client.js` against master v2 routes.
+Stopped at: v1.8 Phase 39 shipped — 3 waves complete, 10/10 requirements verified, 33/33 verify-phase-39.ts assertions pass. Ready to merge feature/v1.8-canvas-movie-agent-adapt → master.
+Resume: `/gsd:new-milestone` for v1.9 (suggested scope: Run movie-agent V8.6 in Docker via OpenClaw runtime; canvas UI for 13-step pipeline; dreamina CLI subprocess replacing gold-team proxy for image gen).

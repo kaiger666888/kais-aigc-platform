@@ -96,6 +96,7 @@ Replace `await new Promise(r => setTimeout(r, 4000))` with:
 
 ## Status
 
-- Wave 1: ✅ Committed (540f63c)
-- Wave 2: ⏳ In progress
-- Wave 3: Pending
+- Wave 1 (ADAPT): ✅ Committed (540f63c) — merged feature/canvas-v2 into master-side branch
+- Wave 2 (EXEC): ✅ Committed (ed93bf0) — _simulate + storyboardPreview wired to gold-team with graceful fallback
+- Wave 3 (VERIFY): ✅ Committed (pending) — verify-phase-39.ts 33/33 assertions pass; contract matrix in 39-VERIFICATION.md
+- All 10 v1.8 requirements verified (ADAPT-01..04, EXEC-01..03, VERIFY-01..03)
