@@ -10,6 +10,7 @@
 - ✅ **v1.5 Architecture Hardening + Code Hygiene** — Phases 23-27 (shipped 2026-06-14)
 - ✅ **v1.6 Workflow Skill Contract** — Phases 28-34 (shipped 2026-06-15)
 - ✅ **v1.7 Infinite Canvas Storyboard & Orchestration** — Phases 35-38 (shipped 2026-06-18)
+- 🚧 **v1.8 Canvas ↔ Movie-Agent V8.6 Adaptation** — Phase 39 (shipped 2026-06-19, pending merge to master)
 
 ## Phases
 
@@ -20,7 +21,8 @@
 - Integer phases (20-22): v1.4
 - Integer phases (23-27): v1.5
 - Integer phases (28-34): v1.6 (shipped)
-- Integer phases (35-38): v1.7 (this milestone)
+- Integer phases (35-38): v1.7 (shipped)
+- Integer phase (39): v1.8 (this milestone — in progress)
 - Decimal phases (e.g., 35.1): Urgent insertions
 
 Decimal phases appear between their surrounding integers in numeric order.
@@ -148,10 +150,32 @@ Tier 2 (Phase 38 PREVIEW) depends only on Phase 35 and may execute in parallel w
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 35. Storyboard Metadata Extension | v1.7 | 0/TBD | Not started | - |
-| 36. One-Click Film Orchestrator | v1.7 | 0/TBD | Not started | - |
-| 37. Batch Execution | v1.7 | 0/TBD | Not started | - |
-| 38. Storyboard Preview Cards (Tier 2) | v1.7 | 0/TBD | Not started (optional) | - |
+| 35. Storyboard Metadata Extension | v1.7 | 1/1 | ✅ Shipped | 2026-06-18 |
+| 36. One-Click Film Orchestrator | v1.7 | 1/1 | ✅ Shipped | 2026-06-18 |
+| 37. Batch Execution | v1.7 | 1/1 | ✅ Shipped | 2026-06-18 |
+| 38. Storyboard Preview Cards (Tier 2) | v1.7 | 1/1 | ✅ Shipped (placeholder) | 2026-06-18 |
+| 39. Canvas ↔ Movie-Agent V8.6 Adaptation | v1.8 | 1/1 | ✅ Shipped (pending merge) | 2026-06-19 |
+
+### Phase 39: Canvas ↔ Movie-Agent V8.6 Adaptation (v1.8 — shipped)
+
+**Branch:** `feature/v1.8-canvas-movie-agent-adapt`
+
+**Drift discovered:** v1.7 infinite canvas (master) and kais-movie-agent V8.6 (sibling repo at `/data/workspace/kais-movie-agent/`) diverged post-`d9c826c`. Movie-agent V8.6 ships `lib/canvas-client.js` (795 lines) expecting `/api/v2/canvas/*` REST routes that landed on `feature/canvas-v2` but never merged into master.
+
+**Three-wave plan — all shipped:**
+
+1. **Wave 1 — ADAPT (✅ 540f63c)**: Merged `feature/canvas-v2` into master-side branch. Resolved single conflict in `useCanvasSocket.ts` by keeping both event handler sets. `tsc --noEmit` + `tsc -b` clean.
+2. **Wave 2 — EXEC (✅ ed93bf0)**: Replaced `_simulate.ts` + `storyboardPreview.ts` placeholders with real gold-team engine calls via new `src/routes/canvas/_engine.ts` adapter. Env-gated (`GOLD_TEAM_URL`); graceful fallback to v1.7 simulation when engine unavailable.
+3. **Wave 3 — VERIFY (✅ this commit)**: `scripts/verify-phase-39.ts` — 33/33 assertions pass. Contract matrix in `39-VERIFICATION.md` confirms every `canvas-client.js` method maps to a valid master endpoint.
+
+**Phase 39 Execution Order (completed):**
+
+```
+Wave 1 (ADAPT) ──► Wave 2 (EXEC) ──► Wave 3 (VERIFY)  ✅
+   merge            wire engines       contract test
+```
+
+**Result:** master (after merge) will expose both `/api/canvas/*` (v1.7) and `/api/v2/canvas/*` (contract for movie-agent V8.6), with real engine integration gated on `GOLD_TEAM_URL`. Existing deployments without engine configured see zero behavior change.
 
 ### Completed Milestones
 

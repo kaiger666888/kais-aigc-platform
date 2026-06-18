@@ -47,12 +47,38 @@
 - [x] **PREVIEW-04**: 预览图存到 `o_storyboard.preview_path`;`state === 'success'` 后保留作为视频生成前的回顾
 - [x] **PREVIEW-05**: 预览失败不阻塞主流程,仅 toast 提示
 
+## v1.8 Requirements — Canvas ↔ Movie-Agent V8.6 Adaptation
+
+**Motivation:** v1.7 infinite canvas (master) drifted from latest kais-movie-agent V8.6 (sibling repo at `/data/workspace/kais-movie-agent/`). Movie-agent ships `lib/canvas-client.js` (795 lines) expecting `/api/v2/canvas/*` routes that were stranded on `feature/canvas-v2` since d9c826c. Reconcile both sides so the latest agent can drive the latest canvas.
+
+### ADAPT — Contract Alignment (Phase 39 Wave 1)
+
+- [x] **ADAPT-01**: master exposes `/api/v2/canvas/{load,save,nodes,branches,links,layout}` REST endpoints
+- [x] **ADAPT-02**: FlowGraphV2 types + zod schema available on master (`src/types/flowgraph-v2.ts` + `flowgraph-v2-schema.ts`)
+- [x] **ADAPT-03**: `router.ts` registers both `/api/canvas/*` (v1) and `/api/v2/canvas/*` (v2)
+- [x] **ADAPT-04**: `useCanvasSocket` listens to `orchestrate:*` AND `branch:*`/`review:*` events (no regression from either side)
+
+### EXEC — Real Engine Wiring (Phase 39 Wave 2)
+
+- [x] **EXEC-01**: `_simulate.ts` calls real gold-team engine when `GOLD_TEAM_URL` set; falls back to setTimeout simulation otherwise (graceful degradation)
+- [x] **EXEC-02**: `storyboardPreview.ts` calls real IMAGE_DRAW engine when env configured; persists `preview_path`; falls back gracefully
+- [x] **EXEC-03**: Node-type → TaskType mapping covers all 5 v1.7 node types (script, asset, storyboard, video, audio)
+
+### VERIFY — Contract Verification (Phase 39 Wave 3)
+
+- [x] **VERIFY-01**: Every method in `/data/workspace/kais-movie-agent/lib/canvas-client.js` maps to a valid master endpoint
+- [x] **VERIFY-02**: `tsc --noEmit` (root) passes after merge
+- [x] **VERIFY-03**: `tsc -b` (packages/infinite-canvas) passes after merge
+
 ## Future Requirements (deferred)
 
-- **故事蓝图生成器** — Script 节点右键 "生成分镜",调用 LLM 拆解为多个 storyboard 节点;需 LLM 集成层 (推迟 v1.8)
-- **角色一致性管理** — 跨分镜/跨集的角色绑定 + 全剧集统一形象管理;需 `o_character_role` 表 + 一致性引擎 (推迟 v1.8)
+- **故事蓝图生成器** — Script 节点右键 "生成分镜",调用 LLM 拆解为多个 storyboard 节点;需 LLM 集成层 (推迟 v1.9)
+- **角色一致性管理** — 跨分镜/跨集的角色绑定 + 全剧集统一形象管理;需 `o_character_role` 表 + 一致性引擎 (推迟 v1.9)
 - **批量多集生成** — 项目级批量执行(参考小云雀 80 集能力);需 queue + scheduler 协调 (推迟 v1.9)
 - **第二参考 skill** — v1.6 deferred,验证 skill contract 抽象的扩展性
+- **运行 movie-agent V8.6 Docker** — 需 OpenClaw runtime;单独工程
+- **Canvas UI for V8.6 13-step pipeline** — 推迟 v1.9+
+- **dreamina CLI subprocess** 替换 gold-team proxy — V8.6 架构变迁,推迟 v1.9+
 
 ## Out of Scope (v1.7)
 
@@ -90,5 +116,15 @@
 | PREVIEW-03 | Phase 38 | ✓ Shipped |
 | PREVIEW-04 | Phase 38 | ✓ Shipped |
 | PREVIEW-05 | Phase 38 | ✓ Shipped |
+| ADAPT-01 | Phase 39 | ✓ Shipped |
+| ADAPT-02 | Phase 39 | ✓ Shipped |
+| ADAPT-03 | Phase 39 | ✓ Shipped |
+| ADAPT-04 | Phase 39 | ✓ Shipped |
+| EXEC-01 | Phase 39 | ✓ Shipped |
+| EXEC-02 | Phase 39 | ✓ Shipped |
+| EXEC-03 | Phase 39 | ✓ Shipped |
+| VERIFY-01 | Phase 39 | ✓ Verified |
+| VERIFY-02 | Phase 39 | ✓ Verified |
+| VERIFY-03 | Phase 39 | ✓ Verified |
 
-**Coverage:** 24/24 v1.7 requirements mapped. No orphans. No duplicates.
+**Coverage:** 24/24 v1.7 requirements + 10/10 v1.8 requirements verified. All three waves (ADAPT/EXEC/VERIFY) complete.

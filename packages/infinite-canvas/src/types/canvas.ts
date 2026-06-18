@@ -27,6 +27,12 @@ export interface AIScore {
 /** 连线数据类型，用于着色 */
 export type LinkDataType = 'text' | 'image' | 'video' | 'audio' | 'data'
 
+/** 连线语义类型（决定渲染样式） */
+export type LinkSemanticType = 'data_flow' | 'sequence' | 'parallel' | 'reference'
+
+/** 连线引用类型（标识 ref-input / reference 通道） */
+export type LinkRefType = 'input' | 'reference'
+
 /** 画布节点类型枚举 */
 export type CanvasNodeType = 'script' | 'asset' | 'storyboard' | 'video' | 'audio'
 
@@ -59,6 +65,14 @@ export interface AssetNodeData {
   routingDecision?: RoutingDecision
   variantGroupId?: string
   variantIndex?: number
+  /** 角色多角度视图：所属角色 ID（同一角色的多张视图共享此 ID） */
+  characterId?: string
+  /** 视图角度：front | side | back | 3quarter | detail | full */
+  viewAngle?: string
+  /** 视图组名（通常显示为角色名 subtitle） */
+  viewGroup?: string
+  /** 是否为主视图（同一角色的代表视图） */
+  isPrimaryView?: boolean
 }
 
 /** 分镜节点数据 */
@@ -102,6 +116,8 @@ export interface VideoNodeData {
   routingDecision?: RoutingDecision
   variantGroupId?: string
   variantIndex?: number
+  /** 多对一引用：视频引用的资产 ID 列表（通过 ref-input handle 接入） */
+  linkedAssetIds?: number[]
 }
 
 /** 音频节点数据 */
@@ -120,6 +136,21 @@ export interface AudioNodeData {
   routingDecision?: RoutingDecision
   variantGroupId?: string
   variantIndex?: number
+}
+
+/** 分支状态 */
+export type BranchStatus = 'draft' | 'active' | 'paused' | 'completed' | 'archived' | 'rejected'
+
+/** 分支 */
+export interface FlowBranch {
+  id: string
+  label: string
+  parentId: string | null
+  parentNodeId: string | null
+  status: BranchStatus
+  forkReason: string
+  createdAt: string
+  updatedAt: string
 }
 
 /** 变体组 — 同一分镜下的多个候选资产 */
@@ -154,6 +185,11 @@ export interface LegacyAssetItem {
     state: string
     type: 'role' | 'tool' | 'scene' | 'clip'
   }[]
+  /** 角色多角度视图扩展（向后兼容，旧数据无此字段） */
+  characterId?: string
+  viewAngle?: string
+  viewGroup?: string
+  isPrimaryView?: boolean
 }
 
 export interface LegacyStoryboardItem {
@@ -174,6 +210,8 @@ export interface LegacyVideoItem {
   duration?: number
   state?: string
   trackId?: number
+  /** 多对一引用扩展（向后兼容） */
+  linkedAssetIds?: number[]
 }
 
 export interface LegacyAudioItem {
@@ -220,6 +258,11 @@ export interface FlowGraphNode {
   routingDecision?: RoutingDecision
   variantGroupId?: string
   variantIndex?: number
+  branchId?: string
+  phaseIndex?: number
+  phaseName?: string
+  suggestion?: string
+  variantOf?: string
 }
 
 export interface FlowGraphLink {
@@ -230,6 +273,12 @@ export interface FlowGraphLink {
   targetHandle?: string
   dataType: LinkDataType
   isInactive?: boolean
+  branchId?: string
+  isExplore?: boolean
+  /** 连线语义类型：data_flow | sequence | parallel | reference */
+  linkType?: LinkSemanticType
+  /** 引用类型：input（常规输入） | reference（参考引用） */
+  refType?: LinkRefType
 }
 
 export interface FlowGraphGroup {
@@ -238,4 +287,23 @@ export interface FlowGraphGroup {
   position: { x: number; y: number }
   size: { width: number; height: number }
   childNodeIds: string[]
+}
+
+// ─── V2 画布图模型（分支支持） ────────────────────────────────
+
+export interface FlowGraphMeta {
+  version: '2'
+  projectId: number
+  episodesId: number
+  createdAt: string
+  updatedAt: string
+  viewport?: { x: number; y: number; zoom: number }
+}
+
+export interface FlowGraphV2 {
+  meta: FlowGraphMeta
+  nodes: FlowGraphNode[]
+  links: FlowGraphLink[]
+  branches: FlowBranch[]
+  variantGroups?: VariantGroup[]
 }

@@ -37,7 +37,7 @@ export default router.post(
 
       setImmediate(async () => {
         try {
-          await simulateExecution(projectId, nodeId);
+          await simulateExecution(projectId, nodeId, episodesId);
           broadcastToProject(projectId, "node:state", { nodeId, state: "success" });
         } catch (err) {
           broadcastToProject(projectId, "node:state", { nodeId, state: "error" });

@@ -1,5 +1,6 @@
 import type { NodeState, ReviewStatus, RoutingDecision } from '../types/canvas'
 import { theme } from '../theme/catppuccin'
+import { getBranchColor } from '../theme/branchColors'
 
 /** 节点状态 → 边框颜色映射 */
 export const stateColors: Record<NodeState, string> = {
@@ -45,14 +46,29 @@ export function getReviewFilter(reviewStatus?: string): string {
   return 'none'
 }
 
-/** 节点边框颜色（综合 isWinner、审核状态、路由决策） */
+/** 节点边框颜色（综合 isWinner、分支、审核状态、路由决策）
+ *
+ * 优先级（高 → 低）：
+ *  1. 变体败者 → dim（弱化）
+ *  2. 探索节点 / 非主线分支 → 分支颜色（绿/黄/红/灰）
+ *  3. 审核/路由/状态 → 默认状态色
+ *
+ * 主线分支节点（branchId === 'main' 或未设置）继续走原逻辑，
+ * 不被分支色覆盖，保证主线视觉一致性。
+ */
 export function getNodeBorderColor(opts: {
   isWinner?: boolean
   reviewStatus?: string
   routingDecision?: string
   state?: NodeState
+  branchId?: string
+  isExplore?: boolean
 }): string {
   if (opts.isWinner === false) return theme.border.dim
+  if (opts.isExplore) return getBranchColor(undefined, true).border
+  if (opts.branchId && opts.branchId !== 'main') {
+    return getBranchColor(opts.branchId, false).border
+  }
   return getReviewBorderColor(opts.reviewStatus, opts.routingDecision, opts.state)
 }
 

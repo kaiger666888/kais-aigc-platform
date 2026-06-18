@@ -16,6 +16,20 @@ const typeIcons: Record<string, string> = {
   role: '👤', tool: '🔧', scene: '🏞️', clip: '🎬',
 }
 
+const viewAngleLabels: Record<string, string> = {
+  front: '正视图',
+  side: '侧视图',
+  back: '背视图',
+  '3quarter': '3/4 视图',
+  detail: '特写',
+  full: '全身',
+}
+
+function viewAngleLabel(angle: unknown): string {
+  if (typeof angle !== 'string') return '视图'
+  return viewAngleLabels[angle] ?? angle
+}
+
 function AssetNodeComponent({ data, id }: NodeProps<AssetNodeType>) {
   const approveNode = useCanvasStore((s) => s.approveNode)
   const rejectNode = useCanvasStore((s) => s.rejectNode)
@@ -72,6 +86,19 @@ function AssetNodeComponent({ data, id }: NodeProps<AssetNodeType>) {
         <span style={{ fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {data.label as string}
         </span>
+        {data.characterId != null && (
+          <span style={{
+            padding: '1px 6px',
+            borderRadius: 4,
+            fontSize: 10,
+            background: theme.bg.surface,
+            color: theme.node.video,
+            fontWeight: 600,
+            whiteSpace: 'nowrap',
+          }}>
+            {viewAngleLabel(data.viewAngle)}
+          </span>
+        )}
         <StateBadge state={data.state} />
       </div>
 
@@ -131,6 +158,27 @@ function AssetNodeComponent({ data, id }: NodeProps<AssetNodeType>) {
 
       <ScoreBadge score={data.aiScore?.overall as number | null | undefined} routingDecision={data.routingDecision as RoutingDecision | undefined} />
       <ScoreMiniBar score={data.aiScore as any} />
+
+      {data.viewGroup != null && (
+        <div style={{
+          marginTop: 6,
+          padding: '3px 6px',
+          background: theme.bg.surface,
+          borderRadius: 4,
+          fontSize: 10,
+          color: theme.text.secondary,
+          textAlign: 'center',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 4,
+        }}>
+          <span>{data.viewGroup as string}</span>
+          {data.isPrimaryView === true && (
+            <span style={{ color: catppuccinGold }}>★</span>
+          )}
+        </div>
+      )}
 
       <Handle
         type="source"

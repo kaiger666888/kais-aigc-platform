@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
 import type { ScriptNodeData, NodeState } from '../../types/canvas'
-import { stateColors } from '../../utils/styles'
+import { stateColors, getNodeBorderColor } from '../../utils/styles'
 import { theme } from '../../theme/catppuccin'
 import { NODE_SIZES } from '../../constants'
 
@@ -12,7 +12,7 @@ function ScriptNodeComponent({ data }: NodeProps<ScriptNodeType>) {
     <div style={{
       background: theme.bg.card,
       borderRadius: 8,
-      border: `2px solid ${stateColors[data.state]}`,
+      border: `2px solid ${getNodeBorderColor(data)}`,
       padding: 12,
       minWidth: NODE_SIZES.script.minWidth,
       maxWidth: NODE_SIZES.script.maxWidth,

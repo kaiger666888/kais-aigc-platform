@@ -89,7 +89,7 @@ export default router.post(
             progress: 0,
           });
           try {
-            await simulateExecution(projectId, node.id);
+            await simulateExecution(projectId, node.id, episodesId);
             broadcastToProject(projectId, "node:state", {
               nodeId: node.id,
               state: "success",

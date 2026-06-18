@@ -11,6 +11,9 @@ import type {
 } from '../types/canvas'
 import { LAYOUT, NODE_SIZES } from '../constants'
 
+/** 同 viewGroup 内成员的 Y 间距（紧凑），与默认 ASSET_GAP_Y(220) 区分 */
+const VIEWGROUP_TIGHT_GAP_Y = 160
+
 /** 将现有 FlowData 转换为画布节点和边 */
 export function flowDataToCanvas(
   flowData: LegacyFlowData,
@@ -34,15 +37,22 @@ export function flowDataToCanvas(
     data: scriptData,
   })
 
-  // 2. 资产节点（网格布局）
+  // 2. 资产节点
+  // 布局规则：维持原有 4-per-row 网格；当相邻资产共享 viewGroup 时，
+  // 锁定在同一列、Y 方向紧凑堆叠（间距 160）。
   const assetNodesMap = new Map<number, string>()
   const VARIANT_GROUP_ID = 'vg-char-role'
+  const GRID_COLS = 4
+
+  let layoutCol = 0
+  let layoutRow = 0
+  let layoutY = LAYOUT.ASSET_Y
+  let prevViewGroup: string | undefined
+
   flowData.assets?.forEach((asset, i) => {
     const nodeId = `asset-${asset.id}`
     assetNodesMap.set(asset.id, nodeId)
 
-    const col = i % 4
-    const row = Math.floor(i / 4)
     const deriveState = asset.derive?.[0]?.state
     const state: NodeState = deriveState === '已完成' ? 'success'
       : deriveState === '生成中' ? 'running'
@@ -51,6 +61,28 @@ export function flowDataToCanvas(
 
     // 变体组标记：前2个资产组成变体组（演示用）
     const isVariant = asset.type === 'role' && i < 2
+
+    // 角色多角度视图字段（向后兼容，旧数据无此字段时为 undefined）
+    const characterId = asset.characterId
+    const viewAngle = asset.viewAngle
+    const viewGroup = asset.viewGroup
+    const isPrimaryView = asset.isPrimaryView
+
+    // 布局计算：同 viewGroup 紧凑堆叠，否则进入下一列
+    if (viewGroup != null && viewGroup === prevViewGroup) {
+      layoutY += VIEWGROUP_TIGHT_GAP_Y
+    } else {
+      if (i > 0) {
+        layoutCol++
+        if (layoutCol >= GRID_COLS) { layoutCol = 0; layoutRow++ }
+      }
+      layoutY = LAYOUT.ASSET_Y + layoutRow * LAYOUT.ASSET_GAP_Y
+    }
+    prevViewGroup = viewGroup
+
+    const x = LAYOUT.ASSET_START_X + layoutCol * LAYOUT.ASSET_GAP_X
+    const y = layoutY
+
     const data: AssetNodeData = {
       label: asset.name,
       type: 'asset',
@@ -60,6 +92,10 @@ export function flowDataToCanvas(
       filePath: null,
       thumbnailUrl: asset.derive?.[0]?.src ?? null,
       state,
+      characterId,
+      viewAngle,
+      viewGroup,
+      isPrimaryView,
       ...(isVariant && {
         variantGroupId: VARIANT_GROUP_ID,
         variantIndex: i,
@@ -70,7 +106,7 @@ export function flowDataToCanvas(
     nodes.push({
       id: nodeId,
       type: 'asset',
-      position: { x: LAYOUT.ASSET_START_X + col * LAYOUT.ASSET_GAP_X, y: LAYOUT.ASSET_Y + row * LAYOUT.ASSET_GAP_Y },
+      position: { x, y },
       data,
     })
 
@@ -122,11 +158,22 @@ export function flowDataToCanvas(
         })
       }
     }
+
+    // 分镜顺序连线：相邻分镜之间插入 sequence link
+    if (i > 0) {
+      const prevNodeId = `storyboard-${sortedSb[i - 1].id}`
+      edges.push({
+        id: `seq-${edgeId++}`,
+        source: prevNodeId,
+        target: nodeId,
+        data: { dataType: 'data', linkType: 'sequence' },
+      })
+    }
   })
 
   // 4. 视频节点（横向排列）
   const storyboardNodesMap = new Map<number, string>()
-  sortedSb.forEach((sb, i) => {
+  sortedSb.forEach((sb) => {
     storyboardNodesMap.set(sb.id, `storyboard-${sb.id}`)
   })
 
@@ -138,6 +185,14 @@ export function flowDataToCanvas(
       : v.state === '生成失败' ? 'error'
       : 'idle'
 
+    // 多对一引用：linkedAssetIds 缺失时从 trackId 关联的分镜继承（向后兼容）
+    let linkedAssetIds = v.linkedAssetIds
+    if ((!linkedAssetIds || linkedAssetIds.length === 0) && v.trackId != null) {
+      const linkedSb = flowData.storyboard?.find((s) => s.id === v.trackId)
+      const inherited = linkedSb?.associateAssetsIds ?? []
+      if (inherited.length > 0) linkedAssetIds = inherited
+    }
+
     const data: VideoNodeData = {
       label: `视频 ${i + 1}`,
       type: 'video',
@@ -146,6 +201,7 @@ export function flowDataToCanvas(
       thumbnailUrl: v.thumbnailUrl ?? null,
       duration: v.duration,
       state,
+      ...(linkedAssetIds && linkedAssetIds.length > 0 ? { linkedAssetIds } : {}),
     }
     nodes.push({
       id: nodeId,
@@ -154,7 +210,7 @@ export function flowDataToCanvas(
       data,
     })
 
-    // 连接分镜 → 视频
+    // 连接分镜 → 视频（主数据流，使用默认 handle）
     if (v.trackId) {
       const sourceId = storyboardNodesMap.get(v.trackId)
       if (sourceId) {
@@ -164,6 +220,22 @@ export function flowDataToCanvas(
           target: nodeId,
           data: { dataType: 'video' },
         })
+      }
+    }
+
+    // 多对一引用：linkedAssetIds → video 的 ref-input handle
+    if (linkedAssetIds && linkedAssetIds.length > 0) {
+      for (const aid of linkedAssetIds) {
+        const refSourceId = assetNodesMap.get(aid)
+        if (refSourceId) {
+          edges.push({
+            id: `ref-${edgeId++}`,
+            source: refSourceId,
+            target: nodeId,
+            targetHandle: 'ref-input',
+            data: { dataType: 'image', refType: 'reference' },
+          })
+        }
       }
     }
   })
@@ -217,23 +289,40 @@ export function canvasToFlowGraph(
   viewport?: { x: number; y: number; zoom: number },
 ): FlowGraph {
   return {
-    nodes: nodes.map((n) => ({
-      id: n.id,
-      type: (n.data as any)?.type ?? n.type ?? 'asset',
-      position: n.position,
-      size: { width: NODE_SIZES.defaultPersistSize.width, height: NODE_SIZES.defaultPersistSize.height },
-      data: n.data as Record<string, unknown>,
-      state: (n.data as any)?.state ?? 'idle',
-      progress: (n.data as any)?.progress,
-    })),
-    links: edges.map((e) => ({
-      id: e.id,
-      source: e.source,
-      sourceHandle: e.sourceHandle ?? undefined,
-      target: e.target,
-      targetHandle: e.targetHandle ?? undefined,
-      dataType: (e.data as any)?.dataType ?? 'data',
-    })),
+    nodes: nodes.map((n) => {
+      const d = n.data as any
+      return {
+        id: n.id,
+        type: d?.type ?? n.type ?? 'asset',
+        position: n.position,
+        size: { width: NODE_SIZES.defaultPersistSize.width, height: NODE_SIZES.defaultPersistSize.height },
+        data: n.data as Record<string, unknown>,
+        state: d?.state ?? 'idle',
+        progress: d?.progress,
+        // 分支字段：节点 data → FlowGraphNode 顶层（持久化）
+        branchId: d?.branchId,
+        phaseIndex: d?.phaseIndex,
+        phaseName: d?.phaseName,
+        suggestion: d?.suggestion,
+        variantOf: d?.variantOf,
+      }
+    }),
+    links: edges.map((e) => {
+      const d = e.data as any
+      return {
+        id: e.id,
+        source: e.source,
+        sourceHandle: e.sourceHandle ?? undefined,
+        target: e.target,
+        targetHandle: e.targetHandle ?? undefined,
+        dataType: d?.dataType ?? 'data',
+        branchId: d?.branchId,
+        isExplore: d?.isExplore,
+        isInactive: d?.isInactive,
+        linkType: d?.linkType,
+        refType: d?.refType,
+      }
+    }),
     groups: [],
     viewport,
   }
@@ -249,16 +338,30 @@ export function flowGraphToCanvas(graph: FlowGraph): { nodes: Node[]; edges: Edg
       ...gn.data,
       state: gn.state,
       progress: gn.progress,
+      // 分支字段：FlowGraphNode 顶层 → 节点 data（供渲染器读取）
+      branchId: gn.branchId,
+      phaseIndex: gn.phaseIndex,
+      phaseName: gn.phaseName,
+      suggestion: gn.suggestion,
+      variantOf: gn.variantOf,
     },
   }))
 
   const edges: Edge[] = graph.links.map((gl) => ({
     id: gl.id,
+    type: 'canvas',
     source: gl.source,
     sourceHandle: gl.sourceHandle,
     target: gl.target,
     targetHandle: gl.targetHandle,
-    data: { dataType: gl.dataType },
+    data: {
+      dataType: gl.dataType,
+      branchId: gl.branchId,
+      isExplore: gl.isExplore,
+      isInactive: gl.isInactive,
+      linkType: gl.linkType,
+      refType: gl.refType,
+    },
   }))
 
   return { nodes, edges }
