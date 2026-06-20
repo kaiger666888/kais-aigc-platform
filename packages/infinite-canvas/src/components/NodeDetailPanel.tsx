@@ -1,10 +1,12 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import type { Node } from '@xyflow/react'
 import type { ScriptNodeData, AssetNodeData, StoryboardNodeData, VideoNodeData, NodeState, ReviewStatus, CameraMovement, Framing, Composition, Pacing } from '../types/canvas'
 import { stateColors } from '../utils/styles'
 import { theme, getScoreColor } from '../theme/catppuccin'
 import { METADATA_LABELS, METADATA_FIELD_ORDER } from '../constants'
 import { useCanvasStore } from '../store/canvasStore'
+import FileViewer from './FileViewer'
+import ReviewCard from './ReviewCard'
 
 type NodeData = ScriptNodeData | AssetNodeData | StoryboardNodeData | VideoNodeData
 
@@ -16,25 +18,78 @@ interface Props {
 /** 节点详情侧边栏面板 */
 export default function NodeDetailPanel({ node, onClose }: Props) {
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
+  const [panelWidth, setPanelWidth] = useState(() => {
+    // 75% of window width
+    const w = typeof window !== 'undefined' ? window.innerWidth * 0.75 : 960
+    return Math.max(400, w)
+  })
+  const [dragging, setDragging] = useState(false)
+  const dragRef = useRef<{ startX: number; startW: number } | null>(null)
 
   const handleOverlayClick = useCallback((e: React.MouseEvent) => {
     if (e.target === e.currentTarget) setLightboxSrc(null)
   }, [])
 
+  // Drag to resize
+  useEffect(() => {
+    if (!dragging) return
+    const onMove = (e: MouseEvent) => {
+      if (!dragRef.current) return
+      const delta = dragRef.current.startX - e.clientX
+      const newW = Math.max(400, dragRef.current.startW + delta)
+      setPanelWidth(newW)
+    }
+    const onUp = () => setDragging(false)
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [dragging])
+
   if (!node) return null
 
   const data = node.data as NodeData
-  const type = data.type as string
+  const type = (data.type as string) || (node.type as string)
 
   return (
     <>
+      {/* Drag handle */}
+      <div
+        onMouseDown={(e) => {
+          dragRef.current = { startX: e.clientX, startW: panelWidth }
+          setDragging(true)
+        }}
+        style={{
+          position: 'absolute',
+          top: 0,
+          right: panelWidth,
+          width: 6,
+          height: '100%',
+          cursor: 'col-resize',
+          background: dragging ? theme.border.subtle : 'transparent',
+          zIndex: 11,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <div style={{
+          width: 3,
+          height: 40,
+          borderRadius: 2,
+          background: dragging ? theme.node.script : theme.border.dim,
+          opacity: dragging ? 1 : 0.5,
+        }} />
+      </div>
       <div
         data-testid="detail-panel"
         style={{
           position: 'absolute',
           top: 0,
           right: 0,
-          width: 400,
+          width: panelWidth,
           height: '100%',
           background: theme.bg.panel,
           borderLeft: `1px solid ${theme.border.default}`,
@@ -83,7 +138,10 @@ export default function NodeDetailPanel({ node, onClose }: Props) {
 
         {/* 滚动内容区 */}
         <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
-          {type === 'script' && <ScriptDetail data={data as ScriptNodeData} />}
+          {type === 'script' && (data as any).category === 'variant_group' && (
+              <VariantGroupDetail node={node} />
+            )}
+            {type === 'script' && (data as any).category !== 'variant_group' && <ScriptDetail data={data as ScriptNodeData} />}
           {type === 'asset' && (
             <AssetDetail
               data={data as AssetNodeData}
@@ -119,6 +177,19 @@ export default function NodeDetailPanel({ node, onClose }: Props) {
               )}
             </>
           )}
+
+          {/* Review card for awaiting_audit nodes */}
+          {(data.reviewStatus as string) === 'awaiting_audit' && (
+            <div style={{ marginBottom: 16 }}>
+              <ReviewCard
+                filePath={(data.filePath as string) || undefined}
+                nodeId={node.id}
+              />
+            </div>
+          )}
+
+          {/* File viewer/editor */}
+          <FileViewer filePath={(data.filePath as string) || (data.content as string)?.match(/output\//)?.[0] ? (data.filePath as string) : undefined} />
         </div>
       </div>
 
@@ -206,23 +277,127 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 function ScriptDetail({ data }: { data: ScriptNodeData }) {
+  const description = (data.description as string) || (data.content as string) || ''
+  const tags = (data.tags as string[]) || []
+  const score = data.score as number | undefined
+  const filePath = data.filePath as string | undefined
+  const phase = data.phase as string | undefined
+
+  const phaseLabels: Record<string, string> = {
+    research: '🔍 研究阶段',
+    story: '📖 故事阶段',
+    production: '🎬 制作阶段',
+    post: '🎚️ 后期阶段',
+  }
+
   return (
     <>
-      <SectionLabel>剧本内容</SectionLabel>
-      <div style={{
-        background: theme.bg.input,
-        borderRadius: 8,
-        padding: 16,
-        color: theme.text.primary,
-        fontSize: 13,
-        lineHeight: 1.8,
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
-        maxHeight: '60vh',
-        overflowY: 'auto',
-      }}>
-        {(data.content as string) || '暂无剧本内容'}
-      </div>
+      {/* Phase badge */}
+      {phase && (
+        <>
+          <SectionLabel>所属阶段</SectionLabel>
+          <span style={{
+            padding: '4px 12px',
+            borderRadius: 6,
+            background: phase === 'research' ? 'rgba(148,226,213,0.15)' :
+                       phase === 'story' ? 'rgba(203,166,247,0.15)' :
+                       phase === 'production' ? 'rgba(250,179,135,0.15)' :
+                       theme.bg.surface,
+            color: phase === 'research' ? theme.node.asset :
+                   phase === 'story' ? theme.node.script :
+                   phase === 'production' ? '#fab387' :
+                   theme.text.primary,
+            fontSize: 12,
+            fontWeight: 600,
+            display: 'inline-block',
+            marginBottom: 8,
+          }}>
+            {phaseLabels[phase] || phase}
+          </span>
+        </>
+      )}
+
+      {/* Score */}
+      {score != null && (
+        <>
+          <SectionLabel>评分</SectionLabel>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            marginBottom: 8,
+          }}>
+            <span style={{
+              fontSize: 28,
+              fontWeight: 800,
+              color: score >= 9 ? theme.state.success : score >= 7 ? theme.state.pending : theme.state.error,
+            }}>
+              {score}
+            </span>
+            <span style={{ fontSize: 12, color: theme.text.secondary }}>/ 10</span>
+          </div>
+        </>
+      )}
+
+      {/* Description */}
+      {description && (
+        <>
+          <SectionLabel>详细描述</SectionLabel>
+          <div style={{
+            background: theme.bg.input,
+            borderRadius: 8,
+            padding: 16,
+            color: theme.text.primary,
+            fontSize: 13,
+            lineHeight: 1.8,
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            maxHeight: '40vh',
+            overflowY: 'auto',
+          }}>
+            {description}
+          </div>
+        </>
+      )}
+
+      {/* Tags */}
+      {tags.length > 0 && (
+        <>
+          <SectionLabel>标签</SectionLabel>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {tags.map((tag, i) => (
+              <span key={i} style={{
+                padding: '4px 10px',
+                borderRadius: 6,
+                background: theme.bg.surface,
+                color: theme.node.script,
+                fontSize: 12,
+                fontWeight: 500,
+              }}>
+                {tag}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* File path */}
+      {filePath && (
+        <>
+          <SectionLabel>产出文件</SectionLabel>
+          <div style={{
+            background: theme.bg.input,
+            borderRadius: 6,
+            padding: '8px 12px',
+            color: theme.text.secondary,
+            fontSize: 12,
+            fontFamily: 'monospace',
+            wordBreak: 'break-all',
+          }}>
+            📎 {filePath}
+          </div>
+        </>
+      )}
     </>
   )
 }
@@ -512,5 +687,195 @@ function ScoreDim({ label, value }: { label: string; value: number | null | unde
       <span style={{ fontSize: 16, fontWeight: 700, color: getScoreColor(value) }}>{pct}</span>
       <span style={{ fontSize: 10, color: theme.text.secondary }}>{label}</span>
     </div>
+  )
+}
+
+// ─── Variant Group Detail (候选列表审核) ────────────────────
+
+function VariantGroupDetail({ node }: { node: Node }) {
+  const data = node.data as any
+  const candidates = (data.candidates as any[]) || []
+  const groupLabel = (data.label as string) || '候选列表'
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const allNodes = useCanvasStore((s) => s.nodes)
+
+  // variantGroups 暂不使用，candidates 已从节点 data 中直接获取
+
+  // 从 store 中查找属于该 variantGroup 的节点
+  let resolvedCandidates = candidates
+  if (resolvedCandidates.length === 0) {
+    // 从节点 data 中找 variantNodeIds
+    const vgIds = data.variantNodeIds as string[] | undefined
+    if (vgIds && vgIds.length > 0) {
+      resolvedCandidates = allNodes
+        .filter((n: any) => vgIds.includes(n.id))
+        .map((n: any) => ({ id: n.id, ...n.data }))
+    }
+  }
+
+  const selectedCandidate = selectedId
+    ? resolvedCandidates.find((c: any) => c.id === selectedId || (c as any).nodeId === selectedId)
+    : null
+
+  return (
+    <>
+      <SectionLabel>{groupLabel}</SectionLabel>
+      <div style={{
+        fontSize: 12,
+        color: theme.text.secondary,
+        marginBottom: 12,
+      }}>
+        共 {resolvedCandidates.length} 个候选，点击选择最佳方案
+      </div>
+
+      {/* 候选列表 */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {resolvedCandidates.map((c: any, i: number) => {
+          const isSelected = selectedId === c.id
+          const score = c.score as number | undefined
+          return (
+            <div
+              key={c.id || i}
+              onClick={() => setSelectedId(isSelected ? null : (c.id as string))}
+              style={{
+                background: isSelected ? theme.bg.card : theme.bg.surface,
+                border: `2px solid ${isSelected ? theme.node.script : 'transparent'}`,
+                borderRadius: 8,
+                padding: 12,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {/* 候选标题行 */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                marginBottom: 4,
+              }}>
+                <span style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: theme.text.disabled,
+                  minWidth: 24,
+                }}>#{i + 1}</span>
+                <span style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: theme.text.primary,
+                  flex: 1,
+                }}>{(c.label as string) || `候选 ${i + 1}`}</span>
+                {score != null && (
+                  <span style={{
+                    padding: '1px 8px',
+                    borderRadius: 4,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    background: score >= 9 ? theme.state.success : score >= 7 ? theme.state.pending : theme.state.error,
+                    color: theme.text.onAccent,
+                  }}>⭐ {score}</span>
+                )}
+              </div>
+
+              {/* 简要描述 */}
+              {c.description && (
+                <div style={{
+                  fontSize: 11,
+                  color: theme.text.secondary,
+                  lineHeight: 1.5,
+                  marginLeft: 32,
+                  maxHeight: isSelected ? 'none' : 40,
+                  overflow: 'hidden',
+                }}>
+                  {(c.description as string).length > (isSelected ? 999 : 80)
+                    ? (c.description as string).slice(0, 80) + '…'
+                    : c.description}
+                </div>
+              )}
+
+              {/* 标签 */}
+              {c.tags && Array.isArray(c.tags) && c.tags.length > 0 && (
+                <div style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 4,
+                  marginLeft: 32,
+                  marginTop: 6,
+                }}>
+                  {(c.tags as string[]).map((tag, ti) => (
+                    <span key={ti} style={{
+                      padding: '1px 6px',
+                      borderRadius: 3,
+                      fontSize: 10,
+                      background: theme.bg.panel,
+                      color: theme.node.script,
+                      fontWeight: 500,
+                    }}>{tag}</span>
+                  ))}
+                </div>
+              )}
+
+              {/* 展开后详情 */}
+              {isSelected && (
+                <div style={{
+                  marginLeft: 32,
+                  marginTop: 8,
+                  padding: 10,
+                  background: theme.bg.panel,
+                  borderRadius: 6,
+                  fontSize: 11,
+                  lineHeight: 1.6,
+                  color: theme.text.secondary,
+                }}>
+                  {c.topic_kernel && <div><strong style={{color: theme.text.primary}}>核心命题：</strong>{c.topic_kernel}</div>}
+                  {c.highlight && <div style={{marginTop: 4}}><strong style={{color: theme.text.primary}}>亮点：</strong>{c.highlight}</div>}
+                  {c.emotional_resonance && <div style={{marginTop: 4}}><strong style={{color: theme.text.primary}}>情绪维度：</strong>{c.emotional_resonance}</div>}
+                  {c.safety_score != null && <div style={{marginTop: 4}}><strong style={{color: theme.text.primary}}>安全分：</strong>{c.safety_score}/10</div>}
+                  {c.genre_tag && <div style={{marginTop: 4}}><strong style={{color: theme.text.primary}}>类型：</strong>{c.genre_tag}</div>}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* 操作按钮 */}
+      <div style={{
+        display: 'flex',
+        gap: 8,
+        marginTop: 16,
+      }}>
+        <button
+          disabled={!selectedId}
+          style={{
+            padding: '8px 20px',
+            borderRadius: 6,
+            fontSize: 12,
+            fontWeight: 600,
+            border: 'none',
+            cursor: selectedId ? 'pointer' : 'not-allowed',
+            background: selectedId ? theme.state.success : theme.bg.surface,
+            color: selectedId ? theme.text.onAccent : theme.text.disabled,
+            opacity: selectedId ? 1 : 0.5,
+          }}
+        >
+          ✅ 确认选择
+        </button>
+        <button
+          style={{
+            padding: '8px 20px',
+            borderRadius: 6,
+            fontSize: 12,
+            fontWeight: 600,
+            border: 'none',
+            cursor: 'pointer',
+            background: theme.bg.surface,
+            color: theme.text.secondary,
+          }}
+        >
+          🔄 重做
+        </button>
+      </div>
+    </>
   )
 }
