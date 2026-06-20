@@ -697,7 +697,12 @@ function VariantGroupDetail({ node }: { node: Node }) {
   const candidates = (data.candidates as any[]) || []
   const groupLabel = (data.label as string) || '候选列表'
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [confirming, setConfirming] = useState(false)
+  const [confirmed, setConfirmed] = useState(false)
   const allNodes = useCanvasStore((s) => s.nodes)
+  const showToast = useCanvasStore((s) => s.showToast)
+  const projectId = useCanvasStore((s) => s.projectId)
+  const episodesId = useCanvasStore((s) => s.episodesId)
 
   // variantGroups 暂不使用，candidates 已从节点 data 中直接获取
 
@@ -832,6 +837,64 @@ function VariantGroupDetail({ node }: { node: Node }) {
                   {c.emotional_resonance && <div style={{marginTop: 4}}><strong style={{color: theme.text.primary}}>情绪维度：</strong>{c.emotional_resonance}</div>}
                   {c.safety_score != null && <div style={{marginTop: 4}}><strong style={{color: theme.text.primary}}>安全分：</strong>{c.safety_score}/10</div>}
                   {c.genre_tag && <div style={{marginTop: 4}}><strong style={{color: theme.text.primary}}>类型：</strong>{c.genre_tag}</div>}
+                  {/* 剧集详情展示 */}
+                  {Array.isArray(c.episodes) && c.episodes.length > 0 && (
+                    <div style={{marginTop: 10, borderTop: `1px solid ${theme.border.dim}`, paddingTop: 8}}>
+                      <strong style={{color: theme.text.primary}}>📖 剧集预览 ({c.episodes.length}集)</strong>
+                      {c.episodes.map((ep: any, ei: number) => (
+                        <div key={ei} style={{
+                          marginTop: 8,
+                          padding: 8,
+                          background: theme.bg.surface,
+                          borderRadius: 6,
+                          border: `1px solid ${theme.border.dim}`,
+                        }}>
+                          <div style={{fontWeight: 600, color: theme.text.primary, fontSize: 12}}>
+                            {ep.ep || `EP${ei+1}`}: {ep.title}
+                          </div>
+                          {ep.logline && <div style={{marginTop: 2, color: theme.text.secondary}}>{ep.logline}</div>}
+                          {ep.fantasy && (
+                            <div style={{marginTop: 4, color: theme.text.secondary}}>
+                              <strong style={{color: theme.text.primary}}>✨ 奇幻:</strong> {ep.fantasy.length > 120 ? ep.fantasy.slice(0, 120) + '…' : ep.fantasy}
+                            </div>
+                          )}
+                          {ep.signature_shot && (
+                            <div style={{marginTop: 2, color: theme.text.secondary}}>
+                              <strong style={{color: theme.text.primary}}>🎬 定格:</strong> {ep.signature_shot.length > 120 ? ep.signature_shot.slice(0, 120) + '…' : ep.signature_shot}
+                            </div>
+                          )}
+                          {ep.hook_ending && (
+                            <div style={{marginTop: 2, color: theme.text.secondary}}>
+                              <strong style={{color: theme.text.primary}}>🪝 钩子:</strong> {ep.hook_ending.length > 100 ? ep.hook_ending.slice(0, 100) + '…' : ep.hook_ending}
+                            </div>
+                          )}
+                          {ep.plot_twist && (
+                            <div style={{marginTop: 2, color: theme.text.secondary}}>
+                              <strong style={{color: theme.text.primary}}>🔄 反转:</strong> {ep.plot_twist.length > 100 ? ep.plot_twist.slice(0, 100) + '…' : ep.plot_twist}
+                            </div>
+                          )}
+                          {Array.isArray(ep.scenes) && ep.scenes.length > 0 && (
+                            <div style={{marginTop: 4}}>
+                              <strong style={{color: theme.text.primary}}>🎬 场景 ({ep.scenes.length}):</strong>
+                              {ep.scenes.slice(0, 3).map((sc: any, si: number) => (
+                                <div key={si} style={{
+                                  marginTop: 2,
+                                  paddingLeft: 8,
+                                  borderLeft: `2px solid ${theme.border.dim}`,
+                                  color: theme.text.secondary,
+                                  fontSize: 10,
+                                  lineHeight: 1.5,
+                                }}>
+                                  {typeof sc === 'string' ? sc.slice(0, 100) + '…' : (sc.content || '').slice(0, 100) + '…'}
+                                </div>
+                              ))}
+                              {ep.scenes.length > 3 && <div style={{color: theme.text.disabled, fontSize: 10, marginTop: 2}}>...还有 {ep.scenes.length - 3} 场</div>}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -846,20 +909,34 @@ function VariantGroupDetail({ node }: { node: Node }) {
         marginTop: 16,
       }}>
         <button
-          disabled={!selectedId}
+          disabled={!selectedId || confirming || confirmed}
+          onClick={async () => {
+            if (!selectedId || !projectId || !episodesId) return
+            setConfirming(true)
+            try {
+              const { approveNode } = await import('../services/canvasApi')
+              await approveNode(projectId, episodesId, node.id, selectedId)
+              setConfirmed(true)
+              showToast(`已确认选择: ${selectedId}`, 'success')
+            } catch (err: any) {
+              showToast(err.message || '确认失败', 'error')
+            } finally {
+              setConfirming(false)
+            }
+          }}
           style={{
             padding: '8px 20px',
             borderRadius: 6,
             fontSize: 12,
             fontWeight: 600,
             border: 'none',
-            cursor: selectedId ? 'pointer' : 'not-allowed',
-            background: selectedId ? theme.state.success : theme.bg.surface,
+            cursor: selectedId && !confirming && !confirmed ? 'pointer' : 'not-allowed',
+            background: confirmed ? theme.state.success : (selectedId ? theme.state.success : theme.bg.surface),
             color: selectedId ? theme.text.onAccent : theme.text.disabled,
             opacity: selectedId ? 1 : 0.5,
           }}
         >
-          ✅ 确认选择
+          {confirming ? '⏳ 确认中...' : confirmed ? '✅ 已确认' : '✅ 确认选择'}
         </button>
         <button
           style={{
