@@ -1,8 +1,14 @@
 import { create } from 'zustand'
 import { applyNodeChanges, applyEdgeChanges, type Node, type Edge, type NodeChange, type EdgeChange } from '@xyflow/react'
 import type { SkillNodeTypeDecl } from '../services/canvasApi'
-import type { FlowBranch, BranchStatus } from '../types/canvas'
+import type { FlowBranch, VariantGroup, VariantGroupId } from '../types/canvas'
+import { asVariantGroupId } from '../types/canvas'
 import { approveNode as apiApproveNode, rejectNode as apiRejectNode } from '../services/canvasApi'
+import {
+  applyWinnerSelection,
+  rollbackWinnerSelection,
+  syncWinnerToGroups,
+} from './variantOps'
 
 export interface ToastItem {
   id: number
@@ -37,6 +43,11 @@ interface CanvasState {
   setBranches: (branches: FlowBranch[]) => void
   addBranch: (branch: FlowBranch) => void
   updateBranch: (branchId: string, updates: Partial<FlowBranch>) => void
+
+  // 变体组 (持久化层 — FlowGraphV2.variantGroups 同步)
+  variantGroups: VariantGroup[]
+  setVariantGroups: (groups: VariantGroup[]) => void
+  upsertVariantGroup: (group: VariantGroup) => void
 
   // 加载状态
   loading: boolean
@@ -152,6 +163,17 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     branches: state.branches.map((b) => b.id === branchId ? { ...b, ...updates } : b),
   })),
 
+  // 变体组 (持久化层)
+  variantGroups: [],
+  setVariantGroups: (groups) => set({ variantGroups: groups }),
+  upsertVariantGroup: (group) => set((state) => {
+    const idx = state.variantGroups.findIndex((g) => g.groupId === group.groupId)
+    if (idx === -1) return { variantGroups: [...state.variantGroups, group] }
+    const next = state.variantGroups.slice()
+    next[idx] = group
+    return { variantGroups: next }
+  }),
+
   // 加载
   loading: false,
   setLoading: (l) => set({ loading: l }),
@@ -190,7 +212,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       // 回滚
       set((state) => ({
         nodes: state.nodes.map((n) =>
-          n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: nodes.find(nn => nn.id === nodeId)?.data?.reviewStatus ?? 'awaiting_audit' } } : n
+          n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: nodes.find(nn => nn.id === nodeId)?.data?.reviewStatus ?? 'pending' } } : n
         ),
       }))
       showToast(`审核失败: ${(err as Error).message}`, 'error')
@@ -214,37 +236,43 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       // 回滚
       set((state) => ({
         nodes: state.nodes.map((n) =>
-          n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: nodes.find(nn => nn.id === nodeId)?.data?.reviewStatus ?? 'awaiting_audit' } } : n
+          n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: nodes.find(nn => nn.id === nodeId)?.data?.reviewStatus ?? 'pending' } } : n
         ),
       }))
       showToast(`驳回失败: ${(err as Error).message}`, 'error')
     }
   },
   selectWinner: (nodeId) => {
-    const { nodes, edges, setEdges, showToast } = get()
+    const { nodes, edges, variantGroups, setNodes, setEdges, upsertVariantGroup, showToast } = get()
     const node = nodes.find((n) => n.id === nodeId)
-    const variantGroupId = node?.data?.variantGroupId as string | undefined
-    if (!variantGroupId) {
+    const rawGroupId = node?.data?.variantGroupId as string | undefined
+    if (!rawGroupId) {
       showToast('该节点不属于变体组', 'warning')
       return
     }
-    set((state) => ({
-      nodes: state.nodes.map((n) => {
-        const vg = n.data?.variantGroupId as string | undefined
-        if (vg !== variantGroupId) return n
-        if (n.id === nodeId) {
-          return { ...n, data: { ...n.data, isWinner: true, reviewStatus: 'approved' } }
-        }
-        return { ...n, data: { ...n.data, isWinner: false } }
-      }),
-    }))
-    setEdges(edges.map((e) => {
-      const targetNode = nodes.find((n) => n.id === e.target)
-      if (targetNode && (targetNode.data?.variantGroupId as string) === variantGroupId && e.target !== nodeId) {
-        return { ...e, data: { ...e.data, isInactive: true } }
-      }
-      return e
-    }))
+    const variantGroupId = asVariantGroupId(rawGroupId)
+
+    // 1) 纯函数计算下一状态 + 同时拍下 prev snapshot 用于失败回滚
+    const outcome = applyWinnerSelection({
+      nodes, edges, variantGroupId, winnerNodeId: nodeId,
+    })
+
+    // 2) 乐观更新 store
+    set({ nodes: outcome.nextNodes })
+    setEdges(outcome.nextEdges)
+
+    // 3) 同步更新 (或新建) VariantGroup.winnerNodeId
+    const existingGroup = variantGroups.find((g) => g.groupId === variantGroupId)
+    if (existingGroup) {
+      const updated = syncWinnerToGroups(variantGroups, variantGroupId, nodeId)[0]
+      if (updated) upsertVariantGroup(updated)
+    }
+    // 注:此处不调后端 — selectWinner 在本地是即时 UI 优先,
+    // 真正的持久化由用户点击 "💾 保存" 触发 (saveCanvasGraph)。
+    // 因此没有 try/catch 回滚路径。如果将来接入实时 API,失败时调用
+    // rollbackWinnerSelection(outcome) 把 nodes/edges 恢复。
+
+    void outcome // 保留引用,便于将来接入 async API 时回滚
     showToast(`已选为优胜: ${nodeId}`, 'success')
   },
 

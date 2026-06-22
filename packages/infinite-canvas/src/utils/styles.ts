@@ -28,7 +28,7 @@ export function getReviewBorderColor(
   state?: NodeState,
 ): string {
   if (reviewStatus === 'rejected') return theme.status.rejected
-  if (reviewStatus === 'awaiting_audit') return theme.status.awaiting
+  if (reviewStatus === 'pending') return theme.status.awaiting
   if (reviewStatus === 'approved') return theme.status.approved
   if (routingDecision === 'BLOCK') return theme.node.script
   return stateColors[state ?? 'idle']

@@ -1,8 +1,28 @@
+// ─── 品牌类型 (Branded types) ───────────────────────────────
+// 用于在编译期区分 string ID 的语义,避免把 projectId 误传成 nodeId。
+// 实现遵循 branding idiom:一个 symbol 字段使 TS 把不同的 brand 视为不兼容。
+
+declare const __brand: unique symbol
+export type Brand<T extends string> = { readonly [__brand]: T }
+
+/** 画布节点 ID (例如 'asset-12', 'storyboard-3') */
+export type NodeId = string & Brand<'NodeId'>
+/** 变体组 ID (例如 'vg-char-role') */
+export type VariantGroupId = string & Brand<'VariantGroupId'>
+/** 画布边 ID */
+export type EdgeId = string & Brand<'EdgeId'>
+
+// 构造辅助:在边界处(读外部数据时)用这些函数把普通 string 提升为 branded ID。
+export const asNodeId = (s: string): NodeId => s as NodeId
+export const asVariantGroupId = (s: string): VariantGroupId => s as VariantGroupId
+export const asEdgeId = (s: string): EdgeId => s as EdgeId
+
 /** 节点执行状态 */
 export type NodeState = 'idle' | 'pending' | 'running' | 'success' | 'error' | 'cached'
 
-/** 审核状态 */
-export type ReviewStatus = 'awaiting_audit' | 'approved' | 'rejected'
+/** 审核状态 — 与 v2 zod schema (pending | approved | rejected) 对齐。
+ * 旧的 'awaiting_audit' 值在 flowDataMapper 边界被归一化为 'pending'。 */
+export type ReviewStatus = 'pending' | 'approved' | 'rejected'
 
 /** Phase 35 — 分镜镜头意图元数据 (借鉴小云雀) */
 export type CameraMovement = 'static' | 'zoom_in' | 'zoom_out' | 'pan_left' | 'pan_right' | 'tilt_up' | 'tilt_down' | 'dolly' | 'tracking'
@@ -153,12 +173,118 @@ export interface FlowBranch {
   updatedAt: string
 }
 
-/** 变体组 — 同一分镜下的多个候选资产 */
+/** 变体组成员状态 — 显式区分优胜 / 落选 / 待审,避免用 !isWinner 表达"落选" */
+export type VariantMemberStatus = 'winner' | 'loser' | 'pending'
+
+/** 计算单个变体节点的状态 — 用于 UI 着色和 ARIA 标签 */
+export function deriveVariantMemberStatus(
+  isWinner: boolean | undefined,
+  hasWinnerInGroup: boolean,
+): VariantMemberStatus {
+  if (isWinner) return 'winner'
+  if (hasWinnerInGroup) return 'loser'
+  return 'pending'
+}
+
+/** 变体组 — 同一父节点下的多个候选资产 / 分镜 / 视频 */
 export interface VariantGroup {
+  /** 组 ID (例如 'vg-char-role') — 用于在节点 data.variantGroupId 上做关联 */
+  groupId: VariantGroupId
+  /** 触发变体的父节点 ID (通常是上游分镜或剧本审核节点) */
+  parentNodeId: NodeId
+  /** 组内所有变体节点 ID (顺序即 variantIndex) */
+  variantNodeIds: NodeId[]
+  /** 当前优胜节点 ID;在 selectWinner 成功后写入 */
+  winnerNodeId?: NodeId
+  /** 创建时间 (ISO) — 用于审计和回滚 */
+  createdAt: string
+}
+
+/** 创建一个新 VariantGroup 的工厂 — 自动填入时间戳与 branded IDs */
+export function createVariantGroup(input: {
   groupId: string
   parentNodeId: string
   variantNodeIds: string[]
   winnerNodeId?: string
+}): VariantGroup {
+  return {
+    groupId: asVariantGroupId(input.groupId),
+    parentNodeId: asNodeId(input.parentNodeId),
+    variantNodeIds: input.variantNodeIds.map(asNodeId),
+    ...(input.winnerNodeId ? { winnerNodeId: asNodeId(input.winnerNodeId) } : {}),
+    createdAt: new Date().toISOString(),
+  }
+}
+
+// ─── 候选审核 (剧本节点 category='variant_group') ──────────────
+//
+// 这些类型此前散落在 src/components/NodeDetailPanel.tsx 内部 (EpisodeInfo,
+// EpisodeScene, Candidate, VariantGroupData),作为 inline 类型存在。
+// 提取到 types 层后,store 和多个组件可以共享同一形态。
+
+/** 剧集中的单个场景 — 兼容字符串形式(旧数据)和结构化对象(新数据) */
+export interface EpisodeScene {
+  content?: string
+  [k: string]: unknown
+}
+
+/** 候选列表中单条剧集的元信息 */
+export interface EpisodeInfo {
+  ep?: string | number
+  title?: string
+  logline?: string
+  fantasy?: string
+  signature_shot?: string
+  hook_ending?: string
+  plot_twist?: string
+  scenes?: EpisodeScene[] | string[]
+}
+
+/** 变体候选 — 来自节点 data.candidates 或同组变体子节点 */
+export interface VariantCandidate {
+  id: string
+  label?: string
+  score?: number
+  description?: string
+  tags?: string[]
+  topic_kernel?: string
+  highlight?: string
+  emotional_resonance?: string
+  safety_score?: number
+  genre_tag?: string
+  episodes?: EpisodeInfo[]
+  [k: string]: unknown
+}
+
+/** variant_group 类型剧本节点的 data 形态 */
+export interface VariantGroupNodeData {
+  label?: string
+  candidates?: VariantCandidate[]
+  variantNodeIds?: string[]
+  reviewStatus?: ReviewStatus | string
+}
+
+/** 变体风格 (alpha / beta / gamma) — 仅用于 UI 着色,不影响业务 */
+export type VariantStyleTag = 'alpha' | 'beta' | 'gamma'
+
+/** 从候选 label 中检测风格 tag */
+export function detectVariantStyle(label: string | undefined): VariantStyleTag | null {
+  if (!label) return null
+  if (label.includes('alpha')) return 'alpha'
+  if (label.includes('beta')) return 'beta'
+  if (label.includes('gamma')) return 'gamma'
+  return null
+}
+
+/** VariantGroupDetail 的本地 UI 状态机 — 替代散落的 useState */
+export type VariantReviewLoadingState = 'idle' | 'approving' | 'rejecting' | 'confirming'
+
+export interface VariantGroupUIState {
+  selectedId: string | null
+  selectedForReview: string | null
+  confirmed: boolean
+  reviewLoading: VariantReviewLoadingState
+  error: string | null
 }
 
 /** 连线数据 */

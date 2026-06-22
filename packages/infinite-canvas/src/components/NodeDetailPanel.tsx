@@ -1,12 +1,14 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import type { Node } from '@xyflow/react'
-import type { ScriptNodeData, AssetNodeData, StoryboardNodeData, VideoNodeData, NodeState, ReviewStatus, CameraMovement, Framing, Composition, Pacing } from '../types/canvas'
+import type { ScriptNodeData, AssetNodeData, StoryboardNodeData, VideoNodeData, NodeState, ReviewStatus } from '../types/canvas'
 import { stateColors } from '../utils/styles'
 import { theme, getScoreColor } from '../theme/catppuccin'
 import { METADATA_LABELS, METADATA_FIELD_ORDER } from '../constants'
 import { useCanvasStore } from '../store/canvasStore'
 import FileViewer from './FileViewer'
 import ReviewCard from './ReviewCard'
+import VariantGroupDetail from './VariantGroupDetail'
+import { ErrorBoundary } from './ErrorBoundary'
 
 type NodeData = ScriptNodeData | AssetNodeData | StoryboardNodeData | VideoNodeData
 
@@ -139,8 +141,10 @@ export default function NodeDetailPanel({ node, onClose }: Props) {
         {/* 滚动内容区 */}
         <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
           {type === 'script' && (data as any).category === 'variant_group' && (
+            <ErrorBoundary resetKey={node.id}>
               <VariantGroupDetail node={node} />
-            )}
+            </ErrorBoundary>
+          )}
             {type === 'script' && (data as any).category !== 'variant_group' && <ScriptDetail data={data as ScriptNodeData} />}
           {type === 'asset' && (
             <AssetDetail
@@ -178,8 +182,8 @@ export default function NodeDetailPanel({ node, onClose }: Props) {
             </>
           )}
 
-          {/* Review card for awaiting_audit nodes */}
-          {(data.reviewStatus as string) === 'awaiting_audit' && (
+          {/* Review card for pending (awaiting audit) nodes */}
+          {(data.reviewStatus as string) === 'pending' && (
             <div style={{ marginBottom: 16 }}>
               <ReviewCard
                 filePath={(data.filePath as string) || undefined}
@@ -653,7 +657,7 @@ function VideoDetail({ data }: { data: VideoNodeData }) {
 function ReviewStatusBadge({ status }: { status: ReviewStatus | undefined }) {
   if (!status) return null
   const config: Record<string, { label: string; bg: string }> = {
-    awaiting_audit: { label: '待审核', bg: theme.status.awaiting },
+    pending: { label: '待审核', bg: theme.status.awaiting },
     approved: { label: '已通过', bg: theme.status.approved },
     rejected: { label: '已驳回', bg: theme.status.rejected },
   }
@@ -687,272 +691,5 @@ function ScoreDim({ label, value }: { label: string; value: number | null | unde
       <span style={{ fontSize: 16, fontWeight: 700, color: getScoreColor(value) }}>{pct}</span>
       <span style={{ fontSize: 10, color: theme.text.secondary }}>{label}</span>
     </div>
-  )
-}
-
-// ─── Variant Group Detail (候选列表审核) ────────────────────
-
-function VariantGroupDetail({ node }: { node: Node }) {
-  const data = node.data as any
-  const candidates = (data.candidates as any[]) || []
-  const groupLabel = (data.label as string) || '候选列表'
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [confirming, setConfirming] = useState(false)
-  const [confirmed, setConfirmed] = useState(false)
-  const allNodes = useCanvasStore((s) => s.nodes)
-  const showToast = useCanvasStore((s) => s.showToast)
-  const projectId = useCanvasStore((s) => s.projectId)
-  const episodesId = useCanvasStore((s) => s.episodesId)
-
-  // variantGroups 暂不使用，candidates 已从节点 data 中直接获取
-
-  // 从 store 中查找属于该 variantGroup 的节点
-  let resolvedCandidates = candidates
-  if (resolvedCandidates.length === 0) {
-    // 从节点 data 中找 variantNodeIds
-    const vgIds = data.variantNodeIds as string[] | undefined
-    if (vgIds && vgIds.length > 0) {
-      resolvedCandidates = allNodes
-        .filter((n: any) => vgIds.includes(n.id))
-        .map((n: any) => ({ id: n.id, ...n.data }))
-    }
-  }
-
-  const selectedCandidate = selectedId
-    ? resolvedCandidates.find((c: any) => c.id === selectedId || (c as any).nodeId === selectedId)
-    : null
-
-  return (
-    <>
-      <SectionLabel>{groupLabel}</SectionLabel>
-      <div style={{
-        fontSize: 12,
-        color: theme.text.secondary,
-        marginBottom: 12,
-      }}>
-        共 {resolvedCandidates.length} 个候选，点击选择最佳方案
-      </div>
-
-      {/* 候选列表 */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {resolvedCandidates.map((c: any, i: number) => {
-          const isSelected = selectedId === c.id
-          const score = c.score as number | undefined
-          return (
-            <div
-              key={c.id || i}
-              onClick={() => setSelectedId(isSelected ? null : (c.id as string))}
-              style={{
-                background: isSelected ? theme.bg.card : theme.bg.surface,
-                border: `2px solid ${isSelected ? theme.node.script : 'transparent'}`,
-                borderRadius: 8,
-                padding: 12,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              {/* 候选标题行 */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                marginBottom: 4,
-              }}>
-                <span style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: theme.text.disabled,
-                  minWidth: 24,
-                }}>#{i + 1}</span>
-                <span style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: theme.text.primary,
-                  flex: 1,
-                }}>{(c.label as string) || `候选 ${i + 1}`}</span>
-                {score != null && (
-                  <span style={{
-                    padding: '1px 8px',
-                    borderRadius: 4,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    background: score >= 9 ? theme.state.success : score >= 7 ? theme.state.pending : theme.state.error,
-                    color: theme.text.onAccent,
-                  }}>⭐ {score}</span>
-                )}
-              </div>
-
-              {/* 简要描述 */}
-              {c.description && (
-                <div style={{
-                  fontSize: 11,
-                  color: theme.text.secondary,
-                  lineHeight: 1.5,
-                  marginLeft: 32,
-                  maxHeight: isSelected ? 'none' : 40,
-                  overflow: 'hidden',
-                }}>
-                  {(c.description as string).length > (isSelected ? 999 : 80)
-                    ? (c.description as string).slice(0, 80) + '…'
-                    : c.description}
-                </div>
-              )}
-
-              {/* 标签 */}
-              {c.tags && Array.isArray(c.tags) && c.tags.length > 0 && (
-                <div style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: 4,
-                  marginLeft: 32,
-                  marginTop: 6,
-                }}>
-                  {(c.tags as string[]).map((tag, ti) => (
-                    <span key={ti} style={{
-                      padding: '1px 6px',
-                      borderRadius: 3,
-                      fontSize: 10,
-                      background: theme.bg.panel,
-                      color: theme.node.script,
-                      fontWeight: 500,
-                    }}>{tag}</span>
-                  ))}
-                </div>
-              )}
-
-              {/* 展开后详情 */}
-              {isSelected && (
-                <div style={{
-                  marginLeft: 32,
-                  marginTop: 8,
-                  padding: 10,
-                  background: theme.bg.panel,
-                  borderRadius: 6,
-                  fontSize: 11,
-                  lineHeight: 1.6,
-                  color: theme.text.secondary,
-                }}>
-                  {c.topic_kernel && <div><strong style={{color: theme.text.primary}}>核心命题：</strong>{c.topic_kernel}</div>}
-                  {c.highlight && <div style={{marginTop: 4}}><strong style={{color: theme.text.primary}}>亮点：</strong>{c.highlight}</div>}
-                  {c.emotional_resonance && <div style={{marginTop: 4}}><strong style={{color: theme.text.primary}}>情绪维度：</strong>{c.emotional_resonance}</div>}
-                  {c.safety_score != null && <div style={{marginTop: 4}}><strong style={{color: theme.text.primary}}>安全分：</strong>{c.safety_score}/10</div>}
-                  {c.genre_tag && <div style={{marginTop: 4}}><strong style={{color: theme.text.primary}}>类型：</strong>{c.genre_tag}</div>}
-                  {/* 剧集详情展示 */}
-                  {Array.isArray(c.episodes) && c.episodes.length > 0 && (
-                    <div style={{marginTop: 10, borderTop: `1px solid ${theme.border.dim}`, paddingTop: 8}}>
-                      <strong style={{color: theme.text.primary}}>📖 剧集预览 ({c.episodes.length}集)</strong>
-                      {c.episodes.map((ep: any, ei: number) => (
-                        <div key={ei} style={{
-                          marginTop: 8,
-                          padding: 8,
-                          background: theme.bg.surface,
-                          borderRadius: 6,
-                          border: `1px solid ${theme.border.dim}`,
-                        }}>
-                          <div style={{fontWeight: 600, color: theme.text.primary, fontSize: 12}}>
-                            {ep.ep || `EP${ei+1}`}: {ep.title}
-                          </div>
-                          {ep.logline && <div style={{marginTop: 2, color: theme.text.secondary}}>{ep.logline}</div>}
-                          {ep.fantasy && (
-                            <div style={{marginTop: 4, color: theme.text.secondary}}>
-                              <strong style={{color: theme.text.primary}}>✨ 奇幻:</strong> {ep.fantasy.length > 120 ? ep.fantasy.slice(0, 120) + '…' : ep.fantasy}
-                            </div>
-                          )}
-                          {ep.signature_shot && (
-                            <div style={{marginTop: 2, color: theme.text.secondary}}>
-                              <strong style={{color: theme.text.primary}}>🎬 定格:</strong> {ep.signature_shot.length > 120 ? ep.signature_shot.slice(0, 120) + '…' : ep.signature_shot}
-                            </div>
-                          )}
-                          {ep.hook_ending && (
-                            <div style={{marginTop: 2, color: theme.text.secondary}}>
-                              <strong style={{color: theme.text.primary}}>🪝 钩子:</strong> {ep.hook_ending.length > 100 ? ep.hook_ending.slice(0, 100) + '…' : ep.hook_ending}
-                            </div>
-                          )}
-                          {ep.plot_twist && (
-                            <div style={{marginTop: 2, color: theme.text.secondary}}>
-                              <strong style={{color: theme.text.primary}}>🔄 反转:</strong> {ep.plot_twist.length > 100 ? ep.plot_twist.slice(0, 100) + '…' : ep.plot_twist}
-                            </div>
-                          )}
-                          {Array.isArray(ep.scenes) && ep.scenes.length > 0 && (
-                            <div style={{marginTop: 4}}>
-                              <strong style={{color: theme.text.primary}}>🎬 场景 ({ep.scenes.length}):</strong>
-                              {ep.scenes.slice(0, 3).map((sc: any, si: number) => (
-                                <div key={si} style={{
-                                  marginTop: 2,
-                                  paddingLeft: 8,
-                                  borderLeft: `2px solid ${theme.border.dim}`,
-                                  color: theme.text.secondary,
-                                  fontSize: 10,
-                                  lineHeight: 1.5,
-                                }}>
-                                  {typeof sc === 'string' ? sc.slice(0, 100) + '…' : (sc.content || '').slice(0, 100) + '…'}
-                                </div>
-                              ))}
-                              {ep.scenes.length > 3 && <div style={{color: theme.text.disabled, fontSize: 10, marginTop: 2}}>...还有 {ep.scenes.length - 3} 场</div>}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-
-      {/* 操作按钮 */}
-      <div style={{
-        display: 'flex',
-        gap: 8,
-        marginTop: 16,
-      }}>
-        <button
-          disabled={!selectedId || confirming || confirmed}
-          onClick={async () => {
-            if (!selectedId || !projectId || !episodesId) return
-            setConfirming(true)
-            try {
-              const { approveNode } = await import('../services/canvasApi')
-              await approveNode(projectId, episodesId, node.id, selectedId)
-              setConfirmed(true)
-              showToast(`已确认选择: ${selectedId}`, 'success')
-            } catch (err: any) {
-              showToast(err.message || '确认失败', 'error')
-            } finally {
-              setConfirming(false)
-            }
-          }}
-          style={{
-            padding: '8px 20px',
-            borderRadius: 6,
-            fontSize: 12,
-            fontWeight: 600,
-            border: 'none',
-            cursor: selectedId && !confirming && !confirmed ? 'pointer' : 'not-allowed',
-            background: confirmed ? theme.state.success : (selectedId ? theme.state.success : theme.bg.surface),
-            color: selectedId ? theme.text.onAccent : theme.text.disabled,
-            opacity: selectedId ? 1 : 0.5,
-          }}
-        >
-          {confirming ? '⏳ 确认中...' : confirmed ? '✅ 已确认' : '✅ 确认选择'}
-        </button>
-        <button
-          style={{
-            padding: '8px 20px',
-            borderRadius: 6,
-            fontSize: 12,
-            fontWeight: 600,
-            border: 'none',
-            cursor: 'pointer',
-            background: theme.bg.surface,
-            color: theme.text.secondary,
-          }}
-        >
-          🔄 重做
-        </button>
-      </div>
-    </>
   )
 }

@@ -123,7 +123,7 @@ export default function CanvasContextMenu({
       showToast('审核通过', 'success')
     } catch (err: any) {
       setNodes((nds) => nds.map((n) =>
-        n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: 'awaiting_audit' } } : n
+        n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: 'pending' } } : n
       ))
       showToast(err.message || '审核通过失败', 'error')
     }
@@ -140,7 +140,7 @@ export default function CanvasContextMenu({
       showToast('已驳回', 'warning')
     } catch (err: any) {
       setNodes((nds) => nds.map((n) =>
-        n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: 'awaiting_audit' } } : n
+        n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: 'pending' } } : n
       ))
       showToast(err.message || '驳回失败', 'error')
     }

@@ -8,6 +8,7 @@ import type {
   NodeState,
   LegacyFlowData,
   FlowGraph,
+  FlowGraphNode,
 } from '../types/canvas'
 import { LAYOUT, NODE_SIZES } from '../constants'
 
@@ -100,7 +101,7 @@ export function flowDataToCanvas(
         variantGroupId: VARIANT_GROUP_ID,
         variantIndex: i,
         isWinner: i === 0, // 第一个为优胜者
-        reviewStatus: i === 0 ? 'approved' : 'awaiting_audit',
+        reviewStatus: i === 0 ? 'approved' : 'pending',
       }),
     }
     nodes.push({
@@ -330,22 +331,96 @@ export function canvasToFlowGraph(
 
 /** FlowGraph → React Flow 节点/边 */
 export function flowGraphToCanvas(graph: FlowGraph): { nodes: Node[]; edges: Edge[] } {
-  const nodes: Node[] = graph.nodes.map((gn) => ({
-    id: gn.id,
-    type: gn.type,
-    position: gn.position,
-    data: {
-      ...gn.data,
-      state: gn.state,
-      progress: gn.progress,
-      // 分支字段：FlowGraphNode 顶层 → 节点 data（供渲染器读取）
-      branchId: gn.branchId,
-      phaseIndex: gn.phaseIndex,
-      phaseName: gn.phaseName,
-      suggestion: gn.suggestion,
-      variantOf: gn.variantOf,
+  // Auto-compute phase zones from node data
+  const phaseNodes: Record<string, typeof graph.nodes> = {}
+  for (const gn of graph.nodes) {
+    const rawPhase = gn.data?.phase as string | undefined
+    let phase: string | undefined = rawPhase
+    if (!phase) {
+      const pn = (gn.data?.phaseName as string) || gn.phaseName || ''
+      if (pn.toLowerCase().includes('step1')) phase = 'research'
+      else if (pn.toLowerCase().includes('step2') || pn.toLowerCase().includes('step3')) phase = 'story'
+      else if (pn.toLowerCase().includes('step4') || pn.toLowerCase().includes('step5')) phase = 'production'
+    }
+    if (phase) {
+      if (!phaseNodes[phase]) phaseNodes[phase] = []
+      phaseNodes[phase].push(gn)
+    }
+  }
+
+  // Compute zone bounds from node positions
+  const zoneDefs: { id: string; label: string; phase: string; pos: { x: number; y: number }; size: { width: number; height: number } }[] = []
+  const phaseLabels: Record<string, string> = {
+    research: '🔍 研究阶段',
+    story: '📖 故事阶段',
+    production: '🎬 制作阶段',
+    post: '🎚️ 后期阶段',
+  }
+  for (const [phase, nodes] of Object.entries(phaseNodes)) {
+    if (nodes.length === 0) continue
+    const xs = nodes.map(n => n.position.x)
+    const ys = nodes.map(n => n.position.y)
+    const minX = Math.min(...xs) - 80
+    const minY = Math.min(...ys) - 60
+    const maxX = Math.max(...xs) + 360
+    const maxY = Math.max(...ys) + 250
+    zoneDefs.push({
+      id: `zone-${phase}`, label: phaseLabels[phase] || phase, phase,
+      pos: { x: minX, y: minY },
+      size: { width: maxX - minX, height: maxY - minY },
+    })
+  }
+
+  // Build zone nodes (rendered first, behind regular nodes)
+  const zoneNodes: Node[] = zoneDefs.map(z => ({
+    id: z.id,
+    type: 'zone',
+    position: z.pos,
+    draggable: false,
+    selectable: false,
+    deletable: false,
+    connectable: false,
+    focusable: false,
+    style: {
+      width: z.size.width,
+      height: z.size.height,
+      zIndex: 0,
+      pointerEvents: 'none',
     },
+    data: { label: z.label, phase: z.phase },
   }))
+
+  const mapNode = (gn: FlowGraphNode): Node => {
+    // ─── reviewStatus 边界归一化 ────────────────────────────
+    // 旧 blob（含 awaiting_audit）→ 新 canonical (pending)。
+    // v1.9 临时兼容层；下一里程碑去掉。
+    const incomingReviewStatus = gn.data?.reviewStatus ?? gn.reviewStatus
+    const normalizedReviewStatus =
+      incomingReviewStatus === 'awaiting_audit' ? 'pending' : incomingReviewStatus
+
+    return {
+      id: gn.id,
+      type: gn.type,
+      position: gn.position,
+      data: {
+        ...gn.data,
+        ...(gn.data?.detail && !gn.data?.content ? { content: gn.data.detail } : {}),
+        ...(normalizedReviewStatus ? { reviewStatus: normalizedReviewStatus } : {}),
+        state: gn.state,
+        progress: gn.progress,
+        branchId: gn.branchId,
+        phaseIndex: gn.phaseIndex,
+        phaseName: gn.phaseName,
+        suggestion: gn.suggestion,
+        variantOf: gn.variantOf,
+      },
+    }
+  }
+
+  const nodes: Node[] = [
+    ...zoneNodes,
+    ...graph.nodes.map(mapNode),
+  ]
 
   const edges: Edge[] = graph.links.map((gl) => ({
     id: gl.id,
