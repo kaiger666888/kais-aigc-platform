@@ -12,11 +12,24 @@
 | T1 | `node -e "import('./lib/canvas-content-sync.js')"` returns sync exports | ✅ |
 | T2 | `/^[a-zA-Z0-9_-]+$/` regex rejects 4/4 malicious IDs (traversal, slash, dot, shell) | ✅ |
 | T2 | Path prefix double-check via `startsWith(reviewDir + path.sep)` | ✅ |
+| T2 | **Playwright** `phase40-review-gate-hardening.mjs` — 6/6 regex tests pass | ✅ |
 | T3 | `tsc -b` (yarn build) — 0 errors, 253 modules transformed | ✅ |
 | T3 | `grep awaiting_audit packages/infinite-canvas/src/` — only normalizer + comment remain | ✅ |
+| T3 | **Playwright** `phase40-status-normalization.mjs` — 2/2 normalize tests pass | ✅ |
 | T4 | `static/assets/index-BTZ3GWWj.js` deployed; 3 stale bundles purged | ✅ |
 | T4 | `index.html` script src points at new hash | ✅ |
 | T5 | `docker-compose.v9.yml:183` sets `GOLD_TEAM_URL: http://kais-gold-team:8002` | ✅ (no change needed) |
+
+## Playwright e2e — full suite result
+
+```
+8 passed  (Phase 40 — 6 GATE-* + 2 NORMALIZE-*)
+29 passed (Phase 35-38 — no regression)
+1 failed  (phase36 ORCHESTRATE-03 — pre-existing CDN socket.io sandbox block,
+           unrelated to Phase 40)
+─────────
+37/38 passed
+```
 
 ## Commits shipped
 
