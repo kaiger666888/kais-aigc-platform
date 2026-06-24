@@ -28,8 +28,8 @@ import route24 from "./routes/assetsGenerate/batchPolishAssetsPrompt";
 import route25 from "./routes/assetsGenerate/cancelGenerate";
 import route26 from "./routes/assetsGenerate/generateAssets";
 import route27 from "./routes/assetsGenerate/polishAssetsPrompt";
-import route28 from "./routes/canvas/_engine";
-import route29 from "./routes/canvas/_simulate";
+// route28 (_engine) and route29 (_simulate) are helper modules without default exports —
+// they are imported directly by other canvas routes, not mounted as routes.
 import route30 from "./routes/canvas/convert";
 import route31 from "./routes/canvas/execute";
 import route32 from "./routes/canvas/load";
@@ -43,7 +43,8 @@ import route39 from "./routes/canvas/save";
 import route40 from "./routes/canvas/storyboardPreview";
 import route41 from "./routes/canvas/v2/branches";
 import route42 from "./routes/canvas/v2/file";
-import route43 from "./routes/canvas/v2/graph-helpers";
+// route43 (graph-helpers) is a helper module without default export —
+// imported directly by other v2 canvas routes, not mounted as a route.
 import route44 from "./routes/canvas/v2/layout";
 import route45 from "./routes/canvas/v2/links";
 import route46 from "./routes/canvas/v2/load-v2";
@@ -285,8 +286,6 @@ export default async (app: Express) => {
   app.use("/api/assetsGenerate/cancelGenerate", route25);
   app.use("/api/assetsGenerate/generateAssets", route26);
   app.use("/api/assetsGenerate/polishAssetsPrompt", route27);
-  app.use("/api/canvas/_engine", route28);
-  app.use("/api/canvas/_simulate", route29);
   app.use("/api/canvas/convert", route30);
   app.use("/api/canvas/execute", route31);
   app.use("/api/canvas/load", route32);
@@ -300,7 +299,6 @@ export default async (app: Express) => {
   app.use("/api/canvas/storyboardPreview", route40);
   app.use("/api/canvas/v2/branches", route41);
   app.use("/api/canvas/v2/file", route42);
-  app.use("/api/canvas/v2/graph-helpers", route43);
   app.use("/api/canvas/v2/layout", route44);
   app.use("/api/canvas/v2/links", route45);
   app.use("/api/canvas/v2/load-v2", route46);

@@ -172,17 +172,19 @@ class OSS {
   }
 
   /**
-   * 获取图片的缩略图 URL（最长边不超过 512px，等比缩放）。
-   * 缩略图保存在原路径同目录下的 smallImage 子文件夹中。
+   * 获取图片的缩略图 URL（最长边不超过 512px，等比缩放，WebP q80 编码）。
+   * 缩略图保存在原路径同目录下的 smallImage 子文件夹中，扩展名强制为 .webp
+   * （相比 PNG 体积通常缩小 8-15 倍）。
    * 若缩略图已存在则直接返回其 URL；若不存在则同步生成并保存后返回缩略图 URL，
    * 生成失败时返回原图 URL。
    * @param userRelPath 用户传入的相对文件路径（使用 / 作为分隔符）
    * @returns 缩略图 URL（已存在或生成成功）或原图 URL（生成失败时）
    */
   async getSmallImageUrl(userRelPath: string): Promise<string> {
-    // 构造缩略图相对路径：在原路径的目录层级前插入 smallImage 目录
-    // 例如：123/abc.jpg => smallImage/123/abc.jpg
-    const smallImageRelPath = `smallImage/${userRelPath.replace(/^[/\\]+/, "")}`;
+    // 强制 .webp 扩展名：剥掉原图扩展名后追加 .webp
+    // 例如：123/abc.png => smallImage/123/abc.webp
+    const userRelPathNoExt = userRelPath.replace(/\.(png|jpe?g|webp|bmp|tiff?|gif)$/i, "");
+    const smallImageRelPath = `smallImage/${userRelPathNoExt.replace(/^[/\\]+/, "")}.webp`;
 
     if (await this.fileExists(smallImageRelPath)) {
       return this.getFileUrl(smallImageRelPath);
@@ -198,8 +200,9 @@ class OSS {
       await fs.mkdir(path.dirname(dstAbsPath), { recursive: true });
       await sharp(srcAbsPath)
         .resize(512, 512, { fit: "inside", withoutEnlargement: true })
+        .webp({ quality: 80 })
         .toFile(dstAbsPath);
-      console.info(`[${dstAbsPath}]小图写入成功`);
+      console.info(`[${dstAbsPath}] WebP 缩略图写入成功 (q80)`);
       return this.getFileUrl(smallImageRelPath);
     } catch (e) {
       // 生成失败返回原图

@@ -67,7 +67,7 @@ export default async function startServe(randomPort: Boolean = false) {
     fs.mkdirSync(ossDir, { recursive: true });
   }
   console.log("文件目录:", ossDir);
-  app.use("/oss", express.static(ossDir, { acceptRanges: false }));
+  app.use("/oss", express.static(ossDir, { acceptRanges: true, maxAge: "1d", cacheControl: true }));
 
   // Pipeline 输出目录（挂载自 /mnt/agents/output，作为 /oss 的后备源）
   const pipelineOutputDir = process.env.OUTPUT_DIR || "/mnt/agents/output";
@@ -79,7 +79,7 @@ export default async function startServe(randomPort: Boolean = false) {
       if (fs.existsSync(filePath)) {
         next(); // 交给前面的 express.static(ossDir)
       } else {
-        express.static(pipelineOutputDir, { acceptRanges: false })(req, res, next);
+        express.static(pipelineOutputDir, { acceptRanges: true, maxAge: "1d", cacheControl: true })(req, res, next);
       }
     });
   }
@@ -95,7 +95,7 @@ export default async function startServe(randomPort: Boolean = false) {
     (req, res, next) => {
       /\.(jpe?g|png|gif|webp|svg|ico|bmp)$/i.test(req.path) ? next() : res.status(403).end();
     },
-    express.static(skillsDir, { acceptRanges: false }),
+    express.static(skillsDir, { acceptRanges: true, maxAge: "1d", cacheControl: true }),
   );
 
   // assets 静态资源
@@ -104,13 +104,13 @@ export default async function startServe(randomPort: Boolean = false) {
     fs.mkdirSync(assetsDir, { recursive: true });
   }
   console.log("文件目录:", assetsDir);
-  app.use("/assets", express.static(assetsDir, { acceptRanges: false }));
+  app.use("/assets", express.static(assetsDir, { acceptRanges: true, maxAge: "1d", cacheControl: true }));
 
   // data/web 静态网站
   const webDir = u.getPath("web");
   if (fs.existsSync(webDir)) {
     console.log("静态网站目录:", webDir);
-    app.use(express.static(webDir, { acceptRanges: false }));
+    app.use(express.static(webDir, { acceptRanges: true, maxAge: "5m", cacheControl: true }));
   } else {
     console.warn("静态网站目录不存在:", webDir);
   }
@@ -118,7 +118,7 @@ export default async function startServe(randomPort: Boolean = false) {
   // 无限画布：从 data/web/infinite-canvas 提供独立 SPA
   const canvasDir = path.join(webDir, "infinite-canvas");
   if (fs.existsSync(canvasDir)) {
-    app.use("/infinite-canvas", express.static(canvasDir, { acceptRanges: false }));
+    app.use("/infinite-canvas", express.static(canvasDir, { acceptRanges: true, maxAge: "5m", cacheControl: true }));
     app.get("/infinite-canvas/{*path}", (_req, res) => {
       res.sendFile(path.join(canvasDir, "index.html"));
     });
