@@ -110,3 +110,16 @@ package-lock.json
 docker/movie-agent/src/
 demo_qwen*.png
 docker/lora-trainer/sd-scripts/
+
+# ─── Large / transient docker build contexts (do NOT commit) ──
+# docker/comfyui-primary/ ships ComfyUI custom_nodes (1.6GB) + output dir
+# docker/hermes-agent/_hermes_source/ is a hermes source mirror (~1MB)
+docker/comfyui-primary/
+docker/hermes-agent/_hermes_source/
+
+# ─── Backup files & test artifacts ──────────────────────────
+*.bak.*
+*.bak
+test-results/
+playwright-report/
+
