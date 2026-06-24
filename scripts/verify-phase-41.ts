@@ -50,7 +50,7 @@ async function main(): Promise<void> {
   console.log("\n=== SYNC-02: POST /api/v2/canvas/events endpoint ===");
   const eventsRoute = read("src/routes/canvas/v2/events.ts");
   assert(eventsRoute.length > 0, "src/routes/canvas/v2/events.ts exists");
-  assert(/router\.post\(["']/, "events route has POST handler");
+  assert(/\brouter\.post\s*\(/.test(eventsRoute), "events route has POST handler");
   assert(eventsRoute.includes("appendAndSync"), "POST handler calls appendAndSync");
   assert(eventsRoute.includes("duplicated"), "response exposes duplicated flag for idempotent retry");
   assert(eventsRoute.includes("clientId"), "request shape requires clientId");
