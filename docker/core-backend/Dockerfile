@@ -3,9 +3,9 @@
 # =============================================================================
 # Strategy: copy pre-built bundle + pre-installed node_modules from host
 # Avoids Docker build-time network issues (yarn install / npm registry)
-# NOTE: better-sqlite3 must be rebuilt on host first (npm rebuild) to avoid
-# GLIBC_2.38 mismatch — the host Ubuntu (glibc 2.39) links against newer
-# symbols that bookworm-slim (glibc 2.36) cannot resolve.
+# NOTE: better-sqlite3 is rebuilt inside the image (see below) to link against
+# the container's GLIBC 2.36 — the host-built binary needs GLIBC 2.38 and
+# would fail with ERR_DLOPEN_FAILED at runtime.
 #
 # Architecture: app code lives in /app/serve/ (outside volume mount),
 # user data lives in /app/data/ (mounted via named volume).
@@ -38,6 +38,16 @@ COPY packages/infinite-canvas/dist/ ./image-assets/web/infinite-canvas/
 
 # Strip electron artifacts if any
 RUN rm -rf node_modules/electron node_modules/electron-builder 2>/dev/null; true
+
+# Rebuild better-sqlite3 native module against container's GLIBC 2.36.
+# Host-built binary needs GLIBC_2.38 and fails at runtime with ERR_DLOPEN_FAILED.
+# Build tools installed transiently and purged to keep image slim.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        python3 make g++ ca-certificates \
+    && npm rebuild better-sqlite3 --build-from-source \
+    && apt-get purge -y python3 make g++ \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
 
 # Mount host Docker binary instead of installing docker.io
 # (installed via docker-compose volume mount: /usr/bin/docker:/usr/bin/docker)
