@@ -24,8 +24,21 @@ export interface OrchestrateDonePayload {
   mode: 'full' | 'batch'
 }
 
+export interface CanvasEventPayload {
+  eventId: number
+  type: 'node_upsert' | 'node_delete' | 'link_upsert' | 'link_delete'
+      | 'branch_upsert' | 'branch_delete' | 'variant_group_upsert'
+      | 'review_status' | 'bootstrap'
+  nodeId?: string
+  payload: unknown
+  projectId: number
+  episodesId: number
+  createdAt?: number
+}
+
 interface UseCanvasSocketOptions {
   projectId: number
+  episodesId?: number
   onNodeStateChange: (nodeId: string, state: NodeState, progress?: number) => void
   onNodePreviewUpdate: (nodeId: string, thumbnailUrl: string) => void
   onNewAsset: (nodeId: string, data: Record<string, unknown>) => void
@@ -35,11 +48,15 @@ interface UseCanvasSocketOptions {
   onBranchCreated?: (branch: FlowBranch) => void
   onReviewApproved?: (nodeId: string) => void
   onReviewRejected?: (nodeId: string, reason?: string) => void
+  // Phase 41 SYNC-10: feature-flagged incremental event subscription
+  onCanvasEvent?: (event: CanvasEventPayload) => void
+  onCanvasReset?: (info: { lastEventId: number | null }) => void
 }
 
 export function useCanvasSocket(options: UseCanvasSocketOptions) {
   const {
     projectId,
+    episodesId,
     onNodeStateChange,
     onNodePreviewUpdate,
     onNewAsset,
@@ -49,20 +66,28 @@ export function useCanvasSocket(options: UseCanvasSocketOptions) {
     onBranchCreated,
     onReviewApproved,
     onReviewRejected,
+    onCanvasEvent,
+    onCanvasReset,
   } = options
   const [connected, setConnected] = useState(false)
   const socketRef = useRef<Socket | null>(null)
+  const lastEventIdRef = useRef<number | null>(null)
+
+  const eventReplayEnabled =
+    import.meta.env.VITE_CANVAS_EVENT_REPLAY === '1' && !!onCanvasEvent
 
   // 使用 ref 持有回调以避免重连
   const callbacksRef = useRef({
     onNodeStateChange, onNodePreviewUpdate, onNewAsset,
     onOrchestrateStart, onOrchestrateProgress, onOrchestrateDone,
     onBranchCreated, onReviewApproved, onReviewRejected,
+    onCanvasEvent, onCanvasReset,
   })
   callbacksRef.current = {
     onNodeStateChange, onNodePreviewUpdate, onNewAsset,
     onOrchestrateStart, onOrchestrateProgress, onOrchestrateDone,
     onBranchCreated, onReviewApproved, onReviewRejected,
+    onCanvasEvent, onCanvasReset,
   }
 
   useEffect(() => {
@@ -80,6 +105,14 @@ export function useCanvasSocket(options: UseCanvasSocketOptions) {
     socket.on('connect', () => {
       console.log('[Canvas Socket] 已连接')
       setConnected(true)
+      // Phase 41 SYNC-07: 重连/首次连接时补发增量
+      if (eventReplayEnabled && episodesId !== undefined) {
+        socket.emit('subscribe', {
+          projectId,
+          episodesId,
+          since: lastEventIdRef.current ?? undefined,
+        })
+      }
     })
 
     socket.on('disconnect', () => {
@@ -139,11 +172,27 @@ export function useCanvasSocket(options: UseCanvasSocketOptions) {
       callbacksRef.current.onReviewRejected?.(payload.nodeId, payload.reason)
     })
 
+    // Phase 41 SYNC-08: 增量事件 — 仅在 feature flag 开启时生效
+    if (eventReplayEnabled) {
+      socket.on('canvas:event', (event: CanvasEventPayload) => {
+        if (typeof event?.eventId === 'number') {
+          lastEventIdRef.current = event.eventId
+        }
+        callbacksRef.current.onCanvasEvent?.(event)
+      })
+      socket.on('canvas:reset', (info: { lastEventId: number | null }) => {
+        if (typeof info?.lastEventId === 'number') {
+          lastEventIdRef.current = info.lastEventId
+        }
+        callbacksRef.current.onCanvasReset?.(info)
+      })
+    }
+
     return () => {
       socket.disconnect()
       socketRef.current = null
     }
-  }, [projectId])
+  }, [projectId, eventReplayEnabled, episodesId])
 
   const emit = useCallback((event: string, data: unknown) => {
     socketRef.current?.emit(event, data)

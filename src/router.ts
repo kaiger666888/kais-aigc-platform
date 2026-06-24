@@ -51,6 +51,7 @@ import route46 from "./routes/canvas/v2/load-v2";
 import route47 from "./routes/canvas/v2/nodes";
 import route48 from "./routes/canvas/v2/review-gate";
 import route49 from "./routes/canvas/v2/save-v2";
+import route256 from "./routes/canvas/v2/events";
 import route50 from "./routes/common/getBigImage";
 import route51 from "./routes/cornerScape/batchBindAudio";
 import route52 from "./routes/cornerScape/getAllAssets";
@@ -305,6 +306,7 @@ export default async (app: Express) => {
   app.use("/api/canvas/v2/nodes", route47);
   app.use("/api/canvas/v2/review-gate", route48);
   app.use("/api/canvas/v2/save-v2", route49);
+  app.use("/api/canvas/v2/events", route256);
   app.use("/api/common/getBigImage", route50);
   app.use("/api/cornerScape/batchBindAudio", route51);
   app.use("/api/cornerScape/getAllAssets", route52);

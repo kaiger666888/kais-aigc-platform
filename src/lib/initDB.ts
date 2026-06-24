@@ -1061,6 +1061,24 @@ export default async (knex: Knex, forceInit: boolean = false): Promise<void> => 
         table.index(["projectId", "timestamp"]);
       },
     },
+    // 画布事件源日志（Phase 41）— append-only，幂等写入，单调游标用于 WS 重放
+    {
+      name: "kv_canvasEvent",
+      builder: (table) => {
+        table.increments("eventId").primary();
+        table.integer("projectId").notNullable();
+        table.integer("episodesId").notNullable();
+        table.string("clientId", 128).notNullable();
+        table.string("type", 48).notNullable();
+        table.text("nodeId");
+        table.text("payload").notNullable();
+        table.string("source", 32);
+        table.bigInteger("createdAt").notNullable();
+        table.unique(["projectId", "episodesId", "clientId"], "uniq_canvas_event_client");
+        table.index(["projectId", "episodesId", "eventId"], "idx_canvas_event_seq");
+        table.index(["projectId", "episodesId", "nodeId"], "idx_canvas_event_node");
+      },
+    },
     // 画布节点资产表
     {
       name: "kv_nodeAsset",

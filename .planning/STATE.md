@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.8
-milestone_name: Canvas ↔ Movie-Agent V8.6 Adaptation
+milestone: v1.9
+milestone_name: Canvas Sync Reliability
 status: shipped
-last_updated: "2026-06-19T00:00:00.000Z"
-last_activity: 2026-06-19
+last_updated: "2026-06-24T00:00:00.000Z"
+last_activity: 2026-06-24
 progress:
-  total_phases: 1
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  total_phases: 2
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
   percent: 100
 ---
 
@@ -24,12 +24,12 @@ See: .planning/PROJECT.md (updated 2026-06-17)
 
 ## Current Position
 
-Phase: 39 complete
-Plan: 39-01 (3 waves — ADAPT / EXEC / VERIFY — all shipped)
-Status: Ready to merge feature/v1.8-canvas-movie-agent-adapt → master
-Last activity: 2026-06-19 — verify-phase-39.ts 33/33 assertions PASSED
+Phase: 41 complete (Canvas Event Sourcing & Sync Reliability)
+Plan: 41-01 — 3 waves (CORE / COMPAT / REPLAY+VERIFY) all shipped
+Status: Branch `feature/v1.9-canvas-event-sourcing` ready for review/merge
+Last activity: 2026-06-24 — `scripts/verify-phase-41.ts` 41/41 assertions PASSED
 
-Progress: [██████████] 100% (10/10 v1.8 requirements verified)
+Progress: [██████████] 100% (Phase 40 joint-debug + Phase 41 event sourcing both shipped)
 
 ## Performance Metrics
 

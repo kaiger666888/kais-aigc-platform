@@ -70,6 +70,34 @@
 - [x] **VERIFY-02**: `tsc --noEmit` (root) passes after merge
 - [x] **VERIFY-03**: `tsc -b` (packages/infinite-canvas) passes after merge
 
+## v1.9 Requirements — Canvas Sync Reliability
+
+**Motivation:** Field symptom — kais-movie-agent 节点生成物 / 审核状态经常无法同步到无限画布。Root cause: fire-and-forget + read-modify-write + whole-graph-overwrite on `o_agentWorkData.canvasGraph` loses data silently on concurrent writes; no replay on WS reconnect; no idempotency on receiver. Phase 41 replaces the write model with an append-only event log + monotonic reducer + resumable subscription.
+
+### SYNC — Write Path (Phase 41 Wave 1)
+
+- [x] **SYNC-01**: New table `kv_canvasEvent(eventId PK autoincrement, projectId, episodesId, clientId, type, nodeId, payload JSON, source, createdAt)` with `UNIQUE(projectId, episodesId, clientId)` and index on `(projectId, episodesId, eventId)`.
+- [x] **SYNC-02**: `POST /api/v2/canvas/events` accepts `{projectId, episodesId, clientId, events[]}` and appends atomically in a transaction. Duplicate `clientId` returns previously-assigned `eventId`s with `duplicated: true`, writes nothing.
+- [x] **SYNC-03**: Pure reducer `reduce(state, event): state` covers `node_upsert` / `node_delete` / `link_upsert` / `link_delete` / `branch_upsert` / `variant_group_upsert` / `review_status` / `bootstrap`. Deterministic given identical event sequence.
+- [x] **SYNC-04**: `o_agentWorkData.canvasGraph` snapshot recomputed from event log after every successful append (debounced per project+episode, flushed before any read returns).
+- [x] **SYNC-05**: Idempotent bootstrap — if `o_agentWorkData.canvasGraph` exists but `kv_canvasEvent` is empty for that (project, episode), a one-time synthetic `bootstrap` event captures the current graph.
+
+### REPLAY — Read Path (Phase 41 Wave 3)
+
+- [x] **SYNC-06**: `GET /api/v2/canvas/load-v2?since=<eventId>` — without `since` returns `{graph, lastEventId}`; with `since` returns `{events[], lastEventId}`.
+- [x] **SYNC-07**: WS `/ws/projects` accepts `subscribe` handshake `{projectId, since?}`. Server replays all events after `since` to that socket, then continues live emission. Back-compat (no handshake) preserved.
+- [x] **SYNC-08**: All canvas WS broadcasts carry `{eventId, type, payload, projectId, episodesId}` so clients can stamp high-water mark.
+
+### COMPAT — Backwards Compatibility (Phase 41 Wave 2)
+
+- [x] **SYNC-09**: Legacy routes `save-v2` / `nodes POST` / `nodes PATCH /batch` / `nodes PATCH /:id` / `nodes DELETE` / `links` / `branches` continue to work by translating writes to event appends with a generated `clientId`. Caller-visible behavior unchanged.
+- [x] **SYNC-10**: Frontend `useCanvasSocket` gains optional `subscribe` + incremental handling behind `VITE_CANVAS_EVENT_REPLAY=1` (default OFF for v1.9 staged rollout). Existing listeners untouched.
+
+### VERIFY — Static Verification (Phase 41 Wave 3)
+
+- [x] **SYNC-11**: `tsc --noEmit` (root) and `tsc -b` (packages/infinite-canvas) both pass with zero errors.
+- [x] **SYNC-12**: `scripts/verify-phase-41.ts` covers: idempotent append (duplicate `clientId`); reducer determinism + merge parity with `Object.assign`; `load-v2?since=N` returns exactly N+1..last; bootstrap migration; legacy `save-v2` round-trip.
+
 ## Future Requirements (deferred)
 
 - **故事蓝图生成器** — Script 节点右键 "生成分镜",调用 LLM 拆解为多个 storyboard 节点;需 LLM 集成层 (推迟 v1.9)

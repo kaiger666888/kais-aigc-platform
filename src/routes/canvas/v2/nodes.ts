@@ -1,54 +1,44 @@
 import express from "express";
-import u from "@/utils";
 import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
 import { broadcastToProject } from "@/utils/ws";
-import type { FlowGraphV2, FlowNodeV2 } from "@/types/flowgraph-v2";
-import { FlowGraphV2Schema } from "@/types/flowgraph-v2-schema";
+import type { FlowNodeV2 } from "@/types/flowgraph-v2";
+import { appendAndSync, ensureBootstrap, loadGraph as loadGraphFromStore } from "@/lib/canvasEventStore";
 
 const router = express.Router();
 
-async function loadGraph(projectId: number, episodesId: number): Promise<FlowGraphV2 | null> {
-  const row = await u
-    .db("o_agentWorkData")
-    .where("projectId", String(projectId))
-    .andWhere("episodesId", String(episodesId))
-    .andWhere("key", "canvasGraph")
-    .first();
-
-  if (!row?.data) return null;
-  const parsed = JSON.parse(row.data);
-  if (parsed.meta?.version === "2") {
-    return parsed as FlowGraphV2;
-  }
-  return null;
+function legacyClientId(operation: string, projectId: number, episodesId: number): string {
+  return `legacy:nodes:${operation}:${projectId}:${episodesId}:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`;
 }
 
-async function saveGraph(projectId: number, episodesId: number, graph: FlowGraphV2): Promise<void> {
-  const existing = await u
-    .db("o_agentWorkData")
-    .where("projectId", String(projectId))
-    .andWhere("episodesId", String(episodesId))
-    .andWhere("key", "canvasGraph")
-    .first();
+const NODE_TYPE_ENUM = [
+  "script", "asset", "storyboard", "video", "audio",
+  "3d", "variant", "reference", "upscale", "face_restore",
+  "suggestion",
+] as const;
 
-  graph.meta.updatedAt = Date.now();
+const NODE_STATE_ENUM = ["idle", "pending", "running", "success", "error", "skipped"] as const;
+const REVIEW_STATUS_ENUM = ["pending", "approved", "rejected"] as const;
 
-  if (!existing) {
-    await u.db("o_agentWorkData").insert({
-      projectId,
-      episodesId,
-      key: "canvasGraph",
-      data: JSON.stringify(graph),
-    });
-  } else {
-    await u
-      .db("o_agentWorkData")
-      .where("id", existing.id)
-      .update({ data: JSON.stringify(graph), updateTime: Date.now() });
-  }
-}
+const nodeInputSchema = z.object({
+  id: z.string(),
+  type: z.enum(NODE_TYPE_ENUM),
+  branchId: z.string(),
+  phaseIndex: z.number().int().min(0),
+  phaseName: z.string(),
+  position: z.object({ x: z.number(), y: z.number() }),
+  size: z.object({ width: z.number(), height: z.number() }),
+  data: z.record(z.string(), z.any()),
+  state: z.enum(NODE_STATE_ENUM),
+  reviewStatus: z.enum(REVIEW_STATUS_ENUM).optional(),
+  aiScore: z.any().optional(),
+  isWinner: z.boolean().optional(),
+  rejectReason: z.string().optional(),
+  suggestion: z.string().optional(),
+  variantOf: z.string().optional(),
+  variantGroupId: z.string().optional(),
+});
 
 /** 创建节点 */
 router.post(
@@ -56,34 +46,14 @@ router.post(
   validateFields({
     projectId: z.number(),
     episodesId: z.number(),
-    node: z.object({
-      id: z.string().optional(),
-      type: z.enum([
-        "script", "asset", "storyboard", "video", "audio",
-        "3d", "variant", "reference", "upscale", "face_restore",
-        "suggestion",
-      ]),
-      branchId: z.string(),
-      phaseIndex: z.number().int().min(0),
-      phaseName: z.string(),
-      position: z.object({ x: z.number(), y: z.number() }),
-      size: z.object({ width: z.number(), height: z.number() }),
-      data: z.record(z.string(), z.any()),
-      state: z.enum(["idle", "pending", "running", "success", "error", "skipped"]),
-      reviewStatus: z.enum(["pending", "approved", "rejected"]).optional(),
-      aiScore: z.any().optional(),
-      isWinner: z.boolean().optional(),
-      rejectReason: z.string().optional(),
-      suggestion: z.string().optional(),
-      variantOf: z.string().optional(),
-      variantGroupId: z.string().optional(),
-    }),
+    node: nodeInputSchema.extend({ id: z.string().optional() }),
   }),
   async (req, res) => {
     const { projectId, episodesId, node: nodeInput } = req.body;
 
     try {
-      const graph = await loadGraph(projectId, episodesId);
+      await ensureBootstrap(projectId, episodesId);
+      const graph = await loadGraphFromStore(projectId, episodesId);
       if (!graph) {
         return res.status(404).send(error("画布数据不存在，请先保存 v2 FlowGraph"));
       }
@@ -102,8 +72,14 @@ router.post(
         return res.status(409).send(error(`节点 ${node.id} 已存在`));
       }
 
-      graph.nodes.push(node);
-      await saveGraph(projectId, episodesId, graph);
+      const { id, ...payload } = node;
+      await appendAndSync({
+        projectId,
+        episodesId,
+        clientId: legacyClientId("create", projectId, episodesId),
+        source: "canvas-ui",
+        events: [{ type: "node_upsert", nodeId: id, payload }],
+      });
 
       broadcastToProject(projectId, "node:created", { node });
       return res.status(200).send(success({ node }));
@@ -120,38 +96,14 @@ router.patch(
   validateFields({
     projectId: z.number(),
     episodesId: z.number(),
-    nodes: z
-      .array(
-        z.object({
-          id: z.string(),
-          type: z.enum([
-            "script", "asset", "storyboard", "video", "audio",
-            "3d", "variant", "reference", "upscale", "face_restore",
-            "suggestion",
-          ]),
-          branchId: z.string(),
-          phaseIndex: z.number().int().min(0),
-          phaseName: z.string(),
-          position: z.object({ x: z.number(), y: z.number() }),
-          size: z.object({ width: z.number(), height: z.number() }),
-          data: z.record(z.string(), z.any()),
-          state: z.enum(["idle", "pending", "running", "success", "error", "skipped"]),
-          reviewStatus: z.enum(["pending", "approved", "rejected"]).optional(),
-          aiScore: z.any().optional(),
-          isWinner: z.boolean().optional(),
-          rejectReason: z.string().optional(),
-          suggestion: z.string().optional(),
-          variantOf: z.string().optional(),
-          variantGroupId: z.string().optional(),
-        }),
-      )
-      .min(1),
+    nodes: z.array(nodeInputSchema).min(1),
   }),
   async (req, res) => {
     const { projectId, episodesId, nodes: nodeInputs } = req.body;
 
     try {
-      const graph = await loadGraph(projectId, episodesId);
+      await ensureBootstrap(projectId, episodesId);
+      const graph = await loadGraphFromStore(projectId, episodesId);
       if (!graph) {
         return res.status(404).send(error("画布数据不存在，请先保存 v2 FlowGraph"));
       }
@@ -165,25 +117,31 @@ router.patch(
 
       const added: FlowNodeV2[] = [];
       const updated: FlowNodeV2[] = [];
-
-      for (const nodeInput of nodeInputs) {
-        const existingIdx = graph.nodes.findIndex((n) => n.id === nodeInput.id);
-        if (existingIdx >= 0) {
-          Object.assign(graph.nodes[existingIdx], nodeInput);
-          updated.push(graph.nodes[existingIdx]);
-          broadcastToProject(projectId, "node:updated", {
-            node: graph.nodes[existingIdx],
-            changedFields: Object.keys(nodeInput),
-          });
+      const events = nodeInputs.map((nodeInput: FlowNodeV2) => {
+        const existing = graph.nodes.find((n) => n.id === nodeInput.id);
+        const { id, ...payload } = nodeInput;
+        if (existing) {
+          updated.push({ ...existing, ...nodeInput });
         } else {
-          const node: FlowNodeV2 = { ...nodeInput } as FlowNodeV2;
-          graph.nodes.push(node);
-          added.push(node);
-          broadcastToProject(projectId, "node:created", { node });
+          added.push(nodeInput);
         }
-      }
+        return { type: "node_upsert" as const, nodeId: id, payload };
+      });
 
-      await saveGraph(projectId, episodesId, graph);
+      await appendAndSync({
+        projectId,
+        episodesId,
+        clientId: legacyClientId("batch", projectId, episodesId),
+        source: "canvas-ui",
+        events,
+      });
+
+      for (const node of added) {
+        broadcastToProject(projectId, "node:created", { node });
+      }
+      for (const node of updated) {
+        broadcastToProject(projectId, "node:updated", { node });
+      }
 
       return res.status(200).send(
         success({
@@ -209,28 +167,34 @@ router.patch(
   }),
   async (req, res) => {
     const { projectId, episodesId, updates } = req.body;
-    const { nodeId } = req.params;
+    const nodeId = String(req.params.nodeId);
 
     try {
-      const graph = await loadGraph(projectId, episodesId);
+      await ensureBootstrap(projectId, episodesId);
+      const graph = await loadGraphFromStore(projectId, episodesId);
       if (!graph) {
         return res.status(404).send(error("画布数据不存在"));
       }
 
-      const nodeIdx = graph.nodes.findIndex((n) => n.id === nodeId);
-      if (nodeIdx === -1) {
+      const existing = graph.nodes.find((n) => n.id === nodeId);
+      if (!existing) {
         return res.status(404).send(error(`节点 ${nodeId} 不存在`));
       }
 
-      const changedFields = Object.keys(updates);
-      Object.assign(graph.nodes[nodeIdx], updates);
-      await saveGraph(projectId, episodesId, graph);
-
-      broadcastToProject(projectId, "node:updated", {
-        node: graph.nodes[nodeIdx],
-        changedFields,
+      await appendAndSync({
+        projectId,
+        episodesId,
+        clientId: legacyClientId("update", projectId, episodesId),
+        source: "canvas-ui",
+        events: [{ type: "node_upsert", nodeId, payload: updates }],
       });
-      return res.status(200).send(success({ node: graph.nodes[nodeIdx] }));
+
+      const merged = { ...existing, ...updates } as FlowNodeV2;
+      broadcastToProject(projectId, "node:updated", {
+        node: merged,
+        changedFields: Object.keys(updates),
+      });
+      return res.status(200).send(success({ node: merged }));
     } catch (err) {
       console.error("[v2/canvas/nodes] 更新节点失败:", err);
       return res.status(500).send(error("更新节点失败"));
@@ -248,16 +212,16 @@ router.delete(
   async (req, res) => {
     const projectId = Number(req.query.projectId);
     const episodesId = Number(req.query.episodesId);
-    const { nodeId } = req.params;
+    const nodeId = String(req.params.nodeId);
 
     try {
-      const graph = await loadGraph(projectId, episodesId);
+      await ensureBootstrap(projectId, episodesId);
+      const graph = await loadGraphFromStore(projectId, episodesId);
       if (!graph) {
         return res.status(404).send(error("画布数据不存在"));
       }
 
-      const nodeIdx = graph.nodes.findIndex((n) => n.id === nodeId);
-      if (nodeIdx === -1) {
+      if (!graph.nodes.some((n) => n.id === nodeId)) {
         return res.status(404).send(error(`节点 ${nodeId} 不存在`));
       }
 
@@ -265,9 +229,13 @@ router.delete(
         .filter((l) => l.source === nodeId || l.target === nodeId)
         .map((l) => l.id);
 
-      graph.nodes.splice(nodeIdx, 1);
-      graph.links = graph.links.filter((l) => l.source !== nodeId && l.target !== nodeId);
-      await saveGraph(projectId, episodesId, graph);
+      await appendAndSync({
+        projectId,
+        episodesId,
+        clientId: legacyClientId("delete", projectId, episodesId),
+        source: "canvas-ui",
+        events: [{ type: "node_delete", nodeId, payload: null }],
+      });
 
       broadcastToProject(projectId, "node:deleted", { nodeId, removedLinkIds });
       return res.status(200).send(success({ nodeId, removedLinkIds }));

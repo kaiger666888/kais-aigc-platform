@@ -1,15 +1,15 @@
 import express from "express";
-import u from "@/utils";
 import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
 import { broadcastToProject } from "@/utils/ws";
 import { FlowGraphV2Schema } from "@/types/flowgraph-v2-schema";
 import type { FlowGraphV2 } from "@/types/flowgraph-v2";
+import { appendAndSync, ensureBootstrap } from "@/lib/canvasEventStore";
 
 const router = express.Router();
 
-/** 保存 v2 FlowGraph（全量覆盖） */
+/** 保存 v2 FlowGraph（全量替换）— Wave 2: 经 bootstrap 事件落到事件日志，行为对 caller 不变 */
 export default router.post(
   "/",
   validateFields({
@@ -31,26 +31,22 @@ export default router.post(
       validGraph.meta.episodesId = episodesId;
       validGraph.meta.updatedAt = Date.now();
 
-      const existing = await u
-        .db("o_agentWorkData")
-        .where("projectId", String(projectId))
-        .andWhere("episodesId", String(episodesId))
-        .andWhere("key", "canvasGraph")
-        .first();
+      await ensureBootstrap(projectId, episodesId);
 
-      if (!existing) {
-        await u.db("o_agentWorkData").insert({
-          projectId,
-          episodesId,
-          key: "canvasGraph",
-          data: JSON.stringify(validGraph),
-        });
-      } else {
-        await u
-          .db("o_agentWorkData")
-          .where("id", existing.id)
-          .update({ data: JSON.stringify(validGraph), updateTime: Date.now() });
-      }
+      const clientId = `legacy:save-v2:${projectId}:${episodesId}:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`;
+      await appendAndSync({
+        projectId,
+        episodesId,
+        clientId,
+        source: "canvas-ui",
+        events: [
+          {
+            type: "bootstrap",
+            nodeId: undefined,
+            payload: { graph: validGraph },
+          },
+        ],
+      });
 
       broadcastToProject(projectId, "graph:saved", { projectId, episodesId, timestamp: Date.now() });
       return res.status(200).send(success());

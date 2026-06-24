@@ -10,7 +10,8 @@
 - ✅ **v1.5 Architecture Hardening + Code Hygiene** — Phases 23-27 (shipped 2026-06-14)
 - ✅ **v1.6 Workflow Skill Contract** — Phases 28-34 (shipped 2026-06-15)
 - ✅ **v1.7 Infinite Canvas Storyboard & Orchestration** — Phases 35-38 (shipped 2026-06-18)
-- 🚧 **v1.8 Canvas ↔ Movie-Agent V8.6 Adaptation** — Phase 39 (shipped 2026-06-19, pending merge to master)
+- ✅ **v1.8 Canvas ↔ Movie-Agent V8.6 Adaptation** — Phase 39 (shipped 2026-06-19)
+- 🚧 **v1.9 Canvas Sync Reliability** — Phase 40 (shipped 2026-06-22, joint-debug fixes); Phase 41 (in progress, event sourcing)
 
 ## Phases
 
@@ -155,6 +156,22 @@ Tier 2 (Phase 38 PREVIEW) depends only on Phase 35 and may execute in parallel w
 | 37. Batch Execution | v1.7 | 1/1 | ✅ Shipped | 2026-06-18 |
 | 38. Storyboard Preview Cards (Tier 2) | v1.7 | 1/1 | ✅ Shipped (placeholder) | 2026-06-18 |
 | 39. Canvas ↔ Movie-Agent V8.6 Adaptation | v1.8 | 1/1 | ✅ Shipped (pending merge) | 2026-06-19 |
+| 40. Canvas ↔ Movie-Agent Joint Debug Fix | v1.9 | 1/1 | ✅ Shipped | 2026-06-22 |
+| 41. Canvas Event Sourcing & Sync Reliability | v1.9 | 1/1 | ✅ Shipped | 2026-06-24 |
+
+### Phase 41: Canvas Event Sourcing & Sync Reliability (v1.9 — in progress)
+
+**Branch:** `feature/v1.9-canvas-event-sourcing`
+**Goal:** Eliminate silent data-loss in kais-movie-agent ↔ canvas sync. Replace fire-and-forget + read-modify-write + whole-graph-overwrite with append-only event log + monotonic reducer + idempotent write API + resumable WS subscription.
+
+**Three-wave plan:**
+
+1. **Wave 1 — CORE**: `kv_canvasEvent` table + pure reducer + `canvasEventStore` + `POST /api/v2/canvas/events`. Pure addition; legacy routes untouched.
+2. **Wave 2 — COMPAT**: `save-v2` / `nodes` / `links` / `branches` routes internally translate writes into event appends. Behavior unchanged from caller's view.
+3. **Wave 3 — REPLAY + VERIFY**: `load-v2?since=` + WS `subscribe` handshake + feature-flagged frontend hook + `verify-phase-41.ts`.
+
+**Requirements:** SYNC-01..12 (see REQUIREMENTS.md).
+**Out of scope:** agent-side outbox (Phase 42), legacy route removal (v1.10), default-flipping the frontend replay flag (after staging soak).
 
 ### Phase 39: Canvas ↔ Movie-Agent V8.6 Adaptation (v1.8 — shipped)
 
