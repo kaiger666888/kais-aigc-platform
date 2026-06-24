@@ -19,6 +19,7 @@ import StoryboardNodeComponent from './nodes/StoryboardNode'
 import VideoNodeComponent from './nodes/VideoNode'
 import AudioNodeComponent from './nodes/AudioNode'
 import FallbackNodeComponent from './nodes/FallbackNode'
+import ZoneNodeComponent from './nodes/ZoneNode'
 import CanvasEdgeComponent from './edges/CanvasEdge'
 import CanvasContextMenu from './CanvasContextMenu'
 import ProjectSelector from './ProjectSelector'
@@ -54,6 +55,7 @@ const nodeTypes = {
   storyboard: StoryboardNodeComponent,
   video: VideoNodeComponent,
   audio: AudioNodeComponent,
+  zone: ZoneNodeComponent,
 }
 
 const edgeTypes = {

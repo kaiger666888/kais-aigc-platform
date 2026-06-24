@@ -1,4 +1,4 @@
-// @db-hash 28bf4ad82d8421cda2b6b8f4a66bb694
+// @db-hash bca92f9a6d10dd76f4003fda97072411
 //该文件由脚本自动生成，请勿手动修改
 
 export interface kv_audit {
@@ -254,7 +254,7 @@ export interface o_skillRegistry {
   'active'?: number | null;
   'manifest_json'?: string | null;
   'registered_at'?: number | null;
-  'skill_id': string;
+  'skill_id'?: string;
   'version'?: string | null;
 }
 export interface o_storyboard {

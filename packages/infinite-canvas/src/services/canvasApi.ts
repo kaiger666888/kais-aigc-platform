@@ -292,9 +292,10 @@ export async function approveNode(
   projectId: number,
   episodesId: number,
   nodeId: string,
+  winnerId?: string,
   cancelToken?: CancelToken,
 ): Promise<void> {
-  await apiCall<void>('/canvas/review/approve', { projectId, episodesId, nodeId }, { cancelToken })
+  await apiCall<void>('/canvas/review/approve', { projectId, episodesId, nodeId, ...(winnerId ? { winnerId } : {}) }, { cancelToken })
 }
 
 /** 驳回 */
