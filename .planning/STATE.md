@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Canvas Sync Reliability
-status: in_progress
+status: shipped
 last_updated: "2026-06-24T00:00:00.000Z"
 last_activity: 2026-06-24
 progress:
   total_phases: 2
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 2
-  completed_plans: 1
-  percent: 50
+  completed_plans: 2
+  percent: 100
 ---
 
 # Project State
@@ -24,12 +24,12 @@ See: .planning/PROJECT.md (updated 2026-06-17)
 
 ## Current Position
 
-Phase: 41 in progress (Canvas Event Sourcing & Sync Reliability)
-Plan: 41-01 — 3 waves (CORE / COMPAT / REPLAY+VERIFY)
-Status: Wave 1 implementation pending; SPEC + PLAN locked at 2026-06-24
-Last activity: 2026-06-24 — root-cause analysis complete; SPEC + PLAN written
+Phase: 41 complete (Canvas Event Sourcing & Sync Reliability)
+Plan: 41-01 — 3 waves (CORE / COMPAT / REPLAY+VERIFY) all shipped
+Status: Branch `feature/v1.9-canvas-event-sourcing` ready for review/merge
+Last activity: 2026-06-24 — `scripts/verify-phase-41.ts` 41/41 assertions PASSED
 
-Progress: [█████░░░░░] 50% (Phase 40 joint-debug shipped; Phase 41 in progress)
+Progress: [██████████] 100% (Phase 40 joint-debug + Phase 41 event sourcing both shipped)
 
 ## Performance Metrics
 

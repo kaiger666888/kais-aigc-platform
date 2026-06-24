@@ -157,7 +157,7 @@ Tier 2 (Phase 38 PREVIEW) depends only on Phase 35 and may execute in parallel w
 | 38. Storyboard Preview Cards (Tier 2) | v1.7 | 1/1 | ✅ Shipped (placeholder) | 2026-06-18 |
 | 39. Canvas ↔ Movie-Agent V8.6 Adaptation | v1.8 | 1/1 | ✅ Shipped (pending merge) | 2026-06-19 |
 | 40. Canvas ↔ Movie-Agent Joint Debug Fix | v1.9 | 1/1 | ✅ Shipped | 2026-06-22 |
-| 41. Canvas Event Sourcing & Sync Reliability | v1.9 | 0/1 | 🚧 In Progress | — |
+| 41. Canvas Event Sourcing & Sync Reliability | v1.9 | 1/1 | ✅ Shipped | 2026-06-24 |
 
 ### Phase 41: Canvas Event Sourcing & Sync Reliability (v1.9 — in progress)
 
