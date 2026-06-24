@@ -70,7 +70,7 @@ services:
       https_proxy: "${https_proxy:-}"
       NO_PROXY: "localhost,127.0.0.1,172.18.0.0/16"
       W2V_BERT_PATH: "/data/models/w2v-bert-2.0"
-      CLI_ARGS: "--disable-metadata --lowvram --bf16-text-enc --bf16-unet --output-directory /mnt/agents/output/gpu1 --queue-size 20"
+      CLI_ARGS: "--disable-metadata --lowvram --bf16-text-enc --bf16-unet --output-directory /mnt/agents/output/gpu1"
     volumes:
       - ${OUTPUT_DIR:-/mnt/agents/output}/gpu1:/mnt/agents/output/gpu1
       - ${DATA_MODELS_DIR:-/data/models/comfyui}:/root/ComfyUI/models:rw
@@ -254,6 +254,9 @@ services:
       GPTSOVITS_ROOT: /opt/GPT-SoVITS
       CHATTERBOX_ROOT: /opt/chatterbox
       TTS_IDLE_TIMEOUT: "300"
+      # ACE-Step 音乐引擎禁用 (避免开机自动 spawn 子进程常驻 23GB 显存)
+      # 引擎代码 main.py 用此开关跳过 register/start,日后需要音乐生成再开
+      ACESTEP_ENABLED: "false"
     volumes:
       - ${OUTPUT_DIR:-/mnt/agents/output}:/mnt/agents/output
       - ${MODELS_DIR:-/opt/kais/models}:/opt/kais/models:ro
