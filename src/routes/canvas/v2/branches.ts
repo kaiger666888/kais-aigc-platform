@@ -1,52 +1,15 @@
 import express from "express";
-import u from "@/utils";
 import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
 import { broadcastToProject } from "@/utils/ws";
-import type { FlowGraphV2, FlowBranchV2 } from "@/types/flowgraph-v2";
+import type { FlowBranchV2 } from "@/types/flowgraph-v2";
+import { appendAndSync, ensureBootstrap, loadGraph as loadGraphFromStore } from "@/lib/canvasEventStore";
 
 const router = express.Router();
 
-async function loadGraph(projectId: number, episodesId: number): Promise<FlowGraphV2 | null> {
-  const row = await u
-    .db("o_agentWorkData")
-    .where("projectId", String(projectId))
-    .andWhere("episodesId", String(episodesId))
-    .andWhere("key", "canvasGraph")
-    .first();
-
-  if (!row?.data) return null;
-  const parsed = JSON.parse(row.data);
-  if (parsed.meta?.version === "2") {
-    return parsed as FlowGraphV2;
-  }
-  return null;
-}
-
-async function saveGraph(projectId: number, episodesId: number, graph: FlowGraphV2): Promise<void> {
-  const existing = await u
-    .db("o_agentWorkData")
-    .where("projectId", String(projectId))
-    .andWhere("episodesId", String(episodesId))
-    .andWhere("key", "canvasGraph")
-    .first();
-
-  graph.meta.updatedAt = Date.now();
-
-  if (!existing) {
-    await u.db("o_agentWorkData").insert({
-      projectId,
-      episodesId,
-      key: "canvasGraph",
-      data: JSON.stringify(graph),
-    });
-  } else {
-    await u
-      .db("o_agentWorkData")
-      .where("id", existing.id)
-      .update({ data: JSON.stringify(graph), updateTime: Date.now() });
-  }
+function legacyClientId(operation: string, projectId: number, episodesId: number): string {
+  return `legacy:branches:${operation}:${projectId}:${episodesId}:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`;
 }
 
 /** 创建分支 */
@@ -67,7 +30,8 @@ router.post(
     const { projectId, episodesId, branch: branchInput } = req.body;
 
     try {
-      const graph = await loadGraph(projectId, episodesId);
+      await ensureBootstrap(projectId, episodesId);
+      const graph = await loadGraphFromStore(projectId, episodesId);
       if (!graph) {
         return res.status(404).send(error("画布数据不存在，请先保存 v2 FlowGraph"));
       }
@@ -95,8 +59,14 @@ router.post(
         return res.status(409).send(error(`分支 ${branch.id} 已存在`));
       }
 
-      graph.branches.push(branch);
-      await saveGraph(projectId, episodesId, graph);
+      const { id, ...payload } = branch;
+      await appendAndSync({
+        projectId,
+        episodesId,
+        clientId: legacyClientId("create", projectId, episodesId),
+        source: "canvas-ui",
+        events: [{ type: "branch_upsert", nodeId: id, payload }],
+      });
 
       broadcastToProject(projectId, "branch:created", { branch });
       return res.status(200).send(success({ branch }));
@@ -122,28 +92,36 @@ router.patch(
   }),
   async (req, res) => {
     const { projectId, episodesId, updates } = req.body;
-    const { branchId } = req.params;
+    const branchId = String(req.params.branchId);
 
     try {
-      const graph = await loadGraph(projectId, episodesId);
+      await ensureBootstrap(projectId, episodesId);
+      const graph = await loadGraphFromStore(projectId, episodesId);
       if (!graph) {
         return res.status(404).send(error("画布数据不存在"));
       }
 
-      const branchIdx = graph.branches.findIndex((b) => b.id === branchId);
-      if (branchIdx === -1) {
+      const existing = graph.branches.find((b) => b.id === branchId);
+      if (!existing) {
         return res.status(404).send(error(`分支 ${branchId} 不存在`));
       }
 
       const changedFields = Object.keys(updates);
-      Object.assign(graph.branches[branchIdx], updates, { updatedAt: Date.now() });
-      await saveGraph(projectId, episodesId, graph);
+      const payload = { ...updates, updatedAt: Date.now() };
+      await appendAndSync({
+        projectId,
+        episodesId,
+        clientId: legacyClientId("update", projectId, episodesId),
+        source: "canvas-ui",
+        events: [{ type: "branch_upsert", nodeId: branchId, payload }],
+      });
 
+      const merged = { ...existing, ...payload } as FlowBranchV2;
       broadcastToProject(projectId, "branch:updated", {
-        branch: graph.branches[branchIdx],
+        branch: merged,
         changedFields,
       });
-      return res.status(200).send(success({ branch: graph.branches[branchIdx] }));
+      return res.status(200).send(success({ branch: merged }));
     } catch (err) {
       console.error("[v2/canvas/branches] 更新分支失败:", err);
       return res.status(500).send(error("更新分支失败"));
@@ -161,16 +139,16 @@ router.delete(
   async (req, res) => {
     const projectId = Number(req.query.projectId);
     const episodesId = Number(req.query.episodesId);
-    const { branchId } = req.params;
+    const branchId = String(req.params.branchId);
 
     try {
-      const graph = await loadGraph(projectId, episodesId);
+      await ensureBootstrap(projectId, episodesId);
+      const graph = await loadGraphFromStore(projectId, episodesId);
       if (!graph) {
         return res.status(404).send(error("画布数据不存在"));
       }
 
-      const branchIdx = graph.branches.findIndex((b) => b.id === branchId);
-      if (branchIdx === -1) {
+      if (!graph.branches.some((b) => b.id === branchId)) {
         return res.status(404).send(error(`分支 ${branchId} 不存在`));
       }
 
@@ -181,10 +159,19 @@ router.delete(
       const removedNodeIds = graph.nodes.filter((n) => n.branchId === branchId).map((n) => n.id);
       const removedLinkIds = graph.links.filter((l) => l.branchId === branchId).map((l) => l.id);
 
-      graph.branches.splice(branchIdx, 1);
-      graph.nodes = graph.nodes.filter((n) => n.branchId !== branchId);
-      graph.links = graph.links.filter((l) => l.branchId !== branchId);
-      await saveGraph(projectId, episodesId, graph);
+      const events = [
+        { type: "branch_delete" as const, nodeId: branchId, payload: null },
+        ...removedNodeIds.map((id: string) => ({ type: "node_delete" as const, nodeId: id, payload: null })),
+        ...removedLinkIds.map((id: string) => ({ type: "link_delete" as const, nodeId: id, payload: null })),
+      ];
+
+      await appendAndSync({
+        projectId,
+        episodesId,
+        clientId: legacyClientId("delete", projectId, episodesId),
+        source: "canvas-ui",
+        events,
+      });
 
       broadcastToProject(projectId, "branch:deleted", { branchId, removedNodeIds, removedLinkIds });
       return res.status(200).send(success({ branchId, removedNodeIds, removedLinkIds }));

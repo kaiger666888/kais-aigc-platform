@@ -1,53 +1,26 @@
 import express from "express";
-import u from "@/utils";
 import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
 import { broadcastToProject } from "@/utils/ws";
-import type { FlowGraphV2, FlowLinkV2 } from "@/types/flowgraph-v2";
+import type { FlowLinkV2 } from "@/types/flowgraph-v2";
+import { appendAndSync, ensureBootstrap, loadGraph as loadGraphFromStore } from "@/lib/canvasEventStore";
 
 const router = express.Router();
 
-async function loadGraph(projectId: number, episodesId: number): Promise<FlowGraphV2 | null> {
-  const row = await u
-    .db("o_agentWorkData")
-    .where("projectId", String(projectId))
-    .andWhere("episodesId", String(episodesId))
-    .andWhere("key", "canvasGraph")
-    .first();
-
-  if (!row?.data) return null;
-  const parsed = JSON.parse(row.data);
-  if (parsed.meta?.version === "2") {
-    return parsed as FlowGraphV2;
-  }
-  return null;
+function legacyClientId(operation: string, projectId: number, episodesId: number): string {
+  return `legacy:links:${operation}:${projectId}:${episodesId}:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`;
 }
 
-async function saveGraph(projectId: number, episodesId: number, graph: FlowGraphV2): Promise<void> {
-  const existing = await u
-    .db("o_agentWorkData")
-    .where("projectId", String(projectId))
-    .andWhere("episodesId", String(episodesId))
-    .andWhere("key", "canvasGraph")
-    .first();
-
-  graph.meta.updatedAt = Date.now();
-
-  if (!existing) {
-    await u.db("o_agentWorkData").insert({
-      projectId,
-      episodesId,
-      key: "canvasGraph",
-      data: JSON.stringify(graph),
-    });
-  } else {
-    await u
-      .db("o_agentWorkData")
-      .where("id", existing.id)
-      .update({ data: JSON.stringify(graph), updateTime: Date.now() });
-  }
-}
+const linkInputSchema = z.object({
+  id: z.string().optional(),
+  source: z.string(),
+  target: z.string(),
+  branchId: z.string(),
+  dataType: z.string(),
+  isExplore: z.boolean().optional(),
+  isInactive: z.boolean().optional(),
+});
 
 /** 创建连线 */
 router.post(
@@ -55,21 +28,14 @@ router.post(
   validateFields({
     projectId: z.number(),
     episodesId: z.number(),
-    link: z.object({
-      id: z.string().optional(),
-      source: z.string(),
-      target: z.string(),
-      branchId: z.string(),
-      dataType: z.string(),
-      isExplore: z.boolean().optional(),
-      isInactive: z.boolean().optional(),
-    }),
+    link: linkInputSchema,
   }),
   async (req, res) => {
     const { projectId, episodesId, link: linkInput } = req.body;
 
     try {
-      const graph = await loadGraph(projectId, episodesId);
+      await ensureBootstrap(projectId, episodesId);
+      const graph = await loadGraphFromStore(projectId, episodesId);
       if (!graph) {
         return res.status(404).send(error("画布数据不存在，请先保存 v2 FlowGraph"));
       }
@@ -92,8 +58,14 @@ router.post(
         return res.status(409).send(error(`连线 ${link.id} 已存在`));
       }
 
-      graph.links.push(link);
-      await saveGraph(projectId, episodesId, graph);
+      const { id, ...payload } = link;
+      await appendAndSync({
+        projectId,
+        episodesId,
+        clientId: legacyClientId("create", projectId, episodesId),
+        source: "canvas-ui",
+        events: [{ type: "link_upsert", nodeId: id, payload }],
+      });
 
       broadcastToProject(projectId, "link:created", { link });
       return res.status(200).send(success({ link }));
@@ -114,21 +86,26 @@ router.delete(
   async (req, res) => {
     const projectId = Number(req.query.projectId);
     const episodesId = Number(req.query.episodesId);
-    const { linkId } = req.params;
+    const linkId = String(req.params.linkId);
 
     try {
-      const graph = await loadGraph(projectId, episodesId);
+      await ensureBootstrap(projectId, episodesId);
+      const graph = await loadGraphFromStore(projectId, episodesId);
       if (!graph) {
         return res.status(404).send(error("画布数据不存在"));
       }
 
-      const linkIdx = graph.links.findIndex((l) => l.id === linkId);
-      if (linkIdx === -1) {
+      if (!graph.links.some((l) => l.id === linkId)) {
         return res.status(404).send(error(`连线 ${linkId} 不存在`));
       }
 
-      graph.links.splice(linkIdx, 1);
-      await saveGraph(projectId, episodesId, graph);
+      await appendAndSync({
+        projectId,
+        episodesId,
+        clientId: legacyClientId("delete", projectId, episodesId),
+        source: "canvas-ui",
+        events: [{ type: "link_delete", nodeId: linkId, payload: null }],
+      });
 
       broadcastToProject(projectId, "link:deleted", { linkId });
       return res.status(200).send(success({ linkId }));
