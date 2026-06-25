@@ -6,7 +6,6 @@ import { execSync } from "child_process";
 import { success, error } from "@/lib/responseFormat";
 import { TRELLIS2_CONFIG } from "./config";
 
-const FIX_SCRIPT = "/home/kai/.openclaw/workspace/skills/kais-3d-toolkit/scripts/fix.sh";
 const fixingInProgress = new Set<string>();
 
 function fixedPathFor(filename: string) {
@@ -40,7 +39,7 @@ function triggerPostProcess(filename: string) {
 
   // Run fix.sh
   try {
-    execSync(`bash ${FIX_SCRIPT} "${localPath}" --output "${localFixedPath}" --auto`, { timeout: 120_000 });
+    execSync(`bash ${TRELLIS2_CONFIG.fixScript} "${localPath}" --output "${localFixedPath}" --auto`, { timeout: 120_000 });
     console.log(`[post-process] Fixed: ${filename} → ${fixedName}`);
   } catch (err) {
     console.error(`[post-process] fix.sh failed for ${filename}:`, err);

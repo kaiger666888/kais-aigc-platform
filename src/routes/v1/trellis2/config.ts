@@ -4,4 +4,5 @@ export const TRELLIS2_CONFIG = {
   outputDir: process.env.OUTPUT_DIR || "/mnt/agents/output",
   comfyuiInputDir: "/app/ComfyUI/input",
   comfyuiOutputDir: "/app/ComfyUI/output",
+  fixScript: process.env.TRELLIS2_FIX_SCRIPT || "/home/kai/.openclaw/workspace/skills/kais-3d-toolkit/scripts/fix.sh",
 };

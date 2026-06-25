@@ -2,7 +2,7 @@
 # build.sh — Build all V6 Docker images from workspace repos
 set -e
 
-WORKSPACE="/home/kai/.openclaw/workspace"
+WORKSPACE="${KAIS_WORKSPACE:-/home/kai/.openclaw/workspace}"
 PLATFORM="$WORKSPACE/kais-aigc-platform"
 
 echo "=== Phase 5: Building Docker images ==="

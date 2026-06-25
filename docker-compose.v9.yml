@@ -224,7 +224,7 @@ services:
   kais-gold-team:
     build:
       context: ../kais-gold-team
-      dockerfile: /home/kai/.openclaw/workspace/kais-aigc-platform/docker/gold-team/Dockerfile
+      dockerfile: ${AIGC_PLATFORM_DOCKERFILE:-/home/kai/.openclaw/workspace/kais-aigc-platform/docker/gold-team/Dockerfile}
     container_name: kais-gold-team
     restart: unless-stopped
     ports:
