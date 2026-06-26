@@ -1,4 +1,4 @@
-// @db-hash bca92f9a6d10dd76f4003fda97072411
+// @db-hash bf8d40f3da9ebbe706ec8f177ce7fb60
 //该文件由脚本自动生成，请勿手动修改
 
 export interface kv_audit {
@@ -8,6 +8,17 @@ export interface kv_audit {
   'id'?: number;
   'projectId': number;
   'result'?: string | null;
+}
+export interface kv_canvasEvent {
+  'clientId': string;
+  'createdAt': number;
+  'episodesId': number;
+  'eventId'?: number;
+  'nodeId'?: string | null;
+  'payload': string;
+  'projectId': number;
+  'source'?: string | null;
+  'type': string;
 }
 export interface kv_nodeAsset {
   'createTime'?: number | null;
@@ -320,6 +331,7 @@ export interface o_videoTrack {
 
 export interface DB {
   "kv_audit": kv_audit;
+  "kv_canvasEvent": kv_canvasEvent;
   "kv_nodeAsset": kv_nodeAsset;
   "kv_pipelineRun": kv_pipelineRun;
   "kv_shot": kv_shot;

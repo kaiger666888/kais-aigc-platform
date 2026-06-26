@@ -1,4 +1,5 @@
 import u from "@/utils";
+import { db } from "@/utils/db";
 import type { FlowGraphV2 } from "@/types/flowgraph-v2";
 import type { CanvasEvent, CanvasEventType } from "@/lib/canvasEventTypes";
 import { parseStoredRow } from "@/lib/canvasEventTypes";
@@ -147,7 +148,7 @@ export async function recomputeGraph(projectId: number, episodesId: number): Pro
 export async function appendEvents(input: AppendInput): Promise<AppendResult> {
   const { projectId, episodesId, clientId, source = "agent", events } = input;
 
-  return await u.db.transaction(async (trx) => {
+  return await db.transaction(async (trx) => {
     const prior = await trx("kv_canvasEvent")
       .where("projectId", projectId)
       .andWhere("episodesId", episodesId)
@@ -187,8 +188,12 @@ export async function appendEvents(input: AppendInput): Promise<AppendResult> {
       createdAt: now,
     }));
 
-    const inserted: number[] = await trx("kv_canvasEvent").insert(rowsToInsert, "eventId");
-    const eventIds = (Array.isArray(inserted) ? inserted : [inserted]).flat() as unknown as number[];
+    const inserted = await trx("kv_canvasEvent").insert(rowsToInsert, "eventId");
+    const rawInserted = (Array.isArray(inserted) ? inserted : [inserted]).flat();
+    // better-sqlite3 returns [{ eventId: N }] instead of [N]; normalize to plain numbers
+    const eventIds = rawInserted.map((row: any) =>
+      typeof row === "object" && row !== null ? Number(row.eventId) : Number(row),
+    );
     const lastId = eventIds.length > 0 ? eventIds[eventIds.length - 1] : null;
 
     return { eventIds, duplicated: false, lastEventId: lastId };
