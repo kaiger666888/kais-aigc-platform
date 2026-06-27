@@ -17,7 +17,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const TOONFLOW_API = 'http://localhost:8000';
+const TOONFLOW_API = process.env.KAIS_CANVAS_URL || 'http://localhost:10588';
 const API_TIMEOUT = 15000;
 
 // ── Args ──────────────────────────────────────────────
@@ -74,7 +74,7 @@ function apiPost(path, data) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify(data);
     const req = http.request({
-      hostname: 'localhost', port: 8000, path, method: 'POST',
+      hostname: 'localhost', port: parseInt(require('url').parse(TOONFLOW_API).port || '10588'), path, method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
       timeout: API_TIMEOUT
     }, res => {
