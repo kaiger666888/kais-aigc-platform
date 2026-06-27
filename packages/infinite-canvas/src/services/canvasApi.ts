@@ -177,26 +177,102 @@ export async function fetchProjectScripts(projectId: number, cancelToken?: Cance
   return json.data ?? []
 }
 
-// ─── FlowData 兼容 ────────────────────────────────────────
+// ─── Asset Registry (全局资产注册表) ──────────────────────
 
-/** 获取现有 FlowData（兼容旧格式） */
-export async function fetchFlowData(
-  projectId: number,
-  episodesId: number,
-  cancelToken?: CancelToken,
-): Promise<LegacyFlowData> {
-  const json = await apiCall<{ data: LegacyFlowData }>('/production/getFlowData', { projectId, episodesId }, { cancelToken })
-  return json.data
+/** 资产详情（含 filePath） */
+export interface AssetDetail {
+  id: number
+  uuid: string | null
+  name: string | null
+  type: string | null
+  prompt: string | null
+  describe: string | null
+  projectId: number | null
+  characterId: string | null
+  viewAngle: string | null
+  isPrimaryView: boolean | null
+  model: string | null
+  tags: string | null
+  state: string | null
+  meta: string | null
+  filePath: string | null
+  imageState: string | null
+  imageModel: string | null
+  resolution: string | null
 }
 
-/** 保存 FlowData */
-export async function saveFlowData(
-  projectId: number,
-  episodesId: number,
-  data: LegacyFlowData,
+/**
+ * 从全局资产注册表查询单个资产详情（含文件路径）。
+ * 当画布节点的 data.filePath 缺失时，可通过 assetId 异步补全。
+ */
+export async function fetchAssetDetail(
+  assetId: number,
   cancelToken?: CancelToken,
-): Promise<void> {
-  await apiCall<void>('/production/saveFlowData', { projectId, episodesId, data }, { cancelToken })
+): Promise<AssetDetail> {
+  const timeoutController = new AbortController()
+  const timeoutId = setTimeout(() => timeoutController.abort(), TIMEOUT_MS)
+  const signals: AbortSignal[] = [timeoutController.signal]
+  if (cancelToken) signals.push(cancelToken.signal)
+  const combinedController = new AbortController()
+  const onAbort = () => combinedController.abort()
+  signals.forEach((s) => {
+    if (s.aborted) combinedController.abort()
+    else s.addEventListener('abort', onAbort, { once: true })
+  })
+  try {
+    const res = await fetch(`${API_BASE}/v1/assets-registry/${assetId}`, {
+      method: 'GET',
+      signal: combinedController.signal,
+    })
+    clearTimeout(timeoutId)
+    if (!res.ok) throw new ApiError(`HTTP ${res.status}`, 'network', res.status)
+    const json = await res.json()
+    return json.data as AssetDetail
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
+/**
+ * 批量查询项目资产（Primary 资产列表）。
+ */
+export async function fetchProjectAssets(
+  projectId: number,
+  cancelToken?: CancelToken,
+): Promise<AssetDetail[]> {
+  const timeoutController = new AbortController()
+  const timeoutId = setTimeout(() => timeoutController.abort(), TIMEOUT_MS)
+  const signals: AbortSignal[] = [timeoutController.signal]
+  if (cancelToken) signals.push(cancelToken.signal)
+  const combinedController = new AbortController()
+  const onAbort = () => combinedController.abort()
+  signals.forEach((s) => {
+    if (s.aborted) combinedController.abort()
+    else s.addEventListener('abort', onAbort, { once: true })
+  })
+  try {
+    const res = await fetch(`${API_BASE}/v1/assets-registry/project/${projectId}`, {
+      method: 'GET',
+      signal: combinedController.signal,
+    })
+    clearTimeout(timeoutId)
+    if (!res.ok) throw new ApiError(`HTTP ${res.status}`, 'network', res.status)
+    const json = await res.json()
+    return json.data.assets as AssetDetail[]
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
+/**
+ * 搜索资产（跨项目）。
+ */
+export async function searchAssets(
+  params: { query?: string; type?: string; characterId?: string; tags?: string },
+  cancelToken?: CancelToken,
+): Promise<AssetDetail[]> {
+  const json = await apiCall<{ data: { assets: AssetDetail[] } }>('/v1/assets-registry/search', params, { cancelToken })
+  return json.data.assets
 }
 
 // ─── 画布图（FlowGraph） ──────────────────────────────────

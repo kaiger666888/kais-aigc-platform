@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { memo, useState, useEffect } from 'react'
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
 import type { AssetNodeData, NodeState, RoutingDecision } from '../../types/canvas'
 import { stateColors, getNodeBorderColor, getNodeContainerStyle } from '../../utils/styles'
@@ -9,6 +9,7 @@ import ScoreMiniBar from '../ScoreMiniBar'
 import ReviewActionButtons from '../ReviewActionButtons'
 import VariantBadge from '../VariantBadge'
 import { useCanvasStore } from '../../store/canvasStore'
+import { fetchAssetDetail } from '../../services/canvasApi'
 
 type AssetNodeType = Node<AssetNodeData, 'asset'>
 
@@ -33,6 +34,27 @@ function viewAngleLabel(angle: unknown): string {
 function AssetNodeComponent({ data, id }: NodeProps<AssetNodeType>) {
   const approveNode = useCanvasStore((s) => s.approveNode)
   const rejectNode = useCanvasStore((s) => s.rejectNode)
+
+  // Asset Registry 异步加载：当节点缺少 thumbnailUrl/filePath 但有 assetId 时，
+  // 从全局资产注册表查询补全。参照 tldraw TLAssetStore.resolve 模式。
+  const [resolvedThumb, setResolvedThumb] = useState<string | null>(null)
+  const assetId = data.assetId as number | undefined
+  const hasThumbnail = (data.thumbnailUrl as string | null) != null || resolvedThumb != null
+
+  useEffect(() => {
+    if (data.thumbnailUrl || !assetId) return
+    let cancelled = false
+    fetchAssetDetail(assetId).then((detail) => {
+      if (cancelled) return
+      if (detail?.filePath) {
+        // filePath 格式: "projectId/asset_cat.png" → 转为 /oss/ URL
+        setResolvedThumb(`/oss/${detail.filePath}`)
+      }
+    }).catch(() => { /* 静默失败，保持占位图标 */ })
+    return () => { cancelled = true }
+  }, [assetId, data.thumbnailUrl])
+
+  const displayThumb = (data.thumbnailUrl as string | null) || resolvedThumb
 
   const isLoser = data.isWinner === false
   const hasVariant = data.variantGroupId != null
@@ -113,9 +135,9 @@ function AssetNodeComponent({ data, id }: NodeProps<AssetNodeType>) {
         justifyContent: 'center',
         marginBottom: 6,
       }}>
-        {data.thumbnailUrl ? (
+        {displayThumb ? (
           <img
-            src={data.thumbnailUrl as string}
+            src={displayThumb}
             alt={data.label as string}
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
