@@ -124,6 +124,19 @@ export default async function startServe(randomPort: Boolean = false) {
     });
   }
 
+  // arch-dashboard：自托管架构演化看板（MkDocs 静态站点）
+  const archDashboardDir = "/home/kai/workspace/arch-dashboard/site";
+  if (fs.existsSync(archDashboardDir)) {
+    app.use("/arch-dashboard", express.static(archDashboardDir, { acceptRanges: true, maxAge: "5m", cacheControl: true }));
+    // SPA fallback 只接管无扩展名的目录型 URL（如 /arch-dashboard/timetravel/）。
+    // 带扩展名的请求（.json/.js/.png 等）若 static 没找到就让其正常 404，
+    // 否则会把缺失的 .json 也吞成 index.html，掩盖 bug。
+    app.get("/arch-dashboard/{*path}", (req, res, next) => {
+      if (path.extname(req.path)) return next();
+      res.sendFile(path.join(archDashboardDir, "index.html"));
+    });
+  }
+
   app.get("/health", (_req, res) => {
     res.json({ status: "ok", service: "kais-core-backend", version: "6.0.0" });
   });
@@ -132,7 +145,7 @@ export default async function startServe(randomPort: Boolean = false) {
   // so that deep links like /project, /production work without JWT
   app.use((req, res, next) => {
     if (req.method !== "GET") return next();
-    if (req.path.startsWith("/api/") || req.path.startsWith("/oss/") || req.path.startsWith("/assets/") || req.path.startsWith("/skills/") || req.path.startsWith("/infinite-canvas")) {
+    if (req.path.startsWith("/api/") || req.path.startsWith("/oss/") || req.path.startsWith("/assets/") || req.path.startsWith("/skills/") || req.path.startsWith("/infinite-canvas") || req.path.startsWith("/arch-dashboard")) {
       return next();
     }
     if (req.path.match(/\.[^/]+$/)) {
@@ -161,6 +174,8 @@ export default async function startServe(randomPort: Boolean = false) {
     if (req.path.startsWith("/assets/") || req.path.endsWith(".js") || req.path.endsWith(".css") || req.path.endsWith(".ico") || req.path.endsWith(".map")) return next();
     // 无限画布页面
     if (req.path.startsWith("/infinite-canvas")) return next();
+    // arch-dashboard 静态看板
+    if (req.path.startsWith("/arch-dashboard")) return next();
     // V6.0 API routes: pass through without auth (internal service mesh)
     if (req.path.startsWith("/api/v1/")) {
       (req as any).user = { source: "v6-internal" };
