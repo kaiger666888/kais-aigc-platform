@@ -218,8 +218,49 @@ async function syncVoice(projectId, filePath, metadata) {
 
 async function syncCanvasGraph(projectId, filePath) {
   const graph = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+
+  // 根治：写画布前，为所有缺 assetId 的 asset 节点注册资产到 o_assets。
+  // 这样画布 JSON 和关系表永不脱节。
+  const nodes = graph.nodes || [];
+  let registered = 0;
+  for (const node of nodes) {
+    if (node.type !== 'asset') continue;
+    const d = node.data || {};
+    if (d.assetId) continue; // 已有引用，跳过
+
+    const label = String(d.label || '未命名资产').replace(/[^\w\u4e00-\u9fff\s\-]/g, '').trim() || '未命名';
+    const rawType = String(d.assetType || d.type || '');
+    const atype = rawType.includes('scene') || rawType.includes('场景') ? 'scene'
+      : rawType.includes('prop') || rawType.includes('道具') ? 'prop'
+      : 'character';
+
+    try {
+      const resp = await apiPost('/api/v1/assets-registry', {
+        asset: {
+          name: label,
+          type: atype,
+          prompt: d.prompt || '',
+          describe: label,
+          projectId,
+          characterId: atype === 'character' ? label : undefined,
+          viewAngle: atype === 'character' ? 'front' : undefined,
+          createdBy: 'agent-sync',
+        },
+      });
+      if (resp?.data?.id) {
+        d.assetId = resp.data.id;
+        d.uuid = resp.data.uuid;
+        d.assetType = atype;
+        node.data = d;
+        registered++;
+      }
+    } catch (e) {
+      console.warn(`⚠️ 画布资产注册失败 "${label}": ${e.message}`);
+    }
+  }
+
   await apiPost('/api/canvas/save', { projectId, episodesId: 1, graph });
-  console.log(`🖼️ 画布FlowGraph同步成功`);
+  console.log(`🖼️ 画布FlowGraph同步成功 (${registered} 个新资产已注册)`);
 }
 
 // ── Main ──────────────────────────────────────────────
