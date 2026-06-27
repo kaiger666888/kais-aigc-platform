@@ -106,6 +106,29 @@ export default async function startServe(randomPort: Boolean = false) {
   console.log("文件目录:", assetsDir);
   app.use("/assets", express.static(assetsDir, { acceptRanges: true, maxAge: "1d", cacheControl: true }));
 
+  // 本地文件代理 — 用于画布缩略图加载
+  // 当 o_assets 的 filePath 是绝对路径时（如管线产出物），通过此端点安全访问
+  app.get("/local-file", (req, res) => {
+    const filePath = req.query.path as string;
+    if (!filePath) return res.status(400).send("Missing path parameter");
+
+    // 安全检查：只允许已知的目录前缀
+    const allowedPrefixes = [
+      "/home/kai/workspace/kais-movie-agent/",
+      "/mnt/agents/output/",
+    ];
+    const isAllowed = allowedPrefixes.some((p) => filePath.startsWith(p));
+    if (!isAllowed) {
+      return res.status(403).send("Access denied: path outside allowed directories");
+    }
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).send("File not found");
+    }
+
+    res.sendFile(path.resolve(filePath));
+  });
+
   // data/web 静态网站
   const webDir = u.getPath("web");
   if (fs.existsSync(webDir)) {

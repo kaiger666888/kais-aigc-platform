@@ -473,7 +473,10 @@ export async function fetchSkillNodeTypes(
   try {
     const res = await fetch(url, { method: 'GET', signal })
     if (!res.ok) {
-      console.warn(`[canvasApi] fetchSkillNodeTypes: HTTP ${res.status} for skill '${skillId}'`)
+      // 404 是预期的——skill registry 端点可能未部署。静默返回空列表。
+      if (res.status !== 404) {
+        console.warn(`[canvasApi] fetchSkillNodeTypes: HTTP ${res.status} for skill '${skillId}'`)
+      }
       return []
     }
     const json = (await res.json()) as { ok?: boolean; node_types?: SkillNodeTypeDecl[] }

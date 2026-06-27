@@ -47,8 +47,21 @@ function AssetNodeComponent({ data, id }: NodeProps<AssetNodeType>) {
     fetchAssetDetail(assetId).then((detail) => {
       if (cancelled) return
       if (detail?.filePath) {
-        // filePath 格式: "projectId/asset_cat.png" → 转为 /oss/ URL
-        setResolvedThumb(`/oss/${detail.filePath}`)
+        // filePath 可能是:
+        // 1. OSS 相对路径 (e.g. "2/character_cat.png") → /oss/2/character_cat.png
+        // 2. 绝对文件路径 (e.g. /home/kai/.../L1_xiaochen.png) → 需要 /local-file/ proxy
+        // 3. 已经是 /oss/ 开头的 URL
+        const fp = detail.filePath
+        let url: string
+        if (fp.startsWith('/oss/') || fp.startsWith('http')) {
+          url = fp
+        } else if (fp.startsWith('/home/') || fp.startsWith('/mnt/') || fp.startsWith('/data/')) {
+          // 绝对路径 → 通过 Vite proxy 或后端 /local-file 端点
+          url = `http://localhost:10588/local-file?path=${encodeURIComponent(fp)}`
+        } else {
+          url = `/oss/${fp}`
+        }
+        setResolvedThumb(url)
       }
     }).catch(() => { /* 静默失败，保持占位图标 */ })
     return () => { cancelled = true }
