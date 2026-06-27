@@ -30,6 +30,7 @@ import type { NodeState } from '../types/canvas'
 import { useCanvasStore } from '../store/canvasStore'
 import { ToastContainer } from '../hooks/useToast'
 import { flowGraphToCanvas, canvasToFlowGraph } from '../utils/flowDataMapper'
+import { getLayoutedElements } from '../utils/autoLayout'
 import { loadCanvasGraph, saveCanvasGraph, convertProjectData, fetchSkillNodeTypes, orchestrateCanvas } from '../services/canvasApi'
 import { useCanvasSocket } from '../hooks/useCanvasSocket'
 import { theme, miniMapNodeColors } from '../theme/catppuccin'
@@ -280,6 +281,22 @@ function CanvasInner() {
     }
   }, [nodes, edges, projectId, episodesId, reactFlow, setSaving])
 
+  // 自动整理布局 (dagre)
+  const handleAutoLayout = useCallback(() => {
+    const { nodes: layouted, edges: layoutedEdges } = getLayoutedElements(
+      nodes as any[],
+      edges as any[],
+      'LR',
+    )
+    setNodes(layouted)
+    setEdges(layoutedEdges)
+    // 短延迟后 fitView，等待 React 重渲染拿到 measured 尺寸
+    setTimeout(() => {
+      reactFlow.fitView({ padding: 0.15, duration: 600 })
+    }, 50)
+    showToast?.('已整理为紧凑布局', 'success')
+  }, [nodes, edges, setNodes, setEdges, reactFlow, showToast])
+
   // Phase 36 — 一键成片编排触发
   const handleOrchestrate = useCallback(async () => {
     if (!projectId || !episodesId) return
@@ -376,7 +393,9 @@ function CanvasInner() {
           onNodeClick={onNodeClick}
           onSelectionChange={onSelectionChange}
           fitView={hasData}
-          fitViewOptions={{ padding: VIEWPORT.fitViewPadding }}
+          fitViewOptions={{ padding: 0.15, minZoom: 0.2, maxZoom: 1.5, duration: 600 }}
+          minZoom={0.05}
+          maxZoom={4}
           selectionOnDrag
           panOnDrag={[1]}
           selectionKeyCode="Shift"
@@ -385,12 +404,20 @@ function CanvasInner() {
         >
           <Background color={theme.border.default} gap={20} size={1} />
           <Controls
-            position="bottom-right"
+            position="bottom-left"
+            showInteractive={false}
+            fitViewOptions={{ padding: 0.15, duration: 600 }}
             style={{ background: theme.bg.card, borderRadius: 8, border: `1px solid ${theme.border.default}` }}
           />
           <MiniMap
             nodeColor={miniMapNodeColor}
-            maskColor={theme.chrome.miniMapMask}
+            nodeStrokeColor={theme.border.default}
+            nodeStrokeWidth={3}
+            nodeBorderRadius={4}
+            maskColor="rgba(0, 0, 0, 0.4)"
+            pannable
+            zoomable
+            ariaLabel="画布概览"
             style={{ background: theme.bg.card, border: `1px solid ${theme.border.default}`, borderRadius: 8 }}
           />
 
@@ -398,7 +425,10 @@ function CanvasInner() {
             <ToolbarButton onClick={handleSave} disabled={saving || !projectId}>
               {saving ? '保存中...' : '💾 保存'}
             </ToolbarButton>
-            <ToolbarButton onClick={() => reactFlow.fitView({ padding: VIEWPORT.fitViewPadding })}>
+            <ToolbarButton onClick={handleAutoLayout} disabled={!projectId || nodes.length === 0}>
+              📐 整理布局
+            </ToolbarButton>
+            <ToolbarButton onClick={() => reactFlow.fitView({ padding: 0.15, duration: 600 })}>
               🔍 适配视图
             </ToolbarButton>
             {/* Phase 36 — 一键成片 */}
