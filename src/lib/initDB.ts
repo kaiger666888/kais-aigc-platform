@@ -440,25 +440,38 @@ export default async (knex: Knex, forceInit: boolean = false): Promise<void> => 
         table.unique(["id"]);
       },
     },
-    //资产表
+    //资产表 — 全局资产注册表 (Phase: Asset System Enhancement)
     {
       name: "o_assets",
       builder: (table) => {
         table.integer("id").notNullable();
+        table.text("uuid"); // 全局唯一身份 (跨项目寻址)
         table.text("name");
         table.text("prompt");
         table.text("remark");
-        table.text("type");
+        table.text("type"); // character | scene | prop | clip | voice | video | storyboard
         table.text("describe");
         table.integer("scriptId"); //剧本id
         table.integer("imageId").unsigned().references("id").inTable("o_image");
-        table.integer("assetsId");
-        table.integer("projectId");
+        table.integer("assetsId"); // 父资产引用 (Primary→Secondary)
+        table.integer("projectId"); // NULL = 全局资产库
         table.integer("flowId"); //工作流id
         table.integer("startTime");
         table.string("promptState");
         table.integer("audioBindState");
         table.text("promptErrorReason");
+        // ─── 资产系统增强字段 ───
+        table.text("characterId"); // 同角色多视图分组 ID
+        table.string("viewAngle"); // front | side | back | 3quarter | detail | full
+        table.boolean("isPrimaryView").defaultTo(false);
+        table.string("model"); // 生成模型 (jimeng-5.0 / seedance / etc)
+        table.text("tags"); // 逗号分隔标签
+        table.string("state").defaultTo("active"); // active | archived
+        table.text("meta"); // JSON: seed / loraPath / params
+        table.integer("createdAt");
+        table.string("createdBy"); // pipeline | manual | agent-sync
+        table.string("skill_id");
+        table.string("workflow_phase");
         table.primary(["id"]);
         table.unique(["id"]);
       },

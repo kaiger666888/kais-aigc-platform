@@ -1,4 +1,4 @@
-// @db-hash bf8d40f3da9ebbe706ec8f177ce7fb60
+// @db-hash ee635e5b07b80555ad2d3d08ea59c473
 //该文件由脚本自动生成，请勿手动修改
 
 export interface kv_audit {
@@ -137,10 +137,16 @@ export interface o_artStyle {
 export interface o_assets {
   'assetsId'?: number | null;
   'audioBindState'?: number | null;
+  'characterId'?: string | null;
+  'createdAt'?: number | null;
+  'createdBy'?: string | null;
   'describe'?: string | null;
   'flowId'?: number | null;
   'id'?: number;
   'imageId'?: number | null;
+  'isPrimaryView'?: boolean | null;
+  'meta'?: string | null;
+  'model'?: string | null;
   'name'?: string | null;
   'projectId'?: number | null;
   'prompt'?: string | null;
@@ -150,7 +156,11 @@ export interface o_assets {
   'scriptId'?: number | null;
   'skill_id'?: string | null;
   'startTime'?: number | null;
+  'state'?: string | null;
+  'tags'?: string | null;
   'type'?: string | null;
+  'uuid'?: string | null;
+  'viewAngle'?: string | null;
   'workflow_phase'?: string | null;
 }
 export interface o_assets2Storyboard {

@@ -145,8 +145,29 @@ async function syncCharacterImage(projectId, filePath, metadata) {
     type: 'role',
     projectId,
     remark: metadata.remark || `Step ${metadata.step || '?'}`,
-    prompt: metadata.prompt || ''
+    prompt: metadata.prompt || '',
   });
+  // 资产系统增强：同时注册到全局资产注册表（带 characterId / viewAngle）
+  try {
+    await apiPost('/api/v1/assets-registry', {
+      asset: {
+        name,
+        type: 'character',
+        prompt: metadata.prompt || '',
+        describe: metadata.description || '',
+        projectId,
+        characterId: metadata.characterId || name,
+        viewAngle: metadata.viewAngle || 'front',
+        isPrimaryView: metadata.isPrimaryView || false,
+        model: metadata.model || '',
+        tags: metadata.tags || '',
+        meta: metadata.meta || null,
+        createdBy: 'agent-sync',
+      },
+    });
+  } catch (e) {
+    console.warn(`⚠️ 全局资产注册失败 (非致命): ${e.message}`);
+  }
   console.log(`🧑 角色同步成功: ${name}`);
 }
 
@@ -158,8 +179,24 @@ async function syncSceneImage(projectId, filePath, metadata) {
     type: 'scene',
     projectId,
     remark: metadata.remark || `Step ${metadata.step || '?'}`,
-    prompt: metadata.prompt || ''
+    prompt: metadata.prompt || '',
   });
+  // 资产系统增强：注册到全局资产注册表
+  try {
+    await apiPost('/api/v1/assets-registry', {
+      asset: {
+        name,
+        type: 'scene',
+        prompt: metadata.prompt || '',
+        describe: metadata.description || '',
+        projectId,
+        tags: metadata.tags || '',
+        createdBy: 'agent-sync',
+      },
+    });
+  } catch (e) {
+    console.warn(`⚠️ 全局资产注册失败 (非致命): ${e.message}`);
+  }
   console.log(`🏞️ 场景同步成功: ${name}`);
 }
 

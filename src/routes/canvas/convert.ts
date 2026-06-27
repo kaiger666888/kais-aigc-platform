@@ -305,9 +305,16 @@ export default router.post(
             type: "asset",
             assetType: asset.type ?? "role",
             assetId: asset.id,
+            uuid: asset.uuid ?? null,
             prompt: asset.prompt ?? "",
             filePath: asset.filePath ? `/oss/${asset.filePath}` : null,
             thumbnailUrl,
+            // ─── 资产系统增强字段 (从 o_assets 表读取) ───
+            characterId: asset.characterId ?? undefined,
+            viewAngle: asset.viewAngle ?? undefined,
+            isPrimaryView: asset.isPrimaryView ?? undefined,
+            model: asset.model ?? undefined,
+            tags: asset.tags ?? undefined,
             ...(() => { const r = getNodeReview(nodeId); return { reviewStatus: r.reviewStatus, aiScore: r.aiScore, isWinner: r.isWinner, routingDecision: r.routingDecision }; })(),
             ...(isVariantRole ? {
               variantGroupId: "vg-char-role",
