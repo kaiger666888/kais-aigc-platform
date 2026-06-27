@@ -219,20 +219,30 @@ async function syncVoice(projectId, filePath, metadata) {
 async function syncCanvasGraph(projectId, filePath) {
   const graph = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
 
-  // 根治：写画布前，为所有缺 assetId 的 asset 节点注册资产到 o_assets。
-  // 这样画布 JSON 和关系表永不脱节。
+  // 根治：写画布前，为所有缺 assetId 的节点注册资产到 o_assets。
+  // 不再只扫描 type='asset'——所有有产出物的节点 (script/storyboard/video/audio/asset)
+  // 都是创作过程资产，都需注册。
   const nodes = graph.nodes || [];
   let registered = 0;
+
+  // 节点类型 → o_assets type 映射
+  const nodeTypeToAssetType = {
+    asset: 'character',      // 默认角色，有 characterId 的会在下面覆盖
+    storyboard: 'storyboard',
+    script: 'script_phase',
+    video: 'video',
+    audio: 'voice',
+  };
+
   for (const node of nodes) {
-    if (node.type !== 'asset') continue;
     const d = node.data || {};
     if (d.assetId) continue; // 已有引用，跳过
 
+    const rawType = String(node.type || d.type || '');
+    const atype = nodeTypeToAssetType[rawType];
+    if (!atype) continue; // 未知类型跳过
+
     const label = String(d.label || '未命名资产').replace(/[^\w\u4e00-\u9fff\s\-]/g, '').trim() || '未命名';
-    const rawType = String(d.assetType || d.type || '');
-    const atype = rawType.includes('scene') || rawType.includes('场景') ? 'scene'
-      : rawType.includes('prop') || rawType.includes('道具') ? 'prop'
-      : 'character';
 
     try {
       const resp = await apiPost('/api/v1/assets-registry', {
@@ -240,10 +250,17 @@ async function syncCanvasGraph(projectId, filePath) {
           name: label,
           type: atype,
           prompt: d.prompt || '',
-          describe: label,
+          describe: d.description || d.describe || label,
           projectId,
-          characterId: atype === 'character' ? label : undefined,
+          characterId: atype === 'character' ? (d.characterId || label) : undefined,
           viewAngle: atype === 'character' ? 'front' : undefined,
+          tags: d.tags || `canvas-node:${node.id}`,
+          meta: {
+            filePath: d.filePath || undefined,
+            phase: d.phase || undefined,
+            phaseName: d.phaseName || undefined,
+            score: d.score || undefined,
+          },
           createdBy: 'agent-sync',
         },
       });

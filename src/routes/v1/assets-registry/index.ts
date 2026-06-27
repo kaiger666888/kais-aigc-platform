@@ -18,7 +18,7 @@ const router = express.Router();
 const createSchema = z.object({
   uuid: z.string().optional(),
   name: z.string(),
-  type: z.enum(["character", "scene", "prop", "clip", "voice", "video", "storyboard"]),
+  type: z.enum(["character", "scene", "prop", "clip", "voice", "video", "storyboard", "script_phase", "outline", "topic", "delivery"]),
   prompt: z.string().optional().default(""),
   describe: z.string().optional().default(""),
   projectId: z.number().nullable().optional(),
@@ -232,6 +232,39 @@ router.get("/project/:projectId", async (req, res) => {
   } catch (err: any) {
     console.error("[v1/assets/project] 查询失败:", err);
     return res.status(500).send(error("查询失败: " + err.message));
+  }
+});
+
+// ─── POST /api/v1/assets/update-meta — 轻量更新元数据 (幂等场景) ─
+
+router.post("/update-meta", async (req, res) => {
+  const id = parseInt(req.body.id, 10);
+  if (isNaN(id)) return res.status(400).send(error("无效的资产 ID"));
+
+  try {
+    const existing = await u.db("o_assets").where("id", id).first();
+    if (!existing) return res.status(404).send(error("资产不存在"));
+
+    const updates: Record<string, any> = {};
+    const allowed = ["describe", "tags", "state"];
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) updates[key] = req.body[key];
+    }
+    if (req.body.meta !== undefined) {
+      // Merge meta rather than replace
+      const oldMeta = existing.meta ? JSON.parse(existing.meta) : {};
+      updates.meta = JSON.stringify({ ...oldMeta, ...req.body.meta });
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(200).send(success({ id, message: "无更新" }));
+    }
+
+    await u.db("o_assets").where("id", id).update(updates);
+    return res.status(200).send(success({ id, updated: Object.keys(updates) }));
+  } catch (err: any) {
+    console.error("[v1/assets/update-meta] 失败:", err);
+    return res.status(500).send(error("更新失败: " + err.message));
   }
 });
 
