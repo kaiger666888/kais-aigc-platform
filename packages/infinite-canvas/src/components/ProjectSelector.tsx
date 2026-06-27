@@ -70,8 +70,9 @@ export default function ProjectSelector({
   }, [])
 
   const handleConfirm = useCallback(() => {
-    if (selectedProjectId && selectedEpisodesId) {
-      onSelect(selectedProjectId, selectedEpisodesId)
+    if (selectedProjectId) {
+      // episodesId 可选：没选剧本时默认 episodesId=1（画布数据按 project+episodes 存储）
+      onSelect(selectedProjectId, selectedEpisodesId ?? 1)
     }
   }, [selectedProjectId, selectedEpisodesId, onSelect])
 
@@ -100,9 +101,9 @@ export default function ProjectSelector({
         value={selectedEpisodesId ?? ''}
         onChange={handleScriptChange}
         style={selectStyle}
-        disabled={!selectedProjectId || scripts.length === 0}
+        disabled={!selectedProjectId}
       >
-        <option value="">-- 选择剧本 --</option>
+        <option value="">{scripts.length > 0 ? '-- 选择剧本 --' : '-- 无剧本 (画布直接加载) --'}</option>
         {scripts.map((s) => (
           <option key={s.id} value={s.id}>
             {s.name || `剧本 #${s.id}`} ({s.assetCount} 资产, {s.storyboardCount} 分镜)
@@ -112,11 +113,11 @@ export default function ProjectSelector({
 
       <button
         onClick={handleConfirm}
-        disabled={!selectedProjectId || !selectedEpisodesId}
+        disabled={!selectedProjectId}
         style={{
           ...buttonStyle,
-          opacity: (!selectedProjectId || !selectedEpisodesId) ? 0.5 : 1,
-          cursor: (!selectedProjectId || !selectedEpisodesId) ? 'not-allowed' : 'pointer',
+          opacity: !selectedProjectId ? 0.5 : 1,
+          cursor: !selectedProjectId ? 'not-allowed' : 'pointer',
         }}
       >
         加载画布
