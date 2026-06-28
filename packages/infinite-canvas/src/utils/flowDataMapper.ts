@@ -331,65 +331,6 @@ export function canvasToFlowGraph(
 
 /** FlowGraph → React Flow 节点/边 */
 export function flowGraphToCanvas(graph: FlowGraph): { nodes: Node[]; edges: Edge[] } {
-  // Auto-compute phase zones from node data
-  const phaseNodes: Record<string, typeof graph.nodes> = {}
-  for (const gn of graph.nodes) {
-    const rawPhase = gn.data?.phase as string | undefined
-    let phase: string | undefined = rawPhase
-    if (!phase) {
-      const pn = (gn.data?.phaseName as string) || gn.phaseName || ''
-      if (pn.toLowerCase().includes('step1')) phase = 'research'
-      else if (pn.toLowerCase().includes('step2') || pn.toLowerCase().includes('step3')) phase = 'story'
-      else if (pn.toLowerCase().includes('step4') || pn.toLowerCase().includes('step5')) phase = 'production'
-    }
-    if (phase) {
-      if (!phaseNodes[phase]) phaseNodes[phase] = []
-      phaseNodes[phase].push(gn)
-    }
-  }
-
-  // Compute zone bounds from node positions
-  const zoneDefs: { id: string; label: string; phase: string; pos: { x: number; y: number }; size: { width: number; height: number } }[] = []
-  const phaseLabels: Record<string, string> = {
-    research: '🔍 研究阶段',
-    story: '📖 故事阶段',
-    production: '🎬 制作阶段',
-    post: '🎚️ 后期阶段',
-  }
-  for (const [phase, nodes] of Object.entries(phaseNodes)) {
-    if (nodes.length === 0) continue
-    const xs = nodes.map(n => n.position.x)
-    const ys = nodes.map(n => n.position.y)
-    const minX = Math.min(...xs) - 80
-    const minY = Math.min(...ys) - 60
-    const maxX = Math.max(...xs) + 360
-    const maxY = Math.max(...ys) + 250
-    zoneDefs.push({
-      id: `zone-${phase}`, label: phaseLabels[phase] || phase, phase,
-      pos: { x: minX, y: minY },
-      size: { width: maxX - minX, height: maxY - minY },
-    })
-  }
-
-  // Build zone nodes (rendered first, behind regular nodes)
-  const zoneNodes: Node[] = zoneDefs.map(z => ({
-    id: z.id,
-    type: 'zone',
-    position: z.pos,
-    draggable: false,
-    selectable: false,
-    deletable: false,
-    connectable: false,
-    focusable: false,
-    style: {
-      width: z.size.width,
-      height: z.size.height,
-      zIndex: 0,
-      pointerEvents: 'none',
-    },
-    data: { label: z.label, phase: z.phase },
-  }))
-
   const mapNode = (gn: FlowGraphNode): Node => {
     // ─── reviewStatus 边界归一化 ────────────────────────────
     // 旧 blob（含 awaiting_audit）→ 新 canonical (pending)。
@@ -402,6 +343,15 @@ export function flowGraphToCanvas(graph: FlowGraph): { nodes: Node[]; edges: Edg
       id: gn.id,
       type: gn.type,
       position: gn.position,
+      // Zone (ellipse) nodes: rendered behind, non-interactive background
+      ...(gn.type === 'zone' ? {
+        draggable: false,
+        selectable: false,
+        deletable: false,
+        connectable: true,
+        focusable: false,
+        zIndex: 0,
+      } : {}),
       data: {
         ...gn.data,
         ...(gn.data?.detail && !gn.data?.content ? { content: gn.data.detail } : {}),
@@ -417,10 +367,7 @@ export function flowGraphToCanvas(graph: FlowGraph): { nodes: Node[]; edges: Edg
     }
   }
 
-  const nodes: Node[] = [
-    ...zoneNodes,
-    ...graph.nodes.map(mapNode),
-  ]
+  const nodes: Node[] = graph.nodes.map(mapNode)
 
   const edges: Edge[] = graph.links.map((gl) => ({
     id: gl.id,

@@ -54,7 +54,7 @@ export type LinkSemanticType = 'data_flow' | 'sequence' | 'parallel' | 'referenc
 export type LinkRefType = 'input' | 'reference'
 
 /** 画布节点类型枚举 */
-export type CanvasNodeType = 'script' | 'asset' | 'storyboard' | 'video' | 'audio'
+export type CanvasNodeType = 'script' | 'asset' | 'storyboard' | 'video' | 'audio' | 'zone'
 
 // ─── 自定义节点数据（带索引签名以兼容 React Flow v12） ──────────
 
