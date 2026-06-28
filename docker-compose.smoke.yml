@@ -27,8 +27,8 @@ services:
       timeout: 3s
       retries: 5
 
-  core-backend:
-    image: kais-core-backend:latest
+  # core-backend: (REMOVED 2026-06-28 — use host tsx :10588)
+    #     image: kais-core-backend:latest
     ports:
       - "8000:8000"
     environment:

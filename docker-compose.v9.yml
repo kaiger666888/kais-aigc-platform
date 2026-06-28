@@ -165,55 +165,10 @@ services:
       start_period: 180s
 
   # ---------------------------------------------------------------------------
-  # 2. kais-core-backend (内容管理层)
-  # ---------------------------------------------------------------------------
-  kais-core-backend:
-    build:
-      context: .
-      dockerfile: docker/core-backend/Dockerfile
-    container_name: kais-core-backend
-    restart: unless-stopped
-    ports:
-      - "${CORE_PORT:-8000}:8000"
-    env_file: .env
-    environment:
-      NODE_ENV: production
-      PORT: 8000
-      REDIS_URL: redis://redis:6379
-      GOLD_TEAM_URL: http://kais-gold-team:8002
-      REVIEW_PLATFORM_URL: http://kais-review-platform:8090
-      DOCKER_GID: "984"
-      # TTS 三轨引擎 — 现在统一走 gold-team:8002 in-process
-      TTS_ZH_URL: http://kais-gold-team:8002
-      TTS_EN_URL: http://kais-gold-team:8002
-      TTS_BILINGUAL_URL: http://kais-gold-team:8002
-      TTS_CLONE_URL: http://kais-gold-team:8002
-      DATABASE_URL: postgresql://${POSTGRES_USER:-kais}:${POSTGRES_PASSWORD:-kais}@audit-db:5432/${POSTGRES_DB:-kais_audit}
-      # 双 ComfyUI 引擎端点
-      COMFYUI_PRIMARY_HOST: comfyui-primary
-      COMFYUI_PRIMARY_PORT: "8188"
-      COMFYUI_AUX_HOST: comfyui-auxiliary
-      COMFYUI_AUX_PORT: "8188"
-    volumes:
-      - core-data:/app/data
-      - ${OUTPUT_DIR:-/mnt/agents/output}:/mnt/agents/output
-      - /var/run/docker.sock:/var/run/docker.sock:rw
-      - /usr/bin/docker:/usr/bin/docker:ro
-      - /home/kai/workspace/kais-aigc-platform/scripts/gpu-kill-external.sh:/usr/local/bin/gpu-kill-external.sh:ro
-    networks:
-      - kais-net
-    healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:8000/health').then(r=>{process.exit(r.ok?0:1)}).catch(()=>process.exit(1))"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    depends_on:
-      redis:
-        condition: service_healthy
-      audit-db:
-        condition: service_healthy
-
+  # 2. kais-core-backend — REMOVED 2026-06-28
+  # 原因: host dev 后端 (tsx :10588) 是唯一生产实例, Docker 容器使用独立
+  # DB volume, 数据不同步, 画布前端/管线均不连 :8000. 容器+volume 已清除.
+  # 如需恢复: git revert this commit, 然后 docker compose up -d kais-core-backend
   # ---------------------------------------------------------------------------
   # 3. kais-gold-team (统一执行 Agent) — GPU 调度中枢
   # ---------------------------------------------------------------------------
@@ -517,8 +472,7 @@ volumes:
     name: kais-audit-data
   redis-data:
     name: kais-redis-data
-  core-data:
-    name: kais-core-data
+  # core-data volume removed with kais-core-backend (2026-06-28)
   cosyvoice-models:
     name: kais-cosyvoice-models
   comfyui-cache:
