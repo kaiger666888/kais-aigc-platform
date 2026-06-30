@@ -211,6 +211,11 @@ export default async function startServe(randomPort: Boolean = false) {
       return next();
     }
 
+    // OSS 静态资源（无需鉴权，文件级别通过目录隔离）
+    // 静态服务找不到文件时 fall through 到这里，需要放行让 404 handler 处理，
+    // 否则缺失文件会被当成 401，掩盖真正的 404。
+    if (req.path.startsWith("/oss/")) return next();
+
     if (!token) return res.status(401).send({ message: "未提供token" });
     try {
       const decoded = jwt.verify(token, tokenKey as string);
