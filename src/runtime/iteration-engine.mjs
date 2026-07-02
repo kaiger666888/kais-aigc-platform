@@ -479,11 +479,54 @@ export class IterationEngine {
   }
 
   async _buildPrompt(action) {
+    // Step 1: fetch original node context (breakpoint 4)
     let base = '';
-    if (action.promptDelta) {
-      return `${base}\n\n[迭代增补] ${action.promptDelta}`;
+    try {
+      const resp = await fetch(`${this.apiBase}/api/canvas/load`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: Number(this.projectId),
+          episodesId: Number(this.episodesId),
+        }),
+      });
+      if (resp.ok) {
+        const body = await resp.json();
+        const graph = body?.data ?? body;
+        const node = Array.isArray(graph?.nodes)
+          ? graph.nodes.find((n) => n.id === action.nodeId)
+          : null;
+        base = node?.description || node?.content || node?.prompt || '';
+      }
+    } catch { /* graceful degrade — empty base */ }
+
+    // Step 2: load prompt-overrides.json (breakpoints 1+2)
+    const overrides = (await this._readJsonOptional(this.overridesPath)) || {};
+
+    // Step 3: collect prompt_modification additions (skip thresholds/parameterChanges)
+    const additions = [];
+    for (const [target, entries] of Object.entries(overrides)) {
+      if (target === 'thresholds' || target === 'parameterChanges') continue;
+      if (Array.isArray(entries)) {
+        for (const entry of entries) {
+          if (entry?.change) additions.push(entry.change);
+        }
+      }
     }
-    return base;
+
+    // Step 4: compose base + [进化指令] + [迭代增补]
+    let result = base;
+    if (additions.length > 0) {
+      result = result
+        ? `${result}\n\n[进化指令] ${additions.join('; ')}`
+        : `[进化指令] ${additions.join('; ')}`;
+    }
+    if (action.promptDelta) {
+      result = result
+        ? `${result}\n\n[迭代增补] ${action.promptDelta}`
+        : `[迭代增补] ${action.promptDelta}`;
+    }
+    return result;
   }
 
   /**
