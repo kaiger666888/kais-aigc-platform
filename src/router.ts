@@ -121,6 +121,7 @@ import route117 from "./routes/v1/trellis2/status";
 import route118 from "./routes/v1/tts/speak";
 import route119 from "./routes/v1/tts/status";
 import routeReflect from "./routes/v1/reflection/index";
+import routeIteration from "./routes/v1/iteration/index";
 
 export default async (app: Express) => {
   app.use("/api/assets/addAssets", route1);
@@ -243,4 +244,5 @@ export default async (app: Express) => {
   app.use("/api/v1/tts/speak", route118);
   app.use("/api/v1/tts/status", route119);
   app.use("/api/v1/reflection", routeReflect);
+  app.use("/api/v1/iteration", routeIteration);
 }

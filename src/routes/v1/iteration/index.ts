@@ -1,0 +1,280 @@
+import express from "express";
+import { z } from "zod";
+import { spawnSync } from "child_process";
+import { success, error } from "@/lib/responseFormat";
+
+const router = express.Router();
+
+/**
+ * Iteration Engine API — 单集内版本化迭代接口
+ *
+ * Quick Task 260702-rg2. Bridges the TypeScript Express backend to the
+ * kais-movie-agent IterationEngine (pure ESM JavaScript) via a hermetic
+ * `node -e` subprocess. Mirrors the reflection route pattern (q6l):
+ * user-controlled values are passed via `process.env` (never string
+ * interpolation) to defeat shell/script injection (threat T-rg2-02).
+ */
+
+// Absolute path to the iteration-engine module.
+const ENGINE_PATH =
+  "/data/workspace/kais-movie-agent/lib/iteration-engine.js";
+
+// Allow-root for workdir. Operator-controlled; reject anything outside.
+const ALLOW_ROOT = "/data/workspace";
+
+// ─── Validation schemas ─────────────────────────────────────
+
+const workdirSchema = z
+  .string()
+  .min(1, "workdir is required")
+  .refine((p) => !p.includes(".."), "workdir must not contain '..'")
+  .refine(
+    (p) => !p.startsWith("/etc") && !p.startsWith("/usr"),
+    "workdir must not start with /etc or /usr",
+  )
+  .refine(
+    (p) => p === ALLOW_ROOT || p.startsWith(ALLOW_ROOT + "/"),
+    `workdir must be under ${ALLOW_ROOT}`,
+  );
+
+const planSchema = z.object({
+  workdir: workdirSchema,
+  projectId: z.union([z.number(), z.string()]),
+  episodesId: z.string().optional(),
+  apiBase: z.string().optional(),
+});
+
+const executeSchema = z.object({
+  workdir: workdirSchema,
+  planId: z.string().min(1),
+  projectId: z.union([z.number(), z.string()]),
+  episodesId: z.string().optional(),
+  apiBase: z.string().optional(),
+});
+
+const confirmSchema = z.object({
+  workdir: workdirSchema,
+  branchId: z.string().min(1),
+  projectId: z.union([z.number(), z.string()]),
+  episodesId: z.string().optional(),
+  apiBase: z.string().optional(),
+});
+
+const discardSchema = z.object({
+  workdir: workdirSchema,
+  branchId: z.string().min(1),
+  reason: z.string().max(500).optional().default(""),
+  projectId: z.union([z.number(), z.string()]),
+  episodesId: z.string().optional(),
+  apiBase: z.string().optional(),
+});
+
+const approveAdjustmentSchema = z.object({
+  workdir: workdirSchema,
+  planId: z.string().min(1),
+});
+
+// ─── Subprocess bridge ──────────────────────────────────────
+//
+// Mirrors reflection/index.ts. The node `-e` script is built from constants
+// only; user-controlled values (workdir, method, args) are passed via
+// process.env and read inside the subprocess. NEVER string-interpolate
+// raw user input.
+//
+// The script imports IterationEngine from ENGINE_PATH, instantiates it
+// with ctorOpts from process.env, calls the named method (with JSON-encoded
+// args from RG2_ARGS), and prints JSON on stdout: { ok: true, data: ... }
+// or { ok: false, error: "..." }.
+
+function _runEngine(
+  workdir: string,
+  method: string,
+  args: unknown[] = [],
+  extra: { projectId?: number | string; episodesId?: string; apiBase?: string } = {},
+): any {
+  const script = `
+import { IterationEngine } from ${JSON.stringify(ENGINE_PATH)};
+const workdir = process.env.RG2_WORKDIR;
+const method = process.env.RG2_METHOD;
+const args = JSON.parse(process.env.RG2_ARGS || "[]");
+const ctorOpts = { workdir };
+if (process.env.RG2_PROJECT_ID) ctorOpts.projectId = isNaN(Number(process.env.RG2_PROJECT_ID)) ? process.env.RG2_PROJECT_ID : Number(process.env.RG2_PROJECT_ID);
+if (process.env.RG2_EPISODES_ID) ctorOpts.episodesId = process.env.RG2_EPISODES_ID;
+if (process.env.RG2_API_BASE) ctorOpts.apiBase = process.env.RG2_API_BASE;
+const e = new IterationEngine(workdir, ctorOpts);
+const fn = e[method];
+if (typeof fn !== "function") {
+  console.log(JSON.stringify({ ok: false, error: "unknown method " + method }));
+  process.exit(0);
+}
+Promise.resolve(fn.apply(e, args))
+  .then((data) => {
+    console.log(JSON.stringify({ ok: true, data }));
+  })
+  .catch((err) => {
+    console.log(JSON.stringify({ ok: false, error: String(err && err.message || err) }));
+    process.exit(0);
+  });
+`;
+
+  const env: Record<string, string> = {
+    ...process.env,
+    RG2_WORKDIR: workdir,
+    RG2_METHOD: method,
+    RG2_ARGS: JSON.stringify(args),
+  };
+  if (extra.projectId != null) env.RG2_PROJECT_ID = String(extra.projectId);
+  if (extra.episodesId) env.RG2_EPISODES_ID = extra.episodesId;
+  if (extra.apiBase) env.RG2_API_BASE = extra.apiBase;
+
+  const result = spawnSync("node", ["--input-type=module", "-e", script], {
+    env,
+    encoding: "utf-8",
+    timeout: 120_000,
+  });
+
+  if (result.status !== 0 && !result.stdout) {
+    throw new Error(
+      `iteration-engine subprocess exited ${result.status}: ${result.stderr || "(no stderr)"}`,
+    );
+  }
+
+  let payload: { ok: boolean; data?: any; error?: string };
+  try {
+    payload = JSON.parse(result.stdout.trim());
+  } catch (e: any) {
+    throw new Error(
+      `iteration-engine subprocess returned non-JSON output: ${result.stdout.slice(0, 500)}`,
+    );
+  }
+  if (!payload.ok) {
+    throw new Error(payload.error || "iteration-engine subprocess reported failure");
+  }
+  return payload.data;
+}
+
+// ─── POST /api/v1/iteration/plan — build iteration plan ─────
+
+router.post("/plan", async (req, res) => {
+  const parse = planSchema.safeParse(req.body);
+  if (!parse.success) {
+    return res.status(400).send(error("迭代参数校验失败", parse.error.issues));
+  }
+  const { workdir, projectId, episodesId, apiBase } = parse.data;
+  try {
+    const plan = _runEngine(workdir, "plan", [], { projectId, episodesId, apiBase });
+    return res.status(200).send(success({ status: "ok", plan }));
+  } catch (err: any) {
+    console.error("[v1/iteration/plan] failed:", err);
+    return res.status(500).send(error("构建迭代计划失败: " + err.message));
+  }
+});
+
+// ─── POST /api/v1/iteration/execute — execute plan ──────────
+
+router.post("/execute", async (req, res) => {
+  const parse = executeSchema.safeParse(req.body);
+  if (!parse.success) {
+    return res.status(400).send(error("execute 参数校验失败", parse.error.issues));
+  }
+  const { workdir, planId, projectId, episodesId, apiBase } = parse.data;
+  try {
+    const result = _runEngine(workdir, "execute", [planId], { projectId, episodesId, apiBase });
+    return res.status(200).send(success({ status: "ok", result }));
+  } catch (err: any) {
+    console.error("[v1/iteration/execute] failed:", err);
+    return res.status(500).send(error("执行迭代失败: " + err.message));
+  }
+});
+
+// ─── POST /api/v1/iteration/confirm — approve new branch ────
+
+router.post("/confirm", async (req, res) => {
+  const parse = confirmSchema.safeParse(req.body);
+  if (!parse.success) {
+    return res.status(400).send(error("confirm 参数校验失败", parse.error.issues));
+  }
+  const { workdir, branchId, projectId, episodesId, apiBase } = parse.data;
+  try {
+    _runEngine(workdir, "confirm", [branchId], { projectId, episodesId, apiBase });
+    return res.status(200).send(success({ status: "ok" }));
+  } catch (err: any) {
+    console.error("[v1/iteration/confirm] failed:", err);
+    return res.status(500).send(error("confirm 失败: " + err.message));
+  }
+});
+
+// ─── POST /api/v1/iteration/discard — discard branch ────────
+
+router.post("/discard", async (req, res) => {
+  const parse = discardSchema.safeParse(req.body);
+  if (!parse.success) {
+    return res.status(400).send(error("discard 参数校验失败", parse.error.issues));
+  }
+  const { workdir, branchId, reason, projectId, episodesId, apiBase } = parse.data;
+  try {
+    _runEngine(workdir, "discard", [branchId, reason], { projectId, episodesId, apiBase });
+    return res.status(200).send(success({ status: "ok" }));
+  } catch (err: any) {
+    console.error("[v1/iteration/discard] failed:", err);
+    return res.status(500).send(error("discard 失败: " + err.message));
+  }
+});
+
+// ─── GET /api/v1/iteration/plans — list plans ───────────────
+
+router.get("/plans", async (req, res) => {
+  const workdirRaw = (req.query.workdir as string | undefined) || "";
+  const parse = workdirSchema.safeParse(workdirRaw);
+  if (!parse.success) {
+    return res.status(400).send(error("workdir 参数校验失败", parse.error.issues));
+  }
+  const projectId = req.query.projectId as string | number | undefined;
+  const episodesId = req.query.episodesId as string | undefined;
+  try {
+    // T-rg2-05 DoS mitigation: cap at 1000 rows (parity with reflection).
+    const all = _runEngine(parse.data, "listPlans", [], { projectId, episodesId });
+    const capped = Array.isArray(all) ? all.slice(0, 1000) : [];
+    return res.status(200).send(success(capped));
+  } catch (err: any) {
+    console.error("[v1/iteration/plans] failed:", err);
+    return res.status(500).send(error("读取计划列表失败: " + err.message));
+  }
+});
+
+// ─── GET /api/v1/iteration/status/:planId ───────────────────
+
+router.get("/status/:planId", async (req, res) => {
+  const workdirRaw = (req.query.workdir as string | undefined) || "";
+  const parse = workdirSchema.safeParse(workdirRaw);
+  if (!parse.success) {
+    return res.status(400).send(error("workdir 参数校验失败", parse.error.issues));
+  }
+  const planId = req.params.planId;
+  try {
+    const status = _runEngine(parse.data, "getStatus", [planId]);
+    return res.status(200).send(success(status));
+  } catch (err: any) {
+    console.error("[v1/iteration/status] failed:", err);
+    return res.status(500).send(error("读取迭代状态失败: " + err.message));
+  }
+});
+
+// ─── POST /api/v1/iteration/approve-adjustment ──────────────
+
+router.post("/approve-adjustment", async (req, res) => {
+  const parse = approveAdjustmentSchema.safeParse(req.body);
+  if (!parse.success) {
+    return res.status(400).send(error("approve-adjustment 参数校验失败", parse.error.issues));
+  }
+  const { workdir, planId } = parse.data;
+  try {
+    _runEngine(workdir, "approveAdjustment", [planId]);
+    return res.status(200).send(success({ status: "ok", planId }));
+  } catch (err: any) {
+    console.error("[v1/iteration/approve-adjustment] failed:", err);
+    return res.status(500).send(error("approve 失败: " + err.message));
+  }
+});
+
+export default router;
