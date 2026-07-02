@@ -650,6 +650,34 @@ export class IterationEngine {
     await this._writeJsonl(this.plansPath, rows);
   }
 
+  /**
+   * Returns effective thresholds by merging defaults with operator-approved
+   * overrides from prompt-overrides.json. Used by reflection/iteration flows
+   * when evaluating whether quality scores pass the bar.
+   *
+   * Default thresholds: { total: 65, critical: 40, warning: 75 }
+   * Override shape (per threshold_adjustment):
+   *   { thresholds: { <target>: { change: <number>, ... } } }
+   *
+   * @returns {Promise<{total:number, critical:number, warning:number}>}
+   */
+  async getEffectiveThresholds() {
+    const defaults = { total: 65, critical: 40, warning: 75 };
+    try {
+      const overrides = (await this._readJsonOptional(this.overridesPath)) || {};
+      if (!overrides.thresholds) return defaults;
+      const merged = { ...defaults };
+      for (const [key, val] of Object.entries(overrides.thresholds)) {
+        if (val?.change != null && typeof val.change === 'number') {
+          merged[key] = val.change;
+        }
+      }
+      return merged;
+    } catch {
+      return defaults;
+    }
+  }
+
   async _applyPipelineAdjustment(planObj) {
     await this._ensureDir();
     let overrides = {};

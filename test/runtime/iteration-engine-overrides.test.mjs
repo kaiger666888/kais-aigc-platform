@@ -96,3 +96,34 @@ test('_buildPrompt: case 4 — empty overrides + empty promptDelta + node.prompt
   const result = await engine._buildPrompt({ nodeId: 'n1' });
   assert.equal(result, 'NODE_PROMPT');
 });
+
+// ─── getEffectiveThresholds tests (breakpoint 5) ──────────────────────
+
+test('getEffectiveThresholds: case 5 — no overrides file returns defaults', async () => {
+  const engine = makeEngine();
+  const result = await engine.getEffectiveThresholds();
+  assert.deepEqual(result, { total: 65, critical: 40, warning: 75 });
+});
+
+test('getEffectiveThresholds: case 6 — overrides merge into defaults', async () => {
+  await writeOverrides({
+    thresholds: {
+      total: { change: 70 },
+      warning: { change: 80 },
+    },
+  });
+  const engine = makeEngine();
+  const result = await engine.getEffectiveThresholds();
+  assert.deepEqual(result, { total: 70, critical: 40, warning: 80 });
+});
+
+test('getEffectiveThresholds: case 7 — non-numeric change ignored, returns defaults', async () => {
+  await writeOverrides({
+    thresholds: {
+      total: { change: 'bad' },
+    },
+  });
+  const engine = makeEngine();
+  const result = await engine.getEffectiveThresholds();
+  assert.deepEqual(result, { total: 65, critical: 40, warning: 75 });
+});
