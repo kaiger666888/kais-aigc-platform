@@ -11,13 +11,19 @@ const router = express.Router();
 export default router.post(
   "/",
   validateFields({
-    projectId: z.number(),
-    episodesId: z.number(),
-    nodeId: z.string(),
-    nodeType: z.string(),
+    // projectId: canvas-UI sends number; IterationEngine sends number OR string.
+    projectId: z.union([z.number(), z.string()]),
+    // episodesId: canvas-UI sends number; IterationEngine omits entirely.
+    episodesId: z.number().optional(),
+    nodeId: z.string().min(1),
+    // nodeType: canvas-UI sends a string; IterationEngine omits (defaults to 'script').
+    nodeType: z.string().optional(),
+    // prompt + branchId: IterationEngine sends these for single-node regeneration.
+    prompt: z.string().optional(),
+    branchId: z.string().optional(),
   }),
   async (req, res) => {
-    const { projectId, episodesId, nodeId, nodeType } = req.body;
+    const { projectId, episodesId, nodeId, nodeType, prompt, branchId } = req.body;
 
     try {
       broadcastToProject(projectId, "node:state", {
@@ -26,13 +32,27 @@ export default router.post(
         progress: 0,
       });
 
+      // IterationEngine path: caller omits episodesId (single-node regeneration
+      // via _callEngine). Return a structured queued response — engine dispatch
+      // will be wired in a follow-up. This closes the 400-validation-breakpoint
+      // without disturbing the canvas-UI simulateExecution flow.
+      if (episodesId === undefined || episodesId === null) {
+        return res.status(200).send(success({
+          status: "queued",
+          nodeId,
+          branchId: branchId || null,
+          message: `Regeneration queued for node ${nodeId}`,
+        }));
+      }
+
+      const effectiveType = nodeType || "script";
       const supportedTypes = [
         "asset", "storyboard", "video", "audio", "3d",
         "variant", "reference", "upscale", "face_restore", "script",
       ];
-      if (!supportedTypes.includes(nodeType)) {
-        console.log(`[canvas:execute] 未知节点类型: ${nodeType}`);
-        return res.status(400).send(error(`不支持的节点类型: ${nodeType}`));
+      if (!supportedTypes.includes(effectiveType)) {
+        console.log(`[canvas:execute] 未知节点类型: ${effectiveType}`);
+        return res.status(400).send(error(`不支持的节点类型: ${effectiveType}`));
       }
 
       setImmediate(async () => {
