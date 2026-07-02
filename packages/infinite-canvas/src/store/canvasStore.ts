@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { applyNodeChanges, applyEdgeChanges, type Node, type Edge, type NodeChange, type EdgeChange } from '@xyflow/react'
-import type { SkillNodeTypeDecl } from '../services/canvasApi'
+import type { SkillNodeTypeDecl, IterationPlan, IterationResult } from '../services/canvasApi'
 import type { FlowBranch, VariantGroup, VariantGroupId } from '../types/canvas'
 import { asVariantGroupId } from '../types/canvas'
 import { approveNode as apiApproveNode, rejectNode as apiRejectNode } from '../services/canvasApi'
@@ -88,6 +88,17 @@ interface CanvasState {
   updateOrchestrationProgress: (p: Partial<OrchestrationState>) => void
   finishOrchestration: (result: { completed: number; total: number; failed: number; failedNodes: string[]; mode: 'full' | 'batch' }) => void
   resetOrchestration: () => void
+
+  // Iteration Engine — diagnose / plan / execute / confirm
+  iteration: IterationState
+  setIterationPlan: (plan: IterationPlan) => void
+  updateIterationProgress: (p: Partial<IterationState>) => void
+  setIterationError: (err: string | null) => void
+  setAdjustmentApproved: (approved: boolean) => void
+  setIterationPanelOpen: (open: boolean) => void
+  pushIterationHistory: (plan: IterationPlan) => void
+  setIterationHistory: (plans: IterationPlan[]) => void
+  resetIteration: () => void
 }
 
 export interface OrchestrationState {
@@ -110,6 +121,33 @@ const INITIAL_ORCHESTRATION: OrchestrationState = {
   failed: 0,
   currentNodeId: null,
   failedNodes: [],
+}
+
+// ─── Iteration State ───────────────────────────────────────
+//
+// Mirrors the orchestration shape: idle → planning → plan_ready → executing
+// → done/error. `history` accumulates plans for the NodeDetailPanel iteration
+// tab (filtered by nodeId there). `adjustmentApproved` gates the execute
+// button when diagnosis.type === 'pipeline_adjust'.
+
+export interface IterationState {
+  status: 'idle' | 'planning' | 'plan_ready' | 'executing' | 'done' | 'error'
+  plan: IterationPlan | null
+  result: IterationResult | null
+  error: string | null
+  adjustmentApproved: boolean
+  panelOpen: boolean
+  history: IterationPlan[]
+}
+
+const INITIAL_ITERATION: IterationState = {
+  status: 'idle',
+  plan: null,
+  result: null,
+  error: null,
+  adjustmentApproved: false,
+  panelOpen: false,
+  history: [],
 }
 
 let nextToastId = 0
@@ -350,4 +388,39 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     },
   })),
   resetOrchestration: () => set({ orchestration: INITIAL_ORCHESTRATION }),
+
+  // Iteration Engine
+  iteration: INITIAL_ITERATION,
+  setIterationPlan: (plan) => set((state) => ({
+    iteration: {
+      ...state.iteration,
+      plan,
+      status: 'plan_ready',
+      error: null,
+      adjustmentApproved: !plan.requiresApproval,
+      panelOpen: true,
+    },
+  })),
+  updateIterationProgress: (p) => set((state) => ({
+    iteration: { ...state.iteration, ...p },
+  })),
+  setIterationError: (err) => set((state) => ({
+    iteration: { ...state.iteration, status: err ? 'error' : state.iteration.status, error: err },
+  })),
+  setAdjustmentApproved: (approved) => set((state) => ({
+    iteration: { ...state.iteration, adjustmentApproved: approved },
+  })),
+  setIterationPanelOpen: (open) => set((state) => ({
+    iteration: { ...state.iteration, panelOpen: open },
+  })),
+  pushIterationHistory: (plan) => set((state) => ({
+    iteration: {
+      ...state.iteration,
+      history: [plan, ...state.iteration.history.filter((p) => p.id !== plan.id)],
+    },
+  })),
+  setIterationHistory: (plans) => set((state) => ({
+    iteration: { ...state.iteration, history: plans },
+  })),
+  resetIteration: () => set({ iteration: INITIAL_ITERATION }),
 }))

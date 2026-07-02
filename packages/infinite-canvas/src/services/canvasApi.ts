@@ -492,3 +492,377 @@ export async function fetchSkillNodeTypes(
   }
 }
 
+// ─── Asset Feedback (资产反馈层) ──────────────────────────
+
+export interface FeedbackEntry {
+  id: string
+  assetId: string
+  projectId: number
+  score?: number | null
+  verdict?: string | null
+  content?: string | null
+  tags?: string[]
+  source: string
+  reviewer?: string | null
+  status?: string | null
+  createdAt: number
+  resolvedAt?: number | null
+}
+
+export interface FeedbackStats {
+  count: number
+  avgScore: number | null
+  verdictBreakdown: Record<string, number>
+  latest: FeedbackEntry | null
+}
+
+export async function createFeedback(params: {
+  assetId: string
+  projectId: number
+  score?: number
+  verdict?: string
+  content?: string
+  tags?: string[]
+  source?: string
+  reviewer?: string
+}): Promise<FeedbackEntry> {
+  const json = await apiCall<{ data: FeedbackEntry }>('/v1/feedback', params)
+  return json.data
+}
+
+export async function getFeedback(assetId: string): Promise<FeedbackEntry[]> {
+  const resp = await fetch(`${API_BASE}/v1/feedback/${encodeURIComponent(assetId)}`)
+  if (!resp.ok) throw new ApiError(`HTTP ${resp.status}`, 'network', resp.status)
+  const json = await resp.json()
+  return (json.data ?? []) as FeedbackEntry[]
+}
+
+export async function getFeedbackStats(assetId: string): Promise<FeedbackStats | null> {
+  try {
+    const resp = await fetch(`${API_BASE}/v1/feedback/stats/${encodeURIComponent(assetId)}`)
+    if (!resp.ok) return null
+    const json = await resp.json()
+    return (json.data ?? null) as FeedbackStats | null
+  } catch {
+    return null
+  }
+}
+
+export async function getProjectFeedbackAggregate(projectId: number): Promise<Record<string, FeedbackStats>> {
+  try {
+    const resp = await fetch(`${API_BASE}/v1/feedback/aggregate/${projectId}`)
+    if (!resp.ok) return {}
+    const json = await resp.json()
+    return (json.data ?? {}) as Record<string, FeedbackStats>
+  } catch {
+    return {}
+  }
+}
+
+export async function updateFeedbackStatus(id: string, status: string): Promise<void> {
+  await fetch(`${API_BASE}/v1/feedback/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  })
+}
+
+// ─── Asset Feedback — Topology Propagation ───────────────
+
+export interface PropagationNode {
+  id: string
+  type: string
+  label: string
+  depth: number
+}
+
+export interface PropagationLink {
+  source: string
+  target: string
+  dataType: string
+}
+
+export interface PropagationResult {
+  sourceAssetId: string
+  downstream: string[]
+  upstream: string[]
+  affectedWithFeedback: Array<{
+    assetId: string
+    latestVerdict: string | null
+    avgScore: number | null
+    count: number
+  }>
+  propagationGraph: {
+    nodes: PropagationNode[]
+    links: PropagationLink[]
+  }
+}
+
+/**
+ * Fetch topology propagation for an asset — which downstream/upstream nodes
+ * are reachable through the canvas graph, and which of those already carry
+ * feedback. projectId is required by the backend to locate the graph; if
+ * omitted the call 400s and we return null.
+ */
+export async function getPropagation(
+  assetId: string,
+  projectId?: number,
+): Promise<PropagationResult | null> {
+  try {
+    const params = new URLSearchParams()
+    if (projectId != null) params.set('projectId', String(projectId))
+    const qs = params.toString() ? `?${params.toString()}` : ''
+    const resp = await fetch(`${API_BASE}/v1/feedback/propagation/${encodeURIComponent(assetId)}${qs}`)
+    if (!resp.ok) return null
+    const json = await resp.json()
+    return (json.data ?? null) as PropagationResult | null
+  } catch {
+    return null
+  }
+}
+
+// ─── Asset Feedback — Batch Resolve Downstream ────────────
+
+export interface BatchResolveResult {
+  resolvedCount: number
+  affectedAssetIds: string[]
+  note?: string
+}
+
+/**
+ * Cascade-resolve: when the source asset is fixed, mark all OPEN feedback on
+ * its downstream nodes as resolved. The backend resolves projectId from the
+ * source asset's existing feedback rows.
+ */
+export async function batchResolve(assetId: string): Promise<BatchResolveResult> {
+  const resp = await fetch(
+    `${API_BASE}/v1/feedback/${encodeURIComponent(assetId)}/resolve-downstream`,
+    { method: 'POST' },
+  )
+  if (!resp.ok) {
+    throw new ApiError(`HTTP ${resp.status}`, 'network', resp.status)
+  }
+  const json = await resp.json()
+  return (json.data ?? { resolvedCount: 0, affectedAssetIds: [] }) as BatchResolveResult
+}
+
+// ─── Asset Feedback — Project Heatmap ─────────────────────
+
+export interface FeedbackHeatmapAsset {
+  assetId: string
+  feedbackCount: number
+  avgScore: number | null
+  latestVerdict: string | null
+  downstreamCount: number
+  riskLevel: 'high' | 'medium' | 'low'
+}
+
+export interface FeedbackHeatmap {
+  projectId: number
+  totalAssets: number
+  assets: FeedbackHeatmapAsset[]
+  summary: {
+    totalFeedback: number
+    approveRate: number
+    rejectRate: number
+    contestRate: number
+    highRiskAssets: string[]
+  }
+}
+
+/**
+ * Project-wide feedback heatmap — every asset with feedback, its score
+ * aggregate, downstream impact, and risk level. Suitable for canvas overlay.
+ */
+export async function getFeedbackHeatmap(projectId: number): Promise<FeedbackHeatmap | null> {
+  try {
+    const resp = await fetch(`${API_BASE}/v1/feedback/heatmap/${projectId}`)
+    if (!resp.ok) return null
+    const json = await resp.json()
+    return (json.data ?? null) as FeedbackHeatmap | null
+  } catch {
+    return null
+  }
+}
+
+// ─── Iteration Engine ──────────────────────────────────────
+//
+// Bridges to the kais-movie-agent IterationEngine via the v1/iteration routes
+// (quick-260702-rg2). All endpoints require `workdir` (zod-validated to live
+// under /data/workspace on the backend). Response envelope is the standard
+// { code, data, message }; we unwrap to the inner data in each function.
+
+export interface IterationDiagnosis {
+  type: 'reroll' | 'pipeline_adjust' | 'upstream_fix'
+  rootCause: string
+  confidence: number
+  evidence: string[]
+}
+
+export interface IterationPipelineAdjustment {
+  type: 'prompt_modification' | 'threshold_adjustment' | 'parameter_change'
+  target: string
+  change: string
+}
+
+export interface IterationAction {
+  nodeId: string
+  action: 'regenerate' | 'regenerate_after_parent' | 'skip'
+  promptDelta?: string
+  pipelineAdjustment?: IterationPipelineAdjustment | null
+  reason: string
+  dependsOn?: string[]
+}
+
+export interface IterationPlan {
+  id: string
+  episodeId?: string
+  branchLabel?: string
+  diagnosis: IterationDiagnosis
+  actions: IterationAction[]
+  requiresApproval: boolean
+  summary?: string
+  createdAt?: string
+}
+
+export interface IterationRegeneratedNode {
+  nodeId: string
+  newNodeId: string | null
+  status: 'success' | 'failed' | 'pending'
+  outputUrl?: string
+}
+
+export interface IterationResult {
+  planId: string
+  branchId: string
+  regeneratedNodes: IterationRegeneratedNode[]
+}
+
+export interface IterationStatus {
+  status: string
+  progress?: number
+  results?: IterationRegeneratedNode[]
+}
+
+/** POST /v1/iteration/plan — diagnose feedback and build an iteration plan. */
+export async function createIterationPlan(
+  projectId: number,
+  episodesId: number,
+  workdir: string,
+  cancelToken?: CancelToken,
+): Promise<IterationPlan> {
+  const json = await apiCall<{ data: { status: string; plan: IterationPlan } }>(
+    '/v1/iteration/plan',
+    { projectId, episodesId: String(episodesId), workdir },
+    { cancelToken, timeout: 60_000 },
+  )
+  return json.data.plan
+}
+
+/** POST /v1/iteration/execute — execute the plan (topological regenerate). */
+export async function executeIteration(
+  projectId: number,
+  episodesId: number,
+  workdir: string,
+  planId: string,
+  cancelToken?: CancelToken,
+): Promise<IterationResult> {
+  const json = await apiCall<{ data: { status: string; result: IterationResult } }>(
+    '/v1/iteration/execute',
+    { projectId, episodesId: String(episodesId), workdir, planId },
+    { cancelToken, timeout: 120_000 },
+  )
+  return json.data.result
+}
+
+/** POST /v1/iteration/confirm — promote the iteration branch to main. */
+export async function confirmIteration(
+  projectId: number,
+  episodesId: number,
+  workdir: string,
+  branchId: string,
+  cancelToken?: CancelToken,
+): Promise<void> {
+  await apiCall<{ data: { status: string } }>(
+    '/v1/iteration/confirm',
+    { projectId, episodesId: String(episodesId), workdir, branchId },
+    { cancelToken },
+  )
+}
+
+/** POST /v1/iteration/discard — drop the iteration branch. */
+export async function discardIteration(
+  projectId: number,
+  episodesId: number,
+  workdir: string,
+  branchId: string,
+  reason?: string,
+  cancelToken?: CancelToken,
+): Promise<void> {
+  await apiCall<{ data: { status: string } }>(
+    '/v1/iteration/discard',
+    { projectId, episodesId: String(episodesId), workdir, branchId, ...(reason ? { reason } : {}) },
+    { cancelToken },
+  )
+}
+
+/** POST /v1/iteration/approve-adjustment — approve a pipeline_adjust plan. */
+export async function approveAdjustment(
+  workdir: string,
+  planId: string,
+  cancelToken?: CancelToken,
+): Promise<void> {
+  await apiCall<{ data: { status: string; planId: string } }>(
+    '/v1/iteration/approve-adjustment',
+    { workdir, planId },
+    { cancelToken },
+  )
+}
+
+/** GET /v1/iteration/status/:planId — poll execution status. */
+export async function getIterationStatus(
+  workdir: string,
+  planId: string,
+  cancelToken?: CancelToken,
+): Promise<IterationStatus> {
+  const signal = cancelToken?.signal
+  const qs = new URLSearchParams({ workdir })
+  try {
+    const resp = await fetch(
+      `${API_BASE}/v1/iteration/status/${encodeURIComponent(planId)}?${qs.toString()}`,
+      { method: 'GET', signal },
+    )
+    if (!resp.ok) throw new ApiError(`HTTP ${resp.status}`, 'network', resp.status)
+    const json = await resp.json()
+    return (json.data ?? { status: 'unknown' }) as IterationStatus
+  } catch (err) {
+    if (cancelToken?.isCancelled) {
+      throw new ApiError('请求已取消', 'cancelled')
+    }
+    throw err instanceof ApiError ? err : new ApiError((err as Error).message, 'network')
+  }
+}
+
+/** GET /v1/iteration/plans — list historical plans (for the iteration tab). */
+export async function listIterationPlans(
+  workdir: string,
+  projectId: number,
+  episodesId?: number,
+  cancelToken?: CancelToken,
+): Promise<IterationPlan[]> {
+  const signal = cancelToken?.signal
+  const qs = new URLSearchParams({ workdir, projectId: String(projectId) })
+  if (episodesId != null) qs.set('episodesId', String(episodesId))
+  try {
+    const resp = await fetch(
+      `${API_BASE}/v1/iteration/plans?${qs.toString()}`,
+      { method: 'GET', signal },
+    )
+    if (!resp.ok) return []
+    const json = await resp.json()
+    return (json.data ?? []) as IterationPlan[]
+  } catch {
+    return []
+  }
+}
+

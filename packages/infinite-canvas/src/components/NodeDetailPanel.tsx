@@ -1,14 +1,17 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import type { Node } from '@xyflow/react'
-import type { ScriptNodeData, AssetNodeData, StoryboardNodeData, VideoNodeData, NodeState, ReviewStatus } from '../types/canvas'
+import type { ScriptNodeData, AssetNodeData, StoryboardNodeData, VideoNodeData, AudioNodeData, NodeState, ReviewStatus } from '../types/canvas'
 import { stateColors } from '../utils/styles'
 import { theme, getScoreColor } from '../theme/catppuccin'
-import { METADATA_LABELS, METADATA_FIELD_ORDER } from '../constants'
+import { METADATA_LABELS, METADATA_FIELD_ORDER, NODE_SCHEMA } from '../constants'
 import { useCanvasStore } from '../store/canvasStore'
 import FileViewer from './FileViewer'
 import ReviewCard from './ReviewCard'
 import VariantGroupDetail from './VariantGroupDetail'
+import StructuredFieldPanel, { CHARACTER_FIELDS, STYLE_FIELDS } from './StructuredFieldPanel'
 import { ErrorBoundary } from './ErrorBoundary'
+import FeedbackPanel from './FeedbackPanel'
+import IterationPanel from './IterationPanel'
 
 type NodeData = ScriptNodeData | AssetNodeData | StoryboardNodeData | VideoNodeData
 
@@ -27,6 +30,7 @@ export default function NodeDetailPanel({ node, onClose }: Props) {
   })
   const [dragging, setDragging] = useState(false)
   const dragRef = useRef<{ startX: number; startW: number } | null>(null)
+  const [tab, setTab] = useState<'detail' | 'feedback' | 'iteration'>('detail')
 
   const handleOverlayClick = useCallback((e: React.MouseEvent) => {
     if (e.target === e.currentTarget) setLightboxSrc(null)
@@ -49,6 +53,11 @@ export default function NodeDetailPanel({ node, onClose }: Props) {
       window.removeEventListener('mouseup', onUp)
     }
   }, [dragging])
+
+  // Reset to detail tab whenever a different node is selected
+  useEffect(() => {
+    setTab('detail')
+  }, [node?.id])
 
   if (!node) return null
 
@@ -138,16 +147,43 @@ export default function NodeDetailPanel({ node, onClose }: Props) {
           </button>
         </div>
 
+        {/* Tab 切换行 */}
+        <div style={{
+          display: 'flex',
+          gap: 4,
+          padding: '6px 12px',
+          borderBottom: `1px solid ${theme.border.default}`,
+          background: theme.bg.panel,
+          flexShrink: 0,
+        }}>
+          <TabButton active={tab === 'detail'} onClick={() => setTab('detail')}>
+            📋 详情
+          </TabButton>
+          <TabButton active={tab === 'feedback'} onClick={() => setTab('feedback')}>
+            💬 反馈
+          </TabButton>
+          <TabButton active={tab === 'iteration'} onClick={() => setTab('iteration')}>
+            🔄 迭代
+          </TabButton>
+        </div>
+
         {/* 滚动内容区 */}
         <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
+          {tab === 'feedback' ? (
+            <FeedbackPanel nodeId={node.id} />
+          ) : tab === 'iteration' ? (
+            <IterationPanel filterNodeId={node.id} compact />
+          ) : (
+            <>
           {type === 'script' && (data as any).category === 'variant_group' && (
             <ErrorBoundary resetKey={node.id}>
               <VariantGroupDetail node={node} />
             </ErrorBoundary>
           )}
-            {type === 'script' && (data as any).category !== 'variant_group' && <ScriptDetail data={data as ScriptNodeData} />}
+            {type === 'script' && (data as any).category !== 'variant_group' && <ScriptDetail nodeId={node.id} data={data as ScriptNodeData} />}
           {type === 'asset' && (
             <AssetDetail
+              nodeId={node.id}
               data={data as AssetNodeData}
               onImageClick={(src) => setLightboxSrc(src)}
             />
@@ -160,7 +196,10 @@ export default function NodeDetailPanel({ node, onClose }: Props) {
             />
           )}
           {type === 'video' && (
-            <VideoDetail data={data as VideoNodeData} />
+            <VideoDetail nodeId={node.id} data={data as VideoNodeData} />
+          )}
+          {type === 'audio' && (
+            <AudioDetail nodeId={node.id} data={data as unknown as AudioNodeData} />
           )}
 
           {/* 审核信息 */}
@@ -193,7 +232,9 @@ export default function NodeDetailPanel({ node, onClose }: Props) {
           )}
 
           {/* File viewer/editor */}
-          <FileViewer filePath={(data.filePath as string) || (data.content as string)?.match(/output\//)?.[0] ? (data.filePath as string) : undefined} />
+          <FileViewer filePath={(data.filePath as string) || undefined} />
+          </>
+          )}
         </div>
       </div>
 
@@ -280,7 +321,27 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-function ScriptDetail({ data }: { data: ScriptNodeData }) {
+function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: '4px 10px',
+        borderRadius: 6,
+        background: active ? theme.bg.surface : 'transparent',
+        color: active ? theme.text.primary : theme.text.secondary,
+        border: 'none',
+        fontSize: 12,
+        fontWeight: active ? 600 : 500,
+        cursor: 'pointer',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function ScriptDetail({ nodeId, data }: { nodeId: string; data: ScriptNodeData }) {
   const description = (data.description as string) || (data.content as string) || ''
   const tags = (data.tags as string[]) || []
   const score = data.score as number | undefined
@@ -402,15 +463,20 @@ function ScriptDetail({ data }: { data: ScriptNodeData }) {
           </div>
         </>
       )}
+
+      <StructuredFieldPanel nodeId={nodeId} nodeType="script" data={data as Record<string, unknown>} />
     </>
   )
 }
 
-function AssetDetail({ data, onImageClick }: { data: AssetNodeData; onImageClick: (src: string) => void }) {
+function AssetDetail({ nodeId, data, onImageClick }: { nodeId: string; data: AssetNodeData; onImageClick: (src: string) => void }) {
   const typeLabels: Record<string, string> = {
     role: '角色', tool: '道具', scene: '场景', clip: '片段',
   }
-  const fullImageUrl = (data.filePath as string) || (data.thumbnailUrl as string) || null
+  const rawPath = (data.filePath as string) || null
+  const rawThumb = (data.thumbnailUrl as string) || null
+  const isUrl = (s: string | null) => s && (s.startsWith('/oss/') || s.startsWith('http') || s.startsWith('/api/'))
+  const fullImageUrl = isUrl(rawPath) ? rawPath : isUrl(rawThumb) ? rawThumb : (rawPath || rawThumb)
 
   return (
     <>
@@ -472,12 +538,24 @@ function AssetDetail({ data, onImageClick }: { data: AssetNodeData; onImageClick
           </div>
         </>
       )}
+
+      {/* Structured fields: different filter based on assetType */}
+      {data.assetType === 'role' ? (
+        <StructuredFieldPanel nodeId={nodeId} nodeType="asset" data={data as Record<string, unknown>} filterKeys={CHARACTER_FIELDS} />
+      ) : data.assetType === 'scene' ? (
+        <StructuredFieldPanel nodeId={nodeId} nodeType="asset" data={data as Record<string, unknown>} filterKeys={STYLE_FIELDS} />
+      ) : (
+        <StructuredFieldPanel nodeId={nodeId} nodeType="asset" data={data as Record<string, unknown>} />
+      )}
     </>
   )
 }
 
 function StoryboardDetail({ nodeId, data, onImageClick }: { nodeId: string; data: StoryboardNodeData; onImageClick: (src: string) => void }) {
-  const fullImageUrl = (data.filePath as string) || (data.thumbnailUrl as string) || null
+  const rawPath = (data.filePath as string) || null
+  const rawThumb = (data.thumbnailUrl as string) || null
+  const isUrl = (s: string | null) => s && (s.startsWith('/oss/') || s.startsWith('http') || s.startsWith('/api/'))
+  const fullImageUrl = isUrl(rawPath) ? rawPath : isUrl(rawThumb) ? rawThumb : (rawPath || rawThumb)
 
   return (
     <>
@@ -555,6 +633,9 @@ function StoryboardDetail({ nodeId, data, onImageClick }: { nodeId: string; data
           </div>
         </>
       )}
+
+      {/* Extended structured fields: timeline, axis, emotion, audio_cue, ltx_prompt */}
+      <StructuredFieldPanel nodeId={nodeId} nodeType="storyboard" data={data as Record<string, unknown>} filterKeys={['timeline', 'axisLine', 'emotion', 'audioCue', 'ltxPrompt']} />
     </>
   )
 }
@@ -614,8 +695,13 @@ function MetadataEditor({ nodeId, data }: { nodeId: string; data: StoryboardNode
   )
 }
 
-function VideoDetail({ data }: { data: VideoNodeData }) {
-  const videoSrc = data.filePath ? `/oss/${data.filePath}` : null
+function VideoDetail({ nodeId, data }: { nodeId: string; data: VideoNodeData }) {
+  const rawPath = (data.filePath as string) || null
+  const videoSrc = rawPath
+    ? (rawPath.startsWith('/') || rawPath.startsWith('http'))
+      ? rawPath
+      : `/oss/${rawPath}`
+    : null
 
   return (
     <>
@@ -650,6 +736,48 @@ function VideoDetail({ data }: { data: VideoNodeData }) {
 
       <SectionLabel>生成状态</SectionLabel>
       <StateBadge state={data.state as NodeState} />
+
+      <StructuredFieldPanel nodeId={nodeId} nodeType="video" data={data as Record<string, unknown>} />
+    </>
+  )
+}
+
+function AudioDetail({ nodeId, data }: { nodeId: string; data: AudioNodeData }) {
+  const rawPath = (data.filePath as string) || null
+  const audioSrc = rawPath
+    ? (rawPath.startsWith('/') || rawPath.startsWith('http'))
+      ? rawPath
+      : `/oss/${rawPath}`
+    : null
+
+  return (
+    <>
+      {audioSrc && (
+        <>
+          <SectionLabel>音频播放</SectionLabel>
+          <audio
+            controls
+            style={{ width: '100%', borderRadius: 8 }}
+          >
+            <source src={audioSrc} />
+            浏览器不支持音频播放
+          </audio>
+        </>
+      )}
+
+      {data.duration != null && (
+        <>
+          <SectionLabel>时长</SectionLabel>
+          <div style={{ color: theme.text.primary, fontSize: 13 }}>
+            {data.duration as number}秒
+          </div>
+        </>
+      )}
+
+      <SectionLabel>生成状态</SectionLabel>
+      <StateBadge state={data.state as NodeState} />
+
+      <StructuredFieldPanel nodeId={nodeId} nodeType="audio" data={data as Record<string, unknown>} />
     </>
   )
 }

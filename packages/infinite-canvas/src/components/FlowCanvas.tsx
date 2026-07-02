@@ -24,6 +24,7 @@ import CanvasEdgeComponent from './edges/CanvasEdge'
 import CanvasContextMenu from './CanvasContextMenu'
 import ProjectSelector from './ProjectSelector'
 import NodeDetailPanel from './NodeDetailPanel'
+import IterationPanel from './IterationPanel'
 import LoadingOverlay from './LoadingOverlay'
 
 import type { NodeState } from '../types/canvas'
@@ -53,6 +54,7 @@ const nodeTypes = {
   default: FallbackNodeComponent,
   script: ScriptNodeComponent,
   asset: AssetNodeComponent,
+  reference: AssetNodeComponent,
   storyboard: StoryboardNodeComponent,
   video: VideoNodeComponent,
   audio: AudioNodeComponent,
@@ -120,6 +122,11 @@ function CanvasInner() {
   const startOrchestration = useCanvasStore((s) => s.startOrchestration)
   const updateOrchestrationProgress = useCanvasStore((s) => s.updateOrchestrationProgress)
   const finishOrchestration = useCanvasStore((s) => s.finishOrchestration)
+
+  // Iteration Engine
+  const iteration = useCanvasStore((s) => s.iteration)
+  const setIterationPanelOpen = useCanvasStore((s) => s.setIterationPanelOpen)
+  const updateIterationProgress = useCanvasStore((s) => s.updateIterationProgress)
 
   const initialParams = getInitialParams()
 
@@ -314,6 +321,15 @@ function CanvasInner() {
     }
   }, [projectId, episodesId, orchestration.status, nodes, edges, reactFlow, showToast])
 
+  // Iteration Engine — 切换 panel 显隐 (诊断由 panel 内的「开始诊断」按钮触发)
+  const handleIterate = useCallback(() => {
+    if (iteration.status === 'idle') {
+      setIterationPanelOpen(true)
+    } else {
+      updateIterationProgress({ panelOpen: !iteration.panelOpen })
+    }
+  }, [iteration.status, iteration.panelOpen, setIterationPanelOpen, updateIterationProgress])
+
   const miniMapNodeColor = useCallback((node: any) => {
     return miniMapNodeColors[node.type || ''] ?? theme.border.dim
   }, [])
@@ -459,6 +475,21 @@ function CanvasInner() {
                 }} />
               </div>
             )}
+            {/* Iteration Engine — 诊断 / 重生成 / 确认 */}
+            <ToolbarButton
+              onClick={handleIterate}
+              disabled={!projectId || nodes.length === 0}
+            >
+              {iteration.status === 'planning'
+                ? '🔄 诊断中...'
+                : iteration.status === 'executing'
+                ? '🔄 迭代中...'
+                : iteration.status === 'plan_ready'
+                ? '🔄 计划就绪'
+                : iteration.status === 'done'
+                ? '🔄 待审阅'
+                : '🔄 迭代'}
+            </ToolbarButton>
           </Panel>
 
           {/* 空状态引导 */}
@@ -501,6 +532,10 @@ function CanvasInner() {
           node={selectedNode}
           onClose={() => setSelectedNode(null)}
         />
+
+        {iteration.panelOpen && (
+          <IterationPanel />
+        )}
       </div>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </>

@@ -112,6 +112,12 @@ Items acknowledged and carried forward from previous milestone close:
 | v1.5 out-of-scope | gold-team service full retirement | Out of scope — gold-team still hosts Hunyuan3D, pipeline render | v1.5 kickoff |
 | v1.6 verification | Phase 33 COMPLIANCE-03 live Docker + GPU golden-path run (6-step sign-off checklist in 33-VERIFICATION.md → Human Verification Required). CI coverage 23/24 PASSED, 1 explicitly SKIPPED. Deferred to pre-production sign-off — environment-gated, not a code gap. | human_needed | 2026-06-15 (v1.6 close) |
 
+## Quick Tasks Completed
+
+| Slug | Date | Status | Summary |
+|------|------|--------|---------|
+| iteration-engine-frontend | 2026-07-02 | ✅ complete | Iteration Engine UI — IterationPanel + 7 API fns + toolbar button + NodeDetailPanel tab. Bridges to `/api/v1/iteration/*`. |
+
 ## Session Continuity
 
 Last session: 2026-06-19T00:00:00
