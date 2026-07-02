@@ -74,6 +74,55 @@ const approveAdjustmentSchema = z.object({
   planId: z.string().min(1),
 });
 
+// Hermes-driven split: collect-feedback runs only collectFeedback() (HTTP fetch,
+// no LLM). Hermes Agent reads this payload, does diagnosis itself, then writes
+// the plan back via /store-plan. spec: /tmp/gsd-task-hermes-driven-iteration.md
+const collectFeedbackSchema = z.object({
+  workdir: workdirSchema,
+  projectId: z.union([z.number(), z.string()]),
+  episodesId: z.string().optional(),
+  apiBase: z.string().optional(),
+});
+
+const storePlanSchema = z.object({
+  workdir: workdirSchema,
+  plan: z.object({
+    id: z.string().optional(),
+    episodeId: z.string().nullable().optional(),
+    branchLabel: z.string(),
+    diagnosis: z.object({
+      type: z.enum(["reroll", "pipeline_adjust", "upstream_fix"]),
+      rootCause: z.string(),
+      confidence: z.number().min(0).max(1),
+      evidence: z.array(z.string()),
+    }),
+    actions: z.array(
+      z.object({
+        nodeId: z.string(),
+        action: z.enum(["regenerate", "regenerate_after_parent", "skip"]),
+        promptDelta: z.string().optional(),
+        pipelineAdjustment: z
+          .object({
+            type: z.enum([
+              "prompt_modification",
+              "threshold_adjustment",
+              "parameter_change",
+            ]),
+            target: z.string(),
+            change: z.string(),
+          })
+          .nullable()
+          .optional(),
+        reason: z.string(),
+        dependsOn: z.array(z.string()).optional(),
+      }),
+    ),
+    summary: z.string().optional().default(""),
+    requiresApproval: z.boolean().optional().default(false),
+    adjustmentApproved: z.boolean().optional().default(false),
+  }),
+});
+
 // ─── Subprocess bridge ──────────────────────────────────────
 //
 // Mirrors reflection/index.ts. The node `-e` script is built from constants
@@ -153,7 +202,74 @@ Promise.resolve(fn.apply(e, args))
   return payload.data;
 }
 
-// ─── POST /api/v1/iteration/plan — build iteration plan ─────
+// ─── POST /api/v1/iteration/collect-feedback — feedback only (no LLM) ─
+//
+// Hermes-driven split part 1: returns raw collectFeedback() payload. No
+// diagnose(), no callLLM() — cannot hang the backend. Hermes Agent reads
+// this and produces the diagnosis in conversation with the user.
+
+router.post("/collect-feedback", async (req, res) => {
+  const parse = collectFeedbackSchema.safeParse(req.body);
+  if (!parse.success) {
+    return res.status(400).send(error("参数校验失败", parse.error.issues));
+  }
+  const { workdir, projectId, episodesId, apiBase } = parse.data;
+  try {
+    const feedback = _runEngine(workdir, "collectFeedback", [], {
+      projectId,
+      episodesId,
+      apiBase,
+    });
+    return res.status(200).send(success({ status: "ok", feedback }));
+  } catch (err: any) {
+    console.error("[v1/iteration/collect-feedback] failed:", err);
+    return res.status(500).send(error("收集反馈失败: " + err.message));
+  }
+});
+
+// ─── POST /api/v1/iteration/store-plan — persist externally-diagnosed plan ─
+//
+// Hermes-driven split part 2: Hermes Agent has already produced a complete
+// IterationPlan (same shape diagnose() would have returned). We fill in
+// id/createdAt/status defaults and hand it to _storePlan(). _runEngine calls
+// methods dynamically via e[method], so the underscore prefix is fine.
+
+router.post("/store-plan", async (req, res) => {
+  const parse = storePlanSchema.safeParse(req.body);
+  if (!parse.success) {
+    return res.status(400).send(error("参数校验失败", parse.error.issues));
+  }
+  const { workdir, plan } = parse.data;
+  try {
+    const fullPlan = {
+      id:
+        plan.id ||
+        `plan-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+      episodeId: plan.episodeId ?? null,
+      branchLabel: plan.branchLabel,
+      diagnosis: plan.diagnosis,
+      actions: plan.actions,
+      summary: plan.summary ?? "",
+      requiresApproval: plan.requiresApproval ?? false,
+      adjustmentApproved: plan.adjustmentApproved ?? false,
+      createdAt: new Date().toISOString(),
+      status: "pending",
+    };
+    _runEngine(workdir, "_storePlan", [fullPlan]);
+    return res.status(200).send(success({ status: "ok", plan: fullPlan }));
+  } catch (err: any) {
+    console.error("[v1/iteration/store-plan] failed:", err);
+    return res.status(500).send(error("存储迭代计划失败: " + err.message));
+  }
+});
+
+// ─── POST /api/v1/iteration/plan — build iteration plan (deprecated) ─────
+//
+// DEPRECATED: this endpoint calls IterationEngine.plan() which internally
+// invokes callLLM() → GLM via spawnSync with a 120s timeout. If the LLM
+// hangs or the token expires, the entire Express backend freezes. Prefer
+// the Hermes-driven split: /collect-feedback → (Hermes diagnoses) → /store-plan.
+// Kept for backward compatibility.
 
 router.post("/plan", async (req, res) => {
   const parse = planSchema.safeParse(req.body);
