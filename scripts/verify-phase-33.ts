@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * verify-phase-33.ts — Phase 33 (kais-movie-agent Compliance + E2E) runner.
+ * verify-phase-33.ts — Phase 33 (Compliance + E2E) runner.
  *
  * Project convention (Pitfalls B3 / COMPLIANCE-05): no vitest/jest. This
  * standalone `tsx` script follows the verify-phase-{28..32}.ts pattern. Each

@@ -687,7 +687,7 @@ export async function getFeedbackHeatmap(projectId: number): Promise<FeedbackHea
 
 // ─── Iteration Engine ──────────────────────────────────────
 //
-// Bridges to the kais-movie-agent IterationEngine via the v1/iteration routes
+// Bridges to the iteration engine (vendored in src/runtime/) via the v1/iteration routes
 // (quick-260702-rg2). All endpoints require `workdir` (zod-validated to live
 // under /data/workspace on the backend). Response envelope is the standard
 // { code, data, message }; we unwrap to the inner data in each function.

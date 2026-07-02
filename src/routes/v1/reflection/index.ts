@@ -1,6 +1,7 @@
 import express from "express";
 import { z } from "zod";
 import { spawnSync } from "child_process";
+import path from "node:path";
 import { success, error } from "@/lib/responseFormat";
 
 const router = express.Router();
@@ -9,16 +10,18 @@ const router = express.Router();
  * Pipeline Reflection API — 管线反思器操作接口
  *
  * Quick Task 260702-q6l. Bridges the TypeScript Express backend to the
- * kais-movie-agent PipelineReflector (pure ESM JavaScript) via a hermetic
- * `node -e` subprocess. The subprocess reads user-supplied values from
- * `process.env` (never from string interpolation) to defeat shell/script
- * injection (threat T-q6l-02).
+ * pipeline reflector (pure ESM JavaScript) via a hermetic `node -e` subprocess.
+ * The subprocess reads user-supplied values from `process.env` (never from
+ * string interpolation) to defeat shell/script injection (threat T-q6l-02).
  */
 
-// Absolute path to the reflector module. Resolved at module load; the API
-// refuses to serve requests if this path does not exist on disk.
-const REFLECTOR_PATH =
-  "/data/workspace/kais-movie-agent/lib/pipeline-reflector.js";
+// Resolved at module load; the API refuses to serve requests if this path does
+// not exist on disk. Vendored from kais-movie-agent during kais-movie-agent
+// retirement (260702 runtime vendor).
+const REFLECTOR_PATH = path.resolve(
+  __dirname,
+  "../../../runtime/pipeline-reflector.mjs",
+);
 
 // Allow-root for workdir. Operator-controlled; reject anything outside.
 const ALLOW_ROOT = "/data/workspace";

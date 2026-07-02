@@ -125,9 +125,9 @@ async function main(): Promise<void> {
   assert(/video:\s*['"]video_final['"]/.test(simulate), "video → video_final");
   assert(/audio:\s*['"]tts['"]/.test(simulate), "audio → tts");
 
-  // ─── Contract probe: canvas-client.js endpoints vs master ─────
-  console.log("\n=== VERIFY-01: canvas-client.js ↔ master contract ===");
-  const canvasClientPath = "/data/workspace/kais-movie-agent/lib/canvas-client.js";
+  // ─── Contract probe: canvas-client.mjs endpoints vs master ─────
+  console.log("\n=== VERIFY-01: canvas-client.mjs ↔ master contract ===");
+  const canvasClientPath = path.resolve(REPO_ROOT, "src/runtime/canvas-client.mjs");
   const clientExists = fs.existsSync(canvasClientPath);
   assert(clientExists, `canvas-client.js reachable at ${canvasClientPath}`);
   if (clientExists) {

@@ -112,9 +112,15 @@ export default async function startServe(randomPort: Boolean = false) {
     const filePath = req.query.path as string;
     if (!filePath) return res.status(400).send("Missing path parameter");
 
-    // 安全检查：只允许已知的目录前缀
+    // Pipeline output directory. Default keeps historical kais-movie-agent path
+    // (JS runtime vendored into src/runtime/ during 260702 retirement, but
+    // legacy media outputs may still live here).
+    const KAIS_OUTPUT_DIR =
+      process.env.KAIS_OUTPUT_DIR || "/data/workspace/kais-movie-agent";
+
+    // 安全检查：只允许已知的目录前缀（必须以 sep 结尾，避免共享前缀漏洞）
     const allowedPrefixes = [
-      "/home/kai/workspace/kais-movie-agent/",
+      KAIS_OUTPUT_DIR.endsWith("/") ? KAIS_OUTPUT_DIR : KAIS_OUTPUT_DIR + "/",
       "/mnt/agents/output/",
     ];
     const isAllowed = allowedPrefixes.some((p) => filePath.startsWith(p));

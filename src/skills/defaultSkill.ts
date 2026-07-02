@@ -30,8 +30,9 @@ import type { SkillManifest } from "./contract";
 
 // WR-05 fix: runtime endpoint + healthcheck path are overridable via env vars
 // so containerized/remote deployments don't need to POST /register to correct
-// a hardcoded localhost:8001. The defaults match the existing kais-movie-agent
-// local-dev deployment. Read once at module load — the manifest is a constant.
+// a hardcoded localhost:8001. The default :8001 is a historical artifact from
+// the retired kais-movie-agent service (260702 retirement) — production must
+// set SKILL_MOVIE_V1_ENDPOINT explicitly. Read once at module load.
 const SKILL_ENDPOINT = process.env.SKILL_MOVIE_V1_ENDPOINT || "http://localhost:8001";
 const SKILL_HEALTHCHECK_PATH = process.env.SKILL_MOVIE_V1_HEALTHCHECK_PATH || "/health";
 
@@ -140,9 +141,9 @@ export const MOVIE_V1_MANIFEST: SkillManifest = {
   engine_task_types: ["IMAGE_DRAW", "IMAGE_REFINE", "VIDEO_GEN", "TTS", "MUSIC_GEN"],
 
   // Runtime block — endpoint/healthcheck overridable via env vars (WR-05):
-  //   SKILL_MOVIE_V1_ENDPOINT            (default http://localhost:8001)
+  //   SKILL_MOVIE_V1_ENDPOINT            (default http://localhost:8001, historical)
   //   SKILL_MOVIE_V1_HEALTHCHECK_PATH    (default /health)
-  // Defaults match the existing kais-movie-agent local-dev deployment.
+  // Default :8001 points at nothing since kais-movie-agent retirement (260702).
   runtime: {
     type: "external-http",
     endpoint: SKILL_ENDPOINT,

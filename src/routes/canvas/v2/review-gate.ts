@@ -5,6 +5,10 @@ import { success, error } from "@/lib/responseFormat";
 
 const router = express.Router();
 
+// Pipeline output directory (see file.ts for rationale).
+const KAIS_OUTPUT_DIR =
+  process.env.KAIS_OUTPUT_DIR || "/data/workspace/kais-movie-agent";
+
 /**
  * POST /api/v2/canvas/review/options
  * Body: { filePath: string }
@@ -18,7 +22,7 @@ router.post("/options", (req, res) => {
 
   const fullPath = filePath.startsWith("/")
     ? filePath
-    : path.join("/home/kai/workspace/kais-movie-agent", filePath);
+    : path.join(KAIS_OUTPUT_DIR, filePath);
 
   try {
     if (!fs.existsSync(fullPath)) {
@@ -91,7 +95,7 @@ router.post("/submit", (req, res) => {
   }
 
   // Write selection to a review state file
-  const reviewDir = path.join("/home/kai/workspace/kais-movie-agent", ".review-state");
+  const reviewDir = path.join(KAIS_OUTPUT_DIR, ".review-state");
   if (!fs.existsSync(reviewDir)) {
     fs.mkdirSync(reviewDir, { recursive: true });
   }

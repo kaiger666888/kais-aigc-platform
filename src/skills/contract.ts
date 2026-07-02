@@ -13,7 +13,7 @@
  *   - Phase 33 (negative tests) imports ManifestValidationError.ruleId literals.
  *
  * Field naming convention: ALL fields use snake_case to match
- *   (a) Python skill-author conventions (kais-movie-agent / future OpenClaw skills),
+ *   (a) Python skill-author conventions (kais-hermes-skills / OpenClaw skills),
  *   (b) the JSON wire format skills submit at registration time.
  *
  * Versioning semantics (per CONTEXT.md):

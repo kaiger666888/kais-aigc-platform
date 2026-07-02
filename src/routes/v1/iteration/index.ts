@@ -1,6 +1,7 @@
 import express from "express";
 import { z } from "zod";
 import { spawn } from "child_process";
+import path from "node:path";
 import { success, error } from "@/lib/responseFormat";
 
 const router = express.Router();
@@ -9,15 +10,19 @@ const router = express.Router();
  * Iteration Engine API — 单集内版本化迭代接口
  *
  * Quick Task 260702-rg2. Bridges the TypeScript Express backend to the
- * kais-movie-agent IterationEngine (pure ESM JavaScript) via a hermetic
- * `node -e` subprocess. Mirrors the reflection route pattern (q6l):
- * user-controlled values are passed via `process.env` (never string
- * interpolation) to defeat shell/script injection (threat T-rg2-02).
+ * iteration engine (pure ESM JavaScript) via a hermetic `node -e` subprocess.
+ * Mirrors the reflection route pattern (q6l): user-controlled values are passed
+ * via `process.env` (never string interpolation) to defeat shell/script
+ * injection (threat T-rg2-02).
  */
 
-// Absolute path to the iteration-engine module.
-const ENGINE_PATH =
-  "/data/workspace/kais-movie-agent/lib/iteration-engine.js";
+// Resolved at module load; the API refuses to serve if this path does not
+// exist on disk. Vendored from kais-movie-agent during kais-movie-agent
+// retirement (260702 runtime vendor).
+const ENGINE_PATH = path.resolve(
+  __dirname,
+  "../../../runtime/iteration-engine.mjs",
+);
 
 // Allow-root for workdir. Operator-controlled; reject anything outside.
 const ALLOW_ROOT = "/data/workspace";
