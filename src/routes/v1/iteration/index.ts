@@ -1,6 +1,6 @@
 import express from "express";
 import { z } from "zod";
-import { spawnSync } from "child_process";
+import { spawn } from "child_process";
 import { success, error } from "@/lib/responseFormat";
 
 const router = express.Router();
@@ -125,10 +125,15 @@ const storePlanSchema = z.object({
 
 // ─── Subprocess bridge ──────────────────────────────────────
 //
-// Mirrors reflection/index.ts. The node `-e` script is built from constants
+// Async (child_process.spawn). The node `-e` script is built from constants
 // only; user-controlled values (workdir, method, args) are passed via
 // process.env and read inside the subprocess. NEVER string-interpolate
 // raw user input.
+//
+// spawn (not spawnSync) is load-bearing: collectFeedback() and friends make
+// HTTP fetch calls back into THIS server, so blocking the event loop with
+// spawnSync deadlocks the subprocess's fetch against the parent. With async
+// spawn, the Express event loop stays alive to serve those requests.
 //
 // The script imports IterationEngine from ENGINE_PATH, instantiates it
 // with ctorOpts from process.env, calls the named method (with JSON-encoded
@@ -140,7 +145,7 @@ function _runEngine(
   method: string,
   args: unknown[] = [],
   extra: { projectId?: number | string; episodesId?: string; apiBase?: string } = {},
-): any {
+): Promise<any> {
   const script = `
 import { IterationEngine } from ${JSON.stringify(ENGINE_PATH)};
 const workdir = process.env.RG2_WORKDIR;
@@ -176,30 +181,70 @@ Promise.resolve(fn.apply(e, args))
   if (extra.episodesId) env.RG2_EPISODES_ID = extra.episodesId;
   if (extra.apiBase) env.RG2_API_BASE = extra.apiBase;
 
-  const result = spawnSync("node", ["--input-type=module", "-e", script], {
-    env,
-    encoding: "utf-8",
-    timeout: 120_000,
+  return new Promise((resolve, reject) => {
+    const child = spawn("node", ["--input-type=module", "-e", script], {
+      env,
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: 120_000,
+    });
+
+    let stdout = "";
+    let stderr = "";
+    child.stdout?.on("data", (chunk: Buffer) => {
+      stdout += chunk.toString("utf-8");
+    });
+    child.stderr?.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString("utf-8");
+    });
+
+    child.on("error", (err) => {
+      reject(
+        new Error(`iteration-engine subprocess failed to spawn: ${err.message}`),
+      );
+    });
+
+    child.on("close", (code, signal) => {
+      // Timeout (SIGTERM) or signal kill with no useful output.
+      if (signal) {
+        reject(
+          new Error(
+            `iteration-engine subprocess killed by signal ${signal}` +
+              (stderr ? `: ${stderr.slice(0, 500)}` : " (no stderr)"),
+          ),
+        );
+        return;
+      }
+
+      // Match spawnSync semantics: non-zero exit + no stdout → "exited N".
+      if (code !== 0 && !stdout) {
+        reject(
+          new Error(
+            `iteration-engine subprocess exited ${code}: ${stderr || "(no stderr)"}`,
+          ),
+        );
+        return;
+      }
+
+      let payload: { ok: boolean; data?: any; error?: string };
+      try {
+        payload = JSON.parse(stdout.trim());
+      } catch (e: any) {
+        reject(
+          new Error(
+            `iteration-engine subprocess returned non-JSON output: ${stdout.slice(0, 500)}`,
+          ),
+        );
+        return;
+      }
+      if (!payload.ok) {
+        reject(
+          new Error(payload.error || "iteration-engine subprocess reported failure"),
+        );
+        return;
+      }
+      resolve(payload.data);
+    });
   });
-
-  if (result.status !== 0 && !result.stdout) {
-    throw new Error(
-      `iteration-engine subprocess exited ${result.status}: ${result.stderr || "(no stderr)"}`,
-    );
-  }
-
-  let payload: { ok: boolean; data?: any; error?: string };
-  try {
-    payload = JSON.parse(result.stdout.trim());
-  } catch (e: any) {
-    throw new Error(
-      `iteration-engine subprocess returned non-JSON output: ${result.stdout.slice(0, 500)}`,
-    );
-  }
-  if (!payload.ok) {
-    throw new Error(payload.error || "iteration-engine subprocess reported failure");
-  }
-  return payload.data;
 }
 
 // ─── POST /api/v1/iteration/collect-feedback — feedback only (no LLM) ─
@@ -215,7 +260,7 @@ router.post("/collect-feedback", async (req, res) => {
   }
   const { workdir, projectId, episodesId, apiBase } = parse.data;
   try {
-    const feedback = _runEngine(workdir, "collectFeedback", [], {
+    const feedback = await _runEngine(workdir, "collectFeedback", [], {
       projectId,
       episodesId,
       apiBase,
@@ -255,7 +300,7 @@ router.post("/store-plan", async (req, res) => {
       createdAt: new Date().toISOString(),
       status: "pending",
     };
-    _runEngine(workdir, "_storePlan", [fullPlan]);
+    await _runEngine(workdir, "_storePlan", [fullPlan]);
     return res.status(200).send(success({ status: "ok", plan: fullPlan }));
   } catch (err: any) {
     console.error("[v1/iteration/store-plan] failed:", err);
@@ -278,7 +323,7 @@ router.post("/plan", async (req, res) => {
   }
   const { workdir, projectId, episodesId, apiBase } = parse.data;
   try {
-    const plan = _runEngine(workdir, "plan", [], { projectId, episodesId, apiBase });
+    const plan = await _runEngine(workdir, "plan", [], { projectId, episodesId, apiBase });
     return res.status(200).send(success({ status: "ok", plan }));
   } catch (err: any) {
     console.error("[v1/iteration/plan] failed:", err);
@@ -295,7 +340,7 @@ router.post("/execute", async (req, res) => {
   }
   const { workdir, planId, projectId, episodesId, apiBase } = parse.data;
   try {
-    const result = _runEngine(workdir, "execute", [planId], { projectId, episodesId, apiBase });
+    const result = await _runEngine(workdir, "execute", [planId], { projectId, episodesId, apiBase });
     return res.status(200).send(success({ status: "ok", result }));
   } catch (err: any) {
     console.error("[v1/iteration/execute] failed:", err);
@@ -312,7 +357,7 @@ router.post("/confirm", async (req, res) => {
   }
   const { workdir, branchId, projectId, episodesId, apiBase } = parse.data;
   try {
-    _runEngine(workdir, "confirm", [branchId], { projectId, episodesId, apiBase });
+    await _runEngine(workdir, "confirm", [branchId], { projectId, episodesId, apiBase });
     return res.status(200).send(success({ status: "ok" }));
   } catch (err: any) {
     console.error("[v1/iteration/confirm] failed:", err);
@@ -329,7 +374,7 @@ router.post("/discard", async (req, res) => {
   }
   const { workdir, branchId, reason, projectId, episodesId, apiBase } = parse.data;
   try {
-    _runEngine(workdir, "discard", [branchId, reason], { projectId, episodesId, apiBase });
+    await _runEngine(workdir, "discard", [branchId, reason], { projectId, episodesId, apiBase });
     return res.status(200).send(success({ status: "ok" }));
   } catch (err: any) {
     console.error("[v1/iteration/discard] failed:", err);
@@ -349,7 +394,7 @@ router.get("/plans", async (req, res) => {
   const episodesId = req.query.episodesId as string | undefined;
   try {
     // T-rg2-05 DoS mitigation: cap at 1000 rows (parity with reflection).
-    const all = _runEngine(parse.data, "listPlans", [], { projectId, episodesId });
+    const all = await _runEngine(parse.data, "listPlans", [], { projectId, episodesId });
     const capped = Array.isArray(all) ? all.slice(0, 1000) : [];
     return res.status(200).send(success(capped));
   } catch (err: any) {
@@ -368,7 +413,7 @@ router.get("/status/:planId", async (req, res) => {
   }
   const planId = req.params.planId;
   try {
-    const status = _runEngine(parse.data, "getStatus", [planId]);
+    const status = await _runEngine(parse.data, "getStatus", [planId]);
     return res.status(200).send(success(status));
   } catch (err: any) {
     console.error("[v1/iteration/status] failed:", err);
@@ -385,7 +430,7 @@ router.post("/approve-adjustment", async (req, res) => {
   }
   const { workdir, planId } = parse.data;
   try {
-    _runEngine(workdir, "approveAdjustment", [planId]);
+    await _runEngine(workdir, "approveAdjustment", [planId]);
     return res.status(200).send(success({ status: "ok", planId }));
   } catch (err: any) {
     console.error("[v1/iteration/approve-adjustment] failed:", err);

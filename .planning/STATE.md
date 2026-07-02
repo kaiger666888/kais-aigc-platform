@@ -117,7 +117,7 @@ Items acknowledged and carried forward from previous milestone close:
 | Slug | Date | Status | Summary |
 |------|------|--------|---------|
 | iteration-engine-frontend | 2026-07-02 | ✅ complete | Iteration Engine UI — IterationPanel + 7 API fns + toolbar button + NodeDetailPanel tab. Bridges to `/api/v1/iteration/*`. |
-| hermes-driven-iteration | 2026-07-02 | ⚠️ partial | Add `/collect-feedback` + `/store-plan` endpoints so Hermes Agent can drive iteration without backend LLM calls. `/store-plan` ✅, `/collect-feedback` deadlocks due to pre-existing spawnSync+HTTP-self-call flaw — needs `_runEngine` async-spawn follow-up. |
+| hermes-driven-iteration | 2026-07-02 | ✅ complete | Add `/collect-feedback` + `/store-plan` endpoints for Hermes-driven iteration. Also converted `_runEngine` from `spawnSync` → async `child_process.spawn` to fix a deadlock where subprocess HTTP-self-calls blocked the Express event loop. Verified: `/collect-feedback` 131ms (was 120s+500), all 8 existing endpoints pass regression. |
 
 ## Session Continuity
 
