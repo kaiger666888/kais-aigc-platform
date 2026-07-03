@@ -70,6 +70,29 @@ export default router.post(
         console.warn("[canvas:review/reject] FlowGraph 回写失败（reviewStatus 表已写入）:", graphErr);
       }
 
+      // 写入 kv_assetFeedback 表（闭环必须）—— collectFeedback() 从此表读取，
+      // 不写则 reject 信号无法传播到 iteration engine。
+      try {
+        const fbId = `fb-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+        await u.db("kv_assetFeedback").insert({
+          id: fbId,
+          assetId: nodeId,
+          projectId,
+          score: null,
+          verdict: "reject",
+          content: reason,
+          tags: JSON.stringify(["canvas-reject"]),
+          source: "human",
+          reviewer: "canvas-user",
+          context: JSON.stringify({ episodesId, reviewStatus: "rejected" }),
+          status: "open",
+          createdAt: Date.now(),
+          resolvedAt: null,
+        });
+      } catch (fbErr) {
+        console.warn("[canvas:review/reject] kv_assetFeedback 写入失败（reviewStatus 已写入）:", fbErr);
+      }
+
       broadcastToProject(projectId, "review:rejected", {
         nodeId,
         reason,
