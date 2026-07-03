@@ -168,6 +168,43 @@ app.post('/api/canvas/save', (req, res) => {
   res.json({ code: 200, data: null })
 })
 
+// ─── Pipeline sync (Phase 41 fix) ─────────────────────────
+// 模拟 kais-movie-pipeline 通过 /api/canvas/v2/save-v2 全量写入。
+// 替换 mock canvas 状态,然后广播 graph:saved 事件 — 与真 backend
+// src/routes/canvas/v2/save-v2.ts:60 的行为对齐。
+app.post('/api/canvas/v2/save-v2', (req, res) => {
+  const { projectId, episodesId, graph } = req.body
+  state.canvas = graph?.nodes?.length ? graph : state.canvas
+  logCall('POST', '/api/canvas/v2/save-v2', { projectId, episodesId, nodeCount: graph?.nodes?.length }, null)
+  res.json({ code: 200, data: null })
+  setTimeout(() => {
+    broadcastToProject(projectId, 'graph:saved', { projectId, episodesId, timestamp: Date.now() })
+  }, 5)
+})
+
+// Health 端点 mock — 用于前端兜底轮询。返回当前 state.canvas 节点数作为 eventCount。
+app.get('/api/canvas/v2/health', (req, res) => {
+  const totalEvents = state.calls.filter((c) => c.path === '/api/canvas/v2/save-v2').length
+    + state.calls.filter((c) => c.path === '/api/canvas/save').length
+  res.json({
+    code: 200,
+    data: {
+      timestamp: Date.now(),
+      canvas: {
+        totalScopes: 1,
+        totalEvents,
+        scopes: [{
+          projectId: 1,
+          episodesId: 1,
+          eventCount: totalEvents,
+          lastEventId: totalEvents,
+          lastEventAt: Date.now(),
+        }],
+      },
+    },
+  })
+})
+
 app.post('/api/canvas/convert', (req, res) => {
   const { projectId, episodesId } = req.body
   logCall('POST', '/api/canvas/convert', { projectId, episodesId }, state.canvas)
