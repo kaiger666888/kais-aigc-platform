@@ -394,6 +394,47 @@ export async function requestNodeScore(
   return await apiCall<any>('/canvas/review/score', { projectId, episodesId, nodeId }, { cancelToken, timeout: 60000 })
 }
 
+// ─── Canvas Health (兜底轮询) ───────────────────────────────
+
+export interface CanvasHealthScope {
+  projectId: number
+  episodesId: number
+  eventCount: number
+  lastEventId: number | null
+  lastEventAt: number | null
+}
+
+export interface CanvasHealth {
+  totalEvents: number
+  scopes: CanvasHealthScope[]
+}
+
+/**
+ * GET /api/canvas/v2/health — 用于无鉴权探活与外部同步兜底。
+ * 返回当前所有 project/episode 的事件计数。
+ *
+ * 当 socket 事件丢失(graph:saved 未到达)时,前端可通过对比
+ * eventCount 是否增长来决定是否触发 reload。
+ */
+export async function fetchCanvasHealth(
+  cancelToken?: CancelToken,
+): Promise<CanvasHealth | null> {
+  const signal = cancelToken?.signal
+  try {
+    const res = await fetch(`${API_BASE}/canvas/v2/health`, { method: 'GET', signal })
+    if (!res.ok) return null
+    const json = await res.json()
+    const canvas = json?.data?.canvas
+    if (!canvas) return null
+    return {
+      totalEvents: Number(canvas.totalEvents ?? 0),
+      scopes: (canvas.scopes ?? []) as CanvasHealthScope[],
+    }
+  } catch {
+    return null
+  }
+}
+
 // ─── V2 节点 / 分支 / 布局 ─────────────────────────────────
 
 /** 创建节点 */

@@ -48,6 +48,7 @@ interface UseCanvasSocketOptions {
   onBranchCreated?: (branch: FlowBranch) => void
   onReviewApproved?: (nodeId: string) => void
   onReviewRejected?: (nodeId: string, reason?: string) => void
+  onGraphSaved?: (payload: { projectId: number; episodesId: number; timestamp: number }) => void
   // Phase 41 SYNC-10: feature-flagged incremental event subscription
   onCanvasEvent?: (event: CanvasEventPayload) => void
   onCanvasReset?: (info: { lastEventId: number | null }) => void
@@ -66,6 +67,7 @@ export function useCanvasSocket(options: UseCanvasSocketOptions) {
     onBranchCreated,
     onReviewApproved,
     onReviewRejected,
+    onGraphSaved,
     onCanvasEvent,
     onCanvasReset,
   } = options
@@ -81,13 +83,13 @@ export function useCanvasSocket(options: UseCanvasSocketOptions) {
     onNodeStateChange, onNodePreviewUpdate, onNewAsset,
     onOrchestrateStart, onOrchestrateProgress, onOrchestrateDone,
     onBranchCreated, onReviewApproved, onReviewRejected,
-    onCanvasEvent, onCanvasReset,
+    onGraphSaved, onCanvasEvent, onCanvasReset,
   })
   callbacksRef.current = {
     onNodeStateChange, onNodePreviewUpdate, onNewAsset,
     onOrchestrateStart, onOrchestrateProgress, onOrchestrateDone,
     onBranchCreated, onReviewApproved, onReviewRejected,
-    onCanvasEvent, onCanvasReset,
+    onGraphSaved, onCanvasEvent, onCanvasReset,
   }
 
   useEffect(() => {
@@ -170,6 +172,11 @@ export function useCanvasSocket(options: UseCanvasSocketOptions) {
     // 审核驳回
     socket.on('review:rejected', (payload: { nodeId: string; reason?: string }) => {
       callbacksRef.current.onReviewRejected?.(payload.nodeId, payload.reason)
+    })
+
+    // 全图保存(pipeline 通过 /api/canvas/v2/save-v2 写入)— 触发前端重新加载
+    socket.on('graph:saved', (payload: { projectId: number; episodesId: number; timestamp: number }) => {
+      callbacksRef.current.onGraphSaved?.(payload)
     })
 
     // Phase 41 SYNC-08: 增量事件 — 仅在 feature flag 开启时生效

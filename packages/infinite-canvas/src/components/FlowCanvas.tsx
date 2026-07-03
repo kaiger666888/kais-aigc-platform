@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -32,7 +32,7 @@ import { useCanvasStore } from '../store/canvasStore'
 import { ToastContainer } from '../hooks/useToast'
 import { flowGraphToCanvas, canvasToFlowGraph } from '../utils/flowDataMapper'
 import { getLayoutedElements } from '../utils/autoLayout'
-import { loadCanvasGraph, saveCanvasGraph, convertProjectData, fetchSkillNodeTypes, orchestrateCanvas } from '../services/canvasApi'
+import { loadCanvasGraph, saveCanvasGraph, convertProjectData, fetchSkillNodeTypes, orchestrateCanvas, fetchCanvasHealth } from '../services/canvasApi'
 import { useCanvasSocket } from '../hooks/useCanvasSocket'
 import { theme, miniMapNodeColors } from '../theme/catppuccin'
 import { LAYOUT, VIEWPORT } from '../constants'
@@ -130,6 +130,10 @@ function CanvasInner() {
 
   const initialParams = getInitialParams()
 
+  // Health-poll baseline ref — 必须在 useCanvasSocket 之前声明,
+  // 以便 onGraphSaved 回调里能重置基线避免双触发 reload。
+  const lastEventCountRef = useRef<number | null>(null)
+
   const { connected } = useCanvasSocket({
     projectId: projectId ?? 0,
     onNodeStateChange: (nodeId: string, state: NodeState, progress?: number) => {
@@ -181,6 +185,21 @@ function CanvasInner() {
         showToast(`${label} (${p.completed}/${p.total} 成功,${p.failed} 失败): ${p.failedNodes.join(', ')}`, 'warning')
       } else {
         showToast(`${label} (${p.completed}/${p.total} 节点成功)`, 'success')
+      }
+    },
+    onGraphSaved: (payload) => {
+      // Pipeline 通过 /api/canvas/v2/save-v2 全量写入 — 仅当事件作用于当前
+      // 显示的 project/episode 时重新加载,避免跨项目串扰。
+      if (
+        projectId &&
+        episodesId != null &&
+        payload.projectId === projectId &&
+        payload.episodesId === episodesId
+      ) {
+        showToast('Pipeline 同步了新数据,正在刷新画布…', 'info')
+        // 重置 health 轮询基线,避免 30 秒后再次触发重复 reload
+        lastEventCountRef.current = null
+        loadCanvas(projectId, episodesId)
       }
     },
   })
@@ -350,6 +369,36 @@ function CanvasInner() {
       cancelled = true
     }
   }, [activeSkillId, setDeclaredNodeTypes])
+
+  // Health-poll fallback: 如果 socket 事件丢失(graph:saved 未到达),
+  // 通过轮询 /api/canvas/v2/health 的 eventCount 变化兜底触发 reload。
+  // 仅在外部写入(pipeline)时生效;前端自己的 loadCanvas 不会改变
+  // 当前 scope 的 eventCount 之外的位置。
+  useEffect(() => {
+    if (!projectId || episodesId == null) {
+      lastEventCountRef.current = null
+      return
+    }
+    const POLL_INTERVAL_MS = 30_000
+    const timer = setInterval(async () => {
+      const health = await fetchCanvasHealth()
+      if (!health) return
+      const scope = health.scopes.find(
+        (s) => s.projectId === projectId && s.episodesId === episodesId,
+      )
+      if (!scope) return
+      if (lastEventCountRef.current === null) {
+        lastEventCountRef.current = scope.eventCount
+        return
+      }
+      if (scope.eventCount > lastEventCountRef.current) {
+        lastEventCountRef.current = scope.eventCount
+        showToast('检测到 pipeline 远端更新,正在刷新画布…', 'info')
+        loadCanvas(projectId, episodesId)
+      }
+    }, POLL_INTERVAL_MS)
+    return () => clearInterval(timer)
+  }, [projectId, episodesId, loadCanvas])
 
   // 全屏加载 — 骨架屏
   if (loading && !hasData) {
