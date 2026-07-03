@@ -6,6 +6,9 @@ export const LTX_CONFIG = {
   comfyuiOutputDir: "/root/ComfyUI/output",
   pollIntervalMs: 2000,
   pollTimeoutMs: 600_000, // 10 min
+  // External services for pose-video pipeline
+  kimodoUrl: process.env.KIMODO_URL || "http://localhost:8002",
+  blenderUrl: process.env.BLENDER_BVH_URL || "http://localhost:8095",
 };
 
 export const LTX_DEFAULTS = {

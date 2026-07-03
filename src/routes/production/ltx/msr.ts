@@ -358,9 +358,33 @@ export default router.post(
       return res.status(400).send(error("At least 2 reference images required (ref1, ref2). Up to 5 supported."));
     }
 
+    // --- Parse optional poseVideoFrames (Blender render PNGs from poseVideo route) ---
+    // Accepts JSON-stringified array of host file paths or bare ComfyUI input filenames.
+    // When present, frames are appended AFTER user-uploaded refs (so user refs keep their slots).
+    const poseVideoFramesRaw = req.body.poseVideoFrames as string | undefined;
+    let poseFrames: string[] = [];
+    if (poseVideoFramesRaw) {
+      try {
+        const parsed = JSON.parse(poseVideoFramesRaw);
+        if (!Array.isArray(parsed)) {
+          return res.status(400).send(error("poseVideoFrames must be a JSON-stringified array of file paths"));
+        }
+        poseFrames = parsed.filter((p: unknown): p is string => typeof p === "string" && p.length > 0);
+      } catch {
+        return res.status(400).send(error("poseVideoFrames must be a JSON-stringified array of file paths"));
+      }
+    }
+
+    // Cap total refs at 5 (MSR supports up to 4 ref slots + 1 background)
+    if (uploadedFiles.length + poseFrames.length > 5) {
+      return res.status(400).send(error(
+        `Too many references: ${uploadedFiles.length} uploaded + ${poseFrames.length} poseFrames = ${uploadedFiles.length + poseFrames.length} (max 5).`,
+      ));
+    }
+
     // --- Auto-calculate internal params ---
     const numFrames = roundTo8nPlus1(Math.round(duration * fps) + 1);
-    const msrFrameCount = pickMSRFrameCount(uploadedFiles.length);
+    const msrFrameCount = pickMSRFrameCount(uploadedFiles.length + poseFrames.length);
 
     // --- Copy images to ComfyUI container ---
     const filenames: string[] = [];
@@ -382,6 +406,37 @@ export default router.post(
     // Cleanup local staging files
     for (const file of uploadedFiles) {
       try { fs.unlinkSync(file.path); } catch {}
+    }
+
+    // --- Copy pose-video frames into ComfyUI container (optional, after user refs) ---
+    // Host paths are docker cp'd; bare filenames or in-container paths are passed through.
+    const ALLOWED_HOST_PREFIXES = [
+      "/data/workspace/kais-blender-docker/outputs/",
+      "/mnt/agents/output/",
+      "/tmp/comfyui-ltx-input/",
+      LOCAL_STAGING_DIR + "/",
+    ];
+    for (const frame of poseFrames) {
+      try {
+        const isHostPath = frame.startsWith("/") && fs.existsSync(frame);
+        if (isHostPath) {
+          const allowed = ALLOWED_HOST_PREFIXES.some((p) => frame.startsWith(p));
+          if (!allowed) {
+            throw new Error(`poseVideoFrames path "${frame}" is outside allowed host prefixes (Blender/Kimodo/staging dirs)`);
+          }
+          const ext = path.extname(frame) || ".png";
+          const filename = `${uuidv4()}${ext}`;
+          const containerPath = `${LTX_CONFIG.comfyuiInputDir}/${filename}`;
+          copyToContainer(frame, containerPath);
+          filenames.push(filename);
+        } else {
+          // Bare filename or in-container path → assume already in ComfyUI input dir
+          const basename = path.basename(frame);
+          filenames.push(basename);
+        }
+      } catch (err: any) {
+        return res.status(502).send(error(`Failed to ingest poseVideoFrame "${frame}": ${err.message}`));
+      }
     }
 
     // --- Build & submit workflow ---
@@ -412,7 +467,7 @@ export default router.post(
         promptId,
         status: "pending",
         message: "LTX LiconMSR multi-reference task submitted",
-        refCount: uploadedFiles.length,
+        refCount: uploadedFiles.length + poseFrames.length,
         params: {
           width, height,
           duration: `${actualDuration}s`,

@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-06-17)
 Phase: 41 complete (Canvas Event Sourcing & Sync Reliability)
 Plan: 41-01 — 3 waves (CORE / COMPAT / REPLAY+VERIFY) all shipped
 Status: Branch `feature/v1.9-canvas-event-sourcing` ready for review/merge
-Last activity: 2026-07-03 — Completed quick task pipeline-breakpoints-pivot (5 pipeline evolution breakpoints closed across `iteration-engine.mjs` + `execute.ts`)
+Last activity: 2026-07-03 — Completed quick task ltx-pose-video-pipeline (independent pose-video route + optional MSR consumption)
 
 Progress: [██████████] 100% (Phase 40 joint-debug + Phase 41 event sourcing both shipped)
 
@@ -119,6 +119,7 @@ Items acknowledged and carried forward from previous milestone close:
 | iteration-engine-frontend | 2026-07-02 | ✅ complete | Iteration Engine UI — IterationPanel + 7 API fns + toolbar button + NodeDetailPanel tab. Bridges to `/api/v1/iteration/*`. |
 | hermes-driven-iteration | 2026-07-02 | ✅ complete | Add `/collect-feedback` + `/store-plan` endpoints for Hermes-driven iteration. Also converted `_runEngine` from `spawnSync` → async `child_process.spawn` to fix a deadlock where subprocess HTTP-self-calls blocked the Express event loop. Verified: `/collect-feedback` 131ms (was 120s+500), all 8 existing endpoints pass regression. |
 | pipeline-breakpoints-pivot | 2026-07-03 | ✅ complete | Close pipeline evolution loop: `_buildPrompt` in `src/runtime/iteration-engine.mjs` now fetches node context via `POST /api/canvas/load` and applies prompt_modification overrides as `[进化指令]`. New `getEffectiveThresholds()` merges threshold overrides. `/api/canvas/execute` schema widened to accept IterationEngine payload. 7/7 unit tests pass. 3 atomic commits: `af62000c`, `faeab497`, `4214a018`. |
+| ltx-pose-video-pipeline | 2026-07-03 | ✅ complete | New `POST /api/production/ltx/poseVideo` route (Kimodo BVH → Blender render → LTX-2.3 I2V workflow, independent). Optional `poseVideoFrames` field on `/api/production/ltx/msr` to consume skeleton render PNGs as additional refs (back-compat preserved). Files: `src/routes/production/ltx/poseVideo.ts` (new), `msr.ts` + `config.ts` + `router.ts` (modified). `tsc` clean. **Dev server needs restart** to register the new route (running in tsx non-watch mode). |
 
 ## Session Continuity
 

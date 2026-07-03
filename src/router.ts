@@ -35,6 +35,7 @@ import route31 from "./routes/production/ltx/msr";
 import route32 from "./routes/production/ltx/promptRelayI2V";
 import route33 from "./routes/production/ltx/singularityFFLF";
 import route34 from "./routes/production/ltx/twoStageAudioI2V";
+import poseVideoRoute from "./routes/production/ltx/poseVideo";
 import route35 from "./routes/production/postprocess/enhance";
 import route36 from "./routes/production/postprocess/status";
 import route37 from "./routes/production/storyboard/addStoryboard";
@@ -158,6 +159,7 @@ export default async (app: Express) => {
   app.use("/api/production/ltx/promptRelayI2V", route32);
   app.use("/api/production/ltx/singularityFFLF", route33);
   app.use("/api/production/ltx/twoStageAudioI2V", route34);
+  app.use("/api/production/ltx/poseVideo", poseVideoRoute);
   app.use("/api/production/postprocess/enhance", route35);
   app.use("/api/production/postprocess/status", route36);
   app.use("/api/production/storyboard/addStoryboard", route37);
