@@ -688,12 +688,54 @@ export class IterationEngine {
     for (const action of (planObj.actions || [])) {
       const adj = action.pipelineAdjustment;
       if (!adj) continue;
+
+      // ── Rollback mode: remove matching overrides ──
+      if (adj.adjustmentType === 'rollback') {
+        overrides.__rollbackHistory__ = overrides.__rollbackHistory__ || [];
+        overrides.__rollbackHistory__.push({
+          target: adj.target,
+          matchTag: adj.matchTag || null,
+          reason: adj.change,
+          rolledBackAt: new Date().toISOString(),
+          planId: planObj.id,
+        });
+
+        if (adj.type === 'prompt_modification') {
+          const entries = overrides[adj.target];
+          if (Array.isArray(entries)) {
+            if (adj.matchTag) {
+              // Remove entries whose change contains the matchTag
+              overrides[adj.target] = entries.filter(
+                (e) => !(typeof e.change === 'string' && e.change.includes(adj.matchTag)),
+              );
+              if (overrides[adj.target].length === 0) delete overrides[adj.target];
+            } else {
+              // No matchTag → remove all entries for this target
+              delete overrides[adj.target];
+            }
+          }
+        } else if (adj.type === 'threshold_adjustment') {
+          if (overrides.thresholds) delete overrides.thresholds[adj.target];
+          if (Object.keys(overrides.thresholds || {}).length === 0) delete overrides.thresholds;
+        } else if (adj.type === 'parameter_change') {
+          if (Array.isArray(overrides.parameterChanges)) {
+            overrides.parameterChanges = overrides.parameterChanges.filter(
+              (e) => !(e.target === adj.target),
+            );
+            if (overrides.parameterChanges.length === 0) delete overrides.parameterChanges;
+          }
+        }
+        continue; // skip apply logic below
+      }
+
+      // ── Apply mode (original logic) ──
       if (adj.type === 'prompt_modification') {
         overrides[adj.target] = overrides[adj.target] || [];
         overrides[adj.target].push({
           change: adj.change,
           appliedAt: new Date().toISOString(),
           source: 'iteration-engine',
+          planId: planObj.id,
         });
       } else if (adj.type === 'threshold_adjustment') {
         overrides.thresholds = overrides.thresholds || {};
@@ -701,6 +743,7 @@ export class IterationEngine {
           change: adj.change,
           appliedAt: new Date().toISOString(),
           source: 'iteration-engine',
+          planId: planObj.id,
         };
       } else if (adj.type === 'parameter_change') {
         // Record only — no source mutation
@@ -710,6 +753,7 @@ export class IterationEngine {
           change: adj.change,
           appliedAt: new Date().toISOString(),
           source: 'iteration-engine',
+          planId: planObj.id,
         });
       }
     }

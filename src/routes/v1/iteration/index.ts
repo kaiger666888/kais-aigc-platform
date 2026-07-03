@@ -115,6 +115,8 @@ const storePlanSchema = z.object({
             ]),
             target: z.string(),
             change: z.string(),
+            adjustmentType: z.enum(["apply", "rollback"]).optional().default("apply"),
+            matchTag: z.string().nullable().optional(),
           })
           .nullable()
           .optional(),
