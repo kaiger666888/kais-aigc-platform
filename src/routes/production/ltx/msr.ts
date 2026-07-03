@@ -7,7 +7,7 @@ import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
-import { LTX_CONFIG, LTX_DEFAULTS } from "./config";
+import { LTX_CONFIG, LTX_DEFAULTS, LTX_POSE } from "./config";
 
 const router = express.Router();
 
@@ -39,15 +39,39 @@ function copyToContainer(localPath: string, containerPath: string) {
  */
 const MSR_FRAME_COUNTS = [17, 25, 33, 41];
 
-function pickMSRFrameCount(refImageCount: number): number {
-  // 根据 ref 数量选合适的 frame_count：图片越多可以选更大的值
-  // 确保每张 ref 至少重复4帧以上
-  const maxByRefs = refImageCount * 8;
-  let best = MSR_FRAME_COUNTS[0];
-  for (const fc of MSR_FRAME_COUNTS) {
-    if (fc <= maxByRefs) best = fc;
+function pickMSRFrameCount(_refImageCount: number): number {
+  // fc=41 is the default: it provides the strongest identity conditioning
+  // by repeating each reference image more times in the conditioning sequence.
+  // Validated via A/B test (2026-07-01): fc=41 produces better consistency
+  // than fc=17 with negligible extra trim cost.
+  return MSR_FRAME_COUNTS[MSR_FRAME_COUNTS.length - 1]; // always 41
+}
+
+/**
+ * Calculate how many leading frames to trim from an LTX MSR raw video.
+ *
+ * LiconMSR repeats N reference images into msr_fc conditioning frames.
+ * The last reference image switch + one VAE temporal unit (8 frames)
+ * marks the boundary between static conditioning and generated content.
+ *
+ * @param numRefs - Number of reference images (2-5)
+ * @param msrFc - LiconMSR frame_count (17, 25, 33, or 41)
+ * @param vaeTemporalFactor - LTX VAE temporal compression factor (always 8)
+ * @returns Number of leading frames to skip
+ */
+export function calcTrimFrames(
+  numRefs: number,
+  msrFc: number,
+  vaeTemporalFactor: number = 8,
+): number {
+  const base = Math.floor(msrFc / numRefs);
+  const remainder = msrFc % numRefs;
+  const repeats: number[] = [];
+  for (let i = 0; i < numRefs; i++) {
+    repeats.push(base + (i < remainder ? 1 : 0));
   }
-  return best;
+  const lastSwitch = repeats.slice(0, -1).reduce((a, b) => a + b, 0) + 1;
+  return lastSwitch + vaeTemporalFactor;
 }
 
 // LTX-2.3 numFrames 需要 8n+1
@@ -69,12 +93,20 @@ function buildMSRWorkflow(opts: {
   fps: number;
   seed: number;
   filenamePrefix: string;
+  poseFrameFilename?: string;   // optional: skeleton/pose render PNG for dual-conditioning
+  poseGuideStrength?: number;   // optional: pose guide attention strength (default LTX_POSE.poseGuideStrength)
 }) {
   const {
     refFilenames, prompt, negativePrompt,
     width, height, numFrames, msrFrameCount, fps,
     seed, filenamePrefix,
   } = opts;
+
+  const hasPose = !!opts.poseFrameFilename;
+  const poseStrength = opts.poseGuideStrength ?? LTX_POSE.poseGuideStrength;
+  // When pose guide is active, chain: node 9 (identity) → node 52 (pose)
+  // Otherwise: node 9 feeds directly into concat/sampler
+  const guideOutNode = hasPose ? "52" : "9";
 
   // refFilenames: index 0 = ref1, 1 = ref2, ... last = background
   // LiconMSR accepts slots "1","2","3","4" + "background"
@@ -128,6 +160,42 @@ function buildMSRWorkflow(opts: {
         strength_model: 1.0,
       },
     },
+
+    // === Optional: Union Control IC-LoRA for pose conditioning ===
+    ...(hasPose ? {
+      "51": {
+        class_type: "LTXICLoRALoaderModelOnly",
+        inputs: {
+          model: ["10", 0],
+          lora_name: LTX_POSE.unionControlLoraName,
+          strength_model: LTX_POSE.poseLoraStrength,
+        },
+      },
+      // LoadImage for pose/skeleton render frame
+      "50": {
+        class_type: "LoadImage",
+        inputs: { image: opts.poseFrameFilename! },
+      },
+      // Second guide injection: pose frame with adjustable attention strength
+      "52": {
+        class_type: "LTXAddVideoICLoRAGuideAdvanced",
+        inputs: {
+          positive: ["9", 0],
+          negative: ["9", 1],
+          vae: ["3", 2],
+          latent: ["9", 2],
+          image: ["50", 0],
+          frame_idx: 0,
+          strength: poseStrength,
+          latent_downscale_factor: 1,
+          crop: "center",
+          use_tiled_encode: false,
+          tile_size: 256,
+          tile_overlap: 64,
+          attention_strength: poseStrength,
+        },
+      },
+    } : {}),
 
     // === Prompt Encoding ===
     "5": {
@@ -198,7 +266,7 @@ function buildMSRWorkflow(opts: {
     "23": {
       class_type: "LTXVConcatAVLatent",
       inputs: {
-        video_latent: ["9", 2],
+        video_latent: [guideOutNode, 2],
         audio_latent: ["22", 0],
       },
     },
@@ -219,9 +287,9 @@ function buildMSRWorkflow(opts: {
     "37": {
       class_type: "CFGGuider",
       inputs: {
-        model: ["10", 0],
-        positive: ["9", 0],
-        negative: ["9", 1],
+        model: hasPose ? ["51", 0] : ["10", 0],
+        positive: [guideOutNode, 0],
+        negative: [guideOutNode, 1],
         cfg: 1.0,
       },
     },
@@ -246,8 +314,8 @@ function buildMSRWorkflow(opts: {
     "17": {
       class_type: "LTXVCropGuides",
       inputs: {
-        positive: ["9", 0],
-        negative: ["9", 1],
+        positive: [guideOutNode, 0],
+        negative: [guideOutNode, 1],
         latent: ["24", 0],
       },
     },
@@ -359,32 +427,38 @@ export default router.post(
     }
 
     // --- Parse optional poseVideoFrames (Blender render PNGs from poseVideo route) ---
-    // Accepts JSON-stringified array of host file paths or bare ComfyUI input filenames.
-    // When present, frames are appended AFTER user-uploaded refs (so user refs keep their slots).
+    // Takes the FIRST frame as pose guide for dual-conditioning (IC-LoRA Union Control).
+    // Remaining frames are ignored (single-frame pose injection).
+    // This is separate from MSR ref slots — pose goes into guide 2, not LiconMSR.
     const poseVideoFramesRaw = req.body.poseVideoFrames as string | undefined;
-    let poseFrames: string[] = [];
+    let poseFrameHostPath: string | null = null;
     if (poseVideoFramesRaw) {
       try {
         const parsed = JSON.parse(poseVideoFramesRaw);
-        if (!Array.isArray(parsed)) {
-          return res.status(400).send(error("poseVideoFrames must be a JSON-stringified array of file paths"));
+        if (!Array.isArray(parsed) || parsed.length === 0) {
+          return res.status(400).send(error("poseVideoFrames must be a non-empty JSON array of file paths"));
         }
-        poseFrames = parsed.filter((p: unknown): p is string => typeof p === "string" && p.length > 0);
+        const first = parsed[0];
+        if (typeof first !== "string" || first.length === 0) {
+          return res.status(400).send(error("poseVideoFrames[0] must be a string path"));
+        }
+        poseFrameHostPath = first;
       } catch {
         return res.status(400).send(error("poseVideoFrames must be a JSON-stringified array of file paths"));
       }
     }
 
     // Cap total refs at 5 (MSR supports up to 4 ref slots + 1 background)
-    if (uploadedFiles.length + poseFrames.length > 5) {
+    // poseVideoFrames no longer counts against MSR ref limit — it's a separate guide
+    if (uploadedFiles.length > 5) {
       return res.status(400).send(error(
-        `Too many references: ${uploadedFiles.length} uploaded + ${poseFrames.length} poseFrames = ${uploadedFiles.length + poseFrames.length} (max 5).`,
+        `Too many reference images: ${uploadedFiles.length} (max 5).`,
       ));
     }
 
     // --- Auto-calculate internal params ---
     const numFrames = roundTo8nPlus1(Math.round(duration * fps) + 1);
-    const msrFrameCount = pickMSRFrameCount(uploadedFiles.length + poseFrames.length);
+    const msrFrameCount = pickMSRFrameCount(uploadedFiles.length);
 
     // --- Copy images to ComfyUI container ---
     const filenames: string[] = [];
@@ -408,36 +482,40 @@ export default router.post(
       try { fs.unlinkSync(file.path); } catch {}
     }
 
-    // --- Copy pose-video frames into ComfyUI container (optional, after user refs) ---
-    // Host paths are docker cp'd; bare filenames or in-container paths are passed through.
-    const ALLOWED_HOST_PREFIXES = [
-      "/data/workspace/kais-blender-docker/outputs/",
-      "/mnt/agents/output/",
-      "/tmp/comfyui-ltx-input/",
-      LOCAL_STAGING_DIR + "/",
-    ];
-    for (const frame of poseFrames) {
+    // --- Copy pose-video frame into ComfyUI container (optional, separate from MSR refs) ---
+    // This frame goes into guide 2 (Union Control IC-LoRA), NOT into LiconMSR slots.
+    let poseFrameFilename: string | undefined;
+    if (poseFrameHostPath) {
       try {
+        const frame = poseFrameHostPath;
         const isHostPath = frame.startsWith("/") && fs.existsSync(frame);
+        const ALLOWED_HOST_PREFIXES = [
+          "/data/workspace/kais-blender-docker/outputs/",
+          "/mnt/agents/output/",
+          "/tmp/comfyui-ltx-input/",
+          LOCAL_STAGING_DIR + "/",
+        ];
         if (isHostPath) {
           const allowed = ALLOWED_HOST_PREFIXES.some((p) => frame.startsWith(p));
           if (!allowed) {
-            throw new Error(`poseVideoFrames path "${frame}" is outside allowed host prefixes (Blender/Kimodo/staging dirs)`);
+            throw new Error(`poseVideoFrames path "${frame}" is outside allowed host prefixes`);
           }
           const ext = path.extname(frame) || ".png";
-          const filename = `${uuidv4()}${ext}`;
-          const containerPath = `${LTX_CONFIG.comfyuiInputDir}/${filename}`;
+          poseFrameFilename = `${uuidv4()}${ext}`;
+          const containerPath = `${LTX_CONFIG.comfyuiInputDir}/${poseFrameFilename}`;
           copyToContainer(frame, containerPath);
-          filenames.push(filename);
         } else {
-          // Bare filename or in-container path → assume already in ComfyUI input dir
-          const basename = path.basename(frame);
-          filenames.push(basename);
+          poseFrameFilename = path.basename(frame);
         }
       } catch (err: any) {
-        return res.status(502).send(error(`Failed to ingest poseVideoFrame "${frame}": ${err.message}`));
+        return res.status(502).send(error(`Failed to ingest poseVideoFrame: ${err.message}`));
       }
     }
+
+    // --- Optional: parse poseGuideStrength override ---
+    const poseGuideStrength = req.body.poseGuideStrength
+      ? Number(req.body.poseGuideStrength)
+      : undefined;
 
     // --- Build & submit workflow ---
     const filenamePrefix = outputDir ? `${outputDir}/${outputFilename}` : outputFilename;
@@ -447,6 +525,8 @@ export default router.post(
       prompt, negativePrompt,
       width, height, numFrames, msrFrameCount, fps,
       seed, filenamePrefix,
+      poseFrameFilename,
+      poseGuideStrength,
     });
 
     try {
@@ -463,11 +543,20 @@ export default router.post(
       const promptId = comfyRes.data.prompt_id;
       const actualDuration = ((numFrames - 1) / fps).toFixed(1);
 
+      const trimFrames = calcTrimFrames(uploadedFiles.length, msrFrameCount);
+      const trimSec = +(trimFrames / fps).toFixed(4);
+
       res.status(200).send(success({
         promptId,
         status: "pending",
-        message: "LTX LiconMSR multi-reference task submitted",
-        refCount: uploadedFiles.length + poseFrames.length,
+        message: poseFrameFilename
+          ? "LTX LiconMSR task submitted with pose guide (dual-conditioning)"
+          : "LTX LiconMSR multi-reference task submitted",
+        refCount: uploadedFiles.length,
+        poseGuide: poseFrameFilename ? {
+          frame: poseFrameFilename,
+          strength: poseGuideStrength ?? LTX_POSE.poseGuideStrength,
+        } : null,
         params: {
           width, height,
           duration: `${actualDuration}s`,
@@ -475,6 +564,9 @@ export default router.post(
           msrFrameCount,
           numFrames,
           seed,
+          trimFrames,
+          trimSec,
+          trimFormula: `last_switch + 8 (VAE temporal factor)`,
         },
       }));
     } catch (err: any) {
