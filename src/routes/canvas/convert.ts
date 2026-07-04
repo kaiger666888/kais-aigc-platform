@@ -66,9 +66,10 @@ export default router.post(
             .whereNull("o_assets.assetsId")
         : [];
 
-      // 3. 获取分镜
+      // 3. 获取分镜（必须加 projectId 过滤，否则跨项目匹配到错误数据）
       const storyboardData = await u.db("o_storyboard")
         .where("scriptId", episodesId)
+        .andWhere("projectId", projectId)
         .orderBy("index", "asc");
 
       // 获取分镜关联资产

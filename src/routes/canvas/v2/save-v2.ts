@@ -6,6 +6,7 @@ import { broadcastToProject } from "@/utils/ws";
 import { FlowGraphV2Schema } from "@/types/flowgraph-v2-schema";
 import type { FlowGraphV2 } from "@/types/flowgraph-v2";
 import { appendAndSync, ensureBootstrap } from "@/lib/canvasEventStore";
+import { processGraphThumbnails } from "@/lib/thumbnail";
 
 const router = express.Router();
 
@@ -30,6 +31,14 @@ export default router.post(
       validGraph.meta.projectId = projectId;
       validGraph.meta.episodesId = episodesId;
       validGraph.meta.updatedAt = Date.now();
+
+      // 自动为指向原图/原视频的 thumbnailUrl 生成压缩缩略图（幂等）
+      // 生成后将原路径保存到 filePath，详情面板会用 filePath 展示原图
+      try {
+        await processGraphThumbnails(validGraph);
+      } catch (thumbErr) {
+        console.warn("[v2/canvas/save] 缩略图生成（部分）失败，继续保存:", thumbErr);
+      }
 
       await ensureBootstrap(projectId, episodesId);
 

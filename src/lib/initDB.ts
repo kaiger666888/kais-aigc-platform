@@ -1229,6 +1229,28 @@ export default async (knex: Knex, forceInit: boolean = false): Promise<void> => 
         table.primary(["skill_id"]);
       },
     },
+    // 资产反馈表 — 人工/AI 对任意画布资产节点的评价 (Phase: Asset Feedback Layer)
+    {
+      name: "kv_assetFeedback",
+      builder: (table) => {
+        table.text("id").notNullable();
+        table.text("assetId").notNullable();
+        table.integer("projectId").notNullable();
+        table.float("score");
+        table.text("verdict");
+        table.text("content");
+        table.text("tags");
+        table.text("source").notNullable();
+        table.text("reviewer");
+        table.text("context");
+        table.text("status").defaultTo("open");
+        table.integer("createdAt").notNullable();
+        table.integer("resolvedAt");
+        table.primary(["id"]);
+        table.index(["assetId"]);
+        table.index(["projectId"]);
+      },
+    },
   ];
 
   for (const t of tables) {

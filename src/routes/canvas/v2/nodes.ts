@@ -5,6 +5,7 @@ import { validateFields } from "@/middleware/middleware";
 import { broadcastToProject } from "@/utils/ws";
 import type { FlowNodeV2 } from "@/types/flowgraph-v2";
 import { appendAndSync, ensureBootstrap, loadGraph as loadGraphFromStore } from "@/lib/canvasEventStore";
+import { processNodePayloadThumbnail } from "@/lib/thumbnail";
 
 const router = express.Router();
 
@@ -73,6 +74,12 @@ router.post(
       }
 
       const { id, ...payload } = node;
+      // 自动为指向原图的 thumbnailUrl 生成压缩缩略图（幂等）
+      try {
+        await processNodePayloadThumbnail(payload as unknown as Record<string, unknown>);
+      } catch (thumbErr) {
+        console.warn("[v2/canvas/nodes] 缩略图生成失败，继续:", thumbErr);
+      }
       await appendAndSync({
         projectId,
         episodesId,
@@ -128,6 +135,15 @@ router.patch(
         return { type: "node_upsert" as const, nodeId: id, payload };
       });
 
+      // 自动为每个节点生成压缩缩略图（幂等；源文件缺失则跳过）
+      for (const ev of events) {
+        try {
+          await processNodePayloadThumbnail(ev.payload as Record<string, unknown>);
+        } catch {
+          /* 单个节点失败不影响整体保存 */
+        }
+      }
+
       await appendAndSync({
         projectId,
         episodesId,
@@ -179,6 +195,13 @@ router.patch(
       const existing = graph.nodes.find((n) => n.id === nodeId);
       if (!existing) {
         return res.status(404).send(error(`节点 ${nodeId} 不存在`));
+      }
+
+      // 自动为指向原图的 thumbnailUrl 生成压缩缩略图（幂等）
+      try {
+        await processNodePayloadThumbnail(updates);
+      } catch (thumbErr) {
+        console.warn("[v2/canvas/nodes] 缩略图生成失败，继续:", thumbErr);
       }
 
       await appendAndSync({

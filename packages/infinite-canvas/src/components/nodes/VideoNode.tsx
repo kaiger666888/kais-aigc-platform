@@ -7,6 +7,7 @@ import { NODE_SIZES } from '../../constants'
 import ScoreBadge from '../ScoreBadge'
 import ReviewActionButtons from '../ReviewActionButtons'
 import VariantBadge from '../VariantBadge'
+import FeedbackBadge from '../FeedbackBadge'
 import { useCanvasStore } from '../../store/canvasStore'
 
 type VideoNodeType = Node<VideoNodeData, 'video'>
@@ -17,6 +18,11 @@ function formatTime(s: number): string {
   return `${m}:${sec.toString().padStart(2, '0')}`
 }
 
+/** Returns true if the URL points to a video file rather than a still image. */
+function isVideoThumb(url: string): boolean {
+  return /\.(mp4|webm|mov|avi|mkv)(\?|$)/i.test(url)
+}
+
 function VideoNodeComponent({ data, id }: NodeProps<VideoNodeType>) {
   const approveNode = useCanvasStore((s) => s.approveNode)
   const rejectNode = useCanvasStore((s) => s.rejectNode)
@@ -24,6 +30,7 @@ function VideoNodeComponent({ data, id }: NodeProps<VideoNodeType>) {
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [volume, setVolume] = useState(1)
+  const [thumbHeight, setThumbHeight] = useState<number>(NODE_SIZES.video.thumbnailHeight)
   const videoRef = useRef<HTMLVideoElement>(null)
 
   const videoSrc = (data.filePath ?? data.thumbnailUrl) as string | null
@@ -138,7 +145,7 @@ function VideoNodeComponent({ data, id }: NodeProps<VideoNodeType>) {
 
       {/* 视频区域 */}
       <div style={{
-        width: '100%', height: NODE_SIZES.video.thumbnailHeight,
+        width: '100%', height: thumbHeight,
         borderRadius: 4, overflow: 'hidden', background: theme.bg.panel,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         position: 'relative', cursor: videoSrc && !playing ? 'pointer' : 'default',
@@ -170,7 +177,34 @@ function VideoNodeComponent({ data, id }: NodeProps<VideoNodeType>) {
         ) : (
           <>
             {data.thumbnailUrl ? (
-              <img src={data.thumbnailUrl as string} alt="video" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onClick={togglePlay} />
+              isVideoThumb(data.thumbnailUrl as string) ? (
+                <video
+                  src={data.thumbnailUrl as string}
+                  muted
+                  preload="metadata"
+                  onClick={togglePlay}
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', cursor: 'pointer' }}
+                  onLoadedMetadata={(e) => {
+                    const v = e.currentTarget
+                    const ratio = v.videoWidth / v.videoHeight
+                    if (!ratio || !isFinite(ratio)) return
+                    const nodeWidth = NODE_SIZES.video.width - 24
+                    const computed = nodeWidth / ratio
+                    setThumbHeight(Math.round(Math.max(80, Math.min(200, computed))))
+                  }}
+                />
+              ) : (
+                <img src={data.thumbnailUrl as string} alt="video" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'contain' }} onClick={togglePlay}
+                  onLoad={(e) => {
+                    const img = e.currentTarget
+                    const ratio = img.naturalWidth / img.naturalHeight
+                    if (!ratio || !isFinite(ratio)) return
+                    const nodeWidth = NODE_SIZES.video.width - 24
+                    const computed = nodeWidth / ratio
+                    setThumbHeight(Math.round(Math.max(80, Math.min(200, computed))))
+                  }}
+                />
+              )
             ) : (
               <span style={{ color: theme.text.disabled, fontSize: 40 }}>▶</span>
             )}
@@ -237,6 +271,7 @@ function VideoNodeComponent({ data, id }: NodeProps<VideoNodeType>) {
       )}
 
       <ScoreBadge score={data.aiScore?.overall as number | null | undefined} routingDecision={data.routingDecision as RoutingDecision | undefined} />
+      <FeedbackBadge nodeId={id} />
 
       <Handle type="source" position={Position.Right} style={{ background: theme.handle.video, width: 8, height: 8 }} />
 

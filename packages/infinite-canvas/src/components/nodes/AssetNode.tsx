@@ -8,6 +8,7 @@ import ScoreBadge from '../ScoreBadge'
 import ScoreMiniBar from '../ScoreMiniBar'
 import ReviewActionButtons from '../ReviewActionButtons'
 import VariantBadge from '../VariantBadge'
+import FeedbackBadge from '../FeedbackBadge'
 import { useCanvasStore } from '../../store/canvasStore'
 import { fetchAssetDetail } from '../../services/canvasApi'
 
@@ -38,6 +39,8 @@ function AssetNodeComponent({ data, id }: NodeProps<AssetNodeType>) {
   // Asset Registry 异步加载：当节点缺少 thumbnailUrl/filePath 但有 assetId 时，
   // 从全局资产注册表查询补全。参照 tldraw TLAssetStore.resolve 模式。
   const [resolvedThumb, setResolvedThumb] = useState<string | null>(null)
+  // 动态缩略图高度：根据图片实际宽高比自适应，避免裁切
+  const [thumbHeight, setThumbHeight] = useState<number>(NODE_SIZES.asset.thumbnailHeight)
   const assetId = data.assetId as number | undefined
   const hasThumbnail = (data.thumbnailUrl as string | null) != null || resolvedThumb != null
 
@@ -139,7 +142,7 @@ function AssetNodeComponent({ data, id }: NodeProps<AssetNodeType>) {
 
       <div style={{
         width: '100%',
-        height: NODE_SIZES.asset.thumbnailHeight,
+        height: thumbHeight,
         borderRadius: 4,
         overflow: 'hidden',
         background: theme.bg.panel,
@@ -152,7 +155,16 @@ function AssetNodeComponent({ data, id }: NodeProps<AssetNodeType>) {
           <img
             src={displayThumb}
             alt={data.label as string}
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            loading="lazy"
+            onLoad={(e) => {
+              const img = e.currentTarget
+              const ratio = img.naturalWidth / img.naturalHeight
+              const nodeWidth = NODE_SIZES.asset.width - 24 /* padding */
+              // 按图片宽高比计算等比缩放后的高度，限制在 60~220px 之间
+              const computed = nodeWidth / ratio
+              setThumbHeight(Math.round(Math.max(60, Math.min(220, computed))))
+            }}
+            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
           />
         ) : (
           <span style={{ color: theme.text.disabled, fontSize: 28 }}>
@@ -193,6 +205,7 @@ function AssetNodeComponent({ data, id }: NodeProps<AssetNodeType>) {
 
       <ScoreBadge score={data.aiScore?.overall as number | null | undefined} routingDecision={data.routingDecision as RoutingDecision | undefined} />
       <ScoreMiniBar score={data.aiScore as any} />
+      <FeedbackBadge nodeId={id} />
 
       {data.viewGroup != null && (
         <div style={{

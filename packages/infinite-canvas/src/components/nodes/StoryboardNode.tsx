@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { memo, useState } from 'react'
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
 import type { StoryboardNodeData, NodeState, RoutingDecision, CameraMovement, Framing, Composition, Pacing } from '../../types/canvas'
 import { stateColors, getNodeBorderColor, getNodeContainerStyle } from '../../utils/styles'
@@ -9,6 +9,7 @@ import ScoreBadge from '../ScoreBadge'
 import ScoreMiniBar from '../ScoreMiniBar'
 import ReviewActionButtons from '../ReviewActionButtons'
 import VariantBadge from '../VariantBadge'
+import FeedbackBadge from '../FeedbackBadge'
 import { useCanvasStore } from '../../store/canvasStore'
 
 type StoryboardNodeType = Node<StoryboardNodeData, 'storyboard'>
@@ -17,6 +18,7 @@ function StoryboardNodeComponent({ data, id }: NodeProps<StoryboardNodeType>) {
   const approveNode = useCanvasStore((s) => s.approveNode)
   const rejectNode = useCanvasStore((s) => s.rejectNode)
   const showToast = useCanvasStore((s) => s.showToast)
+  const [thumbHeight, setThumbHeight] = useState<number>(NODE_SIZES.storyboard.thumbnailHeight)
 
   return (
     <div style={{
@@ -64,13 +66,21 @@ function StoryboardNodeComponent({ data, id }: NodeProps<StoryboardNodeType>) {
       </div>
 
       <div style={{
-        width: '100%', height: NODE_SIZES.storyboard.thumbnailHeight,
+        width: '100%', height: thumbHeight,
         borderRadius: 4, overflow: 'hidden', background: theme.bg.panel,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         marginBottom: 6, position: 'relative',
       }}>
         {data.thumbnailUrl ? (
-          <img src={data.thumbnailUrl as string} alt={data.label as string} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <img src={data.thumbnailUrl as string} alt={data.label as string} loading="lazy"
+            onLoad={(e) => {
+              const img = e.currentTarget
+              const ratio = img.naturalWidth / img.naturalHeight
+              const nodeWidth = NODE_SIZES.storyboard.width - 24
+              const computed = nodeWidth / ratio
+              setThumbHeight(Math.round(Math.max(60, Math.min(200, computed))))
+            }}
+            style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
         ) : (
           <span style={{ color: theme.text.disabled, fontSize: 28 }}>🎬</span>
         )}
@@ -95,6 +105,7 @@ function StoryboardNodeComponent({ data, id }: NodeProps<StoryboardNodeType>) {
 
       <ScoreBadge score={data.aiScore?.overall as number | null | undefined} routingDecision={data.routingDecision as RoutingDecision | undefined} />
       <ScoreMiniBar score={data.aiScore as any} />
+      <FeedbackBadge nodeId={id} />
 
       <Handle type="source" position={Position.Right} style={{ background: theme.handle.storyboard, width: 8, height: 8 }} />
 

@@ -92,7 +92,7 @@ export default function ProjectSelector({
         <option value="">-- 选择项目 --</option>
         {projects.map((p) => (
           <option key={p.id} value={p.id}>
-            {p.name} ({p.scriptCount} 剧本, {p.assetCount} 资产)
+            [{p.id}] {p.name} ({p.scriptCount} 剧本, {p.assetCount} 资产)
           </option>
         ))}
       </select>

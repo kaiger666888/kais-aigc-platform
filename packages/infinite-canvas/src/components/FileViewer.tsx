@@ -29,11 +29,40 @@ export default function FileViewer({ filePath, apiBase = '' }: FileViewerProps) 
 
   const loadFile = useCallback(async () => {
     if (!filePath) return
+    // Skip binary files that can't be read as text
+    const binaryExt = /\.(png|jpg|jpeg|webp|gif|bmp|svg|mp4|webm|mov|avi|wav|flac|mp3|aac|ogg)$/i
+    if (binaryExt.test(filePath)) return
+    // For /oss/ paths, fetch via the static URL and display content for text files
+    const textExt = /\.(json|md|txt|yaml|yml)$/i
+    let readPath = filePath
+    if (filePath.startsWith('/oss/')) {
+      if (!textExt.test(filePath)) return
+      // Fetch the file content via the static /oss/ URL
+      try {
+        const resp = await fetch(`${apiBase}${filePath}`)
+        const text = await resp.text()
+        let parsed = null, isJson = false
+        try { parsed = JSON.parse(text); isJson = true } catch {}
+        setFileData({
+          filePath,
+          fileName: filePath.split('/').pop() || '',
+          size: text.length,
+          modified: new Date().toISOString(),
+          isJson,
+          content: isJson ? JSON.stringify(parsed, null, 2) : text,
+          raw: parsed,
+        })
+        setEditContent(isJson ? JSON.stringify(parsed, null, 2) : text)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '网络错误')
+      }
+      return
+    }
     setLoading(true)
     setError(null)
     setSaved(false)
     try {
-      const resp = await fetch(`${apiBase}/api/v2/canvas/file/read`, {
+      const resp = await fetch(`${apiBase}/api/canvas/v2/file/read`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filePath }),
@@ -66,7 +95,7 @@ export default function FileViewer({ filePath, apiBase = '' }: FileViewerProps) 
     setLoading(true)
     setError(null)
     try {
-      const resp = await fetch(`${apiBase}/api/v2/canvas/file/write`, {
+      const resp = await fetch(`${apiBase}/api/canvas/v2/file/write`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filePath, content: editContent }),

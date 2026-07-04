@@ -367,9 +367,13 @@ export function flowGraphToCanvas(graph: FlowGraph): { nodes: Node[]; edges: Edg
     }
   }
 
-  const nodes: Node[] = graph.nodes.map(mapNode)
+  const nodes: Node[] = (graph.nodes ?? []).map(mapNode)
 
-  const edges: Edge[] = graph.links.map((gl) => ({
+  // Backward compat: backend canvas/load returns {nodes, edges}, but FlowGraph
+  // type uses `links`. Accept either to avoid undefined.map() crash.
+  const links = graph.links ?? (graph as any).edges ?? []
+
+  const edges: Edge[] = links.map((gl) => ({
     id: gl.id,
     type: 'canvas',
     source: gl.source,

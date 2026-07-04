@@ -663,6 +663,11 @@ function MetadataEditor({ nodeId, data }: { nodeId: string; data: StoryboardNode
       {METADATA_FIELD_ORDER.map((field) => {
         const labels = METADATA_LABELS[field]
         const currentValue = data[field] as string | undefined
+        // If currentValue is a non-standard value (e.g. Chinese text from
+        // import-from-dir like "缓慢推进"), add it as an extra option so
+        // the select displays it instead of showing blank.
+        const hasMatch = currentValue != null && currentValue !== '' && (currentValue in labels)
+        const extraOption = (!hasMatch && currentValue != null && currentValue !== '') ? currentValue : null
         return (
           <div key={field} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 12, color: theme.text.secondary, minWidth: 36 }}>
@@ -687,6 +692,9 @@ function MetadataEditor({ nodeId, data }: { nodeId: string; data: StoryboardNode
               {Object.entries(labels).map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
               ))}
+              {extraOption && (
+                <option value={extraOption}>{extraOption}</option>
+              )}
             </select>
           </div>
         )
