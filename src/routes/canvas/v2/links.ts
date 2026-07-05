@@ -4,13 +4,16 @@ import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
 import { broadcastToProject } from "@/utils/ws";
 import type { FlowLinkV2 } from "@/types/flowgraph-v2";
-import { appendAndSync, ensureBootstrap, loadGraph as loadGraphFromStore } from "@/lib/canvasEventStore";
+import {
+  upsertLink,
+  deleteLink,
+  listLinks,
+  listNodes,
+  touchMeta,
+  ensureMeta,
+} from "@/lib/canvasRelationalStore";
 
 const router = express.Router();
-
-function legacyClientId(operation: string, projectId: number, episodesId: number): string {
-  return `legacy:links:${operation}:${projectId}:${episodesId}:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`;
-}
 
 const linkInputSchema = z.object({
   id: z.string().optional(),
@@ -22,7 +25,7 @@ const linkInputSchema = z.object({
   isInactive: z.boolean().optional(),
 });
 
-/** 创建连线 */
+/** 创建连线 — single-row INSERT */
 router.post(
   "/",
   validateFields({
@@ -34,38 +37,29 @@ router.post(
     const { projectId, episodesId, link: linkInput } = req.body;
 
     try {
-      await ensureBootstrap(projectId, episodesId);
-      const graph = await loadGraphFromStore(projectId, episodesId);
-      if (!graph) {
-        return res.status(404).send(error("画布数据不存在，请先保存 v2 FlowGraph"));
-      }
-
-      const sourceNode = graph.nodes.find((n) => n.id === linkInput.source);
-      const targetNode = graph.nodes.find((n) => n.id === linkInput.target);
-      if (!sourceNode) {
-        return res.status(400).send(error(`源节点 ${linkInput.source} 不存在`));
-      }
-      if (!targetNode) {
-        return res.status(400).send(error(`目标节点 ${linkInput.target} 不存在`));
-      }
+      await ensureMeta({ projectId, episodesId });
 
       const link: FlowLinkV2 = {
         ...linkInput,
         id: linkInput.id || `link-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       } as FlowLinkV2;
 
-      if (graph.links.some((l) => l.id === link.id)) {
+      // Check nodes exist (direct row lookup)
+      const nodes = await listNodes({ projectId, episodesId });
+      if (!nodes.some((n) => n.id === link.source)) {
+        return res.status(400).send(error(`源节点 ${link.source} 不存在`));
+      }
+      if (!nodes.some((n) => n.id === link.target)) {
+        return res.status(400).send(error(`目标节点 ${link.target} 不存在`));
+      }
+
+      const links = await listLinks({ projectId, episodesId });
+      if (links.some((l) => l.id === link.id)) {
         return res.status(409).send(error(`连线 ${link.id} 已存在`));
       }
 
-      const { id, ...payload } = link;
-      await appendAndSync({
-        projectId,
-        episodesId,
-        clientId: legacyClientId("create", projectId, episodesId),
-        source: "canvas-ui",
-        events: [{ type: "link_upsert", nodeId: id, payload }],
-      });
+      await upsertLink({ projectId, episodesId }, link);
+      await touchMeta({ projectId, episodesId });
 
       broadcastToProject(projectId, "link:created", { link });
       return res.status(200).send(success({ link }));
@@ -76,7 +70,7 @@ router.post(
   },
 );
 
-/** 删除连线 */
+/** 删除连线 — single-row DELETE */
 router.delete(
   "/:linkId",
   validateFields({
@@ -89,23 +83,14 @@ router.delete(
     const linkId = String(req.params.linkId);
 
     try {
-      await ensureBootstrap(projectId, episodesId);
-      const graph = await loadGraphFromStore(projectId, episodesId);
-      if (!graph) {
-        return res.status(404).send(error("画布数据不存在"));
-      }
-
-      if (!graph.links.some((l) => l.id === linkId)) {
+      await ensureMeta({ projectId, episodesId });
+      const links = await listLinks({ projectId, episodesId });
+      if (!links.some((l) => l.id === linkId)) {
         return res.status(404).send(error(`连线 ${linkId} 不存在`));
       }
 
-      await appendAndSync({
-        projectId,
-        episodesId,
-        clientId: legacyClientId("delete", projectId, episodesId),
-        source: "canvas-ui",
-        events: [{ type: "link_delete", nodeId: linkId, payload: null }],
-      });
+      await deleteLink({ projectId, episodesId }, linkId);
+      await touchMeta({ projectId, episodesId });
 
       broadcastToProject(projectId, "link:deleted", { linkId });
       return res.status(200).send(success({ linkId }));

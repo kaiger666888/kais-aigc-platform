@@ -1,6 +1,90 @@
-// @db-hash ee635e5b07b80555ad2d3d08ea59c473
+// @db-hash a69fc9b7b364746f9adc21bfce8e59b4
 //该文件由脚本自动生成，请勿手动修改
 
+export interface canvas_branches {
+  'created_at': number;
+  'episodes_id'?: number;
+  'fork_reason'?: string | null;
+  'id'?: string;
+  'label'?: string | null;
+  'metadata'?: string | null;
+  'parent_id'?: string | null;
+  'parent_node_id'?: string | null;
+  'project_id'?: number;
+  'status'?: string | null;
+  'updated_at': number;
+}
+export interface canvas_graph_meta {
+  'created_at': number;
+  'episodes_id'?: number;
+  'last_event_id'?: number | null;
+  'project_id'?: number;
+  'updated_at': number;
+}
+export interface canvas_links {
+  'branch_id'?: string;
+  'created_at': number;
+  'data_type'?: string | null;
+  'episodes_id'?: number;
+  'id'?: string;
+  'is_explore'?: boolean | null;
+  'is_inactive'?: boolean | null;
+  'project_id'?: number;
+  'source_id': string;
+  'target_id': string;
+  'updated_at': number;
+}
+export interface canvas_nodes {
+  'ai_score'?: string | null;
+  'branch_id'?: string;
+  'created_at': number;
+  'data'?: string | null;
+  'episodes_id'?: number;
+  'id'?: string;
+  'is_winner'?: boolean | null;
+  'phase_index'?: number | null;
+  'phase_name'?: string | null;
+  'position_x'?: number | null;
+  'position_y'?: number | null;
+  'project_id'?: number;
+  'reject_reason'?: string | null;
+  'review_status'?: string | null;
+  'size_height'?: number | null;
+  'size_width'?: number | null;
+  'state'?: string | null;
+  'suggestion'?: string | null;
+  'type': string;
+  'updated_at': number;
+  'variant_group_id'?: string | null;
+  'variant_of'?: string | null;
+}
+export interface canvas_variant_groups {
+  'branch_id'?: string | null;
+  'created_at': number;
+  'episodes_id'?: number;
+  'id'?: string;
+  'phase_index'?: number | null;
+  'project_id'?: number;
+  'select_mode'?: string | null;
+  'updated_at': number;
+  'variant_node_ids'?: string | null;
+  'winner_node_id'?: string | null;
+}
+export interface kv_assetFeedback {
+  'assetId': string;
+  'content'?: string | null;
+  'context'?: string | null;
+  'createdAt': number;
+  'id'?: string;
+  'projectId': number;
+  'resolvedAt'?: number | null;
+  'reviewer'?: string | null;
+  'score'?: any | null;
+  'source': string;
+  'status'?: string | null;
+  'tags'?: string | null;
+  'verdict'?: string | null;
+}
 export interface kv_audit {
   'action'?: string | null;
   'createTime'?: number | null;
@@ -340,6 +424,12 @@ export interface o_videoTrack {
 }
 
 export interface DB {
+  "canvas_branches": canvas_branches;
+  "canvas_graph_meta": canvas_graph_meta;
+  "canvas_links": canvas_links;
+  "canvas_nodes": canvas_nodes;
+  "canvas_variant_groups": canvas_variant_groups;
+  "kv_assetFeedback": kv_assetFeedback;
   "kv_audit": kv_audit;
   "kv_canvasEvent": kv_canvasEvent;
   "kv_nodeAsset": kv_nodeAsset;

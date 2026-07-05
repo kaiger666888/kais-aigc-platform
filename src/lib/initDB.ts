@@ -1253,6 +1253,119 @@ export default async (knex: Knex, forceInit: boolean = false): Promise<void> => 
     },
   ];
 
+  // ─── Relational canvas tables (replace event-sourcing layer) ───────
+  const relationalCanvasTables: TableSchema[] = [
+    {
+      name: "canvas_nodes",
+      builder: (table) => {
+        table.string("id", 128).notNullable();
+        table.integer("project_id").notNullable();
+        table.integer("episodes_id").notNullable();
+        table.string("type", 32).notNullable();
+        table.string("branch_id", 64).notNullable().defaultTo("main");
+        table.integer("phase_index").defaultTo(0);
+        table.string("phase_name", 128);
+        table.float("position_x").defaultTo(0);
+        table.float("position_y").defaultTo(0);
+        table.float("size_width").defaultTo(260);
+        table.float("size_height").defaultTo(180);
+        table.text("data");
+        table.string("state", 16).defaultTo("idle");
+        table.string("review_status", 16);
+        table.text("ai_score");
+        table.boolean("is_winner").defaultTo(false);
+        table.text("reject_reason");
+        table.text("suggestion");
+        table.string("variant_of", 128);
+        table.string("variant_group_id", 128);
+        table.bigInteger("created_at").notNullable();
+        table.bigInteger("updated_at").notNullable();
+        table.primary(["id", "project_id", "episodes_id"]);
+        table.index(["project_id", "episodes_id"], "idx_canvas_nodes_scope");
+        table.index(["project_id", "episodes_id", "type"], "idx_canvas_nodes_type");
+        table.index(["project_id", "episodes_id", "branch_id"], "idx_canvas_nodes_branch");
+      },
+    },
+    {
+      name: "canvas_links",
+      builder: (table) => {
+        table.string("id", 128).notNullable();
+        table.integer("project_id").notNullable();
+        table.integer("episodes_id").notNullable();
+        table.string("source_id", 128).notNullable();
+        table.string("target_id", 128).notNullable();
+        table.string("branch_id", 64).notNullable().defaultTo("main");
+        table.string("data_type", 32).defaultTo("text");
+        table.boolean("is_explore").defaultTo(false);
+        table.boolean("is_inactive").defaultTo(false);
+        table.bigInteger("created_at").notNullable();
+        table.bigInteger("updated_at").notNullable();
+        table.primary(["id", "project_id", "episodes_id"]);
+        table.index(["project_id", "episodes_id"], "idx_canvas_links_scope");
+        table.index(["source_id", "project_id", "episodes_id"], "idx_canvas_links_source");
+        table.index(["target_id", "project_id", "episodes_id"], "idx_canvas_links_target");
+      },
+    },
+    {
+      name: "canvas_branches",
+      builder: (table) => {
+        table.string("id", 128).notNullable();
+        table.integer("project_id").notNullable();
+        table.integer("episodes_id").notNullable();
+        table.string("label", 128);
+        table.string("parent_id", 128);
+        table.string("parent_node_id", 128);
+        table.string("status", 16).defaultTo("active");
+        table.text("fork_reason");
+        table.text("metadata");
+        table.bigInteger("created_at").notNullable();
+        table.bigInteger("updated_at").notNullable();
+        table.primary(["id", "project_id", "episodes_id"]);
+        table.index(["project_id", "episodes_id"], "idx_canvas_branches_scope");
+      },
+    },
+    {
+      name: "canvas_variant_groups",
+      builder: (table) => {
+        table.string("id", 128).notNullable();
+        table.integer("project_id").notNullable();
+        table.integer("episodes_id").notNullable();
+        table.integer("phase_index").defaultTo(0);
+        table.string("branch_id", 64).defaultTo("main");
+        table.text("variant_node_ids");
+        table.string("winner_node_id", 128);
+        table.string("select_mode", 16).defaultTo("single");
+        table.bigInteger("created_at").notNullable();
+        table.bigInteger("updated_at").notNullable();
+        table.primary(["id", "project_id", "episodes_id"]);
+        table.index(["project_id", "episodes_id"], "idx_canvas_vg_scope");
+      },
+    },
+    {
+      name: "canvas_graph_meta",
+      builder: (table) => {
+        table.integer("project_id").notNullable();
+        table.integer("episodes_id").notNullable();
+        table.bigInteger("created_at").notNullable();
+        table.bigInteger("updated_at").notNullable();
+        table.integer("last_event_id").defaultTo(0);
+        table.primary(["project_id", "episodes_id"]);
+      },
+    },
+  ];
+
+  // Migrate old snapshot data to relational tables on first creation
+  for (const t of relationalCanvasTables) {
+    const tableExists = await knex.schema.hasTable(t.name);
+    if (!tableExists) {
+      console.log("[初始化数据库] 创建关系型画布表:", t.name);
+      await knex.schema.createTable(t.name, t.builder);
+    }
+  }
+
+  // ─── Auto-migrate existing o_agentWorkData snapshots ──────────────
+  await migrateSnapshotsToRelational(knex);
+
   for (const t of tables) {
     const tableExists = await knex.schema.hasTable(t.name);
     if (!tableExists || forceInit) {
@@ -1270,3 +1383,143 @@ export default async (knex: Knex, forceInit: boolean = false): Promise<void> => 
     }
   }
 };
+
+// ─── Migration: o_agentWorkData snapshots → relational tables ─────────
+async function migrateSnapshotsToRelational(knex: Knex): Promise<void> {
+  // Check if migration already done (canvas_graph_meta has rows but o_agentWorkData still has canvasGraph)
+  const metaCount: any = await knex("canvas_graph_meta").count("* as cnt").first();
+  if (metaCount && Number(metaCount.cnt) > 0) {
+    // Already migrated
+    return;
+  }
+
+  // Find all canvasGraph snapshots
+  const snapshots = await knex("o_agentWorkData")
+    .where("key", "canvasGraph")
+    .select("projectId", "episodesId", "data", "updateTime");
+
+  if (snapshots.length === 0) {
+    console.log("[迁移] 没有发现需要迁移的画布快照");
+    return;
+  }
+
+  console.log(`[迁移] 发现 ${snapshots.length} 个画布快照，开始迁移到关系型表...`);
+
+  for (const snap of snapshots) {
+    const projectId = parseInt(String(snap.projectId));
+    const episodesId = parseInt(String(snap.episodesId));
+    if (!projectId || !episodesId) continue;
+
+    try {
+      const parsed = JSON.parse(snap.data);
+      const ts = snap.updateTime || Date.now();
+
+      // Support both v2 and v1 formats
+      const nodes = (parsed.nodes || []).map((n: any) => {
+        const nodeType = n.type || "script";
+        return {
+          id: n.id,
+          project_id: projectId,
+          episodes_id: episodesId,
+          type: nodeType,
+          branch_id: n.branchId || n.data?.branchId || "main",
+          phase_index: n.phaseIndex ?? 0,
+          phase_name: n.phaseName ?? "",
+          position_x: n.position?.x ?? 0,
+          position_y: n.position?.y ?? 0,
+          size_width: n.size?.width ?? 260,
+          size_height: n.size?.height ?? 180,
+          data: JSON.stringify(n.data || {}),
+          state: n.state || n.data?.state || "idle",
+          review_status: n.reviewStatus ?? null,
+          ai_score: n.aiScore != null ? JSON.stringify(n.aiScore) : null,
+          is_winner: n.isWinner ? 1 : 0,
+          reject_reason: n.rejectReason ?? null,
+          suggestion: n.suggestion ?? null,
+          variant_of: n.variantOf ?? null,
+          variant_group_id: n.variantGroupId ?? null,
+          created_at: ts,
+          updated_at: ts,
+        };
+      });
+
+      const links = (parsed.links || parsed.edges || []).map((l: any) => ({
+        id: l.id,
+        project_id: projectId,
+        episodes_id: episodesId,
+        source_id: l.source,
+        target_id: l.target,
+        branch_id: l.branchId || "main",
+        data_type: l.dataType || l.type || "text",
+        is_explore: 0,
+        is_inactive: 0,
+        created_at: ts,
+        updated_at: ts,
+      }));
+
+      // Ensure main branch
+      const branches = parsed.branches?.length
+        ? parsed.branches.map((b: any) => ({
+            id: b.id,
+            project_id: projectId,
+            episodes_id: episodesId,
+            label: b.label,
+            parent_id: b.parentId ?? null,
+            parent_node_id: b.parentNodeId ?? null,
+            status: b.status || "active",
+            fork_reason: b.forkReason ?? null,
+            metadata: b.metadata ? JSON.stringify(b.metadata) : null,
+            created_at: b.createdAt ?? ts,
+            updated_at: b.updatedAt ?? ts,
+          }))
+        : [{
+            id: "main",
+            project_id: projectId,
+            episodes_id: episodesId,
+            label: "主线",
+            parent_id: null,
+            parent_node_id: null,
+            status: "active",
+            fork_reason: null,
+            metadata: null,
+            created_at: ts,
+            updated_at: ts,
+          }];
+
+      const variantGroups = (parsed.variantGroups || []).map((vg: any) => ({
+        id: vg.id,
+        project_id: projectId,
+        episodes_id: episodesId,
+        phase_index: vg.phaseIndex ?? 0,
+        branch_id: vg.branchId ?? "main",
+        variant_node_ids: JSON.stringify(vg.variantNodeIds ?? []),
+        winner_node_id: vg.winnerNodeId ?? null,
+        select_mode: vg.selectMode ?? "single",
+        created_at: ts,
+        updated_at: ts,
+      }));
+
+      if (nodes.length > 0) await knex("canvas_nodes").insert(nodes).onConflict(["id", "project_id", "episodes_id"]).ignore();
+      if (links.length > 0) await knex("canvas_links").insert(links).onConflict(["id", "project_id", "episodes_id"]).ignore();
+      await knex("canvas_branches").insert(branches).onConflict(["id", "project_id", "episodes_id"]).ignore();
+      if (variantGroups.length > 0) await knex("canvas_variant_groups").insert(variantGroups).onConflict(["id", "project_id", "episodes_id"]).ignore();
+
+      await knex("canvas_graph_meta")
+        .insert({
+          project_id: projectId,
+          episodes_id: episodesId,
+          created_at: parsed.meta?.createdAt ?? ts,
+          updated_at: parsed.meta?.updatedAt ?? ts,
+          last_event_id: 1,
+        })
+        .onConflict(["project_id", "episodes_id"])
+        .ignore();
+
+      console.log(`[迁移] 项目 ${projectId}/${episodesId}: ${nodes.length} nodes, ${links.length} links`);
+    } catch (err) {
+      console.error(`[迁移] 项目 ${projectId}/${episodesId} 失败:`, err);
+    }
+  }
+
+  console.log("[迁移] 画布快照迁移完成");
+}

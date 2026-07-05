@@ -15,7 +15,7 @@ export const ReviewStatusSchema = z.enum(["pending", "approved", "rejected"]);
 export const NodeTypeSchema = z.enum([
   "script", "asset", "storyboard", "video", "audio",
   "3d", "variant", "reference", "upscale", "face_restore",
-  "suggestion",
+  "suggestion", "zone", "phase",
 ]);
 
 // ─── AI 建议 schema ────────────────────────────

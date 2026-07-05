@@ -8,6 +8,8 @@ import {
   addEdge,
   type OnConnect,
   type Connection,
+  type Node as RFNode,
+  type Edge as RFEdge,
   Panel,
   useReactFlow,
 } from '@xyflow/react'
@@ -211,22 +213,37 @@ function CanvasInner() {
 
     try {
       const savedGraph = await loadCanvasGraph(pid, eid)
+      let rawNodes: RFNode[] = []
+      let rawEdges: RFEdge[] = []
       if (savedGraph?.nodes?.length) {
-        const { nodes: loadedNodes, edges: loadedEdges } = flowGraphToCanvas(savedGraph)
-        setNodes(loadedNodes)
-        setEdges(loadedEdges)
+        const converted = flowGraphToCanvas(savedGraph)
+        rawNodes = converted.nodes
+        rawEdges = converted.edges
       } else {
         const graph = await convertProjectData(pid, eid)
         if (graph?.nodes?.length) {
-          const { nodes: convertedNodes, edges: convertedEdges } = flowGraphToCanvas(graph)
-          setNodes(convertedNodes)
-          setEdges(convertedEdges)
+          const converted = flowGraphToCanvas(graph)
+          rawNodes = converted.nodes
+          rawEdges = converted.edges
         } else {
           setNodes([])
           setEdges([])
-          setLoadError('该项目暂无数据，请先在 Toonflow 中创建剧本和资产')
+          setLoadError('该项目暂无数据，请先运行管线生成剧本和资产')
         }
       }
+
+      // Auto-layout on load so nodes are always readable regardless of
+      // the (often terrible) coordinates coming from the backend.
+      if (rawNodes.length > 0) {
+        const { nodes: layouted, edges: layoutedEdges } = getLayoutedElements(
+          rawNodes as any[],
+          rawEdges as any[],
+          'LR',
+        )
+        setNodes(layouted)
+        setEdges(layoutedEdges)
+      }
+
       setHasData(true)
 
       const url = new URL(window.location.href)
@@ -410,8 +427,6 @@ function CanvasInner() {
       {/* 顶部导航栏 */}
       <div style={topBarStyle}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <a href="/" style={backLinkStyle}>← 返回 Toonflow</a>
-          <div style={{ width: 1, height: 20, background: theme.border.default }} />
           <span style={{ color: theme.node.script, fontWeight: 600, fontSize: 14 }}>无限画布</span>
         </div>
 
@@ -558,7 +573,7 @@ function CanvasInner() {
                 </div>
                 <div style={{ color: theme.text.secondary, fontSize: 13, lineHeight: 1.6 }}>
                   请从上方选择项目和剧本来加载数据，<br/>
-                  或从 Toonflow 项目页面点击「无限画布」进入。
+                  或通过管线运行后自动同步数据。
                 </div>
               </div>
             </Panel>

@@ -6,7 +6,7 @@ export type ReviewStatus = "pending" | "approved" | "rejected";
 export type NodeType =
   | "script" | "asset" | "storyboard" | "video" | "audio"
   | "3d" | "variant" | "reference" | "upscale" | "face_restore"
-  | "suggestion";
+  | "suggestion" | "zone" | "phase";
 
 // ─── AI 建议结构 ───────────────────────────────
 
@@ -87,6 +87,7 @@ export interface FlowMetaV2 {
   createdAt: number;
   updatedAt: number;
   viewport?: { x: number; y: number; zoom: number };
+  lastEventId?: number;
 }
 
 // ─── 完整 FlowGraph v2 ──────────────────────────

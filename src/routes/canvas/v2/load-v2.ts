@@ -1,18 +1,17 @@
 import express from "express";
-import u from "@/utils";
 import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
 import type { FlowGraphV2, FlowNodeV2, FlowLinkV2, FlowBranchV2 } from "@/types/flowgraph-v2";
 import {
-  ensureBootstrap,
-  getLastEventId,
-  listEvents,
-} from "@/lib/canvasEventStore";
+  loadFullGraph,
+  getMeta,
+  listNodes,
+  listLinks,
+} from "@/lib/canvasRelationalStore";
 
 const router = express.Router();
 
-/** phaseIndex 推断规则（v1 → v2 懒迁移使用） */
 const PHASE_INDEX_MAP: Record<string, number> = {
   script: 0,
   asset: 1,
@@ -27,114 +26,64 @@ const PHASE_INDEX_MAP: Record<string, number> = {
   suggestion: 0,
 };
 
-const PHASE_NAME_MAP: Record<string, string> = {
-  script: "剧本",
-  asset: "资产生成",
-  "3d": "3D 空间",
-  storyboard: "分镜",
-  video: "视频生成",
-  audio: "音频生成",
-  variant: "变体生成",
-  reference: "参考图",
-  upscale: "超分处理",
-  face_restore: "面部修复",
-  suggestion: "AI 建议",
-};
-
-/** 加载 v2 FlowGraph（自动迁移 v1，支持 since 增量订阅） */
+/**
+ * 加载 v2 FlowGraph — relational storage
+ *
+ * Direct SELECT from canvas_nodes/canvas_links/... — no replay, no reducer.
+ * Returns null when no data exists for the scope.
+ *
+ * Supports optional `since` param for incremental polling: returns only
+ * nodes/links updated after the given timestamp.
+ */
 export default router.post(
   "/",
   validateFields({
     projectId: z.number(),
     episodesId: z.number(),
-    since: z.number().int().optional(),
+    since: z.number().optional(),
   }),
   async (req, res) => {
     const { projectId, episodesId, since } = req.body;
 
     try {
-      await ensureBootstrap(projectId, episodesId);
-      const lastEventId = await getLastEventId(projectId, episodesId);
+      // Full load — relational SELECT
+      const graph = await loadFullGraph({ projectId, episodesId });
 
-      if (since !== undefined) {
-        const events = await listEvents(projectId, episodesId, since);
-        return res.status(200).send(success({ events, lastEventId }));
-      }
-
-      const row = await u
-        .db("o_agentWorkData")
-        .where("projectId", String(projectId))
-        .andWhere("episodesId", String(episodesId))
-        .andWhere("key", "canvasGraph")
-        .first();
-
-      if (!row?.data) {
+      if (!graph) {
         return res.status(200).send(success(null));
       }
 
-      const parsed = JSON.parse(row.data);
-
-      if (parsed.meta?.version === "2") {
-        if (parsed.meta.lastEventId === undefined) parsed.meta.lastEventId = lastEventId;
-        return res.status(200).send(success(parsed));
+      const meta = await getMeta({ projectId, episodesId });
+      if (graph.meta.lastEventId === undefined && meta) {
+        graph.meta.lastEventId = meta.lastEventId;
       }
 
-      // ─── v1 → v2 懒迁移 ──────────────────────────
-      const now = Date.now();
+      // Incremental: filter by since timestamp if provided
+      if (since !== undefined) {
+        const [allNodes, allLinks] = await Promise.all([
+          listNodes({ projectId, episodesId }),
+          listLinks({ projectId, episodesId }),
+        ]);
+        // Return nodes/links that were updated after `since`
+        // For relational tables, we can filter directly in SQL
+        const { db } = await import("@/utils/db");
+        const [changedNodes, changedLinks] = await Promise.all([
+          db("canvas_nodes")
+            .where({ project_id: projectId, episodes_id: episodesId })
+            .where("updated_at", ">", since)
+            .select("*"),
+          db("canvas_links")
+            .where({ project_id: projectId, episodes_id: episodesId })
+            .where("updated_at", ">", since)
+            .select("*"),
+        ]);
 
-      const mainBranch: FlowBranchV2 = {
-        id: "main",
-        label: "主线",
-        status: "active",
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      const nodes: FlowNodeV2[] = (parsed.nodes || []).map((n: any) => {
-        const nodeType = n.type || "script";
-        return {
-          id: n.id,
-          type: nodeType,
-          branchId: "main",
-          phaseIndex: PHASE_INDEX_MAP[nodeType] ?? 0,
-          phaseName: PHASE_NAME_MAP[nodeType] ?? "未知",
-          position: n.position || { x: 0, y: 0 },
-          size: n.size || { width: 260, height: 180 },
-          data: n.data || {},
-          state: n.state || "idle",
-          reviewStatus: n.reviewStatus,
-          aiScore: n.aiScore,
-          isWinner: n.isWinner,
-          rejectReason: (n.data && n.data.rejectReason) || undefined,
-          suggestion: undefined,
-          variantOf: (n.data && n.data.variantOf) || undefined,
-          variantGroupId: (n.data && n.data.variantGroupId) || undefined,
-        } as FlowNodeV2;
-      });
-
-      const links: FlowLinkV2[] = (parsed.links || []).map((l: any) => ({
-        id: l.id,
-        source: l.source,
-        target: l.target,
-        branchId: "main",
-        dataType: l.dataType || "text",
-      }));
-
-      const graph: FlowGraphV2 = {
-        meta: {
-          version: "2",
-          projectId,
-          episodesId,
-          createdAt: now,
-          updatedAt: now,
-          viewport: parsed.viewport || undefined,
-          lastEventId,
-        } as any,
-        nodes,
-        links,
-        branches: [mainBranch],
-        variantGroups: [],
-      };
+        return res.status(200).send(success({
+          nodes: changedNodes.map(rowToNode),
+          links: changedLinks.map(rowToLink),
+          lastEventId: meta?.lastEventId ?? 0,
+        }));
+      }
 
       return res.status(200).send(success(graph));
     } catch (err) {
@@ -143,3 +92,27 @@ export default router.post(
     }
   },
 );
+
+function rowToNode(r: any): FlowNodeV2 {
+  return {
+    id: r.id,
+    type: r.type,
+    branchId: r.branch_id,
+    phaseIndex: r.phase_index,
+    phaseName: r.phase_name,
+    position: { x: r.position_x, y: r.position_y },
+    size: { width: r.size_width, height: r.size_height },
+    data: r.data ? JSON.parse(r.data) : {},
+    state: r.state,
+  };
+}
+
+function rowToLink(r: any): FlowLinkV2 {
+  return {
+    id: r.id,
+    source: r.source_id,
+    target: r.target_id,
+    branchId: r.branch_id,
+    dataType: r.data_type,
+  };
+}
