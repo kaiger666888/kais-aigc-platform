@@ -93,7 +93,8 @@ function buildMSRWorkflow(opts: {
   fps: number;
   seed: number;
   filenamePrefix: string;
-  poseFrameFilename?: string;   // optional: skeleton/pose render PNG for dual-conditioning
+  poseFrameFilename?: string;   // optional: skeleton/pose render PNG for dual-conditioning (single frame)
+  poseVideoFilename?: string;   // optional: skeleton/pose render MP4 for video pose conditioning (multi frame)
   poseGuideStrength?: number;   // optional: pose guide attention strength (default LTX_POSE.poseGuideStrength)
 }) {
   const {
@@ -102,7 +103,8 @@ function buildMSRWorkflow(opts: {
     seed, filenamePrefix,
   } = opts;
 
-  const hasPose = !!opts.poseFrameFilename;
+  const hasPose = !!(opts.poseFrameFilename || opts.poseVideoFilename);
+  const isPoseVideo = !!opts.poseVideoFilename;
   const poseStrength = opts.poseGuideStrength ?? LTX_POSE.poseGuideStrength;
   // When pose guide is active, chain: node 9 (identity) → node 52 (pose)
   // Otherwise: node 9 feeds directly into concat/sampler
@@ -171,12 +173,27 @@ function buildMSRWorkflow(opts: {
           strength_model: LTX_POSE.poseLoraStrength,
         },
       },
-      // LoadImage for pose/skeleton render frame
-      "50": {
-        class_type: "LoadImage",
-        inputs: { image: opts.poseFrameFilename! },
-      },
-      // Second guide injection: pose frame with adjustable attention strength
+      // Pose input: VHS_LoadVideo (multi-frame MP4) or LoadImage (single PNG)
+      ...(isPoseVideo ? {
+        "50": {
+          class_type: "VHS_LoadVideo",
+          inputs: {
+            video: opts.poseVideoFilename!,
+            force_rate: 0,
+            custom_width: 0,
+            custom_height: 0,
+            frame_load_cap: 0,
+            skip_first_frames: 0,
+            select_every_nth: 1,
+          },
+        },
+      } : {
+        "50": {
+          class_type: "LoadImage",
+          inputs: { image: opts.poseFrameFilename! },
+        },
+      }),
+      // Second guide injection: pose frames with adjustable attention strength
       "52": {
         class_type: "LTXAddVideoICLoRAGuideAdvanced",
         inputs: {
@@ -184,7 +201,7 @@ function buildMSRWorkflow(opts: {
           negative: ["9", 1],
           vae: ["3", 2],
           latent: ["9", 2],
-          image: ["50", 0],
+          image: ["50", 0],   // VHS_LoadVideo outputs IMAGE batch (multi-frame) or LoadImage (single)
           frame_idx: 0,
           strength: poseStrength,
           latent_downscale_factor: 1,
@@ -426,10 +443,9 @@ export default router.post(
       return res.status(400).send(error("At least 2 reference images required (ref1, ref2). Up to 5 supported."));
     }
 
-    // --- Parse optional poseVideoFrames (Blender render PNGs from poseVideo route) ---
-    // Takes the FIRST frame as pose guide for dual-conditioning (IC-LoRA Union Control).
-    // Remaining frames are ignored (single-frame pose injection).
-    // This is separate from MSR ref slots — pose goes into guide 2, not LiconMSR.
+    // --- Parse optional poseVideoFrames (Blender render PNGs or MP4 from poseVideo route) ---
+    // Accepts: array of file paths. If first file is .mp4/.webm/.mov → video pose conditioning.
+    //          If first file is .png/.jpg → single-frame pose conditioning.
     const poseVideoFramesRaw = req.body.poseVideoFrames as string | undefined;
     let poseFrameHostPath: string | null = null;
     if (poseVideoFramesRaw) {
@@ -482,9 +498,11 @@ export default router.post(
       try { fs.unlinkSync(file.path); } catch {}
     }
 
-    // --- Copy pose-video frame into ComfyUI container (optional, separate from MSR refs) ---
-    // This frame goes into guide 2 (Union Control IC-LoRA), NOT into LiconMSR slots.
+    // --- Copy pose-video frame/video into ComfyUI container (optional, separate from MSR refs) ---
+    // Video files (.mp4/.webm/.mov) → VHS_LoadVideo (multi-frame pose conditioning)
+    // Image files (.png/.jpg) → LoadImage (single-frame pose conditioning)
     let poseFrameFilename: string | undefined;
+    let poseVideoFilename: string | undefined;
     if (poseFrameHostPath) {
       try {
         const frame = poseFrameHostPath;
@@ -501,11 +519,24 @@ export default router.post(
             throw new Error(`poseVideoFrames path "${frame}" is outside allowed host prefixes`);
           }
           const ext = path.extname(frame) || ".png";
-          poseFrameFilename = `${uuidv4()}${ext}`;
-          const containerPath = `${LTX_CONFIG.comfyuiInputDir}/${poseFrameFilename}`;
+          const isVideo = [".mp4", ".webm", ".mov", ".avi", ".mkv"].includes(ext.toLowerCase());
+          const containerFilename = `${uuidv4()}${ext}`;
+          const containerPath = `${LTX_CONFIG.comfyuiInputDir}/${containerFilename}`;
           copyToContainer(frame, containerPath);
+          if (isVideo) {
+            poseVideoFilename = containerFilename;
+          } else {
+            poseFrameFilename = containerFilename;
+          }
         } else {
-          poseFrameFilename = path.basename(frame);
+          // Already in container
+          const ext = path.extname(frame).toLowerCase();
+          const isVideo = [".mp4", ".webm", ".mov", ".avi", ".mkv"].includes(ext);
+          if (isVideo) {
+            poseVideoFilename = path.basename(frame);
+          } else {
+            poseFrameFilename = path.basename(frame);
+          }
         }
       } catch (err: any) {
         return res.status(502).send(error(`Failed to ingest poseVideoFrame: ${err.message}`));
@@ -526,6 +557,7 @@ export default router.post(
       width, height, numFrames, msrFrameCount, fps,
       seed, filenamePrefix,
       poseFrameFilename,
+      poseVideoFilename,
       poseGuideStrength,
     });
 
@@ -549,12 +581,13 @@ export default router.post(
       res.status(200).send(success({
         promptId,
         status: "pending",
-        message: poseFrameFilename
+        message: (poseFrameFilename || poseVideoFilename)
           ? "LTX LiconMSR task submitted with pose guide (dual-conditioning)"
           : "LTX LiconMSR multi-reference task submitted",
         refCount: uploadedFiles.length,
-        poseGuide: poseFrameFilename ? {
-          frame: poseFrameFilename,
+        poseGuide: (poseFrameFilename || poseVideoFilename) ? {
+          type: poseVideoFilename ? "video" : "image",
+          file: poseVideoFilename || poseFrameFilename,
           strength: poseGuideStrength ?? LTX_POSE.poseGuideStrength,
         } : null,
         params: {

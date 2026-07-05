@@ -220,7 +220,8 @@ services:
       # TTS 三轨模型目录挂载
       - ${GPTSOVITS_DIR:-/data/models/GPT-SoVITS}:/opt/GPT-SoVITS
       - ${CHATTERBOX_DIR:-/data/models/chatterbox}:/opt/chatterbox
-      - hf-cache:/root/.cache/huggingface
+      # HF cache: 挂载到 kais user 的 HOME 下（uid 999），持久化 Llama/Kimodo 等大模型
+      - hf-cache:/home/kais/.cache/huggingface
     networks:
       - kais-net
     deploy:

@@ -72,6 +72,18 @@ RUN git clone --depth 1 https://github.com/FunAudioLLM/CosyVoice.git /opt/CosyVo
 # gold-team no longer bundles acestep Python sources, /opt/acestep dir,
 # or any ACESTEP_* env vars.
 
+# ── Kimodo (motion diffusion) ──────────────────────────────────────────────
+# Install with --no-deps + SKIP_MOTION_CORRECTION to avoid C++ build + dep conflicts
+# (kimodo requires transformers==5.1 which conflicts with CosyVoice's 4.51.3)
+ENV SKIP_MOTION_CORRECTION_IN_SETUP=1
+RUN pip install --no-cache-dir --no-deps "kimodo[all] @ git+https://github.com/nv-tlabs/kimodo.git" \
+        -i https://pypi.tuna.tsinghua.edu.cn/simple || \
+    pip install --no-cache-dir --no-deps "kimodo[all] @ git+https://github.com/nv-tlabs/kimodo.git"
+
+# Patch: use NousResearch/Meta-Llama-3-8B-Instruct (open mirror) instead of gated meta-llama
+COPY scripts/patch_kimodo_llama_mirror.py /tmp/patch_kimodo.py
+RUN python3 /tmp/patch_kimodo.py && rm /tmp/patch_kimodo.py
+
 # Copy v6 module
 COPY src/ ./src/
 COPY scripts/ ./scripts/
