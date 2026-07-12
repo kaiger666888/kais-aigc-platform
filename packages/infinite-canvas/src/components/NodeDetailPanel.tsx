@@ -539,6 +539,75 @@ function AssetDetail({ nodeId, data, onImageClick }: { nodeId: string; data: Ass
         </>
       )}
 
+      {/* Description fallback: shown only when prompt is absent but description exists.
+          313 existing asset nodes have description but no prompt — without this
+          fallback, the detail panel is blank for them. */}
+      {!(data.prompt as string) && (data.description as string) && (
+        <>
+          <SectionLabel>描述</SectionLabel>
+          <div style={{
+            background: theme.bg.input,
+            borderRadius: 8,
+            padding: 12,
+            color: theme.text.primary,
+            fontSize: 12,
+            lineHeight: 1.6,
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+          }}>
+            {data.description as string}
+          </div>
+        </>
+      )}
+
+      {/* Tags — many P07/P08 asset nodes carry tags like "✅ 已选" / "phase".
+           Showing them gives the user context when no prompt/description exists. */}
+      {Array.isArray(data.tags) && (data.tags as unknown[]).length > 0 && (
+        <>
+          <SectionLabel>标签</SectionLabel>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+            {(data.tags as unknown[]).map((tag, i) => (
+              <span key={i} style={{
+                padding: '3px 10px',
+                borderRadius: 6,
+                background: theme.bg.surface,
+                color: theme.text.primary,
+                fontSize: 11,
+                fontWeight: 500,
+                border: `1px solid ${theme.border.subtle}`,
+              }}>
+                {String(tag)}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Provenance line: when no prompt/description/tags present, at least
+          surface where this asset came from so the panel isn't totally blank. */}
+      {!(data.prompt as string) && !(data.description as string) && (
+        !Array.isArray(data.tags) || (data.tags as unknown[]).length === 0
+      ) && ((data.filename as string) || (data.output_key as string) || (data.name as string)) && (
+        <>
+          <SectionLabel>来源</SectionLabel>
+          <div style={{
+            background: theme.bg.input,
+            borderRadius: 6,
+            padding: '8px 12px',
+            color: theme.text.secondary,
+            fontSize: 11,
+            fontFamily: 'monospace',
+            wordBreak: 'break-all',
+          }}>
+            {[
+              data.filename && `📄 ${data.filename}`,
+              data.output_key && `key: ${data.output_key}`,
+              data.name && `name: ${data.name}`,
+            ].filter(Boolean).join(' · ')}
+          </div>
+        </>
+      )}
+
       {/* Structured fields: different filter based on assetType */}
       {data.assetType === 'role' ? (
         <StructuredFieldPanel nodeId={nodeId} nodeType="asset" data={data as Record<string, unknown>} filterKeys={CHARACTER_FIELDS} />
