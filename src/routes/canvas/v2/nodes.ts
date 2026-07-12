@@ -115,6 +115,22 @@ router.patch(
       const added: FlowNodeV2[] = [];
       const updated: FlowNodeV2[] = [];
 
+      // Structured-params validation across the whole batch before any write.
+      // If any node fails, reject the entire batch with a list of errors so
+      // callers can fix and retry — never partially commit a batch.
+      const validationErrors: Array<{ nodeId: string; errors: string }> = [];
+      for (const nodeInput of nodeInputs) {
+        const err = validateNodeData(nodeInput.type, nodeInput.data || {});
+        if (err) validationErrors.push({ nodeId: nodeInput.id, errors: err });
+      }
+      if (validationErrors.length > 0) {
+        const details = validationErrors.map((e) => `node "${e.nodeId}": ${e.errors}`);
+        return res.status(400).send(error(
+          "批量节点结构化参数校验失败 — 整批已拒绝",
+          details,
+        ));
+      }
+
       for (const nodeInput of nodeInputs) {
         // 缩略图
         try {
