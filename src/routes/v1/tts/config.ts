@@ -15,7 +15,7 @@
  */
 export const TTS_CONFIG = {
   /** ComfyUI API URL */
-  comfyuiUrl: process.env.QWEN_TTS_COMFYUI_URL || process.env.TTS_COMFYUI_URL || "http://comfyui-primary:8188",
+  comfyuiUrl: process.env.QWEN_TTS_COMFYUI_URL || process.env.TTS_COMFYUI_URL || "http://172.17.0.1:8188",
   /** 宿主机 URL（外部下载音频） */
   comfyuiHostUrl: process.env.QWEN_TTS_COMFYUI_HOST_URL || process.env.TTS_COMFYUI_HOST_URL || "http://172.17.0.1:8188",
   /** 输出目录 */
@@ -37,9 +37,9 @@ export const TTS_CONFIG = {
 
   /** ComfyUI 节点类型 */
   NODE_TYPES: {
-    VOICE_DESIGN: "FB_Qwen3TTSVoiceDesign",
-    VOICE_CLONE: "FB_Qwen3TTSVoiceClone",
-    CUSTOM_VOICE: "FB_Qwen3TTSCustomVoice",
+    VOICE_DESIGN: "AILab_Qwen3TTSVoiceDesign",
+    VOICE_CLONE: "AILab_Qwen3TTSVoiceClone",
+    CUSTOM_VOICE: "AILab_Qwen3TTSCustomVoice",
     LOAD_AUDIO: "LoadAudio",
     SAVE_AUDIO: "SaveAudio",
   },

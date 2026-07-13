@@ -40,9 +40,9 @@ router.get("/", async (_req, res) => {
     if (resp.ok) {
       const data = (await resp.json()) as Record<string, unknown>;
       nodesAvailable =
-        "FB_Qwen3TTSVoiceClone" in data ||
-        "FB_Qwen3TTSVoiceDesign" in data ||
-        "FB_Qwen3TTSCustomVoice" in data;
+        "AILab_Qwen3TTSVoiceClone" in data ||
+        "AILab_Qwen3TTSVoiceDesign" in data ||
+        "AILab_Qwen3TTSCustomVoice" in data;
     }
   } catch {
     // ignore

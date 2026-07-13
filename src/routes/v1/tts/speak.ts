@@ -34,7 +34,7 @@ const SpeakSchema = z.object({
 
   // 旧参数兼容
   track: z.enum(["auto", "zh", "en", "bilingual", "clone"]).optional(),
-  language: z.enum(["zh", "en", "auto"]).optional().default("auto"),
+  language: z.string().optional().default("Auto"),
 
   // 通用
   text: z.string().min(1).max(5000),
@@ -81,25 +81,16 @@ const SpeakSchema = z.object({
 // ─── ComfyUI Workflow Builders ──────────────────────────────────────────────
 
 function buildVoiceDesignWorkflow(body: z.infer<typeof SpeakSchema>): Record<string, unknown> {
-  const d = TTS_CONFIG.defaults;
   return {
     "1": {
       class_type: TTS_CONFIG.NODE_TYPES.VOICE_DESIGN,
       inputs: {
         text: body.text,
-        instruct: body.instruct || "",
-        model_choice: body.model_choice || d.model_choice,
-        device: body.device || d.device,
-        precision: body.precision || d.precision,
+        instruct: body.instruct || "A warm, gentle voice.",
+        model_size: body.model_choice || "1.7B",
         language: mapLanguage(body.language),
-        seed: body.seed ?? d.seed,
-        max_new_tokens: body.max_new_tokens ?? d.max_new_tokens,
-        top_p: body.top_p ?? d.top_p,
-        top_k: body.top_k ?? d.top_k,
-        temperature: body.temperature ?? d.temperature,
-        repetition_penalty: body.repetition_penalty ?? d.repetition_penalty,
-        attention: body.attention || d.attention,
-        unload_model_after_generate: body.unload_model_after_generate,
+        seed: body.seed ?? -1,
+        unload_models: body.unload_model_after_generate,
       },
     },
     "2": {
@@ -110,30 +101,21 @@ function buildVoiceDesignWorkflow(body: z.infer<typeof SpeakSchema>): Record<str
 }
 
 function buildVoiceCloneWorkflow(body: z.infer<typeof SpeakSchema>): Record<string, unknown> {
-  const d = TTS_CONFIG.defaults;
   return {
     "1": {
       class_type: TTS_CONFIG.NODE_TYPES.LOAD_AUDIO,
-      inputs: { audio: body.ref_audio, channel: "input" },
+      inputs: { audio: body.ref_audio!, channel: "input" },
     },
     "2": {
       class_type: TTS_CONFIG.NODE_TYPES.VOICE_CLONE,
       inputs: {
         target_text: body.text,
-        model_choice: body.model_choice || d.model_choice,
-        device: body.device || d.device,
-        precision: body.precision || d.precision,
+        model_size: body.model_choice || "1.7B",
         language: mapLanguage(body.language),
-        ref_audio: ["1", 0],
-        ref_text: body.ref_text || "",
-        seed: body.seed ?? d.seed,
-        max_new_tokens: body.max_new_tokens ?? d.max_new_tokens,
-        top_p: body.top_p ?? d.top_p,
-        top_k: body.top_k ?? d.top_k,
-        temperature: body.temperature ?? d.temperature,
-        repetition_penalty: body.repetition_penalty ?? d.repetition_penalty,
-        attention: body.attention || d.attention,
-        unload_model_after_generate: body.unload_model_after_generate,
+        reference_audio: ["1", 0],
+        reference_text: body.ref_text || "",
+        seed: body.seed ?? -1,
+        unload_models: body.unload_model_after_generate,
       },
     },
     "3": {
@@ -144,26 +126,17 @@ function buildVoiceCloneWorkflow(body: z.infer<typeof SpeakSchema>): Record<stri
 }
 
 function buildCustomVoiceWorkflow(body: z.infer<typeof SpeakSchema>): Record<string, unknown> {
-  const d = TTS_CONFIG.defaults;
   return {
     "1": {
       class_type: TTS_CONFIG.NODE_TYPES.CUSTOM_VOICE,
       inputs: {
         text: body.text,
         speaker: body.speaker || "Eric",
-        model_choice: body.model_choice || d.model_choice,
-        device: body.device || d.device,
-        precision: body.precision || d.precision,
+        model_size: body.model_choice || "1.7B",
         language: mapLanguage(body.language),
         instruct: body.instruct || "",
-        seed: body.seed ?? d.seed,
-        max_new_tokens: body.max_new_tokens ?? d.max_new_tokens,
-        top_p: body.top_p ?? d.top_p,
-        top_k: body.top_k ?? d.top_k,
-        temperature: body.temperature ?? d.temperature,
-        repetition_penalty: body.repetition_penalty ?? d.repetition_penalty,
-        attention: body.attention || d.attention,
-        unload_model_after_generate: body.unload_model_after_generate,
+        seed: body.seed ?? -1,
+        unload_models: body.unload_model_after_generate,
       },
     },
     "2": {
@@ -175,8 +148,8 @@ function buildCustomVoiceWorkflow(body: z.infer<typeof SpeakSchema>): Record<str
 
 /** 语言映射：旧 zh/en → Qwen3-TTS 语言名 */
 function mapLanguage(lang: string): string {
-  if (lang === "zh") return "Chinese";
-  if (lang === "en") return "English";
+  if (lang === "zh" || lang === "chinese") return "Chinese";
+  if (lang === "en" || lang === "english") return "English";
   return "Auto";
 }
 

@@ -16,7 +16,7 @@
 
 export const QWEN_TTS_CONFIG = {
   /** ComfyUI API URL（容器内） */
-  comfyuiUrl: process.env.QWEN_TTS_COMFYUI_URL || "http://comfyui-primary:8188",
+  comfyuiUrl: process.env.QWEN_TTS_COMFYUI_URL || "http://172.17.0.1:8188",
   /** 宿主机 URL（外部下载） */
   comfyuiHostUrl: process.env.QWEN_TTS_COMFYUI_HOST_URL || "http://172.17.0.1:8188",
   /** 容器名 */
@@ -69,9 +69,9 @@ export enum QwenTtsMode {
  * 对应 ComfyUI-Qwen-TTS/__init__.py NODE_CLASS_MAPPINGS
  */
 export const NODE_TYPES = {
-  VOICE_DESIGN: "FB_Qwen3TTSVoiceDesign",
-  VOICE_CLONE: "FB_Qwen3TTSVoiceClone",
-  CUSTOM_VOICE: "FB_Qwen3TTSCustomVoice",
+  VOICE_DESIGN: "AILab_Qwen3TTSVoiceDesign",
+  VOICE_CLONE: "AILab_Qwen3TTSVoiceClone",
+  CUSTOM_VOICE: "AILab_Qwen3TTSCustomVoice",
   LOAD_AUDIO: "LoadAudio",
   SAVE_AUDIO: "SaveAudio",
 } as const;
