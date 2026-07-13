@@ -7,7 +7,7 @@ import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
-import { LTX_CONFIG, LTX_DEFAULTS, LTX_POSE } from "./config";
+import { LTX_CONFIG, LTX_DEFAULTS, LTX_POSE, LTX_MSR_V2 } from "./config";
 
 const router = express.Router();
 
@@ -81,11 +81,20 @@ function roundTo8nPlus1(raw: number): number {
 
 /**
  * Build LiconMSR workflow — 支持最多5张参考图 (ref1~ref4 + background)。
+ *
+ * V2 升级 (2026-07-12): 新增 PromptRelayEncode + LTX2_NAG 链路。
+ * - PromptRelayEncode: 分离角色描述与动作描述，用 relay weight 注入参考图 identity
+ * - LTX2_NAG: Normal Attention Guidance，用 negative prompt 引导注意力提升一致性
+ *
+ * 模型链变化:
+ *   V1: Checkpoint → IC-LoRA → (Pose IC-LoRA) → CFGGuider
+ *   V2: Checkpoint → IC-LoRA → PromptRelayEncode → LTX2_NAG → (Pose IC-LoRA) → CFGGuider
  */
 function buildMSRWorkflow(opts: {
   refFilenames: string[];       // 1~5 images: [ref1, ref2, ..., refN] (最后一张作为 background)
-  prompt: string;
+  prompt: string;               // action/scene prompt (what happens in the video)
   negativePrompt: string;
+  refDescription?: string;      // V2: 参考图角色/场景描述 (for PromptRelayEncode)
   width: number;
   height: number;
   numFrames: number;
@@ -96,6 +105,15 @@ function buildMSRWorkflow(opts: {
   poseFrameFilename?: string;   // optional: skeleton/pose render PNG for dual-conditioning (single frame)
   poseVideoFilename?: string;   // optional: skeleton/pose render MP4 for video pose conditioning (multi frame)
   poseGuideStrength?: number;   // optional: pose guide attention strength (default LTX_POSE.poseGuideStrength)
+  // V2 options
+  useV2?: boolean;              // enable PromptRelay + NAG (default: true)
+  nagWeight?: number;           // NAG strength (default 0.25)
+  nagLayers?: number;           // NAG attention layers (default 11)
+  nagSigmaStart?: number;       // NAG sigma start (default 2.5)
+  relayWeight?: number;         // PromptRelay weight (default 0.0022)
+  msrLoraVersion?: string;      // LoRA version: "V2" (default), "V1", "test"
+  audioMode?: string;           // "dialogue+ambient" (default), "ambient_only", "silent", "auto"
+  customAudioFilename?: string; // 自定义音频文件名（已在ComfyUI容器内），提供时冻结该音频到输出视频
 }) {
   const {
     refFilenames, prompt, negativePrompt,
@@ -103,9 +121,86 @@ function buildMSRWorkflow(opts: {
     seed, filenamePrefix,
   } = opts;
 
+  // V2 feature flags
+  const useV2 = opts.useV2 !== false; // default true
+  const nagWeight = opts.nagWeight ?? LTX_MSR_V2.nag.nagWeight;
+  const nagLayers = opts.nagLayers ?? LTX_MSR_V2.nag.nagLayers;
+  const nagSigmaStart = opts.nagSigmaStart ?? LTX_MSR_V2.nag.nagSigmaStart;
+  const relayWeight = opts.relayWeight ?? LTX_MSR_V2.promptRelay.relayWeight;
+  const refDescription = opts.refDescription || "";
+
+  // Audio mode: controls how LTX implicit audio generation is guided via prompt
+  //   "dialogue+ambient" — 环境音+人物对话, 禁止BGM (默认)
+  //   "ambient_only"     — 纯环境音, 禁止BGM和人声
+  //   "silent"           — 不输出音频 (CreateVideo 不接 audio)
+  //   "auto"             — 不做任何音频引导, 完全交给模型
+  const audioMode = opts.audioMode || "dialogue+ambient";
+  const customAudio = opts.customAudioFilename || "";
+
+  // 音频引导词 — 注入到 prompt 和 negative prompt 中
+  const AUDIO_GUIDES: Record<string, { positive: string; negative: string }> = {
+    "dialogue+ambient": {
+      positive: "natural ambient sounds, footsteps, clothing rustle, environmental audio, character dialogue speech",
+      negative: "background music, BGM, soundtrack, musical instruments, melody, singing, theme song",
+    },
+    "ambient_only": {
+      positive: "natural ambient sounds, footsteps, clothing rustle, environmental audio, wind, room tone",
+      negative: "background music, BGM, soundtrack, musical instruments, melody, singing, speech, dialogue, voices",
+    },
+    "silent": {
+      positive: "",
+      negative: "background music, BGM, soundtrack, musical instruments, melody, singing, speech, voices, ambient sounds",
+    },
+    "auto": {
+      positive: "",
+      negative: "",
+    },
+  };
+  const audioGuide = AUDIO_GUIDES[audioMode] || AUDIO_GUIDES["dialogue+ambient"];
+
+  // 增强 prompt: 在尾部追加音频正面引导词
+  const audioEnhancedPrompt = audioGuide.positive
+    ? `${prompt}, ${audioGuide.positive}`
+    : prompt;
+
+  // 增强 negativePrompt: 追加音频负面引导词
+  const audioEnhancedNegative = audioGuide.negative
+    ? `${negativePrompt}, ${audioGuide.negative}`
+    : negativePrompt;
+
+  // LoRA version selection: V2 (default), V1, or test
+  const loraVersion = opts.msrLoraVersion || "V2";
+  const msrLoraName = loraVersion === "V1"
+    ? "LTX-2.3-Multiple-Subject-Reference/LTX-2.3-Licon-MSR-V1.safetensors"
+    : loraVersion === "test"
+    ? LTX_DEFAULTS.msrLoraTestName
+    : LTX_DEFAULTS.msrLoraName; // V2
+
   const hasPose = !!(opts.poseFrameFilename || opts.poseVideoFilename);
   const isPoseVideo = !!opts.poseVideoFilename;
   const poseStrength = opts.poseGuideStrength ?? LTX_POSE.poseGuideStrength;
+
+  // V2 model chain: IC-LoRA → PromptRelay → NAG → (Pose IC-LoRA) → Guider
+  // V1 model chain: IC-LoRA → (Pose IC-LoRA) → Guider
+  //
+  // Node IDs for V2 chain:
+  //   10: IC-LoRA (base)
+  //   99: PromptRelayEncode (consumes model from 10, produces enhanced model + positive conditioning)
+  //   121: LTX2_NAG (consumes model from 99, produces NAG-enhanced model)
+  //   51: Pose IC-LoRA (optional, consumes model from 121)
+  // The "final model node" feeds into CFGGuider
+
+  const modelNodeForGuider = hasPose ? "51" : (useV2 ? "121" : "10");
+
+  // When PromptRelay is active, it produces the positive conditioning (node 99 → output 1)
+  // which feeds into LTXVConditioning (node 7) instead of raw CLIPTextEncode (node 5)
+  // V2 fallback: merge refDescription into prompt for richer identity context
+  // When PromptRelayEncode is active (V2), it produces the positive conditioning (node 99 → output 1)
+  // which feeds into LTXVConditioning (node 7) instead of raw CLIPTextEncode (node 5)
+  const effectivePrompt = useV2 && refDescription
+    ? audioEnhancedPrompt  // action prompt + audio guide; refDescription goes to PromptRelay global_prompt
+    : audioEnhancedPrompt;
+
   // When pose guide is active, chain: node 9 (identity) → node 52 (pose)
   // Otherwise: node 9 feeds directly into concat/sampler
   const guideOutNode = hasPose ? "52" : "9";
@@ -158,17 +253,53 @@ function buildMSRWorkflow(opts: {
       class_type: "LTXICLoRALoaderModelOnly",
       inputs: {
         model: ["3", 0],
-        lora_name: LTX_DEFAULTS.msrLoraName,
+        lora_name: msrLoraName,
         strength_model: 1.0,
       },
     },
 
+    // === V2: PromptRelayEncode + LTX2_NAG ===
+    // ComfyUI-PromptRelay (kijai/ComfyUI-PromptRelay) 提供时间分段 prompt 控制。
+    //   global_prompt = 参考图角色/场景描述（全局条件）
+    //   local_prompts = 动作描述（按时间段用 | 分隔）
+    // KJNodes 提供 LTX2_NAG：通过 negative conditioning 引导注意力。
+    //
+    // 模型链: node 10 (IC-LoRA) → node 99 (PromptRelay) → node 121 (NAG) → [Pose] → Guider
+    // Conditioning: node 99 产出 positive → node 7 (LTXVConditioning)
+    ...(useV2 ? {
+      "99": {
+        class_type: "PromptRelayEncode",
+        inputs: {
+          model: ["10", 0],
+          clip: ["26", 0],
+          latent: ["8", 0],
+          global_prompt: refDescription || prompt,
+          local_prompts: refDescription ? prompt : prompt,
+          segment_lengths: "",
+          epsilon: relayWeight,
+        },
+      },
+      "121": {
+        class_type: "LTX2_NAG",
+        inputs: {
+          model: ["99", 0],
+          nag_scale: nagLayers,
+          nag_alpha: nagWeight,
+          nag_tau: nagSigmaStart,
+          nag_cond_video: ["7", 1],   // negative conditioning from LTXVConditioning
+          nag_cond_audio: ["7", 1],
+          inplace: true,
+        },
+      },
+    } : {}),
+
     // === Optional: Union Control IC-LoRA for pose conditioning ===
+    // V2: pose IC-LoRA chains AFTER NAG (node 121) instead of after base IC-LoRA (node 10)
     ...(hasPose ? {
       "51": {
         class_type: "LTXICLoRALoaderModelOnly",
         inputs: {
-          model: ["10", 0],
+          model: useV2 ? ["121", 0] : ["10", 0],
           lora_name: LTX_POSE.unionControlLoraName,
           strength_model: LTX_POSE.poseLoraStrength,
         },
@@ -217,11 +348,11 @@ function buildMSRWorkflow(opts: {
     // === Prompt Encoding ===
     "5": {
       class_type: "CLIPTextEncode",
-      inputs: { text: prompt, clip: ["26", 0] },
+      inputs: { text: effectivePrompt, clip: ["26", 0] },
     },
     "6": {
       class_type: "CLIPTextEncode",
-      inputs: { text: negativePrompt, clip: ["26", 0] },
+      inputs: { text: audioEnhancedNegative, clip: ["26", 0] },
     },
 
     // === Audio VAE ===
@@ -230,10 +361,44 @@ function buildMSRWorkflow(opts: {
       inputs: { ckpt_name: LTX_DEFAULTS.msrModelName },
     },
 
+    // === Custom Audio (冻结音频参考) ===
+    // 借鉴 LTX2.3-MSR全能参考工作流的音频冻结机制:
+    // LoadAudio → AudioVAEEncode → SetLatentNoiseMask(SolidMask=0) → ConcatAVLatent
+    // SolidMask=0 冻结音频区域, 采样时不修改音频, 相当于"强制"输出指定音频
+    ...(customAudio ? {
+      "60": {
+        class_type: "LoadAudio",
+        inputs: { audio: customAudio },
+      },
+      "61": {
+        class_type: "LTXVAudioVAEEncode",
+        inputs: {
+          audio: ["60", 0],
+          audio_vae: ["21", 0],
+        },
+      },
+      "62": {
+        class_type: "SolidMask",
+        inputs: { value: 0, width: 512, height: 512 },
+      },
+      "63": {
+        class_type: "SetLatentNoiseMask",
+        inputs: {
+          samples: ["61", 0],
+          mask: ["62", 0],
+        },
+      },
+    } : {}),
+
     // === Video Conditioning ===
+    // V2: positive conditioning comes from PromptRelayEncode (node 99) instead of CLIPTextEncode (node 5)
     "7": {
       class_type: "LTXVConditioning",
-      inputs: { positive: ["5", 0], negative: ["6", 0], frame_rate: fps },
+      inputs: {
+        positive: useV2 ? ["99", 1] : ["5", 0],
+        negative: ["6", 0],
+        frame_rate: fps,
+      },
     },
 
     // === Empty Latents ===
@@ -280,11 +445,13 @@ function buildMSRWorkflow(opts: {
     },
 
     // === Concat AV Latents ===
+    // 有自定义音频时: 用冻结的音频latent (node 63)
+    // 无自定义音频时: 用空音频latent (node 22), LTX模型自己生成音频
     "23": {
       class_type: "LTXVConcatAVLatent",
       inputs: {
         video_latent: [guideOutNode, 2],
-        audio_latent: ["22", 0],
+        audio_latent: customAudio ? ["63", 0] : ["22", 0],
       },
     },
 
@@ -304,7 +471,7 @@ function buildMSRWorkflow(opts: {
     "37": {
       class_type: "CFGGuider",
       inputs: {
-        model: hasPose ? ["51", 0] : ["10", 0],
+        model: modelNodeForGuider === "121" ? ["121", 0] : modelNodeForGuider === "51" ? ["51", 0] : ["10", 0],
         positive: [guideOutNode, 0],
         negative: [guideOutNode, 1],
         cfg: 1.0,
@@ -353,9 +520,13 @@ function buildMSRWorkflow(opts: {
     },
 
     // === Create Video with Audio ===
+    // silent 模式下不接 audio 输入 → 输出纯静音视频
     "19": {
       class_type: "CreateVideo",
-      inputs: {
+      inputs: audioMode === "silent" ? {
+        images: ["38", 0],
+        fps,
+      } : {
         images: ["38", 0],
         audio: ["25", 0],
         fps,
@@ -395,6 +566,14 @@ function buildMSRWorkflow(opts: {
 //   outputFilename — 输出文件名 (不含扩展名), 默认自动生成
 //   outputDir      — 容器内输出子目录, 默认 ""
 //
+// V2 可选参数 (默认启用):
+//   useV2          — 启用 NAG + LoRA V2, 默认 true (设 "false" 退回 V1)
+//   refDescription — 参考图角色/场景描述, 用于增强 identity 一致性
+//   nagWeight      — NAG alpha (注意力引导强度), 默认 0.25
+//   nagLayers      — NAG scale (注意力层数), 默认 11
+//   nagSigmaStart  — NAG tau (裁剪阈值), 默认 2.5
+//   msrLoraVersion — LoRA 版本选择: "V2" (默认), "V1", "test"
+//
 // 内部自动计算 (不暴露):
 //   numFrames      = roundTo8nPlus1(duration * fps + 1)
 //   msrFrameCount  = 自动匹配最接近的 [17,25,33,41]
@@ -407,6 +586,7 @@ export default router.post(
     { name: "ref3", maxCount: 1 },
     { name: "ref4", maxCount: 1 },
     { name: "ref5", maxCount: 1 },
+    { name: "audio", maxCount: 1 },
   ]),
   validateFields({
     projectId: z.coerce.number(),
@@ -426,8 +606,36 @@ export default router.post(
     const outputFilename = (req.body.outputFilename as string) || `ltx_msr_${projectId}_${Date.now()}`;
     const outputDir = (req.body.outputDir as string) || "";
 
+    // --- V2 params ---
+    const useV2 = req.body.useV2 !== "false" && req.body.useV2 !== false;
+    const refDescription = (req.body.refDescription as string) || "";
+    const nagWeight = req.body.nagWeight ? Number(req.body.nagWeight) : undefined;
+    const nagLayers = req.body.nagLayers ? Number(req.body.nagLayers) : undefined;
+    const nagSigmaStart = req.body.nagSigmaStart ? Number(req.body.nagSigmaStart) : undefined;
+    const msrLoraVersion = (req.body.msrLoraVersion as string) || "V2";
+    const relayWeight = req.body.relayWeight ? Number(req.body.relayWeight) : undefined;
+    const audioMode = (req.body.audioMode as string) || "dialogue+ambient";
+
     // --- Collect uploaded reference images (2~5) ---
     const files = req.files as Record<string, Express.Multer.File[]>;
+
+    // --- Custom audio file upload ---
+    // 用户提供自定义音频(wav/flac/mp3), 冻结到输出视频
+    const customAudioFile = files?.["audio"]?.[0];
+    let customAudioFilename: string | undefined;
+    if (customAudioFile) {
+      try {
+        const ext = path.extname(customAudioFile.originalname || ".wav") || ".wav";
+        const filename = `${uuidv4()}${ext}`;
+        const containerPath = `${LTX_CONFIG.comfyuiInputDir}/${filename}`;
+        copyToContainer(customAudioFile.path, containerPath);
+        customAudioFilename = filename;
+      } catch (err: any) {
+        try { fs.unlinkSync(customAudioFile.path); } catch {}
+        return res.status(502).send(error(`Failed to upload audio to ComfyUI: ${err.message}`));
+      }
+      try { fs.unlinkSync(customAudioFile.path); } catch {}
+    }
     const refFieldNames = ["ref1", "ref2", "ref3", "ref4", "ref5"];
     const uploadedFiles: Express.Multer.File[] = [];
 
@@ -559,6 +767,16 @@ export default router.post(
       poseFrameFilename,
       poseVideoFilename,
       poseGuideStrength,
+      // V2 params
+      useV2,
+      refDescription,
+      nagWeight,
+      nagLayers,
+      nagSigmaStart,
+      msrLoraVersion,
+      relayWeight,
+      audioMode,
+      customAudioFilename,
     });
 
     try {
@@ -582,14 +800,24 @@ export default router.post(
         promptId,
         status: "pending",
         message: (poseFrameFilename || poseVideoFilename)
-          ? "LTX LiconMSR task submitted with pose guide (dual-conditioning)"
-          : "LTX LiconMSR multi-reference task submitted",
+          ? `LTX LiconMSR V2 task submitted with pose guide (dual-conditioning)${useV2 ? " + NAG" : ""}`
+          : `LTX LiconMSR ${useV2 ? "V2 (NAG)" : "V1"} multi-reference task submitted`,
         refCount: uploadedFiles.length,
+        v2: useV2 ? {
+          nag: { scale: nagLayers ?? LTX_MSR_V2.nag.nagLayers, alpha: nagWeight ?? LTX_MSR_V2.nag.nagWeight, tau: nagSigmaStart ?? LTX_MSR_V2.nag.nagSigmaStart },
+          refDescription: refDescription ? true : false,
+          loraVersion: msrLoraVersion,
+        } : null,
         poseGuide: (poseFrameFilename || poseVideoFilename) ? {
           type: poseVideoFilename ? "video" : "image",
           file: poseVideoFilename || poseFrameFilename,
           strength: poseGuideStrength ?? LTX_POSE.poseGuideStrength,
         } : null,
+        audio: {
+          mode: audioMode,
+          hasAudioTrack: audioMode !== "silent",
+          customAudio: customAudioFilename ? true : false,
+        },
         params: {
           width, height,
           duration: `${actualDuration}s`,

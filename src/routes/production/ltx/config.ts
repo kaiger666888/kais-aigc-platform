@@ -17,8 +17,26 @@ export const LTX_DEFAULTS = {
   clipName2: "ltx-2.3_text_projection_bf16.safetensors",
   vaeName: "ltx2_vae/LTX23_video_vae_bf16.safetensors",
   loraName: "ltx-2.3-22b-distilled-lora-384-1.1.safetensors",
-  msrLoraName: "LTX-2.3-Licon-MSR-V1.safetensors",
+  msrLoraName: "LTX-2.3-Multiple-Subject-Reference/LTX-2.3-Licon-MSR-V2.safetensors",
   msrModelName: "ltx-2.3-22b-distilled-1.1.safetensors",
+  // V2 also provides a test version with extra training
+  msrLoraTestName: "LTX-2.3-Multiple-Subject-Reference/LTX2.3-Licon-MSR-test_version.safetensors",
+};
+
+// === MSR V2: PromptRelay + NAG ===
+export const LTX_MSR_V2 = {
+  /** NAG (Normal Attention Guidance) defaults from V2 sample workflow */
+  nag: {
+    enabled: true,
+    nagLayers: 11,        // number of attention layers to apply NAG
+    nagWeight: 0.25,      // NAG strength
+    nagSigmaStart: 2.5,   // sigma start for NAG
+    nagApplyToAudio: true, // apply NAG to audio conditioning too
+  },
+  /** PromptRelay defaults */
+  promptRelay: {
+    relayWeight: 0.0022,  // weight for reference description injection
+  },
 };
 
 export const LTX_MSR_TRIM = {
