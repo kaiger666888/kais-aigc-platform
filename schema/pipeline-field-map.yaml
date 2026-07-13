@@ -167,43 +167,19 @@ phases:
     canvas_type: script
     asset_type: outline
     fields:
-      hook_type:
-        python_key: hook_type
-        canvas_key: hookType
-        zod_type: string
-        enum: hook_type
-        required: false
       hook_strength:
         python_key: hook_strength
         canvas_key: hookIntensity
         zod_type: number
         transform: "hook_intensity"
-        required: false
-      narrative_structure:
-        python_key: narrative_structure
-        canvas_key: mcmahonArc
-        zod_type: string
-        enum: mcmahon_arc
         required: false
 
   p03:
     canvas_type: script
     asset_type: script_phase
     fields:
-      hook_type:
-        python_key: hook_type
-        canvas_key: hookType
-        zod_type: string
-        enum: hook_type
-        required: false
-      hook_strength:
-        python_key: hook_strength
-        canvas_key: hookIntensity
-        zod_type: number
-        transform: "hook_intensity"
-        required: false
-      narrative_structure:
-        python_key: narrative_structure
+      mcmahon_arc:
+        python_key: mcmahon_arc
         canvas_key: mcmahonArc
         zod_type: string
         enum: mcmahon_arc
@@ -220,7 +196,7 @@ phases:
         transform: "derive_archetype"
         required: false
       age_range:
-        python_key: age_variants
+        python_key: age_range
         canvas_key: ageRange
         zod_type: string
         transform: "derive_age_range"
@@ -285,7 +261,7 @@ phases:
         python_key: shot_type
         canvas_key: shot_type
         zod_type: string
-        required: true
+        required: false
       duration_sec:
         python_key: duration_sec
         canvas_key: duration_sec
