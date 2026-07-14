@@ -123,3 +123,6 @@ docker/hermes-agent/_hermes_source/
 test-results/
 playwright-report/
 
+
+# Python venvs (BGM detector etc.)
+.venvs/

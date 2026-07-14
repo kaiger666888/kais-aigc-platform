@@ -90,7 +90,7 @@ function roundTo8nPlus1(raw: number): number {
  *   V1: Checkpoint → IC-LoRA → (Pose IC-LoRA) → CFGGuider
  *   V2: Checkpoint → IC-LoRA → PromptRelayEncode → LTX2_NAG → (Pose IC-LoRA) → CFGGuider
  */
-function buildMSRWorkflow(opts: {
+export function buildMSRWorkflow(opts: {
   refFilenames: string[];       // 1~5 images: [ref1, ref2, ..., refN] (最后一张作为 background)
   prompt: string;               // action/scene prompt (what happens in the video)
   negativePrompt: string;
@@ -138,14 +138,17 @@ function buildMSRWorkflow(opts: {
   const customAudio = opts.customAudioFilename || "";
 
   // 音频引导词 — 注入到 prompt 和 negative prompt 中
+  // 强化版 (v2, 2026-07-14): 实测 v1 prompt 无法压制 LTX audio VAE 的音乐倾向,
+  // 改用电影工业术语 "diegetic" vs "non-diegetic" 明确区分场内音 vs 配乐,
+  // 并穷举所有音乐要素作为负面引导。
   const AUDIO_GUIDES: Record<string, { positive: string; negative: string }> = {
     "dialogue+ambient": {
-      positive: "natural ambient sounds, footsteps, clothing rustle, environmental audio, character dialogue speech",
-      negative: "background music, BGM, soundtrack, musical instruments, melody, singing, theme song",
+      positive: "strictly diegetic in-world sound, on-location production audio, raw foley art, natural room tone, environmental ambiance, character dialogue, no scored music, unscored scene",
+      negative: "non-diegetic audio, background music, BGM, soundtrack, musical score, underscore, theme music, cue, instrumentation, instruments, melody, melodic phrase, harmony, chord progression, tonal center, key, scale, rhythm, beat, pulse, tempo, groove, percussion, drums, drum beat, bass line, bass guitar, orchestral arrangement, string section, brass, electronic music, synthesizer, vocal melody, singing, hooks, drops, chorus, verse, bridge, intro, outro, leitmotif, jingle, any structured musical composition or arrangement",
     },
     "ambient_only": {
-      positive: "natural ambient sounds, footsteps, clothing rustle, environmental audio, wind, room tone",
-      negative: "background music, BGM, soundtrack, musical instruments, melody, singing, speech, dialogue, voices",
+      positive: "strictly diegetic in-world ambient sound, on-location field recording, raw foley, natural room tone, wind, rustle, environmental texture, no scored music, no voices, unscored scene",
+      negative: "non-diegetic audio, background music, BGM, soundtrack, musical score, underscore, theme music, cue, instrumentation, instruments, melody, harmony, chord progression, rhythm, beat, pulse, tempo, percussion, drums, bass, orchestra, electronic music, synthesizer, vocal melody, singing, hooks, drops, chorus, verse, bridge, leitmotif, jingle, speech, dialogue, voices, narration, any structured musical composition or arrangement",
     },
     "silent": {
       positive: "",
@@ -578,20 +581,24 @@ function buildMSRWorkflow(opts: {
 //   numFrames      = roundTo8nPlus1(duration * fps + 1)
 //   msrFrameCount  = 自动匹配最接近的 [17,25,33,41]
 
-export default router.post(
+const commonUpload = upload.fields([
+  { name: "ref1", maxCount: 1 },
+  { name: "ref2", maxCount: 1 },
+  { name: "ref3", maxCount: 1 },
+  { name: "ref4", maxCount: 1 },
+  { name: "ref5", maxCount: 1 },
+  { name: "audio", maxCount: 1 },
+]);
+
+const commonValidate = validateFields({
+  projectId: z.coerce.number(),
+  prompt: z.string().min(1),
+});
+
+router.post(
   "/",
-  upload.fields([
-    { name: "ref1", maxCount: 1 },
-    { name: "ref2", maxCount: 1 },
-    { name: "ref3", maxCount: 1 },
-    { name: "ref4", maxCount: 1 },
-    { name: "ref5", maxCount: 1 },
-    { name: "audio", maxCount: 1 },
-  ]),
-  validateFields({
-    projectId: z.coerce.number(),
-    prompt: z.string().min(1),
-  }),
+  commonUpload,
+  commonValidate,
   async (req, res) => {
     // --- Parse user-facing params ---
     const projectId = Number(req.body.projectId);
@@ -836,3 +843,294 @@ export default router.post(
     }
   },
 );
+
+// ============================================================
+// POST /verified — submit + poll + BGM-verify + auto-regen
+// ============================================================
+//
+// Same multipart input as POST /, but synchronous:
+//   1. Submit workflow to ComfyUI
+//   2. Poll /history/{promptId} until success
+//   3. Download output video
+//   4. Run BGM detection (scripts/audio/detect_bgm.py)
+//   5. If has_bgm && attempts remaining → re-submit with new seed
+//   6. Return final result + BGM report
+//
+// Additional body params:
+//   maxRegenAttempts — 最大重试次数 (默认 3, 包含首次)
+//   bgmThreshold     — 音乐占比阈值 (默认 0.10 = 10%)
+//   pollTimeoutMs    — 单次轮询超时 (默认 600000 = 10min)
+//
+// Caveat: this endpoint holds the HTTP connection for the entire pipeline.
+// Total worst-case time = maxRegenAttempts × pollTimeoutMs.
+// Use a long-timeout client (e.g. axios with timeout: 0).
+
+router.post(
+  "/verified",
+  commonUpload,
+  commonValidate,
+  async (req, res) => {
+    const maxAttempts = Math.max(1, Number(req.body.maxRegenAttempts) || 3);
+    const bgmThreshold = Number(req.body.bgmThreshold) || 0.10;
+    const pollTimeoutMs = Number(req.body.pollTimeoutMs) || LTX_CONFIG.pollTimeoutMs;
+
+    // Reuse the same body parsing the / handler does. To keep this block
+    // self-contained without a giant refactor, we re-read req.body here.
+    const projectId = Number(req.body.projectId);
+    const prompt = req.body.prompt as string;
+    const duration = Number(req.body.duration) || 3;
+    const fps = Number(req.body.fps) || 24;
+    const width = Number(req.body.width) || 1280;
+    const height = Number(req.body.height) || 704;
+    const negativePrompt = (req.body.negativePrompt as string)
+      || "worst quality, blurry, jittery, distorted, inconsistent appearance";
+    const baseSeed = req.body.seed ? Number(req.body.seed) : Math.floor(Math.random() * 2147483647);
+    const outputFilenameBase = (req.body.outputFilename as string)
+      || `ltx_msr_${projectId}_${Date.now()}`;
+    const outputDir = (req.body.outputDir as string) || "";
+
+    const useV2 = req.body.useV2 !== "false" && req.body.useV2 !== false;
+    const refDescription = (req.body.refDescription as string) || "";
+    const nagWeight = req.body.nagWeight ? Number(req.body.nagWeight) : undefined;
+    const nagLayers = req.body.nagLayers ? Number(req.body.nagLayers) : undefined;
+    const nagSigmaStart = req.body.nagSigmaStart ? Number(req.body.nagSigmaStart) : undefined;
+    const msrLoraVersion = (req.body.msrLoraVersion as string) || "V2";
+    const relayWeight = req.body.relayWeight ? Number(req.body.relayWeight) : undefined;
+    const audioMode = (req.body.audioMode as string) || "dialogue+ambient";
+
+    const files = req.files as Record<string, Express.Multer.File[]>;
+
+    // Custom audio upload (same as /)
+    const customAudioFile = files?.["audio"]?.[0];
+    let customAudioFilename: string | undefined;
+    if (customAudioFile) {
+      try {
+        const ext = path.extname(customAudioFile.originalname || ".wav") || ".wav";
+        const filename = `${uuidv4()}${ext}`;
+        const containerPath = `${LTX_CONFIG.comfyuiInputDir}/${filename}`;
+        copyToContainer(customAudioFile.path, containerPath);
+        customAudioFilename = filename;
+      } catch (err: any) {
+        try { fs.unlinkSync(customAudioFile.path); } catch {}
+        return res.status(502).send(error(`Failed to upload audio to ComfyUI: ${err.message}`));
+      }
+      try { fs.unlinkSync(customAudioFile.path); } catch {}
+    }
+
+    const refFieldNames = ["ref1", "ref2", "ref3", "ref4", "ref5"];
+    const uploadedFiles: Express.Multer.File[] = [];
+    for (const name of refFieldNames) {
+      if (files?.[name]?.[0]) uploadedFiles.push(files[name][0]);
+      else break;
+    }
+    if (uploadedFiles.length < 2) {
+      return res.status(400).send(error("At least 2 reference images required (ref1, ref2). Up to 5 supported."));
+    }
+    if (uploadedFiles.length > 5) {
+      return res.status(400).send(error(`Too many reference images: ${uploadedFiles.length} (max 5).`));
+    }
+
+    const poseVideoFramesRaw = req.body.poseVideoFrames as string | undefined;
+    let poseFrameHostPath: string | null = null;
+    if (poseVideoFramesRaw) {
+      try {
+        const parsed = JSON.parse(poseVideoFramesRaw);
+        if (!Array.isArray(parsed) || parsed.length === 0) {
+          return res.status(400).send(error("poseVideoFrames must be a non-empty JSON array of file paths"));
+        }
+        const first = parsed[0];
+        if (typeof first !== "string" || first.length === 0) {
+          return res.status(400).send(error("poseVideoFrames[0] must be a string path"));
+        }
+        poseFrameHostPath = first;
+      } catch {
+        return res.status(400).send(error("poseVideoFrames must be a JSON-stringified array of file paths"));
+      }
+    }
+
+    const numFrames = roundTo8nPlus1(Math.round(duration * fps) + 1);
+    const msrFrameCount = pickMSRFrameCount(uploadedFiles.length);
+
+    // Copy reference images once — re-use across regen attempts
+    const refFilenames: string[] = [];
+    try {
+      for (const file of uploadedFiles) {
+        const ext = path.extname(file.originalname || ".png") || ".png";
+        const filename = `${uuidv4()}${ext}`;
+        const containerPath = `${LTX_CONFIG.comfyuiInputDir}/${filename}`;
+        refFilenames.push(filename);
+        copyToContainer(file.path, containerPath);
+      }
+    } catch (err: any) {
+      for (const file of uploadedFiles) {
+        try { fs.unlinkSync(file.path); } catch {}
+      }
+      return res.status(502).send(error(`Failed to upload images to ComfyUI: ${err.message}`));
+    }
+    for (const file of uploadedFiles) {
+      try { fs.unlinkSync(file.path); } catch {}
+    }
+
+    // Optional pose frame
+    let poseFrameFilename: string | undefined;
+    let poseVideoFilename: string | undefined;
+    if (poseFrameHostPath) {
+      try {
+        const frame = poseFrameHostPath;
+        const isHostPath = frame.startsWith("/") && fs.existsSync(frame);
+        const ALLOWED_HOST_PREFIXES = [
+          "/data/workspace/kais-blender-docker/outputs/",
+          "/mnt/agents/output/",
+          "/tmp/comfyui-ltx-input/",
+          LOCAL_STAGING_DIR + "/",
+        ];
+        if (isHostPath) {
+          const allowed = ALLOWED_HOST_PREFIXES.some((p) => frame.startsWith(p));
+          if (!allowed) {
+            throw new Error(`poseVideoFrames path "${frame}" is outside allowed host prefixes`);
+          }
+          const ext = path.extname(frame) || ".png";
+          const isVideo = [".mp4", ".webm", ".mov", ".avi", ".mkv"].includes(ext.toLowerCase());
+          const containerFilename = `${uuidv4()}${ext}`;
+          const containerPath = `${LTX_CONFIG.comfyuiInputDir}/${containerFilename}`;
+          copyToContainer(frame, containerPath);
+          if (isVideo) poseVideoFilename = containerFilename;
+          else poseFrameFilename = containerFilename;
+        } else {
+          const ext = path.extname(frame).toLowerCase();
+          const isVideo = [".mp4", ".webm", ".mov", ".avi", ".mkv"].includes(ext);
+          if (isVideo) poseVideoFilename = path.basename(frame);
+          else poseFrameFilename = path.basename(frame);
+        }
+      } catch (err: any) {
+        return res.status(502).send(error(`Failed to ingest poseVideoFrame: ${err.message}`));
+      }
+    }
+
+    const poseGuideStrength = req.body.poseGuideStrength ? Number(req.body.poseGuideStrength) : undefined;
+
+    // === Regen loop ===
+    const attempts: any[] = [];
+    let currentSeed = baseSeed;
+
+    // Lazy-load heavy modules so the existing / path doesn't pay the cost.
+    const { pollComfyUi, findOutputVideo, downloadOutput } = await import("@/lib/comfyuiPoll");
+    const { detectBgm } = await import("@/lib/audioBgmDetector");
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const outputFilename = `${outputFilenameBase}_attempt${attempt}`;
+      const filenamePrefix = outputDir ? `${outputDir}/${outputFilename}` : outputFilename;
+
+      const workflow = buildMSRWorkflow({
+        refFilenames,
+        prompt, negativePrompt,
+        width, height, numFrames, msrFrameCount, fps,
+        seed: currentSeed, filenamePrefix,
+        poseFrameFilename, poseVideoFilename, poseGuideStrength,
+        useV2, refDescription,
+        nagWeight, nagLayers, nagSigmaStart, msrLoraVersion, relayWeight,
+        audioMode, customAudioFilename,
+      });
+
+      let promptId: string;
+      try {
+        const comfyRes = await axios.post(
+          `${LTX_CONFIG.comfyuiUrl}/prompt`,
+          { prompt: workflow },
+          { timeout: 30_000, validateStatus: (s: number) => s < 500 },
+        );
+        if (comfyRes.status !== 200) {
+          return res.status(502).send(error(`ComfyUI rejected prompt (attempt ${attempt}): ${JSON.stringify(comfyRes.data)}`));
+        }
+        promptId = comfyRes.data.prompt_id;
+      } catch (err: any) {
+        const msg = err.response?.data?.error?.message || err.response?.data?.node_errors || err.message || String(err);
+        return res.status(502).send(error(`ComfyUI submit failed (attempt ${attempt}): ${msg}`));
+      }
+
+      // Poll until done
+      const poll = await pollComfyUi(promptId, { pollTimeoutMs });
+      if (poll.status !== "success") {
+        attempts.push({ attempt, promptId, seed: currentSeed, status: "error", error: poll.error });
+        return res.status(502).send(error(`Generation failed (attempt ${attempt}): ${poll.error}`));
+      }
+
+      // Find output video
+      const file = findOutputVideo(poll.outputs!);
+      if (!file) {
+        attempts.push({ attempt, promptId, seed: currentSeed, status: "no_video" });
+        return res.status(502).send(error(`No video in ComfyUI outputs (attempt ${attempt})`));
+      }
+
+      // Download and analyze (skip if silent mode = no audio)
+      let bgmReport: any = null;
+      if (audioMode !== "silent") {
+        let localPath: string | null = null;
+        try {
+          localPath = await downloadOutput(file);
+          bgmReport = await detectBgm(localPath, { threshold: bgmThreshold });
+        } catch (err: any) {
+          attempts.push({ attempt, promptId, seed: currentSeed, status: "bgm_check_failed", error: err.message });
+          // BGM check failure shouldn't fail the whole request — return the video as-is
+          return res.status(200).send(success({
+            promptId, attempt, status: "bgm_check_failed",
+            message: `Generation succeeded but BGM check errored: ${err.message}`,
+            video: file,
+            params: { width, height, numFrames, fps, seed: currentSeed, audioMode },
+            attempts,
+          }));
+        } finally {
+          if (localPath) { try { fs.unlinkSync(localPath); } catch {} }
+        }
+      } else {
+        bgmReport = {
+          has_bgm: false, confidence: 1.0, interpretation: "SILENT",
+          note: "audioMode=silent; no audio stream produced",
+        };
+      }
+
+      const accepted = !bgmReport.has_bgm;
+      attempts.push({
+        attempt, promptId, seed: currentSeed,
+        status: accepted ? "accepted" : "rejected_bgm",
+        music_pct: bgmReport.music_pct,
+        confidence: bgmReport.confidence,
+        video: file,
+      });
+
+      if (accepted || attempt >= maxAttempts) {
+        const trimFrames = calcTrimFrames(uploadedFiles.length, msrFrameCount);
+        return res.status(200).send(success({
+          promptId,
+          status: accepted ? "verified" : "bgm_failed",
+          message: accepted
+            ? `Video verified BGM-free on attempt ${attempt}/${maxAttempts}`
+            : `BGM detected in all ${maxAttempts} attempts; returning last result`,
+          attempt,
+          accepted,
+          video: file,
+          bgm: bgmReport,
+          refCount: uploadedFiles.length,
+          audio: {
+            mode: audioMode,
+            hasAudioTrack: audioMode !== "silent",
+            customAudio: customAudioFilename ? true : false,
+          },
+          params: {
+            width, height, numFrames, fps, seed: currentSeed,
+            msrFrameCount,
+            trimFrames,
+            trimSec: +(trimFrames / fps).toFixed(4),
+          },
+          attempts,
+        }));
+      }
+
+      // BGM detected, prepare next seed
+      currentSeed = Math.floor(Math.random() * 2147483647);
+    }
+    // Unreachable
+  },
+);
+
+export default router;
