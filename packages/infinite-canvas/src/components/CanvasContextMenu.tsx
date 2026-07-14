@@ -1,6 +1,7 @@
 import { useState, type JSX } from 'react'
 import type { AssetNodeData, StoryboardNodeData, VideoNodeData } from '../types/canvas'
 import { executeNode, approveNode, rejectNode, requestNodeScore, orchestrateCanvas, saveCanvasGraph } from '../services/canvasApi'
+import { submitScail2Replace, submitScail2Transfer, pollScail2UntilDone, fetchBlobFromUrl } from '../services/scail2Api'
 import { useCanvasStore } from '../store/canvasStore'
 import { canvasToFlowGraph } from '../utils/flowDataMapper'
 import { theme } from '../theme/catppuccin'
@@ -197,6 +198,73 @@ export default function CanvasContextMenu({
       },
     })
     items.push({ label: '---', icon: '', action: () => {} })
+  }
+
+  // SCAIL2 — 视频节点右键触发角色替换 / 动作迁移
+  const nodes = useCanvasStore.getState().nodes
+  const clickedNode = nodeId ? nodes.find((n) => n.id === nodeId) : null
+  const clickedNodeHasFile =
+    clickedNode &&
+    typeof (clickedNode.data as any).filePath === 'string' &&
+    (clickedNode.data as any).filePath
+  if (clickedNodeHasFile) {
+    items.push({ label: '---', icon: '', action: () => {} })
+
+    const runScail2 = async (mode: 'replace' | 'transfer') => {
+      const poseUrl = (clickedNode!.data as any).filePath as string
+      // 弹出文件选择器让用户挑参考图
+      const fileInput = document.createElement('input')
+      fileInput.type = 'file'
+      fileInput.accept = 'image/*'
+      fileInput.onchange = async (ev) => {
+        const target = ev.target as HTMLInputElement
+        const refFile = target.files?.[0]
+        if (!refFile) return
+        showToast(`${mode === 'replace' ? '替换' : '迁移'}：拉取 pose 视频 + 提交...`, 'info')
+        try {
+          const poseBlob = await fetchBlobFromUrl(poseUrl)
+          const submitFn = mode === 'replace' ? submitScail2Replace : submitScail2Transfer
+          const submit = await submitFn(poseBlob, refFile, {
+            projectId,
+            prompt: `canvas ${mode} from ${nodeId}`,
+          })
+          showToast(`已提交，轮询中 (promptId=${submit.promptId.slice(0, 8)})`, 'info')
+          const final = await pollScail2UntilDone(submit.promptId, {
+            intervalMs: 10_000, timeoutMs: 600_000,
+            onStatus: (s) => {
+              if (s.status === 'running') showToast('生成中...', 'info')
+            },
+          })
+          if (final.status === 'done' && final.videos[0]?.tailscaleUrl) {
+            const url = final.videos[0].tailscaleUrl
+            showToast(`✅ SCAIL2 ${mode} done: ${url}`, 'success')
+            // 把输出作为新视频节点加到 canvas，紧挨原节点右侧
+            const newId = `video-scail2-${mode}-${Date.now()}`
+            const label = mode === 'replace' ? 'SCAIL2 替换' : 'SCAIL2 迁移'
+            const newData: VideoNodeData = {
+              label, type: 'video', videoId: 0,
+              filePath: url, thumbnailUrl: null, state: 'idle',
+            }
+            useCanvasStore.getState().setNodes((nds) => [...nds, {
+              id: newId, type: 'video',
+              position: { x: (clickedNode!.position?.x ?? 0) + 320, y: (clickedNode!.position?.y ?? 0) + 40 },
+              data: newData,
+            }])
+          } else {
+            showToast(`SCAIL2 ${mode} 失败：${final.status}`, 'error')
+          }
+        } catch (err: any) {
+          showToast(`SCAIL2 ${mode} 失败：${err.message}`, 'error')
+        }
+      }
+      fileInput.click()
+      onClose()
+    }
+
+    items.push(
+      { label: '🎭 SCAIL2 角色替换...', icon: '🎭', action: () => runScail2('replace') },
+      { label: '💃 SCAIL2 动作迁移...', icon: '💃', action: () => runScail2('transfer') },
+    )
   }
 
   items.push(
