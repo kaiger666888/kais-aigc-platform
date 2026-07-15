@@ -1,10 +1,11 @@
 ---
 phase: 45
 slug: text-asset-mapping-ui-completeness
-status: draft
+status: complete
 nyquist_compliant: true
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-07-16
+completed: 2026-07-16
 ---
 
 # Phase 45 — Validation Strategy
@@ -47,23 +48,23 @@ created: 2026-07-16
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|--------|
-| 45-01-01 | 01 | 1 | TEXT-01 | T-45-01 | Sidecar cap raised to 10K; old 500 cap removed | static (tsc + grep) | `grep -c "slice(0, 500)" src/routes/canvas/v2/import-from-dir.ts \| grep -qE '^0$' && grep -c "slice(0, 10000)" src/routes/canvas/v2/import-from-dir.ts \| grep -qE '^1$' && npx tsc --noEmit 2>&1 \| grep -c "error TS" \| grep -qE '^3$'` | ⬜ pending |
-| 45-01-02 | 01 | 1 | TEXT-01 | — | Standalone .txt files in script dirs become script nodes; deduped against sidecars | static (tsc + grep) | `grep -c "artifactsFromScriptTextFiles" src/routes/canvas/v2/import-from-dir.ts \| grep -qE '^[2-9]$' && grep -c "consumedBaselineSet" src/routes/canvas/v2/import-from-dir.ts \| grep -qE '^[2-9]$' && npx tsc --noEmit 2>&1 \| grep -c "error TS" \| grep -qE '^3$'` | ⬜ pending |
+| 45-01-01 | 01 | 1 | TEXT-01 | T-45-01 | Sidecar cap raised to 10K; old 500 cap removed | static (tsc + grep) | `grep -c "slice(0, 500)" src/routes/canvas/v2/import-from-dir.ts \| grep -qE '^0$' && grep -c "slice(0, 10000)" src/routes/canvas/v2/import-from-dir.ts \| grep -qE '^1$' && npx tsc --noEmit 2>&1 \| grep -c "error TS" \| grep -qE '^3$'` | ✅ green (0 old / 1 new / 3 baseline errors) |
+| 45-01-02 | 01 | 1 | TEXT-01 | — | Standalone .txt files in script dirs become script nodes; deduped against sidecars | static (tsc + grep) | `grep -c "artifactsFromScriptTextFiles" src/routes/canvas/v2/import-from-dir.ts \| grep -qE '^[2-9]$' && grep -c "consumedBaselineSet" src/routes/canvas/v2/import-from-dir.ts \| grep -qE '^[2-9]$' && npx tsc --noEmit 2>&1 \| grep -c "error TS" \| grep -qE '^3$'` | ✅ green (probe at workdir root rather than asset dirs — see 45-01-SUMMARY deviation note) |
 
 ### Wave 1 (Plan 02 — UI panel completeness, parallel-safe with Plan 01)
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|--------|
-| 45-02-01 | 02 | 1 | TEXT-02 | T-45-05 | StoryboardDetail renders description block (pre-wrap, theme styles) when prompt absent | static (awk + tsc) | `awk '/^function StoryboardDetail/,/^function [A-Z]/' packages/infinite-canvas/src/components/NodeDetailPanel.tsx \| grep -c "描述" \| grep -qE '^[1-9]' && awk '/^function StoryboardDetail/,/^function [A-Z]/' packages/infinite-canvas/src/components/NodeDetailPanel.tsx \| grep -c "pre-wrap" \| grep -qE '^[2-9]' && npx tsc --noEmit 2>&1 \| grep -c "error TS" \| grep -qE '^3$'` | ⬜ pending |
-| 45-02-02 | 02 | 1 | TEXT-02 | T-45-05, T-45-07 | VideoDetail renders prompt + description + tags + provenance per AssetDetail pattern | static (awk + tsc) | `awk '/^function VideoDetail/,/^}$/' packages/infinite-canvas/src/components/NodeDetailPanel.tsx \| grep -cE 'Prompt 描述\|描述\|标签\|来源' \| grep -qE '^4$' && npx tsc --noEmit 2>&1 \| grep -c "error TS" \| grep -qE '^3$'` | ⬜ pending |
-| 45-02-03 | 02 | 1 | TEXT-02 | — | ScriptDetail falls back description → content → prompt (was: description → content) | static (grep + tsc) | `grep -c "data.description as string) \|\| (data.content as string) \|\| (data.prompt as string)" packages/infinite-canvas/src/components/NodeDetailPanel.tsx \| grep -qE '^1$' && npx tsc --noEmit 2>&1 \| grep -c "error TS" \| grep -qE '^3$'` | ⬜ pending |
+| 45-02-01 | 02 | 1 | TEXT-02 | T-45-05 | StoryboardDetail renders description block (pre-wrap, theme styles) when prompt absent | static (awk + tsc) | `awk '/^function StoryboardDetail/,/^function [A-Z]/' packages/infinite-canvas/src/components/NodeDetailPanel.tsx \| grep -c "描述" \| grep -qE '^[1-9]' && awk '/^function StoryboardDetail/,/^function [A-Z]/' packages/infinite-canvas/src/components/NodeDetailPanel.tsx \| grep -c "pre-wrap" \| grep -qE '^[2-9]' && npx tsc --noEmit 2>&1 \| grep -c "error TS" \| grep -qE '^3$'` | ✅ green |
+| 45-02-02 | 02 | 1 | TEXT-02 | T-45-05, T-45-07 | VideoDetail renders prompt + description + tags + provenance per AssetDetail pattern | static (awk + tsc) | `awk '/^function VideoDetail/,/^}$/' packages/infinite-canvas/src/components/NodeDetailPanel.tsx \| grep -cE 'Prompt 描述\|描述\|标签\|来源' \| grep -qE '^4$' && npx tsc --noEmit 2>&1 \| grep -c "error TS" \| grep -qE '^3$'` | ✅ green |
+| 45-02-03 | 02 | 1 | TEXT-02 | — | ScriptDetail falls back description → content → prompt (was: description → content) | static (grep + tsc) | `grep -c "data.description as string) \|\| (data.content as string) \|\| (data.prompt as string)" packages/infinite-canvas/src/components/NodeDetailPanel.tsx \| grep -qE '^1$' && npx tsc --noEmit 2>&1 \| grep -c "error TS" \| grep -qE '^3$'` | ✅ green |
 
 ### Wave 2 (Plan 03 — Tier 2 search filter + comprehensive gate, depends on Wave 1)
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|--------|
-| 45-03-01 | 03 | 2 | TEXT-03 | T-45-08, T-45-10 | Debounced search input filters visible nodes by label/description/prompt substring; visibility-only (no data mutation) | static (grep + tsc) | `grep -c "searchQuery" packages/infinite-canvas/src/components/FlowCanvas.tsx \| grep -qE '^[3-9]$' && grep -c "hidden: !matches" packages/infinite-canvas/src/components/FlowCanvas.tsx \| grep -qE '^1$' && grep -c "setTimeout" packages/infinite-canvas/src/components/FlowCanvas.tsx \| grep -qE '^[1-9]' && npx tsc --noEmit 2>&1 \| grep -c "error TS" \| grep -qE '^3$'` | ⬜ pending |
-| 45-03-02 | 03 | 2 | TEXT-01, TEXT-02, TEXT-03 | — | Comprehensive end-of-phase verifier: 13 assertions across TEXT-01/02/03 | integration (substring-presence on source files) | `npx tsx scripts/verify-phase-45.ts 2>&1 \| tail -10 && echo "EXIT=$?"` | ⬜ pending |
+| 45-03-01 | 03 | 2 | TEXT-03 | T-45-08, T-45-10 | Debounced search input filters visible nodes by label/description/prompt substring; visibility-only (no data mutation) | static (grep + tsc) | `grep -c "searchQuery" packages/infinite-canvas/src/components/FlowCanvas.tsx \| grep -qE '^[3-9]$' && grep -c "hidden: !matches" packages/infinite-canvas/src/components/FlowCanvas.tsx \| grep -qE '^1$' && grep -c "setTimeout" packages/infinite-canvas/src/components/FlowCanvas.tsx \| grep -qE '^[1-9]' && npx tsc --noEmit 2>&1 \| grep -c "error TS" \| grep -qE '^3$'` | ✅ green |
+| 45-03-02 | 03 | 2 | TEXT-01, TEXT-02, TEXT-03 | — | Comprehensive end-of-phase verifier: 13 assertions across TEXT-01/02/03 | integration (substring-presence on source files) | `npx tsx scripts/verify-phase-45.ts 2>&1 \| tail -10 && echo "EXIT=$?"` | ✅ green (13/13 assertions pass, exit 0) |
 
 ### Wave 2 re-verification (comprehensive gate — covers TEXT-01/02/03)
 
