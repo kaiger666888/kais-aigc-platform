@@ -148,15 +148,15 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 44-01-PLAN.md — Schema expansion (YAML + 3 generated files + EXPECTED_PARAM_FIELDS_BY_TYPE); covers SCHEMA-01, SCHEMA-04
+- [x] 44-01-PLAN.md — Schema expansion (YAML + 3 generated files + EXPECTED_PARAM_FIELDS_BY_TYPE); covers SCHEMA-01, SCHEMA-04
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 44-02-PLAN.md — Import stamping (__incomplete + __missing_fields + console.warn in import-from-dir.ts) + extract flattenParamsToNodeData helper; covers SCHEMA-02
+- [x] 44-02-PLAN.md — Import stamping (__incomplete + __missing_fields + console.warn in import-from-dir.ts) + extract flattenParamsToNodeData helper; covers SCHEMA-02
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 44-03-PLAN.md — Roundtrip verifier (scripts/verify-schema-roundtrip.ts + fixture + npm script); imports production flattenParamsToNodeData for non-tautological SCHEMA-03; covers SCHEMA-03, re-verifies SCHEMA-01/02/04
+- [x] 44-03-PLAN.md — Roundtrip verifier (scripts/verify-schema-roundtrip.ts + fixture + npm script); imports production flattenParamsToNodeData for non-tautological SCHEMA-03; covers SCHEMA-03, re-verifies SCHEMA-01/02/04
 
 ### Phase 45: Text Asset Mapping + UI Completeness
 
@@ -217,7 +217,7 @@ Phase 42 is the contract source — 43 and 44 can start in parallel after 42 lan
 |-------|-----------|----------------|--------|-----------|
 | 42. Source-side Manifest Contract Hardening | v2.0 | 0/? | Not started | - |
 | 43. canvas_sync.py Cleanup + Single-Path Mapping | v2.0 | 0/? | Not started | - |
-| 44. Receiving-side Schema Strictness + Import Validation | v2.0 | 0/3 | Planning complete | - |
+| 44. Receiving-side Schema Strictness + Import Validation | v2.0 | 3/3 | Complete | 2026-07-16 |
 | 45. Text Asset Mapping + UI Completeness | v2.0 | 0/? | Not started | - |
 | 46. E2E + Cross-repo Contract Tests | v2.0 | 0/? | Not started | - |
 | 47. Historical Backfill + Archival | v2.0 | 0/? | Not started | - |
