@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Canvas Sync Permanence
-status: executing
-stopped_at: Phases 42+43+44+45+46 complete + Phase 47 planning complete — 5/6 shipped, 6th planned. Phase 47 splits into Wave 1 apply (autonomous: false — DB mutation) + Wave 2 archive (autonomous: true). Next: /gsd:execute-phase 47.
-last_updated: "2026-07-16T04:15:00.000Z"
-last_activity: 2026-07-16 -- Phase 47 planned inline (skipped discuss/research/checker subagents per preference)
+status: complete
+stopped_at: v2.0 milestone COMPLETE — all 6 phases shipped (42/43/44/45/46/47). Source contract + sync cleanup + receiver schema + text UI + E2E contract tests + historical backfill all in place. Canvas-sync triad permanently solved via 4-gate strategy. Only deferred item: BACKFILL-02 manual sampling sign-off (operator time at browser).
+last_updated: "2026-07-16T05:00:00.000Z"
+last_activity: 2026-07-16 -- v2.0 milestone closed (Phase 47 shipped; 4 atomic commits in session)
 progress:
   total_phases: 6
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 12
-  completed_plans: 10
-  percent: 83
+  completed_plans: 12
+  percent: 100
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-17)
 
 ## Current Position
 
-Phase: 47 (historical-backfill-archival) planned
-Plan: 2 plans across 2 waves (47-01 apply Wave 1 autonomous: false; 47-02 archive Wave 2)
-Status: Ready to execute
-Last activity: 2026-07-16 -- Phase 47 planned inline (skipped discuss/research/checker subagents per preference)
+Phase: 47 complete (historical-backfill-archival) — final v2.0 phase
+Plan: All 12 v2.0 plans shipped across 6 phases
+Status: v2.0 milestone COMPLETE
+Last activity: 2026-07-16 -- Phase 47 shipped (2 waves, 4 commits in session); v2.0 milestone closed
 
 ## Performance Metrics
 

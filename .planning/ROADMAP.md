@@ -229,11 +229,11 @@ Plans:
 Plans:
 **Wave 1** *(autonomous: false — DB mutation, requires opt-in)*
 
-- [ ] 47-01-PLAN.md — Apply backfill (pre-flight contract gate + DB backup + dry-run baseline + `--apply` + post-run reduction verify); covers BACKFILL-01
+- [x] 47-01-PLAN.md — Apply backfill (pre-flight contract gate + DB backup + dry-run baseline + `--apply` + post-run reduction verify); covers BACKFILL-01
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 47-02-PLAN.md — Archive script to scripts/oneoffs/ + deprecation header + README convention + Phase 47 verifier + manual sampling sign-off; covers BACKFILL-02, BACKFILL-03
+- [x] 47-02-PLAN.md — Archive script to scripts/oneoffs/ + deprecation header + README convention + Phase 47 verifier + manual sampling sign-off; covers BACKFILL-02 (deferred to operator), BACKFILL-03
 
 ## Progress
 
@@ -254,7 +254,7 @@ Phase 42 is the contract source — 43 and 44 can start in parallel after 42 lan
 | 44. Receiving-side Schema Strictness + Import Validation | v2.0 | 3/3 | Complete | 2026-07-16 |
 | 45. Text Asset Mapping + UI Completeness | v2.0 | 3/3 | Complete | 2026-07-16 |
 | 46. E2E + Cross-repo Contract Tests | v2.0 | 2/2 | Complete | 2026-07-16 |
-| 47. Historical Backfill + Archival | v2.0 | 0/2 | Planning complete | - |
+| 47. Historical Backfill + Archival | v2.0 | 2/2 | Complete | 2026-07-16 |
 
 ### Completed Milestones
 

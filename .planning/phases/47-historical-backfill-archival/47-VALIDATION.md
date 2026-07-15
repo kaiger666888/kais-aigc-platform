@@ -1,10 +1,11 @@
 ---
 phase: 47
 slug: historical-backfill-archival
-status: draft
+status: complete
 nyquist_compliant: true
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-07-16
+completed: 2026-07-16
 ---
 
 # Phase 47 — Validation Strategy
@@ -44,36 +45,36 @@ created: 2026-07-16
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|--------|
-| 47-01-01 | 01 | 1 | BACKFILL-01 | T-47-01 | Pre-flight contract gate green + dry-run baseline captured | integration (contract gate + dry-run) | `npm run verify:phase-46-contracts && python3 scripts/backfill-asset-descriptions.py` | ⬜ pending |
-| 47-01-02 | 01 | 1 | BACKFILL-01 | T-47-05 | DB backup + apply run to completion | integration (DB backup + apply) | `cp data/db2.sqlite data/db2-backup-pre-phase-47.sqlite && python3 scripts/backfill-asset-descriptions.py --apply` | ⬜ pending |
-| 47-01-03 | 01 | 1 | BACKFILL-01 | T-47-01 | Post-run empty-shell count < 50% of baseline | integration (SQL count + comparison) | `python3 -c "..."` (inline count + reduction analysis) | ⬜ pending |
+| 47-01-01 | 01 | 1 | BACKFILL-01 | T-47-01 | Pre-flight contract gate green + dry-run baseline captured | integration (contract gate + dry-run) | `npm run verify:phase-46-contracts && python3 scripts/backfill-asset-descriptions.py` | ✅ green |
+| 47-01-02 | 01 | 1 | BACKFILL-01 | T-47-05 | DB backup + apply run to completion | integration (DB backup + apply) | `cp data/db2.sqlite data/db2-backup-pre-phase-47.sqlite && python3 scripts/backfill-asset-descriptions.py --apply` | ✅ green |
+| 47-01-03 | 01 | 1 | BACKFILL-01 | T-47-01 | Post-run empty-shell count < 50% of baseline | integration (SQL count + comparison) | `python3 -c "..."` (inline count + reduction analysis) | ✅ green |
 
 ### Wave 2 (Plan 47-02 — archival + manual sampling, autonomous: true)
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|--------|
-| 47-02-01 | 02 | 2 | BACKFILL-03 | T-47-07 | Script moved to scripts/oneoffs/ with deprecation header | static (file existence + grep) | `! test -f scripts/backfill-asset-descriptions.py && head -2 scripts/oneoffs/backfill-asset-descriptions.py \| grep -q DEPRECATED` | ⬜ pending |
-| 47-02-02 | 02 | 2 | BACKFILL-03 | T-47-08 | README documents one-off convention + audit trail | static (file existence + grep) | `test -f scripts/oneoffs/README.md && grep -q "Audit trail" scripts/oneoffs/README.md` | ⬜ pending |
-| 47-02-03 | 02 | 2 | BACKFILL-01, BACKFILL-03 | T-47-09 | Phase 47 verifier: archival + contract gate + DB backup | integration (4-5 assertions + spawnSync Phase 46) | `npm run verify:phase-47-backfill` | ⬜ pending |
+| 47-02-01 | 02 | 2 | BACKFILL-03 | T-47-07 | Script moved to scripts/oneoffs/ with deprecation header | static (file existence + grep) | `! test -f scripts/backfill-asset-descriptions.py && head -2 scripts/oneoffs/backfill-asset-descriptions.py \| grep -q DEPRECATED` | ✅ green |
+| 47-02-02 | 02 | 2 | BACKFILL-03 | T-47-08 | README documents one-off convention + audit trail | static (file existence + grep) | `test -f scripts/oneoffs/README.md && grep -q "Audit trail" scripts/oneoffs/README.md` | ✅ green |
+| 47-02-03 | 02 | 2 | BACKFILL-01, BACKFILL-03 | T-47-09 | Phase 47 verifier: archival + contract gate + DB backup | integration (4-5 assertions + spawnSync Phase 46) | `npm run verify:phase-47-backfill` | ✅ green |
 
 ### Manual sampling (Plan 47-02 — operator sign-off, autonomous: false sub-step)
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|--------|
-| 47-02-MANUAL | 02 | 2 | BACKFILL-02 | — | Visual inspection of 10 nodes each from P04 / P07 / P08 via Phase 45 search filter | manual (UI inspection) | (operator fills checklist in 47-VERIFICATION.md) | ⬜ pending |
+| 47-02-MANUAL | 02 | 2 | BACKFILL-02 | — | Visual inspection of 10 nodes each from P04 / P07 / P08 via Phase 45 search filter | manual (UI inspection) | (operator fills checklist in 47-VERIFICATION.md) | ⏸ deferred (manual; sign-off in 47-VERIFICATION.md) |
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] `data/db2-backup-pre-phase-47.sqlite` — pre-apply DB backup (Plan 47-01 Task 2)
-- [ ] `.planning/phases/47-historical-backfill-archival/baseline-snapshot.txt` — pre-apply dry-run capture (Plan 47-01 Task 1)
-- [ ] `.planning/phases/47-historical-backfill-archival/apply-log.txt` — apply run output (Plan 47-01 Task 2)
-- [ ] `.planning/phases/47-historical-backfill-archival/post-run-verify.txt` — reduction analysis (Plan 47-01 Task 3)
-- [ ] `scripts/oneoffs/backfill-asset-descriptions.py` — archived script with deprecation header (Plan 47-02 Task 1)
-- [ ] `scripts/oneoffs/README.md` — one-off convention doc (Plan 47-02 Task 2)
-- [ ] `scripts/verify-phase-47-backfill.ts` — Phase 47 verifier (Plan 47-02 Task 3)
-- [ ] `package.json` — verify:phase-47-backfill entry (Plan 47-02 Task 3)
+- [x] `data/db2-backup-pre-phase-47.sqlite` — pre-apply DB backup (Plan 47-01 Task 2)
+- [x] `.planning/phases/47-historical-backfill-archival/baseline-snapshot.txt` — pre-apply dry-run capture (Plan 47-01 Task 1)
+- [x] `.planning/phases/47-historical-backfill-archival/apply-log.txt` — apply run output (Plan 47-01 Task 2)
+- [x] `.planning/phases/47-historical-backfill-archival/post-run-verify.txt` — reduction analysis (Plan 47-01 Task 3)
+- [x] `scripts/oneoffs/backfill-asset-descriptions.py` — archived script with deprecation header (Plan 47-02 Task 1)
+- [x] `scripts/oneoffs/README.md` — one-off convention doc (Plan 47-02 Task 2)
+- [x] `scripts/verify-phase-47-backfill.ts` — Phase 47 verifier (Plan 47-02 Task 3)
+- [x] `package.json` — verify:phase-47-backfill entry (Plan 47-02 Task 3)
 
 ---
 
