@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Canvas Sync Permanence
 status: executing
-stopped_at: Phases 42+43+44+45 complete — 4/6 v2.0 phases shipped. All four "contract + cleanup" phases landed (source + receiver + sync cleanup + text UI). Remaining: Phase 46 (E2E contract tests) + Phase 47 (backfill).
-last_updated: "2026-07-16T02:55:00.000Z"
-last_activity: 2026-07-16 -- Phase 43 artifacts formalized (work shipped 2026-07-15)
+stopped_at: Phases 42+43+44+45 complete + Phase 46 planning complete — 4/6 v2.0 phases shipped, 5th planned. Phase 46 splits into safe-tier (3 contract scripts) + env-gated E2E. Next: /gsd:execute-phase 46.
+last_updated: "2026-07-16T03:20:00.000Z"
+last_activity: 2026-07-16 -- Phase 46 planned inline (skipped discuss/research/checker subagents per preference)
 progress:
   total_phases: 6
   completed_phases: 4
-  total_plans: 8
+  total_plans: 10
   completed_plans: 8
   percent: 67
 ---
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-17)
 
 ## Current Position
 
-Phase: 42 + 43 + 44 + 45 complete (source contract + sync cleanup + receiver schema + text UI)
-Plan: All 4 v2.0 contract/cleanup phases shipped
-Status: Ready to plan next phase
-Last activity: 2026-07-16 -- Phase 43 artifacts formalized (work was shipped 2026-07-15; retroactive PLAN/SUMMARY/VALIDATION backfilled)
+Phase: 46 (e2e-cross-repo-contract-tests) planned
+Plan: 2 plans across 2 waves (46-01 safe-tier contracts Wave 1; 46-02 env-gated E2E Wave 2)
+Status: Ready to execute
+Last activity: 2026-07-16 -- Phase 46 planned inline (skipped discuss/research/checker subagents per preference)
 
 ## Performance Metrics
 
