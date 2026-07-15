@@ -28,7 +28,11 @@
     "debug:ai": "npx @ai-sdk/devtools",
     "verify:phase-41": "npx tsx scripts/verify-phase-41.ts",
     "verify:phase-44": "npx tsx scripts/verify-schema-roundtrip.ts",
-    "verify:phase-45": "npx tsx scripts/verify-phase-45.ts"
+    "verify:phase-45": "npx tsx scripts/verify-phase-45.ts",
+    "verify:manifest-contract": "npx tsx scripts/verify-manifest-contract.ts",
+    "verify:import-roundtrip": "npx tsx scripts/verify-import-roundtrip.ts",
+    "verify:schema-drift": "npx tsx scripts/verify-schema-drift.ts",
+    "verify:phase-46-contracts": "npm run verify:manifest-contract && npm run verify:import-roundtrip && npm run verify:schema-drift"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.35",
