@@ -129,7 +129,12 @@ Plans:
   3. The mapping helper forwards every key from manifest `params.*` into the canvas POST `/api/v2/canvas/nodes` request body's `data` field (verified by assertion in unit test).
   4. Existing `tests/test_canvas_sync_injection.py` + `tests/test_canvas_auto_sync.py` continue to pass after cleanup.
 
-**Plans**: TBD
+**Plans**: 1 plan (Wave 1: _build_node_from_phase_result helper + params-forwarding contract + line-count best-effort; covers SYNCSIDE-01..03)
+
+Plans:
+**Wave 1**
+
+- [x] 43-01-PLAN.md — canvas_sync single-path mapping (unified helper + 7-test params-forwarding contract; SYNCSIDE-01 SOFT-MISS documented — every helper has active callers); covers SYNCSIDE-02, SYNCSIDE-03 fully; SYNCSIDE-01 best-effort
 
 ### Phase 44: Receiving-side Schema Strictness + Import Validation
 
