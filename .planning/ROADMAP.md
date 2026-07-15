@@ -109,11 +109,12 @@ Phase 40 joint-debug fixes + Phase 41 append-only event log (`kv_canvasEvent`) +
   4. New `tests/test_manifest_schema.py` exercises ≥1 golden manifest per phase (p01..p12) and fails loudly on schema drift; running it is part of pre-commit.
   5. `write_manifest` raises ValueError on any contract violation; no except: pass swallows the error.
 
-**Plans**: TBD
+**Plans**: 1 plan (Wave 1: manifest contract hardening across 7 sub-tasks; covers all 5 MANIFEST-XX requirements)
 
 Plans:
+**Wave 1**
 
-- [ ] 42-01: TBD
+- [x] 42-01-PLAN.md — Source-side manifest contract hardening (MIN_DESCRIPTION_LEN + validate_text_coverage + PHASE_REQUIRED_FIELDS + golden fixtures + pre-commit AST guard); covers MANIFEST-01..05
 
 ### Phase 43: canvas_sync.py Cleanup + Single-Path Mapping
 
@@ -225,7 +226,7 @@ Phase 42 is the contract source — 43 and 44 can start in parallel after 42 lan
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 42. Source-side Manifest Contract Hardening | v2.0 | 0/? | Not started | - |
+| 42. Source-side Manifest Contract Hardening | v2.0 | 1/1 | Complete | 2026-07-15 |
 | 43. canvas_sync.py Cleanup + Single-Path Mapping | v2.0 | 0/? | Not started | - |
 | 44. Receiving-side Schema Strictness + Import Validation | v2.0 | 3/3 | Complete | 2026-07-16 |
 | 45. Text Asset Mapping + UI Completeness | v2.0 | 3/3 | Complete | 2026-07-16 |
