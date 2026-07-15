@@ -32,7 +32,8 @@
     "verify:manifest-contract": "npx tsx scripts/verify-manifest-contract.ts",
     "verify:import-roundtrip": "npx tsx scripts/verify-import-roundtrip.ts",
     "verify:schema-drift": "npx tsx scripts/verify-schema-drift.ts",
-    "verify:phase-46-contracts": "npm run verify:manifest-contract && npm run verify:import-roundtrip && npm run verify:schema-drift"
+    "verify:phase-46-contracts": "npm run verify:manifest-contract && npm run verify:import-roundtrip && npm run verify:schema-drift",
+    "verify:phase-46-e2e": "npx tsx scripts/verify-phase-46-e2e.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.35",

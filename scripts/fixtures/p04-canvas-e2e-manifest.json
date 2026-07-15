@@ -1,0 +1,46 @@
+{
+  "phase_id": "p04_character_design",
+  "phase": "p04",
+  "nodes": [
+    {
+      "id": "p04/char-e2e-01",
+      "type": "asset",
+      "label": "角色 测试-01",
+      "params": {
+        "label": "角色 测试-01",
+        "archetype": "protagonist",
+        "role": "main character",
+        "era": "现代",
+        "description": "P04 角色 · 测试-01 · protagonist · 现代都市背景 · 红发热血少年"
+      },
+      "phase": "p04"
+    },
+    {
+      "id": "p04/char-e2e-02",
+      "type": "asset",
+      "label": "角色 测试-02",
+      "params": {
+        "label": "角色 测试-02",
+        "archetype": "sidekick",
+        "role": "supporting",
+        "era": "复古",
+        "description": "P04 角色 · 测试-02 · sidekick · 复古昭和风 · 戴眼镜的智囊型好友"
+      },
+      "phase": "p04"
+    },
+    {
+      "id": "p04/char-e2e-03",
+      "type": "asset",
+      "label": "角色 测试-03",
+      "params": {
+        "label": "角色 测试-03",
+        "archetype": "antagonist",
+        "role": "villain",
+        "era": "未来",
+        "description": "P04 角色 · 测试-03 · antagonist · 未来赛博朋克 · 黑色风衣的神秘反派"
+      },
+      "phase": "p04"
+    }
+  ],
+  "edges": []
+}
