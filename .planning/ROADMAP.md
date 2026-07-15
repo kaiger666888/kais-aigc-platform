@@ -37,33 +37,43 @@ Decimal phases appear between their surrounding integers in numeric order.
 <summary>Phases 1-41: v1.0 through v1.9 — collapsed</summary>
 
 #### v1.0 MVP (Phases 1-6)
+
 Core video/image/audio generation pipeline via ComfyUI + cloud fallback.
 
 #### v1.1 Hermes Intelligent Decision Engine (Phases 7-10)
+
 Domain-agnostic REST API with self-learning loop. 21 requirements satisfied.
 
 #### v1.2 Integration Testing (Phases 11-14)
+
 Complete hermes-agent integration test suite. 42+ tests, CI pipeline. 22 requirements satisfied.
 
 #### v1.3 Architecture Alignment (Phases 15-19.1)
+
 Engine consolidation, workflow builder expansion, BackendType classification. 102/102 tests passing.
 
 #### v1.4 Production Verification + Repo Governance (Phases 20-22)
+
 ENG-04 fix shipped. Live runtime verification partial. 19 sibling repos audited.
 
 #### v1.5 Architecture Hardening + Code Hygiene (Phases 23-27)
+
 GpuScheduler Redis backend, gold-team Python cleanup, unified output paths, TypeScript compile clean (12,447→0 errors), router.ts auto-gen root-cause fix. 9/9 requirements satisfied.
 
 #### v1.6 Workflow Skill Contract (Phases 28-34)
+
 Skill contract published at `src/skills/contract.ts`; registry layer replaces hardcoded constants; canvas fetches node types dynamically; skill author guide + install-ready manifest shipped. 35/36 requirements satisfied (1 deferred — COMPLIANCE-03).
 
 #### v1.7 Infinite Canvas Storyboard & Orchestration (Phases 35-38, shipped 2026-06-18)
+
 Storyboard metadata (camera/framing/composition/pacing), one-click "🚀 一键成片" orchestrator, batch execution, Tier 2 storyboard preview placeholder. 24/24 requirements satisfied. Zero backend schema changes.
 
 #### v1.8 Canvas ↔ Movie-Agent V8.6 Adaptation (Phase 39, shipped 2026-06-19)
+
 3 waves — ADAPT (merge feature/canvas-v2), EXEC (real gold-team engine wiring env-gated), VERIFY (33/33 contract assertions). Master exposes both `/api/canvas/*` and `/api/v2/canvas/*` routes. 10/10 requirements satisfied.
 
 #### v1.9 Canvas Sync Reliability (Phases 40-41, shipped 2026-06-24)
+
 Phase 40 joint-debug fixes + Phase 41 append-only event log (`kv_canvasEvent`) + monotonic reducer + idempotent write API + resumable WS subscription. Eliminates silent data-loss from concurrent writes. 12 SYNC-* requirements satisfied.
 
 </details>
@@ -86,82 +96,109 @@ Phase 40 joint-debug fixes + Phase 41 append-only event log (`kv_canvasEvent`) +
 8. **MANIFEST phase 先行** —— 它是所有其他 phase 的契约源头;SCHEMA + SYNCSIDE 都依赖它定义的字段集
 
 ### Phase 42: Source-side Manifest Contract Hardening
+
 **Goal**: Every phase manifest writer (p01..p12) MUST emit complete structured params + meaningful (non-terse) descriptions, validated by an automated contract test suite. This is the contract all downstream phases depend on.
 **Depends on**: Nothing (first v2.0 phase; defines the contract)
 **Requirements**: MANIFEST-01, MANIFEST-02, MANIFEST-03, MANIFEST-04, MANIFEST-05
 **Repo**: `kais-hermes-skills/skills/kais-movie-pipeline`
 **Success Criteria** (what must be TRUE):
+
   1. `MANIFEST_PARAM_SCHEMA` in `_manifest.py` declares per-type required structured fields (asset requires archetype/role; storyboard requires shot_id/shot_type/duration_sec; video requires engine/resolution/duration_sec; etc.) — emitting a node missing a required field raises ValueError.
   2. `_validate_node_content` rejects nodes where description is < `MIN_DESCRIPTION_LEN` (20 chars) — "角色 A" or "场景 S01" no longer pass.
   3. Every phase `.txt` output (script.txt / prompt.txt / description.txt / scene_notes.txt) is either inlined as a node description OR has an explicit text-type node in the manifest; orphan .txt files cause a contract violation.
   4. New `tests/test_manifest_schema.py` exercises ≥1 golden manifest per phase (p01..p12) and fails loudly on schema drift; running it is part of pre-commit.
   5. `write_manifest` raises ValueError on any contract violation; no except: pass swallows the error.
+
 **Plans**: TBD
 
 Plans:
+
 - [ ] 42-01: TBD
 
 ### Phase 43: canvas_sync.py Cleanup + Single-Path Mapping
+
 **Goal**: Trim `plugins/kais_aigc/canvas_sync.py` from 3409 lines by removing dead code and legacy branches; establish a single testable path from `phase_result` → canvas node that transparently forwards all manifest `params.*`.
 **Depends on**: Phase 42 (uses new manifest contract)
 **Requirements**: SYNCSIDE-01, SYNCSIDE-02, SYNCSIDE-03
 **Repo**: `kais-hermes-skills/plugins/kais_aigc`
 **Success Criteria** (what must be TRUE):
+
   1. `canvas_sync.py` line count drops to ≤ 2500 (≥25% reduction) with explicit commit messages per removed block.
   2. Both `sync_phase_result()` standalone API and `CanvasSyncSubscriber.on_phase_complete()` share a single `_build_node_from_phase_result()` helper — no forked mapping logic.
   3. The mapping helper forwards every key from manifest `params.*` into the canvas POST `/api/v2/canvas/nodes` request body's `data` field (verified by assertion in unit test).
   4. Existing `tests/test_canvas_sync_injection.py` + `tests/test_canvas_auto_sync.py` continue to pass after cleanup.
+
 **Plans**: TBD
 
 ### Phase 44: Receiving-side Schema Strictness + Import Validation
+
 **Goal**: `kais-aigc-platform` receiving side declares a complete schema that mirrors the v2.0 manifest contract; `import-from-dir.ts` validates incoming manifests and warns on missing fields instead of silently dropping them.
 **Depends on**: Phase 42 (mirrors field set declared there)
 **Requirements**: SCHEMA-01, SCHEMA-02, SCHEMA-03, SCHEMA-04
 **Repo**: `kais-aigc-platform`
 **Success Criteria** (what must be TRUE):
+
   1. `src/lib/canvasAssetSchema.ts` declares the full v2.0 field set (archetype/role/era/scene_id/shot_id/engine/duration_sec/resolution/murch_grade/...) as optional zod fields — forward-compatible but documented.
   2. `src/routes/canvas/v2/import-from-dir.ts` logs a warning with the missing field list when a manifest node lacks expected params, and stamps `data.__incomplete = true` so UI can flag it; the node is still created (no silent drop).
   3. `PATCH /nodes/batch` enforces the v2.0 schema field set (tightened from the 2026-07-12 quick-task baseline); invalid batches return 400 with the full error list.
   4. A new `scripts/verify-schema-roundtrip.ts` runs a sample manifest through import + schema validation and asserts every `params.*` key appears in `node.data`.
-**Plans**: 3 plans (Wave 1: schema expansion + import stamping in parallel; Wave 2: roundtrip verifier)
+
+**Plans**: 3 plans (Wave 1: schema expansion; Wave 2: import stamping + flatten-helper extraction; Wave 3: roundtrip verifier)
 
 Plans:
+**Wave 1**
+
 - [ ] 44-01-PLAN.md — Schema expansion (YAML + 3 generated files + EXPECTED_PARAM_FIELDS_BY_TYPE); covers SCHEMA-01, SCHEMA-04
-- [ ] 44-02-PLAN.md — Import stamping (__incomplete + __missing_fields + console.warn in import-from-dir.ts); covers SCHEMA-02
-- [ ] 44-03-PLAN.md — Roundtrip verifier (scripts/verify-schema-roundtrip.ts + fixture + npm script); covers SCHEMA-03, re-verifies SCHEMA-01/02/04
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 44-02-PLAN.md — Import stamping (__incomplete + __missing_fields + console.warn in import-from-dir.ts) + extract flattenParamsToNodeData helper; covers SCHEMA-02
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 44-03-PLAN.md — Roundtrip verifier (scripts/verify-schema-roundtrip.ts + fixture + npm script); imports production flattenParamsToNodeData for non-tautological SCHEMA-03; covers SCHEMA-03, re-verifies SCHEMA-01/02/04
 
 ### Phase 45: Text Asset Mapping + UI Completeness
+
 **Goal**: Every phase text output (.txt file) has a home on the canvas with full description; the node detail panel never collapses to a bare label.
 **Depends on**: Phase 42 + Phase 44
 **Requirements**: TEXT-01, TEXT-02, TEXT-03 (Tier 2)
 **Repo**: Both
 **Success Criteria** (what must be TRUE):
+
   1. Phase `.txt` outputs (script.txt / prompt.txt / description.txt / scene_notes.txt) have a documented mapping: either inlined as the producing node's description OR surfaced as an explicit text-type node — no orphan text files in OSS.
   2. `NodeDetailPanel` (AssetDetail / ScriptDetail / StoryboardDetail / VideoDetail) shows full multi-line description with line breaks preserved; never renders an empty detail card when `data.prompt` / `data.description` / `data.tags` / `data.filename` are present in any combination.
   3. (Tier 2, optional) Toolbar exposes a "search description" filter that narrows visible nodes by substring match against `data.description` / `data.prompt`.
+
 **Plans**: TBD
 
 ### Phase 46: E2E + Cross-repo Contract Tests
+
 **Goal**: Automated regression tests prevent the canvas-sync triad from ever returning — a phase-level manifest contract test (source), an import unit test (receiver), an end-to-end phase run (both), and a cross-repo schema drift check.
 **Depends on**: Phase 42 + 43 + 44 + 45
 **Requirements**: VERIFY-01, VERIFY-02, VERIFY-03, VERIFY-04
 **Repo**: Both
 **Success Criteria** (what must be TRUE):
+
   1. `kais-hermes-skills/.../tests/test_manifest_schema.py` (from Phase 42) runs in CI and fails on any phase manifest contract violation.
   2. `kais-aigc-platform/scripts/verify-import-roundtrip.ts` asserts import-from-dir produces non-empty description + complete params.* round-trip on a sample manifest.
   3. `kais-aigc-platform/scripts/verify-phase-46-e2e.ts` spins up docker-compose, runs `p04_character_design` end-to-end, then queries `/api/v2/canvas/nodes` and asserts every node has `data.description.length >= 20` AND at least one structured param field from `{archetype, role, era}`.
   4. `scripts/verify-schema-drift.ts` reads `MANIFEST_PARAM_SCHEMA` from the sibling kais-hermes-skills repo and `canvasAssetSchema` from this repo, diffs the field sets, and fails if they diverge.
+
 **Plans**: TBD
 
 ### Phase 47: Historical Backfill + Archival
+
 **Goal**: Run the existing backfill script (schema-ui-backfill, 2026-07-12) to repair the 530 historical empty-shell asset nodes; verify P04/P07/P08 panels show real content; archive the script as a one-off.
 **Depends on**: Phase 46 (new contract tests must pass before mutating historical data)
 **Requirements**: BACKFILL-01, BACKFILL-02, BACKFILL-03
 **Repo**: `kais-aigc-platform`
 **Success Criteria** (what must be TRUE):
+
   1. `python3 scripts/backfill-asset-descriptions.py --apply` runs successfully; post-run DB query confirms 530 asset nodes (those with `description == ""` in pre-run snapshot) now have non-empty description.
   2. Manual sampling of 10 nodes each from P04 (character design, 256 total) / P07 (scene generation, 134 total) / P08 (scene selection, 52 total) shows NodeDetailPanel renders meaningful description text — not just label.
   3. The backfill script is moved to `scripts/oneoffs/` (or annotated with a deprecation header) and excluded from any cron / startup hook — clearly marked as a one-shot repair, not recurring infrastructure.
+
 **Plans**: TBD
 
 ## Progress
