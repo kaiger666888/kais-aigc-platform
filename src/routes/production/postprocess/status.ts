@@ -49,6 +49,15 @@ export default router.get("/", async (req: any, res) => {
       }
     }
 
+    // VHS_VideoCombine 把视频输出放在 gifs 字段（即使是 mp4），单独收集
+    const videos: Array<{ filename: string; subfolder: string; format: string; frame_rate: number }> = [];
+    for (const nid of Object.keys(outputs)) {
+      const out = outputs[nid];
+      if (out.gifs) {
+        videos.push(...out.gifs);
+      }
+    }
+
     // 构建可访问的 URL
     const imageUrls = images.map((img) => ({
       filename: img.filename,
@@ -57,10 +66,18 @@ export default router.get("/", async (req: any, res) => {
       height: img.height,
     }));
 
+    const videoUrls = videos.map((v) => ({
+      filename: v.filename,
+      url: `${POSTPROCESS_CONFIG.comfyuiUrl}/view?filename=${encodeURIComponent(v.filename)}&subfolder=${encodeURIComponent(v.subfolder || "")}&type=output`,
+      format: v.format,
+      frameRate: v.frame_rate,
+    }));
+
     res.status(200).send(success({
       promptId,
       status: statusStr === "success" ? "done" : statusStr,
       images: imageUrls,
+      videos: videoUrls,
     }));
   } catch (err: any) {
     const msg = err.response?.data?.error?.message || err.message || String(err);
