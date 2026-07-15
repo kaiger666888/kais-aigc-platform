@@ -23,6 +23,18 @@ export const YAML_OPTIONAL_FIELDS: Record<string, YamlOptionalField[]> = {
       "zodType": "string"
     },
     {
+      "key": "genre",
+      "zodType": "string"
+    },
+    {
+      "key": "tone",
+      "zodType": "string"
+    },
+    {
+      "key": "total_duration_sec",
+      "zodType": "string"
+    },
+    {
       "key": "mcmahonArc",
       "zodType": "string"
     },
@@ -70,6 +82,10 @@ export const YAML_OPTIONAL_FIELDS: Record<string, YamlOptionalField[]> = {
     },
     {
       "key": "ageRange",
+      "zodType": "string"
+    },
+    {
+      "key": "era",
       "zodType": "string"
     },
     {

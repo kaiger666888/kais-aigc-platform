@@ -162,6 +162,21 @@ phases:
         zod_type: string
         transform: "to_string"
         required: false
+      genre:
+        python_key: genre
+        canvas_key: genre
+        zod_type: string
+        required: false
+      tone:
+        python_key: tone
+        canvas_key: tone
+        zod_type: string
+        required: false
+      total_duration_sec:
+        python_key: total_duration_sec
+        canvas_key: total_duration_sec
+        zod_type: string
+        required: false
 
   p02:
     canvas_type: script
@@ -200,6 +215,11 @@ phases:
         canvas_key: ageRange
         zod_type: string
         transform: "derive_age_range"
+        required: false
+      era:
+        python_key: era
+        canvas_key: era
+        zod_type: string
         required: false
 
   p05:
@@ -301,6 +321,11 @@ phases:
         canvas_key: style_sound
         zod_type: number
         transform: "coerce_float_0_1"
+        required: false
+      era:
+        python_key: era
+        canvas_key: era
+        zod_type: string
         required: false
 
   p08:

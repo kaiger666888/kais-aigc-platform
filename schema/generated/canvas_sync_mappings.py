@@ -224,6 +224,24 @@ PHASE_FIELDS: dict[str, dict[str, dict[str, Any]]] = {
             "zod_type": "string",
             "transform": "to_string",
             "required": False
+        },
+        "genre": {
+            "python_key": "genre",
+            "canvas_key": "genre",
+            "zod_type": "string",
+            "required": False
+        },
+        "tone": {
+            "python_key": "tone",
+            "canvas_key": "tone",
+            "zod_type": "string",
+            "required": False
+        },
+        "total_duration_sec": {
+            "python_key": "total_duration_sec",
+            "canvas_key": "total_duration_sec",
+            "zod_type": "string",
+            "required": False
         }
     },
     "p02": {
@@ -257,6 +275,12 @@ PHASE_FIELDS: dict[str, dict[str, dict[str, Any]]] = {
             "canvas_key": "ageRange",
             "zod_type": "string",
             "transform": "derive_age_range",
+            "required": False
+        },
+        "era": {
+            "python_key": "era",
+            "canvas_key": "era",
+            "zod_type": "string",
             "required": False
         }
     },
@@ -363,6 +387,12 @@ PHASE_FIELDS: dict[str, dict[str, dict[str, Any]]] = {
             "canvas_key": "style_sound",
             "zod_type": "number",
             "transform": "coerce_float_0_1",
+            "required": False
+        },
+        "era": {
+            "python_key": "era",
+            "canvas_key": "era",
+            "zod_type": "string",
             "required": False
         }
     },
