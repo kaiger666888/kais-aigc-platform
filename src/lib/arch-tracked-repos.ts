@@ -47,12 +47,114 @@ function defaultUserManifest(): string {
  * Normalise a url-prefix to have both a leading and trailing slash.
  * The Express mount requires both bounds; the manifest convention (Plan 06-01)
  * already mandates this, but the loader defends against malformed rows.
+ *
+ * SECURITY (CR-01, Phase 06 REVIEW): the root prefix "/" is REJECTED. The
+ * generalized auth-bypass predicate in app.ts (`archRepos.some(r =>
+ * req.path.startsWith(r.urlPrefix))`) matches EVERY path when urlPrefix is
+ * "/", which would silently disable JWT auth for the entire application.
+ * Even though the manifest is root-writable, a copy-paste error (forgetting
+ * the repo-name segment) would silently produce "/" — fail fast at load
+ * time instead of booting into an auth-bypassed state.
  */
-function normalizeUrlPrefix(prefix: string): string {
+function normalizeUrlPrefix(prefix: string, sourcePath: string, lineNo: number): string {
   let p = prefix.trim();
   if (!p.startsWith("/")) p = "/" + p;
   if (!p.endsWith("/")) p = p + "/";
+  if (p === "/") {
+    throw new Error(
+      `[arch-proxy] malformed manifest ${sourcePath} line ${lineNo}: ` +
+      `url-prefix "/" is forbidden — it would match every path and bypass ` +
+      `JWT auth app-wide (the auth predicate \`archRepos.some(r => ` +
+      `req.path.startsWith(r.urlPrefix))\` returns true for all paths when ` +
+      `urlPrefix is "/"). Use a specific prefix like "/<repo>-arch/" instead.`,
+    );
+  }
   return p;
+}
+
+/**
+ * Filesystem roots the reverse proxy must NEVER serve via `express.static`,
+ * regardless of what the manifest declares. These directories contain system
+ * secrets, credentials, device files, or kernel state that has no legitimate
+ * place behind an HTTP endpoint — even on a trusted tailscale network.
+ *
+ * SECURITY (CR-02, Phase 06 REVIEW): the threat model T-06-02 originally
+ * called for warn-only on non-conventional paths. That posture is wrong for
+ * genuinely sensitive system directories — a typo (`/etc` instead of
+ * `/home/kai/workspace/etc-repo/site`) or a malicious manifest edit would
+ * expose /etc/passwd, /root/.ssh/, etc. to unauthenticated HTTP. Hard-reject
+ * these; warn-only for non-conventional-but-non-sensitive paths (mirrors).
+ */
+const SENSITIVE_SITE_PATH_PREFIXES = [
+  "/etc",
+  "/var",
+  "/proc",
+  "/sys",
+  "/dev",
+  "/root",
+  "/boot",
+  "/lib",
+  "/lib64",
+  "/usr",
+  "/bin",
+  "/sbin",
+  "/run",
+];
+
+/**
+ * Validate that a site-path is safe to mount via `express.static`.
+ *
+ * - HARD REJECT paths under sensitive system directories (see above array)
+ *   OR paths that traverse into credentials/config dirs (.ssh, .config, .gnupg)
+ *   anywhere along the path.
+ * - WARN (but accept) paths outside `/home/kai/workspace/` that are NOT in
+ *   the sensitive list — preserves the threat-model flexibility for
+ *   legitimate private mirrors (e.g. /opt/mirror/, /tmp/arch-test/).
+ *
+ * @throws Error if the path points at a sensitive system or credentials dir.
+ */
+function validateSitePath(sitePath: string, sourcePath: string, lineNo: number): void {
+  // Hard reject sensitive system paths. Match either the exact dir ("/etc")
+  // or any path beneath it ("/etc/foo"). The prefix array stores names
+  // WITHOUT a trailing slash so we can match the bare directory itself.
+  for (const sensitive of SENSITIVE_SITE_PATH_PREFIXES) {
+    if (sitePath === sensitive || sitePath.startsWith(sensitive + "/")) {
+      throw new Error(
+        `[arch-proxy] malformed manifest ${sourcePath} line ${lineNo}: ` +
+        `site-path "${sitePath}" is forbidden — points at sensitive system ` +
+        `directory (${sensitive}/). Refusing to mount — this would expose ` +
+        `system files to unauthenticated HTTP.`,
+      );
+    }
+  }
+  // Reject any hidden credentials/config directory anywhere along the path.
+  // Covers /home/kai/.ssh, /home/kai/.config, /home/kai/.gnupg, and any
+  // nested traversal into them (e.g. /home/foo/bar/.ssh/backup).
+  const hiddenCredsPatterns: Array<[RegExp, string]> = [
+    [/(^|\/)\.ssh(\/|$)/, ".ssh (SSH credentials)"],
+    [/(^|\/)\.config(\/|$)/, ".config (application secrets)"],
+    [/(^|\/)\.gnupg(\/|$)/, ".gnupg (GPG keyring)"],
+  ];
+  for (const [pattern, label] of hiddenCredsPatterns) {
+    if (pattern.test(sitePath)) {
+      throw new Error(
+        `[arch-proxy] malformed manifest ${sourcePath} line ${lineNo}: ` +
+        `site-path "${sitePath}" is forbidden — points at credentials/config ` +
+        `directory (${label}). Refusing to mount.`,
+      );
+    }
+  }
+  // Warn (but accept) paths outside the conventional workspace prefix.
+  // Non-conventional does not mean sensitive — operators may keep private
+  // mirrors under /opt or /tmp. The warning surfaces the deviation so it is
+  // visible in the boot log without breaking legitimate use cases.
+  if (!sitePath.startsWith("/home/kai/workspace/")) {
+    console.warn(
+      `[arch-tracked-repos] ${sourcePath} line ${lineNo}: site-path ` +
+      `"${sitePath}" is outside the conventional /home/kai/workspace/ prefix ` +
+      `— ensure this is an intentional private mirror and not a typo.`,
+    );
+  }
 }
 
 /**
@@ -87,9 +189,14 @@ function parseManifest(contents: string, sourcePath: string): ArchRepoEntry[] {
         `empty field(s) in row (${JSON.stringify(raw)})`,
       );
     }
+    // SECURITY (CR-01, CR-02): validate BEFORE adding to the result array.
+    // Both validators throw on violation — fail-fast at load time prevents
+    // the app from booting into an auth-bypassed or filesystem-leaking state.
+    const urlPrefix = normalizeUrlPrefix(urlPrefixRaw, sourcePath, lineNo);
+    validateSitePath(sitePath, sourcePath, lineNo);
     entries.push({
       repoName: repoNameTrim,
-      urlPrefix: normalizeUrlPrefix(urlPrefixRaw),
+      urlPrefix,
       sitePath,
     });
   });
