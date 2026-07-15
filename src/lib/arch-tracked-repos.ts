@@ -150,15 +150,14 @@ export function loadArchRepos(explicitPath?: string): ArchRepoEntry[] {
       cachedKey = cacheKey;
       return entries;
     }
-    // Explicit/env path was set but file missing — fall through to defaults
-    // rather than silently returning [] (caller wanted a specific file).
-    // For explicit args (tests), callers expect [] when their tmp path is
-    // bogus; for env, surfacing the absence as [] is correct.
-    if (explicitPath !== undefined) {
-      cached = [];
-      cachedKey = cacheKey;
-      return [];
-    }
+    // Explicit arg OR env var pointed at a path that does not exist.
+    // The caller asked for a SPECIFIC file — do NOT fall through to the
+    // default chain (that would silently mask a misconfigured env var by
+    // serving a stale /etc manifest). Surface the absence as [] so the boot
+    // log shows "[arch-proxy] no manifest found — 0 repos mounted".
+    cached = [];
+    cachedKey = cacheKey;
+    return [];
   }
 
   // Default resolution chain
