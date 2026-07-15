@@ -509,7 +509,9 @@ async function artifactsFromMediaFiles(
     if (filenameSet.has(sidecarName)) {
       try {
         const raw = await readFile(join(dirPath, sidecarName), "utf8");
-        const trimmed = raw.trim().slice(0, 500);
+        // 10K char cap — large enough for full short-form scripts (Phase 45 D1),
+        // small enough to keep node.data payloads sane in the relational store.
+        const trimmed = raw.trim().slice(0, 10000);
         if (trimmed) {
           art.description = trimmed;
           // UI's AssetDetail reads `prompt` first; mirror the text so detail
