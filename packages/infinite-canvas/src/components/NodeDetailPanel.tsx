@@ -342,7 +342,9 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
 }
 
 function ScriptDetail({ nodeId, data }: { nodeId: string; data: ScriptNodeData }) {
-  const description = (data.description as string) || (data.content as string) || ''
+  // Phase 45 (TEXT-02): fall back through description → content → prompt
+  // so nodes that carry only prompt (some P01 hook-design rows) still render text.
+  const description = (data.description as string) || (data.content as string) || (data.prompt as string) || ''
   const tags = (data.tags as string[]) || []
   const score = data.score as number | undefined
   const filePath = data.filePath as string | undefined
@@ -683,6 +685,27 @@ function StoryboardDetail({ nodeId, data, onImageClick }: { nodeId: string; data
         </>
       )}
 
+      {/* Description fallback: shown only when prompt is absent but description exists.
+          Phase 45 (TEXT-02) — mirrors AssetDetail pattern so storyboard nodes that
+          arrive via manifest with only description still render text. */}
+      {!(data.prompt as string) && (data.description as string) && (
+        <>
+          <SectionLabel>描述</SectionLabel>
+          <div style={{
+            background: theme.bg.input,
+            borderRadius: 8,
+            padding: 12,
+            color: theme.text.primary,
+            fontSize: 12,
+            lineHeight: 1.6,
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+          }}>
+            {data.description as string}
+          </div>
+        </>
+      )}
+
       {Array.isArray(data.linkedAssetIds) && (data.linkedAssetIds as number[]).length > 0 && (
         <>
           <SectionLabel>关联资产</SectionLabel>
@@ -807,6 +830,90 @@ function VideoDetail({ nodeId, data }: { nodeId: string; data: VideoNodeData }) 
           <SectionLabel>时长</SectionLabel>
           <div style={{ color: theme.text.primary, fontSize: 13 }}>
             {data.duration as number}秒
+          </div>
+        </>
+      )}
+
+      {/* Prompt + description + tags + provenance — Phase 45 (TEXT-02):
+          mirror AssetDetail pattern so video nodes that arrive via manifest
+          with text metadata actually render it. Previously VideoDetail showed
+          only player + duration + state, dropping all descriptive text. */}
+      {(data.prompt as string) && (
+        <>
+          <SectionLabel>Prompt 描述</SectionLabel>
+          <div style={{
+            background: theme.bg.input,
+            borderRadius: 8,
+            padding: 12,
+            color: theme.text.primary,
+            fontSize: 12,
+            lineHeight: 1.6,
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+          }}>
+            {data.prompt as string}
+          </div>
+        </>
+      )}
+
+      {!(data.prompt as string) && (data.description as string) && (
+        <>
+          <SectionLabel>描述</SectionLabel>
+          <div style={{
+            background: theme.bg.input,
+            borderRadius: 8,
+            padding: 12,
+            color: theme.text.primary,
+            fontSize: 12,
+            lineHeight: 1.6,
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+          }}>
+            {data.description as string}
+          </div>
+        </>
+      )}
+
+      {Array.isArray(data.tags) && (data.tags as unknown[]).length > 0 && (
+        <>
+          <SectionLabel>标签</SectionLabel>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+            {(data.tags as unknown[]).map((tag, i) => (
+              <span key={i} style={{
+                padding: '3px 10px',
+                borderRadius: 6,
+                background: theme.bg.surface,
+                color: theme.text.primary,
+                fontSize: 11,
+                fontWeight: 500,
+                border: `1px solid ${theme.border.subtle}`,
+              }}>
+                {String(tag)}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
+
+      {!(data.prompt as string) && !(data.description as string) && (
+        !Array.isArray(data.tags) || (data.tags as unknown[]).length === 0
+      ) && ((data.filename as string) || (data.output_key as string) || (data.name as string)) && (
+        <>
+          <SectionLabel>来源</SectionLabel>
+          <div style={{
+            background: theme.bg.input,
+            borderRadius: 6,
+            padding: '8px 12px',
+            color: theme.text.secondary,
+            fontSize: 11,
+            fontFamily: 'monospace',
+            wordBreak: 'break-all',
+          }}>
+            {[
+              data.filename && `📄 ${data.filename}`,
+              data.output_key && `key: ${data.output_key}`,
+              data.name && `name: ${data.name}`,
+            ].filter(Boolean).join(' · ')}
           </div>
         </>
       )}
