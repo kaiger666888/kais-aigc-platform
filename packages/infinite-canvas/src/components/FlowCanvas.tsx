@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -80,6 +80,9 @@ function getInitialParams(): { projectId: number | null; episodesId: number | nu
 
 function CanvasInner() {
   const reactFlow = useReactFlow()
+
+  // Phase 45 (TEXT-03) — Tier 2 search filter state.
+  const [searchQuery, setSearchQuery] = useState('')
 
   const nodes = useCanvasStore((s) => s.nodes)
   const edges = useCanvasStore((s) => s.edges)
@@ -234,7 +237,9 @@ function CanvasInner() {
 
       // Auto-layout on load so nodes are always readable regardless of
       // the (often terrible) coordinates coming from the backend.
-      if (rawNodes.length > 0) {
+      // Skip auto-layout for large graphs (>100 nodes) — dagre produces
+      // an unreadable mega-column and destroys backend-provided zone/lanes.
+      if (rawNodes.length > 0 && rawNodes.length <= 100) {
         const { nodes: layouted, edges: layoutedEdges } = getLayoutedElements(
           rawNodes as any[],
           rawEdges as any[],
@@ -242,6 +247,9 @@ function CanvasInner() {
         )
         setNodes(layouted)
         setEdges(layoutedEdges)
+      } else if (rawNodes.length > 0) {
+        setNodes(rawNodes)
+        setEdges(rawEdges)
       }
 
       setHasData(true)
@@ -387,6 +395,31 @@ function CanvasInner() {
     }
   }, [activeSkillId, setDeclaredNodeTypes])
 
+  // Phase 45 (TEXT-03) — Tier 2 search filter.
+  // Debounced 200ms; filters visible nodes by case-insensitive substring
+  // match against data.label / data.description / data.prompt.
+  // Visibility-only — non-matched nodes get hidden:true (React Flow standard).
+  // Clearing the input restores all nodes.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const q = searchQuery.trim().toLowerCase()
+      setNodes((nds) =>
+        nds.map((n) => {
+          const label = (n.data?.label as string) ?? ''
+          const description = (n.data?.description as string) ?? ''
+          const prompt = (n.data?.prompt as string) ?? ''
+          const matches =
+            !q ||
+            label.toLowerCase().includes(q) ||
+            description.toLowerCase().includes(q) ||
+            prompt.toLowerCase().includes(q)
+          return { ...n, hidden: !matches }
+        }),
+      )
+    }, 200)
+    return () => clearTimeout(t)
+  }, [searchQuery, setNodes])
+
   // Health-poll fallback: 如果 socket 事件丢失(graph:saved 未到达),
   // 通过轮询 /api/canvas/v2/health 的 eventCount 变化兜底触发 reload。
   // 仅在外部写入(pipeline)时生效;前端自己的 loadCanvas 不会改变
@@ -473,7 +506,7 @@ function CanvasInner() {
           onNodeClick={onNodeClick}
           onSelectionChange={onSelectionChange}
           fitView={hasData}
-          fitViewOptions={{ padding: 0.15, minZoom: 0.2, maxZoom: 1.5, duration: 600 }}
+          fitViewOptions={{ padding: 0.15, minZoom: 0.4, maxZoom: 1.5, duration: 600 }}
           minZoom={0.05}
           maxZoom={4}
           selectionOnDrag
@@ -554,6 +587,23 @@ function CanvasInner() {
                 ? '🔄 待审阅'
                 : '🔄 迭代'}
             </ToolbarButton>
+            {/* Phase 45 (TEXT-03) — Tier 2 search filter */}
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="搜索描述/标签..."
+              style={{
+                padding: '6px 10px',
+                borderRadius: 6,
+                background: theme.bg.input,
+                border: `1px solid ${theme.border.subtle}`,
+                color: theme.text.primary,
+                fontSize: 12,
+                minWidth: 180,
+                outline: 'none',
+              }}
+            />
           </Panel>
 
           {/* 空状态引导 */}

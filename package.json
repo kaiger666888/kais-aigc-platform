@@ -27,7 +27,8 @@
     "lint": "tsc --noEmit",
     "debug:ai": "npx @ai-sdk/devtools",
     "verify:phase-41": "npx tsx scripts/verify-phase-41.ts",
-    "verify:phase-44": "npx tsx scripts/verify-schema-roundtrip.ts"
+    "verify:phase-44": "npx tsx scripts/verify-schema-roundtrip.ts",
+    "verify:phase-45": "npx tsx scripts/verify-phase-45.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.35",
