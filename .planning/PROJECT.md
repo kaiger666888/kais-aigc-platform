@@ -41,22 +41,44 @@ AI 短剧全链路制作平台，通过 kais-gold-team 统一执行引擎编排 
 - ✓ Canvas 节点类型动态化 + FallbackNode 兜底未知类型 — v1.6
 - ✓ movie-v1 install-ready manifest + Skill 作者文档 — v1.6
 
-## Current Milestone: v1.7 Infinite Canvas Storyboard & Orchestration
+## Current Milestone: v2.0 Canvas Sync Permanence (画布同步永久治理)
 
-**Goal:** 借鉴字节小云雀短剧 Agent 的核心差异化能力,增强无限画布——补齐分镜元数据(运镜/景别/构图/节奏)、引入"一键成片"全链路编排、解锁批量执行工作流。把零散的节点图升级为可"一键跑完"的完整短剧生产流水线。
+**Goal:** 永久根治 kais-movie-pipeline → 无限画布自动同步中"资产同步不全 / 结构化参数缺失 / 描述过简"三联症。通过**源端契约 + 接收端契约 + E2E 回归 + 存量 backfill** 四道闸,让该问题不再回归。
 
-**Target features (借鉴自小云雀):**
-- **分镜元数据扩展** — Storyboard 节点新增 `cameraMovement`/`framing`/`composition`/`pacing` 字段,UI 展示为 chip,NodeDetailPanel 可编辑
-- **一键成片编排器** — 顶部 toolbar "🚀 一键成片" 按钮,按节点拓扑序(脚本→资产→分镜→视频→音频)自动批量执行整图
-- **批量执行** — 多选节点 + 右键"批量执行",并发触发(受 GPU 串行约束 → 内部仍走 GpuScheduler 队列)
-- **分镜预览**(Tier 2,如时间允许) — 分镜生成视频前展示静态构图预览卡片
+**Target features:**
+- **源端契约硬化** (`kais-hermes-skills/skills/kais-movie-pipeline/pipeline/phases/_manifest.py`) — 当前 `REQUIRES_CONTENT` 只管 prompt/description;扩展为**全字段契约**:`archetype/role/era/scene_id/shot_id/engine/...` 都必须出现在 manifest `params.*` 中,且 round-trip 到 canvas `node.data`。新增 manifest schema 测试。
+- **canvas_sync.py 精简** (`plugins/kais_aigc/canvas_sync.py`,3409 行) — 拆分/瘦身,删除 legacy 路径,确保 `phase_result → canvas node` 是单一可测的映射路径。
+- **接收端契约硬化** (`src/lib/canvasAssetSchema.ts`) — schema 声明完整字段集;`import-from-dir.ts` 检查 manifest 字段完整性;UI fallback 链路完整。
+- **文字资产完整映射** — 每个 phase `.txt` 输出(script/prompt/description 等)必须映射为节点 description 或独立文字资产节点,不再仅剩 label。
+- **端到端回归测试** — 跑一个完整 phase(如 p04),断言画布上每个节点都有 prompt OR description + 关键 `params.*` 字段齐全。
+- **存量 backfill 执行** — 跑 `python3 scripts/backfill-asset-descriptions.py --apply` 修 530 个历史空壳节点。
 
-**Architecture decisions (v1.7):**
-1. Phase 编号延续 v1.6(Phase 35+)
-2. **借鉴范围聚焦 Tier 1** — 故事蓝图生成器(LLM 集成)与角色一致性管理(后端 schema 变更)推迟到 v1.8+,本期纯前端 + 后端编排扩展
-3. **元数据存储** — 沿用现有 `FlowGraph.data: Record<string, unknown>` 自由 schema,新字段加在 `StoryboardNodeData`,后端 `o_storyboard` 表通过 JSON column 扩展(不破坏现有 schema)
-4. **一键成片复用现有 executeNode** — 不引入新引擎,编排器在 canvas API 层循环触发,通过 WebSocket 推送进度
-5. **批量执行 = 多次 executeNode 调用** — 后端无并发,前端并行 fire-and-forget;GPU 串行由 GpuScheduler 兜底
+**Architecture decisions (v2.0):**
+1. **v2.0 major** — 跨仓库结构化契约变更,且是"永久治理"性质;比 minor 更重
+2. Phase 编号延续 v1.9(Phase 42+)
+3. **双仓库同步变更**,但通过 manifest 契约解耦——每侧可独立测试
+4. **E2E 测试归位 kais-aigc-platform 仓库**,通过 docker-compose 跑一个真实 phase 验证画布节点齐全
+5. **canvas_sync.py 精简不重写**——渐进式,删除明确 dead code,保留核心 `on_phase_complete` 路径
+6. **Backfill 是一次性脚本**,不进入持续运行代码;`--apply` 后归档
+7. **契约真值源** ——`src/lib/canvasAssetSchema.ts` (TS zod) 和 `pipeline/phases/_manifest.py` (Python `MANIFEST_PARAM_SCHEMA`) 平行声明,通过双端 contract test 守住字段集一致
+
+## Shipped: v1.9 Canvas Sync Reliability (2026-06-24)
+
+**Goal:** Eliminate silent data-loss in kais-movie-agent ↔ canvas sync via append-only event log + monotonic reducer + idempotent write API + resumable WS subscription.
+
+**Outcome:** Phase 40 (joint-debug) + Phase 41 (event sourcing) shipped. 12 SYNC-* requirements satisfied. `kv_canvasEvent` table + reducer + `POST /api/v2/canvas/events` + `load-v2?since=` + WS `subscribe` handshake. Frontend hook behind `VITE_CANVAS_EVENT_REPLAY=1` flag.
+
+## Shipped: v1.8 Canvas ↔ Movie-Agent V8.6 Adaptation (2026-06-19)
+
+**Goal:** Reconcile drifted master ↔ kais-movie-agent V8.6 (sibling repo). Master exposes `/api/v2/canvas/*` contract routes.
+
+**Outcome:** Phase 39 shipped — 3 waves (ADAPT/EXEC/VERIFY), 10/10 ADAPT/EXEC/VERIFY requirements satisfied. Real gold-team engine wiring env-gated; 33/33 contract assertions pass.
+
+## Shipped: v1.7 Infinite Canvas Storyboard & Orchestration (2026-06-18)
+
+**Goal:** 借鉴字节小云雀短剧 Agent 的核心差异化能力,增强无限画布——补齐分镜元数据(运镜/景别/构图/节奏)、引入"一键成片"全链路编排、解锁批量执行工作流。
+
+**Outcome:** 4 phases (35-38), 24/24 requirements satisfied. Tier 1 storyboard metadata + one-click orchestrator + batch execution + Tier 2 preview placeholder all shipped. Zero backend schema changes — fields persist via existing JSON blob.
 
 ### Active
 
@@ -242,4 +264,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-15 after v1.6 milestone shipped*
+*Last updated: 2026-07-15 after v2.0 milestone kickoff*

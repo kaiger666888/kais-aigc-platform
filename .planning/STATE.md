@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.9
-milestone_name: Canvas Sync Reliability
-status: shipped
-last_updated: "2026-06-24T00:00:00.000Z"
-last_activity: 2026-06-24
+milestone: v2.0
+milestone_name: Canvas Sync Permanence
+status: planning
+last_updated: "2026-07-15T12:21:20.760Z"
+last_activity: 2026-07-15
 progress:
-  total_phases: 2
-  completed_phases: 2
-  total_plans: 2
-  completed_plans: 2
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -24,12 +24,10 @@ See: .planning/PROJECT.md (updated 2026-06-17)
 
 ## Current Position
 
-Phase: 41 complete (Canvas Event Sourcing & Sync Reliability)
-Plan: 41-01 — 3 waves (CORE / COMPAT / REPLAY+VERIFY) all shipped
-Status: Branch `feature/v1.9-canvas-event-sourcing` ready for review/merge
-Last activity: 2026-07-12 — Completed quick task schema-ui-backfill (asset detail panel root-cause fix: import params flatten + sidecar txt + schema strictness + UI fallback + dry-run backfill script)
-
-Progress: [██████████] 100% (Phase 40 joint-debug + Phase 41 event sourcing both shipped)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-07-15 — Milestone v2.0 started
 
 ## Performance Metrics
 
