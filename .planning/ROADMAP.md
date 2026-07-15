@@ -206,11 +206,11 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 46-01-PLAN.md — Safe-tier contract verify scripts (verify-manifest-contract.ts + verify-import-roundtrip.ts + verify-schema-drift.ts + master verify:phase-46-contracts); covers VERIFY-01, VERIFY-02, VERIFY-04
+- [x] 46-01-PLAN.md — Safe-tier contract verify scripts (verify-manifest-contract.ts + verify-import-roundtrip.ts + verify-schema-drift.ts + master verify:phase-46-contracts); covers VERIFY-01, VERIFY-02, VERIFY-04
 
 **Wave 2** *(blocked on Wave 1 completion; autonomous: false — manual E2E)*
 
-- [ ] 46-02-PLAN.md — Env-gated docker E2E (verify-phase-46-e2e.ts + p04-canvas-e2e-manifest.json fixture); covers VERIFY-03
+- [x] 46-02-PLAN.md — Env-gated docker E2E (verify-phase-46-e2e.ts + p04-canvas-e2e-manifest.json fixture); covers VERIFY-03 (structure shipped; live assertion deferred to manual setup)
 
 ### Phase 47: Historical Backfill + Archival
 
@@ -244,7 +244,7 @@ Phase 42 is the contract source — 43 and 44 can start in parallel after 42 lan
 | 43. canvas_sync.py Cleanup + Single-Path Mapping | v2.0 | 1/1 | Complete | 2026-07-15 |
 | 44. Receiving-side Schema Strictness + Import Validation | v2.0 | 3/3 | Complete | 2026-07-16 |
 | 45. Text Asset Mapping + UI Completeness | v2.0 | 3/3 | Complete | 2026-07-16 |
-| 46. E2E + Cross-repo Contract Tests | v2.0 | 0/2 | Planning complete | - |
+| 46. E2E + Cross-repo Contract Tests | v2.0 | 2/2 | Complete | 2026-07-16 |
 | 47. Historical Backfill + Archival | v2.0 | 0/? | Not started | - |
 
 ### Completed Milestones

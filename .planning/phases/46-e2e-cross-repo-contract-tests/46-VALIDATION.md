@@ -1,10 +1,11 @@
 ---
 phase: 46
 slug: e2e-cross-repo-contract-tests
-status: draft
+status: complete
 nyquist_compliant: true
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-07-16
+completed: 2026-07-16
 ---
 
 # Phase 46 — Validation Strategy
@@ -46,18 +47,18 @@ created: 2026-07-16
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|--------|
-| 46-01-01 | 01 | 1 | VERIFY-01 | T-46-01, T-46-02 | Phase 42 manifest contract suite (132 tests) runs green from this repo | integration (cross-repo pytest) | `npx tsx scripts/verify-manifest-contract.ts` | ⬜ pending |
-| 46-01-02 | 01 | 1 | VERIFY-02 | — | Production flattenParamsToNodeData + non-empty description ≥20 chars + every params.* round-trips on fixture | integration (runtime helper + fixture) | `npx tsx scripts/verify-import-roundtrip.ts` | ⬜ pending |
-| 46-01-03 | 01 | 1 | VERIFY-04 | T-46-04 | TS EXPECTED_PARAM_FIELDS_BY_TYPE matches Python MANIFEST_PARAM_SCHEMA across all 9 node types | static (regex parse + diff) | `npx tsx scripts/verify-schema-drift.ts` | ⬜ pending |
-| 46-01-04 | 01 | 1 | VERIFY-01, VERIFY-02, VERIFY-04 | — | Master npm script chains all 3 safe-tier scripts | npm-script composition | `npm run verify:phase-46-contracts` | ⬜ pending |
+| 46-01-01 | 01 | 1 | VERIFY-01 | T-46-01, T-46-02 | Phase 42 manifest contract suite (132 tests) runs green from this repo | integration (cross-repo pytest) | `npx tsx scripts/verify-manifest-contract.ts` | ✅ green |
+| 46-01-02 | 01 | 1 | VERIFY-02 | — | Production flattenParamsToNodeData + non-empty description ≥20 chars + every params.* round-trips on fixture | integration (runtime helper + fixture) | `npx tsx scripts/verify-import-roundtrip.ts` | ✅ green |
+| 46-01-03 | 01 | 1 | VERIFY-04 | T-46-04 | TS EXPECTED_PARAM_FIELDS_BY_TYPE matches Python MANIFEST_PARAM_SCHEMA across all 9 node types | static (regex parse + diff) | `npx tsx scripts/verify-schema-drift.ts` | ✅ green |
+| 46-01-04 | 01 | 1 | VERIFY-01, VERIFY-02, VERIFY-04 | — | Master npm script chains all 3 safe-tier scripts | npm-script composition | `npm run verify:phase-46-contracts` | ✅ green |
 
 ### Wave 2 (Plan 02 — manual E2E)
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|--------|
-| 46-02-01 | 02 | 2 | VERIFY-03 | T-46-07 | 3-node p04 fixture with description ≥20 + archetype/role/era params | static (fixture file shape) | `python3 -c "import json; ..."` shape check | ⬜ pending |
-| 46-02-02 | 02 | 2 | VERIFY-03 | T-46-05, T-46-06, T-46-09 | Env-gated E2E: docker-up + fixture-drop + canvas_sync trigger + API poll + description/params assertions | E2E (env-gated) | `PHASE46_RUN_E2E=1 npx tsx scripts/verify-phase-46-e2e.ts` | ⬜ pending |
-| 46-02-03 | 02 | 2 | VERIFY-03 | — | package.json wiring + VALIDATION.md manual section | static (grep) | `grep -c 'verify:phase-46-e2e' package.json` | ⬜ pending |
+| 46-02-01 | 02 | 2 | VERIFY-03 | T-46-07 | 3-node p04 fixture with description ≥20 + archetype/role/era params | static (fixture file shape) | `python3 -c "import json; ..."` shape check | ✅ green |
+| 46-02-02 | 02 | 2 | VERIFY-03 | T-46-05, T-46-06, T-46-09 | Env-gated E2E: docker-up + fixture-drop + canvas_sync trigger + API poll + description/params assertions | E2E (env-gated) | `PHASE46_RUN_E2E=1 npx tsx scripts/verify-phase-46-e2e.ts` | ⏸ deferred (structure shipped; live assertion requires docker stack + project 1 in canvas DB — see Manual E2E Procedure) |
+| 46-02-03 | 02 | 2 | VERIFY-03 | — | package.json wiring + VALIDATION.md manual section | static (grep) | `grep -c 'verify:phase-46-e2e' package.json` | ✅ green |
 
 ### Wave 2 manual E2E (documented in Plan 02)
 
@@ -72,12 +73,12 @@ to confirm the receiver-side E2E flow.
 
 ## Wave 0 Requirements
 
-- [ ] `scripts/verify-manifest-contract.ts` — Plan 01 Task 1
-- [ ] `scripts/verify-import-roundtrip.ts` — Plan 01 Task 2
-- [ ] `scripts/verify-schema-drift.ts` — Plan 01 Task 3
-- [ ] `scripts/verify-phase-46-e2e.ts` — Plan 02 Task 2 (env-gated)
-- [ ] `scripts/fixtures/p04-canvas-e2e-manifest.json` — Plan 02 Task 1
-- [ ] `package.json` entries: `verify:manifest-contract`, `verify:import-roundtrip`, `verify:schema-drift`, `verify:phase-46-contracts`, `verify:phase-46-e2e`
+- [x] `scripts/verify-manifest-contract.ts` — Plan 01 Task 1
+- [x] `scripts/verify-import-roundtrip.ts` — Plan 01 Task 2
+- [x] `scripts/verify-schema-drift.ts` — Plan 01 Task 3
+- [x] `scripts/verify-phase-46-e2e.ts` — Plan 02 Task 2 (env-gated)
+- [x] `scripts/fixtures/p04-canvas-e2e-manifest.json` — Plan 02 Task 1
+- [x] `package.json` entries: `verify:manifest-contract`, `verify:import-roundtrip`, `verify:schema-drift`, `verify:phase-46-contracts`, `verify:phase-46-e2e`
 
 *Wave 0 deliverables are split across both plans. Plan 01 ships the safe-tier subset (CI-ready); Plan 02 ships the manual E2E. `nyquist_compliant: true` because every task has a concrete automated check.*
 
