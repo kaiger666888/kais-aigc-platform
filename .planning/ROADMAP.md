@@ -123,7 +123,12 @@ Plans:
   2. `src/routes/canvas/v2/import-from-dir.ts` logs a warning with the missing field list when a manifest node lacks expected params, and stamps `data.__incomplete = true` so UI can flag it; the node is still created (no silent drop).
   3. `PATCH /nodes/batch` enforces the v2.0 schema field set (tightened from the 2026-07-12 quick-task baseline); invalid batches return 400 with the full error list.
   4. A new `scripts/verify-schema-roundtrip.ts` runs a sample manifest through import + schema validation and asserts every `params.*` key appears in `node.data`.
-**Plans**: TBD
+**Plans**: 3 plans (Wave 1: schema expansion + import stamping in parallel; Wave 2: roundtrip verifier)
+
+Plans:
+- [ ] 44-01-PLAN.md — Schema expansion (YAML + 3 generated files + EXPECTED_PARAM_FIELDS_BY_TYPE); covers SCHEMA-01, SCHEMA-04
+- [ ] 44-02-PLAN.md — Import stamping (__incomplete + __missing_fields + console.warn in import-from-dir.ts); covers SCHEMA-02
+- [ ] 44-03-PLAN.md — Roundtrip verifier (scripts/verify-schema-roundtrip.ts + fixture + npm script); covers SCHEMA-03, re-verifies SCHEMA-01/02/04
 
 ### Phase 45: Text Asset Mapping + UI Completeness
 **Goal**: Every phase text output (.txt file) has a home on the canvas with full description; the node detail panel never collapses to a bare label.
@@ -175,7 +180,7 @@ Phase 42 is the contract source — 43 and 44 can start in parallel after 42 lan
 |-------|-----------|----------------|--------|-----------|
 | 42. Source-side Manifest Contract Hardening | v2.0 | 0/? | Not started | - |
 | 43. canvas_sync.py Cleanup + Single-Path Mapping | v2.0 | 0/? | Not started | - |
-| 44. Receiving-side Schema Strictness + Import Validation | v2.0 | 0/? | Not started | - |
+| 44. Receiving-side Schema Strictness + Import Validation | v2.0 | 0/3 | Planning complete | - |
 | 45. Text Asset Mapping + UI Completeness | v2.0 | 0/? | Not started | - |
 | 46. E2E + Cross-repo Contract Tests | v2.0 | 0/? | Not started | - |
 | 47. Historical Backfill + Archival | v2.0 | 0/? | Not started | - |
