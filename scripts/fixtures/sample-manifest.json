@@ -22,7 +22,8 @@
         "label": "脚本 示例",
         "genre": "都市情感",
         "tone": "温情",
-        "total_duration_sec": "300"
+        "total_duration_sec": "300",
+        "description": "P44 脚本示例 · 都市情感 · 温情基调 · 5 分钟短剧"
       },
       "phase": "p44"
     },
@@ -33,7 +34,8 @@
       "params": {
         "shot_id": "shot-001",
         "shot_type": "WS",
-        "duration_sec": 5
+        "duration_sec": 5,
+        "description": "P44 分镜示例 · shot-001 · WS 全景 · 5 秒镜头"
       },
       "phase": "p44"
     },
@@ -45,7 +47,8 @@
         "shot_id": "shot-001",
         "engine": "ltx",
         "duration_sec": 5,
-        "resolution": "1280x704"
+        "resolution": "1280x704",
+        "description": "P44 视频示例 · shot-001 · ltx engine · 1280x704 · 5 秒"
       },
       "phase": "p44"
     }
