@@ -16,6 +16,7 @@ import socketInit from "@/socket/index";
 import { setIo } from "@/utils/ws";
 import { isEletron } from "@/utils/getPath";
 import { bootReady } from "@/utils/db";
+import { loadArchRepos } from "@/lib/arch-tracked-repos";
 
 const app = express();
 const server = http.createServer(app);
@@ -153,17 +154,30 @@ export default async function startServe(randomPort: Boolean = false) {
     });
   }
 
-  // arch-dashboard：自托管架构演化看板（MkDocs 静态站点）
-  const archDashboardDir = "/home/kai/workspace/arch-dashboard/site";
-  if (fs.existsSync(archDashboardDir)) {
-    app.use("/arch-dashboard", express.static(archDashboardDir, { acceptRanges: true, maxAge: "5m", cacheControl: true }));
-    // SPA fallback 只接管无扩展名的目录型 URL（如 /arch-dashboard/timetravel/）。
-    // 带扩展名的请求（.json/.js/.png 等）若 static 没找到就让其正常 404，
-    // 否则会把缺失的 .json 也吞成 index.html，掩盖 bug。
-    app.get("/arch-dashboard/{*path}", (req, res, next) => {
+  // arch dashboards：manifest-driven reverse proxy (Phase 6 PROXY-01/02/03).
+  // Reads /etc/arch-tracked-repos.conf (or ~/.config fallback) and mounts each
+  // tracked repo's MkDocs site at its declared URL prefix. Adding a repo
+  // requires editing ONLY the manifest — never this file.
+  const archRepos = loadArchRepos();
+  if (archRepos.length === 0) {
+    console.warn("[arch-proxy] no manifest found — 0 repos mounted (graceful skip)");
+  }
+  for (const { repoName, urlPrefix, sitePath } of archRepos) {
+    if (!fs.existsSync(sitePath)) {
+      console.warn(`[arch-proxy] skipping ${repoName}: site-path missing (${sitePath})`);
+      continue;
+    }
+    app.use(urlPrefix, express.static(sitePath, { acceptRanges: true, maxAge: "5m", cacheControl: true }));
+    // Extension-aware SPA fallback — generalized from the timetravel fix.
+    // Only directory-type URLs (no extension) fall back to index.html.
+    // Requests with extensions (.json/.js/.png) that static didn't find
+    // fall through to 404 — otherwise missing .json would be masked as
+    // the SPA shell, hiding bugs (the timetravel bug, generalized).
+    app.get(`${urlPrefix === "/" ? "" : urlPrefix}{*path}`, (req, res, next) => {
       if (path.extname(req.path)) return next();
-      res.sendFile(path.join(archDashboardDir, "index.html"));
+      res.sendFile(path.join(sitePath, "index.html"));
     });
+    console.log(`[arch-proxy] mounted ${repoName} at ${urlPrefix} -> ${sitePath}`);
   }
 
   app.get("/health", (_req, res) => {
@@ -174,7 +188,7 @@ export default async function startServe(randomPort: Boolean = false) {
   // so that deep links like /project, /production work without JWT
   app.use((req, res, next) => {
     if (req.method !== "GET") return next();
-    if (req.path.startsWith("/api/") || req.path.startsWith("/oss/") || req.path.startsWith("/assets/") || req.path.startsWith("/skills/") || req.path.startsWith("/infinite-canvas") || req.path.startsWith("/arch-dashboard")) {
+    if (req.path.startsWith("/api/") || req.path.startsWith("/oss/") || req.path.startsWith("/assets/") || req.path.startsWith("/skills/") || req.path.startsWith("/infinite-canvas") || archRepos.some(r => req.path.startsWith(r.urlPrefix))) {
       return next();
     }
     if (req.path.match(/\.[^/]+$/)) {
@@ -203,8 +217,10 @@ export default async function startServe(randomPort: Boolean = false) {
     if (req.path.startsWith("/assets/") || req.path.endsWith(".js") || req.path.endsWith(".css") || req.path.endsWith(".ico") || req.path.endsWith(".map")) return next();
     // 无限画布页面
     if (req.path.startsWith("/infinite-canvas")) return next();
-    // arch-dashboard 静态看板
-    if (req.path.startsWith("/arch-dashboard")) return next();
+    // arch dashboards: auth bypass generalized to all manifest-mounted repos
+    // (arch dashboards are intentionally public within the tailscale network —
+    // PROJECT.md PRIV posture: architecture data carries no secrets).
+    if (archRepos.some(r => req.path.startsWith(r.urlPrefix))) return next();
     // V6.0 API routes: pass through without auth (internal service mesh)
     if (req.path.startsWith("/api/v1/")) {
       (req as any).user = { source: "v6-internal" };
