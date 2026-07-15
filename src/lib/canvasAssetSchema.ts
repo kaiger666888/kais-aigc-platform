@@ -175,3 +175,30 @@ export function validateGraphNodes(
 
   return errors;
 }
+
+/**
+ * Baseline expected params per node type. Mirrors Phase 42's
+ * MANIFEST_PARAM_SCHEMA from
+ * kais-hermes-skills/skills/kais-movie-pipeline/pipeline/phases/_manifest.py:64-74.
+ *
+ * BASELINE ONLY — phase-specific adds (PHASE_REQUIRED_FIELDS in Python,
+ * e.g. archetype/role for p04) are enforced source-side by Phase 42 and
+ * intentionally omitted here to avoid over-flagging the 689 historical
+ * rows that pre-date the v2.0 contract (Pitfall 3 in 44-RESEARCH.md).
+ *
+ * Consumed by `import-from-dir.ts` (Plan 02) to warn + stamp
+ * `__incomplete` / `__missing_fields` when an incoming manifest node is
+ * missing baseline fields, and by `scripts/verify-schema-roundtrip.ts`
+ * (Plan 03) for documentation cross-reference.
+ */
+export const EXPECTED_PARAM_FIELDS_BY_TYPE: Record<string, string[]> = {
+  video: ["shot_id", "engine", "duration_sec", "resolution"],
+  audio: ["shot_id", "engine", "duration_sec"],
+  storyboard: ["shot_id", "shot_type", "duration_sec"],
+  asset: ["label"],
+  script: ["label"],
+  reference: [],
+  zone: [],
+  phase: [],
+  suggestion: [],
+};
