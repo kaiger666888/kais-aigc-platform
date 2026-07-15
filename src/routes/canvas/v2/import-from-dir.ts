@@ -14,8 +14,33 @@ import { appendAndSync } from "@/lib/canvasEventStore";
 import { broadcastToProject } from "@/utils/ws";
 import u from "@/utils";
 import { SCHEMA_ALIASES, ENUM_NORMALIZERS } from "../../../../schema/generated/frontend-enum-normalizers";
+import { EXPECTED_PARAM_FIELDS_BY_TYPE } from "@/lib/canvasAssetSchema";
 
 const router = express.Router();
+
+/**
+ * Flatten scalar `params.*` entries from a pipeline manifest item into the
+ * `extra` accumulator, never overwriting keys already present (top-level
+ * item values win).
+ *
+ * Exported for scripts/verify-schema-roundtrip.ts (Phase 44 SCHEMA-03) so
+ * the verify script can replay the EXACT production flatten logic instead
+ * of hand-mirroring it (closes the replay-drift loophole flagged in
+ * 44-03-PLAN.md Blocker 3).
+ */
+export function flattenParamsToNodeData(
+  params: unknown,
+  extra: Record<string, any>,
+): void {
+  if (params && typeof params === "object" && !Array.isArray(params)) {
+    for (const [pk, pv] of Object.entries(params as Record<string, unknown>)) {
+      if (pv == null) continue;
+      if (typeof pv === "string" || typeof pv === "number" || typeof pv === "boolean") {
+        if (!(pk in extra)) extra[pk] = pv;
+      }
+    }
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════════
 // CANVAS TREE BUILDER — replicates canvas_sync.py's Zone → Summary → Artifact
@@ -434,14 +459,7 @@ function itemToArtifact(item: any, outputKey: string): RawArtifact | null {
   // asset node shows nothing but a label in the canvas detail panel.
   // Strategy: copy every scalar value from params into extra, BUT never
   // overwrite a field already set above (top-level item values win).
-  if (item.params && typeof item.params === "object" && !Array.isArray(item.params)) {
-    for (const [pk, pv] of Object.entries(item.params as Record<string, unknown>)) {
-      if (pv == null) continue;
-      if (typeof pv === "string" || typeof pv === "number" || typeof pv === "boolean") {
-        if (!(pk in extra)) extra[pk] = pv;
-      }
-    }
-  }
+  flattenParamsToNodeData(item.params, extra);
 
   if (Object.keys(extra).length > 0) {
     art.extra = extra;
@@ -662,6 +680,26 @@ function buildPhaseTree(
       const val = artData[field];
       if (typeof val === "string" && mapping[val] && val !== mapping[val]) {
         artData[field] = mapping[val];
+      }
+    }
+
+    // ── Phase 44: completeness check against expected params ──────────
+    // Defense-in-depth: Phase 42 enforces the actual contract source-side;
+    // this receiver check surfaces drift loudly (warn) rather than silently
+    // (drop), and stamps structured metadata so Phase 45's UI can flag the
+    // node. Baseline only — phase-specific adds are NOT included so the
+    // 689 historical rows (which pre-date the v2.0 contract) are not
+    // flagged incomplete (Pitfall 3 in 44-RESEARCH.md).
+    const expected = EXPECTED_PARAM_FIELDS_BY_TYPE[def.canvasType] || [];
+    if (expected.length > 0) {
+      const missing = expected.filter((f) => artData[f] == null || artData[f] === "");
+      if (missing.length > 0) {
+        artData.__incomplete = true;
+        artData.__missing_fields = missing;
+        console.warn(
+          `[v2/import] node ${nodeId} (${def.canvasType}) missing fields:`,
+          missing.join(", "),
+        );
       }
     }
 
