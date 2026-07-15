@@ -26,7 +26,8 @@
     "build:server": "node -e \"const e=require('esbuild');const pkg=require('./package.json');e.build({entryPoints:['src/app.ts'],bundle:true,format:'cjs',allowOverwrite:true,outfile:'data/serve/app.js',platform:'node',target:'esnext',tsconfig:'./tsconfig.json',alias:{'@':'./src'},sourcemap:false,external:['electron','@huggingface/transformers','onnxruntime-node','vm2','sqlite3','better-sqlite3','sharp','mysql','mysql2','pg','pg-query-stream','oracledb','tedious','mssql'],define:{__APP_VERSION__:JSON.stringify(pkg.version)},logOverride:{'top-level-await':'silent'}}).then(()=>console.log('✅ Built data/serve/app.js')).catch(e=>{console.error(e);process.exit(1);})\"",
     "lint": "tsc --noEmit",
     "debug:ai": "npx @ai-sdk/devtools",
-    "verify:phase-41": "npx tsx scripts/verify-phase-41.ts"
+    "verify:phase-41": "npx tsx scripts/verify-phase-41.ts",
+    "verify:phase-44": "npx tsx scripts/verify-schema-roundtrip.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.35",

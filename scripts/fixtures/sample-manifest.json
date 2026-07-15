@@ -1,0 +1,54 @@
+{
+  "phase_id": "phase44_fixture",
+  "phase": "p44",
+  "nodes": [
+    {
+      "id": "p44/asset-sample",
+      "type": "asset",
+      "label": "角色 示例",
+      "params": {
+        "label": "角色 示例",
+        "archetype": "protagonist",
+        "era": "现代",
+        "description": "示例角色 · protagonist · 现代都市 · 短发"
+      },
+      "phase": "p44"
+    },
+    {
+      "id": "p44/script-sample",
+      "type": "script",
+      "label": "脚本 示例",
+      "params": {
+        "label": "脚本 示例",
+        "genre": "都市情感",
+        "tone": "温情",
+        "total_duration_sec": "300"
+      },
+      "phase": "p44"
+    },
+    {
+      "id": "p44/storyboard-sample",
+      "type": "storyboard",
+      "label": "分镜 示例",
+      "params": {
+        "shot_id": "shot-001",
+        "shot_type": "WS",
+        "duration_sec": 5
+      },
+      "phase": "p44"
+    },
+    {
+      "id": "p44/video-sample",
+      "type": "video",
+      "label": "视频 示例",
+      "params": {
+        "shot_id": "shot-001",
+        "engine": "ltx",
+        "duration_sec": 5,
+        "resolution": "1280x704"
+      },
+      "phase": "p44"
+    }
+  ],
+  "edges": []
+}
