@@ -1,0 +1,34 @@
+Mode: APPLY
+DB: /data/workspace/kais-aigc-platform/data/db2.sqlite
+Total asset nodes scanned: 751
+  Already complete (no change): 160
+  Would change / changed: 591
+  No signal (cannot repair): 0
+
+Action breakdown:
+  description→prompt: 328
+  prompt→description: 6
+  synthesize: 257
+
+Sample changes (first 5):
+  n-char-sunian
+    actions: ['description→prompt']
+    before:  ['assetId', 'assetType', 'category', 'description', 'filePath', 'label', 'state', 'tags', 'uuid']
+    after:   ['assetId', 'assetType', 'category', 'description', 'filePath', 'label', 'prompt', 'state', 'tags', 'uuid']
+  n-char-zhouxiulan
+    actions: ['description→prompt']
+    before:  ['assetId', 'assetType', 'category', 'description', 'filePath', 'label', 'state', 'tags', 'uuid']
+    after:   ['assetId', 'assetType', 'category', 'description', 'filePath', 'label', 'prompt', 'state', 'tags', 'uuid']
+  n-char-linke
+    actions: ['description→prompt']
+    before:  ['assetId', 'assetType', 'category', 'description', 'filePath', 'label', 'state', 'tags', 'uuid']
+    after:   ['assetId', 'assetType', 'category', 'description', 'filePath', 'label', 'prompt', 'state', 'tags', 'uuid']
+  n-char-xiaochen
+    actions: ['description→prompt']
+    before:  ['assetId', 'assetType', 'category', 'description', 'filePath', 'label', 'state', 'tags', 'uuid']
+    after:   ['assetId', 'assetType', 'category', 'description', 'filePath', 'label', 'prompt', 'state', 'tags', 'uuid']
+  scifi_design_character_bible_json_4z8p
+    actions: ['description→prompt']
+    before:  ['assetType', 'content', 'description', 'filePath', 'label', 'phase', 'state', 'tags']
+    after:   ['assetType', 'content', 'description', 'filePath', 'label', 'phase', 'prompt', 'state', 'tags']
+APPLY_EXIT=0
