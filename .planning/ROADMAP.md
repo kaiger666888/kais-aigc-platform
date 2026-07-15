@@ -227,7 +227,7 @@ Phase 42 is the contract source — 43 and 44 can start in parallel after 42 lan
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 42. Source-side Manifest Contract Hardening | v2.0 | 1/1 | Complete | 2026-07-15 |
-| 43. canvas_sync.py Cleanup + Single-Path Mapping | v2.0 | 0/? | Not started | - |
+| 43. canvas_sync.py Cleanup + Single-Path Mapping | v2.0 | 1/1 | Complete | 2026-07-15 |
 | 44. Receiving-side Schema Strictness + Import Validation | v2.0 | 3/3 | Complete | 2026-07-16 |
 | 45. Text Asset Mapping + UI Completeness | v2.0 | 3/3 | Complete | 2026-07-16 |
 | 46. E2E + Cross-repo Contract Tests | v2.0 | 0/? | Not started | - |
