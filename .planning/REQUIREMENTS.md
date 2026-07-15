@@ -189,33 +189,33 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MANIFEST-01 | TBD (v2.0) | Pending |
-| MANIFEST-02 | TBD (v2.0) | Pending |
-| MANIFEST-03 | TBD (v2.0) | Pending |
-| MANIFEST-04 | TBD (v2.0) | Pending |
-| MANIFEST-05 | TBD (v2.0) | Pending |
-| SYNCSIDE-01 | TBD (v2.0) | Pending |
-| SYNCSIDE-02 | TBD (v2.0) | Pending |
-| SYNCSIDE-03 | TBD (v2.0) | Pending |
-| SCHEMA-01 | TBD (v2.0) | Pending |
-| SCHEMA-02 | TBD (v2.0) | Pending |
-| SCHEMA-03 | TBD (v2.0) | Pending |
-| SCHEMA-04 | TBD (v2.0) | Pending |
-| TEXT-01 | TBD (v2.0) | Pending |
-| TEXT-02 | TBD (v2.0) | Pending |
-| TEXT-03 | TBD (v2.0) | Pending (Tier 2) |
-| VERIFY-01 (v2.0) | TBD (v2.0) | Pending |
-| VERIFY-02 (v2.0) | TBD (v2.0) | Pending |
-| VERIFY-03 (v2.0) | TBD (v2.0) | Pending |
-| VERIFY-04 (v2.0) | TBD (v2.0) | Pending |
-| BACKFILL-01 | TBD (v2.0) | Pending |
-| BACKFILL-02 | TBD (v2.0) | Pending |
-| BACKFILL-03 | TBD (v2.0) | Pending |
+| MANIFEST-01 | Phase 42 | Pending |
+| MANIFEST-02 | Phase 42 | Pending |
+| MANIFEST-03 | Phase 42 | Pending |
+| MANIFEST-04 | Phase 42 | Pending |
+| MANIFEST-05 | Phase 42 | Pending |
+| SYNCSIDE-01 | Phase 43 | Pending |
+| SYNCSIDE-02 | Phase 43 | Pending |
+| SYNCSIDE-03 | Phase 43 | Pending |
+| SCHEMA-01 | Phase 44 | Pending |
+| SCHEMA-02 | Phase 44 | Pending |
+| SCHEMA-03 | Phase 44 | Pending |
+| SCHEMA-04 | Phase 44 | Pending |
+| TEXT-01 | Phase 45 | Pending |
+| TEXT-02 | Phase 45 | Pending |
+| TEXT-03 | Phase 45 | Pending (Tier 2) |
+| VERIFY-01 (v2.0) | Phase 46 | Pending |
+| VERIFY-02 (v2.0) | Phase 46 | Pending |
+| VERIFY-03 (v2.0) | Phase 46 | Pending |
+| VERIFY-04 (v2.0) | Phase 46 | Pending |
+| BACKFILL-01 | Phase 47 | Pending |
+| BACKFILL-02 | Phase 47 | Pending |
+| BACKFILL-03 | Phase 47 | Pending |
 
 **Coverage:**
 - v2.0 requirements: 22 total (21 committed + 1 Tier 2)
-- Mapped to phases: 0 (filled by roadmap creation)
-- Unmapped: 22 (will be filled by roadmap)
+- Mapped to phases: 22
+- Unmapped: 0 ✓
 
 Prior milestone traceability:
 - v1.9 SYNC-01..12: Phase 40 + 41 ✓ Shipped

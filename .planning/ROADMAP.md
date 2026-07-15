@@ -11,7 +11,8 @@
 - ✅ **v1.6 Workflow Skill Contract** — Phases 28-34 (shipped 2026-06-15)
 - ✅ **v1.7 Infinite Canvas Storyboard & Orchestration** — Phases 35-38 (shipped 2026-06-18)
 - ✅ **v1.8 Canvas ↔ Movie-Agent V8.6 Adaptation** — Phase 39 (shipped 2026-06-19)
-- 🚧 **v1.9 Canvas Sync Reliability** — Phase 40 (shipped 2026-06-22, joint-debug fixes); Phase 41 (in progress, event sourcing)
+- ✅ **v1.9 Canvas Sync Reliability** — Phases 40-41 (shipped 2026-06-24)
+- 🚧 **v2.0 Canvas Sync Permanence** — Phases 42-47 (current milestone)
 
 ## Phases
 
@@ -23,7 +24,9 @@
 - Integer phases (23-27): v1.5
 - Integer phases (28-34): v1.6 (shipped)
 - Integer phases (35-38): v1.7 (shipped)
-- Integer phase (39): v1.8 (this milestone — in progress)
+- Integer phase (39): v1.8 (shipped)
+- Integer phases (40-41): v1.9 (shipped)
+- Integer phases (42-47): **v2.0 (this milestone — in progress)**
 - Decimal phases (e.g., 35.1): Urgent insertions
 
 Decimal phases appear between their surrounding integers in numeric order.
@@ -31,168 +34,151 @@ Decimal phases appear between their surrounding integers in numeric order.
 ### ✅ Previous Milestones (Shipped)
 
 <details>
-<summary>Phases 1-34: v1.0 through v1.6 — collapsed</summary>
+<summary>Phases 1-41: v1.0 through v1.9 — collapsed</summary>
 
 #### v1.0 MVP (Phases 1-6)
-
 Core video/image/audio generation pipeline via ComfyUI + cloud fallback.
 
 #### v1.1 Hermes Intelligent Decision Engine (Phases 7-10)
-
 Domain-agnostic REST API with self-learning loop. 21 requirements satisfied.
 
 #### v1.2 Integration Testing (Phases 11-14)
-
 Complete hermes-agent integration test suite. 42+ tests, CI pipeline. 22 requirements satisfied.
 
 #### v1.3 Architecture Alignment (Phases 15-19.1)
-
 Engine consolidation, workflow builder expansion, BackendType classification. 102/102 tests passing.
 
 #### v1.4 Production Verification + Repo Governance (Phases 20-22)
-
 ENG-04 fix shipped. Live runtime verification partial. 19 sibling repos audited.
 
 #### v1.5 Architecture Hardening + Code Hygiene (Phases 23-27)
-
 GpuScheduler Redis backend, gold-team Python cleanup, unified output paths, TypeScript compile clean (12,447→0 errors), router.ts auto-gen root-cause fix. 9/9 requirements satisfied.
 
 #### v1.6 Workflow Skill Contract (Phases 28-34)
+Skill contract published at `src/skills/contract.ts`; registry layer replaces hardcoded constants; canvas fetches node types dynamically; skill author guide + install-ready manifest shipped. 35/36 requirements satisfied (1 deferred — COMPLIANCE-03).
 
-Skill contract published at `src/skills/contract.ts`; registry layer replaces hardcoded constants; canvas fetches node types dynamically; skill author guide + install-ready manifest shipped. 35/36 requirements satisfied (1 deferred — COMPLIANCE-03 live Docker + GPU sign-off, environment-gated).
+#### v1.7 Infinite Canvas Storyboard & Orchestration (Phases 35-38, shipped 2026-06-18)
+Storyboard metadata (camera/framing/composition/pacing), one-click "🚀 一键成片" orchestrator, batch execution, Tier 2 storyboard preview placeholder. 24/24 requirements satisfied. Zero backend schema changes.
+
+#### v1.8 Canvas ↔ Movie-Agent V8.6 Adaptation (Phase 39, shipped 2026-06-19)
+3 waves — ADAPT (merge feature/canvas-v2), EXEC (real gold-team engine wiring env-gated), VERIFY (33/33 contract assertions). Master exposes both `/api/canvas/*` and `/api/v2/canvas/*` routes. 10/10 requirements satisfied.
+
+#### v1.9 Canvas Sync Reliability (Phases 40-41, shipped 2026-06-24)
+Phase 40 joint-debug fixes + Phase 41 append-only event log (`kv_canvasEvent`) + monotonic reducer + idempotent write API + resumable WS subscription. Eliminates silent data-loss from concurrent writes. 12 SYNC-* requirements satisfied.
 
 </details>
 
-### ✅ v1.7 Infinite Canvas Storyboard & Orchestration (Shipped 2026-06-18)
+---
 
-**Milestone Goal:** Borrowing the Tier 1 differentiators of ByteDance Xiaoyunque short-drama Agent, upgrade the infinite canvas — add storyboard metadata (camera/framing/composition/pacing), introduce one-click full-pipeline orchestration ("一键成片"), and unlock batch execution workflows. Upgrade scattered node graphs into a complete short-drama production pipeline that runs end-to-end with one click. Tier 1 only this milestone — pure frontend + backend orchestration extension, no LLM integration, no schema refactor.
+## 🚧 v2.0 Canvas Sync Permanence (画布同步永久治理) — In Progress
 
-**Architecture decisions (v1.7):**
+**Milestone Goal:** 永久根治 kais-movie-pipeline → 无限画布自动同步中"资产同步不全 / 结构化参数缺失 / 描述过简不体现文字资产"三联症。通过**源端契约 + 接收端契约 + E2E 回归 + 存量 backfill** 四道闸,让该问题不再回归。
 
-1. Phase numbering continues from v1.6 (Phase 35+)
-2. **Borrow scope focused on Tier 1** — Story blueprint generator (LLM integration) and character consistency management (backend schema changes) deferred to v1.8+; this milestone is purely frontend + backend orchestration extension
-3. **Metadata storage** — reuse existing `FlowGraph.data: Record<string, unknown>` free schema; new fields added on `StoryboardNodeData`; backend `o_storyboard` extended via JSON column (`prompt_meta`) without breaking existing schema
-4. **One-click orchestration reuses existing `executeNode`** — no new engine introduced; orchestrator loops over nodes in canvas API layer, progress pushed via WebSocket
-5. **Batch execution = multiple `executeNode` calls** — backend is not concurrent; frontend fires parallel fire-and-forget; GPU serialization handled by GpuScheduler
-6. **Single backend endpoint for orchestrate + batch** — `POST /api/canvas/orchestrate` accepts optional `nodeIds: string[]`; full-canvas run when omitted, explicit subset when provided (BATCH-02)
-7. **Tier 2 PREVIEW phase (38) is optional and parallel-safe** — depends only on Phase 35 (storyboard metadata + `linkedAssetIds`); may be deferred without blocking Tier 1 milestone close
+**Architecture decisions (v2.0):**
 
-- [x] **Phase 35: Storyboard Metadata Extension** — `StoryboardNodeData` gains `cameraMovement`/`framing`/`composition`/`pacing`; chips rendered; NodeDetailPanel dropdowns; flowDataMapper round-trip via existing JSON blob persistence.
-- [x] **Phase 36: One-Click Film Orchestrator** — Toolbar "🚀 一键成片" button; `POST /api/canvas/orchestrate` route; topology-ordered execution via shared `simulateExecution` helper; skip-success logic; WebSocket progress + run-state UI + completion toast.
-- [x] **Phase 37: Batch Execution** — Multi-select right-click "批量执行 (N 个节点)"; reuses orchestrate endpoint with explicit `nodeIds`; skip-success per node; shared WebSocket progress channel; single-node "执行节点" retained on `/canvas/execute` for back-compat.
-- [x] **Phase 38: Storyboard Preview Cards (Tier 2)** — "👁 预览构图" button; `POST /api/canvas/storyboard/preview` (placeholder simulation; gold-team IMAGE_DRAW integration deferred); reuses existing `node:preview` WebSocket event; failure non-blocking.
+1. **v2.0 major** — 跨仓库结构化契约变更,且是"永久治理"性质;比 minor 更重
+2. **Phase 编号延续 v1.9** (Phase 42+)
+3. **双仓库同步变更**,但通过 manifest 契约解耦——每侧可独立测试
+4. **E2E 测试归位 kais-aigc-platform 仓库**,通过 docker-compose 跑一个真实 phase 验证画布节点齐全
+5. **canvas_sync.py 精简不重写**——渐进式,删除明确 dead code,保留核心 `on_phase_complete` 路径
+6. **Backfill 是一次性脚本**,不进入持续运行代码
+7. **契约真值源** —— `src/lib/canvasAssetSchema.ts` (TS zod) 和 `pipeline/phases/_manifest.py` (Python `MANIFEST_PARAM_SCHEMA`) 平行声明,通过双端 contract test 守住字段集一致
+8. **MANIFEST phase 先行** —— 它是所有其他 phase 的契约源头;SCHEMA + SYNCSIDE 都依赖它定义的字段集
 
-## Phase Details
-
-### Phase 35: Storyboard Metadata Extension
-**Goal**: Users can tag each storyboard node with directorial intent (camera movement, framing, composition, pacing), see it at a glance on the canvas, edit it inline, and trust it survives round-trips through save/load.
-**Depends on**: Nothing (first v1.7 phase; builds on v1.6 canvas foundation)
-**Requirements**: STORYBOARD-01, STORYBOARD-02, STORYBOARD-03, STORYBOARD-04, STORYBOARD-05, STORYBOARD-06, STORYBOARD-07
+### Phase 42: Source-side Manifest Contract Hardening
+**Goal**: Every phase manifest writer (p01..p12) MUST emit complete structured params + meaningful (non-terse) descriptions, validated by an automated contract test suite. This is the contract all downstream phases depend on.
+**Depends on**: Nothing (first v2.0 phase; defines the contract)
+**Requirements**: MANIFEST-01, MANIFEST-02, MANIFEST-03, MANIFEST-04, MANIFEST-05
+**Repo**: `kais-hermes-skills/skills/kais-movie-pipeline`
 **Success Criteria** (what must be TRUE):
-  1. User can set any of four metadata fields (cameraMovement / framing / composition / pacing) on a storyboard node via dropdowns in NodeDetailPanel, and the change persists immediately in the canvas store (canvas marked dirty).
-  2. User can read each populated metadata field as a chip on the StoryboardNode renderer; empty fields render nothing (no clutter).
-  3. User can save a storyboard node with metadata, reload the project, and see all four fields restored intact (canvas ↔ FlowGraph ↔ `o_storyboard.prompt_meta` JSON column round-trip preserves new fields without corrupting existing `prompt` text).
-  4. Each metadata field only accepts its documented enum values (e.g. `static`/`zoom_in`/.../`tracking` for cameraMovement); invalid values are rejected by the editor.
+  1. `MANIFEST_PARAM_SCHEMA` in `_manifest.py` declares per-type required structured fields (asset requires archetype/role; storyboard requires shot_id/shot_type/duration_sec; video requires engine/resolution/duration_sec; etc.) — emitting a node missing a required field raises ValueError.
+  2. `_validate_node_content` rejects nodes where description is < `MIN_DESCRIPTION_LEN` (20 chars) — "角色 A" or "场景 S01" no longer pass.
+  3. Every phase `.txt` output (script.txt / prompt.txt / description.txt / scene_notes.txt) is either inlined as a node description OR has an explicit text-type node in the manifest; orphan .txt files cause a contract violation.
+  4. New `tests/test_manifest_schema.py` exercises ≥1 golden manifest per phase (p01..p12) and fails loudly on schema drift; running it is part of pre-commit.
+  5. `write_manifest` raises ValueError on any contract violation; no except: pass swallows the error.
 **Plans**: TBD
 
 Plans:
-- [ ] 35-01: TBD
-- [ ] 35-02: TBD
+- [ ] 42-01: TBD
 
-### Phase 36: One-Click Film Orchestrator
-**Goal**: User can press a single "🚀 一键成片" button on any non-empty canvas and watch the platform run the entire node graph end-to-end in correct topological order, with live progress feedback and a clear completion summary.
-**Depends on**: Phase 35
-**Requirements**: ORCHESTRATE-01, ORCHESTRATE-02, ORCHESTRATE-03, ORCHESTRATE-04, ORCHESTRATE-05, ORCHESTRATE-06, ORCHESTRATE-07
+### Phase 43: canvas_sync.py Cleanup + Single-Path Mapping
+**Goal**: Trim `plugins/kais_aigc/canvas_sync.py` from 3409 lines by removing dead code and legacy branches; establish a single testable path from `phase_result` → canvas node that transparently forwards all manifest `params.*`.
+**Depends on**: Phase 42 (uses new manifest contract)
+**Requirements**: SYNCSIDE-01, SYNCSIDE-02, SYNCSIDE-03
+**Repo**: `kais-hermes-skills/plugins/kais_aigc`
 **Success Criteria** (what must be TRUE):
-  1. User sees the "🚀 一键成片" button in the canvas toolbar, enabled when the canvas has ≥1 node and disabled (with idle/running/done/error state label) otherwise or while a run is in flight.
-  2. Clicking the button triggers `POST /api/canvas/orchestrate` with `projectId` + `episodesId`; orchestrator executes nodes in topology order (script → asset → storyboard → video → audio) via existing `executeNode`, skipping nodes already in `state === 'success'` or `cached`.
-  3. User sees live global progress during a run — a progress bar fed by `orchestrate_progress` WebSocket events showing "运行中 (N/M)" against the toolbar button.
-  4. When the run completes, user sees a toast summary "一键成片完成 (X/Y 节点成功)" with the failed-node list attached as toast detail.
-  5. Node-level failures do not abort the entire run — subsequent independent nodes continue executing, and failures are surfaced in the completion toast rather than swallowed.
+  1. `canvas_sync.py` line count drops to ≤ 2500 (≥25% reduction) with explicit commit messages per removed block.
+  2. Both `sync_phase_result()` standalone API and `CanvasSyncSubscriber.on_phase_complete()` share a single `_build_node_from_phase_result()` helper — no forked mapping logic.
+  3. The mapping helper forwards every key from manifest `params.*` into the canvas POST `/api/v2/canvas/nodes` request body's `data` field (verified by assertion in unit test).
+  4. Existing `tests/test_canvas_sync_injection.py` + `tests/test_canvas_auto_sync.py` continue to pass after cleanup.
 **Plans**: TBD
-**UI hint**: yes
 
-### Phase 37: Batch Execution
-**Goal**: User can select a subset of nodes on the canvas and trigger them together as one batch, sharing the same progress channel and skip logic as the full-canvas orchestrator, with the single-node "执行节点" entry remaining as a thin convenience wrapper.
-**Depends on**: Phase 36
-**Requirements**: BATCH-01, BATCH-02, BATCH-03, BATCH-04, BATCH-05
+### Phase 44: Receiving-side Schema Strictness + Import Validation
+**Goal**: `kais-aigc-platform` receiving side declares a complete schema that mirrors the v2.0 manifest contract; `import-from-dir.ts` validates incoming manifests and warns on missing fields instead of silently dropping them.
+**Depends on**: Phase 42 (mirrors field set declared there)
+**Requirements**: SCHEMA-01, SCHEMA-02, SCHEMA-03, SCHEMA-04
+**Repo**: `kais-aigc-platform`
 **Success Criteria** (what must be TRUE):
-  1. User can multi-select nodes (Shift+click / `selectionOnDrag`) and right-click to see a "批量执行 (N 个节点)" menu entry that reflects the current selection count.
-  2. Triggering batch execution calls the same `POST /api/canvas/orchestrate` endpoint as Phase 36 but with an explicit `nodeIds: string[]` body — the backend executes exactly those nodes, honoring per-node `state === 'success'` skip.
-  3. During a batch run, user sees a "批量执行 (N/M)" progress indicator over the same WebSocket channel as full orchestration (no separate channel).
-  4. Right-clicking a single node still exposes "执行节点", which internally calls the orchestrate endpoint with a one-element `nodeIds` list (single code path, no special-case endpoint).
+  1. `src/lib/canvasAssetSchema.ts` declares the full v2.0 field set (archetype/role/era/scene_id/shot_id/engine/duration_sec/resolution/murch_grade/...) as optional zod fields — forward-compatible but documented.
+  2. `src/routes/canvas/v2/import-from-dir.ts` logs a warning with the missing field list when a manifest node lacks expected params, and stamps `data.__incomplete = true` so UI can flag it; the node is still created (no silent drop).
+  3. `PATCH /nodes/batch` enforces the v2.0 schema field set (tightened from the 2026-07-12 quick-task baseline); invalid batches return 400 with the full error list.
+  4. A new `scripts/verify-schema-roundtrip.ts` runs a sample manifest through import + schema validation and asserts every `params.*` key appears in `node.data`.
 **Plans**: TBD
-**UI hint**: yes
 
-### Phase 38: Storyboard Preview Cards (Tier 2, optional)
-**Goal**: Before committing to video generation, user can request a low-cost static preview of a storyboard's composition generated from its prompt + linked character assets, so failures are caught early and cheaply.
-**Depends on**: Phase 35
-**Requirements**: PREVIEW-01, PREVIEW-02, PREVIEW-03, PREVIEW-04, PREVIEW-05
+### Phase 45: Text Asset Mapping + UI Completeness
+**Goal**: Every phase text output (.txt file) has a home on the canvas with full description; the node detail panel never collapses to a bare label.
+**Depends on**: Phase 42 + Phase 44
+**Requirements**: TEXT-01, TEXT-02, TEXT-03 (Tier 2)
+**Repo**: Both
 **Success Criteria** (what must be TRUE):
-  1. User sees an "👁 预览构图" button on a storyboard node, enabled only when the node has both `linkedAssetIds` populated and a non-empty prompt.
-  2. Clicking the button calls `POST /api/canvas/storyboard/preview`, which invokes the existing IMAGE_DRAW engine to produce a single 1280×720 reference image.
-  3. When the preview is ready, user sees the rendered image appear in the storyboard node's thumbnail slot via a `preview_update` WebSocket event; the image persists at `o_storyboard.preview_path` for retrospective review after video `state === 'success'`.
-  4. A preview failure does not block any other flow — user sees only a toast, and the rest of the canvas (including orchestrator/batch runs) continues normally.
+  1. Phase `.txt` outputs (script.txt / prompt.txt / description.txt / scene_notes.txt) have a documented mapping: either inlined as the producing node's description OR surfaced as an explicit text-type node — no orphan text files in OSS.
+  2. `NodeDetailPanel` (AssetDetail / ScriptDetail / StoryboardDetail / VideoDetail) shows full multi-line description with line breaks preserved; never renders an empty detail card when `data.prompt` / `data.description` / `data.tags` / `data.filename` are present in any combination.
+  3. (Tier 2, optional) Toolbar exposes a "search description" filter that narrows visible nodes by substring match against `data.description` / `data.prompt`.
 **Plans**: TBD
-**UI hint**: yes
+
+### Phase 46: E2E + Cross-repo Contract Tests
+**Goal**: Automated regression tests prevent the canvas-sync triad from ever returning — a phase-level manifest contract test (source), an import unit test (receiver), an end-to-end phase run (both), and a cross-repo schema drift check.
+**Depends on**: Phase 42 + 43 + 44 + 45
+**Requirements**: VERIFY-01, VERIFY-02, VERIFY-03, VERIFY-04
+**Repo**: Both
+**Success Criteria** (what must be TRUE):
+  1. `kais-hermes-skills/.../tests/test_manifest_schema.py` (from Phase 42) runs in CI and fails on any phase manifest contract violation.
+  2. `kais-aigc-platform/scripts/verify-import-roundtrip.ts` asserts import-from-dir produces non-empty description + complete params.* round-trip on a sample manifest.
+  3. `kais-aigc-platform/scripts/verify-phase-46-e2e.ts` spins up docker-compose, runs `p04_character_design` end-to-end, then queries `/api/v2/canvas/nodes` and asserts every node has `data.description.length >= 20` AND at least one structured param field from `{archetype, role, era}`.
+  4. `scripts/verify-schema-drift.ts` reads `MANIFEST_PARAM_SCHEMA` from the sibling kais-hermes-skills repo and `canvasAssetSchema` from this repo, diffs the field sets, and fails if they diverge.
+**Plans**: TBD
+
+### Phase 47: Historical Backfill + Archival
+**Goal**: Run the existing backfill script (schema-ui-backfill, 2026-07-12) to repair the 530 historical empty-shell asset nodes; verify P04/P07/P08 panels show real content; archive the script as a one-off.
+**Depends on**: Phase 46 (new contract tests must pass before mutating historical data)
+**Requirements**: BACKFILL-01, BACKFILL-02, BACKFILL-03
+**Repo**: `kais-aigc-platform`
+**Success Criteria** (what must be TRUE):
+  1. `python3 scripts/backfill-asset-descriptions.py --apply` runs successfully; post-run DB query confirms 530 asset nodes (those with `description == ""` in pre-run snapshot) now have non-empty description.
+  2. Manual sampling of 10 nodes each from P04 (character design, 256 total) / P07 (scene generation, 134 total) / P08 (scene selection, 52 total) shows NodeDetailPanel renders meaningful description text — not just label.
+  3. The backfill script is moved to `scripts/oneoffs/` (or annotated with a deprecation header) and excluded from any cron / startup hook — clearly marked as a one-shot repair, not recurring infrastructure.
+**Plans**: TBD
 
 ## Progress
 
-**v1.7 Execution Order (planned):**
+**v2.0 Execution Order (planned):**
 
 ```
-35 (storyboard metadata) ──┬──► 36 (orchestrator) ──► 37 (batch)
-                            │
-                            └──► 38 (preview, Tier 2, optional, parallel-safe)
+42 (manifest contract) ──┬──► 43 (canvas_sync cleanup)
+                         │
+                         └──► 44 (receiving schema) ──► 45 (text + UI) ──► 46 (E2E + contract tests) ──► 47 (backfill)
 ```
 
-Tier 1 phases (35/36/37) form a serial chain — orchestrator must respect storyboard metadata, and batch reuses the orchestrate endpoint.
-Tier 2 (Phase 38 PREVIEW) depends only on Phase 35 and may execute in parallel with 36/37 or be deferred without blocking milestone close.
+Phase 42 is the contract source — 43 and 44 can start in parallel after 42 lands. Phase 45 unifies both sides. Phase 46 is the regression gate before Phase 47 mutates historical data.
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 35. Storyboard Metadata Extension | v1.7 | 1/1 | ✅ Shipped | 2026-06-18 |
-| 36. One-Click Film Orchestrator | v1.7 | 1/1 | ✅ Shipped | 2026-06-18 |
-| 37. Batch Execution | v1.7 | 1/1 | ✅ Shipped | 2026-06-18 |
-| 38. Storyboard Preview Cards (Tier 2) | v1.7 | 1/1 | ✅ Shipped (placeholder) | 2026-06-18 |
-| 39. Canvas ↔ Movie-Agent V8.6 Adaptation | v1.8 | 1/1 | ✅ Shipped (pending merge) | 2026-06-19 |
-| 40. Canvas ↔ Movie-Agent Joint Debug Fix | v1.9 | 1/1 | ✅ Shipped | 2026-06-22 |
-| 41. Canvas Event Sourcing & Sync Reliability | v1.9 | 1/1 | ✅ Shipped | 2026-06-24 |
-
-### Phase 41: Canvas Event Sourcing & Sync Reliability (v1.9 — in progress)
-
-**Branch:** `feature/v1.9-canvas-event-sourcing`
-**Goal:** Eliminate silent data-loss in kais-movie-agent ↔ canvas sync. Replace fire-and-forget + read-modify-write + whole-graph-overwrite with append-only event log + monotonic reducer + idempotent write API + resumable WS subscription.
-
-**Three-wave plan:**
-
-1. **Wave 1 — CORE**: `kv_canvasEvent` table + pure reducer + `canvasEventStore` + `POST /api/v2/canvas/events`. Pure addition; legacy routes untouched.
-2. **Wave 2 — COMPAT**: `save-v2` / `nodes` / `links` / `branches` routes internally translate writes into event appends. Behavior unchanged from caller's view.
-3. **Wave 3 — REPLAY + VERIFY**: `load-v2?since=` + WS `subscribe` handshake + feature-flagged frontend hook + `verify-phase-41.ts`.
-
-**Requirements:** SYNC-01..12 (see REQUIREMENTS.md).
-**Out of scope:** agent-side outbox (Phase 42), legacy route removal (v1.10), default-flipping the frontend replay flag (after staging soak).
-
-### Phase 39: Canvas ↔ Movie-Agent V8.6 Adaptation (v1.8 — shipped)
-
-**Branch:** `feature/v1.8-canvas-movie-agent-adapt`
-
-**Drift discovered:** v1.7 infinite canvas (master) and kais-movie-agent V8.6 (sibling repo at `/data/workspace/kais-movie-agent/`) diverged post-`d9c826c`. Movie-agent V8.6 ships `lib/canvas-client.js` (795 lines) expecting `/api/v2/canvas/*` REST routes that landed on `feature/canvas-v2` but never merged into master.
-
-**Three-wave plan — all shipped:**
-
-1. **Wave 1 — ADAPT (✅ 540f63c)**: Merged `feature/canvas-v2` into master-side branch. Resolved single conflict in `useCanvasSocket.ts` by keeping both event handler sets. `tsc --noEmit` + `tsc -b` clean.
-2. **Wave 2 — EXEC (✅ ed93bf0)**: Replaced `_simulate.ts` + `storyboardPreview.ts` placeholders with real gold-team engine calls via new `src/routes/canvas/_engine.ts` adapter. Env-gated (`GOLD_TEAM_URL`); graceful fallback to v1.7 simulation when engine unavailable.
-3. **Wave 3 — VERIFY (✅ this commit)**: `scripts/verify-phase-39.ts` — 33/33 assertions pass. Contract matrix in `39-VERIFICATION.md` confirms every `canvas-client.js` method maps to a valid master endpoint.
-
-**Phase 39 Execution Order (completed):**
-
-```
-Wave 1 (ADAPT) ──► Wave 2 (EXEC) ──► Wave 3 (VERIFY)  ✅
-   merge            wire engines       contract test
-```
-
-**Result:** master (after merge) will expose both `/api/canvas/*` (v1.7) and `/api/v2/canvas/*` (contract for movie-agent V8.6), with real engine integration gated on `GOLD_TEAM_URL`. Existing deployments without engine configured see zero behavior change.
+| 42. Source-side Manifest Contract Hardening | v2.0 | 0/? | Not started | - |
+| 43. canvas_sync.py Cleanup + Single-Path Mapping | v2.0 | 0/? | Not started | - |
+| 44. Receiving-side Schema Strictness + Import Validation | v2.0 | 0/? | Not started | - |
+| 45. Text Asset Mapping + UI Completeness | v2.0 | 0/? | Not started | - |
+| 46. E2E + Cross-repo Contract Tests | v2.0 | 0/? | Not started | - |
+| 47. Historical Backfill + Archival | v2.0 | 0/? | Not started | - |
 
 ### Completed Milestones
 
@@ -205,3 +191,6 @@ Wave 1 (ADAPT) ──► Wave 2 (EXEC) ──► Wave 3 (VERIFY)  ✅
 | 11-14 | v1.2 Integration Testing | ✅ Complete | 2026-06-07 |
 | 7-10 | v1.1 Hermes Decision Engine | ✅ Complete | 2026-06-06 |
 | 1-6 | v1.0 MVP | ✅ Complete | - |
+| 35-38 | v1.7 Infinite Canvas Storyboard & Orchestration | ✅ Complete | 2026-06-18 |
+| 39 | v1.8 Canvas ↔ Movie-Agent V8.6 Adaptation | ✅ Complete | 2026-06-19 |
+| 40-41 | v1.9 Canvas Sync Reliability | ✅ Complete | 2026-06-24 |
