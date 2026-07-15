@@ -170,7 +170,17 @@ Plans:
   2. `NodeDetailPanel` (AssetDetail / ScriptDetail / StoryboardDetail / VideoDetail) shows full multi-line description with line breaks preserved; never renders an empty detail card when `data.prompt` / `data.description` / `data.tags` / `data.filename` are present in any combination.
   3. (Tier 2, optional) Toolbar exposes a "search description" filter that narrows visible nodes by substring match against `data.description` / `data.prompt`.
 
-**Plans**: TBD
+**Plans**: 3 plans (Wave 1: backend text mapping + UI panel completeness — parallel-safe; Wave 2: Tier 2 search filter + comprehensive verifier)
+
+Plans:
+**Wave 1**
+
+- [ ] 45-01-PLAN.md — Backend text-asset mapping (lift 500-char sidecar cap to 10K + add standalone-.txt probe for script phase dirs); covers TEXT-01
+- [ ] 45-02-PLAN.md — UI panel completeness (StoryboardDetail description + VideoDetail full set + ScriptDetail prompt fallback); covers TEXT-02
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 45-03-PLAN.md — Tier 2 toolbar search filter + scripts/verify-phase-45.ts comprehensive verifier; covers TEXT-03, re-verifies TEXT-01/02
 
 ### Phase 46: E2E + Cross-repo Contract Tests
 
@@ -218,7 +228,7 @@ Phase 42 is the contract source — 43 and 44 can start in parallel after 42 lan
 | 42. Source-side Manifest Contract Hardening | v2.0 | 0/? | Not started | - |
 | 43. canvas_sync.py Cleanup + Single-Path Mapping | v2.0 | 0/? | Not started | - |
 | 44. Receiving-side Schema Strictness + Import Validation | v2.0 | 3/3 | Complete | 2026-07-16 |
-| 45. Text Asset Mapping + UI Completeness | v2.0 | 0/? | Not started | - |
+| 45. Text Asset Mapping + UI Completeness | v2.0 | 0/3 | Planning complete | - |
 | 46. E2E + Cross-repo Contract Tests | v2.0 | 0/? | Not started | - |
 | 47. Historical Backfill + Archival | v2.0 | 0/? | Not started | - |
 
