@@ -528,6 +528,48 @@ async function artifactsFromMediaFiles(
   return artifacts;
 }
 
+/**
+ * Standalone .txt files → script artifacts. Dedupes against files already
+ * consumed as media sidecars via `consumedBaselineSet`. Phase 45 D2/D3
+ * (TEXT-01) — closes the orphan-.txt loophole where .txt outputs existed
+ * on OSS but produced no canvas node.
+ *
+ * Each .txt becomes a script artifact with description = file content
+ * (10K char cap). The existing manifest-description precedence
+ * (`!(pk in extra)` guard in flattenParamsToNodeData) ensures any
+ * JSON-manifest description wins over the .txt content if both exist.
+ */
+async function artifactsFromScriptTextFiles(
+  dirPath: string,
+  filenames: string[],
+  consumedBaselineSet: Set<string>,
+  outputKey: string,
+): Promise<RawArtifact[]> {
+  const artifacts: RawArtifact[] = [];
+  for (const fname of filenames) {
+    if (extname(fname).toLowerCase() !== ".txt") continue;
+    if (consumedBaselineSet.has(fname)) continue;
+    try {
+      const raw = await readFile(join(dirPath, fname), "utf8");
+      const trimmed = raw.trim().slice(0, 10000);
+      if (!trimmed) continue;
+      const label = basename(fname, ".txt").replace(/_/g, " ");
+      const filePath = fsToOssUrl(join(dirPath, fname));
+      const art: RawArtifact = {
+        label,
+        output_key: outputKey,
+        description: trimmed,
+        prompt: trimmed,
+        ...(filePath ? { filePath } : {}),
+      };
+      artifacts.push(art);
+    } catch (err) {
+      console.warn("[v2/import] failed to read script .txt:", fname, (err as Error).message);
+    }
+  }
+  return artifacts;
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 // TREE BUILDER — constructs Zone → Summary → Artifact nodes + links
 // ═══════════════════════════════════════════════════════════════════════
@@ -983,6 +1025,29 @@ async function scanWorkdirForArtifacts(workdir: string): Promise<Map<string, Raw
     if (content == null) continue;
 
     const artifacts = extractArtifactsFromJSON(content);
+    addArtifacts(phasePrefix, artifacts);
+  }
+
+  // ── 1.5. Scan root-level .txt files for script phase dirs ────
+  // Phase 45 (TEXT-01): standalone .txt outputs (script.txt / prompt.txt /
+  // description.txt / scene_notes.txt) become script artifacts so they have
+  // a home on the canvas. Gated on canvasType === "script" so media-typed
+  // phases don't pick up stray .txt files. Dedupe set is empty at this
+  // scope because root-level .txt files don't collide with asset-dir
+  // sidecars (different directories).
+  for (const file of rootFiles) {
+    if (!file.endsWith(".txt")) continue;
+    const phasePrefix = findPhaseFromFile(file);
+    if (!phasePrefix) continue;
+    const def = PHASE_DEF_MAP[phasePrefix];
+    if (!def || def.canvasType !== "script") continue;
+    const outputKey = phasePrefix.replace(/[^a-zA-Z0-9_]/g, "_");
+    const artifacts = await artifactsFromScriptTextFiles(
+      workdir,
+      [file],
+      new Set<string>(),
+      outputKey,
+    );
     addArtifacts(phasePrefix, artifacts);
   }
 
