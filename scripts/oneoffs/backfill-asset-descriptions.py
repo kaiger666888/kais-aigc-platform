@@ -1,5 +1,25 @@
 #!/usr/bin/env python3
 """
+[DEPRECATED — Phase 47 archive, 2026-07-16]
+This script was a one-shot repair for the 2026-07-12 empty-shell
+asset nodes. Phase 42 hardened the source-side contract; Phase 44
+hardened the receiver-side import; re-running this on data that now
+satisfies the contract is unnecessary and risks overwriting newer
+descriptions with synthesized ones.
+
+Phase 47 (2026-07-16) ran this against /data/workspace/kais-aigc-platform/data/db2.sqlite:
+- 591 asset nodes repaired (328 description→prompt + 257 synthesize + 6 params.* flatten)
+- 160 unrepairable (only `label` present; no signal to synthesize from)
+- Pre-apply backup: data/db2-backup-pre-phase-47.sqlite (gitignored, 328MB)
+- Audit trail: .planning/phases/47-historical-backfill-archival/{baseline-snapshot,apply-log,post-run-verify}.txt
+
+Kept for audit/reproducibility. Do NOT add to cron. Do NOT run
+against production data without explicit approval + DB backup.
+
+See scripts/oneoffs/README.md for the one-off script convention.
+
+---
+
 backfill-asset-descriptions.py — one-shot repair for empty asset node details.
 
 Background:
