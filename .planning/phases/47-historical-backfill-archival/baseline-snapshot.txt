@@ -1,0 +1,132 @@
+=== Phase 46 Contract Gate (pre-apply) ===
+
+> kais-core-backend@6.0.0 verify:phase-46-contracts
+> npm run verify:manifest-contract && npm run verify:import-roundtrip && npm run verify:schema-drift
+
+
+> kais-core-backend@6.0.0 verify:manifest-contract
+> npx tsx scripts/verify-manifest-contract.ts
+
+=== Phase 46 VERIFY-01 — verify-manifest-contract.ts ===
+
+  sibling repo: /data/workspace/kais-hermes-skills
+  PASS: VERIFY-01: Phase 42 manifest contract suite (132 tests) passes — 132 passed in 0.44s
+
+1 passed, 0 failed
+
+> kais-core-backend@6.0.0 verify:import-roundtrip
+> npx tsx scripts/verify-import-roundtrip.ts
+
+数据库目录: /data/workspace/kais-aigc-platform/data/db2.sqlite
+=== Phase 46 VERIFY-02 — verify-import-roundtrip.ts ===
+
+  PASS: VERIFY-02: in-repo fixtures/sample-manifest.json node p44/asset-sample: 4/4 scalar params.* round-trip
+  PASS: VERIFY-02: in-repo fixtures/sample-manifest.json node p44/asset-sample (asset): description ≥ 20 chars — actual: 30 — "示例角色 · protagonist · 现代都市 · 短发"
+  PASS: VERIFY-02: in-repo fixtures/sample-manifest.json node p44/script-sample: 5/5 scalar params.* round-trip
+  PASS: VERIFY-02: in-repo fixtures/sample-manifest.json node p44/script-sample (script): description ≥ 20 chars — actual: 31 — "P44 脚本示例 · 都市情感 · 温情基调 · 5 分钟短剧"
+  PASS: VERIFY-02: in-repo fixtures/sample-manifest.json node p44/storyboard-sample: 4/4 scalar params.* round-trip
+  PASS: VERIFY-02: in-repo fixtures/sample-manifest.json node p44/storyboard-sample (storyboard): description ≥ 20 chars — actual: 35 — "P44 分镜示例 · shot-001 · WS 全景 · 5 秒镜头"
+  PASS: VERIFY-02: in-repo fixtures/sample-manifest.json node p44/video-sample: 5/5 scalar params.* round-trip
+  PASS: VERIFY-02: in-repo fixtures/sample-manifest.json node p44/video-sample (video): description ≥ 20 chars — actual: 49 — "P44 视频示例 · shot-001 · ltx engine · 1280x704 · 5 秒"
+  PASS: VERIFY-02: cross-repo p01.json node p01/topic-kernel: 5/5 scalar params.* round-trip
+  PASS: VERIFY-02: cross-repo p01.json node p01/topic-kernel (script): description ≥ 20 chars — actual: 32 — "P01 选题核 · topic-kernel · 类型与基调设定"
+  PASS: VERIFY-02: cross-repo p01.json node p01/hook-design: 4/4 scalar params.* round-trip
+  PASS: VERIFY-02: cross-repo p01.json node p01/hook-design (script): description ≥ 20 chars — actual: 24 — "P01 钩子设计 · 黄金前3秒 · 反差喜剧钩"
+  PASS: VERIFY-02: cross-repo p02.json node p02/story-kernel: 4/4 scalar params.* round-trip
+  PASS: VERIFY-02: cross-repo p02.json node p02/story-kernel (script): description ≥ 20 chars — actual: 30 — "P02 故事内核 · 3 beats · 主线冲突与情感锚点"
+  PASS: VERIFY-02: cross-repo p03.json node p03/script: 5/5 scalar params.* round-trip
+  PASS: VERIFY-02: cross-repo p03.json node p03/script (script): description ≥ 20 chars — actual: 28 — "P03 剧本 · 5 场戏 · Form C 结构化剧本"
+  PASS: VERIFY-02: cross-repo p03.json node p03/audit-report: 2/2 scalar params.* round-trip
+  PASS: VERIFY-02: cross-repo p03.json node p03/audit-report (script): description ≥ 20 chars — actual: 36 — "P03 审计报告 · 总分 78 · 完成度 B · 剧本结构与节奏诊断"
+  PASS: VERIFY-02: cross-repo p04.json node p04/char-mikan: 4/4 scalar params.* round-trip
+  PASS: VERIFY-02: cross-repo p04.json node p04/char-mikan (asset): description ≥ 20 chars — actual: 29 — "主角 · protagonist · 红发少年 · 热血型"
+  PASS: VERIFY-02: cross-repo p04.json node p04/char-taro: 4/4 scalar params.* round-trip
+  PASS: VERIFY-02: cross-repo p04.json node p04/char-taro (asset): description ≥ 20 chars — actual: 27 — "配角 · sidekick · 戴眼镜 · 智囊型好友"
+  PASS: VERIFY-02: cross-repo p05.json node p05/pain-points: 2/2 scalar params.* round-trip
+  PASS: VERIFY-02: cross-repo p05.json node p05/pain-points (script): description ≥ 20 chars — actual: 27 — "P05 痛点清单 · 5 项冲突点 · 情感共鸣点排序"
+  PASS: VERIFY-02: cross-repo p05.json node p05/emotional-lever: 2/2 scalar params.* round-trip
+  PASS: VERIFY-02: cross-repo p05.json node p05/emotional-lever (script): description ≥ 20 chars — actual: 26 — "P05 情感杠杆 · 共鸣强度评级 · 痛点放大策略"
+  PASS: VERIFY-02: cross-repo p06.json node p06/spatio-temporal-script: 2/2 scalar params.* round-trip
+  PASS: VERIFY-02: cross-repo p06.json node p06/spatio-temporal-script (script): description ≥ 20 chars — actual: 35 — "P06 时空剧本 · 时间线 早/中/晚 · 场景地 广场/小巷/屋顶"
+  PASS: VERIFY-02: cross-repo p06.json node p06/final-audit: 2/2 scalar params.* round-trip
+  PASS: VERIFY-02: cross-repo p06.json node p06/final-audit (script): description ≥ 20 chars — actual: 27 — "P06 终审报告 · 总分 85 · 时空节奏终审通过"
+  PASS: VERIFY-02: cross-repo p07.json node p07/S01: 3/3 scalar params.* round-trip
+  PASS: VERIFY-02: cross-repo p07.json node p07/S01 (asset): description ≥ 20 chars — actual: 27 — "P07 场景 · S01 · 黄昏小镇广场 · 暖色调"
+  PASS: VERIFY-02: cross-repo p07.json node p07/S02: 3/3 scalar params.* round-trip
+  PASS: VERIFY-02: cross-repo p07.json node p07/S02 (asset): description ≥ 20 chars — actual: 29 — "P07 场景 · S02 · 夜晚小巷 · 冷色调神秘氛围"
+  PASS: VERIFY-02: cross-repo p08.json node p08/S01: 3/3 scalar params.* round-trip
+  PASS: VERIFY-02: cross-repo p08.json node p08/S01 (asset): description ≥ 20 chars — actual: 25 — "P08 已选场景 · S01 · 入选分镜的主场景"
+  PASS: VERIFY-02: cross-repo p09.json node p09/S01-01: 4/4 scalar params.* round-trip
+  PASS: VERIFY-02: cross-repo p09.json node p09/S01-01 (storyboard): description ≥ 20 chars — actual: 41 — "P09 分镜 · S01-01 · 中景 · 运镜: 推 · 画面: 小橘走入广场"
+  PASS: VERIFY-02: cross-repo p09.json node p09/S01-02: 4/4 scalar params.* round-trip
+  PASS: VERIFY-02: cross-repo p09.json node p09/S01-02 (storyboard): description ≥ 20 chars — actual: 41 — "P09 分镜 · S01-02 · 特写 · 运镜: 静 · 画面: 小橘惊讶表情"
+  PASS: VERIFY-02: cross-repo p10.json node p10/S01-01: 4/4 scalar params.* round-trip
+  PASS: VERIFY-02: cross-repo p11.json node p11/S01-01: 5/5 scalar params.* round-trip
+  PASS: VERIFY-02: cross-repo p11.json node p11/S01-01 (video): description ≥ 20 chars — actual: 45 — "P11 视频片段 · S01-01 · ltx engine · 运镜: 推 · 黄昏广场"
+  PASS: VERIFY-02: cross-repo p12.json node p12/master-timeline: 5/5 scalar params.* round-trip
+  PASS: VERIFY-02: cross-repo p12.json node p12/master-timeline (video): description ≥ 20 chars — actual: 48 — "P12 时间线 EDL · master-timeline · 6 镜头拼接 · 总时长 30s"
+  PASS: VERIFY-02: cross-repo p13.json node p13/master: 5/5 scalar params.* round-trip
+  PASS: VERIFY-02: cross-repo p13.json node p13/master (video): description ≥ 20 chars — actual: 38 — "P13 成片 · master · 最终交付的合成视频 · H.264 编码"
+  PASS: VERIFY-02: cross-repo p14.json node p14/quality-audit: 2/2 scalar params.* round-trip
+  PASS: VERIFY-02: cross-repo p14.json node p14/quality-audit (script): description ≥ 20 chars — actual: 34 — "P14 质检报告 · 总分 88 · 0 个关键问题 · 通过质量门"
+  PASS: VERIFY-02: at least one fixture node exercised — nodes: 25
+  PASS: VERIFY-02: at least one content-bearing node exercised — nodes: 24
+
+51 passed, 0 failed
+
+> kais-core-backend@6.0.0 verify:schema-drift
+> npx tsx scripts/verify-schema-drift.ts
+
+=== Phase 46 VERIFY-04 — verify-schema-drift.ts ===
+
+  python schema: /data/workspace/kais-hermes-skills/skills/kais-movie-pipeline/pipeline/phases/_manifest.py
+  ts schema:     /data/workspace/kais-aigc-platform/src/lib/canvasAssetSchema.ts
+  python types parsed: 9
+  ts types parsed:     9
+  PASS: VERIFY-04: asset matches — 1 fields aligned
+  PASS: VERIFY-04: audio matches — 3 fields aligned
+  PASS: VERIFY-04: phase matches — 0 fields aligned
+  PASS: VERIFY-04: reference matches — 0 fields aligned
+  PASS: VERIFY-04: script matches — 1 fields aligned
+  PASS: VERIFY-04: storyboard matches — 3 fields aligned
+  PASS: VERIFY-04: suggestion matches — 0 fields aligned
+  PASS: VERIFY-04: video matches — 4 fields aligned
+  PASS: VERIFY-04: zone matches — 0 fields aligned
+  PASS: VERIFY-04: TS EXPECTED_PARAM_FIELDS_BY_TYPE matches Python MANIFEST_PARAM_SCHEMA (zero drift)
+
+10 passed, 0 failed
+
+=== Backfill Dry-Run Baseline ===
+Mode: DRY-RUN
+DB: /data/workspace/kais-aigc-platform/data/db2.sqlite
+Total asset nodes scanned: 751
+  Already complete (no change): 160
+  Would change / changed: 591
+  No signal (cannot repair): 0
+
+Action breakdown:
+  description→prompt: 328
+  prompt→description: 6
+  synthesize: 257
+
+Sample changes (first 5):
+  n-char-sunian
+    actions: ['description→prompt']
+    before:  ['assetId', 'assetType', 'category', 'description', 'filePath', 'label', 'state', 'tags', 'uuid']
+    after:   ['assetId', 'assetType', 'category', 'description', 'filePath', 'label', 'prompt', 'state', 'tags', 'uuid']
+  n-char-zhouxiulan
+    actions: ['description→prompt']
+    before:  ['assetId', 'assetType', 'category', 'description', 'filePath', 'label', 'state', 'tags', 'uuid']
+    after:   ['assetId', 'assetType', 'category', 'description', 'filePath', 'label', 'prompt', 'state', 'tags', 'uuid']
+  n-char-linke
+    actions: ['description→prompt']
+    before:  ['assetId', 'assetType', 'category', 'description', 'filePath', 'label', 'state', 'tags', 'uuid']
+    after:   ['assetId', 'assetType', 'category', 'description', 'filePath', 'label', 'prompt', 'state', 'tags', 'uuid']
+  n-char-xiaochen
+    actions: ['description→prompt']
+    before:  ['assetId', 'assetType', 'category', 'description', 'filePath', 'label', 'state', 'tags', 'uuid']
+    after:   ['assetId', 'assetType', 'category', 'description', 'filePath', 'label', 'prompt', 'state', 'tags', 'uuid']
+  scifi_design_character_bible_json_4z8p
+    actions: ['description→prompt']
+    before:  ['assetType', 'content', 'description', 'filePath', 'label', 'phase', 'state', 'tags']
+    after:   ['assetType', 'content', 'description', 'filePath', 'label', 'phase', 'prompt', 'state', 'tags']
