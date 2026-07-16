@@ -77,13 +77,15 @@ services:
       OUTPUT_DIR: /mnt/agents/output
       # Logging
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      # Jimeng cloud engine (via jimeng-free-api proxy on host)
-      JIMENG_BASE_URL: ${JIMENG_BASE_URL:-http://jimeng-free-api:5100}
-      JIMENG_API_KEY: ${JIMENG_API_KEY:-}
+      # Dreamina CLI engine (image generation only, model=5.0lite/2k)
+      DREAMINA_CLI: /usr/local/bin/dreamina
     volumes:
       - /mnt/agents/output:/mnt/agents/output
       # Mount model cache to avoid re-downloading
       - model_cache:/home/kais/.cache
+      # Mount dreamina CLI binary + OAuth state from host
+      - /home/kai/.local/bin/dreamina:/usr/local/bin/dreamina:ro
+      - /home/kai/.dreamina_cli:/home/kais/.dreamina_cli:ro
     depends_on:
       redis:
         condition: service_healthy

@@ -177,12 +177,16 @@ class EngineRouter:
         return "comfyui-primary"
 
     def _pick_cloud_engine_id(self, task: GenerationTask) -> str:
-        """Pick the best cloud engine ID for the task type."""
+        """Pick the best cloud engine ID for the task type.
+
+        cloud-jimeng only supports image generation (text2image +
+        image2image). Video and other types fall back to cloud-mock or
+        another configured engine.
+        """
         task_type = task.type.value if hasattr(task.type, 'value') else str(task.type)
         if task_type in ("image_draw", "image_refine"):
             return "cloud-jimeng"
-        if task_type in ("video_final", "video_preview"):
-            return "cloud-jimeng"
+        # Video / audio / other types: not supported by dreamina engine
         return "cloud-mock"
 
 

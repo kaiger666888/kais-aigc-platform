@@ -31,11 +31,14 @@ CLOUD_PROVIDERS = {
         "env_required": ["KLING_ACCESS_KEY", "KLING_SECRET_KEY"],
     },
     "jimeng": {
-        "name": "即梦 (Jimeng)",
+        "name": "即梦 (Dreamina CLI)",
         "available": True,
-        "supported_types": ["image_draw", "image_refine", "video_final"],
+        "supported_types": ["image_draw", "image_refine"],  # image only; no video
         "engine_class": "src.v6.engines.cloud_jimeng.JimengEngine",
-        "env_required": ["JIMENG_API_KEY", "JIMENG_SESSION_ID"],  # either one
+        "env_required": [],  # dreamina CLI uses OAuth, no env vars needed
+        "cli_required": "dreamina",
+        "locked_model": "5.0lite",
+        "locked_resolution": "2k",
     },
     "seedance": {
         "name": "Seedance",
