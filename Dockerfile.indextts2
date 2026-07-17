@@ -1,0 +1,47 @@
+# Dockerfile for comfyui-primary with IndexTTS2 support
+# Based on yanwk/comfyui-boot:cu130-megapak-pt211
+# Changes:
+#   1. Downgrade transformers to 4.57.3 (compatible with IndexTTS2)
+#   2. Pin huggingface_hub to 0.36.2 (< 1.0)
+#   3. Patch transformers version check (bug: requires hf_hub>=1.5.0 at runtime but METADATA says <1.0)
+#   4. Install WeTextProcessing + pynini for Chinese text normalization
+#   5. Install wetext for fallback text normalization
+
+FROM yanwk/comfyui-boot:cu130-megapak-pt211
+
+# Install compatible transformers version
+RUN python3.13 -m pip install --no-input \
+    -i https://pypi.tuna.tsinghua.edu.cn/simple \
+    "transformers==4.57.3" \
+    "huggingface_hub==0.36.2" \
+    "WeTextProcessing" \
+    "wetext" \
+    "cn2an" \
+    "g2p_en" \
+    "jieba" \
+    "importlib_resources"
+
+# Patch 1: Remove huggingface-hub from transformers version check (bug in 4.57.3)
+RUN sed -i '/"huggingface-hub",/d' \
+    /usr/local/lib/python3.13/site-packages/transformers/dependency_versions_check.py
+
+# Patch 2: Add is_offline_mode compatibility shim
+RUN sed -i 's/    is_offline_mode,//' \
+    /usr/local/lib/python3.13/site-packages/transformers/utils/hub.py && \
+    echo '' >> /usr/local/lib/python3.13/site-packages/transformers/utils/hub.py && \
+    echo '# Compatibility: is_offline_mode not in huggingface_hub 0.36.2' \
+    >> /usr/local/lib/python3.13/site-packages/transformers/utils/hub.py && \
+    echo 'try:' >> /usr/local/lib/python3.13/site-packages/transformers/utils/hub.py && \
+    echo '    from huggingface_hub import is_offline_mode' \
+    >> /usr/local/lib/python3.13/site-packages/transformers/utils/hub.py && \
+    echo 'except ImportError:' >> /usr/local/lib/python3.13/site-packages/transformers/utils/hub.py && \
+    echo '    from huggingface_hub.constants import HF_HUB_OFFLINE' \
+    >> /usr/local/lib/python3.13/site-packages/transformers/utils/hub.py && \
+    echo '    def is_offline_mode(): return HF_HUB_OFFLINE' \
+    >> /usr/local/lib/python3.13/site-packages/transformers/utils/hub.py
+
+# Verify
+RUN python3.13 -c "import transformers; print(f'transformers={transformers.__version__}')" && \
+    python3.13 -c "from transformers.utils.hub import is_offline_mode; print(f'is_offline_mode OK: {is_offline_mode()}')" && \
+    python3.13 -c "from tn.chinese.normalizer import Normalizer; print('tn.chinese OK')"
+
