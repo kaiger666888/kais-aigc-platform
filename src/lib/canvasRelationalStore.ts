@@ -386,21 +386,25 @@ export async function saveFullGraph(scope: Scope, graph: FlowGraphV2): Promise<v
     });
   }
 
+  // ── Incremental upsert strategy (fixes race condition B-1) ──────────
+  // Previously this used DELETE ALL + INSERT ALL, which loses concurrent
+  // writes: two load-modify-save transactions racing each other would wipe
+  // out nodes/links that the other transaction had just inserted. Instead we
+  // now (1) UPSERT every row in the new graph and (2) DELETE only the rows
+  // that are present in the DB but absent from the new graph. Concurrent
+  // saves to *different* rows no longer clobber each other, and the whole
+  // operation stays inside a single transaction.
   await db.transaction(async (trx) => {
-    // Clear existing data for this scope, then re-insert.
-    // This is simpler than diffing and is safe within a transaction.
     const where = {
       project_id: scope.projectId,
       episodes_id: scope.episodesId,
     };
-    await trx("canvas_nodes").where(where).del();
-    await trx("canvas_links").where(where).del();
-    await trx("canvas_branches").where(where).del();
-    await trx("canvas_variant_groups").where(where).del();
+    const conflictTarget = ["id", "project_id", "episodes_id"];
+    const ts = now();
 
-    // Batch insert nodes
+    // ── 1. Upsert nodes ──
+    const newNodeIds = new Set(nodes.map((n) => n.id));
     if (nodes.length > 0) {
-      const ts = now();
       const nodeRows = nodes.map((n) => ({
         id: n.id,
         project_id: scope.projectId,
@@ -425,12 +429,43 @@ export async function saveFullGraph(scope: Scope, graph: FlowGraphV2): Promise<v
         created_at: ts,
         updated_at: ts,
       }));
-      await trx("canvas_nodes").insert(nodeRows);
+      await trx("canvas_nodes")
+        .insert(nodeRows)
+        .onConflict(conflictTarget)
+        // Only merge mutable columns — preserve created_at on existing rows.
+        .merge([
+          "type",
+          "branch_id",
+          "phase_index",
+          "phase_name",
+          "position_x",
+          "position_y",
+          "size_width",
+          "size_height",
+          "data",
+          "state",
+          "review_status",
+          "ai_score",
+          "is_winner",
+          "reject_reason",
+          "suggestion",
+          "variant_of",
+          "variant_group_id",
+          "updated_at",
+        ]);
+    }
+    // Delete nodes that no longer exist in the new graph
+    const existingNodeRows: any[] = await trx("canvas_nodes").where(where).select("id");
+    const nodeIdsToDelete = existingNodeRows
+      .map((r) => r.id)
+      .filter((id: string) => !newNodeIds.has(id));
+    if (nodeIdsToDelete.length > 0) {
+      await trx("canvas_nodes").where(where).whereIn("id", nodeIdsToDelete).del();
     }
 
-    // Batch insert links
+    // ── 2. Upsert links ──
+    const newLinkIds = new Set(links.map((l) => l.id));
     if (links.length > 0) {
-      const ts = now();
       const linkRows = links.map((l) => ({
         id: l.id,
         project_id: scope.projectId,
@@ -444,12 +479,31 @@ export async function saveFullGraph(scope: Scope, graph: FlowGraphV2): Promise<v
         created_at: ts,
         updated_at: ts,
       }));
-      await trx("canvas_links").insert(linkRows);
+      await trx("canvas_links")
+        .insert(linkRows)
+        .onConflict(conflictTarget)
+        .merge([
+          "source_id",
+          "target_id",
+          "branch_id",
+          "data_type",
+          "is_explore",
+          "is_inactive",
+          "updated_at",
+        ]);
+    }
+    // Delete links that no longer exist in the new graph
+    const existingLinkRows: any[] = await trx("canvas_links").where(where).select("id");
+    const linkIdsToDelete = existingLinkRows
+      .map((r) => r.id)
+      .filter((id: string) => !newLinkIds.has(id));
+    if (linkIdsToDelete.length > 0) {
+      await trx("canvas_links").where(where).whereIn("id", linkIdsToDelete).del();
     }
 
-    // Batch insert branches
+    // ── 3. Upsert branches ──
+    const newBranchIds = new Set(branches.map((b) => b.id));
     if (branches.length > 0) {
-      const ts = now();
       const branchRows = branches.map((b) => ({
         id: b.id,
         project_id: scope.projectId,
@@ -463,12 +517,32 @@ export async function saveFullGraph(scope: Scope, graph: FlowGraphV2): Promise<v
         created_at: b.createdAt ?? ts,
         updated_at: b.updatedAt ?? ts,
       }));
-      await trx("canvas_branches").insert(branchRows);
+      await trx("canvas_branches")
+        .insert(branchRows)
+        .onConflict(conflictTarget)
+        .merge([
+          "label",
+          "parent_id",
+          "parent_node_id",
+          "status",
+          "fork_reason",
+          "metadata",
+          "updated_at",
+        ]);
+    }
+    // Delete branches that no longer exist in the new graph
+    // (never delete the implicit "main" branch)
+    const existingBranchRows: any[] = await trx("canvas_branches").where(where).select("id");
+    const branchIdsToDelete = existingBranchRows
+      .map((r) => r.id)
+      .filter((id: string) => !newBranchIds.has(id) && id !== "main");
+    if (branchIdsToDelete.length > 0) {
+      await trx("canvas_branches").where(where).whereIn("id", branchIdsToDelete).del();
     }
 
-    // Batch insert variant groups
+    // ── 4. Upsert variant groups ──
+    const newVgIds = new Set(variantGroups.map((vg) => vg.id));
     if (variantGroups.length > 0) {
-      const ts = now();
       const vgRows = variantGroups.map((vg) => ({
         id: vg.id,
         project_id: scope.projectId,
@@ -481,10 +555,28 @@ export async function saveFullGraph(scope: Scope, graph: FlowGraphV2): Promise<v
         created_at: ts,
         updated_at: ts,
       }));
-      await trx("canvas_variant_groups").insert(vgRows);
+      await trx("canvas_variant_groups")
+        .insert(vgRows)
+        .onConflict(conflictTarget)
+        .merge([
+          "phase_index",
+          "branch_id",
+          "variant_node_ids",
+          "winner_node_id",
+          "select_mode",
+          "updated_at",
+        ]);
+    }
+    // Delete variant groups that no longer exist in the new graph
+    const existingVgRows: any[] = await trx("canvas_variant_groups").where(where).select("id");
+    const vgIdsToDelete = existingVgRows
+      .map((r) => r.id)
+      .filter((id: string) => !newVgIds.has(id));
+    if (vgIdsToDelete.length > 0) {
+      await trx("canvas_variant_groups").where(where).whereIn("id", vgIdsToDelete).del();
     }
 
-    // Touch meta
+    // ── 5. Touch meta ──
     const ts2 = now();
     const existingMeta = await trx("canvas_graph_meta").where(where).first();
     const nextEventId = (existingMeta?.last_event_id ?? 0) + 1;
