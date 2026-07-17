@@ -126,3 +126,17 @@ playwright-report/
 
 # Python venvs (BGM detector etc.)
 .venvs/
+
+# ─── Local runtime state (do NOT commit) ───────────────────
+# Empty DB placeholders / dev sqlite files
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+
+# Local pipeline state
+.pipeline-assets/
+
+# Local planning reports (keep top-level .planning/*.md tracked if desired,
+# but auto-generated reports under .planning/reports/ are scratch)
+.planning/reports/
