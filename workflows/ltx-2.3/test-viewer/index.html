@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>L6 vs L7 — Mode D 全冻结 vs 部分冻结(自动环境声)</title>
+<style>
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+         background: #0f0f0f; color: #e0e0e0; margin: 0; padding: 24px;
+         line-height: 1.6; max-width: 1600px; margin: 0 auto; }
+  h1 { color: #fff; margin: 0 0 4px; font-size: 24px; }
+  .subtitle { color: #888; font-size: 14px; margin-bottom: 20px; }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .card { background: #1a1a1a; padding: 16px; border-radius: 8px; }
+  .card.recommend { border: 2px solid #6bcf6b; }
+  .card h2 { margin: 0 0 4px; font-size: 16px; color: #fff; }
+  .card .desc { color: #888; font-size: 11px; margin-bottom: 12px; line-height: 1.5; }
+  .card video { width: 100%; display: block; background: #000; border-radius: 4px;
+                margin-bottom: 8px; }
+  .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 8px; }
+  .stat { background: #0a0a0a; padding: 8px 10px; border-radius: 3px; font-size: 11px; }
+  .stat .k { color: #888; display: block; font-size: 9px;
+             text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat .v { color: #ffcc55; font-family: monospace; font-weight: 600; }
+  .card.recommend .stat.win .v { color: #6bcf6b; }
+  .card.recommend .stat.bad .v { color: #ff6b6b; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px;
+           font-size: 10px; font-family: monospace; font-weight: 600;
+           vertical-align: middle; margin-left: 6px; }
+  .badge.prev { background: #555; color: #fff; }
+  .badge.win { background: #6bcf6b; color: #1a1a1a; }
+
+  .audio-check { background: #1a1a1a; padding: 14px 16px; border-radius: 6px;
+                 margin-top: 20px; }
+  .audio-check h3 { margin: 0 0 8px; color: #4a9eff; font-size: 14px; }
+  .audio-check audio { width: 100%; display: block; margin: 6px 0; }
+  .audio-check .label { color: #aaa; font-size: 11px; }
+
+  .rms-table { background: #1a1a1a; padding: 16px; border-radius: 6px; margin-top: 20px; }
+  .rms-table h3 { margin: 0 0 12px; color: #ffcc55; font-size: 14px; }
+  .rms-table table { width: 100%; border-collapse: collapse; font-size: 11px;
+                     font-family: monospace; }
+  .rms-table th, .rms-table td { padding: 6px 10px; text-align: left;
+                                  border-bottom: 1px solid #2a2a2a; }
+  .rms-table th { color: #888; font-weight: 500; text-transform: uppercase;
+                  font-size: 9px; letter-spacing: 0.5px; }
+  .rms-table .silent { color: #ff6b6b; }
+  .rms-table .active { color: #6bcf6b; }
+  .rms-table .dialog { color: #ffcc55; }
+
+  .takeaway { background: #1a2a1f; padding: 14px 16px; border-radius: 6px;
+              margin-top: 16px; border-left: 3px solid #6bcf6b;
+              font-size: 13px; color: #ccc; }
+  .takeaway b { color: #6bcf6b; }
+  .takeaway ul { margin: 8px 0; padding-left: 22px; }
+  .takeaway li { margin-bottom: 4px; }
+  code { background: #0a0a0a; padding: 1px 5px; border-radius: 2px;
+         font-size: 11px; color: #aaa; }
+</style>
+</head>
+<body>
+
+<h1>L6 vs L7 — Mode D 全冻结 vs 部分冻结</h1>
+<div class="subtitle">
+  同 int8_convrot V2 + Mode D + 15s 视频 + 相同 prompt(含环境声描述),唯一变量:audio mask 是否部分放开
+</div>
+
+<div class="compare">
+
+  <div class="card">
+    <h2>L6 — Mode D 全冻结<span class="badge prev">前版</span></h2>
+    <div class="desc">
+      <code>SolidMask=0</code> 全段冻结:音频区 100% 锁死成输入<br>
+      prompt 的"rain pattering, footsteps, whispers"完全进不去 → 后段 9s 是 0 RMS 静音
+    </div>
+    <video controls preload="metadata">
+      <source src="../int8-production-15s-ambient-output/MSR_INT8_PRODUCTION_00007_.mp4" type="video/mp4">
+    </video>
+    <div class="stats">
+      <div class="stat"><span class="k">total time</span><span class="v">3.75 min</span></div>
+      <div class="stat"><span class="k">video</span><span class="v">15.08s (377f)</span></div>
+      <div class="stat"><span class="k">file</span><span class="v">3.38 MB</span></div>
+      <div class="stat bad"><span class="k">6-15s RMS</span><span class="v">0.0000</span></div>
+      <div class="stat bad"><span class="k">audio mask</span><span class="v">全段 0</span></div>
+      <div class="stat"><span class="k">segments</span><span class="v">3 (87,60,230)</span></div>
+    </div>
+  </div>
+
+  <div class="card recommend">
+    <h2>L7 — 部分冻结(dialogue + auto ambient)<span class="badge win">当前</span></h2>
+    <div class="desc">
+      <code>LTXVSetAudioVideoMaskByTime</code>:<br>
+      ① 0-5.9s audio mask=0(冻结,保真 TTS 对话)<br>
+      ② 5.9-15s audio mask=1(放开,LTX 按 prompt 生成雨声/脚步/低语)
+    </div>
+    <video controls preload="metadata">
+      <source src="../int8-production-15s-partialmask-output/MSR_INT8_PRODUCTION_00008_.mp4" type="video/mp4">
+    </video>
+    <div class="stats">
+      <div class="stat win"><span class="k">total time</span><span class="v">3.25 min</span></div>
+      <div class="stat"><span class="k">video</span><span class="v">15.08s (377f)</span></div>
+      <div class="stat"><span class="k">file</span><span class="v">3.03 MB</span></div>
+      <div class="stat win"><span class="k">6-15s RMS</span><span class="v">0.001-0.006</span></div>
+      <div class="stat win"><span class="k">audio mask</span><span class="v">分段 0/1</span></div>
+      <div class="stat"><span class="k">segments</span><span class="v">3 (87,60,230)</span></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="audio-check">
+  <h3>🔊 L7 自动生成的环境声(已增益 8× 便于试听)</h3>
+  <div class="label">L7 完整音频(原音量,对话 0-5.9s + 环境 5.9-15s)</div>
+  <audio controls preload="metadata">
+    <source src="../int8-production-15s-partialmask-output/l7_audio.wav" type="audio/wav">
+  </audio>
+  <div class="label">仅环境段 5.5-15s(增益 8×,能听清雨声/嘶声)</div>
+  <audio controls preload="metadata">
+    <source src="../int8-production-15s-partialmask-output/l7_ambient_normalized.wav" type="audio/wav">
+  </audio>
+</div>
+
+<div class="rms-table">
+  <h3>📊 逐秒 RMS 对比(信号强度)</h3>
+  <table>
+    <tr><th>时段</th><th>内容</th><th>L6 RMS</th><th>L7 RMS</th><th>L7 频谱中心</th><th>L7 vs L6</th></tr>
+    <tr><td>0-1s</td><td class="dialog">RN 对话</td><td>0.0489</td><td>0.0489</td><td>—</td><td>相同(冻结段)</td></tr>
+    <tr><td>1-2s</td><td class="dialog">RN 对话</td><td>0.0559</td><td>0.0559</td><td>—</td><td>相同</td></tr>
+    <tr><td>2-3s</td><td class="dialog">RN 对话</td><td>0.0762</td><td>0.0762</td><td>424 Hz</td><td>相同(人声低频)</td></tr>
+    <tr><td>3-4s</td><td class="dialog">RN 对话峰值</td><td>0.0904</td><td>0.0904</td><td>—</td><td>相同</td></tr>
+    <tr><td>4-5s</td><td class="dialog">RN → WV</td><td>0.0613</td><td>0.0613</td><td>—</td><td>相同</td></tr>
+    <tr><td>5-6s</td><td class="dialog">WV 回应</td><td>0.0636</td><td>0.0636</td><td>—</td><td>相同</td></tr>
+    <tr><td>6-7s</td><td>过渡(slope)</td><td class="silent">0.0000</td><td>0.0006</td><td>—</td><td class="active">开始生成</td></tr>
+    <tr><td>7-8s</td><td>环境</td><td class="silent">0.0000</td><td class="active">0.0010</td><td>3287 Hz</td><td class="active">高频雨声/嘶声</td></tr>
+    <tr><td>8-9s</td><td>环境</td><td class="silent">0.0000</td><td class="active">0.0033</td><td>—</td><td class="active">声量上升</td></tr>
+    <tr><td>9-10s</td><td>环境</td><td class="silent">0.0000</td><td class="active">0.0047</td><td>—</td><td class="active">持续</td></tr>
+    <tr><td>10-11s</td><td>环境</td><td class="silent">0.0000</td><td class="active">0.0040</td><td>967 Hz</td><td class="active">中频(脚步?)</td></tr>
+    <tr><td>11-12s</td><td>环境</td><td class="silent">0.0000</td><td class="active">0.0039</td><td>—</td><td class="active">持续</td></tr>
+    <tr><td>12-13s</td><td>环境</td><td class="silent">0.0000</td><td class="active">0.0056</td><td>1231 Hz</td><td class="active">峰值</td></tr>
+    <tr><td>13-14s</td><td>环境</td><td class="silent">0.0000</td><td class="active">0.0033</td><td>—</td><td class="active">渐弱</td></tr>
+    <tr><td>14-15s</td><td>环境</td><td class="silent">0.0000</td><td class="active">0.0013</td><td>—</td><td class="active">收尾</td></tr>
+  </table>
+</div>
+
+<div class="takeaway">
+  <b>🎯 L7 验证了什么</b>
+  <ul>
+    <li><b>可以兼得</b>:<code>LTXVSetAudioVideoMaskByTime</code> 节点让对话段(mask=0)保真 TTS,环境段(mask=1)由 LTX 按 prompt 自动生成</li>
+    <li><b>对话完全不变</b>:0-5.9s 的 RMS/peak 和 L6 完全相同(bit-exact,因为 mask=0 是硬冻结)</li>
+    <li><b>环境段有真实内容</b>:7-8s 频谱中心 3287 Hz(典型雨声/嘶声频段),10s/13s 落到 ~1 kHz(可能是低频脚步/低语成分)</li>
+    <li><b>幅度偏低</b>:peak 0.15 vs 对话 0.39 —— 模型倾向生成"温和"的环境声,不抢戏。如需更响可加 <code>volume=</code> 后处理或调 prompt 强化描述</li>
+    <li><b>过渡平滑</b>:slope_len=3 latent 帧(~1s),6-7s 的 RMS 渐升 0.0006→0.001→0.0033,无明显 jump</li>
+    <li><b>代价</b>:工作流改造 — 移除 SolidMask+SetLatentNoiseMask,新增 LTXVSetAudioVideoMaskByTime 节点接管 mask(见 <code>msr_multi_reference_int8_production_partialmask.json</code>)</li>
+  </ul>
+</div>
+
+</body>
+</html>
