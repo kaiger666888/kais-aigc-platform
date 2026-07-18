@@ -277,11 +277,29 @@ export async function renderDirectorDeskScene(
     console.log(`[director-desk:render] waiting ${waitFor}ms for render...`);
     await page.waitForTimeout(waitFor);
 
-    // 截取 Three.js canvas
-    const canvas = await page.$("canvas");
-    if (!canvas) throw new Error("Canvas not found after render");
+    // 计算角色 bounding box 的屏幕投影区域（由 SPA 内部计算，THREE 对象完整可用）
+    const clipRegion = await page.evaluate(() => {
+      const fn = (window as any).__computeCharacterClip;
+      if (typeof fn !== "function") return null;
+      return fn();
+    });
 
-    const buffer = (await canvas.screenshot({ type: "png" })) as Buffer;
+    // 截取 Three.js canvas（裁剪到角色区域，或全画布）
+    let buffer: Buffer;
+    if (clipRegion && clipRegion.width > 50 && clipRegion.height > 50) {
+      console.log(`[director-desk:render] clip region: ${JSON.stringify(clipRegion)}`);
+      // 用 page.screenshot + clip 而非 elementHandle.screenshot + clip
+      // (elementHandle.screenshot 的 clip 参数在某些版本不生效)
+      buffer = (await page.screenshot({
+        type: "png",
+        clip: clipRegion as { x: number; y: number; width: number; height: number },
+      })) as Buffer;
+    } else {
+      console.log("[director-desk:render] no clip region, full canvas");
+      const canvas = await page.$("canvas");
+      if (!canvas) throw new Error("Canvas not found after render");
+      buffer = (await canvas.screenshot({ type: "png" })) as Buffer;
+    }
     console.log(`[director-desk:render] screenshot captured (${buffer.length} bytes)`);
 
     return {
