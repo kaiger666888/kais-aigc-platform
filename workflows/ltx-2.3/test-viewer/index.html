@@ -2,58 +2,54 @@
 <html lang="zh">
 <head>
 <meta charset="utf-8">
-<title>L7 vs L8 — 单次 partial-mask vs 5 阶段 pipeline</title>
+<title>msr.ts — 5-stage pipeline 已集成</title>
 <style>
   body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
          background: #0f0f0f; color: #e0e0e0; margin: 0; padding: 24px;
          line-height: 1.6; max-width: 1600px; margin: 0 auto; }
   h1 { color: #fff; margin: 0 0 4px; font-size: 24px; }
   .subtitle { color: #888; font-size: 14px; margin-bottom: 20px; }
-  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .card { background: #1a1a1a; padding: 16px; border-radius: 8px; }
-  .card.recommend { border: 2px solid #6bcf6b; }
-  .card h2 { margin: 0 0 4px; font-size: 16px; color: #fff; }
-  .card .desc { color: #888; font-size: 11px; margin-bottom: 12px; line-height: 1.5; }
-  .card video { width: 100%; display: block; background: #000; border-radius: 4px;
-                margin-bottom: 8px; }
-  .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 8px; }
-  .stat { background: #0a0a0a; padding: 8px 10px; border-radius: 3px; font-size: 11px; }
-  .stat .k { color: #888; display: block; font-size: 9px;
-             text-transform: uppercase; letter-spacing: 0.5px; }
-  .stat .v { color: #ffcc55; font-family: monospace; font-weight: 600; }
-  .card.recommend .stat.win .v { color: #6bcf6b; }
-  .card.recommend .stat.bad .v { color: #ff6b6b; }
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px;
-           font-size: 10px; font-family: monospace; font-weight: 600;
-           vertical-align: middle; margin-left: 6px; }
-  .badge.prev { background: #555; color: #fff; }
-  .badge.win { background: #6bcf6b; color: #1a1a1a; }
+
+  .hero { background: linear-gradient(135deg, #1a2a1f 0%, #1f2a3a 100%);
+          padding: 20px; border-radius: 8px; border: 1px solid #3a5a4a;
+          margin-bottom: 20px; }
+  .hero h2 { margin: 0 0 12px; color: #6bcf6b; font-size: 18px; }
+  .hero video { width: 100%; max-width: 900px; display: block; margin: 0 auto;
+                background: #000; border-radius: 4px; }
+  .hero .meta { text-align: center; color: #aaa; font-size: 12px; margin-top: 10px; }
+  .hero .meta b { color: #6bcf6b; }
 
   .pipeline-diag { background: #1a1a1a; padding: 16px; border-radius: 6px; margin-top: 20px; }
   .pipeline-diag h3 { margin: 0 0 12px; color: #ffcc55; font-size: 14px; }
   .pipeline-diag pre { font-family: monospace; font-size: 11px; color: #ccc;
                        line-height: 1.6; white-space: pre-wrap; margin: 0; }
-  .pipeline-diag .stage-l7 { color: #ffcc55; }
-  .pipeline-diag .stage-l8 { color: #6bcf6b; }
+  .pipeline-diag .s2 { color: #ffcc55; }
+  .pipeline-diag .s3 { color: #4a9eff; }
+  .pipeline-diag .mix { color: #6bcf6b; }
   .pipeline-diag .arrow { color: #555; }
 
-  .audio-check { background: #1a1a1a; padding: 14px 16px; border-radius: 6px;
-                 margin-top: 20px; }
-  .audio-check h3 { margin: 0 0 8px; color: #4a9eff; font-size: 14px; }
-  .audio-check audio { width: 100%; display: block; margin: 6px 0; }
-  .audio-check .label { color: #aaa; font-size: 11px; }
+  .compare { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 20px; }
+  .card { background: #1a1a1a; padding: 12px; border-radius: 6px; }
+  .card h3 { margin: 0 0 6px; font-size: 13px; color: #fff; }
+  .card .label { font-size: 11px; color: #888; margin-bottom: 8px; }
+  .card video { width: 100%; display: block; background: #000; border-radius: 3px; }
 
-  .rms-table { background: #1a1a1a; padding: 16px; border-radius: 6px; margin-top: 20px; }
-  .rms-table h3 { margin: 0 0 12px; color: #ffcc55; font-size: 14px; }
-  .rms-table table { width: 100%; border-collapse: collapse; font-size: 11px;
-                     font-family: monospace; }
-  .rms-table th, .rms-table td { padding: 6px 10px; text-align: left;
-                                  border-bottom: 1px solid #2a2a2a; }
-  .rms-table th { color: #888; font-weight: 500; text-transform: uppercase;
-                  font-size: 9px; letter-spacing: 0.5px; }
-  .rms-table .silent { color: #ff6b6b; }
-  .rms-table .active { color: #6bcf6b; }
-  .rms-table .dialog { color: #ffcc55; }
+  .rms { background: #1a1a1a; padding: 16px; border-radius: 6px; margin-top: 16px; }
+  .rms h3 { margin: 0 0 12px; color: #4a9eff; font-size: 14px; }
+  .rms table { width: 100%; border-collapse: collapse; font-size: 11px; font-family: monospace; }
+  .rms th, .rms td { padding: 6px 10px; border-bottom: 1px solid #2a2a2a; }
+  .rms th { color: #888; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .rms .silent { color: #ff6b6b; }
+  .rms .active { color: #6bcf6b; }
+  .rms .dialog { color: #ffcc55; }
+
+  .api { background: #1a1a1a; padding: 16px; border-radius: 6px; margin-top: 16px; }
+  .api h3 { margin: 0 0 12px; color: #ffcc55; font-size: 14px; }
+  .api pre { background: #0a0a0a; padding: 12px; border-radius: 4px; font-size: 11px;
+             color: #ccc; font-family: monospace; overflow-x: auto; }
+  .api pre .key { color: #ffcc55; }
+  .api pre .str { color: #6bcf6b; }
+  .api pre .com { color: #555; }
 
   .takeaway { background: #1a2a1f; padding: 14px 16px; border-radius: 6px;
               margin-top: 16px; border-left: 3px solid #6bcf6b;
@@ -67,120 +63,146 @@
 </head>
 <body>
 
-<h1>L7 vs L8 — 单次 partial-mask vs 5 阶段 pipeline</h1>
+<h1>msr.ts — 5-stage pipeline 已集成</h1>
 <div class="subtitle">
-  L8 = 5 阶段 pipeline(基于 L7 工作流改造):Stage 2 L7 视频 + Stage 3 LTX 纯环境声 + Stage 4 ducking 混合 + Stage 5 mux
+  L8 的 5-stage 能力(Stage 2 partial-mask + Stage 3 纯环境 + ffmpeg ducking 混合)已写入 msr.ts,新 audioMode <code>"5stage_pipeline"</code>
+</div>
+
+<div class="hero">
+  <h2>🎬 5-stage 最终产物(POST /api/ltx/msr + audioMode=5stage_pipeline)</h2>
+  <video controls preload="metadata">
+    <source src="../msr-5stage-e2e-output/MSR_5STAGE_FINAL.mp4" type="video/mp4">
+  </video>
+  <div class="meta">
+    文件 3.3 MB · <b>视频</b>:H264 1280×704 25fps 377 帧 15.08s · <b>音频</b>:AAC 48kHz<br>
+    总耗时 <b>12.0 min</b>(Stage 2: 6 min + Stage 3: 6 min + ffmpeg: 秒级) · 对话保真 + 丰富环境声
+  </div>
+</div>
+
+<div class="pipeline-diag">
+  <h3>🔀 executeFiveStagePipeline() 编排流程</h3>
+<pre><span class="s2">[Stage 2]</span> buildMSRWorkflow({audioMode: "dialogue+ambient_v2", dialogueEndTime: 5.9})
+<span class="arrow">    │</span>      ↳ LTX partial-mask:对话 0-5.9s 冻结 + 环境 5.9-15s 模型生成
+<span class="arrow">    │</span>      ↳ ComfyUI submit + poll (6 min)
+<span class="arrow">    ▼</span>
+<span class="s2">Stage 2 output</span>: MSR_5STAGE_S2.mp4 (video + dialogue + weak ambient)
+<span class="arrow">    │</span>
+<span class="arrow">    ▼</span>
+<span class="s3">[Stage 3]</span> buildMSRWorkflow({stage3Ambient: true, audioMode: "auto"})
+<span class="arrow">    │</span>      ↳ LTX full audio-gen:audio mask=1 全段,prompt 聚焦环境(无对话约束)
+<span class="arrow">    │</span>      ↳ fresh seed (135792469 → 987654321) 取不同采样
+<span class="arrow">    │</span>      ↳ ComfyUI submit + poll (6 min)
+<span class="arrow">    ▼</span>
+<span class="s3">Stage 3 output</span>: MSR_5STAGE_S3.mp4 (video + rich ambient, no dialogue)
+<span class="arrow">    │</span>
+<span class="arrow">    ▼</span>
+<span class="mix">[ffmpeg mix]</span> sidechaincompress ducking
+<span class="arrow">    │</span>      ↳ Stage 2 audio × 1.0 + Stage 3 audio × 0.55
+<span class="arrow">    │</span>      ↳ Stage 3 在对话活跃时自动压低 (threshold=0.03, ratio=10)
+<span class="arrow">    │</span>      ↳ alimiter limit=0.95 防爆音
+<span class="arrow">    ▼</span>
+<span class="mix">[ffmpeg mux]</span> Stage 2 video + mixed audio → final mp4
+<span class="arrow">    │</span>
+<span class="arrow">    ▼</span>
+<span class="mix">final: MSR_5STAGE_FINAL.mp4</span> (返回客户端)
+</pre>
 </div>
 
 <div class="compare">
 
   <div class="card">
-    <h2>L7 — 单次 partial-mask<span class="badge prev">前版</span></h2>
-    <div class="desc">
-      一次 LTX pass 同时生成视频 + 对话保真(冻结) + 后段弱环境声(放开)<br>
-      环境声 peak 0.15,听感偏弱,被对话遮蔽
-    </div>
+    <h3>Stage 2 单独</h3>
+    <div class="label">partial-mask,对话+弱环境</div>
     <video controls preload="metadata">
-      <source src="../int8-production-15s-partialmask-output/MSR_INT8_PRODUCTION_00008_.mp4" type="video/mp4">
+      <source src="../msr-5stage-e2e-output/MSR_5STAGE_S2_00001_.mp4" type="video/mp4">
     </video>
-    <div class="stats">
-      <div class="stat"><span class="k">LTX passes</span><span class="v">1</span></div>
-      <div class="stat"><span class="k">total time</span><span class="v">3.25 min</span></div>
-      <div class="stat"><span class="k">file</span><span class="v">3.03 MB</span></div>
-      <div class="stat bad"><span class="k">ambient peak</span><span class="v">0.15</span></div>
-      <div class="stat bad"><span class="k">ambient RMS</span><span class="v">0.001-0.006</span></div>
-      <div class="stat"><span class="k">dialogue</span><span class="v">TTS 保真</span></div>
-    </div>
+    <p style="font-size:11px;color:#aaa;margin-top:6px;">
+      对话清晰 (peak 0.39)<br>环境弱 (RMS 0.0001-0.007)
+    </p>
   </div>
 
-  <div class="card recommend">
-    <h2>L8 — 5 阶段 pipeline<span class="badge win">当前</span></h2>
-    <div class="desc">
-      Stage 2 复用 L7 视频(对话保真)+ Stage 3 单跑 LTX 纯环境声(无对话约束,prompt 全描述环境)<br>
-      + Stage 4 sidechain ducking 混合(对话时自动压低环境声)+ Stage 5 ffmpeg mux
-    </div>
+  <div class="card">
+    <h3>Stage 3 单独</h3>
+    <div class="label">full audio-gen,纯环境</div>
     <video controls preload="metadata">
-      <source src="../int8-production-5stage-final-output/MSR_INT8_PRODUCTION_L8_5STAGE.mp4" type="video/mp4">
+      <source src="../msr-5stage-e2e-output/MSR_5STAGE_S3_00001_.mp4" type="video/mp4">
     </video>
-    <div class="stats">
-      <div class="stat"><span class="k">LTX passes</span><span class="v">2 (+ffmpeg)</span></div>
-      <div class="stat"><span class="k">total time</span><span class="v">3.25 + 3.5 + 0.1 min</span></div>
-      <div class="stat"><span class="k">file</span><span class="v">3.13 MB</span></div>
-      <div class="stat win"><span class="k">ambient peak</span><span class="v">0.44</span></div>
-      <div class="stat win"><span class="k">ambient RMS</span><span class="v">0.0096-0.021</span></div>
-      <div class="stat win"><span class="k">dialogue</span><span class="v">TTS 保真(ducking)</span></div>
-    </div>
+    <p style="font-size:11px;color:#aaa;margin-top:6px;">
+      环境丰富 (peak 0.73)<br>无对话(模型未冻结)
+    </p>
+  </div>
+
+  <div class="card">
+    <h3>5-stage 最终混合</h3>
+    <div class="label">video from S2 + audio mix</div>
+    <video controls preload="metadata">
+      <source src="../msr-5stage-e2e-output/MSR_5STAGE_FINAL.mp4" type="video/mp4">
+    </video>
+    <p style="font-size:11px;color:#6bcf6b;margin-top:6px;">
+      <b>对话 + 丰富环境声</b><br>peak 0.42,ducking 平衡
+    </p>
   </div>
 
 </div>
 
-<div class="pipeline-diag">
-  <h3>🔀 L8 5 阶段 pipeline 流程</h3>
-<pre><span class="stage-l8">[Stage 1]</span> TTS dialogue (Qwen3-VoiceDesign)        → rn_wv_dialogue_v2.wav (5.9s)
-<span class="arrow">    │</span>
-<span class="arrow">    ▼</span>
-<span class="stage-l8">[Stage 2]</span> <span class="stage-l7">L7 partial-mask LTX pass</span>                → MSR_INT8_PRODUCTION_00008.mp4
-<span class="arrow">    │</span>      ↳ video + (dialogue 0-5.9s frozen + weak ambient 5.9-15s)
-<span class="arrow">    │</span>
-<span class="arrow">    ├──────────────────┐</span>
-<span class="arrow">    │                  ▼</span>
-<span class="arrow">    │</span>              <span class="stage-l8">[Stage 3]</span> Dedicated ambient LTX pass     → stage3_ambient.wav (15s)
-<span class="arrow">    │</span>                  ↳ audio mask=1 everywhere, no dialogue constraint
-<span class="arrow">    │</span>                  ↳ prompt: rain, footsteps, wind only
-<span class="arrow">    │                  ▼</span>
-<span class="arrow">    │</span>              <span class="stage-l8">[Stage 4]</span> ffmpeg sidechain ducking mix   → L8_mixed_audio_v3.wav
-<span class="arrow">    │</span>                  ↳ L7 audio (1.0) + Stage 3 (0.55, ducked during dialog)
-<span class="arrow">    │</span>                  ↳ alimiter limit=0.95
-<span class="arrow">    ▼                  ▼</span>
-<span class="stage-l8">[Stage 5]</span> ffmpeg mux (L7 video + L8 audio)         → <span class="stage-l8">MSR_INT8_PRODUCTION_L8_5STAGE.mp4</span>
-</pre>
-</div>
-
-<div class="audio-check">
-  <h3>🔊 音频对比</h3>
-  <div class="label">L7 完整音频(单次 pass,环境声很弱)</div>
-  <audio controls preload="metadata">
-    <source src="../int8-production-15s-partialmask-output/l7_audio.wav" type="audio/wav">
-  </audio>
-  <div class="label">Stage 3 单独环境声(LTX 全段放开生成的纯环境声,峰值 0.87)</div>
-  <audio controls preload="metadata">
-    <source src="../int8-production-5stage-stage3-output/stage3_ambient.wav" type="audio/wav">
-  </audio>
-  <div class="label">L8 混合后音频(对话 + ducking 后的环境声)</div>
-  <audio controls preload="metadata">
-    <source src="../int8-production-5stage-final-output/L8_mixed_audio_v3.wav" type="audio/wav">
-  </audio>
-</div>
-
-<div class="rms-table">
-  <h3>📊 逐秒 RMS 对比</h3>
+<div class="rms">
+  <h3>📊 三轨音频 RMS 对比(逐秒)</h3>
   <table>
-    <tr><th>时段</th><th>内容</th><th>L7 RMS</th><th>Stage 3 RMS</th><th>L8 混合 RMS</th><th>提升</th></tr>
-    <tr><td>0-1s</td><td class="dialog">RN 对话</td><td>0.0489</td><td>0.0209</td><td class="dialog">0.0520</td><td>对话清晰,环境适度</td></tr>
-    <tr><td>3-4s</td><td class="dialog">RN 峰值</td><td>0.0904</td><td>0.0171</td><td class="dialog">0.0951</td><td>对话峰值清晰</td></tr>
-    <tr><td>5-6s</td><td class="dialog">WV 回应</td><td>0.0636</td><td>0.0176</td><td class="dialog">0.0682</td><td>对话清晰</td></tr>
-    <tr><td>6-7s</td><td>过渡</td><td class="silent">0.0006</td><td>0.0165</td><td class="active">0.0096</td><td class="active">16× 提升</td></tr>
-    <tr><td>7-8s</td><td>环境</td><td class="silent">0.0010</td><td>0.0248</td><td class="active">0.0143</td><td class="active">14× 提升</td></tr>
-    <tr><td>8-9s</td><td>脚步+雨</td><td class="silent">0.0033</td><td>0.0333</td><td class="active">0.0179</td><td class="active">5× 提升</td></tr>
-    <tr><td>9-10s</td><td>脚步+雨</td><td class="silent">0.0047</td><td>0.0357</td><td class="active">0.0165</td><td class="active">3.5× 提升</td></tr>
-    <tr><td>10-11s</td><td>环境</td><td class="silent">0.0040</td><td>0.0256</td><td class="active">0.0149</td><td class="active">3.7× 提升</td></tr>
-    <tr><td>11-12s</td><td>环境</td><td class="silent">0.0039</td><td>0.0359</td><td class="active">0.0211</td><td class="active">5.4× 提升</td></tr>
-    <tr><td>12-13s</td><td>环境</td><td class="silent">0.0056</td><td>0.0261</td><td class="active">0.0159</td><td class="active">2.8× 提升</td></tr>
-    <tr><td>13-14s</td><td>环境</td><td class="silent">0.0033</td><td>0.0242</td><td class="active">0.0139</td><td class="active">4.2× 提升</td></tr>
-    <tr><td>14-15s</td><td>收尾</td><td class="silent">0.0013</td><td>0.0232</td><td class="active">0.0135</td><td class="active">10× 提升</td></tr>
+    <tr><th>时段</th><th>类型</th><th>Stage 2 RMS</th><th>Stage 3 RMS</th><th>FINAL 混合 RMS</th><th>提升(vs S2)</th></tr>
+    <tr><td>3s</td><td class="dialog">RN 对话峰值</td><td class="dialog">0.0904</td><td>0.0078</td><td class="dialog">0.0948</td><td>对话清晰(ducked S3)</td></tr>
+    <tr><td>6s</td><td class="active">环境过渡</td><td class="silent">0.0001</td><td>0.0079</td><td class="active">0.0045</td><td class="active">45×</td></tr>
+    <tr><td>9s</td><td class="active">脚步+雨</td><td class="silent">0.0067</td><td>0.0242</td><td class="active">0.0156</td><td class="active">2.3×</td></tr>
+    <tr><td>12s</td><td class="active">环境</td><td class="silent">0.0050</td><td>0.0202</td><td class="active">0.0127</td><td class="active">2.5×</td></tr>
   </table>
+  <p style="font-size:11px;color:#888;margin-top:10px;">
+    Sidechain ducking 在对话活跃时(0-5.9s)自动压低 Stage 3 → 对话峰值保持 0.09+ 不被环境遮蔽
+  </p>
+</div>
+
+<div class="api">
+  <h3>📜 API 调用示例</h3>
+<pre>POST /api/ltx/msr
+Content-Type: multipart/form-data
+
+<span class="key">projectId</span>:      123
+<span class="key">prompt</span>:          RN and WV meet on a rainy Jiangnan street...
+<span class="key">refDescription</span>:  Two characters... (详尽的 800+ 字符身份+场景描述)
+<span class="key">ref1</span>:            bg.png
+<span class="key">ref2</span>:            1.jpg
+<span class="key">ref3</span>:            2.jpg
+<span class="key">audio</span>:           rn_wv_dialogue_15s.wav         <span class="com"># TTS 对话音频</span>
+<span class="key">audioMode</span>:       <span class="str">"5stage_pipeline"</span>           <span class="com"># 启用 5-stage</span>
+<span class="key">dialogueEndTime</span>: <span class="str">5.9</span>                          <span class="com"># 对话结束时间(秒)</span>
+<span class="key">duration</span>:        15
+
+<span class="com"># 响应(同步,~12 min)</span>
+{
+  <span class="key">"status"</span>: <span class="str">"completed"</span>,
+  <span class="key">"mode"</span>: <span class="str">"5stage_pipeline"</span>,
+  <span class="key">"stage2PromptId"</span>: <span class="str">"..."</span>,
+  <span class="key">"stage3PromptId"</span>: <span class="str">"..."</span>,
+  <span class="key">"finalVideo"</span>: { <span class="key">"filename"</span>: <span class="str">"MSR_5STAGE_FINAL.mp4"</span> },
+  <span class="key">"totalDurationSec"</span>: 720
+}</pre>
 </div>
 
 <div class="takeaway">
-  <b>🎯 L8 5 阶段 pipeline vs L7 单次</b>
+  <b>🎯 msr.ts 现在支持 3 种音频模式</b>
   <ul>
-    <li><b>环境声质量</b>:L8 后段 RMS 0.0096-0.021,L7 是 0.001-0.006,<b>提升 3-16×</b>。Stage 3 不带对话约束,LTX 能把全部注意力放在环境声,peak 0.87(vs L7 的 0.15)</li>
-    <li><b>对话保真</b>:Stage 2 直接用 L7 的对话段(sidechain ducking 保证环境声不抢戏),TTS 音色完全保留</li>
-    <li><b>代价</b>:多一次 LTX pass(3.5 min),总时长从 3.25 min → 6.85 min。但 Stage 3 的 prompt 不需要多角色参考,理论上可以用更轻量的工作流</li>
-    <li><b>可推广</b>:5 阶段 pipeline 适合<b>对话和环境声同时存在</b>的场景(如下雨的同时有人说话)。L7 partial-mask 只能处理时间分段的场景</li>
-    <li><b>工程上</b>:所有 Stage 都是独立可缓存可重跑的。Stage 3 失败不影响 Stage 2,Stage 4 调音不满意只需重跑 ffmpeg(秒级)</li>
-    <li><b>新工作流</b>:<code>workflows/ltx-2.3/msr_multi_reference_int8_production_audiogen.json</code>(Stage 3 用,基于 L7 改造)</li>
+    <li><code>dialogue+ambient</code> (默认,v1):SolidMask=0 全段冻结 → bit-exact 拷贝输入音频</li>
+    <li><code>dialogue+ambient_v2</code> (partial-mask):对话段冻结 + 环境段模型生成 — 单 pass,弱环境</li>
+    <li><code>5stage_pipeline</code> <b>(新增)</b>:2 次 LTX pass + ffmpeg ducking — <b>对话保真 + 丰富环境声</b></li>
+    <li>其他:<code>ambient_only</code> / <code>silent</code> / <code>auto</code></li>
   </ul>
+  <b>所有的 L8 新能力都已融入 msr.ts:</b>
+  <ul>
+    <li>✅ int8_convrot(替代 BF16 LowVRAM,2-3× 提速)</li>
+    <li>✅ DualCLIPLoader + 独立 VAE 节点 31</li>
+    <li>✅ Partial-mask Mode D(LTXVSetAudioVideoMaskByTime 节点 200)</li>
+    <li>✅ 5-stage pipeline 编排器(<code>executeFiveStagePipeline()</code>)</li>
+    <li>✅ 字幕排除(SUBTITLE_NEGATIVE 默认加入所有 audioMode)</li>
+  </ul>
+  <b>回退路径</b>:<code>git revert</code> 一键恢复 BF16 + LowVRAM + v1 全冻结模式
 </div>
 
 </body>

@@ -112,8 +112,10 @@ export function buildMSRWorkflow(opts: {
   nagSigmaStart?: number;       // NAG sigma start (default 2.5)
   relayWeight?: number;         // PromptRelay weight (default 0.0022)
   msrLoraVersion?: string;      // LoRA version: "V2" (default), "V1", "test"
-  audioMode?: string;           // "dialogue+ambient" (default), "ambient_only", "silent", "auto"
+  audioMode?: string;           // "dialogue+ambient" (default, SolidMask 全冻结), "dialogue+ambient_v2" (partial-mask, 对话冻结 + 环境生成), "5stage_pipeline" (2 次 LTX pass + ffmpeg 混合,丰富环境声), "ambient_only", "silent", "auto"
   customAudioFilename?: string; // 自定义音频文件名（已在ComfyUI容器内），提供时冻结该音频到输出视频
+  dialogueEndTime?: number;     // v2 partial-mask 模式专用:对话结束时间(秒),之后模型自由生成环境声。不传默认 0(等同 v1)
+  stage3Ambient?: boolean;      // 内部参数:5-stage pipeline 的 Stage 3 ambient 生成 pass。audio mask=1 全段放开,prompt 聚焦环境声(无对话)。外部调用不应传此参数
 }) {
   const {
     refFilenames, prompt, negativePrompt,
@@ -137,26 +139,43 @@ export function buildMSRWorkflow(opts: {
   const audioMode = opts.audioMode || "dialogue+ambient";
   const customAudio = opts.customAudioFilename || "";
 
+  // v2 partial-mask: 对话段冻结 + 环境段生成
+  // 仅当 audioMode == "dialogue+ambient_v2" 且提供了 customAudio 且 dialogueEndTime > 0 时启用
+  const usePartialMask = audioMode === "dialogue+ambient_v2" && !!customAudio && (opts.dialogueEndTime ?? 0) > 0;
+  const dialogueEndTime = usePartialMask ? opts.dialogueEndTime! : 0;
+  const totalDuration = numFrames / fps;
+  const ambientStartTime = dialogueEndTime; // 对话结束 = 环境开始
+
+  // 5-stage pipeline 的 Stage 3 内部模式:audio mask=1 全段放开,LTX 全力生成环境声
+  // 由 executeFiveStagePipeline() 调用时显式传入 stage3Ambient=true
+  const stage3Ambient = !!opts.stage3Ambient;
+  const useNode200 = usePartialMask || stage3Ambient;
+
   // 音频引导词 — 注入到 prompt 和 negative prompt 中
   // 强化版 (v2, 2026-07-14): 实测 v1 prompt 无法压制 LTX audio VAE 的音乐倾向,
   // 改用电影工业术语 "diegetic" vs "non-diegetic" 明确区分场内音 vs 配乐,
   // 并穷举所有音乐要素作为负面引导。
+  //
+  // v2.1 (2026-07-18): 加入 subtitle/text/caption 排除。
+  // 实测当输入音频含中文对话时,LTX 会"转录"对白为画面烧录字幕(底部出现"这么巧"等字符)。
+  // 必须 explicit 排除才能压制这个倾向。
+  const SUBTITLE_NEGATIVE = "subtitles, captions, on-screen text, burned-in text, title cards, lower thirds, chyrons, captions, Chinese characters, hanzi, kanji, handwriting, calligraphy, written words, letters, numbers, signage with text, watermarks with text";
   const AUDIO_GUIDES: Record<string, { positive: string; negative: string }> = {
     "dialogue+ambient": {
       positive: "strictly diegetic in-world sound, on-location production audio, raw foley art, natural room tone, environmental ambiance, character dialogue, no scored music, unscored scene",
-      negative: "non-diegetic audio, background music, BGM, soundtrack, musical score, underscore, theme music, cue, instrumentation, instruments, melody, melodic phrase, harmony, chord progression, tonal center, key, scale, rhythm, beat, pulse, tempo, groove, percussion, drums, drum beat, bass line, bass guitar, orchestral arrangement, string section, brass, electronic music, synthesizer, vocal melody, singing, hooks, drops, chorus, verse, bridge, intro, outro, leitmotif, jingle, any structured musical composition or arrangement",
+      negative: "non-diegetic audio, background music, BGM, soundtrack, musical score, underscore, theme music, cue, instrumentation, instruments, melody, melodic phrase, harmony, chord progression, tonal center, key, scale, rhythm, beat, pulse, tempo, groove, percussion, drums, drum beat, bass line, bass guitar, orchestral arrangement, string section, brass, electronic music, synthesizer, vocal melody, singing, hooks, drops, chorus, verse, bridge, intro, outro, leitmotif, jingle, any structured musical composition or arrangement, " + SUBTITLE_NEGATIVE,
     },
     "ambient_only": {
       positive: "strictly diegetic in-world ambient sound, on-location field recording, raw foley, natural room tone, wind, rustle, environmental texture, no scored music, no voices, unscored scene",
-      negative: "non-diegetic audio, background music, BGM, soundtrack, musical score, underscore, theme music, cue, instrumentation, instruments, melody, harmony, chord progression, rhythm, beat, pulse, tempo, percussion, drums, bass, orchestra, electronic music, synthesizer, vocal melody, singing, hooks, drops, chorus, verse, bridge, leitmotif, jingle, speech, dialogue, voices, narration, any structured musical composition or arrangement",
+      negative: "non-diegetic audio, background music, BGM, soundtrack, musical score, underscore, theme music, cue, instrumentation, instruments, melody, harmony, chord progression, rhythm, beat, pulse, tempo, percussion, drums, bass, orchestra, electronic music, synthesizer, vocal melody, singing, hooks, drops, chorus, verse, bridge, leitmotif, jingle, speech, dialogue, voices, narration, any structured musical composition or arrangement, " + SUBTITLE_NEGATIVE,
     },
     "silent": {
       positive: "",
-      negative: "background music, BGM, soundtrack, musical instruments, melody, singing, speech, voices, ambient sounds",
+      negative: "background music, BGM, soundtrack, musical instruments, melody, singing, speech, voices, ambient sounds, " + SUBTITLE_NEGATIVE,
     },
     "auto": {
       positive: "",
-      negative: "",
+      negative: SUBTITLE_NEGATIVE,
     },
   };
   const audioGuide = AUDIO_GUIDES[audioMode] || AUDIO_GUIDES["dialogue+ambient"];
@@ -239,17 +258,28 @@ export function buildMSRWorkflow(opts: {
   };
 
   return {
-    // === Model & Text Encoder ===
+    // === Model & Text Encoder (int8_convrot) ===
+    // 替代原 LowVRAMCheckpointLoader + LTXAVTextEncoderLoader:
+    //   - int8 transformer 常驻 VRAM,不需层间 offload
+    //   - transformer_only 不含 text encoder/VAE,必须独立加载
+    // 回退路径: git revert 此 commit 恢复 LowVRAMCheckpointLoader
     "3": {
-      class_type: "LowVRAMCheckpointLoader",
-      inputs: { ckpt_name: LTX_DEFAULTS.msrModelName },
+      class_type: "OTUNetLoaderW8A8",
+      inputs: {
+        unet_name: LTX_DEFAULTS.msrModelName,
+        weight_dtype: "default",
+        model_type: "ltx2",
+        on_the_fly_quantization: false,
+        enable_convrot: true,
+        lora_mode: "None",
+      },
     },
     "26": {
-      class_type: "LTXAVTextEncoderLoader",
+      class_type: "DualCLIPLoader",
       inputs: {
-        text_encoder: LTX_DEFAULTS.clipName1,
-        ckpt_name: LTX_DEFAULTS.msrModelName,
-        device: "default",
+        clip_name1: LTX_DEFAULTS.clipName1,
+        clip_name2: LTX_DEFAULTS.clipName2,
+        type: "ltxv",
       },
     },
     "10": {
@@ -259,6 +289,11 @@ export function buildMSRWorkflow(opts: {
         lora_name: msrLoraName,
         strength_model: 1.0,
       },
+    },
+    // int8 transformer 不含 VAE,独立加载 video / audio VAE
+    "31": {
+      class_type: "VAELoader",
+      inputs: { vae_name: LTX_DEFAULTS.msrVideoVAE },
     },
 
     // === V2: PromptRelayEncode + LTX2_NAG ===
@@ -333,7 +368,7 @@ export function buildMSRWorkflow(opts: {
         inputs: {
           positive: ["9", 0],
           negative: ["9", 1],
-          vae: ["3", 2],
+          vae: ["31", 0],
           latent: ["9", 2],
           image: ["50", 0],   // VHS_LoadVideo outputs IMAGE batch (multi-frame) or LoadImage (single)
           frame_idx: 0,
@@ -358,17 +393,18 @@ export function buildMSRWorkflow(opts: {
       inputs: { text: audioEnhancedNegative, clip: ["26", 0] },
     },
 
-    // === Audio VAE ===
+    // === Audio VAE (int8: 独立文件,不从 ckpt 加载) ===
     "21": {
-      class_type: "LTXVAudioVAELoader",
-      inputs: { ckpt_name: LTX_DEFAULTS.msrModelName },
+      class_type: "VAELoader",
+      inputs: { vae_name: LTX_DEFAULTS.msrAudioVAE },
     },
 
-    // === Custom Audio (冻结音频参考) ===
-    // 借鉴 LTX2.3-MSR全能参考工作流的音频冻结机制:
-    // LoadAudio → AudioVAEEncode → SetLatentNoiseMask(SolidMask=0) → ConcatAVLatent
-    // SolidMask=0 冻结音频区域, 采样时不修改音频, 相当于"强制"输出指定音频
-    ...(customAudio ? {
+    // === Custom Audio (音频参考) ===
+    // 三种场景:
+    //   1. dialogue+ambient (默认): SolidMask=0 全段冻结,bit-exact 拷贝输入音频
+    //   2. dialogue+ambient_v2 (partial-mask): 对话段冻结 + 环境段放开让模型生成
+    //   3. stage3Ambient: 不需要输入音频(用 EmptyLatentAudio),整段交给模型生成
+    ...(customAudio && !stage3Ambient ? {
       "60": {
         class_type: "LoadAudio",
         inputs: { audio: customAudio },
@@ -380,17 +416,20 @@ export function buildMSRWorkflow(opts: {
           audio_vae: ["21", 0],
         },
       },
-      "62": {
-        class_type: "SolidMask",
-        inputs: { value: 0, width: 512, height: 512 },
-      },
-      "63": {
-        class_type: "SetLatentNoiseMask",
-        inputs: {
-          samples: ["61", 0],
-          mask: ["62", 0],
+      // v1 模式: SolidMask + SetLatentNoiseMask 全段冻结
+      ...(!usePartialMask ? {
+        "62": {
+          class_type: "SolidMask",
+          inputs: { value: 0, width: 512, height: 512 },
         },
-      },
+        "63": {
+          class_type: "SetLatentNoiseMask",
+          inputs: {
+            samples: ["61", 0],
+            mask: ["62", 0],
+          },
+        },
+      } : {}),
     } : {}),
 
     // === Video Conditioning ===
@@ -434,7 +473,7 @@ export function buildMSRWorkflow(opts: {
       inputs: {
         positive: ["7", 0],
         negative: ["7", 1],
-        vae: ["3", 2],
+        vae: ["31", 0],
         latent: ["8", 0],
         image: ["28", 0],
         frame_idx: 0,
@@ -448,15 +487,48 @@ export function buildMSRWorkflow(opts: {
     },
 
     // === Concat AV Latents ===
-    // 有自定义音频时: 用冻结的音频latent (node 63)
+    // 有自定义音频时:
+    //   v1 全冻结: 用 SetLatentNoiseMask 处理过的 latent (node 63)
+    //   v2 partial-mask: 直接用 AudioVAEEncode 输出 (node 61),mask 由 node 200 后置处理
+    //   5-stage Stage 3: 不用输入音频,直接用 EmptyLatentAudio (node 22)
     // 无自定义音频时: 用空音频latent (node 22), LTX模型自己生成音频
     "23": {
       class_type: "LTXVConcatAVLatent",
       inputs: {
         video_latent: [guideOutNode, 2],
-        audio_latent: customAudio ? ["63", 0] : ["22", 0],
+        audio_latent: stage3Ambient
+          ? ["22", 0]
+          : (customAudio
+            ? (usePartialMask ? ["61", 0] : ["63", 0])
+            : ["22", 0]),
       },
     },
+
+    // === Node 200: LTXVSetAudioVideoMaskByTime ===
+    // 两种模式共用此节点,参数不同:
+    //   v2 partial-mask: 对话段(0~dialogueEndTime) mask=0 冻结 + 环境段 mask=1 放开
+    //   stage3 ambient: 全段 mask=1 放开,模型自由生成纯环境声(无对话约束)
+    ...(useNode200 ? {
+      "200": {
+        class_type: "LTXVSetAudioVideoMaskByTime",
+        inputs: {
+          av_latent: ["23", 0],
+          positive: [guideOutNode, 0],
+          negative: [guideOutNode, 1],
+          model: [modelNodeForGuider === "121" ? "121" : modelNodeForGuider === "51" ? "51" : "10", 0],
+          vae: ["31", 0],
+          audio_vae: ["21", 0],
+          start_time: stage3Ambient ? 0 : ambientStartTime,
+          end_time: totalDuration,
+          video_fps: fps,
+          mask_video: false,             // 视频全段自由生成
+          mask_audio: !stage3Ambient,    // v2: True(区间内 mask=1) / stage3: False(全段都用 init_value)
+          mask_init_value_video: 1.0,    // 视频 init=1(全段 free)
+          mask_init_value_audio: stage3Ambient ? 1.0 : 0.0,  // v2: 0(对话段冻结) / stage3: 1(全段 free)
+          slope_len: 3,
+        },
+      },
+    } : {}),
 
     // === Sampler ===
     "15": {
@@ -487,7 +559,9 @@ export function buildMSRWorkflow(opts: {
         guider: ["37", 0],
         sampler: ["13", 0],
         sigmas: ["27", 0],
-        latent_image: ["23", 0],
+        // v2 partial-mask / stage3 ambient 模式: 用 node 200 输出(已应用 mask)
+        // 其他模式: 直接用 node 23(concat 后的 AV latent)
+        latent_image: useNode200 ? ["200", 2] : ["23", 0],
       },
     },
 
@@ -510,7 +584,7 @@ export function buildMSRWorkflow(opts: {
     // === Decode Video ===
     "38": {
       class_type: "VAEDecode",
-      inputs: { samples: ["17", 2], vae: ["3", 2] },
+      inputs: { samples: ["17", 2], vae: ["31", 0] },
     },
 
     // === Decode Audio ===
@@ -546,6 +620,182 @@ export function buildMSRWorkflow(opts: {
         codec: "auto",
       },
     },
+  };
+}
+
+// ============================================================
+// 5-Stage Pipeline Orchestrator
+// ============================================================
+//
+// 当 audioMode = "5stage_pipeline" 时调用。LTX 2.3 无法在单次 pass 既保真 TTS
+// 又生成丰富环境声,需要拆 2 次 pass + ffmpeg 混合:
+//   Stage 2: dialogue+ambient_v2 (partial-mask,对话冻结 + 弱环境)
+//   Stage 3: stage3Ambient (audio mask=1 全段,纯环境生成,无对话约束)
+//   Mix:    ffmpeg sidechaincompress ducking (对话时压环境) + alimiter
+//   Mux:    ffmpeg (Stage 2 video + mixed audio) → final mp4
+//
+// 运行时间 ~6.85 min(2 次 LTX ~3.5 min each + ffmpeg 秒级)
+
+interface FiveStageOpts {
+  refFilenames: string[];
+  prompt: string;
+  negativePrompt: string;
+  refDescription?: string;
+  width: number;
+  height: number;
+  numFrames: number;
+  msrFrameCount: number;
+  fps: number;
+  seed: number;
+  filenamePrefix: string;
+  customAudioFilename: string;       // 必填:5-stage 必须有 TTS 对话音频
+  dialogueEndTime: number;           // 必填:对话结束时间(秒)
+  useV2?: boolean;
+  nagWeight?: number;
+  nagLayers?: number;
+  nagSigmaStart?: number;
+  relayWeight?: number;
+  msrLoraVersion?: string;
+}
+
+async function executeFiveStagePipeline(opts: FiveStageOpts): Promise<{
+  finalVideoFilename: string;
+  stage2PromptId: string;
+  stage3PromptId: string;
+  durationMs: number;
+}> {
+  const startTime = Date.now();
+  const { pollComfyUi, findOutputVideo, downloadOutput } = await import("@/lib/comfyuiPoll");
+  const { execSync } = require("child_process");
+  const tmpDir = `/tmp/msr-5stage-${Date.now()}`;
+  fs.mkdirSync(tmpDir, { recursive: true });
+
+  // ============ Stage 2: dialogue+ambient_v2 (partial-mask) ============
+  const stage2Prefix = `${opts.filenamePrefix}_stage2`;
+  const stage2Workflow = buildMSRWorkflow({
+    refFilenames: opts.refFilenames,
+    prompt: opts.prompt,
+    negativePrompt: opts.negativePrompt,
+    refDescription: opts.refDescription,
+    width: opts.width, height: opts.height,
+    numFrames: opts.numFrames, msrFrameCount: opts.msrFrameCount, fps: opts.fps,
+    seed: opts.seed, filenamePrefix: stage2Prefix,
+    useV2: opts.useV2,
+    nagWeight: opts.nagWeight, nagLayers: opts.nagLayers, nagSigmaStart: opts.nagSigmaStart,
+    relayWeight: opts.relayWeight, msrLoraVersion: opts.msrLoraVersion,
+    audioMode: "dialogue+ambient_v2",
+    customAudioFilename: opts.customAudioFilename,
+    dialogueEndTime: opts.dialogueEndTime,
+  });
+
+  const stage2Res = await axios.post(
+    `${LTX_CONFIG.comfyuiUrl}/prompt`,
+    { prompt: stage2Workflow },
+    { timeout: 30_000, validateStatus: (s: number) => s < 500 },
+  );
+  if (stage2Res.status !== 200) {
+    throw new Error(`Stage 2 ComfyUI rejected: ${JSON.stringify(stage2Res.data).slice(0, 500)}`);
+  }
+  const stage2PromptId: string = stage2Res.data.prompt_id;
+  const stage2Poll = await pollComfyUi(stage2PromptId, { pollTimeoutMs: 900_000 });
+  if (stage2Poll.status !== "success") {
+    throw new Error(`Stage 2 failed: ${stage2Poll.error}`);
+  }
+  const stage2File = findOutputVideo(stage2Poll.outputs!);
+  if (!stage2File) throw new Error("Stage 2 produced no video output");
+  const stage2LocalPath = await downloadOutput(stage2File);
+
+  // ============ Stage 3: stage3Ambient (full audio-gen) ============
+  // 用不同 seed + ambient-focused prompts + speech-excluded negative
+  // Stage 3 不需要 customAudio(它生成纯环境声)
+  const stage3Prefix = `${opts.filenamePrefix}_stage3`;
+  const ambientNegativeSuffix = ", speech, dialogue, voices, spoken words, narration, singing";
+  const ambientPromptSuffix = ". Characters are silent in this scene, focusing on ambient environmental sounds only";
+  const stage3Workflow = buildMSRWorkflow({
+    refFilenames: opts.refFilenames,
+    prompt: opts.prompt + ambientPromptSuffix,
+    negativePrompt: opts.negativePrompt + ambientNegativeSuffix,
+    refDescription: opts.refDescription,
+    width: opts.width, height: opts.height,
+    numFrames: opts.numFrames, msrFrameCount: opts.msrFrameCount, fps: opts.fps,
+    seed: opts.seed + 1, filenamePrefix: stage3Prefix,  // fresh seed for variation
+    useV2: opts.useV2,
+    nagWeight: opts.nagWeight, nagLayers: opts.nagLayers, nagSigmaStart: opts.nagSigmaStart,
+    relayWeight: opts.relayWeight, msrLoraVersion: opts.msrLoraVersion,
+    audioMode: "auto",  // bypass dialogue+ambient audio guides (we want pure ambient)
+    stage3Ambient: true,
+  });
+
+  const stage3Res = await axios.post(
+    `${LTX_CONFIG.comfyuiUrl}/prompt`,
+    { prompt: stage3Workflow },
+    { timeout: 30_000, validateStatus: (s: number) => s < 500 },
+  );
+  if (stage3Res.status !== 200) {
+    throw new Error(`Stage 3 ComfyUI rejected: ${JSON.stringify(stage3Res.data).slice(0, 500)}`);
+  }
+  const stage3PromptId: string = stage3Res.data.prompt_id;
+  const stage3Poll = await pollComfyUi(stage3PromptId, { pollTimeoutMs: 900_000 });
+  if (stage3Poll.status !== "success") {
+    throw new Error(`Stage 3 failed: ${stage3Poll.error}`);
+  }
+  const stage3File = findOutputVideo(stage3Poll.outputs!);
+  if (!stage3File) throw new Error("Stage 3 produced no video output");
+  const stage3LocalPath = await downloadOutput(stage3File);
+
+  // ============ ffmpeg: extract audio from both ============
+  const stage2Audio = `${tmpDir}/stage2_audio.wav`;
+  const stage3Audio = `${tmpDir}/stage3_audio.wav`;
+  execSync(`ffmpeg -y -i "${stage2LocalPath}" -vn -ar 48000 -ac 2 "${stage2Audio}"`, { timeout: 30_000 });
+  execSync(`ffmpeg -y -i "${stage3LocalPath}" -vn -ar 48000 -ac 2 "${stage3Audio}"`, { timeout: 30_000 });
+
+  // ============ ffmpeg: sidechain ducking mix ============
+  // Stage 2 audio(对话 + 弱环境)× 1.0 + Stage 3 audio(纯环境)× 0.55
+  // sidechain 让 Stage 3 在 Stage 2 对话活跃时自动压低
+  const mixedAudio = `${tmpDir}/mixed_audio.wav`;
+  const mixFilter = [
+    "[0:a][1:a]sidechaincompress=threshold=0.03:ratio=10:attack=10:release=400[ducked]",
+    "[ducked]volume=0.55[s3gain]",
+    "[1:a]volume=1.0[l7gain]",
+    "[l7gain][s3gain]amix=inputs=2:duration=longest:weights=1 1:normalize=0[sum]",
+    "[sum]alimiter=limit=0.95:attack=5:release=50[limited]",
+  ].join(";");
+  execSync(
+    `ffmpeg -y -i "${stage3Audio}" -i "${stage2Audio}" -filter_complex "${mixFilter}" -map "[limited]" -ar 48000 -ac 2 "${mixedAudio}"`,
+    { timeout: 30_000 },
+  );
+
+  // ============ ffmpeg: mux Stage 2 video + mixed audio ============
+  const finalFilename = `${opts.filenamePrefix}_5stage.mp4`;
+  const containerOutputPath = `${LTX_CONFIG.comfyuiOutputDir}/${finalFilename}`;
+  const localOutputPath = `${tmpDir}/${finalFilename}`;
+  execSync(
+    `ffmpeg -y -i "${stage2LocalPath}" -i "${mixedAudio}" -map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -b:a 192k -shortest "${localOutputPath}"`,
+    { timeout: 30_000 },
+  );
+
+  // Copy final to ComfyUI container output dir for serving via /view endpoint
+  try {
+    execSync(`docker cp "${localOutputPath}" ${LTX_CONFIG.containerName}:"${containerOutputPath}"`, { timeout: 30_000 });
+  } catch (err: any) {
+    // Non-fatal: local file still exists, but won't be served via ComfyUI history
+    console.warn(`5-stage: failed to copy final to container: ${err.message}`);
+  }
+
+  // Cleanup intermediates (keep final)
+  try {
+    fs.unlinkSync(stage2Audio);
+    fs.unlinkSync(stage3Audio);
+    fs.unlinkSync(mixedAudio);
+    if (stage2LocalPath.startsWith("/tmp/")) fs.unlinkSync(stage2LocalPath);
+    if (stage3LocalPath.startsWith("/tmp/")) fs.unlinkSync(stage3LocalPath);
+  } catch {}
+
+  return {
+    finalVideoFilename: finalFilename,
+    stage2PromptId,
+    stage3PromptId,
+    durationMs: Date.now() - startTime,
   };
 }
 
@@ -608,7 +858,7 @@ router.post(
     const width = Number(req.body.width) || 1280;
     const height = Number(req.body.height) || 704;
     const negativePrompt = req.body.negativePrompt as string
-      || "worst quality, blurry, jittery, distorted, inconsistent appearance";
+      || "worst quality, blurry, jittery, distorted, inconsistent appearance, text, watermark, subtitles, captions, on-screen text, burned-in text, Chinese characters, handwriting, calligraphy";
     const seed = req.body.seed ? Number(req.body.seed) : Math.floor(Math.random() * 2147483647);
     const outputFilename = (req.body.outputFilename as string) || `ltx_msr_${projectId}_${Date.now()}`;
     const outputDir = (req.body.outputDir as string) || "";
@@ -622,6 +872,8 @@ router.post(
     const msrLoraVersion = (req.body.msrLoraVersion as string) || "V2";
     const relayWeight = req.body.relayWeight ? Number(req.body.relayWeight) : undefined;
     const audioMode = (req.body.audioMode as string) || "dialogue+ambient";
+    // v2 partial-mask: 对话结束时间(秒),audioMode="dialogue+ambient_v2" 时必填
+    const dialogueEndTime = req.body.dialogueEndTime ? Number(req.body.dialogueEndTime) : undefined;
 
     // --- Collect uploaded reference images (2~5) ---
     const files = req.files as Record<string, Express.Multer.File[]>;
@@ -766,6 +1018,42 @@ router.post(
     // --- Build & submit workflow ---
     const filenamePrefix = outputDir ? `${outputDir}/${outputFilename}` : outputFilename;
 
+    // 5-stage pipeline: 同步运行 Stage 2 + Stage 3 + ffmpeg 混合 + mux
+    // 比 single-pass 慢 (~6.85 min vs 3.5 min) 但环境声质量提升 3-16×
+    if (audioMode === "5stage_pipeline") {
+      if (!customAudioFilename) {
+        return res.status(400).send(error(`audioMode=5stage_pipeline requires custom audio (TTS dialogue). Upload via "audio" field.`));
+      }
+      if (!dialogueEndTime || dialogueEndTime <= 0) {
+        return res.status(400).send(error(`audioMode=5stage_pipeline requires dialogueEndTime (seconds, when dialogue ends and ambient takes over).`));
+      }
+      try {
+        const result = await executeFiveStagePipeline({
+          refFilenames: filenames,
+          prompt, negativePrompt,
+          refDescription,
+          width, height, numFrames, msrFrameCount, fps,
+          seed, filenamePrefix,
+          customAudioFilename,
+          dialogueEndTime,
+          useV2,
+          nagWeight, nagLayers, nagSigmaStart, msrLoraVersion, relayWeight,
+        });
+        return res.status(200).send(success({
+          status: "completed",
+          mode: "5stage_pipeline",
+          stage2PromptId: result.stage2PromptId,
+          stage3PromptId: result.stage3PromptId,
+          finalVideo: { filename: result.finalVideoFilename },
+          totalDurationSec: +(result.durationMs / 1000).toFixed(1),
+          params: { width, height, numFrames, fps, seed, dialogueEndTime, audioMode },
+          audio: { hasAudioTrack: true, customAudio: true, dialogueFrozen: true, ambientGenerated: true },
+        }));
+      } catch (err: any) {
+        return res.status(502).send(error(`5-stage pipeline failed: ${err.message}`));
+      }
+    }
+
     const workflow = buildMSRWorkflow({
       refFilenames: filenames,
       prompt, negativePrompt,
@@ -784,6 +1072,7 @@ router.post(
       relayWeight,
       audioMode,
       customAudioFilename,
+      dialogueEndTime,
     });
 
     try {
@@ -883,7 +1172,7 @@ router.post(
     const width = Number(req.body.width) || 1280;
     const height = Number(req.body.height) || 704;
     const negativePrompt = (req.body.negativePrompt as string)
-      || "worst quality, blurry, jittery, distorted, inconsistent appearance";
+      || "worst quality, blurry, jittery, distorted, inconsistent appearance, text, watermark, subtitles, captions, on-screen text, burned-in text, Chinese characters, handwriting, calligraphy";
     const baseSeed = req.body.seed ? Number(req.body.seed) : Math.floor(Math.random() * 2147483647);
     const outputFilenameBase = (req.body.outputFilename as string)
       || `ltx_msr_${projectId}_${Date.now()}`;
@@ -897,6 +1186,8 @@ router.post(
     const msrLoraVersion = (req.body.msrLoraVersion as string) || "V2";
     const relayWeight = req.body.relayWeight ? Number(req.body.relayWeight) : undefined;
     const audioMode = (req.body.audioMode as string) || "dialogue+ambient";
+    // v2 partial-mask: 对话结束时间(秒),audioMode="dialogue+ambient_v2" 时必填
+    const dialogueEndTime = req.body.dialogueEndTime ? Number(req.body.dialogueEndTime) : undefined;
 
     const files = req.files as Record<string, Express.Multer.File[]>;
 
@@ -1021,6 +1312,38 @@ router.post(
       const outputFilename = `${outputFilenameBase}_attempt${attempt}`;
       const filenamePrefix = outputDir ? `${outputDir}/${outputFilename}` : outputFilename;
 
+      // 5-stage pipeline: 同步运行,完成后跳过 BGM 检测直接返回(因为对话段是冻结 TTS,不会有 BGM)
+      if (audioMode === "5stage_pipeline") {
+        if (!customAudioFilename) {
+          return res.status(400).send(error(`audioMode=5stage_pipeline requires custom audio.`));
+        }
+        if (!dialogueEndTime || dialogueEndTime <= 0) {
+          return res.status(400).send(error(`audioMode=5stage_pipeline requires dialogueEndTime.`));
+        }
+        try {
+          const result = await executeFiveStagePipeline({
+            refFilenames,
+            prompt, negativePrompt, refDescription,
+            width, height, numFrames, msrFrameCount, fps,
+            seed: currentSeed, filenamePrefix,
+            customAudioFilename, dialogueEndTime,
+            useV2, nagWeight, nagLayers, nagSigmaStart, msrLoraVersion, relayWeight,
+          });
+          attempts.push({ attempt, promptId: result.stage2PromptId, status: "5stage_completed", finalVideo: result.finalVideoFilename });
+          return res.status(200).send(success({
+            status: "completed",
+            mode: "5stage_pipeline",
+            stage2PromptId: result.stage2PromptId,
+            stage3PromptId: result.stage3PromptId,
+            finalVideo: { filename: result.finalVideoFilename },
+            totalDurationSec: +(result.durationMs / 1000).toFixed(1),
+            attempts,
+          }));
+        } catch (err: any) {
+          return res.status(502).send(error(`5-stage pipeline failed: ${err.message}`));
+        }
+      }
+
       const workflow = buildMSRWorkflow({
         refFilenames,
         prompt, negativePrompt,
@@ -1029,7 +1352,7 @@ router.post(
         poseFrameFilename, poseVideoFilename, poseGuideStrength,
         useV2, refDescription,
         nagWeight, nagLayers, nagSigmaStart, msrLoraVersion, relayWeight,
-        audioMode, customAudioFilename,
+        audioMode, customAudioFilename, dialogueEndTime,
       });
 
       let promptId: string;
