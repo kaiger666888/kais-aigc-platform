@@ -871,8 +871,9 @@ router.post(
     const nagSigmaStart = req.body.nagSigmaStart ? Number(req.body.nagSigmaStart) : undefined;
     const msrLoraVersion = (req.body.msrLoraVersion as string) || "V2";
     const relayWeight = req.body.relayWeight ? Number(req.body.relayWeight) : undefined;
-    const audioMode = (req.body.audioMode as string) || "dialogue+ambient";
-    // v2 partial-mask: 对话结束时间(秒),audioMode="dialogue+ambient_v2" 时必填
+    // audioMode 默认值在 customAudioFilename 解析后决定(智能 fallback)
+    const requestedAudioMode = (req.body.audioMode as string) || "";
+    // v2 partial-mask: 对话结束时间(秒),audioMode="dialogue+ambient_v2" / "5stage_pipeline" 时必填
     const dialogueEndTime = req.body.dialogueEndTime ? Number(req.body.dialogueEndTime) : undefined;
 
     // --- Collect uploaded reference images (2~5) ---
@@ -895,6 +896,21 @@ router.post(
       }
       try { fs.unlinkSync(customAudioFile.path); } catch {}
     }
+
+    // === 智能 audioMode 默认值 ===
+    // 5stage_pipeline 是新默认(对话保真 + 丰富环境),但需要 audio + dialogueEndTime
+    // 用户未显式指定时,按可用资源自动降级:
+    //   - audio + dialogueEndTime → 5stage_pipeline (推荐)
+    //   - audio only → dialogue+ambient (v1 全冻结)
+    //   - 无 audio → silent
+    const audioMode = requestedAudioMode || (
+      customAudioFilename && dialogueEndTime && dialogueEndTime > 0
+        ? "5stage_pipeline"
+        : customAudioFilename
+          ? "dialogue+ambient"
+          : "silent"
+    );
+
     const refFieldNames = ["ref1", "ref2", "ref3", "ref4", "ref5"];
     const uploadedFiles: Express.Multer.File[] = [];
 
@@ -1185,8 +1201,9 @@ router.post(
     const nagSigmaStart = req.body.nagSigmaStart ? Number(req.body.nagSigmaStart) : undefined;
     const msrLoraVersion = (req.body.msrLoraVersion as string) || "V2";
     const relayWeight = req.body.relayWeight ? Number(req.body.relayWeight) : undefined;
-    const audioMode = (req.body.audioMode as string) || "dialogue+ambient";
-    // v2 partial-mask: 对话结束时间(秒),audioMode="dialogue+ambient_v2" 时必填
+    // audioMode 默认值在 customAudioFilename 解析后决定(智能 fallback)
+    const requestedAudioMode = (req.body.audioMode as string) || "";
+    // v2 partial-mask: 对话结束时间(秒),audioMode="dialogue+ambient_v2" / "5stage_pipeline" 时必填
     const dialogueEndTime = req.body.dialogueEndTime ? Number(req.body.dialogueEndTime) : undefined;
 
     const files = req.files as Record<string, Express.Multer.File[]>;
@@ -1207,6 +1224,15 @@ router.post(
       }
       try { fs.unlinkSync(customAudioFile.path); } catch {}
     }
+
+    // === 智能 audioMode 默认值(同 POST /) ===
+    const audioMode = requestedAudioMode || (
+      customAudioFilename && dialogueEndTime && dialogueEndTime > 0
+        ? "5stage_pipeline"
+        : customAudioFilename
+          ? "dialogue+ambient"
+          : "silent"
+    );
 
     const refFieldNames = ["ref1", "ref2", "ref3", "ref4", "ref5"];
     const uploadedFiles: Express.Multer.File[] = [];
