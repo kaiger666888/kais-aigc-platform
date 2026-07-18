@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
 <meta charset="utf-8">
-<title>L6 vs L7 — Mode D 全冻结 vs 部分冻结(自动环境声)</title>
+<title>L7 vs L8 — 单次 partial-mask vs 5 阶段 pipeline</title>
 <style>
   body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
          background: #0f0f0f; color: #e0e0e0; margin: 0; padding: 24px;
@@ -28,6 +28,14 @@
            vertical-align: middle; margin-left: 6px; }
   .badge.prev { background: #555; color: #fff; }
   .badge.win { background: #6bcf6b; color: #1a1a1a; }
+
+  .pipeline-diag { background: #1a1a1a; padding: 16px; border-radius: 6px; margin-top: 20px; }
+  .pipeline-diag h3 { margin: 0 0 12px; color: #ffcc55; font-size: 14px; }
+  .pipeline-diag pre { font-family: monospace; font-size: 11px; color: #ccc;
+                       line-height: 1.6; white-space: pre-wrap; margin: 0; }
+  .pipeline-diag .stage-l7 { color: #ffcc55; }
+  .pipeline-diag .stage-l8 { color: #6bcf6b; }
+  .pipeline-diag .arrow { color: #555; }
 
   .audio-check { background: #1a1a1a; padding: 14px 16px; border-radius: 6px;
                  margin-top: 20px; }
@@ -59,97 +67,119 @@
 </head>
 <body>
 
-<h1>L6 vs L7 — Mode D 全冻结 vs 部分冻结</h1>
+<h1>L7 vs L8 — 单次 partial-mask vs 5 阶段 pipeline</h1>
 <div class="subtitle">
-  同 int8_convrot V2 + Mode D + 15s 视频 + 相同 prompt(含环境声描述),唯一变量:audio mask 是否部分放开
+  L8 = 5 阶段 pipeline(基于 L7 工作流改造):Stage 2 L7 视频 + Stage 3 LTX 纯环境声 + Stage 4 ducking 混合 + Stage 5 mux
 </div>
 
 <div class="compare">
 
   <div class="card">
-    <h2>L6 — Mode D 全冻结<span class="badge prev">前版</span></h2>
+    <h2>L7 — 单次 partial-mask<span class="badge prev">前版</span></h2>
     <div class="desc">
-      <code>SolidMask=0</code> 全段冻结:音频区 100% 锁死成输入<br>
-      prompt 的"rain pattering, footsteps, whispers"完全进不去 → 后段 9s 是 0 RMS 静音
-    </div>
-    <video controls preload="metadata">
-      <source src="../int8-production-15s-ambient-output/MSR_INT8_PRODUCTION_00007_.mp4" type="video/mp4">
-    </video>
-    <div class="stats">
-      <div class="stat"><span class="k">total time</span><span class="v">3.75 min</span></div>
-      <div class="stat"><span class="k">video</span><span class="v">15.08s (377f)</span></div>
-      <div class="stat"><span class="k">file</span><span class="v">3.38 MB</span></div>
-      <div class="stat bad"><span class="k">6-15s RMS</span><span class="v">0.0000</span></div>
-      <div class="stat bad"><span class="k">audio mask</span><span class="v">全段 0</span></div>
-      <div class="stat"><span class="k">segments</span><span class="v">3 (87,60,230)</span></div>
-    </div>
-  </div>
-
-  <div class="card recommend">
-    <h2>L7 — 部分冻结(dialogue + auto ambient)<span class="badge win">当前</span></h2>
-    <div class="desc">
-      <code>LTXVSetAudioVideoMaskByTime</code>:<br>
-      ① 0-5.9s audio mask=0(冻结,保真 TTS 对话)<br>
-      ② 5.9-15s audio mask=1(放开,LTX 按 prompt 生成雨声/脚步/低语)
+      一次 LTX pass 同时生成视频 + 对话保真(冻结) + 后段弱环境声(放开)<br>
+      环境声 peak 0.15,听感偏弱,被对话遮蔽
     </div>
     <video controls preload="metadata">
       <source src="../int8-production-15s-partialmask-output/MSR_INT8_PRODUCTION_00008_.mp4" type="video/mp4">
     </video>
     <div class="stats">
-      <div class="stat win"><span class="k">total time</span><span class="v">3.25 min</span></div>
-      <div class="stat"><span class="k">video</span><span class="v">15.08s (377f)</span></div>
+      <div class="stat"><span class="k">LTX passes</span><span class="v">1</span></div>
+      <div class="stat"><span class="k">total time</span><span class="v">3.25 min</span></div>
       <div class="stat"><span class="k">file</span><span class="v">3.03 MB</span></div>
-      <div class="stat win"><span class="k">6-15s RMS</span><span class="v">0.001-0.006</span></div>
-      <div class="stat win"><span class="k">audio mask</span><span class="v">分段 0/1</span></div>
-      <div class="stat"><span class="k">segments</span><span class="v">3 (87,60,230)</span></div>
+      <div class="stat bad"><span class="k">ambient peak</span><span class="v">0.15</span></div>
+      <div class="stat bad"><span class="k">ambient RMS</span><span class="v">0.001-0.006</span></div>
+      <div class="stat"><span class="k">dialogue</span><span class="v">TTS 保真</span></div>
+    </div>
+  </div>
+
+  <div class="card recommend">
+    <h2>L8 — 5 阶段 pipeline<span class="badge win">当前</span></h2>
+    <div class="desc">
+      Stage 2 复用 L7 视频(对话保真)+ Stage 3 单跑 LTX 纯环境声(无对话约束,prompt 全描述环境)<br>
+      + Stage 4 sidechain ducking 混合(对话时自动压低环境声)+ Stage 5 ffmpeg mux
+    </div>
+    <video controls preload="metadata">
+      <source src="../int8-production-5stage-final-output/MSR_INT8_PRODUCTION_L8_5STAGE.mp4" type="video/mp4">
+    </video>
+    <div class="stats">
+      <div class="stat"><span class="k">LTX passes</span><span class="v">2 (+ffmpeg)</span></div>
+      <div class="stat"><span class="k">total time</span><span class="v">3.25 + 3.5 + 0.1 min</span></div>
+      <div class="stat"><span class="k">file</span><span class="v">3.13 MB</span></div>
+      <div class="stat win"><span class="k">ambient peak</span><span class="v">0.44</span></div>
+      <div class="stat win"><span class="k">ambient RMS</span><span class="v">0.0096-0.021</span></div>
+      <div class="stat win"><span class="k">dialogue</span><span class="v">TTS 保真(ducking)</span></div>
     </div>
   </div>
 
 </div>
 
+<div class="pipeline-diag">
+  <h3>🔀 L8 5 阶段 pipeline 流程</h3>
+<pre><span class="stage-l8">[Stage 1]</span> TTS dialogue (Qwen3-VoiceDesign)        → rn_wv_dialogue_v2.wav (5.9s)
+<span class="arrow">    │</span>
+<span class="arrow">    ▼</span>
+<span class="stage-l8">[Stage 2]</span> <span class="stage-l7">L7 partial-mask LTX pass</span>                → MSR_INT8_PRODUCTION_00008.mp4
+<span class="arrow">    │</span>      ↳ video + (dialogue 0-5.9s frozen + weak ambient 5.9-15s)
+<span class="arrow">    │</span>
+<span class="arrow">    ├──────────────────┐</span>
+<span class="arrow">    │                  ▼</span>
+<span class="arrow">    │</span>              <span class="stage-l8">[Stage 3]</span> Dedicated ambient LTX pass     → stage3_ambient.wav (15s)
+<span class="arrow">    │</span>                  ↳ audio mask=1 everywhere, no dialogue constraint
+<span class="arrow">    │</span>                  ↳ prompt: rain, footsteps, wind only
+<span class="arrow">    │                  ▼</span>
+<span class="arrow">    │</span>              <span class="stage-l8">[Stage 4]</span> ffmpeg sidechain ducking mix   → L8_mixed_audio_v3.wav
+<span class="arrow">    │</span>                  ↳ L7 audio (1.0) + Stage 3 (0.55, ducked during dialog)
+<span class="arrow">    │</span>                  ↳ alimiter limit=0.95
+<span class="arrow">    ▼                  ▼</span>
+<span class="stage-l8">[Stage 5]</span> ffmpeg mux (L7 video + L8 audio)         → <span class="stage-l8">MSR_INT8_PRODUCTION_L8_5STAGE.mp4</span>
+</pre>
+</div>
+
 <div class="audio-check">
-  <h3>🔊 L7 自动生成的环境声(已增益 8× 便于试听)</h3>
-  <div class="label">L7 完整音频(原音量,对话 0-5.9s + 环境 5.9-15s)</div>
+  <h3>🔊 音频对比</h3>
+  <div class="label">L7 完整音频(单次 pass,环境声很弱)</div>
   <audio controls preload="metadata">
     <source src="../int8-production-15s-partialmask-output/l7_audio.wav" type="audio/wav">
   </audio>
-  <div class="label">仅环境段 5.5-15s(增益 8×,能听清雨声/嘶声)</div>
+  <div class="label">Stage 3 单独环境声(LTX 全段放开生成的纯环境声,峰值 0.87)</div>
   <audio controls preload="metadata">
-    <source src="../int8-production-15s-partialmask-output/l7_ambient_normalized.wav" type="audio/wav">
+    <source src="../int8-production-5stage-stage3-output/stage3_ambient.wav" type="audio/wav">
+  </audio>
+  <div class="label">L8 混合后音频(对话 + ducking 后的环境声)</div>
+  <audio controls preload="metadata">
+    <source src="../int8-production-5stage-final-output/L8_mixed_audio_v3.wav" type="audio/wav">
   </audio>
 </div>
 
 <div class="rms-table">
-  <h3>📊 逐秒 RMS 对比(信号强度)</h3>
+  <h3>📊 逐秒 RMS 对比</h3>
   <table>
-    <tr><th>时段</th><th>内容</th><th>L6 RMS</th><th>L7 RMS</th><th>L7 频谱中心</th><th>L7 vs L6</th></tr>
-    <tr><td>0-1s</td><td class="dialog">RN 对话</td><td>0.0489</td><td>0.0489</td><td>—</td><td>相同(冻结段)</td></tr>
-    <tr><td>1-2s</td><td class="dialog">RN 对话</td><td>0.0559</td><td>0.0559</td><td>—</td><td>相同</td></tr>
-    <tr><td>2-3s</td><td class="dialog">RN 对话</td><td>0.0762</td><td>0.0762</td><td>424 Hz</td><td>相同(人声低频)</td></tr>
-    <tr><td>3-4s</td><td class="dialog">RN 对话峰值</td><td>0.0904</td><td>0.0904</td><td>—</td><td>相同</td></tr>
-    <tr><td>4-5s</td><td class="dialog">RN → WV</td><td>0.0613</td><td>0.0613</td><td>—</td><td>相同</td></tr>
-    <tr><td>5-6s</td><td class="dialog">WV 回应</td><td>0.0636</td><td>0.0636</td><td>—</td><td>相同</td></tr>
-    <tr><td>6-7s</td><td>过渡(slope)</td><td class="silent">0.0000</td><td>0.0006</td><td>—</td><td class="active">开始生成</td></tr>
-    <tr><td>7-8s</td><td>环境</td><td class="silent">0.0000</td><td class="active">0.0010</td><td>3287 Hz</td><td class="active">高频雨声/嘶声</td></tr>
-    <tr><td>8-9s</td><td>环境</td><td class="silent">0.0000</td><td class="active">0.0033</td><td>—</td><td class="active">声量上升</td></tr>
-    <tr><td>9-10s</td><td>环境</td><td class="silent">0.0000</td><td class="active">0.0047</td><td>—</td><td class="active">持续</td></tr>
-    <tr><td>10-11s</td><td>环境</td><td class="silent">0.0000</td><td class="active">0.0040</td><td>967 Hz</td><td class="active">中频(脚步?)</td></tr>
-    <tr><td>11-12s</td><td>环境</td><td class="silent">0.0000</td><td class="active">0.0039</td><td>—</td><td class="active">持续</td></tr>
-    <tr><td>12-13s</td><td>环境</td><td class="silent">0.0000</td><td class="active">0.0056</td><td>1231 Hz</td><td class="active">峰值</td></tr>
-    <tr><td>13-14s</td><td>环境</td><td class="silent">0.0000</td><td class="active">0.0033</td><td>—</td><td class="active">渐弱</td></tr>
-    <tr><td>14-15s</td><td>环境</td><td class="silent">0.0000</td><td class="active">0.0013</td><td>—</td><td class="active">收尾</td></tr>
+    <tr><th>时段</th><th>内容</th><th>L7 RMS</th><th>Stage 3 RMS</th><th>L8 混合 RMS</th><th>提升</th></tr>
+    <tr><td>0-1s</td><td class="dialog">RN 对话</td><td>0.0489</td><td>0.0209</td><td class="dialog">0.0520</td><td>对话清晰,环境适度</td></tr>
+    <tr><td>3-4s</td><td class="dialog">RN 峰值</td><td>0.0904</td><td>0.0171</td><td class="dialog">0.0951</td><td>对话峰值清晰</td></tr>
+    <tr><td>5-6s</td><td class="dialog">WV 回应</td><td>0.0636</td><td>0.0176</td><td class="dialog">0.0682</td><td>对话清晰</td></tr>
+    <tr><td>6-7s</td><td>过渡</td><td class="silent">0.0006</td><td>0.0165</td><td class="active">0.0096</td><td class="active">16× 提升</td></tr>
+    <tr><td>7-8s</td><td>环境</td><td class="silent">0.0010</td><td>0.0248</td><td class="active">0.0143</td><td class="active">14× 提升</td></tr>
+    <tr><td>8-9s</td><td>脚步+雨</td><td class="silent">0.0033</td><td>0.0333</td><td class="active">0.0179</td><td class="active">5× 提升</td></tr>
+    <tr><td>9-10s</td><td>脚步+雨</td><td class="silent">0.0047</td><td>0.0357</td><td class="active">0.0165</td><td class="active">3.5× 提升</td></tr>
+    <tr><td>10-11s</td><td>环境</td><td class="silent">0.0040</td><td>0.0256</td><td class="active">0.0149</td><td class="active">3.7× 提升</td></tr>
+    <tr><td>11-12s</td><td>环境</td><td class="silent">0.0039</td><td>0.0359</td><td class="active">0.0211</td><td class="active">5.4× 提升</td></tr>
+    <tr><td>12-13s</td><td>环境</td><td class="silent">0.0056</td><td>0.0261</td><td class="active">0.0159</td><td class="active">2.8× 提升</td></tr>
+    <tr><td>13-14s</td><td>环境</td><td class="silent">0.0033</td><td>0.0242</td><td class="active">0.0139</td><td class="active">4.2× 提升</td></tr>
+    <tr><td>14-15s</td><td>收尾</td><td class="silent">0.0013</td><td>0.0232</td><td class="active">0.0135</td><td class="active">10× 提升</td></tr>
   </table>
 </div>
 
 <div class="takeaway">
-  <b>🎯 L7 验证了什么</b>
+  <b>🎯 L8 5 阶段 pipeline vs L7 单次</b>
   <ul>
-    <li><b>可以兼得</b>:<code>LTXVSetAudioVideoMaskByTime</code> 节点让对话段(mask=0)保真 TTS,环境段(mask=1)由 LTX 按 prompt 自动生成</li>
-    <li><b>对话完全不变</b>:0-5.9s 的 RMS/peak 和 L6 完全相同(bit-exact,因为 mask=0 是硬冻结)</li>
-    <li><b>环境段有真实内容</b>:7-8s 频谱中心 3287 Hz(典型雨声/嘶声频段),10s/13s 落到 ~1 kHz(可能是低频脚步/低语成分)</li>
-    <li><b>幅度偏低</b>:peak 0.15 vs 对话 0.39 —— 模型倾向生成"温和"的环境声,不抢戏。如需更响可加 <code>volume=</code> 后处理或调 prompt 强化描述</li>
-    <li><b>过渡平滑</b>:slope_len=3 latent 帧(~1s),6-7s 的 RMS 渐升 0.0006→0.001→0.0033,无明显 jump</li>
-    <li><b>代价</b>:工作流改造 — 移除 SolidMask+SetLatentNoiseMask,新增 LTXVSetAudioVideoMaskByTime 节点接管 mask(见 <code>msr_multi_reference_int8_production_partialmask.json</code>)</li>
+    <li><b>环境声质量</b>:L8 后段 RMS 0.0096-0.021,L7 是 0.001-0.006,<b>提升 3-16×</b>。Stage 3 不带对话约束,LTX 能把全部注意力放在环境声,peak 0.87(vs L7 的 0.15)</li>
+    <li><b>对话保真</b>:Stage 2 直接用 L7 的对话段(sidechain ducking 保证环境声不抢戏),TTS 音色完全保留</li>
+    <li><b>代价</b>:多一次 LTX pass(3.5 min),总时长从 3.25 min → 6.85 min。但 Stage 3 的 prompt 不需要多角色参考,理论上可以用更轻量的工作流</li>
+    <li><b>可推广</b>:5 阶段 pipeline 适合<b>对话和环境声同时存在</b>的场景(如下雨的同时有人说话)。L7 partial-mask 只能处理时间分段的场景</li>
+    <li><b>工程上</b>:所有 Stage 都是独立可缓存可重跑的。Stage 3 失败不影响 Stage 2,Stage 4 调音不满意只需重跑 ffmpeg(秒级)</li>
+    <li><b>新工作流</b>:<code>workflows/ltx-2.3/msr_multi_reference_int8_production_audiogen.json</code>(Stage 3 用,基于 L7 改造)</li>
   </ul>
 </div>
 
