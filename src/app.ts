@@ -154,6 +154,15 @@ export default async function startServe(randomPort: Boolean = false) {
     });
   }
 
+  // 3D 导演台：从 data/web/director-desk 提供独立 SPA (storyai-3d-director-desk)
+  const directorDeskDir = path.join(webDir, "director-desk");
+  if (fs.existsSync(directorDeskDir)) {
+    app.use("/director-desk", express.static(directorDeskDir, { acceptRanges: true, maxAge: "5m", cacheControl: true }));
+    app.get("/director-desk/{*path}", (_req, res) => {
+      res.sendFile(path.join(directorDeskDir, "index.html"));
+    });
+  }
+
   // arch dashboards：manifest-driven reverse proxy (Phase 6 PROXY-01/02/03).
   // Reads /etc/arch-tracked-repos.conf (or ~/.config fallback) and mounts each
   // tracked repo's MkDocs site at its declared URL prefix. Adding a repo
