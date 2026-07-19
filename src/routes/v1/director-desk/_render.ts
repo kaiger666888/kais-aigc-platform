@@ -27,9 +27,12 @@ const POSE_PRESETS: Record<string, Record<string, number>> = {
     "leftKnee.bend": 12, "rightKnee.bend": 4,
   },
   "run": {
-    "leftShoulder.pitch": 42, "rightShoulder.pitch": -42,
-    "leftHip.pitch": -35, "rightHip.pitch": 40,
-    "leftKnee.bend": 28, "rightKnee.bend": 18,
+    "torso.pitch": 12, "head.pitch": -5,
+    "leftShoulder.pitch": 65, "rightShoulder.pitch": -65,
+    "leftElbow.bend": 80, "rightElbow.bend": 80,
+    "leftHip.pitch": -45, "rightHip.pitch": 50,
+    "leftKnee.bend": 55, "rightKnee.bend": 25,
+    "body.offsetY": -0.05, "body.pitch": 8,
   },
   "sit": {
     "torso.pitch": -10,
@@ -173,6 +176,137 @@ function expandPosePresets(project: any): any {
   return { ...project, objects };
 }
 
+/**
+ * 规范化 project JSON：接受 Agent 简写的扁平格式，补全为完整 DirectorProject 结构。
+ *
+ * Agent 可以发送：
+ *   { objects: [{ type: "character", position: [0,0,0], pose: "wave" }] }
+ * 函数会自动补全为：
+ *   { version: 1, scene: {...}, assets: [], objects: [{ kind: "character", transform: {...}, characterRig: {...} }] }
+ */
+function normalizeProject(input: any): any {
+  // 构建 scene：如果 input.scene 已有完整结构就直接用，否则从 input.settings 或默认值构建
+  const settings = input.scene || {};
+  const inputSettings = input.settings || {};
+  
+  const project: any = {
+    version: 1,
+    scene: {
+      scale: settings.scale ?? 1,
+      position: settings.position ?? [0, 0, 0],
+      rotation: settings.rotation ?? [0, 0, 0],
+      backgroundColor: settings.backgroundColor ?? inputSettings.background ?? "#1a1a2e",
+      panoramaYaw: settings.panoramaYaw ?? 0,
+      panoramaRadius: settings.panoramaRadius ?? 60,
+      showLabels: settings.showLabels ?? true,
+      snapToGrid: settings.snapToGrid ?? false,
+      showGround: settings.showGround ?? inputSettings.groundVisible ?? true,
+      groundOpacity: settings.groundOpacity ?? 0.4,
+      groundHeight: settings.groundHeight ?? 0,
+    },
+    assets: input.assets || [],
+    objects: [],
+    cameras: [],
+    activeCameraId: input.activeCameraId || null,
+    panoramaAssetId: input.panoramaAssetId || null,
+  };
+
+  // 合并 input.characters 到 objects（Agent 常用 characters 简写）
+  const allObjects = [
+    ...(Array.isArray(input.characters) ? input.characters : []),
+    ...(Array.isArray(input.objects) ? input.objects : []),
+  ];
+
+  // 规范化 objects
+  if (allObjects.length > 0) {
+    project.objects = allObjects.map((obj: any, i: number) => {
+      // 如果已经是完整格式，直接用
+      if (obj.kind && obj.transform) {
+        return obj;
+      }
+
+      // 扁平格式 → 完整格式
+      const pos = obj.position || [0, 0, 0];
+      // Agent sends degrees; Three.js Euler needs radians
+      const deg2rad = (d: number) => (d * Math.PI) / 180;
+      const rot: [number, number, number] = (() => {
+        if (typeof obj.rotation === "number") return [0, deg2rad(obj.rotation), 0];
+        if (Array.isArray(obj.rotation)) return obj.rotation.map(deg2rad) as [number, number, number];
+        return [0, 0, 0];
+      })();
+      const scl = typeof obj.scale === "number" ? [obj.scale, obj.scale, obj.scale] : (obj.scale || [1, 1, 1]);
+
+      const kind = obj.kind || obj.type || "character";
+      const id = obj.id || `obj-${i + 1}`;
+
+      // 缩放以身体中心为原点：模型脚底在 y=0，标准身高约 1.8
+      // 放大时上移 pos.y = height*(scale-1)/2 让中心不变
+      let adjustedPos = pos;
+      if (kind === "character") {
+        const heightApprox = 1.8; // UE4 mannequin ≈180cm
+        const yOffset = (scl[1] - 1) * heightApprox / 2;
+        adjustedPos = [pos[0], pos[1] + yOffset, pos[2]];
+      }
+
+      const result: any = {
+        id,
+        name: obj.name || (kind === "character" ? `角色${String(i + 1).padStart(2, "0")}` : id),
+        kind,
+        visible: obj.visible ?? true,
+        locked: obj.locked ?? false,
+        transform: { position: adjustedPos, rotation: rot, scale: scl },
+      };
+
+      if (kind === "character") {
+        result.characterRig = {
+          rigType: obj.rigType || "ue4-mannequin",
+          posePresetId: obj.posePresetId || obj.pose || "stand",
+          controls: obj.controls || {},
+        };
+        if (obj.bodyType) result.bodyType = obj.bodyType;
+      }
+
+      if (obj.color) result.color = obj.color;
+
+      return result;
+    });
+  }
+
+  // 合并 input.camera（单数简写）到 cameras
+  const allCameras = [
+    ...(input.camera ? [input.camera] : []),
+    ...(Array.isArray(input.cameras) ? input.cameras : []),
+  ];
+
+  // 规范化 cameras
+  if (allCameras.length > 0) {
+    project.cameras = allCameras.map((cam: any, i: number) => {
+      // 如果已经是完整格式，直接用
+      if (cam.transform && cam.targetMode) {
+        return cam;
+      }
+
+      const pos = cam.position || [0, 1.2, 4];
+      const id = cam.id || `cam-${i + 1}`;
+
+      return {
+        id,
+        name: cam.name || `机位${String(i + 1).padStart(2, "0")}`,
+        fov: cam.fov || 50,
+        transform: {
+          position: pos,
+          rotation: cam.rotation || [0, 0, 0],
+          scale: [1, 1, 1],
+        },
+        targetMode: "manual",
+        target: cam.lookAt || cam.target || [0, 1, 0],
+      };
+    });
+  }
+
+  return project;
+}
+
 /** Chrome for Testing 二进制路径 */
 const CHROME_PATH =
   process.env.PUPPETEER_EXECUTABLE_PATH ||
@@ -234,6 +368,11 @@ export async function renderDirectorDeskScene(
     const page: Page = await browser.newPage();
     await page.setViewportSize({ width, height });
 
+    // 监听页面错误（用于调试 WebGL context loss）
+    page.on("pageerror", (err) => {
+      console.log(`[director-desk:render] pageerror: ${err.message.substring(0, 200)}`);
+    });
+
     // 导航到 director-desk
     const url = `${PLATFORM_BASE}/director-desk/?theme=dark`;
     console.log(`[director-desk:render] navigating to ${url}`);
@@ -244,8 +383,9 @@ export async function renderDirectorDeskScene(
     console.log("[director-desk:render] canvas found, waiting for init...");
     await page.waitForTimeout(1000);
 
-    // 预处理：展开 posePresetId → controls + 强制 UE4 mannequin
-    const expandedProject = expandPosePresets(opts.project);
+    // 预处理：规范化 project 结构 → 展开 posePresetId → controls
+    const normalizedProject = expandPosePresets(normalizeProject(opts.project));
+    console.log(`[director-desk:render] normalized project keys:`, Object.keys(normalizedProject), `objects:`, normalizedProject.objects?.length, `first obj:`, JSON.stringify(normalizedProject.objects?.[0]?.characterRig || {}).substring(0, 100));
 
     // 注入场景 JSON
     console.log("[director-desk:render] injecting project JSON (poses expanded)...");
@@ -255,7 +395,7 @@ export async function renderDirectorDeskScene(
         throw new Error("__directorStore not available — check director-desk build");
       }
       store.getState().replaceProject(project);
-    }, expandedProject);
+    }, normalizedProject);
 
     // 等 React/Three.js 重新渲染
     await page.waitForTimeout(800);
@@ -277,30 +417,86 @@ export async function renderDirectorDeskScene(
     console.log(`[director-desk:render] waiting ${waitFor}ms for render...`);
     await page.waitForTimeout(waitFor);
 
-    // 计算角色 bounding box 的屏幕投影区域（由 SPA 内部计算，THREE 对象完整可用）
-    const clipRegion = await page.evaluate(() => {
-      const fn = (window as any).__computeCharacterClip;
-      if (typeof fn !== "function") return null;
-      return fn();
+    // Auto-frame: 仅在 Agent 没有指定 camera 参数时自动取景
+    // 如果 Agent 传了 camera 参数，直接应用到 Three.js camera 上
+    const agentCameras = (normalizedProject as any)?.cameras;
+    if (agentCameras && agentCameras.length > 0) {
+      const cam = agentCameras[0]; // 用第一个 camera
+      console.log(`[director-desk:render] applying agent camera: pos=${JSON.stringify(cam.transform.position)} lookAt=${JSON.stringify(cam.target)} fov=${cam.fov}`);
+      await page.evaluate((camData: { pos: number[]; lookAt: number[]; fov: number }) => {
+        const w = window as any;
+        const camera = w.__threeCamera;
+        if (!camera) throw new Error("__threeCamera not available");
+        camera.position.set(camData.pos[0], camData.pos[1], camData.pos[2]);
+        camera.lookAt(camData.lookAt[0], camData.lookAt[1], camData.lookAt[2]);
+        camera.fov = camData.fov;
+        camera.updateProjectionMatrix();
+      }, {
+        pos: cam.transform.position,
+        lookAt: cam.target,
+        fov: cam.fov,
+      });
+      await page.waitForTimeout(500);
+    } else {
+      const framed = await page.evaluate(() => {
+        const fn = (window as any).__autoFrameCamera;
+        if (typeof fn !== "function") return false;
+        return fn();
+      });
+
+      if (framed) {
+        console.log("[director-desk:render] auto-framed camera to fit all characters (no explicit camera)");
+        await page.waitForTimeout(500);
+      }
+    }
+
+    // 正式导出：用 SPA 内置的 capture 管线 (gl.render + canvas.toDataURL)
+    // 而非 Playwright page.screenshot 截图
+    const captureResult = await page.evaluate(async () => {
+      const w = window as any;
+      // 方式1: 优先用 SPA 正式的 captureBridge
+      if (typeof w.requestViewportCapture === "function") {
+        try {
+          const results = await w.requestViewportCapture({
+            preset: "current",
+            source: "capture-panel",
+          });
+          if (results && results.length > 0 && results[0].dataUrl) {
+            return {
+              dataUrl: results[0].dataUrl,
+              label: results[0].label,
+              method: "captureBridge",
+            };
+          }
+        } catch (e) {
+          console.warn("captureBridge failed:", e);
+        }
+      }
+      // 方式2: fallback — 直接 gl.render + toDataURL
+      const gl = w.__threeGL;
+      const scene = w.__threeScene;
+      const camera = w.__threeCamera;
+      if (gl && scene && camera) {
+        gl.render(scene, camera);
+        const canvas = gl.domElement as HTMLCanvasElement;
+        return {
+          dataUrl: canvas.toDataURL("image/png"),
+          label: "direct-gl",
+          method: "direct-toDataURL",
+        };
+      }
+      return null;
     });
 
-    // 截取 Three.js canvas（裁剪到角色区域，或全画布）
-    let buffer: Buffer;
-    if (clipRegion && clipRegion.width > 50 && clipRegion.height > 50) {
-      console.log(`[director-desk:render] clip region: ${JSON.stringify(clipRegion)}`);
-      // 用 page.screenshot + clip 而非 elementHandle.screenshot + clip
-      // (elementHandle.screenshot 的 clip 参数在某些版本不生效)
-      buffer = (await page.screenshot({
-        type: "png",
-        clip: clipRegion as { x: number; y: number; width: number; height: number },
-      })) as Buffer;
-    } else {
-      console.log("[director-desk:render] no clip region, full canvas");
-      const canvas = await page.$("canvas");
-      if (!canvas) throw new Error("Canvas not found after render");
-      buffer = (await canvas.screenshot({ type: "png" })) as Buffer;
+    if (!captureResult || !captureResult.dataUrl) {
+      throw new Error("Capture failed — no dataUrl returned");
     }
-    console.log(`[director-desk:render] screenshot captured (${buffer.length} bytes)`);
+
+    console.log(`[director-desk:render] captured via ${captureResult.method} (${captureResult.dataUrl.length} chars dataUrl)`);
+
+    // dataURL → Buffer
+    const base64Data = captureResult.dataUrl.replace(/^data:image\/png;base64,/, "");
+    const buffer = Buffer.from(base64Data, "base64");
 
     return {
       buffer,
