@@ -179,8 +179,17 @@ async function main(): Promise<void> {
 
   // ── Assert E2: additive-only — Zod strictness preserved ─────────
   // Count-based compare (more robust than regex-on-diff — diff noise friendly).
+  // WR-08: previously, when origin/master was missing (fresh shallow clone,
+  // CI without --fetch-depth=full, detached-HEAD builder), execSync threw →
+  // all four counters stayed at -1 → assertion `-1 <= -1 && -1 <= -1` evaluated
+  // to true → the additive-only invariant PASSED VACUOUSLY. The detail string
+  // said '(compare failed: ...)' but the assert was recorded as PASS and the
+  // script exited 0. Track schemaCompareOk explicitly: null = couldn't compare
+  // (must FAIL, not pass vacuously); true = compared and invariant holds;
+  // false = compared and regression detected.
   let masterOpt = -1, headOpt = -1, masterNull = -1, headNull = -1;
   let schemaDiffStatus = "";
+  let schemaCompareOk: boolean | null = null;
   try {
     const masterSrc = execSync(
       "git show origin/master:src/lib/canvasAssetSchema.ts",
@@ -194,11 +203,13 @@ async function main(): Promise<void> {
     headOpt = (headSrc.match(/\.optional\(\)/g) || []).length;
     masterNull = (masterSrc.match(/\.nullable\(\)/g) || []).length;
     headNull = (headSrc.match(/\.nullable\(\)/g) || []).length;
+    schemaCompareOk = headOpt <= masterOpt && headNull <= masterNull;
   } catch (err) {
     schemaDiffStatus = `(compare failed: ${(err as Error).message})`;
+    schemaCompareOk = null;
   }
   assert(
-    headOpt <= masterOpt && headNull <= masterNull,
+    schemaCompareOk === true,
     "CANVAS-03 additive-only: canvasAssetSchema.ts strictness preserved",
     schemaDiffStatus ||
       `.optional() master=${masterOpt} head=${headOpt}; .nullable() master=${masterNull} head=${headNull}`,
