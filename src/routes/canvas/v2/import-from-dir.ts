@@ -959,6 +959,23 @@ export async function extractShotTimelineArtifacts(
   const sourceDuration = Number(manifest?.source?.duration_sec ?? 0) || 0;
   const videoFilename = manifest?.source?.video_filename ?? "video.mp4";
 
+  // WR-03: malformed manifest (source.duration_sec missing / 0 / non-numeric)
+  // would produce audio+video children with duration_sec=0, which violates the
+  // per-type Zod `z.number().positive()` (canvasAssetSchema.ts:57,68). The
+  // import itself succeeds (no per-type Zod runs here), but the next save-v2
+  // HTTP call rejects every audio+video child with HTTP 400 — user sees an
+  // apparently-working canvas that fails on save with no upstream signal.
+  // Fail loud at import time with an actionable warn so operators know the
+  // producer manifest needs fixing. We don't throw (graceful-degrade per
+  // SPEC §4) — the storyboard children still render; only audio+video are
+  // Zod-doomed.
+  if (!(sourceDuration > 0)) {
+    console.warn(
+      `[v2/import] ShotTimelineAsset manifest missing/invalid source.duration_sec ` +
+      `(${manifestPath}); audio/video children will fail Zod validation on save-v2.`,
+    );
+  }
+
   // ── (d) 构造 RawArtifact[] —— 异构 canvasType(Solution A 关键) ──
   // phasePrefix = "p13" (P13 · 交付): master video 是已交付的 artifact,
   // lane label 语义最贴(RESEARCH Open Question 2 推荐). 低风险可逆.
