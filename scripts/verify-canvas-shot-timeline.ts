@@ -24,7 +24,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
-import { extractShotTimelineArtifacts } from "../src/routes/canvas/v2/import-from-dir";
+import { extractShotTimelineArtifacts, setWorkdirToOss } from "../src/routes/canvas/v2/import-from-dir";
 import { validateGraphNodes } from "../src/lib/canvasAssetSchema";
 
 interface TestResult { name: string; pass: boolean; detail?: string; }
@@ -53,6 +53,15 @@ async function main(): Promise<void> {
   }
 
   // ── Step 2: run the production helper ───────────────────────────
+  // WR-07: extractShotTimelineArtifacts internally calls fsToOssUrl, which
+  // depends on the module-level _workdirToOss global. Production sets it
+  // inside scanAndBuildTree at request scope; calling the helper in
+  // isolation would leave it null and fsToOssUrl would fall through every
+  // branch, yielding non-production-realistic filePath values (raw abs paths
+  // instead of /oss/{slug}/...). Set it here to mirror production.
+  const workdirBase = path.basename(FIXTURE.replace(/\/$/, ""));
+  setWorkdirToOss({ workdir: FIXTURE, ossPrefix: `/oss/${workdirBase}` });
+
   let nodes: any[];
   let links: any[];
   try {
@@ -220,6 +229,23 @@ async function main(): Promise<void> {
     storyboards.every((s) => typeof s.data?.shot_id === "string" && s.data.shot_id.length >= 1),
     "F: every storyboard.data.shot_id is a non-empty string",
     undefined,
+  );
+
+  // ── Assert F2: WR-07 — fsToOssUrl synthesizes production-realistic filePath
+  // values. Without _workdirToOss set, audio+video children would carry raw
+  // absolute filesystem paths instead of /oss/{slug}/... URLs. Assert the
+  // prefix to confirm the verify harness actually exercises the URL synthesis
+  // code path (regression catch for any future fsToOssUrl workdir-branch bug).
+  const expectedFilePrefix = `/oss/${workdirBase}/`;
+  assert(
+    audios.every((a) => typeof a.data?.filePath === "string" && a.data.filePath.startsWith(expectedFilePrefix)),
+    "F2 (WR-07): every audio.data.filePath synthesized as /oss/{slug}/... (production-realistic)",
+    `expected prefix '${expectedFilePrefix}'; got ${audios.map((a) => a.data?.filePath).join(", ")}`,
+  );
+  assert(
+    typeof videos[0]?.data?.filePath === "string" && videos[0].data.filePath.startsWith(expectedFilePrefix),
+    "F2 (WR-07): video.data.filePath synthesized as /oss/{slug}/... (production-realistic)",
+    `expected prefix '${expectedFilePrefix}'; got '${videos[0]?.data?.filePath}'`,
   );
 
   finish();

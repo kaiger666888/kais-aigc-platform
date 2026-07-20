@@ -170,6 +170,21 @@ const SKIP_KEYS = new Set([
 /** Global workdir → oss prefix mapping, set per-request. */
 let _workdirToOss: { workdir: string; ossPrefix: string } | null = null;
 
+/**
+ * Set the global workdir→oss mapping. Production sets this inside
+ * scanAndBuildTree at request scope. Exported for test harnesses
+ * (scripts/verify-canvas-shot-timeline.ts) that call
+ * extractShotTimelineArtifacts directly without going through
+ * scanAndBuildTree — without this, fsToOssUrl falls through every
+ * branch and derived filePath values differ from production
+ * (WR-07).
+ */
+export function setWorkdirToOss(
+  mapping: { workdir: string; ossPrefix: string } | null,
+): void {
+  _workdirToOss = mapping;
+}
+
 /** Convert a filesystem path to a /oss/ URL if possible. */
 function fsToOssUrl(fsPath: string): string | null {
   if (!fsPath || typeof fsPath !== "string") return null;
