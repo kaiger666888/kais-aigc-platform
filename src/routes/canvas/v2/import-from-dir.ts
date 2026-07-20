@@ -1269,6 +1269,26 @@ async function scanWorkdirForArtifacts(workdir: string): Promise<Map<string, Raw
   const assetManifestPath = join(workdir, "asset.json");
   const manifestProbe = await tryReadJSON(assetManifestPath);
   if (manifestProbe && manifestProbe.asset_type === "shottimeline") {
+    // WR-02: short-circuit is unconditional — if the workdir also contains
+    // conventional 13-phase files (p02_outline.json etc.), they are silently
+    // dropped. Surface a warn so operators know what was ignored. Only scans
+    // for files the normal file→phase scanner would have picked up
+    // (findPhaseFromFile matches `p0X*` prefixes); ShotTimelineAsset-native
+    // files (shots.json/audio_analysis.json/...) don't match, so they don't
+    // produce false-positive warns.
+    try {
+      const collocated = (await readdir(workdir)).filter(
+        (f) => f.endsWith(".json") && f !== "asset.json" && findPhaseFromFile(f),
+      );
+      if (collocated.length > 0) {
+        console.warn(
+          `[v2/import] ShotTimelineAsset detected at ${assetManifestPath}; ` +
+          `ignoring ${collocated.length} co-located phase file(s): ${collocated.join(", ")}`,
+        );
+      }
+    } catch {
+      // readdir failure (e.g. permissions race) — non-fatal; the short-circuit still applies.
+    }
     phaseArtifacts.set(SHOT_TIMELINE_SENTINEL_KEY, [{
       label: manifestProbe.source?.video_filename ?? "ShotTimelineAsset",
       output_key: SHOT_TIMELINE_SENTINEL_KEY,
