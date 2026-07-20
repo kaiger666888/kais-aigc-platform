@@ -251,6 +251,15 @@ interface RawArtifact {
   filePath?: string;
   /** Optional extra data fields from the source item */
   extra?: Record<string, any>;
+  /**
+   * Phase 3: per-artifact canvasType 覆盖;不设则用 phase 默认.
+   *
+   * Additive opt-in —— 既有 13 phase 调用者都不设此字段,
+   * buildPhaseTree 走 `?? def.canvasType` fallback,行为零变化.
+   * ShotTimelineAsset helper 通过此字段在一个 zone 下混合
+   * storyboard/audio/video 三种异构子节点(CANVAS-02 锁定「ONE zone」).
+   */
+  canvasType?: "script" | "asset" | "storyboard" | "audio" | "video";
 }
 
 /**
@@ -734,7 +743,14 @@ function buildPhaseTree(
     // node. Baseline only — phase-specific adds are NOT included so the
     // 689 historical rows (which pre-date the v2.0 contract) are not
     // flagged incomplete (Pitfall 3 in 44-RESEARCH.md).
-    const expected = EXPECTED_PARAM_FIELDS_BY_TYPE[def.canvasType] || [];
+    //
+    // Phase 3: respect per-artifact canvasType override (Hook 2) — using
+    // def.canvasType here would false-positive warn on ShotTimelineAsset's
+    // storyboard/audio children (whose effective type differs from p13's
+    // default 'video'). Existing 13 phase callers never set art.canvasType,
+    // so `art.canvasType ?? def.canvasType === def.canvasType` for them.
+    const effectiveType = art.canvasType ?? def.canvasType;
+    const expected = EXPECTED_PARAM_FIELDS_BY_TYPE[effectiveType] || [];
     if (expected.length > 0) {
       const missing = expected.filter((f) => artData[f] == null || artData[f] === "");
       if (missing.length > 0) {
@@ -801,7 +817,10 @@ function buildPhaseTree(
 
     const artNode: FlowNodeV2 = {
       id: nodeId,
-      type: def.canvasType as any,
+      // Phase 3: per-artifact canvasType override —— ShotTimelineAsset 用此在
+      // 一个 zone 下混合 storyboard/audio/video 子节点. 既有 13 phase 调用者
+      // 不设 art.canvasType → ?? 落回 def.canvasType,行为零变化.
+      type: (art.canvasType ?? def.canvasType) as any,
       branchId: "main",
       phaseIndex: laneIndex + 1,
       phaseName: def.label,
@@ -831,6 +850,239 @@ function buildPhaseTree(
     summaryNode,
     artifactNodes: nodes.filter((n) => n.id.startsWith("a-")),
     links,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Phase 3 — ShotTimelineAsset consumer (CANVAS-01 / CANVAS-02 / CANVAS-03)
+//
+// extractShotTimelineArtifacts 把一份 ShotTimelineAsset 目录(asset.json +
+// 5 数据 JSON + video.mp4 + 3 stems)折叠成画布上的一个 collection:
+//   1 zone 父节点 + 1 summary + N storyboard + 3 audio + 1 video,
+// 在 storyboard 子节点之间按 shot_id 升序 emit sequence edges.
+//
+// 复用既有 buildPhaseTree (Zone→Summary→Artifact 三级结构) + fsToOssUrl
+// (媒体 URL 归一化). 异构子节点通过 RawArtifact.canvasType 覆盖 phase 默认
+// canvasType 实现(Solution A,additive opt-in,既有 13 phase 调用者零行为变化).
+//
+// 所有合成字段(engine="shot-timeline" / shot_type="scene" / shot_id sentinel
+// / resolution via ffprobe)满足 per-type Zod required 列表而 *不* 放宽任何
+// schema(CANVAS-03 「不 bump contract」字面要求).
+// ═══════════════════════════════════════════════════════════════════════
+
+/** Sentinel key — scanWorkdirForArtifacts 命中 asset.json 时用此 key 标记. */
+const SHOT_TIMELINE_SENTINEL_KEY = "__shot_timeline_asset__";
+
+/**
+ * Phase 3: ShotTimelineAsset schema_version 已知集合.
+ *
+ * SPEC §4 mandate: consumer 遇未知/更新版本时 graceful-degrade —— warn 后
+ * 渲染已知字段,不 reject. 本 phase 仅处理 "1";future major bump 时在此处
+ * 加版本分支处理.
+ */
+const SHOT_TIMELINE_KNOWN_VERSIONS = new Set(["1"]);
+
+/**
+ * 探测 video.mp4 分辨率,合成 video 子节点 `resolution` 字段.
+ *
+ * 用 ffprobe 子进程(无 shell,execFile 数组传参),失败 fallback "0x0".
+ * Zod `z.string().min(1)` 仍通过;frontend VIDEO_METADATA_LABELS.resolution
+ * 没有 "0x0" 标签但会 fallback 显示原值.
+ *
+ * 不写 mp4 box parser (RESEARCH Don't Hand-Roll). -v quiet 丢弃 stderr
+ * 抑制 internals 信息泄露 (T-03-04).
+ */
+async function probeResolution(videoPath: string): Promise<string> {
+  try {
+    const { execFile } = await import("child_process");
+    const { promisify } = await import("util");
+    const execFileP = promisify(execFile);
+    const { stdout } = await execFileP("ffprobe", [
+      "-v", "quiet",
+      "-select_streams", "v:0",
+      "-show_entries", "stream=width,height",
+      "-of", "csv=p=0:s=x",
+      videoPath,
+    ]);
+    return stdout.trim() || "0x0";
+  } catch {
+    return "0x0";
+  }
+}
+
+/**
+ * 把一份 ShotTimelineAsset 目录(asset.json + 5 数据 JSON + video.mp4 +
+ * 3 stems)折叠成画布 collection 子图:
+ *   - 1 zone + 1 summary (via buildPhaseTree("p13", ...))
+ *   - N storyboard 子节点(每镜一个,来自 shots.json)
+ *   - 3 audio 子节点(vocals/drums/other)
+ *   - 1 video 子节点(master)
+ *   - (N+4) 条 zone→child `dataType:"output"` 边 (via buildPhaseTree)
+ *   - (N-1) 条 storyboard 之间 `linkType:"sequence"` 边(按 shot_id 升序)
+ *
+ * @param manifest     已 parse 的 asset.json
+ * @param workdir      ShotTimelineAsset 目录根(绝对路径)
+ * @param manifestPath asset.json 绝对路径(溯源用)
+ * @returns { nodes, links } 准备好合并进 FlowGraphV2
+ */
+export async function extractShotTimelineArtifacts(
+  manifest: any,
+  workdir: string,
+  manifestPath: string,
+): Promise<{ nodes: FlowNodeV2[]; links: FlowLinkV2[] }> {
+  // ── (a) schema_version graceful-degrade (SPEC §4) ───────────
+  // 未知版本只 warn,不 throw / return. schema 本身仍 additionalProperties:false
+  // (不放宽);graceful-degrade 是 runtime consumer behavior.
+  const version = String(manifest?.schema_version ?? "");
+  if (!SHOT_TIMELINE_KNOWN_VERSIONS.has(version)) {
+    console.warn(
+      `[v2/import] ShotTimelineAsset schema_version="${manifest?.schema_version}" not in known set ` +
+      `[${[...SHOT_TIMELINE_KNOWN_VERSIONS].join("/")}] — graceful-degrade ` +
+      `(SPEC §4): rendering known fields only. (manifest: ${manifestPath})`,
+    );
+  }
+
+  // ── (b) 5 数据 JSON 并行读 (任一缺失 → null,helper 继续用可用数据) ──
+  const dataPaths = manifest?.data ?? {};
+  const [shots, audioAnalysis, transcript, frames, prompts] = await Promise.all([
+    tryReadJSON(join(workdir, dataPaths.shots ?? "shots.json")),
+    tryReadJSON(join(workdir, dataPaths.audio_analysis ?? "audio_analysis.json")),
+    tryReadJSON(join(workdir, dataPaths.transcript ?? "transcript.json")),
+    tryReadJSON(join(workdir, dataPaths.frames ?? "frames.json")),
+    tryReadJSON(join(workdir, dataPaths.prompts ?? "prompts.json")),
+  ]);
+
+  // ── (c) ffprobe video.mp4 → resolution ──────────────────────
+  const media = manifest?.media ?? {};
+  const videoPath = join(workdir, media.video ?? "video.mp4");
+  const resolution = await probeResolution(videoPath);
+  const sourceDuration = Number(manifest?.source?.duration_sec ?? 0) || 0;
+  const videoFilename = manifest?.source?.video_filename ?? "video.mp4";
+
+  // ── (d) 构造 RawArtifact[] —— 异构 canvasType(Solution A 关键) ──
+  // phasePrefix = "p13" (P13 · 交付): master video 是已交付的 artifact,
+  // lane label 语义最贴(RESEARCH Open Question 2 推荐). 低风险可逆.
+  const phasePrefix = "p13";
+  const artifacts: RawArtifact[] = [];
+
+  // frames.json id-indexed lookup (frames[].id === shot.id)
+  const framesById = new Map<number, any>();
+  for (const f of (frames ?? []) as any[]) {
+    if (f && typeof f.id === "number") framesById.set(f.id, f);
+  }
+
+  // storyboard × N (每镜一个)
+  const shotsArr: any[] = Array.isArray(shots) ? shots : [];
+  for (const shot of shotsArr) {
+    if (!shot || shot.id == null) continue;
+    const shotId = String(shot.id);
+    const thumb = framesById.get(shot.id)?.first_frame;
+    const synthFields: string[] = ["shot_type"];
+    // shot_type: 默认 "scene" (CONTEXT 锁定; Zod 不限枚举;
+    // frontend NODE_SCHEMA.storyboard 没有 shot_type 字段,任何非空字符串都渲染).
+    // 未来可选: prompts.json 关键词推断,本 phase 用默认值保持简单.
+    const art: RawArtifact = {
+      label: `Shot ${shotId}`,
+      output_key: "storyboard",
+      canvasType: "storyboard",
+      extra: {
+        shot_id: shotId,
+        shot_type: "scene",
+        duration_sec: Number(shot.duration) || 0.1,
+        __synthetic_fields: synthFields,
+      },
+    };
+    if (thumb && typeof thumb === "string") {
+      // frames.json first_frame 是 base64 data URI —— 直接内联,不经 fsToOssUrl.
+      // StoryboardNode.tsx:74-75 直接 <img src={thumbnailUrl}> 接受 data URI.
+      art.thumbnailUrl = thumb;
+    }
+    artifacts.push(art);
+  }
+
+  // audio × 3 (vocals/drums/other)
+  const stems = (media.stems ?? {}) as Record<string, string>;
+  for (const stem of ["vocals", "drums", "other"] as const) {
+    const rel = stems[stem] ?? `stems/${stem}.wav`;
+    const stemAbs = join(workdir, rel);
+    const stemOss = fsToOssUrl(stemAbs);
+    artifacts.push({
+      label: `${stem} stem`,
+      output_key: "audio",
+      canvasType: "audio",
+      filePath: stemOss ?? stemAbs,
+      extra: {
+        shot_id: "collection",  // CONTEXT: audio/video 用集合级 sentinel
+        engine: "shot-timeline",  // provenance 标识
+        duration_sec: sourceDuration,
+        __synthetic_fields: ["shot_id", "engine"],
+      },
+    });
+  }
+
+  // video × 1 (master)
+  const videoOss = fsToOssUrl(videoPath);
+  artifacts.push({
+    label: videoFilename,
+    output_key: "video",
+    canvasType: "video",
+    filePath: videoOss ?? videoPath,
+    extra: {
+      shot_id: "collection",
+      engine: "shot-timeline",
+      duration_sec: sourceDuration,
+      resolution,
+      __synthetic_fields: ["shot_id", "engine", "resolution"],
+    },
+  });
+
+  // ── (e) 调用扩展后的 buildPhaseTree (产出 zone + summary + artifact 三级) ──
+  // buildPhaseTree 内部循环会读 art.canvasType 覆盖 (Hook 2),继承所有
+  // receiver-side 兼容 shim (extra-merge, SCHEMA_ALIASES, ENUM_NORMALIZERS,
+  // EXPECTED_PARAM_FIELDS warn, E-Konte derive).
+  const tree = buildPhaseTree(phasePrefix, artifacts);
+
+  // ── (e.1) Post-process: zone label ← manifest.source.video_filename ──
+  // CONTEXT 锁定「zone.data.label = source.video_filename」(RESEARCH Field
+  // Mapping R2 + plan Assert F). buildPhaseTree 默认用 def.label (如 "P13 ·
+  // 交付"),适合 13 phase 的 lane label,但 ShotTimelineAsset 的 zone 需要标识
+  // 这是哪一支成片. Additive:仅 ShotTimelineAsset 路径走此覆盖.
+  if (tree.zoneNode.data) {
+    tree.zoneNode.data.label = videoFilename;
+  }
+
+  // ── (f) sequence edges: storyboard 按 shot_id 升序 emit N-1 条 ──────
+  // 形状字面匹配 flowDataMapper.ts:163-172 (frontend precedent):
+  //   { dataType: "data", data: { linkType: "sequence" } }
+  // CanvasEdge.tsx:60 识别 data.linkType === "sequence" 渲染蓝色实线 + 箭头.
+  const sequenceLinks: FlowLinkV2[] = [];
+  const sbNodes = tree.artifactNodes
+    .filter((n) => n.type === "storyboard")
+    .sort((a, b) => {
+      const ai = Number((a.data as any)?.shot_id);
+      const bi = Number((b.data as any)?.shot_id);
+      return (Number.isFinite(ai) ? ai : 0) - (Number.isFinite(bi) ? bi : 0);
+    });
+  for (let i = 1; i < sbNodes.length; i++) {
+    sequenceLinks.push({
+      id: `seq-${sbNodes[i - 1].id}-${sbNodes[i].id}`,
+      source: sbNodes[i - 1].id,
+      target: sbNodes[i].id,
+      branchId: "main",
+      dataType: "data",
+      data: { linkType: "sequence" },
+    } as FlowLinkV2);
+  }
+
+  // ── (g) return ─────────────────────────────────────────────
+  // 注: transcript/prompts 作为 sidecar description 附挂的细粒度映射
+  // (RESEARCH Open Question 4) 本 phase 显式延后 —— CANVAS-01/02/03 SC
+  // 不要求,且 prompts/transcript 仍保留在 fixture 的 asset.json data 引用里
+  // 供后续 phase 或画布详情面板消费.
+  void audioAnalysis;  void transcript;  void prompts;  // reserved for future sidecar attach
+  return {
+    nodes: [tree.zoneNode, tree.summaryNode, ...tree.artifactNodes],
+    links: [...tree.links, ...sequenceLinks],
   };
 }
 
@@ -1005,6 +1257,27 @@ async function scanWorkdirForArtifacts(workdir: string): Promise<Map<string, Raw
     }
     phaseArtifacts.get(phase)!.push(...arts);
     seenPhases.add(phase);
+  }
+
+  // ── Phase 3 — ShotTimelineAsset 早期识别 (CANVAS-01) ─────────
+  // workdir 根若有 asset.json 且 asset_type === "shottimeline",短路掉既有
+  // 13-phase 扫描循环,通过 sentinel key `__shot_timeline_asset__` 把 manifest
+  // 交给 scanAndBuildTree 中的 extractShotTimelineArtifacts helper. 短路避免
+  // 把 ep01 的 shots.json/audio_analysis.json/transcript.json/prompts.json
+  // 误当普通 phase manifest 处理. 父目录穿越已在 producer schema
+  // (`^(?!.*\.\.)` pattern) 源头拒绝,consumer 侧 tryReadJSON + join 不跨 workdir.
+  const assetManifestPath = join(workdir, "asset.json");
+  const manifestProbe = await tryReadJSON(assetManifestPath);
+  if (manifestProbe && manifestProbe.asset_type === "shottimeline") {
+    phaseArtifacts.set(SHOT_TIMELINE_SENTINEL_KEY, [{
+      label: manifestProbe.source?.video_filename ?? "ShotTimelineAsset",
+      output_key: SHOT_TIMELINE_SENTINEL_KEY,
+      extra: {
+        __manifest: manifestProbe,
+        __manifest_path: assetManifestPath,
+      },
+    }]);
+    return phaseArtifacts;
   }
 
   // ── 1. Scan root-level JSON files ────────────────────────────
@@ -1260,6 +1533,23 @@ async function scanAndBuildTree(
     allNodes.push(tree.zoneNode, tree.summaryNode);
     allNodes.push(...tree.artifactNodes);
     allLinks.push(...tree.links);
+  }
+
+  // ── Phase 3 — ShotTimelineAsset 子图合并 (CANVAS-01/02) ──────
+  // extractShotTimelineArtifacts 产出 1 zone + 1 summary + N storyboard
+  // + 3 audio + 1 video + sequence edges,直接 push 进 all{Nodes,Links}.
+  // 位置选在 PHASE_DEFS 循环之后、buildZoneChainLinks 之前,既保证
+  // _workdirToOss 已就绪(fsToOssUrl 依赖),也让子图能参与随后的
+  // buildCrossReferenceLinks (更连贯).
+  if (phaseArtifacts.has(SHOT_TIMELINE_SENTINEL_KEY)) {
+    const meta = phaseArtifacts.get(SHOT_TIMELINE_SENTINEL_KEY)![0].extra!;
+    const sub = await extractShotTimelineArtifacts(
+      meta.__manifest,
+      workdir,
+      meta.__manifest_path,
+    );
+    allNodes.push(...sub.nodes);
+    allLinks.push(...sub.links);
   }
 
   // Build zone-to-zone chain links
