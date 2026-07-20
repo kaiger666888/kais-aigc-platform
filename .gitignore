@@ -78,6 +78,10 @@ data/skills/*/images/
 *.onnx
 *.pt
 *.pth
+
+# Phase 3 (canvas-consumer): golden fixture needs a real video.mp4 container
+# so the verify script can exercise ffprobe resolution probing.
+!scripts/fixtures/shot-timeline-ep01/video.mp4
 *.safetensors
 *.bin
 *.pkl

@@ -1,0 +1,28 @@
+{
+  "schema_version": "1",
+  "asset_type": "shottimeline",
+  "source": {
+    "video_filename": "虫虫武侠小故事《小江湖》第01话：爸爸去哪儿？（ 画面只是工具，情绪才是目的。.mp4",
+    "duration_sec": 308.352
+  },
+  "generator": {
+    "tool": "kais-shot-timeline",
+    "version": "63965d7",
+    "generated_at": "2026-07-20T14:56:17Z"
+  },
+  "data": {
+    "shots": "shots.json",
+    "audio_analysis": "audio_analysis.json",
+    "transcript": "transcript.json",
+    "frames": "frames.json",
+    "prompts": "prompts.json"
+  },
+  "media": {
+    "video": "video.mp4",
+    "stems": {
+      "vocals": "stems/vocals.wav",
+      "drums": "stems/drums.wav",
+      "other": "stems/other.wav"
+    }
+  }
+}
