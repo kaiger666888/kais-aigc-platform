@@ -1069,10 +1069,30 @@ export async function extractShotTimelineArtifacts(
   }
 
   // ── (f) sequence edges: storyboard 按 shot_id 升序 emit N-1 条 ──────
-  // 形状字面匹配 flowDataMapper.ts:163-172 (frontend precedent):
-  //   { dataType: "data", data: { linkType: "sequence" } }
-  // CanvasEdge.tsx:60 识别 data.linkType === "sequence" 渲染蓝色实线 + 箭头.
-  const sequenceLinks: FlowLinkV2[] = [];
+  // 形状意图匹配 flowDataMapper.ts:163-172 (frontend precedent) 的渲染语义:
+  // CanvasEdge.tsx:60 通过 `data?.linkType === "sequence"` 识别并渲染蓝色实线 +
+  // 箭头. 两边都把 linkType 嵌在 data 下,backend 渲染结果与 frontend precedent
+  // 等价.
+  //
+  // WR-05: 形状 NOT 字面 byte-match flowDataMapper.ts:163-172 —— 三处差异:
+  //   1. backend 顶层有 branchId:"main";frontend precedent 省略 (前端默认隐含).
+  //   2. backend dataType:"data" 在顶层;frontend precedent 嵌在 data.dataType.
+  //   3. backend data 只装 {linkType};frontend precedent data 装 {dataType,linkType}.
+  // 渲染仍 work 因 CanvasEdge.tsx:33 只读 data?.linkType. 未来若新增读 data.dataType
+  // 或假设 frontend precedent 形状的代码,需注意此差异.
+  //
+  // WR-06: FlowLinkV2 (flowgraph-v2.ts:45-53) 不声明 data 字段. 既有 `as FlowLinkV2`
+  // cast 是 type-level manifestation of WR-01 (producer emits a field not in the
+  // interface). Phase 3 不动 shared schema (CANVAS-03 + 跨 phase 影响范围超本 phase
+  // scope),改为本地 typed extension 让 TS 看见 data 字段,消除 cast —— 一旦未来
+  // FlowLinkV2 加 data 字段 (WR-01 fix),只需删此 local type alias.
+  //
+  // 注意 (WR-01 caveat): 即便此处 emit 了 data 字段,save-v2 的 FlowLinkV2Schema
+  // (flowgraph-v2-schema.ts:53-61) 默认 strip unknown keys,full save 时 data 会被
+  // 丢弃 —— import-from-dir 路径 (appendAndSync → event store) 不经 Zod parse,
+  // 所以本路径上 sequence edge 正常工作;latent bug 限于 save-v2 HTTP roundtrip.
+  type SequenceLink = FlowLinkV2 & { data?: Record<string, unknown> };
+  const sequenceLinks: SequenceLink[] = [];
   const sbNodes = tree.artifactNodes
     .filter((n) => n.type === "storyboard")
     .sort((a, b) => {
@@ -1081,14 +1101,15 @@ export async function extractShotTimelineArtifacts(
       return (Number.isFinite(ai) ? ai : 0) - (Number.isFinite(bi) ? bi : 0);
     });
   for (let i = 1; i < sbNodes.length; i++) {
-    sequenceLinks.push({
+    const link: SequenceLink = {
       id: `seq-${sbNodes[i - 1].id}-${sbNodes[i].id}`,
       source: sbNodes[i - 1].id,
       target: sbNodes[i].id,
       branchId: "main",
       dataType: "data",
       data: { linkType: "sequence" },
-    } as FlowLinkV2);
+    };
+    sequenceLinks.push(link);
   }
 
   // ── (g) return ─────────────────────────────────────────────
