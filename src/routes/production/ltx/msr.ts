@@ -7,7 +7,7 @@ import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
-import { LTX_CONFIG, LTX_DEFAULTS, LTX_POSE, LTX_MSR_V2 } from "./config";
+import { LTX_CONFIG, LTX_DEFAULTS, LTX_POSE, LTX_MSR_V2, LTX_MSR_LAST_FRAME, LTX_MSR_FIRST_FRAME, AudioStrategy, AUDIO_STRATEGY_INFO } from "./config";
 
 const router = express.Router();
 
@@ -79,6 +79,82 @@ function roundTo8nPlus1(raw: number): number {
   return Math.ceil((raw - 1) / 8) * 8 + 1;
 }
 
+// === Audio strategy → audioMode mapping (业务语义层 → 实现层) ===
+
+interface MSRParams {
+  // 已上传到 ComfyUI 容器的资产
+  refFilenames: string[];
+  customAudioFilename?: string;
+  poseFrameFilename?: string;
+  poseVideoFilename?: string;
+  lastFrameFilename?: string;     // 尾帧图像(已在 ComfyUI 容器内),首尾帧-尾帧
+  lastFrameStrength?: number;
+  firstFrameFilename?: string;    // 首帧图像(有人物,已在容器内),首尾帧-首帧
+  firstFrameStrength?: number;
+  firstFrameIdx?: number;         // 首帧注入点覆盖(方案B 用 msrFrameCount+1=42 避开条件段;留空走默认)
+  stage2PromptSuffix?: string;    // 仅 Stage 2 追加的对口型标注(谁说话+台词+嘴型同步),绝不进 Stage 3
+  // 业务输入
+  prompt: string;
+  negativePrompt: string;
+  refDescription?: string;
+  width: number; height: number;
+  numFrames: number; msrFrameCount: number;
+  fps: number; seed: number;
+  filenamePrefix: string;
+  duration: number;
+  poseGuideStrength?: number;
+  dialogueEndTime?: number;
+  // 用户接口层(优先级:audioStrategy > audioMode > 智能默认)
+  audioStrategy?: AudioStrategy;
+  audioMode?: string;
+  // V2 参数
+  useV2?: boolean;
+  nagWeight?: number; nagLayers?: number; nagSigmaStart?: number;
+  relayWeight?: number;
+  msrLoraVersion?: string;
+  // 元数据
+  refCount: number;
+  outputDir?: string;
+  outputFilename: string;  // parseAndUploadAssets 保证有默认值
+}
+
+/**
+ * 业务策略 → 实现层 audioMode 的映射。
+ * 仅 mapStrategyToMode 知道 5stage / v1 / v2 这些实现细节,用户只看到 3 个语义。
+ */
+function mapStrategyToMode(strategy: AudioStrategy, ctx: { dialogueEndTime?: number }): string {
+  switch (strategy) {
+    case "tts":
+      // dialogueEndTime 提供 → 5-stage(对话保真 + 丰富环境,主推荐)
+      // dialogueEndTime 缺失 → v1 全段冻结(旁白贯穿场景,省一次 LTX pass)
+      return (ctx.dialogueEndTime && ctx.dialogueEndTime > 0) ? "5stage_pipeline" : "dialogue+ambient";
+    case "ambient": return "ambient_only";
+    case "silent":  return "silent";
+  }
+}
+
+/**
+ * 3 层优先级解析最终的 audioMode:
+ *   1. audioStrategy(用户业务语义,新接口)→ mapStrategyToMode
+ *   2. audioMode(高级/向后兼容,显式指定)
+ *   3. 智能默认(无任何指定时按资产自动选)
+ * 返回 mode + 是否有 strategy/mode 冲突(用于响应 warning)。
+ */
+function resolveAudioMode(params: MSRParams): { mode: string; conflict: boolean } {
+  if (params.audioStrategy) {
+    const mapped = mapStrategyToMode(params.audioStrategy, { dialogueEndTime: params.dialogueEndTime });
+    const conflict = !!params.audioMode && params.audioMode !== mapped;
+    return { mode: mapped, conflict };
+  }
+  if (params.audioMode) return { mode: params.audioMode, conflict: false };
+  // 智能默认(保留 pre-refactor 行为,向后兼容)
+  if (params.customAudioFilename && params.dialogueEndTime && params.dialogueEndTime > 0) {
+    return { mode: "5stage_pipeline", conflict: false };
+  }
+  if (params.customAudioFilename) return { mode: "dialogue+ambient", conflict: false };
+  return { mode: "silent", conflict: false };
+}
+
 /**
  * Build LiconMSR workflow — 支持最多5张参考图 (ref1~ref4 + background)。
  *
@@ -116,6 +192,13 @@ export function buildMSRWorkflow(opts: {
   customAudioFilename?: string; // 自定义音频文件名（已在ComfyUI容器内），提供时冻结该音频到输出视频
   dialogueEndTime?: number;     // v2 partial-mask 模式专用:对话结束时间(秒),之后模型自由生成环境声。不传默认 0(等同 v1)
   stage3Ambient?: boolean;      // 内部参数:5-stage pipeline 的 Stage 3 ambient 生成 pass。audio mask=1 全段放开,prompt 聚焦环境声(无对话)。外部调用不应传此参数
+  // 尾帧条件 (首尾帧 - 尾帧)
+  lastFrameFilename?: string;   // optional: 尾帧图像(已在 ComfyUI 容器内的文件名)。作为额外 IC-LoRA guide 注入 latent 最后一帧
+  lastFrameStrength?: number;   // optional: 尾帧 guide 强度 (default LTX_MSR_LAST_FRAME.strength = 0.6,软引导)
+  // 首帧条件 (首尾帧 - 首帧)
+  firstFrameFilename?: string;  // optional: 首帧图像(有人物)。注入到交付第 0 帧(= raw frame[trim 边界])
+  firstFrameStrength?: number;  // optional: 首帧 guide 强度 (default LTX_MSR_FIRST_FRAME.strength = 0.8,需对抗 background 条件)
+  firstFrameIdx?: number;       // optional: 覆盖首帧注入点。生产默认 = 方案B(msrFrameCount+1 = 第一纯生成帧,避开 LiconMSR 条件段竞争);方案A 传 calcTrimFrames(numRefs,msrFc)(=交付首帧,落在 background 条件段)
 }) {
   const {
     refFilenames, prompt, negativePrompt,
@@ -202,6 +285,17 @@ export function buildMSRWorkflow(opts: {
   const isPoseVideo = !!opts.poseVideoFilename;
   const poseStrength = opts.poseGuideStrength ?? LTX_POSE.poseGuideStrength;
 
+  // 尾帧条件 (首尾帧 - 尾帧):作为 guide chain 的最后一环注入 latent 末帧。
+  const hasLastFrame = !!opts.lastFrameFilename && !stage3Ambient; // Stage 3 是纯环境声 pass,不接尾帧
+  const lastFrameStrength = opts.lastFrameStrength ?? LTX_MSR_LAST_FRAME.strength;
+
+  // 首帧条件 (首尾帧 - 首帧):注入交付第 0 帧(= raw frame[trim 边界],落在 background latent)。
+  const hasFirstFrame = !!opts.firstFrameFilename && !stage3Ambient;
+  const firstFrameStrength = opts.firstFrameStrength ?? LTX_MSR_FIRST_FRAME.strength;
+  // 首帧注入点:生产默认 = 方案B(msrFrameCount+1 = 第一纯生成帧,避开 LiconMSR 条件段竞争)。
+  // 方案A(交付第 0 帧 = calcTrimFrames,落在 background 条件段)经 firstFrameIdx 显式覆盖。
+  const firstFrameIdx = opts.firstFrameIdx ?? (msrFrameCount + 1);
+
   // V2 model chain: IC-LoRA → PromptRelay → NAG → (Pose IC-LoRA) → Guider
   // V1 model chain: IC-LoRA → (Pose IC-LoRA) → Guider
   //
@@ -223,9 +317,12 @@ export function buildMSRWorkflow(opts: {
     ? audioEnhancedPrompt  // action prompt + audio guide; refDescription goes to PromptRelay global_prompt
     : audioEnhancedPrompt;
 
-  // When pose guide is active, chain: node 9 (identity) → node 52 (pose)
-  // Otherwise: node 9 feeds directly into concat/sampler
-  const guideOutNode = hasPose ? "52" : "9";
+  // Guide chain (每环都消费上一环的 positive/negative/latent 三元组):
+  //   node 9 (identity via LiconMSR) → [node 52 (pose)] → [node 53 (last frame)] → [node 54 (first frame)]
+  // 每个 guide 独立指向自己的 frame_idx,链上顺序不影响各 frame_idx 语义。
+  const lastFrameIn = hasPose ? "52" : "9";                              // node 53 的上游
+  const firstFrameIn = hasLastFrame ? "53" : (hasPose ? "52" : "9");     // node 54 的上游
+  const guideOutNode = hasFirstFrame ? "54" : (hasLastFrame ? "53" : (hasPose ? "52" : "9"));
 
   // refFilenames: index 0 = ref1, 1 = ref2, ... last = background
   // LiconMSR accepts slots "1","2","3","4" + "background"
@@ -486,6 +583,72 @@ export function buildMSRWorkflow(opts: {
       },
     },
 
+    // === Last-Frame Conditioning (首尾帧 - 尾帧) ===
+    // 尾帧作为 guide chain 最后一环,注入 latent 的最后一个 slot。
+    // 用 LTXAddVideoICLoRAGuideAdvanced(与 node 52 同类,IC-LoRA attention 路径一致),
+    // 而非通用的 LTXVAddGuide —— 后者不写 iclora_tokens,可能被 IC-LoRA attention 忽略。
+    //
+    // ⚠️ frame_idx 必须用显式正值 numFrames - 1,不能用 -1!
+    //   LiconMSR 的 41 帧条件段(node 9)会让 ComfyUI 登记 num_keyframes=6,
+    //   负索引解析 (latent_count = latent_length - num_keyframes) 会使 -1 落到
+    //   生成内容的开头(latent slot 6)而非末尾(slot 12)。
+    //   例:numFrames=97 → 13 个 latent slot → frame_idx=96 → latent_idx=(96+7)//8=12(末帧)✓
+    //   单帧 image 不受"帧数必须 1 mod 8"约束(该规则仅对 guide_length>1 生效)。
+    ...(hasLastFrame ? {
+      "44": {
+        class_type: "LoadImage",
+        inputs: { image: opts.lastFrameFilename! },
+      },
+      "53": {
+        class_type: "LTXAddVideoICLoRAGuideAdvanced",
+        inputs: {
+          positive: [lastFrameIn, 0],
+          negative: [lastFrameIn, 1],
+          vae: ["31", 0],
+          latent: [lastFrameIn, 2],
+          image: ["44", 0],
+          frame_idx: numFrames - 1,        // 显式正值,见上方注释
+          strength: lastFrameStrength,      // 软引导(默认 0.6)
+          latent_downscale_factor: 1,
+          crop: "center",
+          use_tiled_encode: false,
+          tile_size: 256,
+          tile_overlap: 64,
+          attention_strength: lastFrameStrength,
+        },
+      },
+    } : {}),
+
+    // === First-Frame Conditioning (首尾帧 - 首帧) ===
+    // 注入到交付第 0 帧 = raw frame[firstFrameIdx](= calcTrimFrames(numRefs, msrFc),落在 background latent)。
+    // ⚠️ 与尾帧不同:该位置在 LiconMSR 条件段内,guide 要跟 background 条件竞争。
+    //   strength 默认 0.8(高于尾帧的 0.6);若仍压不过 background(交付首帧仍空场景),
+    //   可换注入点 frame_idx = msrFrameCount + 1(第一个纯生成帧)+ 延长 trim。
+    ...(hasFirstFrame ? {
+      "46": {
+        class_type: "LoadImage",
+        inputs: { image: opts.firstFrameFilename! },
+      },
+      "54": {
+        class_type: "LTXAddVideoICLoRAGuideAdvanced",
+        inputs: {
+          positive: [firstFrameIn, 0],
+          negative: [firstFrameIn, 1],
+          vae: ["31", 0],
+          latent: [firstFrameIn, 2],
+          image: ["46", 0],
+          frame_idx: firstFrameIdx,            // 默认方案B = msrFrameCount+1(第一纯生成帧);方案A = calcTrimFrames(交付第0帧)
+          strength: firstFrameStrength,
+          latent_downscale_factor: 1,
+          crop: "center",
+          use_tiled_encode: false,
+          tile_size: 256,
+          tile_overlap: 64,
+          attention_strength: firstFrameStrength,
+        },
+      },
+    } : {}),
+
     // === Concat AV Latents ===
     // 有自定义音频时:
     //   v1 全冻结: 用 SetLatentNoiseMask 处理过的 latent (node 63)
@@ -636,7 +799,7 @@ export function buildMSRWorkflow(opts: {
 //
 // 运行时间 ~6.85 min(2 次 LTX ~3.5 min each + ffmpeg 秒级)
 
-interface FiveStageOpts {
+export interface FiveStageOpts {
   refFilenames: string[];
   prompt: string;
   negativePrompt: string;
@@ -650,6 +813,13 @@ interface FiveStageOpts {
   filenamePrefix: string;
   customAudioFilename: string;       // 必填:5-stage 必须有 TTS 对话音频
   dialogueEndTime: number;           // 必填:对话结束时间(秒)
+  lastFrameFilename?: string;        // 可选:尾帧(首尾帧-尾帧),仅作用于 Stage 2 视频
+  lastFrameStrength?: number;
+  firstFrameFilename?: string;       // 可选:首帧(首尾帧-首帧,有人物),仅作用于 Stage 2 视频
+  firstFrameStrength?: number;
+  firstFrameIdx?: number;            // 可选:首帧注入点覆盖(方案B 用 msrFrameCount+1 避开条件段)
+  stage3AudioMode?: string;          // 可选:Stage 3 环境声 pass 的 audioMode(默认 "auto";改 "ambient_only" 用 rich 音频引导,改善环境声质感)
+  stage2PromptSuffix?: string;       // 可选:仅追加到 Stage 2 prompt(对口型标注:谁说话+台词+嘴型同步)。绝不进 Stage 3,否则 LTX 人声偏置会在环境声渗出"第二种声音"
   useV2?: boolean;
   nagWeight?: number;
   nagLayers?: number;
@@ -658,7 +828,27 @@ interface FiveStageOpts {
   msrLoraVersion?: string;
 }
 
-async function executeFiveStagePipeline(opts: FiveStageOpts): Promise<{
+/** 兜底:ComfyUI 对完全缓存的 prompt 返回 success 但 outputs 为空。
+ *  此时按 prefix 扫容器输出目录找最新 mp4(缓存=内容相同,旧文件即正确结果)。 */
+function findOutputFallback(prefix: string): any | null {
+  const { execSync } = require("child_process");
+  try {
+    const ls = execSync(
+      `docker exec ${LTX_CONFIG.containerName} bash -lc 'for f in /root/ComfyUI/output/${prefix}*.mp4; do [ -f "$f" ] && stat -c "%Y %n" "$f"; done' 2>/dev/null`,
+      { timeout: 10_000 },
+    ).toString().trim();
+    let best: any = null, bestMs = 0;
+    for (const line of ls.split("\n")) {
+      const m = line.match(/^\s*(\d+)\s+(.*)$/);
+      if (!m) continue;
+      const ms = Number(m[1]) * 1000;
+      if (ms > bestMs) { bestMs = ms; best = { filename: path.basename(m[2].trim()), subfolder: "", type: "output" }; }
+    }
+    return best;
+  } catch { return null; }
+}
+
+export async function executeFiveStagePipeline(opts: FiveStageOpts): Promise<{
   finalVideoFilename: string;
   stage2PromptId: string;
   stage3PromptId: string;
@@ -674,7 +864,7 @@ async function executeFiveStagePipeline(opts: FiveStageOpts): Promise<{
   const stage2Prefix = `${opts.filenamePrefix}_stage2`;
   const stage2Workflow = buildMSRWorkflow({
     refFilenames: opts.refFilenames,
-    prompt: opts.prompt,
+    prompt: opts.prompt + (opts.stage2PromptSuffix || ""),  // Stage 2 才加对口型标注(驱动嘴型);Stage 3 不加,避免人声渗出
     negativePrompt: opts.negativePrompt,
     refDescription: opts.refDescription,
     width: opts.width, height: opts.height,
@@ -686,6 +876,11 @@ async function executeFiveStagePipeline(opts: FiveStageOpts): Promise<{
     audioMode: "dialogue+ambient_v2",
     customAudioFilename: opts.customAudioFilename,
     dialogueEndTime: opts.dialogueEndTime,
+    lastFrameFilename: opts.lastFrameFilename,
+    lastFrameStrength: opts.lastFrameStrength,
+    firstFrameFilename: opts.firstFrameFilename,
+    firstFrameStrength: opts.firstFrameStrength,
+    firstFrameIdx: opts.firstFrameIdx,
   });
 
   const stage2Res = await axios.post(
@@ -701,7 +896,7 @@ async function executeFiveStagePipeline(opts: FiveStageOpts): Promise<{
   if (stage2Poll.status !== "success") {
     throw new Error(`Stage 2 failed: ${stage2Poll.error}`);
   }
-  const stage2File = findOutputVideo(stage2Poll.outputs!);
+  const stage2File = findOutputVideo(stage2Poll.outputs!) || findOutputFallback(stage2Prefix);
   if (!stage2File) throw new Error("Stage 2 produced no video output");
   const stage2LocalPath = await downloadOutput(stage2File);
 
@@ -722,7 +917,7 @@ async function executeFiveStagePipeline(opts: FiveStageOpts): Promise<{
     useV2: opts.useV2,
     nagWeight: opts.nagWeight, nagLayers: opts.nagLayers, nagSigmaStart: opts.nagSigmaStart,
     relayWeight: opts.relayWeight, msrLoraVersion: opts.msrLoraVersion,
-    audioMode: "auto",  // bypass dialogue+ambient audio guides (we want pure ambient)
+    audioMode: opts.stage3AudioMode || "auto",  // 默认 auto;ambient_only 用 rich 音频引导改善环境声
     stage3Ambient: true,
   });
 
@@ -739,7 +934,7 @@ async function executeFiveStagePipeline(opts: FiveStageOpts): Promise<{
   if (stage3Poll.status !== "success") {
     throw new Error(`Stage 3 failed: ${stage3Poll.error}`);
   }
-  const stage3File = findOutputVideo(stage3Poll.outputs!);
+  const stage3File = findOutputVideo(stage3Poll.outputs!) || findOutputFallback(stage3Prefix);
   if (!stage3File) throw new Error("Stage 3 produced no video output");
   const stage3LocalPath = await downloadOutput(stage3File);
 
@@ -752,25 +947,39 @@ async function executeFiveStagePipeline(opts: FiveStageOpts): Promise<{
   // ============ ffmpeg: sidechain ducking mix ============
   // Stage 2 audio(对话 + 弱环境)× 1.0 + Stage 3 audio(纯环境)× 0.55
   // sidechain 让 Stage 3 在 Stage 2 对话活跃时自动压低
+  //
+  // 关键修复:LTX partial-mask Mode D 在某些 seed 下,Stage 2 audio 流只覆盖
+  // 对话段(= dialogueEndTime),环境段没生成 audio。如果不 pad,sidechaincompress
+  // 会被 S2 audio 长度卡住,S3 audio 后段(对话结束后的环境)被丢弃。
+  // 用 asplit + apad 把 S2 audio 延长到目标时长(numFrames/fps),让 sidechaincompress
+  // 能完整处理 S3 audio,后段被压低到 silent(对话段已过,正常)。
   const mixedAudio = `${tmpDir}/mixed_audio.wav`;
+  const targetDur = (opts.numFrames / opts.fps).toFixed(3);
   const mixFilter = [
-    "[0:a][1:a]sidechaincompress=threshold=0.03:ratio=10:attack=10:release=400[ducked]",
+    "[1:a]asplit=2[s2a][s2b]",
+    `[s2a]apad=whole_dur=${targetDur}[s2pad]`,
+    "[0:a][s2pad]sidechaincompress=threshold=0.03:ratio=10:attack=10:release=400[ducked]",
     "[ducked]volume=0.55[s3gain]",
-    "[1:a]volume=1.0[l7gain]",
+    "[s2b]volume=1.0[l7gain]",
     "[l7gain][s3gain]amix=inputs=2:duration=longest:weights=1 1:normalize=0[sum]",
     "[sum]alimiter=limit=0.95:attack=5:release=50[limited]",
   ].join(";");
   execSync(
-    `ffmpeg -y -i "${stage3Audio}" -i "${stage2Audio}" -filter_complex "${mixFilter}" -map "[limited]" -ar 48000 -ac 2 "${mixedAudio}"`,
+    `ffmpeg -y -i "${stage3Audio}" -i "${stage2Audio}" -filter_complex "${mixFilter}" -map "[limited]" -ar 48000 -ac 2 -t ${targetDur} "${mixedAudio}"`,
     { timeout: 30_000 },
   );
 
   // ============ ffmpeg: mux Stage 2 video + mixed audio ============
+  // `-af apad` 让 audio 无限 pad silence,`-shortest` 让输出以 video 长度为准。
+  // 必要性:LTX partial-mask Mode D 在某些 seed 下,Stage 2 audio 流只覆盖
+  // 对话段(= dialogueEndTime),环境段的 audio latent 没生成 audio 数据。
+  // 不加 apad 时,-shortest 会让最终视频截到 audio 长度(5.85s 而非 15s)。
+  // 加 apad 后,audio 末段静音,但视频完整,对话段音质不受影响。
   const finalFilename = `${opts.filenamePrefix}_5stage.mp4`;
   const containerOutputPath = `${LTX_CONFIG.comfyuiOutputDir}/${finalFilename}`;
   const localOutputPath = `${tmpDir}/${finalFilename}`;
   execSync(
-    `ffmpeg -y -i "${stage2LocalPath}" -i "${mixedAudio}" -map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -b:a 192k -shortest "${localOutputPath}"`,
+    `ffmpeg -y -i "${stage2LocalPath}" -i "${mixedAudio}" -map 0:v:0 -map 1:a:0 -af "apad" -c:v copy -c:a aac -b:a 192k -shortest "${localOutputPath}"`,
     { timeout: 30_000 },
   );
 
@@ -838,6 +1047,8 @@ const commonUpload = upload.fields([
   { name: "ref4", maxCount: 1 },
   { name: "ref5", maxCount: 1 },
   { name: "audio", maxCount: 1 },
+  { name: "lastFrame", maxCount: 1 },  // 尾帧图像(首尾帧-尾帧,可选)
+  { name: "firstFrame", maxCount: 1 }, // 首帧图像(首尾帧-首帧,可选,有人物)
 ]);
 
 const commonValidate = validateFields({
@@ -845,306 +1056,508 @@ const commonValidate = validateFields({
   prompt: z.string().min(1),
 });
 
+// ============================================================
+// Shared handlers (POST / and POST /verified 共用入口)
+// ============================================================
+
+class MSRValidationError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+    this.name = "MSRValidationError";
+  }
+}
+
+const ALLOWED_POSE_HOST_PREFIXES = [
+  "/data/workspace/kais-blender-docker/outputs/",
+  "/mnt/agents/output/",
+  "/tmp/comfyui-ltx-input/",
+  LOCAL_STAGING_DIR + "/",
+];
+
+const DEFAULT_NEGATIVE = "worst quality, blurry, jittery, distorted, inconsistent appearance, text, watermark, subtitles, captions, on-screen text, burned-in text, Chinese characters, handwriting, calligraphy";
+
+/**
+ * 从 req 解析所有参数 + 上传所有资产到 ComfyUI 容器。
+ * 错误时 throw MSRValidationError,handler 一处 catch 即可。
+ */
+async function parseAndUploadAssets(req: any): Promise<MSRParams> {
+  // --- 基本字段 ---
+  const projectId = Number(req.body.projectId);
+  const prompt = req.body.prompt as string;
+  const duration = Number(req.body.duration) || 3;
+  const fps = Number(req.body.fps) || 24;
+  const width = Number(req.body.width) || 1280;
+  const height = Number(req.body.height) || 704;
+  const negativePrompt = (req.body.negativePrompt as string) || DEFAULT_NEGATIVE;
+  const seed = req.body.seed ? Number(req.body.seed) : Math.floor(Math.random() * 2147483647);
+  const outputFilename = (req.body.outputFilename as string) || `ltx_msr_${projectId}_${Date.now()}`;
+  const outputDir = (req.body.outputDir as string) || "";
+
+  // --- V2 参数 ---
+  const useV2 = req.body.useV2 !== "false" && req.body.useV2 !== false;
+  const refDescription = (req.body.refDescription as string) || "";
+  const nagWeight = req.body.nagWeight ? Number(req.body.nagWeight) : undefined;
+  const nagLayers = req.body.nagLayers ? Number(req.body.nagLayers) : undefined;
+  const nagSigmaStart = req.body.nagSigmaStart ? Number(req.body.nagSigmaStart) : undefined;
+  const msrLoraVersion = (req.body.msrLoraVersion as string) || "V2";
+  const relayWeight = req.body.relayWeight ? Number(req.body.relayWeight) : undefined;
+
+  // --- 音频接口层(audioStrategy > audioMode > 智能默认) ---
+  const audioStrategyRaw = (req.body.audioStrategy as string) || "";
+  const audioStrategy = (["tts", "ambient", "silent"] as AudioStrategy[]).includes(audioStrategyRaw as AudioStrategy)
+    ? (audioStrategyRaw as AudioStrategy)
+    : undefined;
+  const audioMode = (req.body.audioMode as string) || "";
+  const dialogueEndTime = req.body.dialogueEndTime ? Number(req.body.dialogueEndTime) : undefined;
+  const poseGuideStrength = req.body.poseGuideStrength ? Number(req.body.poseGuideStrength) : undefined;
+  const lastFrameStrength = req.body.lastFrameStrength ? Number(req.body.lastFrameStrength) : undefined;
+  const firstFrameStrength = req.body.firstFrameStrength ? Number(req.body.firstFrameStrength) : undefined;
+  const firstFrameIdx = req.body.firstFrameIdx ? Number(req.body.firstFrameIdx) : undefined;
+  const stage2PromptSuffix = (req.body.stage2PromptSuffix as string) || undefined;  // 对口型标注(仅 Stage 2)
+
+  // --- 收集上传文件 ---
+  const files = req.files as Record<string, Express.Multer.File[]>;
+  const refFieldNames = ["ref1", "ref2", "ref3", "ref4", "ref5"];
+  const uploadedFiles: Express.Multer.File[] = [];
+  for (const name of refFieldNames) {
+    if (files?.[name]?.[0]) uploadedFiles.push(files[name][0]);
+    else break;
+  }
+  if (uploadedFiles.length < 2) {
+    throw new MSRValidationError(400, "At least 2 reference images required (ref1, ref2). Up to 5 supported.");
+  }
+  if (uploadedFiles.length > 5) {
+    throw new MSRValidationError(400, `Too many reference images: ${uploadedFiles.length} (max 5).`);
+  }
+
+  // --- 上传 custom audio ---
+  const customAudioFile = files?.["audio"]?.[0];
+  let customAudioFilename: string | undefined;
+  if (customAudioFile) {
+    try {
+      const ext = path.extname(customAudioFile.originalname || ".wav") || ".wav";
+      const filename = `${uuidv4()}${ext}`;
+      copyToContainer(customAudioFile.path, `${LTX_CONFIG.comfyuiInputDir}/${filename}`);
+      customAudioFilename = filename;
+    } catch (err: any) {
+      try { fs.unlinkSync(customAudioFile.path); } catch {}
+      throw new MSRValidationError(502, `Failed to upload audio to ComfyUI: ${err.message}`);
+    }
+    try { fs.unlinkSync(customAudioFile.path); } catch {}
+  }
+
+  // --- 上传 refs 到 ComfyUI ---
+  const refFilenames: string[] = [];
+  try {
+    for (const file of uploadedFiles) {
+      const ext = path.extname(file.originalname || ".png") || ".png";
+      const filename = `${uuidv4()}${ext}`;
+      copyToContainer(file.path, `${LTX_CONFIG.comfyuiInputDir}/${filename}`);
+      refFilenames.push(filename);
+    }
+  } catch (err: any) {
+    for (const file of uploadedFiles) {
+      try { fs.unlinkSync(file.path); } catch {}
+    }
+    throw new MSRValidationError(502, `Failed to upload images to ComfyUI: ${err.message}`);
+  }
+  for (const file of uploadedFiles) {
+    try { fs.unlinkSync(file.path); } catch {}
+  }
+
+  // --- 解析 poseVideoFrames(可选) ---
+  const poseVideoFramesRaw = req.body.poseVideoFrames as string | undefined;
+  let poseFrameFilename: string | undefined;
+  let poseVideoFilename: string | undefined;
+  if (poseVideoFramesRaw) {
+    try {
+      const parsed = JSON.parse(poseVideoFramesRaw);
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        throw new MSRValidationError(400, "poseVideoFrames must be a non-empty JSON array of file paths");
+      }
+      const first = parsed[0];
+      if (typeof first !== "string" || first.length === 0) {
+        throw new MSRValidationError(400, "poseVideoFrames[0] must be a string path");
+      }
+      const frame = first;
+      const isHostPath = frame.startsWith("/") && fs.existsSync(frame);
+      if (isHostPath) {
+        const allowed = ALLOWED_POSE_HOST_PREFIXES.some((p) => frame.startsWith(p));
+        if (!allowed) {
+          throw new MSRValidationError(400, `poseVideoFrames path "${frame}" is outside allowed host prefixes`);
+        }
+        const ext = path.extname(frame) || ".png";
+        const isVideo = [".mp4", ".webm", ".mov", ".avi", ".mkv"].includes(ext.toLowerCase());
+        const containerFilename = `${uuidv4()}${ext}`;
+        copyToContainer(frame, `${LTX_CONFIG.comfyuiInputDir}/${containerFilename}`);
+        if (isVideo) poseVideoFilename = containerFilename;
+        else poseFrameFilename = containerFilename;
+      } else {
+        const ext = path.extname(frame).toLowerCase();
+        const isVideo = [".mp4", ".webm", ".mov", ".avi", ".mkv"].includes(ext);
+        if (isVideo) poseVideoFilename = path.basename(frame);
+        else poseFrameFilename = path.basename(frame);
+      }
+    } catch (err: any) {
+      if (err instanceof MSRValidationError) throw err;
+      throw new MSRValidationError(400, `poseVideoFrames must be a JSON-stringified array of file paths: ${err.message}`);
+    }
+  }
+
+  // --- 解析尾帧 lastFrame (可选,首尾帧-尾帧) ---
+  // 两种来源(优先上传文件):
+  //   1. multipart 上传字段 "lastFrame"
+  //   2. body.lastFramePath: 容器内文件名,或宿主路径(必须在 ALLOWED_POSE_HOST_PREFIXES 白名单内)
+  const lastFrameFile = files?.["lastFrame"]?.[0];
+  const lastFramePathRaw = (req.body.lastFramePath as string) || "";
+  let lastFrameFilename: string | undefined;
+  if (lastFrameFile) {
+    try {
+      const ext = path.extname(lastFrameFile.originalname || ".png") || ".png";
+      const filename = `${uuidv4()}${ext}`;
+      copyToContainer(lastFrameFile.path, `${LTX_CONFIG.comfyuiInputDir}/${filename}`);
+      lastFrameFilename = filename;
+    } catch (err: any) {
+      try { fs.unlinkSync(lastFrameFile.path); } catch {}
+      throw new MSRValidationError(502, `Failed to upload lastFrame to ComfyUI: ${err.message}`);
+    }
+    try { fs.unlinkSync(lastFrameFile.path); } catch {}
+  } else if (lastFramePathRaw) {
+    const isHostPath = lastFramePathRaw.startsWith("/") && fs.existsSync(lastFramePathRaw);
+    if (isHostPath) {
+      const allowed = ALLOWED_POSE_HOST_PREFIXES.some((p) => lastFramePathRaw.startsWith(p));
+      if (!allowed) {
+        throw new MSRValidationError(400, `lastFramePath "${lastFramePathRaw}" is outside allowed host prefixes`);
+      }
+      const ext = path.extname(lastFramePathRaw) || ".png";
+      const filename = `${uuidv4()}${ext}`;
+      copyToContainer(lastFramePathRaw, `${LTX_CONFIG.comfyuiInputDir}/${filename}`);
+      lastFrameFilename = filename;
+    } else {
+      // 容器内已存在的文件名,直接用
+      lastFrameFilename = path.basename(lastFramePathRaw);
+    }
+  }
+
+  // --- 解析首帧 firstFrame (可选,首尾帧-首帧,有人物) ---
+  // 两种来源:1. multipart "firstFrame";2. body.firstFramePath(容器文件名 / 宿主白名单路径)
+  const firstFrameFile = files?.["firstFrame"]?.[0];
+  const firstFramePathRaw = (req.body.firstFramePath as string) || "";
+  let firstFrameFilename: string | undefined;
+  if (firstFrameFile) {
+    try {
+      const ext = path.extname(firstFrameFile.originalname || ".png") || ".png";
+      const filename = `${uuidv4()}${ext}`;
+      copyToContainer(firstFrameFile.path, `${LTX_CONFIG.comfyuiInputDir}/${filename}`);
+      firstFrameFilename = filename;
+    } catch (err: any) {
+      try { fs.unlinkSync(firstFrameFile.path); } catch {}
+      throw new MSRValidationError(502, `Failed to upload firstFrame to ComfyUI: ${err.message}`);
+    }
+    try { fs.unlinkSync(firstFrameFile.path); } catch {}
+  } else if (firstFramePathRaw) {
+    const isHostPath = firstFramePathRaw.startsWith("/") && fs.existsSync(firstFramePathRaw);
+    if (isHostPath) {
+      const allowed = ALLOWED_POSE_HOST_PREFIXES.some((p) => firstFramePathRaw.startsWith(p));
+      if (!allowed) {
+        throw new MSRValidationError(400, `firstFramePath "${firstFramePathRaw}" is outside allowed host prefixes`);
+      }
+      const ext = path.extname(firstFramePathRaw) || ".png";
+      const filename = `${uuidv4()}${ext}`;
+      copyToContainer(firstFramePathRaw, `${LTX_CONFIG.comfyuiInputDir}/${filename}`);
+      firstFrameFilename = filename;
+    } else {
+      firstFrameFilename = path.basename(firstFramePathRaw);
+    }
+  }
+
+  // --- 派生参数 ---
+  const numFrames = roundTo8nPlus1(Math.round(duration * fps) + 1);
+  const msrFrameCount = pickMSRFrameCount(uploadedFiles.length);
+
+  return {
+    refFilenames,
+    customAudioFilename,
+    poseFrameFilename,
+    poseVideoFilename,
+    lastFrameFilename,
+    firstFrameFilename,
+    prompt, negativePrompt, refDescription,
+    width, height, numFrames, msrFrameCount, fps, seed,
+    filenamePrefix: "",  // 由 handler 在 seed/outputDir 已知后填充
+    duration, poseGuideStrength, dialogueEndTime, lastFrameStrength, firstFrameStrength, firstFrameIdx, stage2PromptSuffix,
+    audioStrategy, audioMode,
+    useV2, nagWeight, nagLayers, nagSigmaStart, relayWeight, msrLoraVersion,
+    refCount: uploadedFiles.length,
+    outputDir, outputFilename,
+  };
+}
+
+/** 5stage 必须有 audio + dialogueEndTime */
+function validateFiveStage(params: MSRParams): void {
+  if (!params.customAudioFilename) {
+    throw new MSRValidationError(400, `audioMode=5stage_pipeline requires custom audio (TTS dialogue). Upload via "audio" field, or use audioStrategy=tts.`);
+  }
+  if (!params.dialogueEndTime || params.dialogueEndTime <= 0) {
+    throw new MSRValidationError(400, `audioMode=5stage_pipeline requires dialogueEndTime (seconds, when dialogue ends and ambient takes over).`);
+  }
+}
+
+/** 提交单次 workflow,返回 promptId */
+async function submitWorkflow(params: MSRParams, audioMode: string, seed: number, filenamePrefix: string): Promise<string> {
+  const workflow = buildMSRWorkflow({
+    refFilenames: params.refFilenames,
+    prompt: params.prompt, negativePrompt: params.negativePrompt,
+    width: params.width, height: params.height,
+    numFrames: params.numFrames, msrFrameCount: params.msrFrameCount, fps: params.fps,
+    seed, filenamePrefix,
+    poseFrameFilename: params.poseFrameFilename,
+    poseVideoFilename: params.poseVideoFilename,
+    poseGuideStrength: params.poseGuideStrength,
+    lastFrameFilename: params.lastFrameFilename,
+    lastFrameStrength: params.lastFrameStrength,
+    firstFrameFilename: params.firstFrameFilename,
+    firstFrameStrength: params.firstFrameStrength,
+    firstFrameIdx: params.firstFrameIdx,
+    useV2: params.useV2, refDescription: params.refDescription,
+    nagWeight: params.nagWeight, nagLayers: params.nagLayers, nagSigmaStart: params.nagSigmaStart,
+    msrLoraVersion: params.msrLoraVersion, relayWeight: params.relayWeight,
+    audioMode, customAudioFilename: params.customAudioFilename, dialogueEndTime: params.dialogueEndTime,
+  });
+  const comfyRes = await axios.post(
+    `${LTX_CONFIG.comfyuiUrl}/prompt`,
+    { prompt: workflow },
+    { timeout: 30_000, validateStatus: (s: number) => s < 500 },
+  );
+  if (comfyRes.status !== 200) {
+    throw new MSRValidationError(502, `ComfyUI rejected prompt: ${JSON.stringify(comfyRes.data)}`);
+  }
+  return comfyRes.data.prompt_id as string;
+}
+
+/** POST /verified 的 regen 循环 */
+async function runVerifiedRegenLoop(
+  params: MSRParams,
+  audioMode: string,
+  opts: { maxAttempts: number; bgmThreshold: number; pollTimeoutMs: number; conflict: boolean },
+): Promise<{ status: number; body: any }> {
+  const { pollComfyUi, findOutputVideo, downloadOutput } = await import("@/lib/comfyuiPoll");
+  const { detectBgm } = await import("@/lib/audioBgmDetector");
+
+  const attempts: any[] = [];
+  let currentSeed = params.seed;
+
+  for (let attempt = 1; attempt <= opts.maxAttempts; attempt++) {
+    const outputFilename = `${params.outputFilename}_attempt${attempt}`;
+    const filenamePrefix = params.outputDir ? `${params.outputDir}/${outputFilename}` : outputFilename;
+
+    const promptId = await submitWorkflow(params, audioMode, currentSeed, filenamePrefix);
+
+    const poll = await pollComfyUi(promptId, { pollTimeoutMs: opts.pollTimeoutMs });
+    if (poll.status !== "success") {
+      attempts.push({ attempt, promptId, seed: currentSeed, status: "error", error: poll.error });
+      return { status: 502, body: error(`Generation failed (attempt ${attempt}): ${poll.error}`) };
+    }
+
+    const file = findOutputVideo(poll.outputs!);
+    if (!file) {
+      attempts.push({ attempt, promptId, seed: currentSeed, status: "no_video" });
+      return { status: 502, body: error(`No video in ComfyUI outputs (attempt ${attempt})`) };
+    }
+
+    let bgmReport: any = null;
+    if (audioMode !== "silent") {
+      let localPath: string | null = null;
+      try {
+        localPath = await downloadOutput(file);
+        bgmReport = await detectBgm(localPath, { threshold: opts.bgmThreshold });
+      } catch (err: any) {
+        attempts.push({ attempt, promptId, seed: currentSeed, status: "bgm_check_failed", error: err.message });
+        return {
+          status: 200,
+          body: success({
+            promptId, attempt, status: "bgm_check_failed",
+            message: `Generation succeeded but BGM check errored: ${err.message}`,
+            video: file,
+            audioStrategy: params.audioStrategy,
+            audioMode,
+            warning: opts.conflict ? "Both audioStrategy and audioMode provided; audioStrategy takes precedence." : undefined,
+            params: { width: params.width, height: params.height, numFrames: params.numFrames, fps: params.fps, seed: currentSeed, audioMode },
+            attempts,
+          }),
+        };
+      } finally {
+        if (localPath) { try { fs.unlinkSync(localPath); } catch {} }
+      }
+    } else {
+      bgmReport = { has_bgm: false, confidence: 1.0, interpretation: "SILENT", note: "audioMode=silent; no audio stream produced" };
+    }
+
+    const accepted = !bgmReport.has_bgm;
+    attempts.push({
+      attempt, promptId, seed: currentSeed,
+      status: accepted ? "accepted" : "rejected_bgm",
+      music_pct: bgmReport.music_pct, confidence: bgmReport.confidence,
+      video: file,
+    });
+
+    if (accepted || attempt >= opts.maxAttempts) {
+      const trimFrames = calcTrimFrames(params.refCount, params.msrFrameCount);
+      return {
+        status: 200,
+        body: success({
+          promptId,
+          status: accepted ? "verified" : "bgm_failed",
+          message: accepted
+            ? `Video verified BGM-free on attempt ${attempt}/${opts.maxAttempts}`
+            : `BGM detected in all ${opts.maxAttempts} attempts; returning last result`,
+          attempt, accepted, video: file, bgm: bgmReport,
+          refCount: params.refCount,
+          audioStrategy: params.audioStrategy,
+          audioMode,
+          warning: opts.conflict ? "Both audioStrategy and audioMode provided; audioStrategy takes precedence." : undefined,
+          audio: {
+            mode: audioMode,
+            hasAudioTrack: audioMode !== "silent",
+            customAudio: !!params.customAudioFilename,
+          },
+          params: {
+            width: params.width, height: params.height,
+            numFrames: params.numFrames, fps: params.fps, seed: currentSeed,
+            msrFrameCount: params.msrFrameCount, trimFrames,
+            trimSec: +(trimFrames / params.fps).toFixed(4),
+          },
+          attempts,
+        }),
+      };
+    }
+    currentSeed = Math.floor(Math.random() * 2147483647);
+  }
+  // Unreachable
+  return { status: 500, body: error("regen loop exited unexpectedly") };
+}
+
+/** 5stage 响应格式化 */
+function formatFiveStageResponse(
+  params: MSRParams,
+  result: { stage2PromptId: string; stage3PromptId: string; finalVideoFilename: string; durationMs: number },
+  audioMode: string,
+  conflict: boolean,
+): any {
+  return success({
+    status: "completed",
+    audioStrategy: params.audioStrategy,
+    mode: audioMode,
+    warning: conflict ? "Both audioStrategy and audioMode provided; audioStrategy takes precedence." : undefined,
+    stage2PromptId: result.stage2PromptId,
+    stage3PromptId: result.stage3PromptId,
+    finalVideo: { filename: result.finalVideoFilename },
+    totalDurationSec: +(result.durationMs / 1000).toFixed(1),
+    params: {
+      width: params.width, height: params.height,
+      numFrames: params.numFrames, fps: params.fps,
+      seed: params.seed, dialogueEndTime: params.dialogueEndTime, audioMode,
+    },
+    audio: { hasAudioTrack: true, customAudio: true, dialogueFrozen: true, ambientGenerated: true },
+  });
+}
+
+/** 单 pass 响应格式化(POST / 异步提交) */
+function formatSinglePassResponse(
+  params: MSRParams,
+  audioMode: string,
+  promptId: string,
+  conflict: boolean,
+): any {
+  const actualDuration = ((params.numFrames - 1) / params.fps).toFixed(1);
+  const trimFrames = calcTrimFrames(params.refCount, params.msrFrameCount);
+  const trimSec = +(trimFrames / params.fps).toFixed(4);
+  return success({
+    promptId,
+    status: "pending",
+    audioStrategy: params.audioStrategy,
+    warning: conflict ? "Both audioStrategy and audioMode provided; audioStrategy takes precedence." : undefined,
+    message: (params.poseFrameFilename || params.poseVideoFilename)
+      ? `LTX LiconMSR V2 task submitted with pose guide (dual-conditioning)${params.useV2 ? " + NAG" : ""}`
+      : `LTX LiconMSR ${params.useV2 ? "V2 (NAG)" : "V1"} multi-reference task submitted`,
+    refCount: params.refCount,
+    v2: params.useV2 ? {
+      nag: {
+        scale: params.nagLayers ?? LTX_MSR_V2.nag.nagLayers,
+        alpha: params.nagWeight ?? LTX_MSR_V2.nag.nagWeight,
+        tau: params.nagSigmaStart ?? LTX_MSR_V2.nag.nagSigmaStart,
+      },
+      refDescription: !!params.refDescription,
+      loraVersion: params.msrLoraVersion,
+    } : null,
+    poseGuide: (params.poseFrameFilename || params.poseVideoFilename) ? {
+      type: params.poseVideoFilename ? "video" : "image",
+      file: params.poseVideoFilename || params.poseFrameFilename,
+      strength: params.poseGuideStrength ?? LTX_POSE.poseGuideStrength,
+    } : null,
+    audio: {
+      mode: audioMode,
+      hasAudioTrack: audioMode !== "silent",
+      customAudio: !!params.customAudioFilename,
+    },
+    params: {
+      width: params.width, height: params.height,
+      duration: `${actualDuration}s`, fps: params.fps,
+      msrFrameCount: params.msrFrameCount, numFrames: params.numFrames,
+      seed: params.seed, trimFrames, trimSec,
+      trimFormula: `last_switch + 8 (VAE temporal factor)`,
+    },
+  });
+}
+
+// ============================================================
+// POST / — async submit (returns promptId immediately)
+// ============================================================
+
 router.post(
   "/",
   commonUpload,
   commonValidate,
   async (req, res) => {
-    // --- Parse user-facing params ---
-    const projectId = Number(req.body.projectId);
-    const prompt = req.body.prompt as string;
-    const duration = Number(req.body.duration) || 3;
-    const fps = Number(req.body.fps) || 24;
-    const width = Number(req.body.width) || 1280;
-    const height = Number(req.body.height) || 704;
-    const negativePrompt = req.body.negativePrompt as string
-      || "worst quality, blurry, jittery, distorted, inconsistent appearance, text, watermark, subtitles, captions, on-screen text, burned-in text, Chinese characters, handwriting, calligraphy";
-    const seed = req.body.seed ? Number(req.body.seed) : Math.floor(Math.random() * 2147483647);
-    const outputFilename = (req.body.outputFilename as string) || `ltx_msr_${projectId}_${Date.now()}`;
-    const outputDir = (req.body.outputDir as string) || "";
-
-    // --- V2 params ---
-    const useV2 = req.body.useV2 !== "false" && req.body.useV2 !== false;
-    const refDescription = (req.body.refDescription as string) || "";
-    const nagWeight = req.body.nagWeight ? Number(req.body.nagWeight) : undefined;
-    const nagLayers = req.body.nagLayers ? Number(req.body.nagLayers) : undefined;
-    const nagSigmaStart = req.body.nagSigmaStart ? Number(req.body.nagSigmaStart) : undefined;
-    const msrLoraVersion = (req.body.msrLoraVersion as string) || "V2";
-    const relayWeight = req.body.relayWeight ? Number(req.body.relayWeight) : undefined;
-    // audioMode 默认值在 customAudioFilename 解析后决定(智能 fallback)
-    const requestedAudioMode = (req.body.audioMode as string) || "";
-    // v2 partial-mask: 对话结束时间(秒),audioMode="dialogue+ambient_v2" / "5stage_pipeline" 时必填
-    const dialogueEndTime = req.body.dialogueEndTime ? Number(req.body.dialogueEndTime) : undefined;
-
-    // --- Collect uploaded reference images (2~5) ---
-    const files = req.files as Record<string, Express.Multer.File[]>;
-
-    // --- Custom audio file upload ---
-    // 用户提供自定义音频(wav/flac/mp3), 冻结到输出视频
-    const customAudioFile = files?.["audio"]?.[0];
-    let customAudioFilename: string | undefined;
-    if (customAudioFile) {
-      try {
-        const ext = path.extname(customAudioFile.originalname || ".wav") || ".wav";
-        const filename = `${uuidv4()}${ext}`;
-        const containerPath = `${LTX_CONFIG.comfyuiInputDir}/${filename}`;
-        copyToContainer(customAudioFile.path, containerPath);
-        customAudioFilename = filename;
-      } catch (err: any) {
-        try { fs.unlinkSync(customAudioFile.path); } catch {}
-        return res.status(502).send(error(`Failed to upload audio to ComfyUI: ${err.message}`));
-      }
-      try { fs.unlinkSync(customAudioFile.path); } catch {}
-    }
-
-    // === 智能 audioMode 默认值 ===
-    // 5stage_pipeline 是新默认(对话保真 + 丰富环境),但需要 audio + dialogueEndTime
-    // 用户未显式指定时,按可用资源自动降级:
-    //   - audio + dialogueEndTime → 5stage_pipeline (推荐)
-    //   - audio only → dialogue+ambient (v1 全冻结)
-    //   - 无 audio → silent
-    const audioMode = requestedAudioMode || (
-      customAudioFilename && dialogueEndTime && dialogueEndTime > 0
-        ? "5stage_pipeline"
-        : customAudioFilename
-          ? "dialogue+ambient"
-          : "silent"
-    );
-
-    const refFieldNames = ["ref1", "ref2", "ref3", "ref4", "ref5"];
-    const uploadedFiles: Express.Multer.File[] = [];
-
-    for (const name of refFieldNames) {
-      if (files?.[name]?.[0]) {
-        uploadedFiles.push(files[name][0]);
-      } else {
-        break; // stop at first missing ref
-      }
-    }
-
-    if (uploadedFiles.length < 2) {
-      return res.status(400).send(error("At least 2 reference images required (ref1, ref2). Up to 5 supported."));
-    }
-
-    // --- Parse optional poseVideoFrames (Blender render PNGs or MP4 from poseVideo route) ---
-    // Accepts: array of file paths. If first file is .mp4/.webm/.mov → video pose conditioning.
-    //          If first file is .png/.jpg → single-frame pose conditioning.
-    const poseVideoFramesRaw = req.body.poseVideoFrames as string | undefined;
-    let poseFrameHostPath: string | null = null;
-    if (poseVideoFramesRaw) {
-      try {
-        const parsed = JSON.parse(poseVideoFramesRaw);
-        if (!Array.isArray(parsed) || parsed.length === 0) {
-          return res.status(400).send(error("poseVideoFrames must be a non-empty JSON array of file paths"));
-        }
-        const first = parsed[0];
-        if (typeof first !== "string" || first.length === 0) {
-          return res.status(400).send(error("poseVideoFrames[0] must be a string path"));
-        }
-        poseFrameHostPath = first;
-      } catch {
-        return res.status(400).send(error("poseVideoFrames must be a JSON-stringified array of file paths"));
-      }
-    }
-
-    // Cap total refs at 5 (MSR supports up to 4 ref slots + 1 background)
-    // poseVideoFrames no longer counts against MSR ref limit — it's a separate guide
-    if (uploadedFiles.length > 5) {
-      return res.status(400).send(error(
-        `Too many reference images: ${uploadedFiles.length} (max 5).`,
-      ));
-    }
-
-    // --- Auto-calculate internal params ---
-    const numFrames = roundTo8nPlus1(Math.round(duration * fps) + 1);
-    const msrFrameCount = pickMSRFrameCount(uploadedFiles.length);
-
-    // --- Copy images to ComfyUI container ---
-    const filenames: string[] = [];
     try {
-      for (const file of uploadedFiles) {
-        const ext = path.extname(file.originalname || ".png") || ".png";
-        const filename = `${uuidv4()}${ext}`;
-        const containerPath = `${LTX_CONFIG.comfyuiInputDir}/${filename}`;
-        filenames.push(filename);
-        copyToContainer(file.path, containerPath);
-      }
-    } catch (err: any) {
-      for (const file of uploadedFiles) {
-        try { fs.unlinkSync(file.path); } catch {}
-      }
-      return res.status(502).send(error(`Failed to upload images to ComfyUI: ${err.message}`));
-    }
+      const params = await parseAndUploadAssets(req);
+      const { mode, conflict } = resolveAudioMode(params);
+      const filenamePrefix = params.outputDir
+        ? `${params.outputDir}/${params.outputFilename}`
+        : params.outputFilename;
 
-    // Cleanup local staging files
-    for (const file of uploadedFiles) {
-      try { fs.unlinkSync(file.path); } catch {}
-    }
-
-    // --- Copy pose-video frame/video into ComfyUI container (optional, separate from MSR refs) ---
-    // Video files (.mp4/.webm/.mov) → VHS_LoadVideo (multi-frame pose conditioning)
-    // Image files (.png/.jpg) → LoadImage (single-frame pose conditioning)
-    let poseFrameFilename: string | undefined;
-    let poseVideoFilename: string | undefined;
-    if (poseFrameHostPath) {
-      try {
-        const frame = poseFrameHostPath;
-        const isHostPath = frame.startsWith("/") && fs.existsSync(frame);
-        const ALLOWED_HOST_PREFIXES = [
-          "/data/workspace/kais-blender-docker/outputs/",
-          "/mnt/agents/output/",
-          "/tmp/comfyui-ltx-input/",
-          LOCAL_STAGING_DIR + "/",
-        ];
-        if (isHostPath) {
-          const allowed = ALLOWED_HOST_PREFIXES.some((p) => frame.startsWith(p));
-          if (!allowed) {
-            throw new Error(`poseVideoFrames path "${frame}" is outside allowed host prefixes`);
-          }
-          const ext = path.extname(frame) || ".png";
-          const isVideo = [".mp4", ".webm", ".mov", ".avi", ".mkv"].includes(ext.toLowerCase());
-          const containerFilename = `${uuidv4()}${ext}`;
-          const containerPath = `${LTX_CONFIG.comfyuiInputDir}/${containerFilename}`;
-          copyToContainer(frame, containerPath);
-          if (isVideo) {
-            poseVideoFilename = containerFilename;
-          } else {
-            poseFrameFilename = containerFilename;
-          }
-        } else {
-          // Already in container
-          const ext = path.extname(frame).toLowerCase();
-          const isVideo = [".mp4", ".webm", ".mov", ".avi", ".mkv"].includes(ext);
-          if (isVideo) {
-            poseVideoFilename = path.basename(frame);
-          } else {
-            poseFrameFilename = path.basename(frame);
-          }
-        }
-      } catch (err: any) {
-        return res.status(502).send(error(`Failed to ingest poseVideoFrame: ${err.message}`));
-      }
-    }
-
-    // --- Optional: parse poseGuideStrength override ---
-    const poseGuideStrength = req.body.poseGuideStrength
-      ? Number(req.body.poseGuideStrength)
-      : undefined;
-
-    // --- Build & submit workflow ---
-    const filenamePrefix = outputDir ? `${outputDir}/${outputFilename}` : outputFilename;
-
-    // 5-stage pipeline: 同步运行 Stage 2 + Stage 3 + ffmpeg 混合 + mux
-    // 比 single-pass 慢 (~6.85 min vs 3.5 min) 但环境声质量提升 3-16×
-    if (audioMode === "5stage_pipeline") {
-      if (!customAudioFilename) {
-        return res.status(400).send(error(`audioMode=5stage_pipeline requires custom audio (TTS dialogue). Upload via "audio" field.`));
-      }
-      if (!dialogueEndTime || dialogueEndTime <= 0) {
-        return res.status(400).send(error(`audioMode=5stage_pipeline requires dialogueEndTime (seconds, when dialogue ends and ambient takes over).`));
-      }
-      try {
+      if (mode === "5stage_pipeline") {
+        validateFiveStage(params);
         const result = await executeFiveStagePipeline({
-          refFilenames: filenames,
-          prompt, negativePrompt,
-          refDescription,
-          width, height, numFrames, msrFrameCount, fps,
-          seed, filenamePrefix,
-          customAudioFilename,
-          dialogueEndTime,
-          useV2,
-          nagWeight, nagLayers, nagSigmaStart, msrLoraVersion, relayWeight,
+          refFilenames: params.refFilenames,
+          prompt: params.prompt, negativePrompt: params.negativePrompt,
+          refDescription: params.refDescription,
+          width: params.width, height: params.height,
+          numFrames: params.numFrames, msrFrameCount: params.msrFrameCount, fps: params.fps,
+          seed: params.seed, filenamePrefix,
+          customAudioFilename: params.customAudioFilename!,
+          dialogueEndTime: params.dialogueEndTime!,
+          lastFrameFilename: params.lastFrameFilename,
+          lastFrameStrength: params.lastFrameStrength,
+          firstFrameFilename: params.firstFrameFilename,
+          firstFrameStrength: params.firstFrameStrength,
+          firstFrameIdx: params.firstFrameIdx,
+          stage2PromptSuffix: params.stage2PromptSuffix,
+          useV2: params.useV2,
+          nagWeight: params.nagWeight, nagLayers: params.nagLayers, nagSigmaStart: params.nagSigmaStart,
+          msrLoraVersion: params.msrLoraVersion, relayWeight: params.relayWeight,
         });
-        return res.status(200).send(success({
-          status: "completed",
-          mode: "5stage_pipeline",
-          stage2PromptId: result.stage2PromptId,
-          stage3PromptId: result.stage3PromptId,
-          finalVideo: { filename: result.finalVideoFilename },
-          totalDurationSec: +(result.durationMs / 1000).toFixed(1),
-          params: { width, height, numFrames, fps, seed, dialogueEndTime, audioMode },
-          audio: { hasAudioTrack: true, customAudio: true, dialogueFrozen: true, ambientGenerated: true },
-        }));
-      } catch (err: any) {
-        return res.status(502).send(error(`5-stage pipeline failed: ${err.message}`));
-      }
-    }
-
-    const workflow = buildMSRWorkflow({
-      refFilenames: filenames,
-      prompt, negativePrompt,
-      width, height, numFrames, msrFrameCount, fps,
-      seed, filenamePrefix,
-      poseFrameFilename,
-      poseVideoFilename,
-      poseGuideStrength,
-      // V2 params
-      useV2,
-      refDescription,
-      nagWeight,
-      nagLayers,
-      nagSigmaStart,
-      msrLoraVersion,
-      relayWeight,
-      audioMode,
-      customAudioFilename,
-      dialogueEndTime,
-    });
-
-    try {
-      const comfyRes = await axios.post(
-        `${LTX_CONFIG.comfyuiUrl}/prompt`,
-        { prompt: workflow },
-        { timeout: 30_000, validateStatus: (s: number) => s < 500 },
-      );
-
-      if (comfyRes.status !== 200) {
-        return res.status(502).send(error(`ComfyUI rejected prompt: ${JSON.stringify(comfyRes.data)}`));
+        return res.status(200).send(formatFiveStageResponse(params, result, mode, conflict));
       }
 
-      const promptId = comfyRes.data.prompt_id;
-      const actualDuration = ((numFrames - 1) / fps).toFixed(1);
-
-      const trimFrames = calcTrimFrames(uploadedFiles.length, msrFrameCount);
-      const trimSec = +(trimFrames / fps).toFixed(4);
-
-      res.status(200).send(success({
-        promptId,
-        status: "pending",
-        message: (poseFrameFilename || poseVideoFilename)
-          ? `LTX LiconMSR V2 task submitted with pose guide (dual-conditioning)${useV2 ? " + NAG" : ""}`
-          : `LTX LiconMSR ${useV2 ? "V2 (NAG)" : "V1"} multi-reference task submitted`,
-        refCount: uploadedFiles.length,
-        v2: useV2 ? {
-          nag: { scale: nagLayers ?? LTX_MSR_V2.nag.nagLayers, alpha: nagWeight ?? LTX_MSR_V2.nag.nagWeight, tau: nagSigmaStart ?? LTX_MSR_V2.nag.nagSigmaStart },
-          refDescription: refDescription ? true : false,
-          loraVersion: msrLoraVersion,
-        } : null,
-        poseGuide: (poseFrameFilename || poseVideoFilename) ? {
-          type: poseVideoFilename ? "video" : "image",
-          file: poseVideoFilename || poseFrameFilename,
-          strength: poseGuideStrength ?? LTX_POSE.poseGuideStrength,
-        } : null,
-        audio: {
-          mode: audioMode,
-          hasAudioTrack: audioMode !== "silent",
-          customAudio: customAudioFilename ? true : false,
-        },
-        params: {
-          width, height,
-          duration: `${actualDuration}s`,
-          fps,
-          msrFrameCount,
-          numFrames,
-          seed,
-          trimFrames,
-          trimSec,
-          trimFormula: `last_switch + 8 (VAE temporal factor)`,
-        },
-      }));
+      const promptId = await submitWorkflow(params, mode, params.seed, filenamePrefix);
+      return res.status(200).send(formatSinglePassResponse(params, mode, promptId, conflict));
     } catch (err: any) {
+      const status = err instanceof MSRValidationError ? err.status : 502;
       const msg = err.response?.data?.error?.message || err.response?.data?.node_errors || err.message || String(err);
-      res.status(502).send(error(`ComfyUI request failed: ${msg}`));
+      res.status(status).send(error(msg));
     }
   },
 );
@@ -1175,310 +1588,55 @@ router.post(
   commonUpload,
   commonValidate,
   async (req, res) => {
-    const maxAttempts = Math.max(1, Number(req.body.maxRegenAttempts) || 3);
-    const bgmThreshold = Number(req.body.bgmThreshold) || 0.10;
-    const pollTimeoutMs = Number(req.body.pollTimeoutMs) || LTX_CONFIG.pollTimeoutMs;
-
-    // Reuse the same body parsing the / handler does. To keep this block
-    // self-contained without a giant refactor, we re-read req.body here.
-    const projectId = Number(req.body.projectId);
-    const prompt = req.body.prompt as string;
-    const duration = Number(req.body.duration) || 3;
-    const fps = Number(req.body.fps) || 24;
-    const width = Number(req.body.width) || 1280;
-    const height = Number(req.body.height) || 704;
-    const negativePrompt = (req.body.negativePrompt as string)
-      || "worst quality, blurry, jittery, distorted, inconsistent appearance, text, watermark, subtitles, captions, on-screen text, burned-in text, Chinese characters, handwriting, calligraphy";
-    const baseSeed = req.body.seed ? Number(req.body.seed) : Math.floor(Math.random() * 2147483647);
-    const outputFilenameBase = (req.body.outputFilename as string)
-      || `ltx_msr_${projectId}_${Date.now()}`;
-    const outputDir = (req.body.outputDir as string) || "";
-
-    const useV2 = req.body.useV2 !== "false" && req.body.useV2 !== false;
-    const refDescription = (req.body.refDescription as string) || "";
-    const nagWeight = req.body.nagWeight ? Number(req.body.nagWeight) : undefined;
-    const nagLayers = req.body.nagLayers ? Number(req.body.nagLayers) : undefined;
-    const nagSigmaStart = req.body.nagSigmaStart ? Number(req.body.nagSigmaStart) : undefined;
-    const msrLoraVersion = (req.body.msrLoraVersion as string) || "V2";
-    const relayWeight = req.body.relayWeight ? Number(req.body.relayWeight) : undefined;
-    // audioMode 默认值在 customAudioFilename 解析后决定(智能 fallback)
-    const requestedAudioMode = (req.body.audioMode as string) || "";
-    // v2 partial-mask: 对话结束时间(秒),audioMode="dialogue+ambient_v2" / "5stage_pipeline" 时必填
-    const dialogueEndTime = req.body.dialogueEndTime ? Number(req.body.dialogueEndTime) : undefined;
-
-    const files = req.files as Record<string, Express.Multer.File[]>;
-
-    // Custom audio upload (same as /)
-    const customAudioFile = files?.["audio"]?.[0];
-    let customAudioFilename: string | undefined;
-    if (customAudioFile) {
-      try {
-        const ext = path.extname(customAudioFile.originalname || ".wav") || ".wav";
-        const filename = `${uuidv4()}${ext}`;
-        const containerPath = `${LTX_CONFIG.comfyuiInputDir}/${filename}`;
-        copyToContainer(customAudioFile.path, containerPath);
-        customAudioFilename = filename;
-      } catch (err: any) {
-        try { fs.unlinkSync(customAudioFile.path); } catch {}
-        return res.status(502).send(error(`Failed to upload audio to ComfyUI: ${err.message}`));
-      }
-      try { fs.unlinkSync(customAudioFile.path); } catch {}
-    }
-
-    // === 智能 audioMode 默认值(同 POST /) ===
-    const audioMode = requestedAudioMode || (
-      customAudioFilename && dialogueEndTime && dialogueEndTime > 0
-        ? "5stage_pipeline"
-        : customAudioFilename
-          ? "dialogue+ambient"
-          : "silent"
-    );
-
-    const refFieldNames = ["ref1", "ref2", "ref3", "ref4", "ref5"];
-    const uploadedFiles: Express.Multer.File[] = [];
-    for (const name of refFieldNames) {
-      if (files?.[name]?.[0]) uploadedFiles.push(files[name][0]);
-      else break;
-    }
-    if (uploadedFiles.length < 2) {
-      return res.status(400).send(error("At least 2 reference images required (ref1, ref2). Up to 5 supported."));
-    }
-    if (uploadedFiles.length > 5) {
-      return res.status(400).send(error(`Too many reference images: ${uploadedFiles.length} (max 5).`));
-    }
-
-    const poseVideoFramesRaw = req.body.poseVideoFrames as string | undefined;
-    let poseFrameHostPath: string | null = null;
-    if (poseVideoFramesRaw) {
-      try {
-        const parsed = JSON.parse(poseVideoFramesRaw);
-        if (!Array.isArray(parsed) || parsed.length === 0) {
-          return res.status(400).send(error("poseVideoFrames must be a non-empty JSON array of file paths"));
-        }
-        const first = parsed[0];
-        if (typeof first !== "string" || first.length === 0) {
-          return res.status(400).send(error("poseVideoFrames[0] must be a string path"));
-        }
-        poseFrameHostPath = first;
-      } catch {
-        return res.status(400).send(error("poseVideoFrames must be a JSON-stringified array of file paths"));
-      }
-    }
-
-    const numFrames = roundTo8nPlus1(Math.round(duration * fps) + 1);
-    const msrFrameCount = pickMSRFrameCount(uploadedFiles.length);
-
-    // Copy reference images once — re-use across regen attempts
-    const refFilenames: string[] = [];
     try {
-      for (const file of uploadedFiles) {
-        const ext = path.extname(file.originalname || ".png") || ".png";
-        const filename = `${uuidv4()}${ext}`;
-        const containerPath = `${LTX_CONFIG.comfyuiInputDir}/${filename}`;
-        refFilenames.push(filename);
-        copyToContainer(file.path, containerPath);
-      }
-    } catch (err: any) {
-      for (const file of uploadedFiles) {
-        try { fs.unlinkSync(file.path); } catch {}
-      }
-      return res.status(502).send(error(`Failed to upload images to ComfyUI: ${err.message}`));
-    }
-    for (const file of uploadedFiles) {
-      try { fs.unlinkSync(file.path); } catch {}
-    }
+      const params = await parseAndUploadAssets(req);
+      const { mode, conflict } = resolveAudioMode(params);
 
-    // Optional pose frame
-    let poseFrameFilename: string | undefined;
-    let poseVideoFilename: string | undefined;
-    if (poseFrameHostPath) {
-      try {
-        const frame = poseFrameHostPath;
-        const isHostPath = frame.startsWith("/") && fs.existsSync(frame);
-        const ALLOWED_HOST_PREFIXES = [
-          "/data/workspace/kais-blender-docker/outputs/",
-          "/mnt/agents/output/",
-          "/tmp/comfyui-ltx-input/",
-          LOCAL_STAGING_DIR + "/",
-        ];
-        if (isHostPath) {
-          const allowed = ALLOWED_HOST_PREFIXES.some((p) => frame.startsWith(p));
-          if (!allowed) {
-            throw new Error(`poseVideoFrames path "${frame}" is outside allowed host prefixes`);
-          }
-          const ext = path.extname(frame) || ".png";
-          const isVideo = [".mp4", ".webm", ".mov", ".avi", ".mkv"].includes(ext.toLowerCase());
-          const containerFilename = `${uuidv4()}${ext}`;
-          const containerPath = `${LTX_CONFIG.comfyuiInputDir}/${containerFilename}`;
-          copyToContainer(frame, containerPath);
-          if (isVideo) poseVideoFilename = containerFilename;
-          else poseFrameFilename = containerFilename;
-        } else {
-          const ext = path.extname(frame).toLowerCase();
-          const isVideo = [".mp4", ".webm", ".mov", ".avi", ".mkv"].includes(ext);
-          if (isVideo) poseVideoFilename = path.basename(frame);
-          else poseFrameFilename = path.basename(frame);
-        }
-      } catch (err: any) {
-        return res.status(502).send(error(`Failed to ingest poseVideoFrame: ${err.message}`));
-      }
-    }
-
-    const poseGuideStrength = req.body.poseGuideStrength ? Number(req.body.poseGuideStrength) : undefined;
-
-    // === Regen loop ===
-    const attempts: any[] = [];
-    let currentSeed = baseSeed;
-
-    // Lazy-load heavy modules so the existing / path doesn't pay the cost.
-    const { pollComfyUi, findOutputVideo, downloadOutput } = await import("@/lib/comfyuiPoll");
-    const { detectBgm } = await import("@/lib/audioBgmDetector");
-
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      const outputFilename = `${outputFilenameBase}_attempt${attempt}`;
-      const filenamePrefix = outputDir ? `${outputDir}/${outputFilename}` : outputFilename;
-
-      // 5-stage pipeline: 同步运行,完成后跳过 BGM 检测直接返回(因为对话段是冻结 TTS,不会有 BGM)
-      if (audioMode === "5stage_pipeline") {
-        if (!customAudioFilename) {
-          return res.status(400).send(error(`audioMode=5stage_pipeline requires custom audio.`));
-        }
-        if (!dialogueEndTime || dialogueEndTime <= 0) {
-          return res.status(400).send(error(`audioMode=5stage_pipeline requires dialogueEndTime.`));
-        }
+      // 5stage: 同步运行,跳过 BGM 检测(对话段冻结 TTS,不会产生 BGM)
+      if (mode === "5stage_pipeline") {
+        validateFiveStage(params);
+        const filenamePrefix = params.outputDir
+          ? `${params.outputDir}/${params.outputFilename}`
+          : params.outputFilename;
         try {
           const result = await executeFiveStagePipeline({
-            refFilenames,
-            prompt, negativePrompt, refDescription,
-            width, height, numFrames, msrFrameCount, fps,
-            seed: currentSeed, filenamePrefix,
-            customAudioFilename, dialogueEndTime,
-            useV2, nagWeight, nagLayers, nagSigmaStart, msrLoraVersion, relayWeight,
+            refFilenames: params.refFilenames,
+            prompt: params.prompt, negativePrompt: params.negativePrompt,
+            refDescription: params.refDescription,
+            width: params.width, height: params.height,
+            numFrames: params.numFrames, msrFrameCount: params.msrFrameCount, fps: params.fps,
+            seed: params.seed, filenamePrefix,
+            customAudioFilename: params.customAudioFilename!,
+            dialogueEndTime: params.dialogueEndTime!,
+            lastFrameFilename: params.lastFrameFilename,
+            lastFrameStrength: params.lastFrameStrength,
+            firstFrameFilename: params.firstFrameFilename,
+            firstFrameStrength: params.firstFrameStrength,
+            firstFrameIdx: params.firstFrameIdx,
+            stage2PromptSuffix: params.stage2PromptSuffix,
+            useV2: params.useV2,
+            nagWeight: params.nagWeight, nagLayers: params.nagLayers, nagSigmaStart: params.nagSigmaStart,
+            msrLoraVersion: params.msrLoraVersion, relayWeight: params.relayWeight,
           });
-          attempts.push({ attempt, promptId: result.stage2PromptId, status: "5stage_completed", finalVideo: result.finalVideoFilename });
-          return res.status(200).send(success({
-            status: "completed",
-            mode: "5stage_pipeline",
-            stage2PromptId: result.stage2PromptId,
-            stage3PromptId: result.stage3PromptId,
-            finalVideo: { filename: result.finalVideoFilename },
-            totalDurationSec: +(result.durationMs / 1000).toFixed(1),
-            attempts,
-          }));
+          return res.status(200).send(formatFiveStageResponse(params, result, mode, conflict));
         } catch (err: any) {
           return res.status(502).send(error(`5-stage pipeline failed: ${err.message}`));
         }
       }
 
-      const workflow = buildMSRWorkflow({
-        refFilenames,
-        prompt, negativePrompt,
-        width, height, numFrames, msrFrameCount, fps,
-        seed: currentSeed, filenamePrefix,
-        poseFrameFilename, poseVideoFilename, poseGuideStrength,
-        useV2, refDescription,
-        nagWeight, nagLayers, nagSigmaStart, msrLoraVersion, relayWeight,
-        audioMode, customAudioFilename, dialogueEndTime,
+      // 单 pass + poll + BGM 检测 + regen
+      const result = await runVerifiedRegenLoop(params, mode, {
+        maxAttempts: Math.max(1, Number(req.body.maxRegenAttempts) || 3),
+        bgmThreshold: Number(req.body.bgmThreshold) || 0.10,
+        pollTimeoutMs: Number(req.body.pollTimeoutMs) || LTX_CONFIG.pollTimeoutMs,
+        conflict,
       });
-
-      let promptId: string;
-      try {
-        const comfyRes = await axios.post(
-          `${LTX_CONFIG.comfyuiUrl}/prompt`,
-          { prompt: workflow },
-          { timeout: 30_000, validateStatus: (s: number) => s < 500 },
-        );
-        if (comfyRes.status !== 200) {
-          return res.status(502).send(error(`ComfyUI rejected prompt (attempt ${attempt}): ${JSON.stringify(comfyRes.data)}`));
-        }
-        promptId = comfyRes.data.prompt_id;
-      } catch (err: any) {
-        const msg = err.response?.data?.error?.message || err.response?.data?.node_errors || err.message || String(err);
-        return res.status(502).send(error(`ComfyUI submit failed (attempt ${attempt}): ${msg}`));
-      }
-
-      // Poll until done
-      const poll = await pollComfyUi(promptId, { pollTimeoutMs });
-      if (poll.status !== "success") {
-        attempts.push({ attempt, promptId, seed: currentSeed, status: "error", error: poll.error });
-        return res.status(502).send(error(`Generation failed (attempt ${attempt}): ${poll.error}`));
-      }
-
-      // Find output video
-      const file = findOutputVideo(poll.outputs!);
-      if (!file) {
-        attempts.push({ attempt, promptId, seed: currentSeed, status: "no_video" });
-        return res.status(502).send(error(`No video in ComfyUI outputs (attempt ${attempt})`));
-      }
-
-      // Download and analyze (skip if silent mode = no audio)
-      let bgmReport: any = null;
-      if (audioMode !== "silent") {
-        let localPath: string | null = null;
-        try {
-          localPath = await downloadOutput(file);
-          bgmReport = await detectBgm(localPath, { threshold: bgmThreshold });
-        } catch (err: any) {
-          attempts.push({ attempt, promptId, seed: currentSeed, status: "bgm_check_failed", error: err.message });
-          // BGM check failure shouldn't fail the whole request — return the video as-is
-          return res.status(200).send(success({
-            promptId, attempt, status: "bgm_check_failed",
-            message: `Generation succeeded but BGM check errored: ${err.message}`,
-            video: file,
-            params: { width, height, numFrames, fps, seed: currentSeed, audioMode },
-            attempts,
-          }));
-        } finally {
-          if (localPath) { try { fs.unlinkSync(localPath); } catch {} }
-        }
-      } else {
-        bgmReport = {
-          has_bgm: false, confidence: 1.0, interpretation: "SILENT",
-          note: "audioMode=silent; no audio stream produced",
-        };
-      }
-
-      const accepted = !bgmReport.has_bgm;
-      attempts.push({
-        attempt, promptId, seed: currentSeed,
-        status: accepted ? "accepted" : "rejected_bgm",
-        music_pct: bgmReport.music_pct,
-        confidence: bgmReport.confidence,
-        video: file,
-      });
-
-      if (accepted || attempt >= maxAttempts) {
-        const trimFrames = calcTrimFrames(uploadedFiles.length, msrFrameCount);
-        return res.status(200).send(success({
-          promptId,
-          status: accepted ? "verified" : "bgm_failed",
-          message: accepted
-            ? `Video verified BGM-free on attempt ${attempt}/${maxAttempts}`
-            : `BGM detected in all ${maxAttempts} attempts; returning last result`,
-          attempt,
-          accepted,
-          video: file,
-          bgm: bgmReport,
-          refCount: uploadedFiles.length,
-          audio: {
-            mode: audioMode,
-            hasAudioTrack: audioMode !== "silent",
-            customAudio: customAudioFilename ? true : false,
-          },
-          params: {
-            width, height, numFrames, fps, seed: currentSeed,
-            msrFrameCount,
-            trimFrames,
-            trimSec: +(trimFrames / fps).toFixed(4),
-          },
-          attempts,
-        }));
-      }
-
-      // BGM detected, prepare next seed
-      currentSeed = Math.floor(Math.random() * 2147483647);
+      return res.status(result.status).send(result.body);
+    } catch (err: any) {
+      const status = err instanceof MSRValidationError ? err.status : 502;
+      const msg = err.response?.data?.error?.message || err.response?.data?.node_errors || err.message || String(err);
+      res.status(status).send(error(msg));
     }
-    // Unreachable
   },
 );
 

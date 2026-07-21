@@ -82,3 +82,56 @@ export const LTX_POSE = {
   /** Pose processor microservice URL (empty = disabled, requires pre-rendered PNGs) */
   poseProcessorUrl: process.env.POSE_PROCESSOR_URL || "",
 };
+
+// === MSR + Last-Frame Conditioning (首尾帧 - 尾帧) ===
+//
+// 尾帧作为额外的 IC-LoRA guide 注入到 latent 的最后一帧,实现"首尾帧"能力。
+// MSR 本身的"首帧"语义已由 LiconMSR 的 background slot 承担(裁后视频第 1 帧 = background),
+// 所以这里只补尾帧这一侧。
+//
+// ⚠️ 关键:frame_idx 必须用显式正值 `numFrames - 1`,不能用 `-1`。
+// LiconMSR 的 41 帧条件段会让 LTXAddVideoICLoRAGuide 登记 num_keyframes=6,
+// ComfyUI 负索引解析 (latent_count = latent_length - num_keyframes) 会使 -1 落到
+// 生成内容的开头而非末尾。详见 msr.ts buildMSRWorkflow 节点 53 的注释。
+//
+// strength 默认 0.6(软引导),与 singularityFFLF.ts 尾帧对齐,
+// 避免 strength=1.0 产生"硬切到尾帧"伪影。
+export const LTX_MSR_LAST_FRAME = {
+  strength: 0.6,  // last-frame guide attention strength (soft guidance, 0-1)
+};
+
+// === MSR + First-Frame Conditioning (首尾帧 - 首帧) ===
+//
+// 首帧 guide 注入到"交付视频第 0 帧"的位置 = raw frame[calcTrimFrames(numRefs, msrFc)]。
+// 该位置落在 LiconMSR 条件段尾的 background latent,guide 要跟 background 条件竞争 ——
+// 与尾帧不同(尾帧落在纯生成区,远离条件段),首帧紧贴条件段,可能需要更高 strength 才能压过。
+// 实测起步建议 0.8(尾帧用 0.6 即可);压不过则考虑注入到第一个纯生成帧(frame_idx=msrFc+1)。
+export const LTX_MSR_FIRST_FRAME = {
+  strength: 0.8,  // first-frame guide attention strength(首帧需对抗 background 条件,默认比尾帧高)
+};
+
+// === Audio Strategy (业务语义层) ===
+// 用户面向的 3 种音频策略;内部映射到 audioMode 实现层。
+// 优先级:audioStrategy > audioMode > 智能默认(见 msr.ts resolveAudioMode)。
+//
+// v15.1 (2026-07-19): 移除 `auto` —— LTX 2.3 自生成对白不可靠(BGM bias + 嘴型不同步),
+// 实测 audioStrategy=auto 在 3 次重生中都产生 62.9-100% music_pct 被全部拒绝。
+// `auto` 唯一的真实客户(ltx_native engine)也已移除。底层 audioMode=auto 仍保留,
+// 高级用户可显式传 audioMode=auto。
+
+export type AudioStrategy = "tts" | "ambient" | "silent";
+
+export const AUDIO_STRATEGY_INFO: Record<AudioStrategy, { description: string; requiresAudio: boolean }> = {
+  tts: {
+    description: "TTS dialogue preservation. dialogueEndTime provided → 5-stage pipeline (rich ambient); missing → v1 full-freeze (narration贯穿).",
+    requiresAudio: true,
+  },
+  ambient: {
+    description: "Ambient sound only (no speech). Maps to ambient_only audioMode.",
+    requiresAudio: false,
+  },
+  silent: {
+    description: "No audio track. Maps to silent audioMode.",
+    requiresAudio: false,
+  },
+};
