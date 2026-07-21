@@ -163,6 +163,16 @@ export default async function startServe(randomPort: Boolean = false) {
     });
   }
 
+  // 剧本分析：从 data/web/story-map 提供独立 SPA (kais-story-map)
+  // 与 director-desk 同模式:static 提供资源 + GET 回退 index.html(HashRouter,无服务端路由)
+  const storyMapDir = path.join(webDir, "story-map");
+  if (fs.existsSync(storyMapDir)) {
+    app.use("/story-map", express.static(storyMapDir, { acceptRanges: true, maxAge: "5m", cacheControl: true }));
+    app.get("/story-map/{*path}", (_req, res) => {
+      res.sendFile(path.join(storyMapDir, "index.html"));
+    });
+  }
+
   // arch dashboards：manifest-driven reverse proxy (Phase 6 PROXY-01/02/03).
   // Reads /etc/arch-tracked-repos.conf (or ~/.config fallback) and mounts each
   // tracked repo's MkDocs site at its declared URL prefix. Adding a repo
