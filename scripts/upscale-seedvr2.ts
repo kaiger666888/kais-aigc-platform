@@ -19,18 +19,19 @@ const INPUT_DIR = "/root/ComfyUI/input";
 const INPUT = process.env.INPUT || "workflows/ltx-2.3/foley-distilled-test-output/foleysimp_final.mp4";
 const OUT = process.env.OUT || "workflows/ltx-2.3/foley-distilled-test-output/foleysimp_final_1080p_seedvr2.mp4";
 const RESOLUTION = Number(process.env.RESOLUTION) || 1080;
-const BATCH = Number(process.env.BATCH) || 5;
+const BATCH = Number(process.env.BATCH) || 17;  // SeedVR2 时序注意力按4帧一组,batch_size 必须 4n+1(5/9/13/17/21…);<17 会周期性重影
 const BLOCKS_SWAP = Number(process.env.BLOCKS_SWAP) || 0;   // >0 时需配 offload_device=cpu
 const FPS = Number(process.env.FPS) || 24;
 const EVERY_NTH = Number(process.env.SELECT_EVERY_NTH) || 1; // >1 = 抽帧处理(减显存),输出按 FPS/EVERY_NTH 存,再补帧回 FPS
-const VAE_TILE = Number(process.env.VAE_TILE) || 0;          // >0 = VAE 分块编解码(tile 尺寸),降 VAE 峰值显存
+const VAE_TILE = Number(process.env.VAE_TILE) || 512;        // >0 = VAE 分块编解码(tile 尺寸);默认 512(7B 1080p 在 24GB 上必须开,否则 OOM)
+const TEMPORAL_OVERLAP = Number(process.env.TEMPORAL_OVERLAP) || 8; // 批间重叠帧数,平滑 batch 边界(消除"中间顿一帧");2 不够会边界断裂,8 较稳
 const DIT = process.env.DIT || "seedvr2_ema_7b_fp16.safetensors";
 const VAE = "ema_vae_fp16.safetensors";
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 function dockerCpIn(h: string) { const b = path.basename(h); execSync(`docker cp "${h}" ${CONTAINER}:"${INPUT_DIR}/${b}"`, { timeout: 60_000 }); return b; }
 
-async function submitAndWait(workflow: any, timeoutMs = 1_800_000): Promise<any> {
+async function submitAndWait(workflow: any, timeoutMs = 3_600_000): Promise<any> {
   const res = await axios.post(`${COMFY}/prompt`, { prompt: workflow }, { timeout: 30_000, validateStatus: (s: number) => s < 500 });
   if (res.status !== 200) throw new Error(`ComfyUI rejected:\n${JSON.stringify(res.data, null, 2).slice(0, 2000)}`);
   const id = res.data.prompt_id;
@@ -63,7 +64,7 @@ function buildWorkflow(inputFile: string, prefix: string): Record<string, any> {
     "1": { class_type: "VHS_LoadVideo", inputs: { video: inputFile, force_rate: 0, custom_width: 0, custom_height: 0, frame_load_cap: 0, skip_first_frames: 0, select_every_nth: EVERY_NTH } },
     "2": { class_type: "SeedVR2LoadDiTModel", inputs: { model: DIT, device: "cuda:0", blocks_to_swap: BLOCKS_SWAP, offload_device: BLOCKS_SWAP > 0 ? "cpu" : "none", attention_mode: "sdpa" } },
     "3": { class_type: "SeedVR2LoadVAEModel", inputs: { model: VAE, device: "cuda:0", encode_tiled: VAE_TILE > 0, encode_tile_size: VAE_TILE || 512, encode_tile_overlap: 64, decode_tiled: VAE_TILE > 0, decode_tile_size: VAE_TILE || 512, decode_tile_overlap: 64 } },
-    "4": { class_type: "SeedVR2VideoUpscaler", inputs: { image: ["1", 0], dit: ["2", 0], vae: ["3", 0], seed: 42, resolution: RESOLUTION, max_resolution: 0, batch_size: BATCH, uniform_batch_size: false, temporal_overlap: 2, color_correction: "lab" } },
+    "4": { class_type: "SeedVR2VideoUpscaler", inputs: { image: ["1", 0], dit: ["2", 0], vae: ["3", 0], seed: 42, resolution: RESOLUTION, max_resolution: 0, batch_size: BATCH, uniform_batch_size: true, temporal_overlap: TEMPORAL_OVERLAP, color_correction: "lab" } },
     "5": { class_type: "VHS_VideoCombine", inputs: { images: ["4", 0], frame_rate: FPS / EVERY_NTH, loop_count: 0, filename_prefix: prefix, format: "video/h264-mp4", pingpong: false, save_output: true } },
   };
 }
