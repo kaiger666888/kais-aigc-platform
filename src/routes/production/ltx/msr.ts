@@ -7,7 +7,7 @@ import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
-import { LTX_CONFIG, LTX_DEFAULTS, LTX_POSE, LTX_MSR_V2, LTX_MSR_LAST_FRAME, LTX_MSR_FIRST_FRAME, AudioStrategy, AUDIO_STRATEGY_INFO } from "./config";
+import { LTX_CONFIG, LTX_DEFAULTS, LTX_POSE, LTX_MSR_V2, LTX_MSR_LAST_FRAME, LTX_MSR_FIRST_FRAME, LTX_MSR_FOLEY, AudioStrategy, AUDIO_STRATEGY_INFO } from "./config";
 
 const router = express.Router();
 
@@ -93,6 +93,7 @@ interface MSRParams {
   firstFrameStrength?: number;
   firstFrameIdx?: number;         // 首帧注入点覆盖(方案B 用 msrFrameCount+1=42 避开条件段;留空走默认)
   stage2PromptSuffix?: string;    // 仅 Stage 2 追加的对口型标注(谁说话+台词+嘴型同步),绝不进 Stage 3
+  foleyPrompt?: string;           // 仅 foley_v2a:Foley V2A 环境音提示词(缺省用 LTX_MSR_FOLEY.defaultPrompt;画面是强条件)
   // 业务输入
   prompt: string;
   negativePrompt: string;
@@ -120,7 +121,7 @@ interface MSRParams {
 
 /**
  * 业务策略 → 实现层 audioMode 的映射。
- * 仅 mapStrategyToMode 知道 5stage / v1 / v2 这些实现细节,用户只看到 3 个语义。
+ * 仅 mapStrategyToMode 知道 5stage / foley / v1 / v2 这些实现细节,用户只看到语义层。
  */
 function mapStrategyToMode(strategy: AudioStrategy, ctx: { dialogueEndTime?: number }): string {
   switch (strategy) {
@@ -128,6 +129,7 @@ function mapStrategyToMode(strategy: AudioStrategy, ctx: { dialogueEndTime?: num
       // dialogueEndTime 提供 → 5-stage(对话保真 + 丰富环境,主推荐)
       // dialogueEndTime 缺失 → v1 全段冻结(旁白贯穿场景,省一次 LTX pass)
       return (ctx.dialogueEndTime && ctx.dialogueEndTime > 0) ? "5stage_pipeline" : "dialogue+ambient";
+    case "foley": return "foley_v2a";   // v1单pass口型画面 → Foley V2A 环境 → 混音(解耦,BGM/渗漏根治)
     case "ambient": return "ambient_only";
     case "silent":  return "silent";
   }
@@ -1009,6 +1011,232 @@ export async function executeFiveStagePipeline(opts: FiveStageOpts): Promise<{
 }
 
 // ============================================================
+// Foley V2A pipeline(解耦音频:画面冻结 → Foley 生成环境音 → 混音)
+// ============================================================
+//
+// 架构(2026-07-21 验证通过,audioMode=foley_v2a):
+//   Step 1  v1 全冻结单 pass(buildMSRWorkflow, audioMode=dialogue+ambient):
+//           TTS 冻结仅作口型条件,采样器 100% 给画面 → 口型画面视频(音频=冻结TTS)
+//   Step 2  ffmpeg -an 剥出纯画面 → Foley 输入
+//   Step 3  Foley V2A(buildFoleyWorkflow):画面 latent mask=0 冻结,音频 latent mask=1 生成
+//           int8 + Foley LoRA(strength 2.0)+ 蒸馏采样器(ManualSigmas 9步 / euler / cfg1)
+//           滑窗 89 帧 / 1s overlap → 干净环境+动作音(music 0%, speech 0%)
+//   Step 4  提取两条音轨:v1 视频的冻结 TTS(对话)+ Foley 视频的环境音
+//   Step 5  混音:TTS × 1.0 + Foley × ambientGain,sidechain ducking(对话时压环境)+ alimiter
+//   Step 6  mux v1 画面 + 混音 → 最终 mp4
+//
+// 对比 5stage_pipeline:砍掉 Stage 3(Foley 替代环境音生成),前端 1 pass;
+// 对话与环境彻底解耦 → BGM bias / 第二种人声 根治。
+
+/** 构建 Foley V2A workflow(画面冻结 + Foley LoRA 生成音频)。videoInput 已在容器 input 内。 */
+function buildFoleyWorkflow(opts: {
+  videoInputFilename: string;
+  foleyPrompt: string;
+  filenamePrefix: string;
+}): Record<string, any> {
+  const foleyNeg = LTX_MSR_FOLEY.negativePrompt;
+  return {
+    "1": { class_type: "LoadVideo", inputs: { file: opts.videoInputFilename } },
+    "2": { class_type: "GetVideoComponents", inputs: { video: ["1", 0] } },           // IMAGE[0] fps[2]
+    // int8_convrot 底模(与 MSR 同款 OTUNetLoaderW8A8)
+    "3": { class_type: "OTUNetLoaderW8A8", inputs: {
+      unet_name: LTX_DEFAULTS.msrModelName, weight_dtype: "default", model_type: "ltx2",
+      on_the_fly_quantization: false, enable_convrot: true, lora_mode: "None",
+    }},
+    // Foley LoRA(model-only,不影响文本编码)
+    "10": { class_type: "LoraLoaderModelOnly", inputs: {
+      model: ["3", 0], lora_name: LTX_MSR_FOLEY.loraName, strength_model: LTX_MSR_FOLEY.loraStrength,
+    }},
+    "31": { class_type: "VAELoader", inputs: { vae_name: LTX_DEFAULTS.msrVideoVAE } },
+    "4":  { class_type: "VAELoader", inputs: { vae_name: LTX_DEFAULTS.msrAudioVAE } },
+    "5":  { class_type: "DualCLIPLoader", inputs: { clip_name1: LTX_DEFAULTS.clipName1, clip_name2: LTX_DEFAULTS.clipName2, type: "ltxv" } },
+    "6": { class_type: "CLIPTextEncode", inputs: { text: opts.foleyPrompt, clip: ["5", 0] } },
+    "7": { class_type: "CLIPTextEncode", inputs: { text: foleyNeg, clip: ["5", 0] } },
+    "8": { class_type: "LTXVConditioning", inputs: { positive: ["6", 0], negative: ["7", 0], frame_rate: ["2", 2] } },
+    // 滑窗规划
+    "9": { class_type: "LTXFoleyWindowPlan", inputs: {
+      images: ["2", 0], frame_rate: ["2", 2],
+      window_frames: LTX_MSR_FOLEY.windowFrames, overlap_seconds: LTX_MSR_FOLEY.overlapSeconds, max_windows: LTX_MSR_FOLEY.maxWindows,
+    }},
+    "11": { class_type: "LTXFoleyForLoopOpen", inputs: { remaining: ["9", 1] } },
+    "12": { class_type: "LTXFoleyWindowSelect", inputs: { images: ["2", 0], window_plan: ["9", 0], remaining: ["11", 1] } },
+    // 核心:画面 latent mask=0 冻结,音频 latent mask=1 生成 → 真 V2A
+    "13": { class_type: "LTXFoleyVideoToAudioLatent", inputs: {
+      images: ["12", 0], positive: ["8", 0], negative: ["8", 1],
+      video_vae: ["31", 0], audio_vae: ["4", 0], frame_rate: ["2", 2],
+      width: LTX_MSR_FOLEY.foleyWidth, height: LTX_MSR_FOLEY.foleyHeight, frames: LTX_MSR_FOLEY.windowFrames,
+    }}, // → positive[0] negative[1] av_latent[2]
+    // 蒸馏采样器(对齐 msr.ts 出雨配置:ManualSigmas 9步 + euler + cfg1)
+    "15": { class_type: "RandomNoise", inputs: { noise_seed: LTX_MSR_FOLEY.seed } },
+    "27": { class_type: "ManualSigmas", inputs: { sigmas: LTX_MSR_FOLEY.distilledSigmas } },
+    "33": { class_type: "KSamplerSelect", inputs: { sampler_name: "euler" } },
+    "37": { class_type: "CFGGuider", inputs: {
+      model: ["10", 0], positive: ["13", 0], negative: ["13", 1], cfg: LTX_MSR_FOLEY.cfg,
+    }},
+    "16": { class_type: "SamplerCustomAdvanced", inputs: {
+      noise: ["15", 0], guider: ["37", 0], sampler: ["33", 0], sigmas: ["27", 0], latent_image: ["13", 2],
+    }},
+    // 音频解码 + 窗口循环累积 + 拼接
+    "21": { class_type: "LTXVSeparateAVLatent", inputs: { av_latent: ["16", 0] } },
+    "22": { class_type: "LTXFoleyAudioVAEDecode", inputs: { samples: ["21", 1], audio_vae: ["4", 0] } },
+    "23": { class_type: "LTXFoleyWindowAudioSave", inputs: {
+      audio: ["22", 0], window_info: ["12", 1], save_audio: false, filename_prefix: `${opts.filenamePrefix}_win`,
+    }},
+    "24": { class_type: "LTXFoleyAudioAccumulator", inputs: { window_record: ["23", 1], accumulation: ["11", 2] } },
+    "25": { class_type: "LTXFoleyForLoopClose", inputs: { flow_control: ["11", 0], audio_accumulation: ["24", 0] } },
+    "26": { class_type: "LTXFoleyAudioStitch", inputs: { accumulation: ["25", 0], window_plan: ["9", 0] } },
+    // 输出:原画面 + 生成的 Foley 环境音(无对话)
+    "34": { class_type: "CreateVideo", inputs: { images: ["2", 0], fps: ["2", 2], audio: ["26", 0] } },
+    "28": { class_type: "SaveVideo", inputs: { video: ["34", 0], filename_prefix: opts.filenamePrefix, format: "auto", codec: "auto" } },
+  };
+}
+
+interface FoleyOpts {
+  refFilenames: string[];
+  prompt: string;
+  negativePrompt: string;
+  refDescription?: string;
+  width: number; height: number;
+  numFrames: number; msrFrameCount: number;
+  fps: number; seed: number;
+  filenamePrefix: string;
+  customAudioFilename: string;        // 必填:TTS 对话(冻结进口型画面 + 混音源)
+  dialogueEndTime?: number;           // 可选(sidechain 电平触发,不强制;留元数据)
+  lastFrameFilename?: string; lastFrameStrength?: number;
+  firstFrameFilename?: string; firstFrameStrength?: number; firstFrameIdx?: number;
+  stage2PromptSuffix?: string;        // 对口型标注(进 v1 视频 prompt,驱动嘴型)
+  foleyPrompt?: string;               // Foley 环境音描述(缺省 LTX_MSR_FOLEY.defaultPrompt)
+  useV2?: boolean;
+  nagWeight?: number; nagLayers?: number; nagSigmaStart?: number;
+  relayWeight?: number; msrLoraVersion?: string;
+}
+
+export async function executeFoleyPipeline(opts: FoleyOpts): Promise<{
+  finalVideoFilename: string;
+  videoPromptId: string;
+  foleyPromptId: string;
+  durationMs: number;
+}> {
+  const startTime = Date.now();
+  const { pollComfyUi, findOutputVideo, downloadOutput } = await import("@/lib/comfyuiPoll");
+  const { execSync } = require("child_process");
+  const tmpDir = `/tmp/msr-foley-${Date.now()}`;
+  fs.mkdirSync(tmpDir, { recursive: true });
+
+  // ============ Step 1: v1 全冻结单 pass → 口型画面视频 ============
+  // audioMode=dialogue+ambient:TTS 冻结(bit-exact)仅作口型条件,采样器 100% 给画面。
+  // 输出视频音频 = 冻结 TTS(对话),Step 4 提取它做混音。
+  const videoPrefix = `${opts.filenamePrefix}_v1video`;
+  const videoWorkflow = buildMSRWorkflow({
+    refFilenames: opts.refFilenames,
+    prompt: opts.prompt + (opts.stage2PromptSuffix || ""),  // 对口型标注进 prompt 驱动嘴型
+    negativePrompt: opts.negativePrompt,
+    refDescription: opts.refDescription,
+    width: opts.width, height: opts.height,
+    numFrames: opts.numFrames, msrFrameCount: opts.msrFrameCount, fps: opts.fps,
+    seed: opts.seed, filenamePrefix: videoPrefix,
+    useV2: opts.useV2,
+    nagWeight: opts.nagWeight, nagLayers: opts.nagLayers, nagSigmaStart: opts.nagSigmaStart,
+    relayWeight: opts.relayWeight, msrLoraVersion: opts.msrLoraVersion,
+    audioMode: "dialogue+ambient",       // ← v1 SolidMask 全冻结
+    customAudioFilename: opts.customAudioFilename,
+    lastFrameFilename: opts.lastFrameFilename,
+    lastFrameStrength: opts.lastFrameStrength,
+    firstFrameFilename: opts.firstFrameFilename,
+    firstFrameStrength: opts.firstFrameStrength,
+    firstFrameIdx: opts.firstFrameIdx,
+  });
+  const videoRes = await axios.post(
+    `${LTX_CONFIG.comfyuiUrl}/prompt`, { prompt: videoWorkflow },
+    { timeout: 30_000, validateStatus: (s: number) => s < 500 },
+  );
+  if (videoRes.status !== 200) throw new Error(`Foley Step1 (v1 video) ComfyUI rejected: ${JSON.stringify(videoRes.data).slice(0, 500)}`);
+  const videoPromptId: string = videoRes.data.prompt_id;
+  const videoPoll = await pollComfyUi(videoPromptId, { pollTimeoutMs: 900_000 });
+  if (videoPoll.status !== "success") throw new Error(`Foley Step1 (v1 video) failed: ${videoPoll.error}`);
+  const videoFile = findOutputVideo(videoPoll.outputs!) || findOutputFallback(videoPrefix);
+  if (!videoFile) throw new Error("Foley Step1 (v1 video) produced no video output");
+  const videoLocalPath = await downloadOutput(videoFile);
+
+  // ============ Step 2: 剥纯画面 → Foley 输入 ============
+  const foleyInputHost = `${tmpDir}/foley_input.mp4`;
+  execSync(`ffmpeg -y -i "${videoLocalPath}" -an -c:v libx264 -preset fast -crf 18 "${foleyInputHost}"`, { timeout: 120_000 });
+  const foleyInputName = `${opts.filenamePrefix}_foleyin.mp4`;
+  execSync(`docker cp "${foleyInputHost}" ${LTX_CONFIG.containerName}:"${LTX_CONFIG.comfyuiInputDir}/${foleyInputName}"`, { timeout: 30_000 });
+
+  // ============ Step 3: Foley V2A → 环境音视频 ============
+  const foleyPrefix = `${opts.filenamePrefix}_foley`;
+  const foleyPrompt = opts.foleyPrompt || LTX_MSR_FOLEY.defaultPrompt;
+  const foleyWorkflow = buildFoleyWorkflow({ videoInputFilename: foleyInputName, foleyPrompt, filenamePrefix: foleyPrefix });
+  const foleyRes = await axios.post(
+    `${LTX_CONFIG.comfyuiUrl}/prompt`, { prompt: foleyWorkflow },
+    { timeout: 30_000, validateStatus: (s: number) => s < 500 },
+  );
+  if (foleyRes.status !== 200) throw new Error(`Foley Step3 (V2A) ComfyUI rejected: ${JSON.stringify(foleyRes.data).slice(0, 500)}`);
+  const foleyPromptId: string = foleyRes.data.prompt_id;
+  const foleyPoll = await pollComfyUi(foleyPromptId, { pollTimeoutMs: 900_000 });
+  if (foleyPoll.status !== "success") throw new Error(`Foley Step3 (V2A) failed: ${foleyPoll.error}`);
+  const foleyFile = findOutputVideo(foleyPoll.outputs!) || findOutputFallback(foleyPrefix);
+  if (!foleyFile) throw new Error("Foley Step3 (V2A) produced no video output");
+  const foleyLocalPath = await downloadOutput(foleyFile);
+
+  // ============ Step 4: 提取两条音轨 ============
+  const dialogueAudio = `${tmpDir}/dialogue.wav`;   // v1 视频里的冻结 TTS(对话)
+  const foleyAmbient = `${tmpDir}/foley_ambient.wav`; // Foley 生成的纯环境音
+  execSync(`ffmpeg -y -i "${videoLocalPath}" -vn -ar 48000 -ac 2 "${dialogueAudio}"`, { timeout: 30_000 });
+  execSync(`ffmpeg -y -i "${foleyLocalPath}" -vn -ar 48000 -ac 2 "${foleyAmbient}"`, { timeout: 30_000 });
+
+  // ============ Step 5: sidechain ducking 混音(复用 5stage 套路)============
+  // Foley 环境 × ambientGain(对话活跃时 sidechain 自动压低)+ 对话(TTS)× 1.0
+  const mixedAudio = `${tmpDir}/mixed_audio.wav`;
+  const targetDur = (opts.numFrames / opts.fps).toFixed(3);
+  const ag = LTX_MSR_FOLEY.ambientGain;
+  const mixFilter = [
+    "[1:a]asplit=2[s2a][s2b]",
+    `[s2a]apad=whole_dur=${targetDur}[s2pad]`,
+    "[0:a][s2pad]sidechaincompress=threshold=0.03:ratio=10:attack=10:release=400[ducked]",
+    `[ducked]volume=${ag}[foleygain]`,
+    "[s2b]volume=1.0[voxdgain]",
+    "[voxdgain][foleygain]amix=inputs=2:duration=longest:weights=1 1:normalize=0[sum]",
+    "[sum]alimiter=limit=0.95:attack=5:release=50[limited]",
+  ].join(";");
+  execSync(
+    `ffmpeg -y -i "${foleyAmbient}" -i "${dialogueAudio}" -filter_complex "${mixFilter}" -map "[limited]" -ar 48000 -ac 2 -t ${targetDur} "${mixedAudio}"`,
+    { timeout: 30_000 },
+  );
+
+  // ============ Step 6: mux v1 画面 + 混音 ============
+  const finalFilename = `${opts.filenamePrefix}_foley.mp4`;
+  const containerOutputPath = `${LTX_CONFIG.comfyuiOutputDir}/${finalFilename}`;
+  const localOutputPath = `${tmpDir}/${finalFilename}`;
+  execSync(
+    `ffmpeg -y -i "${videoLocalPath}" -i "${mixedAudio}" -map 0:v:0 -map 1:a:0 -af "apad" -c:v copy -c:a aac -b:a 192k -shortest "${localOutputPath}"`,
+    { timeout: 30_000 },
+  );
+
+  // Copy final to ComfyUI container output dir(供 /view 端点 serve)
+  try {
+    execSync(`docker cp "${localOutputPath}" ${LTX_CONFIG.containerName}:"${containerOutputPath}"`, { timeout: 30_000 });
+  } catch (err: any) {
+    console.warn(`foley: failed to copy final to container: ${err.message}`);
+  }
+
+  // Cleanup intermediates(保留 final)
+  try {
+    fs.unlinkSync(dialogueAudio); fs.unlinkSync(foleyAmbient); fs.unlinkSync(mixedAudio); fs.unlinkSync(foleyInputHost);
+    if (videoLocalPath.startsWith("/tmp/")) fs.unlinkSync(videoLocalPath);
+    if (foleyLocalPath.startsWith("/tmp/")) fs.unlinkSync(foleyLocalPath);
+  } catch {}
+
+  return {
+    finalVideoFilename: finalFilename,
+    videoPromptId,
+    foleyPromptId,
+    durationMs: Date.now() - startTime,
+  };
+}
+
+// ============================================================
 // Simplified API — 只暴露用户关心的参数
 // ============================================================
 //
@@ -1106,7 +1334,7 @@ async function parseAndUploadAssets(req: any): Promise<MSRParams> {
 
   // --- 音频接口层(audioStrategy > audioMode > 智能默认) ---
   const audioStrategyRaw = (req.body.audioStrategy as string) || "";
-  const audioStrategy = (["tts", "ambient", "silent"] as AudioStrategy[]).includes(audioStrategyRaw as AudioStrategy)
+  const audioStrategy = (["tts", "foley", "ambient", "silent"] as AudioStrategy[]).includes(audioStrategyRaw as AudioStrategy)
     ? (audioStrategyRaw as AudioStrategy)
     : undefined;
   const audioMode = (req.body.audioMode as string) || "";
@@ -1116,6 +1344,7 @@ async function parseAndUploadAssets(req: any): Promise<MSRParams> {
   const firstFrameStrength = req.body.firstFrameStrength ? Number(req.body.firstFrameStrength) : undefined;
   const firstFrameIdx = req.body.firstFrameIdx ? Number(req.body.firstFrameIdx) : undefined;
   const stage2PromptSuffix = (req.body.stage2PromptSuffix as string) || undefined;  // 对口型标注(仅 Stage 2)
+  const foleyPrompt = (req.body.foleyPrompt as string) || undefined;  // Foley V2A 环境音描述(仅 foley_v2a;缺省用 LTX_MSR_FOLEY.defaultPrompt)
 
   // --- 收集上传文件 ---
   const files = req.files as Record<string, Express.Multer.File[]>;
@@ -1287,7 +1516,7 @@ async function parseAndUploadAssets(req: any): Promise<MSRParams> {
     prompt, negativePrompt, refDescription,
     width, height, numFrames, msrFrameCount, fps, seed,
     filenamePrefix: "",  // 由 handler 在 seed/outputDir 已知后填充
-    duration, poseGuideStrength, dialogueEndTime, lastFrameStrength, firstFrameStrength, firstFrameIdx, stage2PromptSuffix,
+    duration, poseGuideStrength, dialogueEndTime, lastFrameStrength, firstFrameStrength, firstFrameIdx, stage2PromptSuffix, foleyPrompt,
     audioStrategy, audioMode,
     useV2, nagWeight, nagLayers, nagSigmaStart, relayWeight, msrLoraVersion,
     refCount: uploadedFiles.length,
@@ -1464,6 +1693,31 @@ function formatFiveStageResponse(
   });
 }
 
+function formatFoleyResponse(
+  params: MSRParams,
+  result: { videoPromptId: string; foleyPromptId: string; finalVideoFilename: string; durationMs: number },
+  audioMode: string,
+  conflict: boolean,
+): any {
+  return success({
+    status: "completed",
+    audioStrategy: params.audioStrategy,
+    mode: audioMode,
+    warning: conflict ? "Both audioStrategy and audioMode provided; audioStrategy takes precedence." : undefined,
+    videoPromptId: result.videoPromptId,       // v1 全冻结单 pass(口型画面)
+    foleyPromptId: result.foleyPromptId,        // Foley V2A(环境音生成)
+    finalVideo: { filename: result.finalVideoFilename },
+    totalDurationSec: +(result.durationMs / 1000).toFixed(1),
+    params: {
+      width: params.width, height: params.height,
+      numFrames: params.numFrames, fps: params.fps,
+      seed: params.seed, dialogueEndTime: params.dialogueEndTime, audioMode,
+    },
+    // 对话=TTS冻结(直通),环境=Foley V2A 生成(无音乐/无人声);两者解耦混音
+    audio: { hasAudioTrack: true, customAudio: true, dialogueFrozen: true, ambientSource: "foley_v2a", bgmRisk: "none", voiceLeakageRisk: "none" },
+  });
+}
+
 /** 单 pass 响应格式化(POST / 异步提交) */
 function formatSinglePassResponse(
   params: MSRParams,
@@ -1552,6 +1806,31 @@ router.post(
         return res.status(200).send(formatFiveStageResponse(params, result, mode, conflict));
       }
 
+      if (mode === "foley_v2a") {
+        validateFiveStage(params);  // 同样需要 customAudio(TTS)+ dialogueEndTime
+        const result = await executeFoleyPipeline({
+          refFilenames: params.refFilenames,
+          prompt: params.prompt, negativePrompt: params.negativePrompt,
+          refDescription: params.refDescription,
+          width: params.width, height: params.height,
+          numFrames: params.numFrames, msrFrameCount: params.msrFrameCount, fps: params.fps,
+          seed: params.seed, filenamePrefix,
+          customAudioFilename: params.customAudioFilename!,
+          dialogueEndTime: params.dialogueEndTime,
+          lastFrameFilename: params.lastFrameFilename,
+          lastFrameStrength: params.lastFrameStrength,
+          firstFrameFilename: params.firstFrameFilename,
+          firstFrameStrength: params.firstFrameStrength,
+          firstFrameIdx: params.firstFrameIdx,
+          stage2PromptSuffix: params.stage2PromptSuffix,
+          foleyPrompt: params.foleyPrompt,
+          useV2: params.useV2,
+          nagWeight: params.nagWeight, nagLayers: params.nagLayers, nagSigmaStart: params.nagSigmaStart,
+          msrLoraVersion: params.msrLoraVersion, relayWeight: params.relayWeight,
+        });
+        return res.status(200).send(formatFoleyResponse(params, result, mode, conflict));
+      }
+
       const promptId = await submitWorkflow(params, mode, params.seed, filenamePrefix);
       return res.status(200).send(formatSinglePassResponse(params, mode, promptId, conflict));
     } catch (err: any) {
@@ -1621,6 +1900,39 @@ router.post(
           return res.status(200).send(formatFiveStageResponse(params, result, mode, conflict));
         } catch (err: any) {
           return res.status(502).send(error(`5-stage pipeline failed: ${err.message}`));
+        }
+      }
+
+      // foley_v2a:同步运行,跳过 BGM 检测(对话是冻结TTS,Foley 无音乐/无人声)
+      if (mode === "foley_v2a") {
+        validateFiveStage(params);
+        const filenamePrefix = params.outputDir
+          ? `${params.outputDir}/${params.outputFilename}`
+          : params.outputFilename;
+        try {
+          const result = await executeFoleyPipeline({
+            refFilenames: params.refFilenames,
+            prompt: params.prompt, negativePrompt: params.negativePrompt,
+            refDescription: params.refDescription,
+            width: params.width, height: params.height,
+            numFrames: params.numFrames, msrFrameCount: params.msrFrameCount, fps: params.fps,
+            seed: params.seed, filenamePrefix,
+            customAudioFilename: params.customAudioFilename!,
+            dialogueEndTime: params.dialogueEndTime,
+            lastFrameFilename: params.lastFrameFilename,
+            lastFrameStrength: params.lastFrameStrength,
+            firstFrameFilename: params.firstFrameFilename,
+            firstFrameStrength: params.firstFrameStrength,
+            firstFrameIdx: params.firstFrameIdx,
+            stage2PromptSuffix: params.stage2PromptSuffix,
+            foleyPrompt: params.foleyPrompt,
+            useV2: params.useV2,
+            nagWeight: params.nagWeight, nagLayers: params.nagLayers, nagSigmaStart: params.nagSigmaStart,
+            msrLoraVersion: params.msrLoraVersion, relayWeight: params.relayWeight,
+          });
+          return res.status(200).send(formatFoleyResponse(params, result, mode, conflict));
+        } catch (err: any) {
+          return res.status(502).send(error(`foley_v2a pipeline failed: ${err.message}`));
         }
       }
 

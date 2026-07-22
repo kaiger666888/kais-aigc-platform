@@ -119,11 +119,15 @@ export const LTX_MSR_FIRST_FRAME = {
 // `auto` 唯一的真实客户(ltx_native engine)也已移除。底层 audioMode=auto 仍保留,
 // 高级用户可显式传 audioMode=auto。
 
-export type AudioStrategy = "tts" | "ambient" | "silent";
+export type AudioStrategy = "tts" | "foley" | "ambient" | "silent";
 
 export const AUDIO_STRATEGY_INFO: Record<AudioStrategy, { description: string; requiresAudio: boolean }> = {
   tts: {
     description: "TTS dialogue preservation. dialogueEndTime provided → 5-stage pipeline (rich ambient); missing → v1 full-freeze (narration贯穿).",
+    requiresAudio: true,
+  },
+  foley: {
+    description: "Decoupled audio: v1 full-freeze single pass for lip-sync video (TTS only drives mouth) → Foley V2A generates clean ambient/action track (no speech, no music) → mix TTS + Foley. BGM bias & 第二种人声 根治。Maps to foley_v2a audioMode.",
     requiresAudio: true,
   },
   ambient: {
@@ -134,4 +138,35 @@ export const AUDIO_STRATEGY_INFO: Record<AudioStrategy, { description: string; r
     description: "No audio track. Maps to silent audioMode.",
     requiresAudio: false,
   },
+};
+
+// === MSR + Foley V2A (解耦音频管线) ===
+//
+// Foley V2A 架构(2026-07-21 验证通过):
+//   1) v1 全冻结单 pass(audioMode=dialogue+ambient):TTS 冻结仅作口型条件,采样器 100% 给画面
+//   2) Foley V2A(FuzzPuppy/LTX-2.3-Foley-LoRA):画面冻结 mask=0,仅生成音频 → 干净环境/动作音
+//   3) 混 TTS × 1.0 + Foley × ambientGain,sidechain ducking(对话时压环境)
+//
+// 关键修正:必须用【蒸馏模型专用采样器】(ManualSigmas 9步 + euler + cfg=1)。
+// 之前用 STG/cfg=4/30步 在蒸馏 int8 上 → 噪声(采样器调度不匹配,非 LoRA/int8 问题)。
+// V2A 里画面 mask=0 冻结,不会出 INT8+LoRA 重量化视频伪影。
+//
+// ⚠️ Foley LoRA 训练于全量模型,int8_convrot 上 strength=2.0 听感最佳(strength=1.0 偏弱)。
+export const LTX_MSR_FOLEY = {
+  loraName: "ltx-2.3-foley-400-steps.safetensors",
+  loraStrength: 2.0,          // 验证:1.0 偏弱,2.0 最佳,3.0 未测
+  seed: 42,                   // Foley seed(画面是强条件,seed 影响小)
+  cfg: 1.0,                   // 蒸馏模型必须 cfg=1(无 CFG)
+  windowFrames: 89,           // 滑窗帧数(8n+1),89帧@24fps≈3.7s
+  overlapSeconds: 1.0,        // 窗口重叠(交叉淡入)
+  maxWindows: 16,             // 上限(15s≈5窗)
+  // 蒸馏模型 9 步 sigma 调度(对齐 msr.ts 出雨配置)
+  distilledSigmas: "1.0, 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.421875, 0.0",
+  // Foley 提示词:画面是强条件,prompt 次要。缺省用通用 diegetic;调用方可传 foleyPrompt 精确描述
+  defaultPrompt: "Diegetic environmental sound matching the on-screen scene, ambient texture, footsteps, rustling fabric, gentle wind, natural room tone. No speech is present. No music is present.",
+  negativePrompt: "music, melody, song, singing, vocals, score, soundtrack, beat, instrumental backing, tinny, harsh, clipped, distorted",
+  ambientGain: 0.55,          // Foley 环境 × 0.55 in mix(对齐 5stage Stage3 gain)
+  // Foley 下采样分辨率(画面冻结,仅影响编码显存;保持原比例)
+  foleyWidth: 640,
+  foleyHeight: 352,
 };
