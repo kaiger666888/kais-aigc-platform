@@ -2,6 +2,9 @@
 /**
  * verify-schema-roundtrip.ts — Phase 44 (Receiving-side Schema Strictness +
  * Import Validation) verification.
+ * （脚本层重构：assert/结果收集/isScalar/fixture 发现/JSON 加载收敛至 lib/verify-harness.ts；
+ *   fixture 发现由「sibling 优先二选一」统一为超集语义：in-repo scripts/fixtures/*.json
+ *   全部 + sibling manifests/*.json 全部，覆盖面只增不减）
  *
  * Confirms SCHEMA-01..04:
  *   - SCHEMA-01: v2.0 field set declared in canvasAssetSchema.ts OR
@@ -23,23 +26,15 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { flattenParamsToNodeData } from "../src/routes/canvas/v2/import-from-dir";
+import { flattenParamsToNodeData } from "../../src/routes/canvas/v2/import-from-dir";
+import { createHarness, discoverFixtures, isScalar, loadJsonFile } from "./lib/verify-harness";
 
-interface TestResult { name: string; pass: boolean; detail?: string; }
-const results: TestResult[] = [];
-function assert(cond: boolean, name: string, detail?: string): void {
-  results.push({ name, pass: cond, detail });
-  console.log(`  ${cond ? "PASS" : "FAIL"}: ${name}${detail ? " — " + detail : ""}`);
-}
+const { assert, summary } = createHarness();
 
-const REPO_ROOT = path.resolve(__dirname, "..");
+const REPO_ROOT = path.resolve(__dirname, "..", "..");
 function read(rel: string): string {
   const p = path.join(REPO_ROOT, rel);
   return fs.existsSync(p) ? fs.readFileSync(p, "utf8") : "";
-}
-
-function isScalar(v: unknown): boolean {
-  return typeof v === "string" || typeof v === "number" || typeof v === "boolean";
 }
 
 async function main(): Promise<void> {
@@ -98,33 +93,33 @@ async function main(): Promise<void> {
   console.log("\n=== SCHEMA-03: scalar params.* round-trip via flattenParamsToNodeData ===");
   const SIBLING_FIXTURES = path.resolve(
     __dirname,
-    "../../kais-hermes-skills/skills/kais-movie-pipeline/tests/fixtures/manifests",
+    "../../../kais-hermes-skills/skills/kais-movie-pipeline/tests/fixtures/manifests",
   );
   const INREPO_FIXTURES = path.resolve(__dirname, "fixtures");
-  const fixtureDir = fs.existsSync(SIBLING_FIXTURES) ? SIBLING_FIXTURES : INREPO_FIXTURES;
-  console.log(`  fixture dir: ${fixtureDir}`);
+  // 超集语义：两个来源全部纳入（目录不存在则跳过），label 区分来源。
+  const fixtureDirs = [
+    { path: INREPO_FIXTURES, label: "in-repo fixtures" },
+    { path: SIBLING_FIXTURES, label: "cross-repo" },
+  ];
+  console.log(`  fixture dirs: ${fixtureDirs.map((d) => d.path).join(" , ")}`);
 
-  const fixtureFiles = fs.existsSync(fixtureDir)
-    ? fs.readdirSync(fixtureDir).filter((f) => f.endsWith(".json"))
-    : [];
+  const fixtures = discoverFixtures(fixtureDirs);
   assert(
-    fixtureFiles.length > 0,
+    fixtures.length > 0,
     "SCHEMA-03: at least one fixture manifest available",
-    `found ${fixtureFiles.length}`,
+    `found ${fixtures.length}`,
   );
 
   let totalParamsKeys = 0;
   let nodesWithParams = 0;
 
-  for (const file of fixtureFiles) {
-    const filePath = path.join(fixtureDir, file);
-    let manifest: any;
-    try {
-      manifest = JSON.parse(fs.readFileSync(filePath, "utf8"));
-    } catch (err) {
-      assert(false, `SCHEMA-03: ${file} parses as JSON`, (err as Error).message);
+  for (const { path: filePath, label } of fixtures) {
+    const loaded = loadJsonFile(filePath);
+    if (!loaded.ok) {
+      assert(false, `SCHEMA-03: ${label} parses as JSON`, loaded.error);
       continue;
     }
+    const manifest: any = loaded.value;
 
     const nodes: any[] = Array.isArray(manifest?.nodes) ? manifest.nodes : [];
     for (const node of nodes) {
@@ -148,7 +143,7 @@ async function main(): Promise<void> {
       const allPresent = missing.length === 0;
       assert(
         allPresent,
-        `SCHEMA-03: ${file} node ${node.id ?? "(no-id)"}: ${scalarKeys.length}/${scalarKeys.length} scalar params.* keys round-trip via flattenParamsToNodeData`,
+        `SCHEMA-03: ${label} node ${node.id ?? "(no-id)"}: ${scalarKeys.length}/${scalarKeys.length} scalar params.* keys round-trip via flattenParamsToNodeData`,
         allPresent ? undefined : `missing: ${missing.join(", ")}`,
       );
       totalParamsKeys += scalarKeys.length;
@@ -179,10 +174,7 @@ async function main(): Promise<void> {
   );
 
   // ─── Summary ──────────────────────────────────────────────────
-  const passed = results.filter((r) => r.pass).length;
-  const failed = results.filter((r) => !r.pass).length;
-  console.log(`\n${passed} passed, ${failed} failed`);
-  process.exit(failed > 0 ? 1 : 0);
+  summary();
 }
 
 main().catch((err) => {

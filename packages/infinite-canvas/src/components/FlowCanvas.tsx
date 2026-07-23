@@ -112,6 +112,7 @@ function CanvasInner() {
   const menuPos = useCanvasStore((s) => s.menuPos)
   const setMenuPos = useCanvasStore((s) => s.setMenuPos)
   const selectedNode = useCanvasStore((s) => s.selectedNode)
+
   const setSelectedNode = useCanvasStore((s) => s.setSelectedNode)
   // Phase 37 — 多选
   const selectedNodeIds = useCanvasStore((s) => s.selectedNodeIds)
@@ -651,6 +652,7 @@ function CanvasInner() {
           <IterationPanel />
         )}
       </div>
+
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </>
   )

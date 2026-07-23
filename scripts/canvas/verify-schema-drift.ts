@@ -1,6 +1,8 @@
 #!/usr/bin/env tsx
 /**
  * verify-schema-drift.ts — Phase 46 VERIFY-04.
+ * （脚本层重构：assert/结果收集/汇总退出收敛至 lib/verify-harness.ts；
+ *   两个 schema 正则解析器为本脚本独有，保留在本文件内）
  *
  * Diffs the Python MANIFEST_PARAM_SCHEMA (Phase 42 source-side contract)
  * against the TypeScript EXPECTED_PARAM_FIELDS_BY_TYPE (Phase 44
@@ -19,21 +21,23 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { createHarness } from "./lib/verify-harness";
 
-interface TestResult { name: string; pass: boolean; detail?: string; }
-const results: TestResult[] = [];
-function assert(cond: boolean, name: string, detail?: string): void {
-  results.push({ name, pass: cond, detail });
-  console.log(`  ${cond ? "PASS" : "FAIL"}: ${name}${detail ? " — " + detail : ""}`);
-}
+const { results, assert, summary: finish } = createHarness();
 
-const REPO_ROOT = path.resolve(__dirname, "..");
+const REPO_ROOT = path.resolve(__dirname, "..", "..");
 const SIBLING_ROOT = process.env.KAIS_HERMES_SKILLS_PATH ?? "/data/workspace/kais-hermes-skills";
 const PYTHON_SCHEMA_PATH = path.join(
   SIBLING_ROOT,
   "skills/kais-movie-pipeline/pipeline/phases/_manifest.py",
 );
 const TS_SCHEMA_PATH = path.join(REPO_ROOT, "src/lib/canvasAssetSchema.ts");
+
+// ⚠️ 正则解析的脆弱性是有意的契约漂移信号：
+// 下面两个解析器刻意用针对性正则直接解析 Python/TS 源码中的 schema 声明，
+// 一旦 schema 写法变化导致解析失效（解析到 0 个类型即 FAIL），
+// 这本身就是 v2.0 里程碑要捕获的「契约漂移」告警。
+// 不要「修复」为更健壮的解析器 —— 脆弱性即契约信号（plan.md §5）。
 
 /**
  * Parse Python MANIFEST_PARAM_SCHEMA. Recognizes two forms per entry:
@@ -189,13 +193,6 @@ async function main(): Promise<void> {
   assert(driftCount === 0, "VERIFY-04: TS EXPECTED_PARAM_FIELDS_BY_TYPE matches Python MANIFEST_PARAM_SCHEMA (zero drift)");
 
   finish();
-}
-
-function finish(): void {
-  const passed = results.filter((r) => r.pass).length;
-  const failed = results.filter((r) => !r.pass).length;
-  console.log(`\n${passed} passed, ${failed} failed`);
-  process.exit(failed > 0 ? 1 : 0);
 }
 
 main().catch((err) => {

@@ -188,7 +188,7 @@ export function validateGraphNodes(
  *
  * Consumed by `import-from-dir.ts` (Plan 02) to warn + stamp
  * `__incomplete` / `__missing_fields` when an incoming manifest node is
- * missing baseline fields, and by `scripts/verify-schema-roundtrip.ts`
+ * missing baseline fields, and by `scripts/canvas/verify-schema-roundtrip.ts`
  * (Plan 03) for documentation cross-reference.
  */
 export const EXPECTED_PARAM_FIELDS_BY_TYPE: Record<string, string[]> = {

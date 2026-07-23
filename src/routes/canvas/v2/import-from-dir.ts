@@ -23,7 +23,7 @@ const router = express.Router();
  * `extra` accumulator, never overwriting keys already present (top-level
  * item values win).
  *
- * Exported for scripts/verify-schema-roundtrip.ts (Phase 44 SCHEMA-03) so
+ * Exported for scripts/canvas/verify-schema-roundtrip.ts (Phase 44 SCHEMA-03) so
  * the verify script can replay the EXACT production flatten logic instead
  * of hand-mirroring it (closes the replay-drift loophole flagged in
  * 44-03-PLAN.md Blocker 3).

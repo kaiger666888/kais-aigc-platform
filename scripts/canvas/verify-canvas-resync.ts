@@ -1,6 +1,7 @@
 #!/usr/bin/env tsx
 /**
  * verify-canvas-resync.ts — Phase 41 resumable replay 动态验证
+ * （脚本层重构：arg/结果收集/汇总退出收敛至 lib/verify-harness.ts；WS 测试逻辑不变）
  *
  * 模拟 hermes-agent 重连场景，验证事件流可靠补发：
  *   1. POST /events 写入若干事件，拿 lastEventId
@@ -21,14 +22,11 @@
  *   npx tsx scripts/verify-canvas-resync.ts
  *   npx tsx scripts/verify-canvas-resync.ts --projectId 1800 --episodesId 1 --host 127.0.0.1 --port 10588
  */
-import { argv } from "node:process";
+import { arg, createHarness } from "./lib/verify-harness";
+
+const { assert, summary } = createHarness({ summaryFormat: "tally" });
 
 // ─── args ────────────────────────────────────────────────
-function arg(name: string, fallback: string): string {
-  const i = argv.indexOf(`--${name}`);
-  return i >= 0 && i + 1 < argv.length ? argv[i + 1] : fallback;
-}
-
 const HOST = arg("host", "127.0.0.1");
 const PORT = arg("port", "10588");
 const PROJECT_ID = Number(arg("projectId", "9999"));
@@ -36,12 +34,6 @@ const EPISODES_ID = Number(arg("episodesId", "1"));
 const BASE = `http://${HOST}:${PORT}`;
 const WS_URL = `ws://${HOST}:${PORT}`;
 
-// ─── test result collector ──────────────────────────────
-const results: Array<{ name: string; pass: boolean; detail?: string }> = [];
-function assert(cond: boolean, name: string, detail?: string): void {
-  results.push({ name, pass: cond, detail });
-  console.log(`  ${cond ? "PASS" : "FAIL"}: ${name}${detail ? " — " + detail : ""}`);
-}
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -106,7 +98,8 @@ async function main(): Promise<void> {
     console.error("   - dev 模式: yarn dev   (nodemon 会自动加载 src/)");
     console.error("   - prod 模式: yarn build && yarn start:server");
     console.error(`\n   若 service pid=… 仍跑旧版，先 kill 再启动。`);
-    return summary();
+    summary();
+    return;
   }
 
   // ─── 1. 写入若干事件，建立 baseline ───
@@ -127,7 +120,8 @@ async function main(): Promise<void> {
     );
   } catch (e) {
     assert(false, "POST /events 写入", String(e));
-    return summary();
+    summary();
+    return;
   }
 
   const baselineEventId: number = baselineResp.data.lastEventId;
@@ -144,12 +138,14 @@ async function main(): Promise<void> {
   } catch {
     console.warn("  SKIP: socket.io-client 未安装。运行 `npm i --no-save socket.io-client` 启用 WS 测试。");
     console.warn("  REST 部分结果仍然有效。\n");
-    return summary();
+    summary();
+    return;
   }
 
   if (!io) {
     assert(false, "socket.io-client 导入成功但 io 未定义");
-    return summary();
+    summary();
+    return;
   }
   const connect = io;
 
@@ -170,7 +166,8 @@ async function main(): Promise<void> {
   } catch (e) {
     assert(false, "WS /ws/projects 连接", String(e));
     sock1.close?.();
-    return summary();
+    summary();
+    return;
   }
 
   const replayed: any[] = [];
@@ -247,15 +244,7 @@ async function main(): Promise<void> {
   assert(monotonic, "补发的 eventId 单调递增、无空洞", `ids=${JSON.stringify(ids)}`);
 
   sock2.close();
-  return summary();
-}
-
-function summary(): void {
-  console.log("\n=== 总结 ===");
-  const passed = results.filter((r) => r.pass).length;
-  const failed = results.filter((r) => !r.pass).length;
-  console.log(`PASS: ${passed}  FAIL: ${failed}`);
-  if (failed > 0) process.exit(1);
+  summary();
 }
 
 main().catch((e) => {

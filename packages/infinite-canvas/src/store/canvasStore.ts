@@ -99,6 +99,7 @@ interface CanvasState {
   pushIterationHistory: (plan: IterationPlan) => void
   setIterationHistory: (plans: IterationPlan[]) => void
   resetIteration: () => void
+
 }
 
 export interface OrchestrationState {
@@ -423,4 +424,5 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     iteration: { ...state.iteration, history: plans },
   })),
   resetIteration: () => set({ iteration: INITIAL_ITERATION }),
+
 }))

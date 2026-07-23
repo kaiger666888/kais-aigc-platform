@@ -2,7 +2,9 @@
 /**
  * 数据库迁移脚本 — 为星渊纪项目的现有节点 thumbnailUrl 替换为压缩缩略图路径。
  *
- * 用法：cd /data/workspace/kais-aigc-platform && node scripts/migrate-thumbnails.js
+ * 归档说明：本脚本为一次性迁移脚本，已从 scripts/ 归位至 scripts/oneoffs/（审计存档）。
+ *
+ * 用法：cd /data/workspace/kais-aigc-platform && node scripts/oneoffs/migrate-thumbnails.js [--projectId 1782745975908] [--episodesId 1]
  *
  * 逻辑：
  *   1. 读取最新 bootstrap 事件的 payload
@@ -21,9 +23,14 @@ const fs = require("fs");
 
 const Database = require("better-sqlite3");
 
-const DB_PATH = path.join(__dirname, "..", "data", "db2.sqlite");
-const PROJECT_ID = 1782745975908;
-const EPISODES_ID = 1;
+function argValue(name) {
+  const i = process.argv.indexOf(`--${name}`);
+  return i !== -1 ? process.argv[i + 1] : undefined;
+}
+
+const DB_PATH = path.join(__dirname, "..", "..", "..", "data", "db2.sqlite");
+const PROJECT_ID = Number(argValue("projectId")) || 1782745975908;
+const EPISODES_ID = Number(argValue("episodesId")) || 1;
 
 const IMAGE_EXTS = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tiff", ".tif"]);
 const VIDEO_EXTS = new Set([".mp4", ".webm", ".mov", ".avi", ".mkv"]);

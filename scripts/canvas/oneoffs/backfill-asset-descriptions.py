@@ -46,6 +46,8 @@ USAGE:
 
 Does NOT touch non-asset nodes. Does NOT touch rows that already have both
 prompt and description.
+Archived to scripts/oneoffs/ during scripts-layer refactor, 2026-07-22.
+
 """
 import argparse
 import json
