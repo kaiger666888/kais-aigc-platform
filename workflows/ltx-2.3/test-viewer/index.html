@@ -2,207 +2,80 @@
 <html lang="zh">
 <head>
 <meta charset="utf-8">
-<title>msr.ts — 5-stage pipeline 已集成</title>
+<title>1080p 定稿 — SeedVR2 7B(BATCH=41 + overlap=8,无重影)</title>
 <style>
   body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
-         background: #0f0f0f; color: #e0e0e0; margin: 0; padding: 24px;
-         line-height: 1.6; max-width: 1600px; margin: 0 auto; }
-  h1 { color: #fff; margin: 0 0 4px; font-size: 24px; }
-  .subtitle { color: #888; font-size: 14px; margin-bottom: 20px; }
+         background: #0f0f0f; color: #e0e0e0; margin: 0; padding: 24px; line-height: 1.6; max-width: 1200px; margin: 0 auto; }
+  h1 { color: #fff; margin: 0 0 4px; font-size: 23px; }
+  .subtitle { color: #888; font-size: 13px; margin-bottom: 18px; }
+  code { background: #0a0a0a; padding: 1px 5px; border-radius: 2px; font-size: 12px; color: #aaa; }
 
-  .hero { background: linear-gradient(135deg, #1a2a1f 0%, #1f2a3a 100%);
-          padding: 20px; border-radius: 8px; border: 1px solid #3a5a4a;
-          margin-bottom: 20px; }
-  .hero h2 { margin: 0 0 12px; color: #6bcf6b; font-size: 18px; }
-  .hero video { width: 100%; max-width: 900px; display: block; margin: 0 auto;
-                background: #000; border-radius: 4px; }
-  .hero .meta { text-align: center; color: #aaa; font-size: 12px; margin-top: 10px; }
-  .hero .meta b { color: #6bcf6b; }
+  .final { background: #1a2a1f; padding: 18px; border-radius: 8px; margin-bottom: 16px;
+           border: 1px solid #2a4a2a; border-left: 4px solid #6bcf6b; }
+  .final h2 { margin: 0 0 4px; color: #6bcf6b; font-size: 19px; }
+  .final .desc { color: #aaa; font-size: 13px; margin-bottom: 12px; }
+  .final video { width: 100%; max-width: 1080px; display: block; background: #000; border-radius: 6px; }
+  .final .meta { font-size: 11px; color: #888; font-family: monospace; margin-top: 8px; }
 
-  .pipeline-diag { background: #1a1a1a; padding: 16px; border-radius: 6px; margin-top: 20px; }
-  .pipeline-diag h3 { margin: 0 0 12px; color: #ffcc55; font-size: 14px; }
-  .pipeline-diag pre { font-family: monospace; font-size: 11px; color: #ccc;
-                       line-height: 1.6; white-space: pre-wrap; margin: 0; }
-  .pipeline-diag .s2 { color: #ffcc55; }
-  .pipeline-diag .s3 { color: #4a9eff; }
-  .pipeline-diag .mix { color: #6bcf6b; }
-  .pipeline-diag .arrow { color: #555; }
+  .recipe { background: #1a2230; padding: 12px 16px; border-radius: 8px; border-left: 3px solid #4a9eff;
+            font-size: 13px; color: #ccc; margin-bottom: 16px; }
+  .recipe b { color: #4a9eff; }
 
-  .compare { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 20px; }
-  .card { background: #1a1a1a; padding: 12px; border-radius: 6px; }
-  .card h3 { margin: 0 0 6px; font-size: 13px; color: #fff; }
-  .card .label { font-size: 11px; color: #888; margin-bottom: 8px; }
-  .card video { width: 100%; display: block; background: #000; border-radius: 3px; }
+  .vs3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .col { background: #1a1a1a; padding: 10px; border-radius: 8px; border: 1px solid #2a2a2a; }
+  .col.win { border-left: 3px solid #6bcf6b; }
+  .col h3 { margin: 0 0 2px; font-size: 12px; color: #ddd; }
+  .col .tag { font-size: 10px; color: #888; font-family: monospace; display:block; margin-bottom:5px; }
+  .col video { width: 100%; display: block; background: #000; border-radius: 4px; }
 
-  .rms { background: #1a1a1a; padding: 16px; border-radius: 6px; margin-top: 16px; }
-  .rms h3 { margin: 0 0 12px; color: #4a9eff; font-size: 14px; }
-  .rms table { width: 100%; border-collapse: collapse; font-size: 11px; font-family: monospace; }
-  .rms th, .rms td { padding: 6px 10px; border-bottom: 1px solid #2a2a2a; }
-  .rms th { color: #888; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; }
-  .rms .silent { color: #ff6b6b; }
-  .rms .active { color: #6bcf6b; }
-  .rms .dialog { color: #ffcc55; }
-
-  .api { background: #1a1a1a; padding: 16px; border-radius: 6px; margin-top: 16px; }
-  .api h3 { margin: 0 0 12px; color: #ffcc55; font-size: 14px; }
-  .api pre { background: #0a0a0a; padding: 12px; border-radius: 4px; font-size: 11px;
-             color: #ccc; font-family: monospace; overflow-x: auto; }
-  .api pre .key { color: #ffcc55; }
-  .api pre .str { color: #6bcf6b; }
-  .api pre .com { color: #555; }
-
-  .takeaway { background: #1a2a1f; padding: 14px 16px; border-radius: 6px;
-              margin-top: 16px; border-left: 3px solid #6bcf6b;
-              font-size: 13px; color: #ccc; }
-  .takeaway b { color: #6bcf6b; }
-  .takeaway ul { margin: 8px 0; padding-left: 22px; }
-  .takeaway li { margin-bottom: 4px; }
-  code { background: #0a0a0a; padding: 1px 5px; border-radius: 2px;
-         font-size: 11px; color: #aaa; }
+  .journey { background: #2a2a1a; padding: 12px 14px; border-radius: 8px; border-left: 3px solid #ffcc55;
+             font-size: 12px; color: #aaa; }
+  .journey b { color: #ffcc55; }
 </style>
 </head>
 <body>
 
-<h1>msr.ts — 5-stage pipeline 已集成</h1>
-<div class="subtitle">
-  L8 的 5-stage 能力(Stage 2 partial-mask + Stage 3 纯环境 + ffmpeg ducking 混合)已写入 msr.ts,新 audioMode <code>"5stage_pipeline"</code>
-</div>
+<h1>✅ 1080p 定稿 — SeedVR2 7B(全帧 BATCH=41 + overlap=8)</h1>
+<div class="subtitle">1280×704 生成 → SeedVR2 7B 放大到 1080p · 重影/纹理跳/边界顿全消 · 2026-07-23</div>
 
-<div class="hero">
-  <h2>🎬 5-stage 最终产物(POST /api/ltx/msr + audioMode=5stage_pipeline)</h2>
+<div class="final">
+  <h2>定稿 1080p(1962×1080,无重影无闪烁)</h2>
+  <div class="desc">全 361 帧 SeedVR2 7B 放大,BATCH=41(4n+1)+ temporal_overlap=8。看走路/衣服纹理/雨,全程平滑。</div>
   <video controls preload="metadata">
-    <source src="../msr-5stage-e2e-output/MSR_5STAGE_FINAL.mp4" type="video/mp4">
+    <source src="../foley-distilled-test-output/foleysimp_final_1080p_seedvr2_v2.mp4?v=v2final" type="video/mp4">
   </video>
-  <div class="meta">
-    文件 3.3 MB · <b>视频</b>:H264 1280×704 25fps 377 帧 15.08s · <b>音频</b>:AAC 48kHz<br>
-    总耗时 <b>12.0 min</b>(Stage 2: 6 min + Stage 3: 6 min + ffmpeg: 秒级) · 对话保真 + 丰富环境声
+  <div class="meta">foleysimp_final_1080p_seedvr2_v2.mp4 · 11.2MB · 1962×1080 · 24fps · ~15s · h264+AAC</div>
+</div>
+
+<div class="recipe">
+  <b>最终配方(scripts/upscale-seedvr2.ts):</b><br>
+  <code>DIT=seedvr2_ema_7b_fp16</code> · <code>SELECT_EVERY_NTH=1</code>(全帧,不补帧)· <code>BATCH=41</code>(4n+1,>40消闪烁)·
+  <code>TEMPORAL_OVERLAP=8</code>(平滑批边界)· <code>BLOCKS_SWAP=28</code> + <code>VAE_TILE=512</code>(省显存)· <code>uniform_batch_size=true</code><br>
+  DiT 峰值 20.5GB,全 15s 约 20min(大 batch 比小 batch 高效)。
+</div>
+
+<div class="vs3">
+  <div class="col win">
+    <h3>① 1080p SeedVR2(定稿)</h3>
+    <span class="tag">1962×1080 · 7B扩散SR</span>
+    <video controls preload="none"><source src="../foley-distilled-test-output/foleysimp_final_1080p_seedvr2_v2.mp4?v=v2final" type="video/mp4"></video>
+  </div>
+  <div class="col">
+    <h3>② 原生 1600</h3>
+    <span class="tag">1600×864 · LTX直出</span>
+    <video controls preload="none"><source src="../foley-distilled-test-output/foleysimp_final_1600x880.mp4?v=v2final" type="video/mp4"></video>
+  </div>
+  <div class="col">
+    <h3>③ 基线 1280</h3>
+    <span class="tag">1280×704 · 原始</span>
+    <video controls preload="none"><source src="../foley-distilled-test-output/foleysimp_final.mp4?v=v2final" type="video/mp4"></video>
   </div>
 </div>
 
-<div class="pipeline-diag">
-  <h3>🔀 executeFiveStagePipeline() 编排流程</h3>
-<pre><span class="s2">[Stage 2]</span> buildMSRWorkflow({audioMode: "dialogue+ambient_v2", dialogueEndTime: 5.9})
-<span class="arrow">    │</span>      ↳ LTX partial-mask:对话 0-5.9s 冻结 + 环境 5.9-15s 模型生成
-<span class="arrow">    │</span>      ↳ ComfyUI submit + poll (6 min)
-<span class="arrow">    ▼</span>
-<span class="s2">Stage 2 output</span>: MSR_5STAGE_S2.mp4 (video + dialogue + weak ambient)
-<span class="arrow">    │</span>
-<span class="arrow">    ▼</span>
-<span class="s3">[Stage 3]</span> buildMSRWorkflow({stage3Ambient: true, audioMode: "auto"})
-<span class="arrow">    │</span>      ↳ LTX full audio-gen:audio mask=1 全段,prompt 聚焦环境(无对话约束)
-<span class="arrow">    │</span>      ↳ fresh seed (135792469 → 987654321) 取不同采样
-<span class="arrow">    │</span>      ↳ ComfyUI submit + poll (6 min)
-<span class="arrow">    ▼</span>
-<span class="s3">Stage 3 output</span>: MSR_5STAGE_S3.mp4 (video + rich ambient, no dialogue)
-<span class="arrow">    │</span>
-<span class="arrow">    ▼</span>
-<span class="mix">[ffmpeg mix]</span> sidechaincompress ducking
-<span class="arrow">    │</span>      ↳ Stage 2 audio × 1.0 + Stage 3 audio × 0.55
-<span class="arrow">    │</span>      ↳ Stage 3 在对话活跃时自动压低 (threshold=0.03, ratio=10)
-<span class="arrow">    │</span>      ↳ alimiter limit=0.95 防爆音
-<span class="arrow">    ▼</span>
-<span class="mix">[ffmpeg mux]</span> Stage 2 video + mixed audio → final mp4
-<span class="arrow">    │</span>
-<span class="arrow">    ▼</span>
-<span class="mix">final: MSR_5STAGE_FINAL.mp4</span> (返回客户端)
-</pre>
-</div>
-
-<div class="compare">
-
-  <div class="card">
-    <h3>Stage 2 单独</h3>
-    <div class="label">partial-mask,对话+弱环境</div>
-    <video controls preload="metadata">
-      <source src="../msr-5stage-e2e-output/MSR_5STAGE_S2_00001_.mp4" type="video/mp4">
-    </video>
-    <p style="font-size:11px;color:#aaa;margin-top:6px;">
-      对话清晰 (peak 0.39)<br>环境弱 (RMS 0.0001-0.007)
-    </p>
-  </div>
-
-  <div class="card">
-    <h3>Stage 3 单独</h3>
-    <div class="label">full audio-gen,纯环境</div>
-    <video controls preload="metadata">
-      <source src="../msr-5stage-e2e-output/MSR_5STAGE_S3_00001_.mp4" type="video/mp4">
-    </video>
-    <p style="font-size:11px;color:#aaa;margin-top:6px;">
-      环境丰富 (peak 0.73)<br>无对话(模型未冻结)
-    </p>
-  </div>
-
-  <div class="card">
-    <h3>5-stage 最终混合</h3>
-    <div class="label">video from S2 + audio mix</div>
-    <video controls preload="metadata">
-      <source src="../msr-5stage-e2e-output/MSR_5STAGE_FINAL.mp4" type="video/mp4">
-    </video>
-    <p style="font-size:11px;color:#6bcf6b;margin-top:6px;">
-      <b>对话 + 丰富环境声</b><br>peak 0.42,ducking 平衡
-    </p>
-  </div>
-
-</div>
-
-<div class="rms">
-  <h3>📊 三轨音频 RMS 对比(逐秒)</h3>
-  <table>
-    <tr><th>时段</th><th>类型</th><th>Stage 2 RMS</th><th>Stage 3 RMS</th><th>FINAL 混合 RMS</th><th>提升(vs S2)</th></tr>
-    <tr><td>3s</td><td class="dialog">RN 对话峰值</td><td class="dialog">0.0904</td><td>0.0078</td><td class="dialog">0.0948</td><td>对话清晰(ducked S3)</td></tr>
-    <tr><td>6s</td><td class="active">环境过渡</td><td class="silent">0.0001</td><td>0.0079</td><td class="active">0.0045</td><td class="active">45×</td></tr>
-    <tr><td>9s</td><td class="active">脚步+雨</td><td class="silent">0.0067</td><td>0.0242</td><td class="active">0.0156</td><td class="active">2.3×</td></tr>
-    <tr><td>12s</td><td class="active">环境</td><td class="silent">0.0050</td><td>0.0202</td><td class="active">0.0127</td><td class="active">2.5×</td></tr>
-  </table>
-  <p style="font-size:11px;color:#888;margin-top:10px;">
-    Sidechain ducking 在对话活跃时(0-5.9s)自动压低 Stage 3 → 对话峰值保持 0.09+ 不被环境遮蔽
-  </p>
-</div>
-
-<div class="api">
-  <h3>📜 API 调用示例</h3>
-<pre>POST /api/ltx/msr
-Content-Type: multipart/form-data
-
-<span class="key">projectId</span>:      123
-<span class="key">prompt</span>:          RN and WV meet on a rainy Jiangnan street...
-<span class="key">refDescription</span>:  Two characters... (详尽的 800+ 字符身份+场景描述)
-<span class="key">ref1</span>:            bg.png
-<span class="key">ref2</span>:            1.jpg
-<span class="key">ref3</span>:            2.jpg
-<span class="key">audio</span>:           rn_wv_dialogue_15s.wav         <span class="com"># TTS 对话音频</span>
-<span class="key">audioMode</span>:       <span class="str">"5stage_pipeline"</span>           <span class="com"># 启用 5-stage</span>
-<span class="key">dialogueEndTime</span>: <span class="str">5.9</span>                          <span class="com"># 对话结束时间(秒)</span>
-<span class="key">duration</span>:        15
-
-<span class="com"># 响应(同步,~12 min)</span>
-{
-  <span class="key">"status"</span>: <span class="str">"completed"</span>,
-  <span class="key">"mode"</span>: <span class="str">"5stage_pipeline"</span>,
-  <span class="key">"stage2PromptId"</span>: <span class="str">"..."</span>,
-  <span class="key">"stage3PromptId"</span>: <span class="str">"..."</span>,
-  <span class="key">"finalVideo"</span>: { <span class="key">"filename"</span>: <span class="str">"MSR_5STAGE_FINAL.mp4"</span> },
-  <span class="key">"totalDurationSec"</span>: 720
-}</pre>
-</div>
-
-<div class="takeaway">
-  <b>🎯 msr.ts 现在支持 3 种音频模式</b>
-  <ul>
-    <li><code>dialogue+ambient</code> (默认,v1):SolidMask=0 全段冻结 → bit-exact 拷贝输入音频</li>
-    <li><code>dialogue+ambient_v2</code> (partial-mask):对话段冻结 + 环境段模型生成 — 单 pass,弱环境</li>
-    <li><code>5stage_pipeline</code> <b>(新增)</b>:2 次 LTX pass + ffmpeg ducking — <b>对话保真 + 丰富环境声</b></li>
-    <li>其他:<code>ambient_only</code> / <code>silent</code> / <code>auto</code></li>
-  </ul>
-  <b>所有的 L8 新能力都已融入 msr.ts:</b>
-  <ul>
-    <li>✅ int8_convrot(替代 BF16 LowVRAM,2-3× 提速)</li>
-    <li>✅ DualCLIPLoader + 独立 VAE 节点 31</li>
-    <li>✅ Partial-mask Mode D(LTXVSetAudioVideoMaskByTime 节点 200)</li>
-    <li>✅ 5-stage pipeline 编排器(<code>executeFiveStagePipeline()</code>)</li>
-    <li>✅ 字幕排除(SUBTITLE_NEGATIVE 默认加入所有 audioMode)</li>
-  </ul>
-  <b>回退路径</b>:<code>git revert</code> 一键恢复 BF16 + LowVRAM + v1 全冻结模式
+<div class="journey">
+  <b>踩坑链(已存记忆,别再趟):</b>
+  ①半帧+blend补帧→重影 ②BATCH=2 违反 4n+1→周期重影 ③BATCH=17 纹理flicker ④BATCH=41 overlap=2 中间顿一帧 ⑤<span style="color:#6bcf6b">BATCH=41 overlap=8 → 干净</span>。
+  根因:SeedVR2 时序注意力按 4 帧一组,batch 必须 4n+1;显存用 swap/tile 换,绝不砍 batch。
 </div>
 
 </body>
