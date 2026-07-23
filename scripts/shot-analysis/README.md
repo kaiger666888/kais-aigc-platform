@@ -2,7 +2,9 @@
 
 把一支成片的 `shots.json` 逐镜头送进 ComfyUI，跑【几何层】+ 可选【语义层】+ 可选【主体层】三路分析，最终由 `ShotJSONMerge` 节点把每镜头的解构结果合并落盘成 `shot_XXX.json`。
 
-这是 2026-07-23 已端到端验证过的原型 driver，原样 vendor 进仓库（**不做任何逻辑改动**，改动会使验证失效）。平台侧通过 `POST /api/v1/production/shot-analysis` 调用它；本文件是给运维 / 手动排查用的 operator 文档。
+这是 2026-07-23 **三层全部端到端验证过**（几何 + 语义 + 主体）的原型 driver，vendor 进仓库供平台调用。平台侧通过 `POST /api/v1/production/shot-analysis` 调用它；本文件是给运维 / 手动排查用的 operator 文档。
+
+> driver 含一处相对 Kimi 原稿的必要适配：`SAM3Segment` 用 `output_mode="Merged"`（非 `Separate`）—— Separate 模式按每帧实例数返回 4D/3D 混合张量，批处理 `torch.cat` 会报形状错（见「已知限制」#1）。这是 validated baseline 的一部分。
 
 ---
 
@@ -73,7 +75,14 @@ python3 shot_analysis_driver.py --shots shots.json --video <container-visible-cl
 
 ## 已知限制
 
-1. **主体层（`--subject`）目前被 `sam3.pt` 下载失败阻断。** HuggingFace xet CDN 从容器内不可达，`hf-mirror` 又会强制 xet 重定向，导致 `SAM3Segment` 加载不到 `sam3.pt`。**几何层 + 语义层可端到端工作**，只有 `--subject` 走不通。本文件仅记录此限制，**不要尝试修复** —— sam3 权重获取是独立的基础设施问题。
+1. **主体层（`--subject`）需要 `sam3.pt`，且节点自动下载会失败 —— 必须用 aria2c 手动取。** `SAM3Segment` 首跑会尝试从 `huggingface.co/1038lab/sam3` 下 `sam3.pt`（3.45GB），但 HF xet CDN 从容器内不可达（TLS 错误），`hf-mirror` 又强制 xet 重定向，`HF_HUB_DISABLE_XET` 也救不了。**解法（已验证）**：在**宿主机**（能到 `cas-bridge.xethub.hf.co`）用 aria2c 从镜像重定向出的签名 URL 多连接下载，再 `docker cp` 进容器：
+   ```bash
+   SIGNED=$(curl -sI -m 10 "https://hf-mirror.com/1038lab/sam3/resolve/main/sam3.pt" | grep -i '^location:' | sed 's/^location: //I' | tr -d '\r\n')
+   aria2c -x 16 -s 16 -k 1M --file-allocation=none -o sam3.pt -d /tmp/sam3dl "$SIGNED"
+   docker cp /tmp/sam3dl/sam3.pt comfyui-primary:/root/ComfyUI/models/sam3/sam3.pt
+   ```
+   （签名 URL 1 小时过期，拿到后立刻下。）然后 `SAM3Segment` 会发现本地权重、跳过下载。
+2. **`SAM3Segment` 必须用 `output_mode="Merged"`（driver 已如此设置）。** `Separate` 模式下，有实例的帧返回 4D `[K,H,W,C]`、空帧返回 3D `[H,W,C]`，节点末尾 `torch.cat(result_images, dim=0)` 维度不一致直接报错。`Merged` 每帧合并成一个 mask，维度一致 —— 也是 `SubjectMotionResidual` 想要的（每帧一个主体 mask）。
 2. **`--video` 必须是 ComfyUI 容器内可见的路径。** driver 把这个字符串原样喂给 `VHS_LoadVideoPath`，后者在**容器内**执行 —— 所以宿主机路径（如 `/home/kai/...`）容器里看不到。`shots.json` 则相反，在宿主机读取。
    - 平台路由（`src/routes/production/shot-analysis/index.ts`）会自动 `docker cp` 把宿主机视频暂存进容器的 `/root/ComfyUI/input/`，然后把容器内路径传给 driver。
    - 如果视频本来就在 `/root/ComfyUI/...` 或 `/mnt/agents/...`（宿主机挂载进容器的卷）下，路由会原样透传，不做 `docker cp`。
@@ -86,8 +95,9 @@ python3 shot_analysis_driver.py --shots shots.json --video <container-visible-cl
 
 - **几何层**：`pan_right` / `fast` / 每帧约 **18px** 水平右移
 - **语义层**：`近景` / `follow` / `刀飞向画面右侧` / 雾气幽暗神秘的 `lighting`
+- **主体层**：扣除相机运动后主体 `向右上` / `fast` / 约 **30.5px/帧**（`SAM3Segment` Merged mask + `SubjectMotionResidual` 残差光流）
 
-这组结果（几何 + 语义一致地指向「右甩 + 跟随主体」）即为该 driver 的 validated baseline。
+这组结果三层一致地指向「相机右甩跟随 + 主体（刀）向右上飞」—— 即为该 driver 的 validated baseline（`--semantic --subject` 全开）。
 
 ---
 

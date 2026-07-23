@@ -92,7 +92,9 @@ def build_prompt(video, shot, shot_id, fps, grid_n, do_semantic, do_subject,
             "class_type": "SAM3Segment",
             "inputs": {
                 "image": ["load", 0], "prompt": "main subject or foreground character",
-                "output_mode": "Separate", "confidence_threshold": 0.5,
+                # Merged(非 Separate):每帧合并成一个 mask,保证 torch.cat 维度一致
+                # (Separate 模式按实例数返回 4D/3D 混合,批处理 cat 会报形状错)
+                "output_mode": "Merged", "confidence_threshold": 0.5,
                 "device": "GPU",  # schema 标 optional 但 segment() 强制要求,必须显式传
             },
         }
