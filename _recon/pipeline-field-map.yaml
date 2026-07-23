@@ -1,0 +1,464 @@
+# pipeline-field-map.yaml — Single Source of Truth
+# All three consumers (canvas_sync.py, import-from-dir.ts, canvasAssetSchema.ts)
+# MUST be generated from this file. Manual edits to generated files are forbidden.
+
+version: "1.0.0"
+
+# ── Global enum maps (shared across all phases) ──
+enums:
+  camera_movement:
+    "固定": static
+    "缓慢推进": zoom_in
+    "快速推进": zoom_in
+    "缓慢拉远": zoom_out
+    "快速拉远": zoom_out
+    "左摇": pan_left
+    "右摇": pan_right
+    "上仰": tilt_up
+    "下俯": tilt_down
+    "推移": dolly
+    "跟随": tracking
+    "手持": tracking
+    "航拍": tracking
+    "升降": dolly
+    # cinematographer 12 moves 补全
+    "摇臂": crane
+    "斯坦尼康": steadicam
+    "变焦推进": zoom_in
+    "变焦拉远": zoom_out
+    default: static
+
+  framing:
+    "大远景": wide
+    "远景": wide
+    "全景": wide
+    "中景": medium
+    "近景": close_up
+    "特写": extreme_close_up
+    "大特写": extreme_close_up
+    "过肩": over_the_shoulder
+    "航拍": aerial
+    default: medium
+
+  composition:
+    "三分法": rule_of_thirds
+    "居中": centered
+    "黄金": golden_ratio
+    "黄金比": golden_ratio
+    "黄金分割": golden_ratio
+    "对称": symmetrical
+    "引导线": leading_lines
+    "框架": framing
+    default: rule_of_thirds
+
+  pacing:
+    "慢速": slow
+    "慢": slow
+    "中速": medium
+    "中": medium
+    "快速": fast
+    "快": fast
+    "蒙太奇": montage
+    default: medium
+
+  timeline:
+    "日": day
+    "夜": night
+    "黄昏": dusk
+    "黎明": dawn
+    "室内": indoor
+    "室外": outdoor
+    default: day
+
+  axis_line:
+    "左→右": L2R
+    "左到右": L2R
+    "右→左": R2L
+    "右到左": R2L
+    "上升": Up
+    "下降": Down
+    "中立": neutral
+    default: neutral
+
+  hook_type:
+    "情感钩": emotional_hook
+    "悬念钩": suspense_hook
+    "冲突钩": conflict_hook
+    "反差钩": contrast_hook
+    "情绪爆点": emotional_peak
+    default: emotional_hook
+
+  mcmahon_arc:
+    "环形": Rags_to_Riches
+    "白手起家": Rags_to_Riches
+    "落井": Man_in_a_Hole
+    "先降后升": Man_in_a_Hole
+    "触底反弹": Man_in_a_Hole
+    "先升后降": Icarus
+    "悲剧": Tragedy
+    "灰姑娘": Cinderella
+    "逆袭": Cinderella
+    "卡夫卡": Kafkaesque
+    "两半": Two_Halves
+    default: Man_in_a_Hole
+
+  audio_type:
+    "人声": voice
+    "旁白": voice
+    "配音": voice
+    "台词": voice
+    "对话": dialogue
+    "背景音乐": bgm
+    "音乐": bgm
+    "音效": sfx
+    "效果": sfx
+    "环境": ambient
+    "环境音": ambient
+    default: voice
+
+  emotion:
+    "中性": neutral
+    "快乐": happy
+    "开心": happy
+    "悲伤": sad
+    "愤怒": angry
+    "恐惧": fearful
+    "害怕": fearful
+    "惊讶": surprised
+    "轻蔑": contempt
+    "温柔": tender
+    "怀旧": nostalgic
+    "坚定": determined
+    default: neutral
+
+  murch_grade:
+    "优秀": excellent
+    "合格": pass
+    "弱": weak
+    "不合格": fail
+    default: pass
+
+# ── Per-phase field definitions ──
+phases:
+  p01:
+    canvas_type: script
+    asset_type: topic
+    fields:
+      hook_type:
+        python_key: hook_type
+        canvas_key: hookType
+        zod_type: string
+        enum: hook_type
+        required: false
+      hook_strength:
+        python_key: hook_strength
+        canvas_key: hookIntensity
+        zod_type: number
+        transform: "hook_intensity"
+        required: false
+      total_duration:
+        python_key: duration_sec
+        canvas_key: totalDuration
+        zod_type: string
+        transform: "to_string"
+        required: false
+      genre:
+        python_key: genre
+        canvas_key: genre
+        zod_type: string
+        required: false
+      tone:
+        python_key: tone
+        canvas_key: tone
+        zod_type: string
+        required: false
+      total_duration_sec:
+        python_key: total_duration_sec
+        canvas_key: total_duration_sec
+        zod_type: string
+        required: false
+
+  p02:
+    canvas_type: script
+    asset_type: outline
+    fields:
+      hook_strength:
+        python_key: hook_strength
+        canvas_key: hookIntensity
+        zod_type: number
+        transform: "hook_intensity"
+        required: false
+
+  p03:
+    canvas_type: script
+    asset_type: script_phase
+    fields:
+      mcmahon_arc:
+        python_key: mcmahon_arc
+        canvas_key: mcmahonArc
+        zod_type: string
+        enum: mcmahon_arc
+        required: false
+
+  p04:
+    canvas_type: asset
+    asset_type: role
+    fields:
+      archetype:
+        python_key: role
+        canvas_key: archetype
+        zod_type: string
+        transform: "derive_archetype"
+        required: false
+      age_range:
+        python_key: age_range
+        canvas_key: ageRange
+        zod_type: string
+        transform: "derive_age_range"
+        required: false
+      era:
+        python_key: era
+        canvas_key: era
+        zod_type: string
+        required: false
+
+  p05:
+    canvas_type: script
+    asset_type: script_phase
+    fields: {}
+
+  p06:
+    canvas_type: script
+    asset_type: script_phase
+    fields:
+      camera_movement:
+        python_key: camera_movement
+        canvas_key: cameraMovement
+        zod_type: string
+        enum: camera_movement
+        required: false
+      framing:
+        python_key: framing
+        canvas_key: framing
+        zod_type: string
+        enum: framing
+        required: false
+      composition:
+        python_key: composition
+        canvas_key: composition
+        zod_type: string
+        enum: composition
+        required: false
+      pacing:
+        python_key: pacing
+        canvas_key: pacing
+        zod_type: string
+        enum: pacing
+        required: false
+      timeline:
+        python_key: timeline
+        canvas_key: timeline
+        zod_type: string
+        enum: timeline
+        required: false
+      axis_line:
+        python_key: axis_line
+        canvas_key: axisLine
+        zod_type: string
+        enum: axis_line
+        required: false
+      audio_cue:
+        python_key: audio_cue
+        canvas_key: audioCue
+        zod_type: string
+        required: false
+      ltx_prompt:
+        python_key: ltx_prompt
+        canvas_key: ltxPrompt
+        zod_type: string
+        required: false
+      shot_type:
+        python_key: shot_type
+        canvas_key: shot_type
+        zod_type: string
+        required: false
+      duration_sec:
+        python_key: duration_sec
+        canvas_key: duration_sec
+        zod_type: number
+        required: true
+
+  p07:
+    canvas_type: asset
+    asset_type: scene
+    fields:
+      style_composition:
+        python_key: style_vector.composition
+        canvas_key: style_composition
+        zod_type: number
+        transform: "coerce_float_0_1"
+        required: false
+      style_color:
+        python_key: style_vector.color
+        canvas_key: style_color
+        zod_type: number
+        transform: "coerce_float_0_1"
+        required: false
+      style_rhythm:
+        python_key: style_vector.rhythm
+        canvas_key: style_rhythm
+        zod_type: number
+        transform: "coerce_float_0_1"
+        required: false
+      style_light:
+        python_key: style_vector.light
+        canvas_key: style_light
+        zod_type: number
+        transform: "coerce_float_0_1"
+        required: false
+      style_sound:
+        python_key: style_vector.sound
+        canvas_key: style_sound
+        zod_type: number
+        transform: "coerce_float_0_1"
+        required: false
+      era:
+        python_key: era
+        canvas_key: era
+        zod_type: string
+        required: false
+
+  p08:
+    canvas_type: asset
+    asset_type: scene
+    fields: {}
+
+  p09:
+    canvas_type: storyboard
+    asset_type: storyboard
+    fields:
+      camera_movement:
+        python_key: camera_movement
+        canvas_key: cameraMovement
+        zod_type: string
+        enum: camera_movement
+        required: false
+      framing:
+        python_key: framing
+        canvas_key: framing
+        zod_type: string
+        enum: framing
+        required: false
+      composition:
+        python_key: composition
+        canvas_key: composition
+        zod_type: string
+        enum: composition
+        required: false
+      pacing:
+        python_key: pacing
+        canvas_key: pacing
+        zod_type: string
+        enum: pacing
+        required: false
+      timeline:
+        python_key: timeline
+        canvas_key: timeline
+        zod_type: string
+        enum: timeline
+        required: false
+      axis_line:
+        python_key: axis_line
+        canvas_key: axisLine
+        zod_type: string
+        enum: axis_line
+        required: false
+      audio_cue:
+        python_key: audio_cue
+        canvas_key: audioCue
+        zod_type: string
+        required: false
+      ltx_prompt:
+        python_key: ltx_prompt
+        canvas_key: ltxPrompt
+        zod_type: string
+        required: false
+      shot_type:
+        python_key: shot_type
+        canvas_key: shot_type
+        zod_type: string
+        required: true
+      duration_sec:
+        python_key: duration_sec
+        canvas_key: duration_sec
+        zod_type: number
+        required: true
+
+  p10:
+    canvas_type: audio
+    asset_type: voice
+    fields:
+      audio_type:
+        python_key: audio_type
+        canvas_key: audioType
+        zod_type: string
+        enum: audio_type
+        required: false
+      engine:
+        python_key: engine
+        canvas_key: engine
+        zod_type: string
+        required: false
+      emotion:
+        python_key: emotion
+        canvas_key: emotion
+        zod_type: string
+        enum: emotion
+        required: false
+      speaker:
+        python_key: speaker
+        canvas_key: speaker
+        zod_type: string
+        required: false
+
+  p11:
+    canvas_type: video
+    asset_type: video
+    fields:
+      engine:
+        python_key: engine
+        canvas_key: engine
+        zod_type: string
+        required: false
+      resolution:
+        python_key: resolution
+        canvas_key: resolution
+        zod_type: string
+        required: false
+      duration:
+        python_key: duration_sec
+        canvas_key: duration
+        zod_type: number
+        required: false
+      murch_grade:
+        python_key: murch_grade
+        canvas_key: murchGrade
+        zod_type: string
+        enum: murch_grade
+        transform: "murch_numeric_to_string"
+        required: false
+
+  p12:
+    canvas_type: video
+    asset_type: clip
+    fields: {}
+
+  p13:
+    canvas_type: script
+    asset_type: delivery
+    fields: {}
+
+  p14:
+    canvas_type: script
+    asset_type: script_phase
+    fields: {}

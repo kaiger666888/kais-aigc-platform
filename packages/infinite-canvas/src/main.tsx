@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import FlowCanvas from './components/FlowCanvas'
 import { useCanvasStore } from './store/canvasStore'
+import './theme/tokens.css' // Step 5 设计 tokens（--cv-* 全局变量）
 
 // Test mode hook — 当 URL 含 ?testMode=1 时,挂载 store 控制接口到 window。
 // 用于 Playwright 测试在不依赖 React Flow 复杂 selection 模型的前提下驱动状态。

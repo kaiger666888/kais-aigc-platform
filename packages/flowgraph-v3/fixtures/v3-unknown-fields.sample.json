@@ -1,0 +1,1186 @@
+{
+  "meta": {
+    "version": "3",
+    "projectId": 7,
+    "episodesId": 101,
+    "pipelineId": "pipe_shortdrama_v1",
+    "createdAt": 1753200000000,
+    "updatedAt": 1753203600000,
+    "viewport": {
+      "x": -120.5,
+      "y": 64.0,
+      "zoom": 0.75
+    }
+  },
+  "nodes": [
+    {
+      "id": "asset_role_01",
+      "branchId": "br_main",
+      "phaseIndex": 0,
+      "phaseName": "global",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "asset",
+      "stage": "global",
+      "modality": "image",
+      "scope": "global",
+      "media": {
+        "original": "/assets/role/nvzhu.png",
+        "proxy": "/assets/role/nvzhu_480.png",
+        "thumbnail": "/assets/role/nvzhu_thumb.jpg",
+        "waveform": null
+      },
+      "meta": {
+        "stage": "global",
+        "assetType": "role",
+        "archetype": "冷清女主",
+        "viewAngle": "front"
+      },
+      "curation": "selected",
+      "stale": null,
+      "unknownNodeProp": "x"
+    },
+    {
+      "id": "asset_script_01",
+      "branchId": "br_main",
+      "phaseIndex": 1,
+      "phaseName": "script",
+      "position": {
+        "x": 320,
+        "y": 100
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "asset",
+      "stage": "script",
+      "modality": "text",
+      "scope": "episode",
+      "media": {
+        "original": null,
+        "proxy": null,
+        "thumbnail": null,
+        "waveform": null
+      },
+      "content": "雨夜，林晚站在天台边缘，手机里是最后一条未发送的语音。",
+      "meta": {
+        "stage": "script",
+        "hookType": "悬念",
+        "hookIntensity": 0.85,
+        "premise": "一场误会导致的离别与追回",
+        "emotion": 0.6
+      },
+      "curation": "selected",
+      "stale": null
+    },
+    {
+      "id": "asset_sb_01",
+      "branchId": "br_main",
+      "phaseIndex": 2,
+      "phaseName": "storyboard",
+      "position": {
+        "x": 640,
+        "y": 200
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "asset",
+      "stage": "storyboard",
+      "modality": "image",
+      "scope": "episode",
+      "media": {
+        "original": "/assets/sb/shot-001.png",
+        "proxy": "/assets/sb/shot-001_480.png",
+        "thumbnail": "/assets/sb/shot-001_thumb.jpg",
+        "waveform": null
+      },
+      "meta": {
+        "stage": "storyboard",
+        "shotId": "shot-001",
+        "shotType": "close-up",
+        "cameraMovement": "dolly-in",
+        "framing": "面部特写",
+        "composition": "三分法",
+        "pacing": "慢",
+        "durationS": 4.0,
+        "promptMeta": {
+          "subject": "林晚",
+          "action": "垂眸握手机",
+          "camera": "dolly-in",
+          "scene": "雨夜天台",
+          "lighting": "冷蓝顶光",
+          "style": "电影感",
+          "text": "雨夜天台特写"
+        }
+      },
+      "curation": "selected",
+      "stale": null
+    },
+    {
+      "id": "asset_kf_01",
+      "branchId": "br_main",
+      "phaseIndex": 3,
+      "phaseName": "keyframe",
+      "position": {
+        "x": 960,
+        "y": 300
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "asset",
+      "stage": "keyframe",
+      "modality": "image",
+      "scope": "episode",
+      "media": {
+        "original": "/assets/kf/shot-001.png",
+        "proxy": "/assets/kf/shot-001_480.png",
+        "thumbnail": "/assets/kf/shot-001_thumb.jpg",
+        "waveform": null
+      },
+      "meta": {
+        "stage": "keyframe",
+        "shotId": "shot-001"
+      },
+      "curation": "selected",
+      "stale": null
+    },
+    {
+      "id": "asset_video_01",
+      "branchId": "br_main",
+      "phaseIndex": 4,
+      "phaseName": "video",
+      "position": {
+        "x": 1320,
+        "y": 400
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "asset",
+      "stage": "video",
+      "modality": "video",
+      "scope": "episode",
+      "media": {
+        "original": "/assets/video/shot-001_v1.mp4",
+        "proxy": "/assets/video/shot-001_v1_480.mp4",
+        "thumbnail": "/assets/video/shot-001_v1_thumb.jpg",
+        "waveform": null,
+        "durationS": 4.0,
+        "resolution": "1920x1080"
+      },
+      "meta": {
+        "stage": "video",
+        "shotId": "shot-001",
+        "observedEndState": "她按下了删除键"
+      },
+      "reviewStatus": "approved",
+      "curation": "selected",
+      "stale": null,
+      "variantGroupId": "vg_01"
+    },
+    {
+      "id": "asset_video_02",
+      "branchId": "br_main",
+      "phaseIndex": 4,
+      "phaseName": "video",
+      "position": {
+        "x": 1360,
+        "y": 400
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "asset",
+      "stage": "video",
+      "modality": "video",
+      "scope": "episode",
+      "media": {
+        "original": "/assets/video/shot-001_v2.mp4",
+        "proxy": "/assets/video/shot-001_v2_480.mp4",
+        "thumbnail": "/assets/video/shot-001_v2_thumb.jpg",
+        "waveform": null,
+        "durationS": 4.0,
+        "resolution": "1920x1080"
+      },
+      "meta": {
+        "stage": "video",
+        "shotId": "shot-001",
+        "observedEndState": "她按下了删除键"
+      },
+      "reviewStatus": "pending",
+      "curation": "deprecated",
+      "stale": null,
+      "variantGroupId": "vg_01"
+    },
+    {
+      "id": "asset_video_03",
+      "branchId": "br_main",
+      "phaseIndex": 4,
+      "phaseName": "video",
+      "position": {
+        "x": 1400,
+        "y": 400
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "asset",
+      "stage": "video",
+      "modality": "video",
+      "scope": "episode",
+      "media": {
+        "original": "/assets/video/shot-001_v3.mp4",
+        "proxy": "/assets/video/shot-001_v3_480.mp4",
+        "thumbnail": "/assets/video/shot-001_v3_thumb.jpg",
+        "waveform": null,
+        "durationS": 4.0,
+        "resolution": "1920x1080"
+      },
+      "meta": {
+        "stage": "video",
+        "shotId": "shot-001",
+        "observedEndState": "她按下了删除键"
+      },
+      "reviewStatus": "pending",
+      "curation": "deprecated",
+      "stale": null,
+      "variantGroupId": "vg_01"
+    },
+    {
+      "id": "asset_voice_01",
+      "branchId": "br_main",
+      "phaseIndex": 5,
+      "phaseName": "voice",
+      "position": {
+        "x": 1600,
+        "y": 500
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "asset",
+      "stage": "voice",
+      "modality": "audio",
+      "scope": "episode",
+      "media": {
+        "original": "/assets/voice/shot-001.wav",
+        "proxy": null,
+        "thumbnail": null,
+        "waveform": "/assets/voice/shot-001_wave.png",
+        "durationS": 3.2
+      },
+      "meta": {
+        "stage": "voice",
+        "shotId": "shot-001",
+        "emotion": "压抑",
+        "speaker": "林晚"
+      },
+      "curation": "selected",
+      "stale": null
+    },
+    {
+      "id": "asset_foley_01",
+      "branchId": "br_main",
+      "phaseIndex": 6,
+      "phaseName": "foley",
+      "position": {
+        "x": 1600,
+        "y": 600
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "asset",
+      "stage": "foley",
+      "modality": "audio",
+      "scope": "episode",
+      "media": {
+        "original": "/assets/foley/shot-001.wav",
+        "proxy": null,
+        "thumbnail": null,
+        "waveform": "/assets/foley/shot-001_wave.png",
+        "durationS": 4.0
+      },
+      "meta": {
+        "stage": "foley",
+        "shotId": "shot-001"
+      },
+      "curation": "selected",
+      "stale": null
+    },
+    {
+      "id": "asset_bgm_01",
+      "branchId": "br_main",
+      "phaseIndex": 7,
+      "phaseName": "bgm",
+      "position": {
+        "x": 1600,
+        "y": 700
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "asset",
+      "stage": "bgm",
+      "modality": "audio",
+      "scope": "episode",
+      "media": {
+        "original": "/assets/bgm/ep101_theme.wav",
+        "proxy": null,
+        "thumbnail": null,
+        "waveform": "/assets/bgm/ep101_theme_wave.png",
+        "durationS": 8.0
+      },
+      "meta": {
+        "stage": "bgm",
+        "emotion": "紧张"
+      },
+      "curation": "selected",
+      "stale": null
+    },
+    {
+      "id": "asset_mix_01",
+      "branchId": "br_main",
+      "phaseIndex": 8,
+      "phaseName": "mix",
+      "position": {
+        "x": 1920,
+        "y": 800
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "asset",
+      "stage": "mix",
+      "modality": "audio",
+      "scope": "episode",
+      "media": {
+        "original": "/assets/mix/shot-001_mix.wav",
+        "proxy": null,
+        "thumbnail": null,
+        "waveform": "/assets/mix/shot-001_mix_wave.png",
+        "durationS": 4.0
+      },
+      "meta": {
+        "stage": "mix"
+      },
+      "curation": "selected",
+      "stale": null
+    },
+    {
+      "id": "asset_composite_01",
+      "branchId": "br_main",
+      "phaseIndex": 9,
+      "phaseName": "composite",
+      "position": {
+        "x": 2240,
+        "y": 900
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "asset",
+      "stage": "composite",
+      "modality": "video",
+      "scope": "episode",
+      "media": {
+        "original": "/assets/composite/ep101_v1.mp4",
+        "proxy": "/assets/composite/ep101_v1_480.mp4",
+        "thumbnail": "/assets/composite/ep101_v1_thumb.jpg",
+        "waveform": null,
+        "durationS": 8.0,
+        "resolution": "1920x1080"
+      },
+      "meta": {
+        "stage": "composite",
+        "edlRef": "edl://ep101/v1"
+      },
+      "timeline": {
+        "durationS": 8.0,
+        "source": "compose",
+        "shots": [
+          {
+            "shotId": "shot-001",
+            "index": 0,
+            "startS": 0.0,
+            "endS": 4.0,
+            "video": "asset_video_01",
+            "keyframes": [
+              "asset_kf_01"
+            ],
+            "voice": "asset_voice_01",
+            "foley": "asset_foley_01",
+            "bgm": "asset_bgm_01",
+            "promptMeta": {
+              "subject": "林晚",
+              "scene": "雨夜天台"
+            },
+            "dialogueText": "对不起，我来晚了。"
+          },
+          {
+            "shotId": "shot-002",
+            "index": 1,
+            "startS": 4.0,
+            "endS": 8.0,
+            "promptMeta": {
+              "subject": "城市夜景",
+              "scene": "天台远景"
+            },
+            "dialogueText": "（无对白）"
+          }
+        ]
+      },
+      "aiScore": {
+        "overall": 0.87,
+        "dimensions": {
+          "hook": 0.9,
+          "visual": 0.85,
+          "audio": 0.88,
+          "pacing": 0.84,
+          "consistency": 0.89
+        }
+      },
+      "curation": "selected",
+      "stale": null
+    },
+    {
+      "id": "asset_ext_film",
+      "branchId": "br_main",
+      "phaseIndex": 9,
+      "phaseName": "composite",
+      "position": {
+        "x": 0,
+        "y": 1200
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "asset",
+      "stage": "composite",
+      "modality": "video",
+      "scope": "episode",
+      "media": {
+        "original": "/refs/film_x.mp4",
+        "proxy": "/refs/film_x_480.mp4",
+        "thumbnail": "/refs/film_x_thumb.jpg",
+        "waveform": null,
+        "durationS": 6.0,
+        "resolution": "1920x1080"
+      },
+      "meta": {
+        "stage": "composite"
+      },
+      "timeline": {
+        "durationS": 6.0,
+        "source": "decompose",
+        "shots": [
+          {
+            "shotId": "d-shot-001",
+            "index": 0,
+            "startS": 0.0,
+            "endS": 3.0,
+            "video": "asset_d_video_01",
+            "voice": "asset_d_voice_01",
+            "dialogueText": "（转录）你走吧。"
+          },
+          {
+            "shotId": "d-shot-002",
+            "index": 1,
+            "startS": 3.0,
+            "endS": 6.0,
+            "video": "asset_d_video_02"
+          }
+        ]
+      },
+      "curation": "locked",
+      "stale": null
+    },
+    {
+      "id": "asset_d_video_01",
+      "branchId": "br_main",
+      "phaseIndex": 4,
+      "phaseName": "video",
+      "position": {
+        "x": 640,
+        "y": 1300
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "asset",
+      "stage": "video",
+      "modality": "video",
+      "scope": "episode",
+      "media": {
+        "original": "/refs/film_x_shot1.mp4",
+        "proxy": "/refs/film_x_shot1_480.mp4",
+        "thumbnail": "/refs/film_x_shot1_thumb.jpg",
+        "waveform": null,
+        "durationS": 3.0,
+        "resolution": "1920x1080"
+      },
+      "meta": {
+        "stage": "video",
+        "shotId": "d-shot-001"
+      },
+      "curation": "locked",
+      "stale": null
+    },
+    {
+      "id": "asset_d_video_02",
+      "branchId": "br_main",
+      "phaseIndex": 4,
+      "phaseName": "video",
+      "position": {
+        "x": 960,
+        "y": 1300
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "asset",
+      "stage": "video",
+      "modality": "video",
+      "scope": "episode",
+      "media": {
+        "original": "/refs/film_x_shot2.mp4",
+        "proxy": "/refs/film_x_shot2_480.mp4",
+        "thumbnail": "/refs/film_x_shot2_thumb.jpg",
+        "waveform": null,
+        "durationS": 3.0,
+        "resolution": "1920x1080"
+      },
+      "meta": {
+        "stage": "video",
+        "shotId": "d-shot-002"
+      },
+      "curation": "locked",
+      "stale": null
+    },
+    {
+      "id": "asset_d_voice_01",
+      "branchId": "br_main",
+      "phaseIndex": 5,
+      "phaseName": "voice",
+      "position": {
+        "x": 640,
+        "y": 1400
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "asset",
+      "stage": "voice",
+      "modality": "audio",
+      "scope": "episode",
+      "media": {
+        "original": "/refs/film_x_voice.wav",
+        "proxy": null,
+        "thumbnail": null,
+        "waveform": "/refs/film_x_voice_wave.png",
+        "durationS": 3.0
+      },
+      "meta": {
+        "stage": "voice",
+        "shotId": "d-shot-001",
+        "speaker": "未知"
+      },
+      "curation": "locked",
+      "stale": null
+    },
+    {
+      "id": "evt_import_role",
+      "branchId": "br_main",
+      "phaseIndex": 0,
+      "phaseName": "global",
+      "position": {
+        "x": 0,
+        "y": 40
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "event",
+      "op": "import",
+      "params": {
+        "sourcePath": "/assets/role/nvzhu.png"
+      },
+      "executor": "human"
+    },
+    {
+      "id": "evt_create_script",
+      "branchId": "br_main",
+      "phaseIndex": 1,
+      "phaseName": "script",
+      "position": {
+        "x": 160,
+        "y": 100
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "event",
+      "op": "create",
+      "params": {},
+      "executor": "human"
+    },
+    {
+      "id": "evt_create_sb",
+      "branchId": "br_main",
+      "phaseIndex": 2,
+      "phaseName": "storyboard",
+      "position": {
+        "x": 480,
+        "y": 200
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "event",
+      "op": "create",
+      "params": {
+        "prompt": "把剧本第一段拆成特写分镜"
+      },
+      "executor": "human",
+      "durationS": 300
+    },
+    {
+      "id": "evt_create_kf",
+      "branchId": "br_main",
+      "phaseIndex": 3,
+      "phaseName": "keyframe",
+      "position": {
+        "x": 800,
+        "y": 300
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "event",
+      "op": "create",
+      "params": {
+        "prompt": "雨夜天台，林晚面部特写，电影感",
+        "seed": 421337,
+        "modelVersion": "sdxl-1.0",
+        "steps": 28,
+        "cfg": 7.0
+      },
+      "executor": "gpu0",
+      "durationS": 12.5
+    },
+    {
+      "id": "evt_i2v",
+      "branchId": "br_main",
+      "phaseIndex": 4,
+      "phaseName": "video",
+      "position": {
+        "x": 1120,
+        "y": 400
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "event",
+      "op": "wan22_i2v",
+      "params": {
+        "prompt": "她垂眸，指尖悬在发送键上，雨丝掠过镜头",
+        "negative": "低质量，变形",
+        "seed": 88421,
+        "modelVersion": "wan2.2-i2v",
+        "steps": 30,
+        "cfg": 6.0,
+        "lora": [
+          {
+            "name": "cinematic-rain",
+            "strength": 0.7
+          }
+        ],
+        "quant": "fp8",
+        "sageAttention": true
+      },
+      "executor": "gpu0",
+      "durationS": 96.0,
+      "futureEventField": 42
+    },
+    {
+      "id": "evt_tts",
+      "branchId": "br_main",
+      "phaseIndex": 5,
+      "phaseName": "voice",
+      "position": {
+        "x": 1440,
+        "y": 500
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "event",
+      "op": "tts",
+      "params": {
+        "prompt": "对不起，我来晚了。",
+        "voiceModel": "cosyvoice2",
+        "emotion": "压抑"
+      },
+      "executor": "cloud",
+      "durationS": 4.0
+    },
+    {
+      "id": "evt_foley",
+      "branchId": "br_main",
+      "phaseIndex": 6,
+      "phaseName": "foley",
+      "position": {
+        "x": 1440,
+        "y": 600
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "event",
+      "op": "foley_gen",
+      "params": {
+        "prompt": "雨声，远处车流，衣料摩擦"
+      },
+      "executor": "gpu1",
+      "durationS": 18.0
+    },
+    {
+      "id": "evt_bgm",
+      "branchId": "br_main",
+      "phaseIndex": 7,
+      "phaseName": "bgm",
+      "position": {
+        "x": 1440,
+        "y": 700
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "event",
+      "op": "bgm_gen",
+      "params": {
+        "prompt": "冷色调钢琴，紧张，渐强",
+        "seed": 1207
+      },
+      "executor": "gpu1",
+      "durationS": 22.0
+    },
+    {
+      "id": "evt_mix",
+      "branchId": "br_main",
+      "phaseIndex": 8,
+      "phaseName": "mix",
+      "position": {
+        "x": 1760,
+        "y": 800
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "event",
+      "op": "mix",
+      "params": {},
+      "executor": "gpu1",
+      "durationS": 6.0
+    },
+    {
+      "id": "evt_compose",
+      "branchId": "br_main",
+      "phaseIndex": 9,
+      "phaseName": "composite",
+      "position": {
+        "x": 2080,
+        "y": 900
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "event",
+      "op": "compose",
+      "params": {},
+      "executor": "gpu0",
+      "durationS": 30.0
+    },
+    {
+      "id": "evt_import_film",
+      "branchId": "br_main",
+      "phaseIndex": 9,
+      "phaseName": "composite",
+      "position": {
+        "x": 0,
+        "y": 1100
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "event",
+      "op": "import",
+      "params": {
+        "sourcePath": "/refs/film_x.mp4"
+      },
+      "executor": "human"
+    },
+    {
+      "id": "evt_decompose",
+      "branchId": "br_main",
+      "phaseIndex": 9,
+      "phaseName": "composite",
+      "position": {
+        "x": 320,
+        "y": 1150
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "kind": "event",
+      "op": "shot_decompose",
+      "params": {
+        "detector": "pyscenedetect@0.6",
+        "stems_model": "demucs@4",
+        "whisper": "whisper-large-v3",
+        "contract": "shot-timeline@1.2"
+      },
+      "executor": "cloud",
+      "durationS": 180.0
+    }
+  ],
+  "links": [
+    {
+      "id": "l_import_role",
+      "source": "evt_import_role",
+      "target": "asset_role_01",
+      "branchId": "br_main",
+      "role": "output"
+    },
+    {
+      "id": "l_create_script",
+      "source": "evt_create_script",
+      "target": "asset_script_01",
+      "branchId": "br_main",
+      "role": "output"
+    },
+    {
+      "id": "l_sb_in_script",
+      "source": "asset_script_01",
+      "target": "evt_create_sb",
+      "branchId": "br_main",
+      "role": "reference"
+    },
+    {
+      "id": "l_sb_in_role",
+      "source": "asset_role_01",
+      "target": "evt_create_sb",
+      "branchId": "br_main",
+      "role": "reference"
+    },
+    {
+      "id": "l_sb_out",
+      "source": "evt_create_sb",
+      "target": "asset_sb_01",
+      "branchId": "br_main",
+      "role": "output"
+    },
+    {
+      "id": "l_kf_in_sb",
+      "source": "asset_sb_01",
+      "target": "evt_create_kf",
+      "branchId": "br_main",
+      "role": "reference"
+    },
+    {
+      "id": "l_kf_in_role",
+      "source": "asset_role_01",
+      "target": "evt_create_kf",
+      "branchId": "br_main",
+      "role": "reference"
+    },
+    {
+      "id": "l_kf_out",
+      "source": "evt_create_kf",
+      "target": "asset_kf_01",
+      "branchId": "br_main",
+      "role": "output"
+    },
+    {
+      "id": "l_i2v_in_kf",
+      "source": "asset_kf_01",
+      "target": "evt_i2v",
+      "branchId": "br_main",
+      "role": "keyframe"
+    },
+    {
+      "id": "l_i2v_in_prompt",
+      "source": "asset_sb_01",
+      "target": "evt_i2v",
+      "branchId": "br_main",
+      "role": "prompt_ref"
+    },
+    {
+      "id": "l_i2v_out_1",
+      "source": "evt_i2v",
+      "target": "asset_video_01",
+      "branchId": "br_main",
+      "role": "output"
+    },
+    {
+      "id": "l_i2v_out_2",
+      "source": "evt_i2v",
+      "target": "asset_video_02",
+      "branchId": "br_main",
+      "role": "output"
+    },
+    {
+      "id": "l_i2v_out_3",
+      "source": "evt_i2v",
+      "target": "asset_video_03",
+      "branchId": "br_main",
+      "role": "output"
+    },
+    {
+      "id": "l_tts_in",
+      "source": "asset_script_01",
+      "target": "evt_tts",
+      "branchId": "br_main",
+      "role": "reference"
+    },
+    {
+      "id": "l_tts_out",
+      "source": "evt_tts",
+      "target": "asset_voice_01",
+      "branchId": "br_main",
+      "role": "output"
+    },
+    {
+      "id": "l_foley_in",
+      "source": "asset_video_01",
+      "target": "evt_foley",
+      "branchId": "br_main",
+      "role": "reference"
+    },
+    {
+      "id": "l_foley_out",
+      "source": "evt_foley",
+      "target": "asset_foley_01",
+      "branchId": "br_main",
+      "role": "output"
+    },
+    {
+      "id": "l_bgm_in",
+      "source": "asset_script_01",
+      "target": "evt_bgm",
+      "branchId": "br_main",
+      "role": "reference"
+    },
+    {
+      "id": "l_bgm_out",
+      "source": "evt_bgm",
+      "target": "asset_bgm_01",
+      "branchId": "br_main",
+      "role": "output"
+    },
+    {
+      "id": "l_mix_in_voice",
+      "source": "asset_voice_01",
+      "target": "evt_mix",
+      "branchId": "br_main",
+      "role": "dialogue_track"
+    },
+    {
+      "id": "l_mix_in_foley",
+      "source": "asset_foley_01",
+      "target": "evt_mix",
+      "branchId": "br_main",
+      "role": "foley_track",
+      "slotParams": {
+        "offsetS": -0.3,
+        "gain": 0.8
+      }
+    },
+    {
+      "id": "l_mix_in_bgm",
+      "source": "asset_bgm_01",
+      "target": "evt_mix",
+      "branchId": "br_main",
+      "role": "bgm_track",
+      "slotParams": {
+        "gain": 0.6,
+        "fadeInS": 1.0,
+        "fadeOutS": 2.0
+      }
+    },
+    {
+      "id": "l_mix_out",
+      "source": "evt_mix",
+      "target": "asset_mix_01",
+      "branchId": "br_main",
+      "role": "output"
+    },
+    {
+      "id": "l_compose_in_video",
+      "source": "asset_video_01",
+      "target": "evt_compose",
+      "branchId": "br_main",
+      "role": "video_track"
+    },
+    {
+      "id": "l_compose_in_video_v2",
+      "source": "asset_video_02",
+      "target": "evt_compose",
+      "branchId": "br_main",
+      "role": "video_track",
+      "isInactive": true
+    },
+    {
+      "id": "l_compose_in_video_v3",
+      "source": "asset_video_03",
+      "target": "evt_compose",
+      "branchId": "br_main",
+      "role": "video_track",
+      "isInactive": true
+    },
+    {
+      "id": "l_compose_in_audio",
+      "source": "asset_mix_01",
+      "target": "evt_compose",
+      "branchId": "br_main",
+      "role": "audio_mix"
+    },
+    {
+      "id": "l_compose_out",
+      "source": "evt_compose",
+      "target": "asset_composite_01",
+      "branchId": "br_main",
+      "role": "output"
+    },
+    {
+      "id": "l_import_film",
+      "source": "evt_import_film",
+      "target": "asset_ext_film",
+      "branchId": "br_main",
+      "role": "output"
+    },
+    {
+      "id": "l_decompose_in",
+      "source": "asset_ext_film",
+      "target": "evt_decompose",
+      "branchId": "br_main",
+      "role": "decompose_source"
+    },
+    {
+      "id": "l_decompose_out_v1",
+      "source": "evt_decompose",
+      "target": "asset_d_video_01",
+      "branchId": "br_main",
+      "role": "output"
+    },
+    {
+      "id": "l_decompose_out_v2",
+      "source": "evt_decompose",
+      "target": "asset_d_video_02",
+      "branchId": "br_main",
+      "role": "output"
+    },
+    {
+      "id": "l_decompose_out_a1",
+      "source": "evt_decompose",
+      "target": "asset_d_voice_01",
+      "branchId": "br_main",
+      "role": "output"
+    },
+    {
+      "id": "l_seq_d_1_2",
+      "source": "asset_d_video_01",
+      "target": "asset_d_video_02",
+      "branchId": "br_main",
+      "role": "sequence"
+    }
+  ],
+  "branches": [
+    {
+      "id": "br_main",
+      "name": "main",
+      "createdAt": 1753200000000
+    }
+  ],
+  "variantGroups": [
+    {
+      "id": "vg_01",
+      "branchId": "br_main",
+      "phaseIndex": 4,
+      "sourceEventId": "evt_i2v",
+      "variantNodeIds": [
+        "asset_video_01",
+        "asset_video_02",
+        "asset_video_03"
+      ],
+      "winnerNodeId": "asset_video_01",
+      "selectMode": "single"
+    }
+  ],
+  "futureTopLevelField": {
+    "note": "consumer 应忽略"
+  }
+}

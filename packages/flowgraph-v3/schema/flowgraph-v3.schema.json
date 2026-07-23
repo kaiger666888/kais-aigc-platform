@@ -1,0 +1,521 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://flowgraph.local/schema/flowgraph-v3.schema.json",
+  "title": "FlowGraphV3",
+  "description": "AI短剧创作无限画布 · FlowGraphV3 数据契约 SSOT。语义唯一权威：《设计宪法 v1.0》§7–§13、§15。additionalProperties:false 全程开启（P21/P22 producer 严格）；受控例外两处并在此标注：GenerationParams（宪法 §9 明写开放扩展）与 AIScore.dimensions（V2 维度键名未明的开放 map，见其 $comment）。",
+  "$ref": "#/$defs/FlowGraphV3",
+  "$defs": {
+    "NodeState": {
+      "$comment": "执行状态。宪法 §7 明写取值 pending|running|success|failed。",
+      "type": "string",
+      "enum": ["pending", "running", "success", "failed"]
+    },
+    "ReviewStatus": {
+      "$comment": "【V2 复用·待与旧库对齐】人工审核状态。宪法 §13 注明复用 V2 但 V2 定义不在宪法中；最小合理定义：pending/approved/rejected 三态。",
+      "type": "string",
+      "enum": ["pending", "approved", "rejected"]
+    },
+    "AIScore": {
+      "$comment": "【V2 复用·待与旧库对齐】五维评分（产物属性）。V2 定义不在宪法中；最小合理定义：overall 总分必填，dimensions 以维度名→分值映射承载五维明细（维度键名属 V2 未明区域，故为开放 map，属受控例外并在此标注）。",
+      "type": "object",
+      "properties": {
+        "overall": { "type": "number" },
+        "dimensions": {
+          "type": "object",
+          "additionalProperties": { "type": "number" }
+        }
+      },
+      "required": ["overall"],
+      "additionalProperties": false
+    },
+    "Stage": {
+      "$comment": "P8：y 轴泳道。宪法 §8。",
+      "type": "string",
+      "enum": ["global", "script", "storyboard", "keyframe", "video", "voice", "foley", "bgm", "mix", "composite"]
+    },
+    "SlotRole": {
+      "$comment": "边 = 槽位。宪法 §10。sequence 边不参与因果分层（P11）。",
+      "type": "string",
+      "enum": [
+        "keyframe", "prompt_ref", "lora_ref", "reference",
+        "edit_target", "edit_source",
+        "dialogue_track", "foley_track", "bgm_track",
+        "video_track", "audio_mix",
+        "decompose_source",
+        "output",
+        "sequence"
+      ]
+    },
+    "EventOp": {
+      "$comment": "宪法 §9。P5 人机同构：human_edit 与 GPU 算子同构。",
+      "type": "string",
+      "enum": [
+        "import", "create", "human_edit",
+        "wan22_t2v", "wan22_i2v", "wan22_s2v",
+        "bernini_edit", "ltx_ref",
+        "tts", "foley_gen", "bgm_gen",
+        "mix", "compose",
+        "upscale", "face_restore",
+        "shot_decompose", "script_analysis"
+      ]
+    },
+    "Position": {
+      "$comment": "语义：布局引擎计算缓存，不手排（宪法 §7）。保留此字段仅为缓存布局结果。",
+      "type": "object",
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" }
+      },
+      "required": ["x", "y"],
+      "additionalProperties": false
+    },
+    "Size": {
+      "type": "object",
+      "properties": {
+        "width": { "type": "number" },
+        "height": { "type": "number" }
+      },
+      "required": ["width", "height"],
+      "additionalProperties": false
+    },
+    "StaleInfo": {
+      "$comment": "P13 脏传播记录。null=干净（宪法 §8/§13）。",
+      "type": "object",
+      "properties": {
+        "since": { "type": "number" },
+        "triggerAssetId": { "type": "string" },
+        "triggerEventId": { "type": "string" }
+      },
+      "required": ["since", "triggerAssetId", "triggerEventId"],
+      "additionalProperties": false
+    },
+    "PromptFacets": {
+      "$comment": "7-facet 描述性 prompt（P4 边界：这是『画面是什么』，不是『怎么生成的』）。宪法 §8。",
+      "type": "object",
+      "properties": {
+        "subject": { "type": "string" },
+        "action": { "type": "string" },
+        "camera": { "type": "string" },
+        "scene": { "type": "string" },
+        "lighting": { "type": "string" },
+        "style": { "type": "string" },
+        "text": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "GenerationParams": {
+      "$comment": "P4：配方唯一合法存放处。宪法 §9 明写 [key: string]: unknown 开放扩展（op 级 schema 由 SSOT yaml 门控）——additionalProperties:false 全程的受控例外之一（另一处为 AIScore.dimensions 开放 map，见其 $comment）。",
+      "type": "object",
+      "properties": {
+        "prompt": { "type": "string" },
+        "negative": { "type": "string" },
+        "seed": { "type": "number" },
+        "modelVersion": { "type": "string" },
+        "lora": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "strength": { "type": "number" }
+            },
+            "required": ["name", "strength"],
+            "additionalProperties": false
+          }
+        },
+        "steps": { "type": "number" },
+        "cfg": { "type": "number" },
+        "quant": { "type": "string" },
+        "sageAttention": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "FlowMetaV3": {
+      "$comment": "宪法 §7。version 恒为 '3'；P10 一集一画布（episodesId 必填）；viewport 为 P17 画布状态持久化。",
+      "type": "object",
+      "properties": {
+        "version": { "const": "3" },
+        "projectId": { "type": "number" },
+        "episodesId": { "type": "number" },
+        "pipelineId": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" },
+        "viewport": {
+          "type": "object",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "zoom": { "type": "number" }
+          },
+          "required": ["x", "y", "zoom"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["version", "projectId", "episodesId", "createdAt", "updatedAt"],
+      "additionalProperties": false
+    },
+    "FlowBranchV2": {
+      "$comment": "【V2 复用·待与旧库对齐】占位复用型。宪法 §7『branches: FlowBranchV2[] 复用，不动』，V2 定义不在宪法中；最小合理定义：id/name 必填，parentBranchId（岔路父子）与 createdAt 可选。语义：branch = 探索岔路（时间线分叉），与 variantGroup 正交（§11）。",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "parentBranchId": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "name"],
+      "additionalProperties": false
+    },
+    "AssetStageMeta": {
+      "$comment": "描述性元数据判别联合（宪法 §8），按 stage 常量分支。【假设】宪法 Stage 含 'mix' 但 AssetStageMeta 未列 mix 分支，按最小合理定义补 { stage:'mix' } 空载荷分支并在此标注。",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "stage": { "const": "script" },
+            "hookType": { "type": "string" },
+            "hookIntensity": { "type": "number" },
+            "premise": { "type": "string" },
+            "emotion": { "type": "number" }
+          },
+          "required": ["stage"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "stage": { "const": "storyboard" },
+            "shotId": { "type": "string" },
+            "shotType": { "type": "string" },
+            "cameraMovement": { "type": "string" },
+            "framing": { "type": "string" },
+            "composition": { "type": "string" },
+            "pacing": { "type": "string" },
+            "durationS": { "type": "number" },
+            "promptMeta": { "$ref": "#/$defs/PromptFacets" }
+          },
+          "required": ["stage", "shotId", "shotType", "durationS"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "stage": { "const": "keyframe" },
+            "shotId": { "type": "string" }
+          },
+          "required": ["stage", "shotId"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "stage": { "const": "video" },
+            "shotId": { "type": "string" },
+            "observedEndState": { "type": "string" },
+            "murchGrade": { "type": "string" }
+          },
+          "required": ["stage", "shotId"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "stage": { "const": "voice" },
+            "shotId": { "type": "string" },
+            "emotion": { "type": "string" },
+            "speaker": { "type": "string" }
+          },
+          "required": ["stage"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "stage": { "const": "foley" },
+            "shotId": { "type": "string" },
+            "emotion": { "type": "string" },
+            "speaker": { "type": "string" }
+          },
+          "required": ["stage"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "stage": { "const": "bgm" },
+            "shotId": { "type": "string" },
+            "emotion": { "type": "string" },
+            "speaker": { "type": "string" }
+          },
+          "required": ["stage"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "stage": { "const": "global" },
+            "assetType": { "type": "string", "enum": ["role", "tool", "scene", "lora", "worldview"] },
+            "archetype": { "type": "string" },
+            "viewAngle": { "type": "string" }
+          },
+          "required": ["stage", "assetType"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "stage": { "const": "mix" }
+          },
+          "required": ["stage"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "stage": { "const": "composite" },
+            "edlRef": { "type": "string" }
+          },
+          "required": ["stage"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "TimelineShot": {
+      "$comment": "宪法 §12。资产引用为 assetId（正逆向同构）；schema 不强制引用完整性，由 fixtures/迁移层保证。",
+      "type": "object",
+      "properties": {
+        "shotId": { "type": "string" },
+        "index": { "type": "number" },
+        "startS": { "type": "number" },
+        "endS": { "type": "number" },
+        "video": { "type": "string" },
+        "keyframes": { "type": "array", "items": { "type": "string" } },
+        "voice": { "type": "string" },
+        "foley": { "type": "string" },
+        "bgm": { "type": "string" },
+        "promptMeta": { "$ref": "#/$defs/PromptFacets" },
+        "dialogueText": { "type": "string" }
+      },
+      "required": ["shotId", "index", "startS", "endS"],
+      "additionalProperties": false
+    },
+    "TimelineStructure": {
+      "$comment": "P6：成片标准内部结构，compose/decompose 正逆向同构（宪法 §12）。仅 stage='composite' 资产持有（§8）。",
+      "type": "object",
+      "properties": {
+        "durationS": { "type": "number" },
+        "source": { "type": "string", "enum": ["compose", "decompose"] },
+        "shots": { "type": "array", "items": { "$ref": "#/$defs/TimelineShot" } }
+      },
+      "required": ["durationS", "source", "shots"],
+      "additionalProperties": false
+    },
+    "FlowNodeBase": {
+      "$comment": "宪法 §7 公共字段。文档性定义：三个节点类型将本组字段逐字内联，以保持 additionalProperties:false 在所有校验器（含不支持 unevaluatedProperties 者）下严格生效。position 语义：布局引擎计算缓存，不手排。",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "branchId": { "type": "string" },
+        "phaseIndex": { "type": "number" },
+        "phaseName": { "type": "string" },
+        "position": { "$ref": "#/$defs/Position" },
+        "size": { "$ref": "#/$defs/Size" },
+        "state": { "$ref": "#/$defs/NodeState" }
+      },
+      "required": ["id", "branchId", "phaseIndex", "phaseName", "position", "size", "state"]
+    },
+    "AssetNodeV3": {
+      "$comment": "宪法 §8：只管『是什么』。参数不属于节点（P4）。公共字段内联自 FlowNodeBase（见该定义 $comment）。",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "branchId": { "type": "string" },
+        "phaseIndex": { "type": "number" },
+        "phaseName": { "type": "string" },
+        "position": { "$ref": "#/$defs/Position" },
+        "size": { "$ref": "#/$defs/Size" },
+        "state": { "$ref": "#/$defs/NodeState" },
+        "kind": { "const": "asset" },
+        "stage": { "$ref": "#/$defs/Stage" },
+        "modality": { "type": "string", "enum": ["text", "image", "audio", "video"] },
+        "scope": { "type": "string", "enum": ["episode", "global"] },
+        "media": {
+          "$comment": "P15：轻量三件套 + 原文件引用。original = V2 filePath；thumbnail = V2 thumbnailUrl。",
+          "type": "object",
+          "properties": {
+            "original": { "type": ["string", "null"] },
+            "proxy": { "type": ["string", "null"] },
+            "thumbnail": { "type": ["string", "null"] },
+            "waveform": { "type": ["string", "null"] },
+            "durationS": { "type": "number" },
+            "resolution": { "type": "string" }
+          },
+          "required": ["original", "proxy", "thumbnail", "waveform"],
+          "additionalProperties": false
+        },
+        "content": { "type": "string" },
+        "meta": { "$ref": "#/$defs/AssetStageMeta" },
+        "timeline": { "$ref": "#/$defs/TimelineStructure" },
+        "reviewStatus": { "$ref": "#/$defs/ReviewStatus" },
+        "aiScore": { "$ref": "#/$defs/AIScore" },
+        "curation": { "type": "string", "enum": ["candidate", "selected", "deprecated", "locked"] },
+        "stale": { "anyOf": [{ "$ref": "#/$defs/StaleInfo" }, { "type": "null" }] },
+        "variantGroupId": { "type": "string" }
+      },
+      "required": [
+        "id", "branchId", "phaseIndex", "phaseName", "position", "size", "state",
+        "kind", "stage", "modality", "scope", "media", "meta", "curation", "stale"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "$comment": "节点 stage 与 meta.stage 判别耦合（宪法 §8：meta 判别联合按节点 stage 分支，错配 = 契约漂移）。每个 stage 常量绑定对应 meta 分支（含补的 mix 分支）。",
+          "if": { "type": "object", "properties": { "stage": { "const": "global" } }, "required": ["stage"] },
+          "then": { "type": "object", "properties": { "meta": { "type": "object", "properties": { "stage": { "const": "global" } }, "required": ["stage"] } } }
+        },
+        {
+          "if": { "type": "object", "properties": { "stage": { "const": "script" } }, "required": ["stage"] },
+          "then": { "type": "object", "properties": { "meta": { "type": "object", "properties": { "stage": { "const": "script" } }, "required": ["stage"] } } }
+        },
+        {
+          "if": { "type": "object", "properties": { "stage": { "const": "storyboard" } }, "required": ["stage"] },
+          "then": { "type": "object", "properties": { "meta": { "type": "object", "properties": { "stage": { "const": "storyboard" } }, "required": ["stage"] } } }
+        },
+        {
+          "if": { "type": "object", "properties": { "stage": { "const": "keyframe" } }, "required": ["stage"] },
+          "then": { "type": "object", "properties": { "meta": { "type": "object", "properties": { "stage": { "const": "keyframe" } }, "required": ["stage"] } } }
+        },
+        {
+          "if": { "type": "object", "properties": { "stage": { "const": "video" } }, "required": ["stage"] },
+          "then": { "type": "object", "properties": { "meta": { "type": "object", "properties": { "stage": { "const": "video" } }, "required": ["stage"] } } }
+        },
+        {
+          "if": { "type": "object", "properties": { "stage": { "const": "voice" } }, "required": ["stage"] },
+          "then": { "type": "object", "properties": { "meta": { "type": "object", "properties": { "stage": { "const": "voice" } }, "required": ["stage"] } } }
+        },
+        {
+          "if": { "type": "object", "properties": { "stage": { "const": "foley" } }, "required": ["stage"] },
+          "then": { "type": "object", "properties": { "meta": { "type": "object", "properties": { "stage": { "const": "foley" } }, "required": ["stage"] } } }
+        },
+        {
+          "if": { "type": "object", "properties": { "stage": { "const": "bgm" } }, "required": ["stage"] },
+          "then": { "type": "object", "properties": { "meta": { "type": "object", "properties": { "stage": { "const": "bgm" } }, "required": ["stage"] } } }
+        },
+        {
+          "if": { "type": "object", "properties": { "stage": { "const": "mix" } }, "required": ["stage"] },
+          "then": { "type": "object", "properties": { "meta": { "type": "object", "properties": { "stage": { "const": "mix" } }, "required": ["stage"] } } }
+        },
+        {
+          "if": { "type": "object", "properties": { "stage": { "const": "composite" } }, "required": ["stage"] },
+          "then": { "type": "object", "properties": { "meta": { "type": "object", "properties": { "stage": { "const": "composite" } }, "required": ["stage"] } } }
+        }
+      ]
+    },
+    "EventNodeV3": {
+      "$comment": "宪法 §9：只管『怎么来的』。inputs/outputs 不在节点上——由 links 表达，槽位 = 边（P19 渲染为边上的小芯片）。公共字段内联自 FlowNodeBase。",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "branchId": { "type": "string" },
+        "phaseIndex": { "type": "number" },
+        "phaseName": { "type": "string" },
+        "position": { "$ref": "#/$defs/Position" },
+        "size": { "$ref": "#/$defs/Size" },
+        "state": { "$ref": "#/$defs/NodeState" },
+        "kind": { "const": "event" },
+        "op": { "$ref": "#/$defs/EventOp" },
+        "params": { "$ref": "#/$defs/GenerationParams" },
+        "executor": { "type": "string", "enum": ["human", "gpu0", "gpu1", "cloud"] },
+        "durationS": { "type": "number" }
+      },
+      "required": [
+        "id", "branchId", "phaseIndex", "phaseName", "position", "size", "state",
+        "kind", "op", "params", "executor"
+      ],
+      "additionalProperties": false
+    },
+    "StructureNodeV3": {
+      "$comment": "【假设】宪法 §7 将 StructureNodeV3 列为 FlowNodeV3 成员但未展开定义；按最小合理定义实现：kind:'structure' + 结构载荷字段（structureType 必填，refId/label 可选）。语义待宪法补原则后收紧。公共字段内联自 FlowNodeBase。",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "branchId": { "type": "string" },
+        "phaseIndex": { "type": "number" },
+        "phaseName": { "type": "string" },
+        "position": { "$ref": "#/$defs/Position" },
+        "size": { "$ref": "#/$defs/Size" },
+        "state": { "$ref": "#/$defs/NodeState" },
+        "kind": { "const": "structure" },
+        "structureType": { "type": "string" },
+        "refId": { "type": "string" },
+        "label": { "type": "string" }
+      },
+      "required": [
+        "id", "branchId", "phaseIndex", "phaseName", "position", "size", "state",
+        "kind", "structureType"
+      ],
+      "additionalProperties": false
+    },
+    "FlowNodeV3": {
+      "$comment": "宪法 §7：FlowNodeV3 = AssetNodeV3 | EventNodeV3 | StructureNodeV3，以 kind 判别。",
+      "oneOf": [
+        { "$ref": "#/$defs/AssetNodeV3" },
+        { "$ref": "#/$defs/EventNodeV3" },
+        { "$ref": "#/$defs/StructureNodeV3" }
+      ]
+    },
+    "FlowLinkV3": {
+      "$comment": "宪法 §10：边 = 槽位。slotParams 承载槽位级参数（P4：『Foley 轨偏移 -0.3s』挂这里）。isInactive：非选定变体下游边自动置灰（P12）。",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "source": { "type": "string" },
+        "target": { "type": "string" },
+        "branchId": { "type": "string" },
+        "role": { "$ref": "#/$defs/SlotRole" },
+        "slotParams": {
+          "type": "object",
+          "properties": {
+            "offsetS": { "type": "number" },
+            "gain": { "type": "number" },
+            "fadeInS": { "type": "number" },
+            "fadeOutS": { "type": "number" }
+          },
+          "additionalProperties": false
+        },
+        "isExplore": { "type": "boolean" },
+        "isInactive": { "type": "boolean" }
+      },
+      "required": ["id", "source", "target", "branchId", "role"],
+      "additionalProperties": false
+    },
+    "VariantGroupV3": {
+      "$comment": "宪法 §11：变体组 = 事件的多输出（sourceEventId 为 SSOT，variantNodeIds 为冗余缓存）。shot_decompose 解构集同构复用：selectMode:'locked' 表示整组锁定展示（无 winner 语义，成员 curation:'locked'）。",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "branchId": { "type": "string" },
+        "phaseIndex": { "type": "number" },
+        "sourceEventId": { "type": "string" },
+        "variantNodeIds": { "type": "array", "items": { "type": "string" } },
+        "winnerNodeId": { "type": "string" },
+        "selectMode": { "type": "string", "enum": ["single", "multi", "locked"] }
+      },
+      "required": ["id", "branchId", "phaseIndex", "sourceEventId", "variantNodeIds", "selectMode"],
+      "additionalProperties": false
+    },
+    "FlowGraphV3": {
+      "$comment": "宪法 §7 顶层结构。",
+      "type": "object",
+      "properties": {
+        "meta": { "$ref": "#/$defs/FlowMetaV3" },
+        "nodes": { "type": "array", "items": { "$ref": "#/$defs/FlowNodeV3" } },
+        "links": { "type": "array", "items": { "$ref": "#/$defs/FlowLinkV3" } },
+        "branches": { "type": "array", "items": { "$ref": "#/$defs/FlowBranchV2" } },
+        "variantGroups": { "type": "array", "items": { "$ref": "#/$defs/VariantGroupV3" } }
+      },
+      "required": ["meta", "nodes", "links", "branches", "variantGroups"],
+      "additionalProperties": false
+    }
+  }
+}

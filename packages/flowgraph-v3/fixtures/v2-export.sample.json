@@ -1,0 +1,320 @@
+{
+  "meta": {
+    "projectId": 7,
+    "episodesId": 101,
+    "pipelineId": "pipe_shortdrama_v1",
+    "createdAt": 1753200000000,
+    "updatedAt": 1753203600000
+  },
+  "nodes": [
+    {
+      "id": "n_script_01",
+      "type": "script",
+      "branchId": "br_main",
+      "phaseIndex": 1,
+      "phaseName": "script",
+      "position": { "x": 320, "y": 100 },
+      "size": { "width": 240, "height": 160 },
+      "state": "success",
+      "data": {
+        "prompt": "雨夜，林晚站在天台边缘，手机里是最后一条未发送的语音。",
+        "hookType": "悬念",
+        "hookIntensity": 0.85,
+        "premise": "一场误会导致的离别与追回"
+      }
+    },
+    {
+      "id": "n_sb_01",
+      "type": "storyboard",
+      "branchId": "br_main",
+      "phaseIndex": 2,
+      "phaseName": "storyboard",
+      "position": { "x": 640, "y": 200 },
+      "size": { "width": 240, "height": 160 },
+      "state": "success",
+      "data": {
+        "filePath": "/assets/sb/shot-001.png",
+        "thumbnailUrl": "/assets/sb/shot-001_thumb.jpg",
+        "shotId": "shot-001",
+        "shotType": "close-up",
+        "durationS": 4.0,
+        "cameraMovement": "dolly-in",
+        "framing": "面部特写",
+        "prompt": "把剧本第一段拆成特写分镜"
+      }
+    },
+    {
+      "id": "n_sb_02",
+      "type": "storyboard",
+      "branchId": "br_main",
+      "phaseIndex": 2,
+      "phaseName": "storyboard",
+      "position": { "x": 640, "y": 360 },
+      "size": { "width": 240, "height": 160 },
+      "state": "success",
+      "data": {
+        "filePath": "/assets/sb/shot-002.png",
+        "shotId": "shot-002",
+        "shotType": "wide",
+        "durationS": 3.0
+      }
+    },
+    {
+      "id": "n_video_01",
+      "type": "video",
+      "branchId": "br_main",
+      "phaseIndex": 4,
+      "phaseName": "video",
+      "position": { "x": 1320, "y": 400 },
+      "size": { "width": 240, "height": 160 },
+      "state": "success",
+      "data": {
+        "filePath": "/assets/video/shot-001.mp4",
+        "thumbnailUrl": "/assets/video/shot-001_thumb.jpg",
+        "shotId": "shot-001",
+        "durationS": 4.0,
+        "prompt": "她垂眸，指尖悬在发送键上，雨丝掠过镜头",
+        "seed": 88421,
+        "engine": "wan2.2-i2v"
+      },
+      "reviewStatus": "approved",
+      "aiScore": 0.86
+    },
+    {
+      "id": "n_video_02",
+      "type": "video",
+      "branchId": "br_main",
+      "phaseIndex": 4,
+      "phaseName": "video",
+      "position": { "x": 1320, "y": 560 },
+      "size": { "width": 240, "height": 160 },
+      "state": "success",
+      "data": {
+        "filePath": "/assets/video/shot-002.mp4",
+        "shotId": "shot-002",
+        "prompt": "城市夜景，天台远景，雨渐停",
+        "seed": 90001,
+        "engine": "wan2.2-t2v"
+      }
+    },
+    {
+      "id": "n_cand_a",
+      "type": "video",
+      "branchId": "br_main",
+      "phaseIndex": 4,
+      "phaseName": "video",
+      "position": { "x": 1320, "y": 720 },
+      "size": { "width": 240, "height": 160 },
+      "state": "success",
+      "data": {
+        "filePath": "/assets/video/shot-003_v1.mp4",
+        "shotId": "shot-003",
+        "prompt": "她转身离开，镜头定格背影",
+        "seed": 1001,
+        "engine": "wan2.2-i2v"
+      },
+      "isWinner": true
+    },
+    {
+      "id": "n_cand_b",
+      "type": "video",
+      "branchId": "br_main",
+      "phaseIndex": 4,
+      "phaseName": "video",
+      "position": { "x": 1360, "y": 720 },
+      "size": { "width": 240, "height": 160 },
+      "state": "success",
+      "data": {
+        "filePath": "/assets/video/shot-003_v2.mp4",
+        "shotId": "shot-003",
+        "prompt": "她转身离开，镜头定格背影",
+        "seed": 1002,
+        "engine": "wan2.2-i2v"
+      },
+      "isWinner": false
+    },
+    {
+      "id": "n_var_01",
+      "type": "variant",
+      "branchId": "br_main",
+      "phaseIndex": 4,
+      "phaseName": "video",
+      "position": { "x": 1400, "y": 720 },
+      "size": { "width": 240, "height": 160 },
+      "state": "success",
+      "data": {}
+    },
+    {
+      "id": "n_audio_voice",
+      "type": "audio",
+      "branchId": "br_main",
+      "phaseIndex": 5,
+      "phaseName": "voice",
+      "position": { "x": 1600, "y": 500 },
+      "size": { "width": 240, "height": 160 },
+      "state": "success",
+      "data": {
+        "filePath": "/assets/voice/shot-001.wav",
+        "audioType": "voice",
+        "shotId": "shot-001",
+        "speaker": "林晚",
+        "emotion": "压抑",
+        "prompt": "对不起，我来晚了。",
+        "engine": "cosyvoice2"
+      }
+    },
+    {
+      "id": "n_audio_foley",
+      "type": "audio",
+      "branchId": "br_main",
+      "phaseIndex": 6,
+      "phaseName": "foley",
+      "position": { "x": 1600, "y": 600 },
+      "size": { "width": 240, "height": 160 },
+      "state": "success",
+      "data": {
+        "filePath": "/assets/foley/shot-001.wav",
+        "audioType": "foley",
+        "shotId": "shot-001",
+        "prompt": "雨声，远处车流",
+        "seed": 555
+      }
+    },
+    {
+      "id": "n_audio_bgm",
+      "type": "audio",
+      "branchId": "br_main",
+      "phaseIndex": 7,
+      "phaseName": "bgm",
+      "position": { "x": 1600, "y": 700 },
+      "size": { "width": 240, "height": 160 },
+      "state": "success",
+      "data": {
+        "filePath": "/assets/bgm/ep101_theme.wav",
+        "audioType": "bgm",
+        "emotion": "紧张",
+        "prompt": "冷色调钢琴，紧张，渐强",
+        "seed": 1207
+      }
+    },
+    {
+      "id": "n_orphan_bgm",
+      "type": "audio",
+      "branchId": "br_main",
+      "phaseIndex": 7,
+      "phaseName": "bgm",
+      "position": { "x": 1600, "y": 860 },
+      "size": { "width": 240, "height": 160 },
+      "state": "success",
+      "data": {
+        "filePath": "/assets/bgm/legacy_unknown.wav",
+        "audioType": "bgm"
+      }
+    },
+    {
+      "id": "n_asset_role",
+      "type": "asset",
+      "branchId": "br_main",
+      "phaseIndex": 0,
+      "phaseName": "P04 角色",
+      "position": { "x": 0, "y": 0 },
+      "size": { "width": 240, "height": 160 },
+      "state": "success",
+      "data": {
+        "filePath": "/assets/role/nvzhu.png",
+        "thumbnailUrl": "/assets/role/nvzhu_thumb.jpg"
+      }
+    },
+    {
+      "id": "n_asset_style",
+      "type": "asset",
+      "branchId": "br_main",
+      "phaseIndex": 0,
+      "phaseName": "P07 风格",
+      "position": { "x": 0, "y": 200 },
+      "size": { "width": 240, "height": 160 },
+      "state": "success",
+      "data": {
+        "filePath": "/assets/lora/cinematic-rain.safetensors",
+        "assetType": "lora"
+      }
+    },
+    {
+      "id": "n_ref_01",
+      "type": "reference",
+      "branchId": "br_main",
+      "position": { "x": 480, "y": 40 },
+      "size": { "width": 240, "height": 160 },
+      "state": "success",
+      "data": {}
+    },
+    {
+      "id": "n_upscale_01",
+      "type": "upscale",
+      "branchId": "br_main",
+      "phaseIndex": 4,
+      "phaseName": "video",
+      "position": { "x": 1680, "y": 400 },
+      "size": { "width": 240, "height": 160 },
+      "state": "success",
+      "data": {
+        "filePath": "/assets/video/shot-001_4k.mp4",
+        "shotId": "shot-001",
+        "engine": "realesrgan-x4"
+      }
+    },
+    {
+      "id": "n_face_01",
+      "type": "face_restore",
+      "branchId": "br_main",
+      "phaseIndex": 4,
+      "phaseName": "video",
+      "position": { "x": 1920, "y": 400 },
+      "size": { "width": 240, "height": 160 },
+      "state": "success",
+      "data": {
+        "filePath": "/assets/video/shot-001_4k_face.mp4",
+        "shotId": "shot-001",
+        "engine": "gfpgan-1.4"
+      }
+    },
+    {
+      "id": "n_master_01",
+      "type": "video",
+      "branchId": "br_main",
+      "phaseIndex": 9,
+      "phaseName": "master-timeline",
+      "position": { "x": 2240, "y": 900 },
+      "size": { "width": 240, "height": 160 },
+      "state": "success",
+      "data": {
+        "filePath": "/assets/composite/ep101_v1.mp4",
+        "thumbnailUrl": "/assets/composite/ep101_v1_thumb.jpg",
+        "durationS": 8.0,
+        "isMasterTimeline": true,
+        "edlRef": "edl://ep101/v1"
+      }
+    }
+  ],
+  "links": [
+    { "id": "vl_01", "source": "n_script_01", "target": "n_sb_01", "dataType": "causal" },
+    { "id": "vl_02", "source": "n_sb_01", "target": "n_video_01", "dataType": "causal" },
+    { "id": "vl_03", "source": "n_sb_02", "target": "n_video_02", "dataType": "causal" },
+    { "id": "vl_04", "source": "n_sb_01", "target": "n_sb_02", "dataType": "sequence" },
+    { "id": "vl_05", "source": "n_video_01", "target": "n_upscale_01", "dataType": "causal" },
+    { "id": "vl_06", "source": "n_upscale_01", "target": "n_face_01", "dataType": "causal" },
+    { "id": "vl_07", "source": "n_sb_01", "target": "n_cand_a", "dataType": "causal" },
+    { "id": "vl_08", "source": "n_sb_01", "target": "n_cand_b", "dataType": "causal" },
+    { "id": "vl_09", "source": "n_cand_a", "target": "n_var_01", "dataType": "variant" },
+    { "id": "vl_10", "source": "n_cand_b", "target": "n_var_01", "dataType": "variant" },
+    { "id": "vl_11", "source": "n_asset_role", "target": "n_ref_01", "dataType": "causal" },
+    { "id": "vl_12", "source": "n_ref_01", "target": "n_cand_a", "dataType": "causal" },
+    { "id": "vl_13", "source": "n_asset_role", "target": "n_video_02", "dataType": "ensure_reference_link" },
+    { "id": "vl_14", "source": "n_audio_voice", "target": "n_master_01", "dataType": "causal" },
+    { "id": "vl_15", "source": "n_video_01", "target": "n_master_01", "dataType": "causal" },
+    { "id": "vl_16", "source": "n_cand_a", "target": "n_master_01", "dataType": "causal" },
+    { "id": "vl_17", "source": "n_cand_b", "target": "n_master_01", "dataType": "causal" },
+    { "id": "vl_18", "source": "n_sb_01", "target": "n_audio_voice", "dataType": "reference", "isExplore": true }
+  ],
+  "branches": [{ "id": "br_main", "name": "main", "createdAt": 1753200000000 }]
+}

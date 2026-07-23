@@ -15,9 +15,11 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
+    "resolveJsonModule": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@kais/flowgraph-v3": ["../flowgraph-v3/ts/src/index.ts"]
     }
   },
   "include": ["src"]
