@@ -349,7 +349,7 @@ export async function renderDirectorDeskScene(
 
   const browser: Browser = await chromium.launch({
     executablePath: CHROME_PATH,
-    headless: true as boolean | "shell",
+    headless: true,
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",

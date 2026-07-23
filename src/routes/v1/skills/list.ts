@@ -36,7 +36,7 @@ export default router.get("/", async (_req, res) => {
   const rows = await u.db("o_skillRegistry").select("skill_id", "registered_at").where("active", 1);
   const registeredAtById = new Map<string, number>();
   for (const r of rows) {
-    registeredAtById.set(r.skill_id, r.registered_at ?? 0);
+    if (r.skill_id) registeredAtById.set(r.skill_id, r.registered_at ?? 0);
   }
 
   const skills = registry.list().map((m) => ({

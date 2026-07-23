@@ -25,7 +25,7 @@ router.post(
     projectId: z.number(),
     episodesId: z.number(),
     sceneId: z.string().optional(),
-    project: z.record(z.any()), // DirectorProject JSON
+    project: z.record(z.string(), z.any()), // DirectorProject JSON
     label: z.string().optional(),
   }),
   async (req, res) => {
@@ -59,8 +59,8 @@ router.post(
           .update({ data: JSON.stringify(payload) });
       } else {
         await u.db("o_agentWorkData").insert({
-          projectId: String(projectId),
-          episodesId: String(episodesId),
+          projectId: String(projectId) as any,
+          episodesId: String(episodesId) as any,
           key,
           data: JSON.stringify(payload),
         });
@@ -121,7 +121,7 @@ router.get("/", async (req, res) => {
 
     const scenes = rows.map((r) => {
       try {
-        const d = JSON.parse(r.data);
+        const d = JSON.parse(r.data ?? "{}");
         return { id: d.id, label: d.label, updatedAt: d.updatedAt };
       } catch {
         return null;

@@ -132,7 +132,7 @@ async function main(): Promise<void> {
   let io: ((url: string, opts: any) => any) | null = null;
   try {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-expect-error — optional dep, may not be installed
+    // @ts-ignore — optional dep, may not be installed
     const mod: any = await import("socket.io-client");
     io = mod.io || mod.default || mod;
   } catch {

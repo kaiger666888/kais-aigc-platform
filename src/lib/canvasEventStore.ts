@@ -79,7 +79,7 @@ export async function getLastEventId(projectId: number, episodesId: number): Pro
     .andWhere("episodesId", episodesId)
     .max("eventId as maxId")
     .first();
-  return row?.maxId ?? null;
+  return (row as any)?.maxId ?? null;
 }
 
 export async function listEvents(

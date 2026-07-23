@@ -89,7 +89,7 @@ async function submitAndWait(workflow: any, label: string, prefix: string): Prom
       }
     }
     if (entry?.status?.completed === true && (!outs || !Object.keys(outs).length)) {
-      const fb = findOutputFileByPrefix(prefix, submitMs);
+      const fb = findOutputFileByPrefix(prefix);
       if (fb) { const e = ((Date.now() - start) / 1000).toFixed(1); console.log(`[${label}] ✓ (cached) ${e}s → ${fb.filename}`); return { file: fb, elapsed: Number(e) }; }
     }
     if (entry?.status?.completed === false && entry.status.status_str === "error")
