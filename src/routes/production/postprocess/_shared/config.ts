@@ -35,18 +35,20 @@ export const SEEDVR2_MODELS = {
   vae: "ema_vae_fp16.safetensors",
 } as const;
 
-// RTX 3090 24GB 最优默认值
+// RTX 3090 24GB 最优默认值（2026-07-23 实测验证：无重影/纹理跳/边界顿）
+// 关键:batch 必须 4n+1(SeedVR2 时序注意力按4帧一组);显存用 BlockSwap+VAE分块换,绝不砍 batch
 export const SEEDVR2_DEFAULTS = {
   device: "cuda:0",
-  offloadDevice: "none",
-  blocksToSwap: 0,
-  encodeTiled: false,
-  decodeTiled: false,
+  offloadDevice: "cpu",      // blocksToSwap>0 时 block 卸到 CPU
+  blocksToSwap: 28,          // 7B 1080p 在 24GB 必须(配大 batch);不开则 DiT 峰值超 24GB OOM
+  encodeTiled: true,         // VAE 分块编解码,降峰值(不开 1080p 必 OOM)
+  decodeTiled: true,
+  tileSize: 512,             // VAE 分块尺寸
   resolution: 1080,
   maxResolution: 1920,
-  batchSizeImage: 1,        // 4n+1, n=0
-  batchSizeVideo: 21,      // 4n+1, n=5（3090 24GB 处理 1080p 稳定）
-  temporalOverlap: 4,
+  batchSizeImage: 1,         // 4n+1, n=0
+  batchSizeVideo: 41,        // 4n+1, >40 消纹理 flicker(21 会残留跳变)
+  temporalOverlap: 8,        // 平滑 batch 边界(4 会有"中间顿一帧")
   colorCorrection: "lab" as
     | "lab"
     | "wavelet"
@@ -54,7 +56,7 @@ export const SEEDVR2_DEFAULTS = {
     | "hsv"
     | "adain"
     | "none",
-  uniformBatchSize: false,
+  uniformBatchSize: true,    // 批帧数一致,避免残批打乱节奏
   seed: 42,
 } as const;
 

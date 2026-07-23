@@ -9,6 +9,7 @@ export interface SeedVR2BaseOpts {
   blocksToSwap?: number;
   encodeTiled?: boolean;
   decodeTiled?: boolean;
+  tileSize?: number;          // VAE 分块尺寸(默认 512)
   resolution?: number;
   maxResolution?: number;
   colorCorrection?: SeedVR2ColorCorrection;
@@ -52,6 +53,12 @@ function addLoaders(
       device: opts.device || SEEDVR2_DEFAULTS.device,
       encode_tiled: opts.encodeTiled ?? SEEDVR2_DEFAULTS.encodeTiled,
       decode_tiled: opts.decodeTiled ?? SEEDVR2_DEFAULTS.decodeTiled,
+      ...(opts.encodeTiled ?? SEEDVR2_DEFAULTS.encodeTiled
+        ? { encode_tile_size: opts.tileSize ?? SEEDVR2_DEFAULTS.tileSize, encode_tile_overlap: 64 }
+        : {}),
+      ...(opts.decodeTiled ?? SEEDVR2_DEFAULTS.decodeTiled
+        ? { decode_tile_size: opts.tileSize ?? SEEDVR2_DEFAULTS.tileSize, decode_tile_overlap: 64 }
+        : {}),
     },
   };
 
