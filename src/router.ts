@@ -46,6 +46,7 @@ import route42 from "./routes/production/postprocess/status";
 import route43 from "./routes/production/qwenTts/speak";
 import route44 from "./routes/production/qwenTts/status";
 import route45 from "./routes/production/qwenTts/voiceId";
+import route138 from "./routes/production/shot-analysis";
 import route46 from "./routes/production/storyboard/addStoryboard";
 import route47 from "./routes/production/wan21/scail2/status";
 import route48 from "./routes/production/wan21/scail2Replace";
@@ -185,6 +186,7 @@ export default async (app: Express) => {
   app.use("/api/production/qwenTts/speak", route43);
   app.use("/api/production/qwenTts/status", route44);
   app.use("/api/production/qwenTts/voiceId", route45);
+  app.use("/api/v1/production/shot-analysis", route138);
   app.use("/api/production/storyboard/addStoryboard", route46);
   app.use("/api/production/wan21/scail2/status", route47);
   app.use("/api/production/wan21/scail2Replace", route48);
