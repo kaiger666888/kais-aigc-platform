@@ -23,11 +23,19 @@ function makeAssetNode(id, label) {
   }
 }
 
+/** 统计资产节点数（V3 迁移会为每个资产合成一个事件芯片，故只数资产节点）。 */
+function countAssets(page) {
+  return page.evaluate(() => {
+    const nodes = window.__kaisCanvas?.getNodes?.() ?? []
+    return nodes.filter((n) => n.data?.v3?.kind === 'asset').length
+  })
+}
+
 test.describe('Phase 41 — Pipeline graph:saved 同步', () => {
   test('SYNC-01: pipeline save-v2 触发前端 reload + toast', async ({ page }) => {
     await loadCanvas(page)
-    const initialCount = await page.locator('.react-flow__node').count()
-    expect(initialCount).toBeGreaterThan(0)
+    const initialAssetCount = await countAssets(page)
+    expect(initialAssetCount).toBeGreaterThan(0)
 
     // 模拟 pipeline 全量写入:在 mock state 上加一个新节点
     const state = await page.request.get('/__mock/state').then((r) => r.json())
@@ -43,8 +51,8 @@ test.describe('Phase 41 — Pipeline graph:saved 同步', () => {
     // toast 出现
     await expect(page.locator('text=/Pipeline 同步了新数据/')).toBeVisible({ timeout: 5_000 })
 
-    // 节点数 +1
-    await expect(page.locator('.react-flow__node')).toHaveCount(initialCount + 1, { timeout: 5_000 })
+    // 资产节点数 +1（V3 会同时多一个事件芯片，故只数资产节点）
+    await expect.poll(() => countAssets(page), { timeout: 5_000 }).toBe(initialAssetCount + 1)
     await expect(page.locator('.react-flow__node[data-id="pipeline-asset-1"]')).toBeVisible()
   })
 

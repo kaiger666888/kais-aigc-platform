@@ -246,7 +246,12 @@ const TOPOLOGY = ['script', 'asset', 'storyboard', 'video', 'audio']
 
 app.post('/api/canvas/orchestrate', (req, res) => {
   const { projectId, episodesId, nodeIds } = req.body
-  const all = state.canvas.nodes ?? []
+  // V3：前端保存时会把生成事件芯片（type:'eventChip' / id 'evt_*'）一起写回画布。
+  // 这些是迁移合成的「生成事件」产物，不是可编排的工作项——编排器只对真实资产
+  // 节点计数（与真实后端语义一致），否则 skipped 会被 6 个 success 态事件芯片撑大。
+  const all = (state.canvas.nodes ?? []).filter(
+    (n) => n.type !== 'eventChip' && !String(n.id).startsWith('evt_'),
+  )
   const filtered = Array.isArray(nodeIds) && nodeIds.length > 0
     ? all.filter((n) => nodeIds.includes(n.id))
     : all

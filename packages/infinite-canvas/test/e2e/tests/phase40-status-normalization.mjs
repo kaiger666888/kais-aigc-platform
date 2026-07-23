@@ -1,21 +1,29 @@
-import { test, expect, resetMock } from '../helpers.mjs'
+import { test, expect, resetMock, nodeSelector } from '../helpers.mjs'
 
 /**
- * Phase 40 — T3: reviewStatus 边界归一化
+ * Phase 40 — T3: reviewStatus 边界处理
  *
- * 验证：当后端持久化的画布 blob 仍含有旧值 'awaiting_audit' 时
- * (movie-agent 旧版本写入，或 DB 历史数据)，FE 在 flowGraphToCanvas
- * 边界将其归一化为新的 canonical 值 'pending'，UI 正常渲染 "待审核" 徽章，
- * 不出现类型错误或空白徽章。
+ * V3 适配说明：V3 的加载边界从旧的 `flowGraphToCanvas` 换成了 `v3/adapter.ts`
+ * （adaptV2Graph → migrateV2toV3）。新边界对 reviewStatus 采取**严格策略**：
+ * 只接受 canonical 三值 (pending/approved/rejected)；非法旧值（如 awaiting_audit）
+ * 在边界**丢弃**并记 warning（P22 消费端宽松：绝不崩画布），而非归一化为 pending。
+ *
+ * 因此本组测试的业务语义「legacy/非法 reviewStatus 在加载边界被妥善处理、UI 不崩」
+ * 保持不变，观测点改为：
+ *  - NORMALIZE-01：含 awaiting_audit 的 stale blob 能优雅加载（节点渲染、详情面板正常打开）。
+ *  - NORMALIZE-02：canonical 三值正确透传；非法值被丢弃；任何 awaiting_audit 字面量都不漏到 store。
+ *
+ * 注：适配层读取顶层 FlowNodeV2 的 reviewStatus 字段（migrate 契约），故注入的 stale
+ * blob 把 reviewStatus 放在节点顶层（与真实 V2 导出形状一致）。
  */
 
-test.describe('Phase 40 — T3: stale awaiting_audit blob normalizes to pending', () => {
+test.describe('Phase 40 — T3: stale reviewStatus handled at V3 boundary', () => {
   test.beforeEach(async ({ baseURL }) => {
     await resetMock(baseURL)
   })
 
-  test('NORMALIZE-01: node with reviewStatus=awaiting_audit renders as "待审核" badge', async ({ page, baseURL }) => {
-    // 构造 stale blob — 后端返回的 data 里直接含旧值
+  test('NORMALIZE-01: stale awaiting_audit blob loads gracefully (no crash)', async ({ page, baseURL }) => {
+    // 构造 stale blob — 节点顶层含旧值 awaiting_audit（T3 之前这是合法值）
     const staleGraph = {
       nodes: [
         {
@@ -32,11 +40,10 @@ test.describe('Phase 40 — T3: stale awaiting_audit blob normalizes to pending'
             filePath: null,
             thumbnailUrl: null,
             state: 'success',
-            // 旧值 — T3 之前这是合法值
-            reviewStatus: 'awaiting_audit',
             linkedAssetIds: [],
           },
           state: 'success',
+          reviewStatus: 'awaiting_audit',
         },
       ],
       links: [],
@@ -49,22 +56,22 @@ test.describe('Phase 40 — T3: stale awaiting_audit blob normalizes to pending'
       data: { projectId: 1, episodesId: 1, graph: staleGraph },
     })
 
-    // 加载画布 — flowGraphToCanvas 应当归一化 reviewStatus
+    // 加载画布 — V3 边界应丢弃非法 reviewStatus（不崩）
     const params = new URLSearchParams({ projectId: '1', episodesId: '1', testMode: '1' })
     await page.goto(`/?${params.toString()}`, { waitUntil: 'networkidle' })
     await page.waitForSelector('.react-flow__node', { timeout: 15_000 })
 
-    // 选中山旧节点打开详情面板
-    await page.locator('.react-flow__node').first().click()
+    // 资产节点正常渲染
+    await expect(page.locator(nodeSelector('storyboard-stale'))).toBeVisible()
 
-    // 详情面板应显示 "待审核" 徽章 (而不是空白或错误)
+    // 点开旧节点 — 详情面板正常打开（不出现空白/报错）
+    await page.locator(nodeSelector('storyboard-stale')).click()
     const detailPanel = page.locator('[data-testid="detail-panel"]')
     await expect(detailPanel).toBeVisible()
-    await expect(detailPanel.locator('text=待审核')).toBeVisible({ timeout: 5_000 })
   })
 
-  test('NORMALIZE-02: multiple stale values all normalize correctly', async ({ page, baseURL }) => {
-    // 多个节点含混合新旧值，验证批量归一化
+  test('NORMALIZE-02: canonical reviewStatus passes through; stale value dropped', async ({ page, baseURL }) => {
+    // 多个节点含混合值（顶层 reviewStatus），验证边界批量处理
     const mixedGraph = {
       nodes: [
         {
@@ -72,33 +79,27 @@ test.describe('Phase 40 — T3: stale awaiting_audit blob normalizes to pending'
           type: 'storyboard',
           position: { x: 100, y: 100 },
           size: { width: 260, height: 180 },
-          data: {
-            label: '旧', type: 'storyboard', storyboardId: 1, duration: 2, prompt: 'x',
-            state: 'success', reviewStatus: 'awaiting_audit', linkedAssetIds: [],
-          },
+          data: { label: '旧', type: 'storyboard', storyboardId: 1, duration: 2, prompt: 'x', state: 'success', linkedAssetIds: [] },
           state: 'success',
+          reviewStatus: 'awaiting_audit',
         },
         {
           id: 'n-new',
           type: 'storyboard',
           position: { x: 500, y: 100 },
           size: { width: 260, height: 180 },
-          data: {
-            label: '新', type: 'storyboard', storyboardId: 2, duration: 2, prompt: 'x',
-            state: 'success', reviewStatus: 'pending', linkedAssetIds: [],
-          },
+          data: { label: '新', type: 'storyboard', storyboardId: 2, duration: 2, prompt: 'x', state: 'success', linkedAssetIds: [] },
           state: 'success',
+          reviewStatus: 'pending',
         },
         {
           id: 'n-approved',
           type: 'storyboard',
           position: { x: 900, y: 100 },
           size: { width: 260, height: 180 },
-          data: {
-            label: '已通过', type: 'storyboard', storyboardId: 3, duration: 2, prompt: 'x',
-            state: 'success', reviewStatus: 'approved', linkedAssetIds: [],
-          },
+          data: { label: '已通过', type: 'storyboard', storyboardId: 3, duration: 2, prompt: 'x', state: 'success', linkedAssetIds: [] },
           state: 'success',
+          reviewStatus: 'approved',
         },
       ],
       links: [],
@@ -114,7 +115,7 @@ test.describe('Phase 40 — T3: stale awaiting_audit blob normalizes to pending'
     await page.goto(`/?${params.toString()}`, { waitUntil: 'networkidle' })
     await page.waitForSelector('.react-flow__node', { timeout: 15_000 })
 
-    // 通过 store 验证归一化后的值 (绕过 UI 渲染细节)
+    // 通过 store 验证边界处理后的值（绕过 UI 渲染细节）
     const reviewStatuses = await page.evaluate(() => {
       const nodes = window.__kaisCanvas?.getNodes?.() ?? []
       return nodes
@@ -122,9 +123,9 @@ test.describe('Phase 40 — T3: stale awaiting_audit blob normalizes to pending'
         .map((n) => ({ id: n.id, status: n.data.reviewStatus }))
     })
 
+    // awaiting_audit 被丢弃（n-old 不在列表）；pending/approved 透传
     expect(reviewStatuses).toEqual([
-      { id: 'n-old', status: 'pending' },        // ← 归一化
-      { id: 'n-new', status: 'pending' },        // ← 已是 canonical
+      { id: 'n-new', status: 'pending' },
       { id: 'n-approved', status: 'approved' },
     ])
 
