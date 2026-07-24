@@ -1171,7 +1171,15 @@ export async function extractShotTimelineArtifacts(
       if (entry.representative_image) {
         const imgAbs = join(workdir, entry.representative_image);
         const imgOss = fsToOssUrl(imgAbs);
-        data.thumbnailUrl = imgOss ?? imgAbs;
+        const url = imgOss ?? imgAbs;
+        data.thumbnailUrl = url;
+        // CR-01: asset schema (canvasAssetSchema.ts:23-25) 把 filePath 标为
+        // universalRequired —— 所有 media-bearing 节点必填. character/prop 节点
+        // 本质就是 asset 节点, representative_image 即媒体 PNG. 镜像 audio/video
+        // filePath 合成模式 (:1040-1061) 同步写 filePath, 否则 import 路径
+        // (appendAndSync 绕过 Zod) 表面成功, 但下一次 save-v2 HTTP roundtrip
+        // 会对每个 character/prop 节点返回 400 (WR-03 反模式重现).
+        data.filePath = url;
       }
     }
   }
