@@ -5,7 +5,7 @@ milestone_name: Canvas Sync Permanence
 status: complete
 stopped_at: v2.0 milestone COMPLETE — all 6 phases shipped (42/43/44/45/46/47). Source contract + sync cleanup + receiver schema + text UI + E2E contract tests + historical backfill all in place. Canvas-sync triad permanently solved via 4-gate strategy. Only deferred item: BACKFILL-02 manual sampling sign-off (operator time at browser).
 last_updated: "2026-07-16T05:00:00.000Z"
-last_activity: 2026-07-23 -- Quick task 260723-pn1: shot-analysis 生产路由(driver vendor + 薄 TS 路由 /api/v1/production/shot-analysis + router 注册),build/lint 通过
+last_activity: 2026-07-24 -- Quick task 260724-jsj: shot-analysis 接入 gold-team v6 排队任务(TaskType.SHOT_ANALYSIS + workflow builder + executor 派发 + route 改薄代理),静态验证通过;待 gold-team redeploy 活测
 progress:
   total_phases: 6
   completed_phases: 6
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-17)
 Phase: 47 complete (historical-backfill-archival) — final v2.0 phase
 Plan: All 12 v2.0 plans shipped across 6 phases
 Status: v2.0 milestone COMPLETE
-Last activity: 2026-07-23 -- Quick task 260723-pn1: shot-analysis 生产路由已加(driver vendor 到 scripts/shot-analysis/ + 薄 TS 路由 POST /api/v1/production/shot-analysis 封装调用 driver + router route138 注册;build/lint 通过)。属"视频镜头解构"特性,节点部署见 quick 260723-njl (feat/shot-geometry-nodes)
+Last activity: 2026-07-24 -- Quick task 260724-jsj: shot-analysis 改成 gold-team v6 排队任务(与 LTX 串行、GPUGuard 管 VRAM)。TaskType.SHOT_ANALYSIS + build_shot_analysis_workflow(driver 逻辑移植)+ executor 自包含派发 _execute_shot_analysis(submit→poll→读 shot JSON)+ route 改 gold-team 薄代理。py_compile/tsc 通过。**待 gold-team 容器 redeploy 才生效**(否则 type=shot_analysis 422)。分支 feat/shot-analysis-goldteam
 
 ## Performance Metrics
 
@@ -121,6 +121,7 @@ Items acknowledged and carried forward from previous milestone close:
 | ltx-pose-video-pipeline | 2026-07-03 | ✅ complete | New `POST /api/production/ltx/poseVideo` route (Kimodo BVH → Blender render → LTX-2.3 I2V workflow, independent). Optional `poseVideoFrames` field on `/api/production/ltx/msr` to consume skeleton render PNGs as additional refs (back-compat preserved). Files: `src/routes/production/ltx/poseVideo.ts` (new), `msr.ts` + `config.ts` + `router.ts` (modified). `tsc` clean. **Dev server needs restart** to register the new route (running in tsx non-watch mode). |
 | schema-ui-backfill | 2026-07-12 | ✅ complete | 治本 — 修复资产节点详情面板空白。import-from-dir 摊平 manifest `params.*` + 读 `.txt` sidecar；canvasAssetSchema 声明 prompt/description；PATCH /nodes/batch 关闭校验漏洞；NodeDetailPanel AssetDetail 加 description/tags/provenance fallback；新增 dry-run backfill 脚本（530/690 节点可修复）。4 commits: `3978346f` `4a6f57f3` `77569b2f` `c574ae08`。**待用户决定** `python3 scripts/backfill-asset-descriptions.py --apply`。 |
 | formalize-shot-analysis | 2026-07-23 | ✅ complete | 视频镜头解构（运镜/主体/景别语义）正式化。Vendor 已验证的 Python driver 到 `scripts/shot-analysis/`（逐镜头:几何层 ShotGeometryLK + 可选语义层 AILab_QwenVL_Advanced/Qwen3-VL-8B-8bit + 可选主体层 SAM3+SubjectMotionResidual → shot_XXX.json）+ 薄 TS 生产路由 `POST /api/v1/production/shot-analysis`（封装调用 driver:docker cp 暂存视频→spawn→聚合 JSON,无 ComfyUI 客户端逻辑在 TS）+ router route138 注册。build exit 0 + tsc --noEmit exit 0。3 commits: `170938b6` `2472721f` `4db9386e`。**已活体验证**几何+语义两层（shot_003: pan_right/fast + 近景/follow/刀飞向右侧）。前置节点部署见 quick 260723-njl。**遗留**:主体层需 sam3.pt（HF xet CDN 不可达,网络阻塞）;路由需 dev server 重启注册。 |
+| shot-analysis-goldteam | 2026-07-24 | ✅ complete | shot-analysis 接入 gold-team v6 排队任务（与 LTX 串行、GPUGuard 管 VRAM、跑完不常驻——修掉之前的 OOM 旁路）。① models/task.py 加 `TaskType.SHOT_ANALYSIS`；② workflow_builder.py 加 `build_shot_analysis_workflow`（driver build_prompt+SEMANTIC_PROMPT v2 原样移植）；③ executor.py 加 `_TASK_OUTPUT_FIELDS` + 自包含派发分支 `_execute_shot_analysis`（submit→poll→读 ShotJSONMerge 落盘的 shot_XXX.json→store.update,避开公共 media-output 误解析）；④ route index.ts 改 gold-team 薄代理（POST /api/v1/tasks + 轮询）。py_compile + tsc 通过。2 commits: `f2e5eb5e` `b4de75d9`。**待 gold-team 容器 redeploy 才生效**（否则 type=shot_analysis → 422）+ 活体串行测试。 |
 
 ## Session Continuity
 
