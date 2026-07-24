@@ -187,22 +187,44 @@ async function main(): Promise<void> {
   // SPIRIT preserved: no new components, no renderer structural changes, no
   // custom renderer. The scoped allowlist IS the relaxation.
   //
-  // DEVIATION from 09-01-PLAN literal (Rule 1 fix): plan specified
-  // `git diff --name-only origin/master..HEAD -- packages/infinite-canvas/`
-  // bounded to an AssetNode.tsx-only allowlist. But origin/master has ADVANCED
-  // past the feat/canvas-asset-collection branch tip (git merge-base
-  // origin/master HEAD === HEAD), so that diff carries ~56 pre-existing files
-  // unrelated to Phase 9 and the allowlist would always report ~55 violations.
-  // Baseline against HEAD~1..HEAD to isolate the Phase 9 consumer commit's
-  // canvas contribution, which is what the allowlist semantics intend.
-  let treeDiff = "";
+  // WR-01: baseline against `git merge-base origin/master HEAD` (the actual
+  // divergence point) instead of the prior `HEAD~1..HEAD`. merge-base is stable
+  // across future commits on this branch (adding commit N+1 doesn't shift it),
+  // whereas HEAD~1 is commit-structure-dependent — a follow-up unrelated commit
+  // would make HEAD~1..HEAD carry only that commit, and the gate would pass
+  // vacuously while an offending packages/infinite-canvas/ file lives in the
+  // tree. mergeBase + baselineCompareOk are reused by WR-02 (AssetNode.tsx
+  // hunk-content check below). Fail loud if origin/master is missing (shallow
+  // clone / CI) per the WR-08 pattern — never pass vacuously.
+  let mergeBase = "";
+  let baselineCompareOk: boolean | null = null;
+  let baselineDiffStatus = "";
   try {
-    treeDiff = execSync(
-      "git diff --name-only HEAD~1..HEAD -- packages/infinite-canvas/",
-      { cwd: WORKTREE_CWD, encoding: "utf8" },
-    ).trim();
+    mergeBase = execSync("git merge-base origin/master HEAD", {
+      cwd: WORKTREE_CWD,
+      encoding: "utf8",
+    }).trim();
+    if (!mergeBase) {
+      baselineDiffStatus = "(merge-base returned empty — origin/master missing?)";
+      baselineCompareOk = null;
+    } else {
+      baselineCompareOk = true;
+    }
   } catch (err) {
-    treeDiff = `(git diff failed: ${(err as Error).message})`;
+    baselineDiffStatus = `(merge-base failed: ${(err as Error).message}). Shallow clone? Run: git fetch origin master:master`;
+    baselineCompareOk = null;
+  }
+
+  let treeDiff = "";
+  if (baselineCompareOk === true) {
+    try {
+      treeDiff = execSync(
+        `git diff --name-only ${mergeBase}..HEAD -- packages/infinite-canvas/`,
+        { cwd: WORKTREE_CWD, encoding: "utf8" },
+      ).trim();
+    } catch (err) {
+      treeDiff = `(git diff failed: ${(err as Error).message})`;
+    }
   }
   const allowedFrontendFiles = new Set([
     "packages/infinite-canvas/src/components/nodes/AssetNode.tsx",
@@ -210,11 +232,12 @@ async function main(): Promise<void> {
   const diffFiles = treeDiff === "" ? [] : treeDiff.split("\n").map((s) => s.trim()).filter(Boolean);
   const violationFiles = diffFiles.filter((f) => !allowedFrontendFiles.has(f));
   assert(
-    violationFiles.length === 0,
-    "CANVAS-03 additive-only: packages/infinite-canvas/ diff limited to AssetNode.tsx typeIcons (PRESENT-05 scoped relaxation)",
-    violationFiles.length === 0
-      ? (diffFiles.length === 0 ? "(empty)" : diffFiles.join(", "))
-      : `violations: ${violationFiles.join(", ")}`,
+    baselineCompareOk === true && violationFiles.length === 0,
+    "CANVAS-03 additive-only: packages/infinite-canvas/ diff (merge-base..HEAD) limited to AssetNode.tsx (PRESENT-05)",
+    baselineDiffStatus ||
+      (violationFiles.length === 0
+        ? (diffFiles.length === 0 ? "(empty)" : diffFiles.join(", "))
+        : `violations: ${violationFiles.join(", ")}`),
   );
 
   // ── Assert E2: additive-only — Zod strictness preserved ─────────
