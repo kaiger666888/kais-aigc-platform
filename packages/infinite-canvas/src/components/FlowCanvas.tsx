@@ -24,9 +24,15 @@ import { EventChipClickContext, type EventChipClickInfo } from './canvas/eventCh
 import CanvasEdgeComponent from './edges/CanvasEdge'
 import CanvasContextMenu from './CanvasContextMenu'
 import ProjectSelector from './ProjectSelector'
-import NodeDetailPanel from './NodeDetailPanel'
+import NodeDetailPanel from './panel/NodeDetailPanel'
 import IterationPanel from './IterationPanel'
 import LoadingOverlay from './LoadingOverlay'
+// C/D 层接线（SPEC-step5 C/D）：变体候选列表、事件参数 popover、溯源高亮、C 角标/牌堆注册。
+import VariantPicker from './variants/VariantPicker'
+import EventParamsPopover from './eventParams/EventParamsPopover'
+import { useVariantPickerStore } from './variants/variantPickerStore'
+import './variants/registerCInteractions'
+import { useTraceHighlight } from '../hooks/useTraceHighlight'
 
 import type { NodeState } from '../types/canvas'
 import { useCanvasStore } from '../store/canvasStore'
@@ -492,6 +498,38 @@ function CanvasInner() {
     return () => clearInterval(timer)
   }, [projectId, episodesId, loadCanvas])
 
+  // P18 溯源高亮（SPEC C.3）：选中节点时把 traceState / highlighted 盖到派生模型——
+  // AssetCardNode 读 data.traceState、CanvasEdge 读 data.highlighted，无需改 B 文件。
+  // 仅 trace 激活时映射，避免常态无谓重算。
+  const trace = useTraceHighlight()
+  const tracedNodes = useMemo(
+    () => trace.active
+      ? layoutedNodes.map((n) => ({
+          ...n,
+          data: { ...n.data, traceState: trace.highlightedIds.has(n.id) ? 'highlighted' : 'dimmed' },
+        }))
+      : layoutedNodes,
+    [layoutedNodes, trace],
+  )
+  const tracedEdges = useMemo(
+    () => trace.active
+      ? layoutedEdges.map((e) => ({ ...e, data: { ...e.data, highlighted: trace.highlightedEdges.has(e.id) } }))
+      : layoutedEdges,
+    [layoutedEdges, trace],
+  )
+
+  // Esc 退出溯源高亮 / 关芯片 popover（VariantPicker / EventParamsPopover 各自处理自身 Esc，
+  // 有模态覆盖层时不在此连带关闭详情面板）。
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (useVariantPickerStore.getState().open || activeChip) return
+      setSelectedNode(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [setSelectedNode, activeChip])
+
   // 全屏加载 — 骨架屏
   if (loading && !hasData) {
     return <LoadingOverlay />
@@ -543,8 +581,8 @@ function CanvasInner() {
       <div style={{ width: '100%', height: 'calc(100vh - 48px)', position: 'relative' }}>
         <EventChipClickContext.Provider value={handleEventChipClick}>
         <ReactFlow
-          nodes={layoutedNodes}
-          edges={layoutedEdges}
+          nodes={tracedNodes}
+          edges={tracedEdges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
@@ -705,28 +743,16 @@ function CanvasInner() {
         </ReactFlow>
         </EventChipClickContext.Provider>
 
-        {/* 事件参数 popover 插槽（SPEC B.3 出口 → D 的 src/components/eventParams/**）。
-            B 只提供锚点 + data-event-id；D 在此挂载 P19 参数 popover（320 宽 / max-h 480）。 */}
-        {activeChip && (
-          <div
-            data-testid="event-params-popover-slot"
-            data-event-id={activeChip.eventId}
-            data-op={activeChip.op}
-            style={{
-              position: 'fixed',
-              left: activeChip.clientX,
-              top: activeChip.clientY,
-              zIndex: 30,
-              width: 0,
-              height: 0,
-            }}
-          />
-        )}
+        {/* 事件参数 popover（SPEC B.3 出口 → D 的 EventParamsPopover；芯片点击经 eventChipBus 落 activeChip）。 */}
+        <EventParamsPopover anchor={activeChip} onClose={() => setActiveChip(null)} />
 
         <NodeDetailPanel
           node={selectedNode}
           onClose={() => setSelectedNode(null)}
         />
+
+        {/* P12 变体候选列表（牌堆 ×N 章 → onStackToggle → variantPickerStore）。 */}
+        <VariantPicker />
 
         {iteration.panelOpen && (
           <IterationPanel />
@@ -809,6 +835,11 @@ export default function FlowCanvas() {
         @keyframes cv-spin { to { transform: rotate(360deg) } }
         @keyframes cv-chip-tip { from { opacity: 0; transform: translate(-50%, 4px); } to { opacity: 1; transform: translate(-50%, 0); } }
         @keyframes cv-stack-fan { from { opacity: 0; transform: translate(-8px, -8px) scale(0.9); } to { opacity: 1; transform: translate(0, 0) scale(1); } }
+        @keyframes cv-stale-pulse {
+          0% { filter: drop-shadow(0 0 0 rgba(240,165,46,0.0)); transform: scale(1); }
+          50% { filter: drop-shadow(0 0 4px rgba(240,165,46,0.9)); transform: scale(1.25); }
+          100% { filter: drop-shadow(0 0 0 rgba(240,165,46,0.0)); transform: scale(1); }
+        }
       `}</style>
     </div>
   )
