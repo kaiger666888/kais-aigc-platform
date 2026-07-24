@@ -1092,6 +1092,12 @@ export async function extractShotTimelineArtifacts(
     representative_image?: string;
   };
   const registryEntries: RegistryEntry[] = [];
+  // WR-04: defense-in-depth — producer guarantees disjoint ID formats
+  // (characters.schema.json ^char_[0-9]{3}$ / props.schema.json ^prop_[0-9]{3}$),
+  // 但 consumer 信任 any-typed registry_snapshot. 跨 list 重复 ID 会让下面的
+  // registryById Map last-write-wins, 静默把 character 节点的 assetType 覆盖成
+  // prop (或反之). 在收集阶段 detect + warn, 把不可达的 mis-classify 显性化.
+  const seenRegistryIds = new Set<string>();
 
   const collectRegistryEntries = (
     list: any,
@@ -1102,10 +1108,17 @@ export async function extractShotTimelineArtifacts(
     for (const entry of list) {
       if (!entry || entry.id == null || entry.name == null) continue;
       if (filterConfirmed && entry.review_state !== "confirmed") continue;
+      const idStr = String(entry.id);
+      if (seenRegistryIds.has(idStr)) {
+        console.warn(
+          `[v2/import] registry id collision: ${idStr} already emitted (now kind=${kind}); registryById is last-write-wins and may mis-classify assetType`,
+        );
+      }
+      seenRegistryIds.add(idStr);
       const shots: unknown = entry.appearance_shots;
       const shotCount = Array.isArray(shots) ? shots.length : 0;
       registryEntries.push({
-        output_key: String(entry.id),
+        output_key: idStr,
         kind,
         name: String(entry.name),
         representative_image:
@@ -1117,7 +1130,7 @@ export async function extractShotTimelineArtifacts(
       // post-process 的 join key. 故意不设 extra.assetType (会被 :724 drop).
       artifacts.push({
         label: String(entry.name),
-        output_key: String(entry.id),
+        output_key: idStr,
         canvasType: "asset",
         name: String(entry.name),
         description: `${kind}: ${shotCount} shot${shotCount === 1 ? "" : "s"}`,
