@@ -1169,17 +1169,31 @@ export async function extractShotTimelineArtifacts(
       if (!entry) continue;
       data.assetType = entry.kind;  // 覆盖 "delivery" → "character" / "prop"
       if (entry.representative_image) {
-        const imgAbs = join(workdir, entry.representative_image);
-        const imgOss = fsToOssUrl(imgAbs);
-        const url = imgOss ?? imgAbs;
-        data.thumbnailUrl = url;
-        // CR-01: asset schema (canvasAssetSchema.ts:23-25) 把 filePath 标为
-        // universalRequired —— 所有 media-bearing 节点必填. character/prop 节点
-        // 本质就是 asset 节点, representative_image 即媒体 PNG. 镜像 audio/video
-        // filePath 合成模式 (:1040-1061) 同步写 filePath, 否则 import 路径
-        // (appendAndSync 绕过 Zod) 表面成功, 但下一次 save-v2 HTTP roundtrip
-        // 会对每个 character/prop 节点返回 400 (WR-03 反模式重现).
-        data.filePath = url;
+        // WR-05: defense-in-depth — producer enforces ^(?!.*\.\.) on
+        // representative_image (characters.schema.json / props.schema.json),
+        // 但 consumer 信任 any-typed registry_snapshot. 消费侧再校验: 拒绝含
+        // `..` 或绝对路径的值, 再 join+fsToOssUrl (probe P7 用
+        // "../../etc/passwd" 曾把逃逸绝对路径泄进 thumbnailUrl/filePath).
+        if (
+          entry.representative_image.includes("..") ||
+          entry.representative_image.startsWith("/")
+        ) {
+          console.warn(
+            `[v2/import] refusing suspicious representative_image (path traversal): ${entry.representative_image}`,
+          );
+        } else {
+          const imgAbs = join(workdir, entry.representative_image);
+          const imgOss = fsToOssUrl(imgAbs);
+          const url = imgOss ?? imgAbs;
+          data.thumbnailUrl = url;
+          // CR-01: asset schema (canvasAssetSchema.ts:23-25) 把 filePath 标为
+          // universalRequired —— 所有 media-bearing 节点必填. character/prop 节点
+          // 本质就是 asset 节点, representative_image 即媒体 PNG. 镜像 audio/video
+          // filePath 合成模式 (:1040-1061) 同步写 filePath, 否则 import 路径
+          // (appendAndSync 绕过 Zod) 表面成功, 但下一次 save-v2 HTTP roundtrip
+          // 会对每个 character/prop 节点返回 400 (WR-03 反模式重现).
+          data.filePath = url;
+        }
       }
     }
   }
