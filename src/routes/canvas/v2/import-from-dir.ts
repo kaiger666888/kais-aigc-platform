@@ -1106,9 +1106,17 @@ export async function extractShotTimelineArtifacts(
   ): void => {
     if (!Array.isArray(list)) return;
     for (const entry of list) {
-      if (!entry || entry.id == null || entry.name == null) continue;
+      if (!entry || entry.id == null) continue;
       if (filterConfirmed && entry.review_state !== "confirmed") continue;
       const idStr = String(entry.id);
+      // IN-01: producer enforces minLength:1 on name (characters/props.schema.json),
+      // 但 consumer 信任 any-typed manifest. 空/缺失 name 会让 label="" 直接违反
+      // asset schema label min(1) (Zod-failing). coerce 到稳定 registry id 兜底,
+      // 保证 label 永远非空. (entry.id == null 上面已 skip, 故 idStr 必非空.)
+      const rawName =
+        entry.name == null || String(entry.name).trim() === ""
+          ? idStr
+          : String(entry.name);
       if (seenRegistryIds.has(idStr)) {
         console.warn(
           `[v2/import] registry id collision: ${idStr} already emitted (now kind=${kind}); registryById is last-write-wins and may mis-classify assetType`,
@@ -1120,7 +1128,7 @@ export async function extractShotTimelineArtifacts(
       registryEntries.push({
         output_key: idStr,
         kind,
-        name: String(entry.name),
+        name: rawName,
         representative_image:
           typeof entry.representative_image === "string"
             ? entry.representative_image
@@ -1129,10 +1137,10 @@ export async function extractShotTimelineArtifacts(
       // §7 caveat 「前半段」: push BEFORE buildPhaseTree. output_key 是后续
       // post-process 的 join key. 故意不设 extra.assetType (会被 :724 drop).
       artifacts.push({
-        label: String(entry.name),
+        label: rawName,
         output_key: idStr,
         canvasType: "asset",
-        name: String(entry.name),
+        name: rawName,
         description: `${kind}: ${shotCount} shot${shotCount === 1 ? "" : "s"}`,
       });
     }
