@@ -240,6 +240,57 @@ async function main(): Promise<void> {
         : `violations: ${violationFiles.join(", ")}`),
   );
 
+  // ── WR-02: tighten AssetNode.tsx allowlist to "typeIcons map additions only" ──
+  // The file-level allowlist above passes for ANY change to AssetNode.tsx. The
+  // PRESENT-05 SPIRIT is "cosmetic typeIcons emoji-map extension only" — a future
+  // dangerouslySetInnerHTML / new render branch / inline <script> / new import
+  // would also pass the file allowlist and silently widen the frontend attack
+  // surface. Verify the AssetNode.tsx diff (merge-base..HEAD) is PURELY ADDITIVE
+  // (no removed content lines) AND every added line is a typeIcons map entry
+  // (`key:'emoji'` tuples, possibly several per line) or a `//` comment. Any
+  // non-conforming addition fails loud. Reuses mergeBase/baselineCompareOk above.
+  const assetNodeRel = "packages/infinite-canvas/src/components/nodes/AssetNode.tsx";
+  let assetNodeDiff = "";
+  if (baselineCompareOk === true) {
+    try {
+      assetNodeDiff = execSync(
+        `git diff ${mergeBase}..HEAD -- ${assetNodeRel}`,
+        { cwd: WORKTREE_CWD, encoding: "utf8" },
+      );
+    } catch (err) {
+      assetNodeDiff = "";
+    }
+  }
+  const assetDiffLines = assetNodeDiff ? assetNodeDiff.split("\n") : [];
+  const addedLines = assetDiffLines.filter((l) => l.startsWith("+") && !l.startsWith("+++"));
+  const removedLines = assetDiffLines.filter((l) => l.startsWith("-") && !l.startsWith("---"));
+  // Allowed added line: blank, `//` comment, or one-or-more `key: 'value',` map
+  // tuples (e.g. `character: '🧑', prop: '🔧',`). Rejects `const `, `import `,
+  // `dangerouslySetInnerHTML`, `return (`, `<script`, new JSX, etc.
+  const isAllowedTypeIconsAddition = (line: string): boolean => {
+    const body = line.slice(1); // strip leading '+'
+    const trimmed = body.trim();
+    if (trimmed === "") return true;
+    if (trimmed.startsWith("//")) return true;
+    return /^(\w+:\s*'[^']*',?\s*)+$/.test(trimmed);
+  };
+  const badAdditions = addedLines.filter((l) => !isAllowedTypeIconsAddition(l));
+  assert(
+    baselineCompareOk === true &&
+      removedLines.length === 0 &&
+      badAdditions.length === 0 &&
+      addedLines.length > 0,
+    "CANVAS-03 additive-only: AssetNode.tsx diff limited to typeIcons map additions (PRESENT-05 spirit)",
+    baselineDiffStatus ||
+      (removedLines.length > 0
+        ? `removed lines (non-additive): ${removedLines.slice(0, 5).join(" | ")}`
+        : badAdditions.length > 0
+          ? `non-map additions: ${badAdditions.slice(0, 5).join(" | ")}`
+          : addedLines.length === 0
+            ? "(no AssetNode.tsx diff — expected at least the typeIcons additions)"
+            : "ok"),
+  );
+
   // ── Assert E2: additive-only — Zod strictness preserved ─────────
   // Count-based compare (more robust than regex-on-diff — diff noise friendly).
   // WR-08: previously, when origin/master was missing (fresh shallow clone,
