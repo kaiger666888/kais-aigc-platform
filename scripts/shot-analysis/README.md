@@ -4,6 +4,12 @@
 
 这是 2026-07-23 **三层全部端到端验证过**（几何 + 语义 + 主体）的原型 driver，vendor 进仓库供平台调用。平台侧通过 `POST /api/v1/production/shot-analysis` 调用它；本文件是给运维 / 手动排查用的 operator 文档。
 
+## ComfyUI 自定义节点源 (`shot_geometry_nodes.py`) — 本仓权威源
+
+本目录的 `shot_geometry_nodes.py` 是三个 `镜头分析` ComfyUI 节点（`ShotGeometryLK` / `SubjectMotionResidual` / `ShotJSONMerge`）的**权威源码**（随 master 进 GitHub，作版本控制 + 备份）。含两处相对 Kimi 原稿的已验证修复：`ShotJSONMerge` 设 `OUTPUT_NODE=True`（有写文件副作用，输出未被下游消费时也执行）。
+
+**部署方式**（运行时 ComfyUI 从这里加载）：把本文件复制到 `/data/workspace/comfyui-incremental-nodes/ComfyUI-ShotGeometry/shot_geometry_nodes.py`（该目录经 kais-incremental aggregator bind-mount 进 comfyui 容器，详见 [[comfyui-primary-node-deploy]]），然后 `docker restart comfyui-primary`。改了节点后两端同步。
+
 > driver 含一处相对 Kimi 原稿的必要适配：`SAM3Segment` 用 `output_mode="Merged"`（非 `Separate`）—— Separate 模式按每帧实例数返回 4D/3D 混合张量，批处理 `torch.cat` 会报形状错（见「已知限制」#1）。这是 validated baseline 的一部分。
 
 ---
