@@ -23,14 +23,17 @@ import urllib.request
 
 SERVER = os.environ.get("COMFYUI_URL", "http://localhost:8188")
 
-# QwenVL prompt 模板(对齐 Kimi 文档 §4.4,严格 JSON)
+# QwenVL prompt 模板(v2: 锐化景别定义 + 显式教"看背景判相机运动")
 SEMANTIC_PROMPT = (
-    "你是摄影指导分析助手。这是同一镜头的采样帧。只输出一个JSON对象,禁止任何其他文字:\n"
-    '{"shot_scale":"大特写|特写|近景|中景|全景|远景 之一",'
-    '"camera_primitive":"static|pan_left|pan_right|tilt_up|tilt_down|dolly_in|dolly_out|'
-    'zoom_in|zoom_out|truck|arc_left|arc_right|follow|handheld|crane 之一",'
+    "你是摄影指导分析助手。这是同一镜头的采样帧。判断步骤:先看【背景是否整体位移】判断相机运动,"
+    "再看主体。只输出一个JSON对象,禁止任何其他文字:\n"
+    '{"shot_scale":"远景(人很小,环境为主)|全景(人物全身+环境)|中景(人物膝盖/腰部以上)|'
+    '近景(人物胸部以上)|特写(面部或局部)|大特写 之一,按人物在画面占比判断",'
+    '"camera_primitive":"看背景:背景整体左右平移=pan_left/pan_right,上下平移=tilt_up/tilt_down,'
+    '径向放大缩小=zoom_in/zoom_out/dolly_in/dolly_out,弧线移动=arc_left/arc_right;若【背景静止、只有主体在动】则=static;'
+    '画面持续跟随移动主体=follow;手持微晃=handheld 之一",'
     '"camera_speed":"slow|medium|fast",'
-    '"subject_motion":"主体运动方向与方式,不超过15字",'
+    '"subject_motion":"主体自身运动方向与方式(已扣除相机),不超过15字",'
     '"lens_feel":"wide|normal|telephoto",'
     '"lighting":"不超过3个关键词"}\n'
     "无法判断的字段填null。"
@@ -91,11 +94,11 @@ def build_prompt(video, shot, shot_id, fps, grid_n, do_semantic, do_subject,
         nodes["sam"] = {
             "class_type": "SAM3Segment",
             "inputs": {
-                "image": ["load", 0], "prompt": "main subject or foreground character",
-                # Merged(非 Separate):每帧合并成一个 mask,保证 torch.cat 维度一致
-                # (Separate 模式按实例数返回 4D/3D 混合,批处理 cat 会报形状错)
-                "output_mode": "Merged", "confidence_threshold": 0.5,
-                "device": "GPU",  # schema 标 optional 但 segment() 强制要求,必须显式传
+                "image": ["load", 0],
+                # 风格化动画:通用 "main subject" 不接地气,用更具体的概念词 + 降阈值
+                "prompt": "character, person, creature, animal, or figure",
+                "output_mode": "Merged", "confidence_threshold": 0.25,
+                "device": "GPU",
             },
         }
         nodes["subj"] = {
