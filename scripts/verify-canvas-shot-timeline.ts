@@ -436,6 +436,26 @@ async function main(): Promise<void> {
     `got ${v11Delivery.length} delivery asset nodes`,
   );
 
+  // ── WR-03: validateGraphNodes on v1.1 child nodes (CR-01 regression catch) ──
+  // The v1.0 ep01 run asserts validateGraphNodes(childNodes).length === 0 (Step D
+  // above) — the canonical regression catch for save-v2 per-type Zod failures.
+  // The v1.1 fixture run ORIGINALLY SKIPPED this, which is precisely why CR-01
+  // (character/prop asset nodes lacking the universalRequired `filePath`) slipped
+  // through: the v1.1 assertions checked counts/thumbnailUrl/output_key but
+  // never re-ran per-type Zod, so the missing filePath was invisible. Mirror
+  // Step D here so any future regression on character/prop asset nodes
+  // (filePath / label / assetType) fails loud at verify time, not at the next
+  // save-v2 HTTP 400.
+  const v11ChildNodes = v11Nodes.filter((n: any) => n.type !== "zone" && !n.id.startsWith("sum-"));
+  const v11Errors = validateGraphNodes(v11ChildNodes);
+  assert(
+    v11Errors.length === 0,
+    "PRESENT-04 CANVAS-03: all v1.1 child nodes pass per-type Zod (regression catch for missing filePath / label)",
+    v11Errors.length === 0
+      ? undefined
+      : v11Errors.map((e) => `${e.nodeId}: ${e.errors}`).join(" | "),
+  );
+
   finish();
 }
 
