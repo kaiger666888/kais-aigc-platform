@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import os
 from typing import Any, Optional
 
 from src.v6.callbacks import build_callback_payload, send_callback
@@ -38,6 +40,10 @@ _TASK_OUTPUT_FIELDS: dict[TaskType, dict[str, str]] = {
     TaskType.IMAGE_PULID: {"image": "pulid_flux.png", "thumbnail": "thumb.jpg"},
     TaskType.CONTROLNET_DEPTH: {"image": "controlnet_depth.png", "thumbnail": "thumb.jpg"},
     TaskType.WAN_I2V: {"video": "wan_i2v.mp4", "thumbnail": "thumb.jpg"},
+    # SHOT_ANALYSIS output is a JSON sidecar (ShotJSONMerge-written, not a
+    # ComfyUI media artifact) — used only as a fallback template; the real
+    # output path is constructed in the SHOT_ANALYSIS dispatch branch.
+    TaskType.SHOT_ANALYSIS: {"analysis": "shot.json"},
 }
 
 
@@ -584,6 +590,15 @@ class TaskExecutor:
                         filename_prefix=task.params.get("filename_prefix", "refined"),
                     )
                     logger.info("Auto-built Image Refine workflow for task %s", task.task_id)
+                elif task.type == TaskType.SHOT_ANALYSIS:
+                    # ── SHOT_ANALYSIS: per-shot cinematic deconstruction ──
+                    # Self-contained execution path: the workflow's real output is a
+                    # JSON sidecar written by ShotJSONMerge to save_dir/shot_XXX.json
+                    # (NOT a ComfyUI media artifact). We submit→poll→read JSON→update
+                    # store→return here, so we never fall through to the common media
+                    # collector below (which would mis-parse it as image/video/audio).
+                    await self._execute_shot_analysis(task, engine)
+                    return
                 else:
                     # Default: FLUX Dev FP8 for image_draw (most common)
                     # Only use txt2img (CheckpointLoaderSimple) when an explicit SDXL model is given
@@ -676,6 +691,152 @@ class TaskExecutor:
             )
             if task.callback_url:
                 await send_callback(task, task.callback_url, task.callback_secret)
+
+    async def _execute_shot_analysis(self, task: GenerationTask, engine: BaseEngine) -> None:
+        """Run a SHOT_ANALYSIS task end-to-end on the given engine.
+
+        Builds the ComfyUI shot-analysis workflow (geometry + optional semantic/
+        subject layers), submits via the engine, polls to completion, then reads
+        the JSON sidecar that ShotJSONMerge wrote to ``save_dir/shot_XXX.json``
+        and stores it as the task output.
+
+        Unlike the common media-output path, this does NOT call
+        ``engine.get_output()`` — shot-analysis produces a JSON file on disk, not
+        a ComfyUI media artifact, so the media collector cannot find it.
+        """
+        from src.v6.engines.workflow_builder import build_shot_analysis_workflow
+
+        store = get_task_store()
+
+        video = task.params.get("video", "")
+        shot_id = task.params.get("shot_id")
+        start_sec = task.params.get("start_sec")
+        end_sec = task.params.get("end_sec")
+        if not video or shot_id is None or start_sec is None or end_sec is None:
+            missing = [
+                k for k, v in (
+                    ("video", video), ("shot_id", shot_id),
+                    ("start_sec", start_sec), ("end_sec", end_sec),
+                ) if not v and v != 0
+            ]
+            msg = f"SHOT_ANALYSIS requires params: {', '.join(missing)}"
+            logger.error("%s, task %s", msg, task.task_id)
+            await store.update(task.task_id, status=TaskStatus.FAILED, error=msg)
+            if task.callback_url:
+                await send_callback(task, task.callback_url, task.callback_secret)
+            return
+
+        save_dir = task.params.get("save_dir", "/mnt/agents/output/gpu1/shot_analysis")
+        shot = {"id": shot_id, "start_sec": start_sec, "end_sec": end_sec}
+
+        try:
+            workflow = build_shot_analysis_workflow(
+                shot=shot,
+                video=video,
+                semantic=task.params.get("semantic", True),
+                subject=task.params.get("subject", False),
+                grid_n=task.params.get("grid_n", 20),
+                fps=task.params.get("fps", 24.0),
+                save_dir=save_dir,
+                qwen_model=task.params.get("qwen_model", "Qwen3-VL-8B-Instruct"),
+                quant=task.params.get("quant", "8-bit (Balanced)"),
+            )
+        except Exception as e:
+            logger.exception("SHOT_ANALYSIS workflow build failed, task %s", task.task_id)
+            await store.update(task.task_id, status=TaskStatus.FAILED, error=f"workflow build failed: {e}")
+            if task.callback_url:
+                await send_callback(task, task.callback_url, task.callback_secret)
+            return
+
+        logger.info(
+            "Auto-built shot-analysis workflow for task %s (shot_id=%s, save_dir=%s)",
+            task.task_id, shot_id, save_dir,
+        )
+
+        engine_params = {"task_id": task.task_id, "type": task.type.value}
+
+        try:
+            engine_job_id = await engine.submit(workflow, engine_params)
+        except Exception as e:
+            logger.exception("SHOT_ANALYSIS submit failed, task %s", task.task_id)
+            await store.update(task.task_id, status=TaskStatus.FAILED, error=f"submit failed: {e}")
+            if task.callback_url:
+                await send_callback(task, task.callback_url, task.callback_secret)
+            return
+
+        shot_json_path = os.path.join(save_dir, f"shot_{int(shot_id):03d}.json")
+
+        # Poll until terminal state
+        try:
+            while self._running:
+                result = await engine.poll(engine_job_id)
+                status = result.get("status", "running")
+                progress = result.get("progress", 0.0)
+                await store.update(task.task_id, progress=progress)
+
+                if status == "completed":
+                    # ShotJSONMerge should have written the sidecar JSON.
+                    try:
+                        with open(shot_json_path, "r", encoding="utf-8") as f:
+                            shot_data = json.load(f)
+                    except Exception as e:
+                        logger.error(
+                            "SHOT_ANALYSIS task %s: ComfyUI completed but shot JSON "
+                            "unreadable at %s: %s",
+                            task.task_id, shot_json_path, e,
+                        )
+                        await store.update(
+                            task.task_id,
+                            status=TaskStatus.FAILED,
+                            error=f"shot JSON unreadable at {shot_json_path}: {e}",
+                        )
+                        if task.callback_url:
+                            await send_callback(task, task.callback_url, task.callback_secret)
+                        return
+
+                    # Carry the parsed shot payload through TaskOutputs.extra so
+                    # callers polling /tasks/{id} receive the full deconstruction
+                    # inline (not just a filesystem path).
+                    outputs = TaskOutputs(analysis=shot_json_path, payload=shot_data)
+                    metadata = TaskMetadata(
+                        seed=task.params.get("seed", 42),
+                        cost_usd=0.0,
+                        inference_time_sec=0.0,
+                        gpu_memory_peak_gb=0.0,
+                        model_name=engine.name,
+                    )
+                    await store.update(
+                        task.task_id,
+                        status=TaskStatus.COMPLETED,
+                        outputs=outputs,
+                        metadata=metadata,
+                        progress=100.0,
+                    )
+                    logger.info(
+                        "Task %s (shot-analysis) completed via %s — shot JSON at %s",
+                        task.task_id, engine.engine_id, shot_json_path,
+                    )
+                    break
+
+                if status == "failed":
+                    error_msg = result.get("error", "Engine execution failed")
+                    await store.update(
+                        task.task_id,
+                        status=TaskStatus.FAILED,
+                        error=error_msg,
+                    )
+                    logger.error("Task %s (shot-analysis) failed: %s", task.task_id, error_msg)
+                    break
+
+                await asyncio.sleep(0.5)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            logger.exception("Task %s (shot-analysis) execution error", task.task_id)
+            await store.update(task.task_id, status=TaskStatus.FAILED, error=str(e))
+
+        if task.callback_url:
+            await send_callback(task, task.callback_url, task.callback_secret)
 
     async def _download_artifacts(self, task_id: str, output_data: dict[str, Any]) -> dict[str, Any]:
         """Download engine output artifacts to local storage."""

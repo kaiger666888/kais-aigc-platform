@@ -29,6 +29,7 @@ class TaskType(str, enum.Enum):
     CONTROLNET_DEPTH = "controlnet_depth"  # ControlNet Depth geometry lock (FLUX + ControlNet)
     WAN_I2V = "wan_i2v"                    # Wan 2.1 I2V dual-stage video generation
     IMAGE_TO_3D_MV = "image_to_3d_mv"          # Hunyuan3D-2mv multiview image-to-3D
+    SHOT_ANALYSIS = "shot_analysis"            # 逐镜头运镜解构(几何+语义+主体)
 
 
 class TaskStatus(str, enum.Enum):
