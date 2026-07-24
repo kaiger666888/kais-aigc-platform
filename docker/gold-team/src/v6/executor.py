@@ -106,8 +106,14 @@ class TaskExecutor:
             if not task or task.status == TaskStatus.CANCELLED:
                 continue
 
-            # Run task
-            await self._execute_task(task)
+            # Run task (per-task timeout: 防退化镜头/模型挂死阻塞整个队列)
+            try:
+                await asyncio.wait_for(self._execute_task(task), timeout=600)
+            except asyncio.TimeoutError:
+                logger.warning("Task %s timed out after 600s — marking FAILED so queue continues",
+                               task.task_id)
+                await store.update(task.task_id, status=TaskStatus.FAILED,
+                                   error="task timed out after 600s")
 
     async def _execute_task(self, task: GenerationTask) -> None:
         """Execute a single task through the appropriate engine."""
