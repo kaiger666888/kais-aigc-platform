@@ -12,7 +12,7 @@
  */
 
 import dagre from '@dagrejs/dagre'
-import type { Node, Edge } from '@xyflow/react'
+import { Position, type Node, type Edge } from '@xyflow/react'
 
 /** Default node dimensions if not measured yet */
 const DEFAULT_NODE_WIDTH = 260
@@ -82,8 +82,8 @@ export function getLayoutedElements(
         y: (pos?.y ?? 0) - h / 2,
       },
       // Set handle positions based on direction
-      targetPosition: isHorizontal ? ('left' as const) : ('top' as const),
-      sourcePosition: isHorizontal ? ('right' as const) : ('bottom' as const),
+      targetPosition: isHorizontal ? Position.Left : Position.Top,
+      sourcePosition: isHorizontal ? Position.Right : Position.Bottom,
     }
   })
 

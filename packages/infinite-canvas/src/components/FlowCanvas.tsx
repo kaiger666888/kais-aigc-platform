@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -8,58 +8,75 @@ import {
   addEdge,
   type OnConnect,
   type Connection,
-  type Node as RFNode,
-  type Edge as RFEdge,
   Panel,
   useReactFlow,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
+import { applyLayout } from '@kais/flowgraph-v3'
 
-import ScriptNodeComponent from './nodes/ScriptNode'
 import AssetNodeComponent from './nodes/AssetNode'
-import StoryboardNodeComponent from './nodes/StoryboardNode'
-import VideoNodeComponent from './nodes/VideoNode'
-import AudioNodeComponent from './nodes/AudioNode'
 import FallbackNodeComponent from './nodes/FallbackNode'
 import ZoneNodeComponent from './nodes/ZoneNode'
+import AssetCardNode from './nodes/AssetCardNode'
+import EventChipNode from './nodes/EventChipNode'
+import LaneBands from './canvas/LaneBands'
+import { EventChipClickContext, type EventChipClickInfo } from './canvas/eventChipBus'
 import CanvasEdgeComponent from './edges/CanvasEdge'
 import CanvasContextMenu from './CanvasContextMenu'
 import ProjectSelector from './ProjectSelector'
-import NodeDetailPanel from './NodeDetailPanel'
+import NodeDetailPanel from './panel/NodeDetailPanel'
 import IterationPanel from './IterationPanel'
 import LoadingOverlay from './LoadingOverlay'
+// C/D 层接线（SPEC-step5 C/D）：变体候选列表、事件参数 popover、溯源高亮、C 角标/牌堆注册。
+import VariantPicker from './variants/VariantPicker'
+import EventParamsPopover from './eventParams/EventParamsPopover'
+import { useVariantPickerStore } from './variants/variantPickerStore'
+import './variants/registerCInteractions'
+import { useTraceHighlight } from '../hooks/useTraceHighlight'
 
 import type { NodeState } from '../types/canvas'
 import { useCanvasStore } from '../store/canvasStore'
 import { ToastContainer } from '../hooks/useToast'
-import { flowGraphToCanvas, canvasToFlowGraph } from '../utils/flowDataMapper'
+import { canvasToFlowGraph } from '../utils/flowDataMapper'
 import { getLayoutedElements } from '../utils/autoLayout'
 import { loadCanvasGraph, saveCanvasGraph, convertProjectData, fetchSkillNodeTypes, orchestrateCanvas, fetchCanvasHealth } from '../services/canvasApi'
 import { useCanvasSocket } from '../hooks/useCanvasSocket'
-import { theme, miniMapNodeColors } from '../theme/catppuccin'
-import { LAYOUT, VIEWPORT } from '../constants'
+import { useLayout } from '../hooks/useLayout'
+import { canvasStateKey, loadCanvasState, useCanvasPersistence } from '../hooks/useCanvasPersistence'
+import { getFixtureMode } from '../v3/fixtureSource'
+import { theme, miniMapNodeColors, v3theme } from '../theme/catppuccin'
+import { LAYOUT, V3_LAYOUT } from '../constants'
 
 /**
- * Platform built-in node renderers (Phase 32 CANVAS-02).
+ * Platform built-in node renderers (Phase 32 CANVAS-02) + V3 stage renderers。
  *
- * These five renderers — `script`, `asset`, `storyboard`, `video`, `audio` —
- * are PLATFORM PRIMITIVES keyed by `default_renderer`. They are NOT movie-v1
- * properties. A skill manifest references them via each `node_types[].default_renderer`
- * field; future skills can declare new node types that reuse these renderers
- * without a canvas bundle repack.
- *
- * `default` is the fallback for any `node.type` value that is not in the
- * built-in map (CANVAS-03 — unknown types render via FallbackNode instead of
- * crashing the canvas).
+ * V3 契约（adapter graphToViewModel）：资产 RF type = stage 字符串（10 个），
+ * 事件 → 'eventChip'（P19 芯片），结构 → 'structure'。stage 键统一映射到
+ * AssetCardNode（§4 节点解剖学 + §7 LOD 三级，按 data.v3 渲染）；
+ * `default` 仍是未知类型的 FallbackNode（CANVAS-03）。
+ * 旧五渲染器键（script/asset/storyboard/video/audio）与 stage 键撞名——
+ * 全部加载已走 V3 adapter（SPEC-step5 B.8），撞名键以 V3 卡为准；
+ * 非 graph 兜底路径保留 'asset'/'reference'/'zone' 旧渲染器。
  */
 const nodeTypes = {
   default: FallbackNodeComponent,
-  script: ScriptNodeComponent,
+  // V3 stage keys（P8 十泳道）
+  global: AssetCardNode,
+  script: AssetCardNode,
+  storyboard: AssetCardNode,
+  keyframe: AssetCardNode,
+  video: AssetCardNode,
+  voice: AssetCardNode,
+  foley: AssetCardNode,
+  bgm: AssetCardNode,
+  mix: AssetCardNode,
+  composite: AssetCardNode,
+  // P19 事件芯片 / 结构节点兜底
+  eventChip: EventChipNode,
+  structure: FallbackNodeComponent,
+  // legacy 非 graph 路径
   asset: AssetNodeComponent,
   reference: AssetNodeComponent,
-  storyboard: StoryboardNodeComponent,
-  video: VideoNodeComponent,
-  audio: AudioNodeComponent,
   zone: ZoneNodeComponent,
 }
 
@@ -90,6 +107,15 @@ function CanvasInner() {
   const setEdges = useCanvasStore((s) => s.setEdges)
   const onNodesChange = useCanvasStore((s) => s.onNodesChange)
   const onEdgesChange = useCanvasStore((s) => s.onEdgesChange)
+  const graph = useCanvasStore((s) => s.graph)
+  const loadInitialGraph = useCanvasStore((s) => s.loadInitialGraph)
+  const applyGraphTransform = useCanvasStore((s) => s.applyGraphTransform)
+
+  // SPEC-step5 B.7：包内布局 → RF 坐标桥（tokens 泳道几何 + 边产物模态色富化）
+  const { nodes: layoutedNodes, edges: layoutedEdges, geometry } = useLayout()
+
+  // SPEC-step5 B.8：fixture 模式（?fixture=decompose|valid，绕过 socket/REST）
+  const fixtureMode = getFixtureMode()
 
   const loading = useCanvasStore((s) => s.loading)
   const setLoading = useCanvasStore((s) => s.setLoading)
@@ -136,12 +162,17 @@ function CanvasInner() {
 
   const initialParams = getInitialParams()
 
+  // 事件芯片参数 popover 插槽（SPEC B.3：B 留出口，popover 本体归 D）
+  const [activeChip, setActiveChip] = useState<EventChipClickInfo | null>(null)
+  const handleEventChipClick = useCallback((info: EventChipClickInfo) => setActiveChip(info), [])
+
   // Health-poll baseline ref — 必须在 useCanvasSocket 之前声明,
   // 以便 onGraphSaved 回调里能重置基线避免双触发 reload。
   const lastEventCountRef = useRef<number | null>(null)
 
   const { connected } = useCanvasSocket({
-    projectId: projectId ?? 0,
+    // fixture 模式绕过 socket（SPEC A.3：静态预览/离线开发不连后端）
+    projectId: fixtureMode ? 0 : (projectId ?? 0),
     onNodeStateChange: (nodeId: string, state: NodeState, progress?: number) => {
       setNodes((nds) =>
         (nds as any[]).map((n) =>
@@ -210,63 +241,68 @@ function CanvasInner() {
     },
   })
 
+  /**
+   * 加载流程（SPEC-step5 B.8 接线）：全部走 store.loadInitialGraph ——
+   * ?fixture=decompose|valid → fixture 直载（fixtureSource 决策树内识别，绕过 REST）；
+   * 否则 loadBackend（REST 全量 V2）→ adaptV2Graph；后端不可达 → 自动 fallback
+   * decompose fixture + toast（fallback 文案在 store/fixtureSource 内生效）。
+   * 布局由包内引擎接管（P7/P8/P9/P11），不再做 dagre 加载重排。
+   */
   const loadCanvas = useCallback(async (pid: number, eid: number) => {
-    setLoading(true)
     setLoadError(null)
     setProject(pid, eid)
 
-    try {
+    await loadInitialGraph(async () => {
       const savedGraph = await loadCanvasGraph(pid, eid)
-      let rawNodes: RFNode[] = []
-      let rawEdges: RFEdge[] = []
-      if (savedGraph?.nodes?.length) {
-        const converted = flowGraphToCanvas(savedGraph)
-        rawNodes = converted.nodes
-        rawEdges = converted.edges
-      } else {
-        const graph = await convertProjectData(pid, eid)
-        if (graph?.nodes?.length) {
-          const converted = flowGraphToCanvas(graph)
-          rawNodes = converted.nodes
-          rawEdges = converted.edges
-        } else {
-          setNodes([])
-          setEdges([])
-          setLoadError('该项目暂无数据，请先运行管线生成剧本和资产')
-        }
-      }
+      if (savedGraph?.nodes?.length) return savedGraph
+      const converted = await convertProjectData(pid, eid)
+      if (converted?.nodes?.length) return converted
+      // 空项目：返回空骨架（不抛错——抛错会触发 fixture fallback，语义不对）
+      return { meta: { projectId: pid, episodesId: eid }, nodes: [], links: [], branches: [], variantGroups: [] }
+    })
 
-      // Auto-layout on load so nodes are always readable regardless of
-      // the (often terrible) coordinates coming from the backend.
-      // Skip auto-layout for large graphs (>100 nodes) — dagre produces
-      // an unreadable mega-column and destroys backend-provided zone/lanes.
-      if (rawNodes.length > 0 && rawNodes.length <= 100) {
-        const { nodes: layouted, edges: layoutedEdges } = getLayoutedElements(
-          rawNodes as any[],
-          rawEdges as any[],
-          'LR',
-        )
-        setNodes(layouted)
-        setEdges(layoutedEdges)
-      } else if (rawNodes.length > 0) {
-        setNodes(rawNodes)
-        setEdges(rawEdges)
-      }
-
-      setHasData(true)
-
-      const url = new URL(window.location.href)
-      url.searchParams.set('projectId', String(pid))
-      url.searchParams.set('episodesId', String(eid))
-      window.history.replaceState({}, '', url.toString())
-    } catch (err: any) {
-      console.error('加载画布数据失败:', err)
-      setLoadError(err.message || '加载画布数据失败')
-      setHasData(false)
-    } finally {
-      setLoading(false)
+    const loaded = useCanvasStore.getState().graph
+    if (!getFixtureMode() && loaded && loaded.nodes.length === 0) {
+      setNodes([])
+      setEdges([])
+      setLoadError('该项目暂无数据，请先运行管线生成剧本和资产')
     }
-  }, [setNodes, setEdges, setLoading, setLoadError, setProject, setHasData])
+
+    const url = new URL(window.location.href)
+    url.searchParams.set('projectId', String(pid))
+    url.searchParams.set('episodesId', String(eid))
+    window.history.replaceState({}, '', url.toString())
+  }, [setNodes, setEdges, setLoadError, setProject, loadInitialGraph])
+
+  // fixture 模式：免选项目直接加载（?fixture=decompose|valid），项目上下文取 fixture meta
+  useEffect(() => {
+    if (!fixtureMode) return
+    void loadInitialGraph().then(() => {
+      const g = useCanvasStore.getState().graph
+      if (g && (g.meta.projectId || g.meta.episodesId)) {
+        useCanvasStore.getState().setProject(g.meta.projectId, g.meta.episodesId)
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fixtureMode, loadInitialGraph])
+
+  // ── P17 持久化（SPEC B.6）：viewport/折叠/选定 → localStorage（key 含 projectId+episodesId） ──
+  // fixture 模式无 URL 项目参数时取 graph.meta；都不具备则不持久化（如未加载）
+  const graphMetaIds = graph?.meta
+  const effPid = projectId ?? graphMetaIds?.projectId ?? null
+  const effEid = episodesId ?? graphMetaIds?.episodesId ?? null
+  const persistenceKey = effPid != null && effEid != null ? canvasStateKey(effPid, effEid) : null
+  const { onMoveEnd: persistViewport } = useCanvasPersistence(persistenceKey, layoutedNodes.length > 0)
+  // 有持久化 viewport 时跳过 fitView（P17：刷新原样恢复优先于适配视图）
+  const persistedViewport = useMemo(
+    () => (persistenceKey ? loadCanvasState(persistenceKey).viewport : undefined),
+    [persistenceKey],
+  )
+
+  const handleMoveEnd = useCallback(
+    (_e: unknown, viewport: { x: number; y: number; zoom: number }) => persistViewport(viewport),
+    [persistViewport],
+  )
 
   const onConnect: OnConnect = useCallback(
     (params: Connection) => {
@@ -313,9 +349,12 @@ function CanvasInner() {
   const onPaneClick = useCallback(() => {
     setMenuPos(null)
     setSelectedNode(null)
+    setActiveChip(null) // 关掉事件芯片 popover 插槽
   }, [setMenuPos, setSelectedNode])
 
   const onNodeClick = useCallback((_event: React.MouseEvent, node: any) => {
+    // 事件芯片自带点击行为（P19 参数 popover 出口），不进节点详情面板
+    if (node?.type === 'eventChip') return
     setSelectedNode(node)
   }, [setSelectedNode])
 
@@ -333,21 +372,26 @@ function CanvasInner() {
     }
   }, [nodes, edges, projectId, episodesId, reactFlow, setSaving])
 
-  // 自动整理布局 (dagre)
+  // 自动整理布局：V3 = 包内布局引擎全量重布（position 是计算缓存，宪法 §7；
+  // 【优化口】增量只重布脏子图见 useLayout.ts 注释）；非 graph 兜底路径保留 dagre。
   const handleAutoLayout = useCallback(() => {
-    const { nodes: layouted, edges: layoutedEdges } = getLayoutedElements(
-      nodes as any[],
-      edges as any[],
-      'LR',
-    )
-    setNodes(layouted)
-    setEdges(layoutedEdges)
+    if (graph) {
+      applyGraphTransform((g) => applyLayout(g, { gap: V3_LAYOUT.NODE_GAP_X }))
+    } else {
+      const { nodes: layouted, edges: layoutedEdgeList } = getLayoutedElements(
+        nodes as any[],
+        edges as any[],
+        'LR',
+      )
+      setNodes(layouted)
+      setEdges(layoutedEdgeList)
+    }
     // 短延迟后 fitView，等待 React 重渲染拿到 measured 尺寸
     setTimeout(() => {
       reactFlow.fitView({ padding: 0.15, duration: 600 })
     }, 50)
     showToast?.('已整理为紧凑布局', 'success')
-  }, [nodes, edges, setNodes, setEdges, reactFlow, showToast])
+  }, [graph, applyGraphTransform, nodes, edges, setNodes, setEdges, reactFlow, showToast])
 
   // Phase 36 — 一键成片编排触发
   const handleOrchestrate = useCallback(async () => {
@@ -376,6 +420,8 @@ function CanvasInner() {
   }, [iteration.status, iteration.panelOpen, setIterationPanelOpen, updateIterationProgress])
 
   const miniMapNodeColor = useCallback((node: any) => {
+    // §2.1：minimap 节点色 = 模态色 + locked 石灰（拉片参考区一眼可辨）
+    if (node.data?.curation === 'locked') return v3theme.signal.locked
     return miniMapNodeColors[node.type || ''] ?? theme.border.dim
   }, [])
 
@@ -386,6 +432,7 @@ function CanvasInner() {
   // primitives keyed by `default_renderer`. Unknown types fall through to
   // FallbackNode via the `default` entry in the nodeTypes map (CANVAS-03).
   useEffect(() => {
+    if (fixtureMode) return // fixture 模式绕过 REST（SPEC A.3）
     let cancelled = false
     fetchSkillNodeTypes(activeSkillId)
       .then((decls) => {
@@ -394,7 +441,7 @@ function CanvasInner() {
     return () => {
       cancelled = true
     }
-  }, [activeSkillId, setDeclaredNodeTypes])
+  }, [activeSkillId, setDeclaredNodeTypes, fixtureMode])
 
   // Phase 45 (TEXT-03) — Tier 2 search filter.
   // Debounced 200ms; filters visible nodes by case-insensitive substring
@@ -426,7 +473,7 @@ function CanvasInner() {
   // 仅在外部写入(pipeline)时生效;前端自己的 loadCanvas 不会改变
   // 当前 scope 的 eventCount 之外的位置。
   useEffect(() => {
-    if (!projectId || episodesId == null) {
+    if (fixtureMode || !projectId || episodesId == null) {
       lastEventCountRef.current = null
       return
     }
@@ -451,6 +498,38 @@ function CanvasInner() {
     return () => clearInterval(timer)
   }, [projectId, episodesId, loadCanvas])
 
+  // P18 溯源高亮（SPEC C.3）：选中节点时把 traceState / highlighted 盖到派生模型——
+  // AssetCardNode 读 data.traceState、CanvasEdge 读 data.highlighted，无需改 B 文件。
+  // 仅 trace 激活时映射，避免常态无谓重算。
+  const trace = useTraceHighlight()
+  const tracedNodes = useMemo(
+    () => trace.active
+      ? layoutedNodes.map((n) => ({
+          ...n,
+          data: { ...n.data, traceState: trace.highlightedIds.has(n.id) ? 'highlighted' : 'dimmed' },
+        }))
+      : layoutedNodes,
+    [layoutedNodes, trace],
+  )
+  const tracedEdges = useMemo(
+    () => trace.active
+      ? layoutedEdges.map((e) => ({ ...e, data: { ...e.data, highlighted: trace.highlightedEdges.has(e.id) } }))
+      : layoutedEdges,
+    [layoutedEdges, trace],
+  )
+
+  // Esc 退出溯源高亮 / 关芯片 popover（VariantPicker / EventParamsPopover 各自处理自身 Esc，
+  // 有模态覆盖层时不在此连带关闭详情面板）。
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (useVariantPickerStore.getState().open || activeChip) return
+      setSelectedNode(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [setSelectedNode, activeChip])
+
   // 全屏加载 — 骨架屏
   if (loading && !hasData) {
     return <LoadingOverlay />
@@ -464,16 +543,24 @@ function CanvasInner() {
           <span style={{ color: theme.node.script, fontWeight: 600, fontSize: 14 }}>无限画布</span>
         </div>
 
-        <ProjectSelector
-          initialProjectId={initialParams.projectId}
-          initialEpisodesId={initialParams.episodesId}
-          onSelect={loadCanvas}
-        />
+        {fixtureMode ? (
+          <span style={{ color: theme.text.secondary, fontSize: 11, fontFamily: 'var(--cv-font-mono, monospace)' }}>
+            fixture: {fixtureMode}
+          </span>
+        ) : (
+          <ProjectSelector
+            initialProjectId={initialParams.projectId}
+            initialEpisodesId={initialParams.episodesId}
+            onSelect={loadCanvas}
+          />
+        )}
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <span style={{ color: connected ? theme.status.connected : theme.status.disconnected, fontSize: 11 }}>
-            {connected ? '● 已连接' : '○ 未连接'}
-          </span>
+          {!fixtureMode && (
+            <span style={{ color: connected ? theme.status.connected : theme.status.disconnected, fontSize: 11 }}>
+              {connected ? '● 已连接' : '○ 未连接'}
+            </span>
+          )}
         </div>
       </div>
 
@@ -492,9 +579,10 @@ function CanvasInner() {
 
       {/* 画布区域 */}
       <div style={{ width: '100%', height: 'calc(100vh - 48px)', position: 'relative' }}>
+        <EventChipClickContext.Provider value={handleEventChipClick}>
         <ReactFlow
-          nodes={nodes}
-          edges={edges}
+          nodes={tracedNodes}
+          edges={tracedEdges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
@@ -506,17 +594,28 @@ function CanvasInner() {
           onPaneClick={onPaneClick}
           onNodeClick={onNodeClick}
           onSelectionChange={onSelectionChange}
-          fitView={hasData}
-          fitViewOptions={{ padding: 0.15, minZoom: 0.4, maxZoom: 1.5, duration: 600 }}
+          onMoveEnd={handleMoveEnd}
+          fitView={hasData && !persistedViewport}
+          fitViewOptions={{ padding: 0.15, minZoom: 0.1, maxZoom: 1.5, duration: 600 }}
           minZoom={0.05}
           maxZoom={4}
           selectionOnDrag
           panOnDrag={[1]}
           selectionKeyCode="Shift"
+          // V3：position 是布局引擎计算缓存（宪法 §7），手拖不改 canonical——禁拖防止「拖了弹回」困惑
+          nodesDraggable={!graph}
+          // P16 视口即渲染边界：采用 RF 内建 onlyRenderVisibleElements（视口外节点物理卸载）。
+          // 取舍：内建是「完全卸载」而非 24×14 占位块——占位语义由 LOD L0 色块承担
+          //（全景 zoom<0.35 时全部在渲染节点本身就是色块），自实现视口占位会与 RF 的
+          // measured 尺寸缓存重复一套 intersection 计算，收益低、一致性风险高，故取内建。
+          onlyRenderVisibleElements
           style={{ background: theme.bg.canvas }}
           proOptions={{ hideAttribution: true }}
         >
-          <Background color={theme.border.default} gap={20} size={1} />
+          <Background color={theme.border.canvas} gap={20} size={1} />
+
+          {/* B2 十泳道背景带 + 第 0 列 + locked 参考区（geometry 来自 useLayout 桥） */}
+          {geometry && <LaneBands geometry={geometry} />}
           <Controls
             position="bottom-left"
             showInteractive={false}
@@ -642,11 +741,18 @@ function CanvasInner() {
             />
           )}
         </ReactFlow>
+        </EventChipClickContext.Provider>
+
+        {/* 事件参数 popover（SPEC B.3 出口 → D 的 EventParamsPopover；芯片点击经 eventChipBus 落 activeChip）。 */}
+        <EventParamsPopover anchor={activeChip} onClose={() => setActiveChip(null)} />
 
         <NodeDetailPanel
           node={selectedNode}
           onClose={() => setSelectedNode(null)}
         />
+
+        {/* P12 变体候选列表（牌堆 ×N 章 → onStackToggle → variantPickerStore）。 */}
+        <VariantPicker />
 
         {iteration.panelOpen && (
           <IterationPanel />
@@ -725,6 +831,15 @@ export default function FlowCanvas() {
         @keyframes spin { to { transform: rotate(360deg) } }
         @keyframes toast-in { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
         .react-flow__node:hover > div > div:first-of-type > button { opacity: 1 !important; }
+        /* Step 5 动效族（tokens --cv-*；时长/缓动在 var 内，此处只定义轨迹） */
+        @keyframes cv-spin { to { transform: rotate(360deg) } }
+        @keyframes cv-chip-tip { from { opacity: 0; transform: translate(-50%, 4px); } to { opacity: 1; transform: translate(-50%, 0); } }
+        @keyframes cv-stack-fan { from { opacity: 0; transform: translate(-8px, -8px) scale(0.9); } to { opacity: 1; transform: translate(0, 0) scale(1); } }
+        @keyframes cv-stale-pulse {
+          0% { filter: drop-shadow(0 0 0 rgba(240,165,46,0.0)); transform: scale(1); }
+          50% { filter: drop-shadow(0 0 4px rgba(240,165,46,0.9)); transform: scale(1.25); }
+          100% { filter: drop-shadow(0 0 0 rgba(240,165,46,0.0)); transform: scale(1); }
+        }
       `}</style>
     </div>
   )

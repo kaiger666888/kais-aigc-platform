@@ -1,4 +1,4 @@
-/** 节点尺寸 */
+/** 节点尺寸（旧五类型渲染器契约，保留） */
 export const NODE_SIZES = {
   script: { minWidth: 240, maxWidth: 280 },
   asset: { width: 240, thumbnailHeight: 100 },
@@ -9,9 +9,62 @@ export const NODE_SIZES = {
   defaultPersistSize: { width: 260, height: 180 },
 } as const
 
-/** 布局坐标常量 */
+/**
+ * Step 5 — V3 节点尺寸（step5-design-tokens.md §1「节点尺寸/角标/芯片/牌堆」逐值收编）。
+ * 旧 NODE_SIZES 各 key 保留给 legacy 渲染器；V3 AssetCardNode/EventChipNode 一律读这里。
+ */
+export const V3_NODE_SIZES = {
+  /** L2 标准资产卡 */
+  card: { width: 240, height: 160, radius: 8, modBarW: 3, titleH: 24, coverH: 96, metaH: 20 },
+  /** global 第 0 列小卡 */
+  globalCard: { width: 168, height: 120, coverH: 64 },
+  /** composite 成片卡（封面下加迷你胶片条） */
+  compositeCard: { width: 280, height: 180, filmstripH: 24 },
+  /** text 模态卡（内容自适应） */
+  textCard: { minH: 96, maxH: 220 },
+  /** LOD1 中景卡 / LOD0 全景色块 */
+  l1: { width: 160, height: 100 },
+  l0: { width: 24, height: 14 },
+  /** 事件芯片（P19） */
+  chip: { size: 26, radius: 6, icon: 14, maxW: 80, l1Size: 18 },
+  /** 角标（四角产权制） */
+  badge: { size: 16, dot: 10, tri: 14, shieldH: 18, offset: -6 },
+  /** 变体牌堆 chrome */
+  stack: { layers: 3, dx: 4, dy: 4, dimStep: 0.85, countSize: 18 },
+} as const
+
+/**
+ * Step 5 — 泳道/布局几何（§3.1 带高表 + §3.4 第 0 列，tokens 逐值）。
+ * 包内 layoutFlowGraph 用统一 laneH 语义产出「泳道序号 × 带内偏移」，
+ * 这里的每泳道带高/间隙由 useLayout 桥接时逐值套用（设计权威在 tokens，布局权威在包）。
+ */
+export const V3_LAYOUT = {
+  /** 十泳道带高（px, zoom=1），序 = 包内 STAGE_ORDER：global→composite */
+  LANE_HEIGHTS: [200, 280, 240, 240, 240, 180, 180, 180, 180, 280] as readonly number[],
+  /** 带间凹槽（露画布底 #100E0A） */
+  LANE_GAP: 48,
+  /** 带内顶部留白（给 sticky 泳道标签留位） */
+  LANE_TOP_INSET: 16,
+  /** 第 0 列 global 锚定区：列宽 / 右分隔线 / 间隙 / 列内边距 */
+  GLOBAL_COL_WIDTH: 200,
+  GLOBAL_COL_DIVIDER: 2,
+  GLOBAL_COL_GAP: 12,
+  GLOBAL_COL_PAD: 16,
+  /** 主区 x 起点 = 列宽 + 分隔线 + 间隙 */
+  MAIN_X: 200 + 2 + 12,
+  /** 包内布局节点水平间隙（4px 网格内最大档；x 槽位步进 = 240 + 48） */
+  NODE_GAP_X: 48,
+} as const
+
+/**
+ * 布局坐标常量。
+ * ⚠️ tokens §2.4 裁决：SCRIPT/ASSET/SB/VIDEO/AUDIO_* 手工网格分区**已废止**——
+ * V3 由「拓扑分层 × 泳道 × 第 0 列 × role 分流」布局引擎接管（包内 layoutFlowGraph
+ * + useLayout 桥接，泳道几何见 V3_LAYOUT）。保留仅为 legacy 非 graph 路径编译兼容，
+ * 新代码禁止引用；CONTEXT_MENU/NEW_NODE 等交互偏移保留。
+ */
 export const LAYOUT = {
-  /** 剧本节点起始位置 */
+  /** 剧本节点起始位置 @deprecated V3 布局引擎接管 */
   SCRIPT_X: 50,
   SCRIPT_Y: 50,
   /** 资产网格起始位置 */

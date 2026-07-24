@@ -1,0 +1,9 @@
+{
+  "name": "@kais/flowgraph-v3",
+  "version": "3.1.0",
+  "private": true,
+  "type": "module",
+  "description": "FlowGraphV3 数据层（设计宪法 v1.0 落地：schema SSOT + 类型 + Zod + 迁移 + 脏传播 + 变体 + 布局 + import 映射）",
+  "exports": { ".": "./ts/src/index.ts" },
+  "scripts": { "test": "cd ts && vitest run" }
+}
