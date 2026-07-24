@@ -16,6 +16,7 @@ import { theme, v3theme, getScoreColor } from '../../theme/catppuccin'
 import { useCanvasStore } from '../../store/canvasStore'
 import { triggerStaleCascade } from '../../hooks/useStale'
 import FileViewer from '../FileViewer'
+import ScoreRadar from './ScoreRadar'
 import ReviewCard from '../ReviewCard'
 import FeedbackPanel from '../FeedbackPanel'
 import IterationPanel from '../IterationPanel'
@@ -251,6 +252,7 @@ function ScoreSection({ aiScore }: { aiScore: AIScore | undefined }) {
   if (!aiScore || typeof aiScore.overall !== 'number') return null
   const overall = aiScore.overall
   const dims = aiScore.dimensions
+  const dimCount = dims ? Object.keys(dims).length : 0
   return (
     <>
       <SectionLabel>AI 评分</SectionLabel>
@@ -258,13 +260,19 @@ function ScoreSection({ aiScore }: { aiScore: AIScore | undefined }) {
         <span style={{ fontSize: 28, fontWeight: 800, color: getScoreColor(overall) }}>{Math.round(overall * 100)}</span>
         <span style={{ fontSize: 12, color: theme.text.secondary }}>/ 100</span>
       </div>
-      {dims && (
+      {dimCount >= 3 ? (
+        // 任务 2B：≥3 维 → 雷达图（自适应 3–7 维，hover 显示精确数值）
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 4 }}>
+          <ScoreRadar aiScore={aiScore} />
+        </div>
+      ) : dims ? (
+        // <3 维不成图，退回逐维条
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {Object.entries(dims).map(([k, v]) => (
             <DimBar key={k} label={k} value={v} />
           ))}
         </div>
-      )}
+      ) : null}
     </>
   )
 }

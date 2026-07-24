@@ -287,13 +287,21 @@ export async function saveCanvasGraph(
   await apiCall<void>('/canvas/save', { projectId, episodesId, graph }, { cancelToken })
 }
 
-/** 加载画布图 */
+/**
+ * 加载画布图（V2 端点）。
+ *
+ * 走 `/api/canvas/v2/load-v2` —— 后端返回**完整 FlowGraphV2**（含 meta/branches/
+ * variantGroups + 节点顶层 branchId/phaseIndex/phaseName），正是 adaptV2Graph 消费
+ * 的规范形状。旧的 v1 `/canvas/load` 会把图降级为无 meta 的 v1 形状，丢失项目身份
+ * 与分支/变体组信息；这里改打 v2 端点避免该损耗。
+ * 空项目（后端返回 data:null）→ 返回 null，由调用方回退到 convert。
+ */
 export async function loadCanvasGraph(
   projectId: number,
   episodesId: number,
   cancelToken?: CancelToken,
 ): Promise<FlowGraph | null> {
-  const json = await apiCall<{ code?: number; data?: FlowGraph }>('/canvas/load', { projectId, episodesId }, { cancelToken })
+  const json = await apiCall<{ code?: number; data?: FlowGraph }>('/canvas/v2/load-v2', { projectId, episodesId }, { cancelToken })
   if (json.code === 404 || !json.data) return null
   return json.data
 }

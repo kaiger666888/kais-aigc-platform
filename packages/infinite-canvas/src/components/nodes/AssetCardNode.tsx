@@ -29,6 +29,7 @@ import {
 } from '../canvas/slots'
 import NodeBadgesDefault from '../canvas/NodeBadgesDefault'
 import { ModalityIcon, type ModalityIconKind } from '../canvas/icons'
+import ScoreMiniBar from '../badges/ScoreMiniBar'
 import type { VariantStackData } from '../../v3/adapter'
 
 type AssetCardData = {
@@ -426,6 +427,8 @@ function AssetCardNodeComponent({ id, data, selected }: NodeProps<AssetCardNodeT
   const title = (data.label ?? asset?.phaseName ?? id) as string
   const meta = metaLine(asset)
   const Badges = getNodeBadgesRenderer() ?? NodeBadgesDefault
+  // L2 近景且有评分 → 底部渲染 ScoreMiniBar（任务 2A）；卡高随之自适应避免裁切。
+  const showScore = !isL1 && !!asset?.aiScore
 
   const card = (
     <div
@@ -435,8 +438,8 @@ function AssetCardNodeComponent({ id, data, selected }: NodeProps<AssetCardNodeT
       style={{
         position: 'relative',
         width: w,
-        height: stage === 'script' && !isL1 ? 'auto' : h,
-        minHeight: stage === 'script' && !isL1 ? V3_NODE_SIZES.textCard.minH : undefined,
+        height: (stage === 'script' || showScore) ? 'auto' : h,
+        minHeight: stage === 'script' && !isL1 ? V3_NODE_SIZES.textCard.minH : showScore ? h : undefined,
         background: 'var(--cv-bg-card, rgba(30,30,46,0.92))',
         borderRadius: V3_NODE_SIZES.card.radius,
         // 选中 2px 暖白环（outline 不占盒模型）；stale 1.5px 虚线描边（§4.5 三重冗余之二）
@@ -490,6 +493,8 @@ function AssetCardNodeComponent({ id, data, selected }: NodeProps<AssetCardNodeT
             {meta}
           </div>
         )}
+        {/* 任务 2A：底部迷你评分条（overall 大字 + dimensions 迷你水平条） */}
+        {showScore && <ScoreMiniBar score={asset?.aiScore} />}
       </div>
       {asset && <Badges nodeId={id} asset={asset} lod={lod} variant={stage === 'global' ? 'global' : 'full'} />}
       <Handle type="source" position={Position.Right} style={{ ...hiddenHandle, background: v3theme.modality[mod] }} />

@@ -161,6 +161,15 @@ app.post('/api/canvas/load', (req, res) => {
   res.json({ code: 200, data: state.canvas })
 })
 
+// V2 加载端点 —— 前端 loadCanvasGraph 改打此路径（与真后端 /api/canvas/v2/load-v2
+// 对齐）。mock 复用同一份 state.canvas：adaptV2Graph 对缺 meta 的 v1-ish 形状同样
+// 宽松消费（meta 缺失默认 0 + warning），故 e2e 行为与原 /api/canvas/load 一致。
+app.post('/api/canvas/v2/load-v2', (req, res) => {
+  const { projectId, episodesId } = req.body
+  logCall('POST', '/api/canvas/v2/load-v2', { projectId, episodesId }, state.canvas)
+  res.json({ code: 200, data: state.canvas })
+})
+
 app.post('/api/canvas/save', (req, res) => {
   const { projectId, episodesId, graph } = req.body
   state.canvas = graph

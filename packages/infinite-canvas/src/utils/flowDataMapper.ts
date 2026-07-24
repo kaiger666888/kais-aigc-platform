@@ -289,8 +289,22 @@ export function canvasToFlowGraph(
   edges: Edge[],
   viewport?: { x: number; y: number; zoom: number },
 ): FlowGraph {
+  // 视图模型中的 eventChip / structure 节点是 V3 迁移合成的派生产物（事件芯片由
+  // migrateV2toV3 按 asset 1:1 重建、id 形如 evt_*），并非图的一等实体。若随保存写回
+  // 后端，会污染干净的 V2 数据（见 adapter.normalizeNodeType：'eventChip' 为未知 type
+  // 在下次加载即被丢弃，纯属垃圾行）。保存前剔除它们及其悬空边，保证持久化的是真实
+  // 资产/剧本图，而非渲染期合成物。
+  const SYNTH_TYPES = new Set(['eventChip', 'structure'])
+  const isSynthetic = (n: Node): boolean =>
+    SYNTH_TYPES.has(n.type ?? '') || n.id.startsWith('evt_')
+  const persistNodes = nodes.filter((n) => !isSynthetic(n))
+  const droppedIds = new Set(nodes.filter(isSynthetic).map((n) => n.id))
+  const persistEdges = edges.filter(
+    (e) => !droppedIds.has(e.source) && !droppedIds.has(e.target),
+  )
+
   return {
-    nodes: nodes.map((n) => {
+    nodes: persistNodes.map((n) => {
       const d = n.data as any
       return {
         id: n.id,
@@ -308,7 +322,7 @@ export function canvasToFlowGraph(
         variantOf: d?.variantOf,
       }
     }),
-    links: edges.map((e) => {
+    links: persistEdges.map((e) => {
       const d = e.data as any
       return {
         id: e.id,

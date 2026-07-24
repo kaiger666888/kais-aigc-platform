@@ -77,12 +77,11 @@ test.describe('Phase 36 — One-Click Film Orchestrator', () => {
     await loadCanvas(page)
     await page.request.post('/__mock/config', { data: { orchDelay: 300 } })
 
-    // 注入 socket.io-client 监听器 — 通过 CDN dynamic import 拿 io
-    await page.evaluate(async () => {
+    // 注入 socket.io-client 监听器 —— 用 testMode hook 暴露的本地 socket.io-client
+    // （window.__kaisCanvas.io），避免浏览器侧 CDN dynamic import（沙箱常不可达）。
+    await page.evaluate(() => {
       window.__progressOrder = []
-      // 用 socket.io-client v4 ESM CDN
-      const mod = await import('https://cdn.socket.io/4.8.1/socket.io.esm.min.js')
-      const s = mod.io('/ws/projects', { query: { projectId: '1' }, transports: ['websocket', 'polling'] })
+      const s = window.__kaisCanvas.io('/ws/projects', { query: { projectId: '1' }, transports: ['websocket', 'polling'] })
       s.on('orchestrate:progress', (p) => {
         if (p.mode === 'full') window.__progressOrder.push(p.currentNodeId)
       })
