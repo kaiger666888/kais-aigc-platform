@@ -4,7 +4,7 @@
 # 用法:在 platform 仓库任意位置执行 bash scripts/deploy-story-map.sh
 set -euo pipefail
 
-STORY_MAP_DIR="/home/kai/workspace/kais-story-map"
+STORY_MAP_DIR="/data/workspace/kais-story-map"
 DEPLOY_DIR="/data/workspace/kais-aigc-platform/data/web/story-map"
 
 echo "[deploy-story-map] 构建 kais-story-map (npm run build)..."
