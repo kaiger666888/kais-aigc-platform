@@ -9,11 +9,18 @@
  *   B. CANVAS-02 sequence edge count: N-1
  *   C. CANVAS-02 sequence edges form monotonic chain by shot_id
  *   D. CANVAS-03 per-type Zod: validateGraphNodes(allNodes).length === 0
- *   E. CANVAS-03 additive-only (frontend): packages/infinite-canvas/ diff empty
+ *   E. CANVAS-03 additive-only (frontend): packages/infinite-canvas/ diff scoped
+ *      to AssetNode.tsx typeIcons only (PRESENT-05 v1.1 relaxation; baseline
+ *      HEAD~1..HEAD isolates the Phase 9 commit — origin/master advanced past
+ *      the branch tip so origin/master..HEAD carried ~56 pre-existing files).
  *   E2. CANVAS-03 additive-only (schema): canvasAssetSchema.ts strictness preserved
  *       (.optional() / .nullable() counts not increased vs origin/master)
  *   F. Roundtrip: manifest fields survive into node.data (zone label,
  *      video duration_sec, audio engine, video resolution, storyboard shot_id)
+ *   Phase 9 (PRESENT-04/05): a second run against the v1.1 fixture asserts 2
+ *   character + 1 prop asset nodes (assetType character/prop, NOT delivery),
+ *   OSS-synthesized thumbnailUrl, output_key char_NNN/prop_NNN patterns, zero
+ *   delivery leaks (§7 post-process), and graceful-degrade on the v1.0 fixture.
  *
  * Run: npx tsx scripts/verify-canvas-shot-timeline.ts
  *
@@ -36,6 +43,8 @@ function assert(cond: boolean, name: string, detail?: string): void {
 
 const REPO_ROOT = path.resolve(__dirname, "..");
 const FIXTURE = path.resolve(__dirname, "fixtures/shot-timeline-ep01");
+// Phase 9 (PRESENT-04/05): v1.1 fixture with character/prop registry_snapshot.
+const V11_FIXTURE = path.resolve(__dirname, "fixtures/shot-timeline-v1.1");
 const WORKTREE_CWD = REPO_ROOT;
 
 async function main(): Promise<void> {
@@ -87,6 +96,10 @@ async function main(): Promise<void> {
   const storyboards = childNodes.filter((n) => n.type === "storyboard");
   const audios = childNodes.filter((n) => n.type === "audio");
   const videos = childNodes.filter((n) => n.type === "video");
+  // Phase 9 (PRESENT-04): character/prop asset nodes (v1.1 registry). v1.0 ep01
+  // has no registry → these stay 0 (graceful-degrade, D-PRESENT-04-Q3 gate).
+  const characters = childNodes.filter((n) => n.type === "asset" && (n.data as any)?.assetType === "character");
+  const props = childNodes.filter((n) => n.type === "asset" && (n.data as any)?.assetType === "prop");
   const seqEdges = links.filter((l: any) => l.data?.linkType === "sequence");
 
   // ── Assert A: CANVAS-01 structure ───────────────────────────────
@@ -104,6 +117,13 @@ async function main(): Promise<void> {
     storyboards.length === 93,
     "CANVAS-01: exactly 93 storyboard children (matches real ep01 shots.json)",
     `got ${storyboards.length}`,
+  );
+  // PRESENT-04 graceful-degrade regression: v1.0 ep01 has no registry_snapshot
+  // and no data.characters/props → MUST emit zero character/prop nodes.
+  assert(
+    characters.length === 0 && props.length === 0,
+    "PRESENT-04 graceful-degrade: v1.0 ep01 (no registry) emits 0 character/prop nodes",
+    `got characters=${characters.length} props=${props.length}`,
   );
 
   // ── Assert B: CANVAS-02 sequence edge count ─────────────────────
@@ -160,21 +180,41 @@ async function main(): Promise<void> {
     errors.length === 0 ? undefined : errors.map((e) => `${e.nodeId}: ${e.errors}`).join(" | "),
   );
 
-  // ── Assert E: additive-only — frontend zero-touch ───────────────
+  // ── Assert E: additive-only — frontend scoped relaxation (PRESENT-05) ──
+  // v1.0 invariant was "packages/infinite-canvas/ diff empty". PRESENT-05
+  // intentionally relaxes this for v1.1's cosmetic AssetNode.tsx typeIcons
+  // addition (character:'🧑' / prop:'🔧') — a sanctioned additive map extension.
+  // SPIRIT preserved: no new components, no renderer structural changes, no
+  // custom renderer. The scoped allowlist IS the relaxation.
+  //
+  // DEVIATION from 09-01-PLAN literal (Rule 1 fix): plan specified
+  // `git diff --name-only origin/master..HEAD -- packages/infinite-canvas/`
+  // bounded to an AssetNode.tsx-only allowlist. But origin/master has ADVANCED
+  // past the feat/canvas-asset-collection branch tip (git merge-base
+  // origin/master HEAD === HEAD), so that diff carries ~56 pre-existing files
+  // unrelated to Phase 9 and the allowlist would always report ~55 violations.
+  // Baseline against HEAD~1..HEAD to isolate the Phase 9 consumer commit's
+  // canvas contribution, which is what the allowlist semantics intend.
   let treeDiff = "";
   try {
     treeDiff = execSync(
-      "git diff --name-only origin/master..HEAD -- packages/infinite-canvas/",
+      "git diff --name-only HEAD~1..HEAD -- packages/infinite-canvas/",
       { cwd: WORKTREE_CWD, encoding: "utf8" },
     ).trim();
   } catch (err) {
-    // origin/master may be missing in some env — fall back to HEAD's parent.
     treeDiff = `(git diff failed: ${(err as Error).message})`;
   }
+  const allowedFrontendFiles = new Set([
+    "packages/infinite-canvas/src/components/nodes/AssetNode.tsx",
+  ]);
+  const diffFiles = treeDiff === "" ? [] : treeDiff.split("\n").map((s) => s.trim()).filter(Boolean);
+  const violationFiles = diffFiles.filter((f) => !allowedFrontendFiles.has(f));
   assert(
-    treeDiff === "",
-    "CANVAS-03 additive-only: packages/infinite-canvas/ diff is empty",
-    treeDiff || "(empty)",
+    violationFiles.length === 0,
+    "CANVAS-03 additive-only: packages/infinite-canvas/ diff limited to AssetNode.tsx typeIcons (PRESENT-05 scoped relaxation)",
+    violationFiles.length === 0
+      ? (diffFiles.length === 0 ? "(empty)" : diffFiles.join(", "))
+      : `violations: ${violationFiles.join(", ")}`,
   );
 
   // ── Assert E2: additive-only — Zod strictness preserved ─────────
@@ -257,6 +297,69 @@ async function main(): Promise<void> {
     typeof videos[0]?.data?.filePath === "string" && videos[0].data.filePath.startsWith(expectedFilePrefix),
     "F2 (WR-07): video.data.filePath synthesized as /oss/{slug}/... (production-realistic)",
     `expected prefix '${expectedFilePrefix}'; got '${videos[0]?.data?.filePath}'`,
+  );
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Phase 9 (PRESENT-04/05): v1.1 fixture — character/prop registry emission
+  // ═══════════════════════════════════════════════════════════════════
+  // The v1.0 ep01 assertions above are the regression gate (must stay green).
+  // Below: a SECOND run against the v1.1 fixture (schema_version "1.1" with a
+  // generator.registry_snapshot of 2 characters + 1 prop) exercising the §7
+  // post-process that overwrites assetType from the seeded "delivery" to
+  // "character"/"prop" + synthesizes thumbnailUrl via fsToOssUrl.
+  console.log("\n=== Phase 9 v1.1 fixture (PRESENT-04/05) ===\n");
+
+  const v11ManifestPath = path.join(V11_FIXTURE, "asset.json");
+  const v11Manifest = JSON.parse(fs.readFileSync(v11ManifestPath, "utf8"));
+  const v11WorkdirBase = path.basename(V11_FIXTURE.replace(/\/$/, ""));
+  setWorkdirToOss({ workdir: V11_FIXTURE, ossPrefix: `/oss/${v11WorkdirBase}` });
+
+  const v11Out = await extractShotTimelineArtifacts(v11Manifest, V11_FIXTURE, v11ManifestPath);
+  const v11Nodes = v11Out.nodes;
+  const v11Chars = v11Nodes.filter((n: any) => n.type === "asset" && (n.data as any)?.assetType === "character");
+  const v11Props = v11Nodes.filter((n: any) => n.type === "asset" && (n.data as any)?.assetType === "prop");
+  const v11Delivery = v11Nodes.filter((n: any) => n.type === "asset" && (n.data as any)?.assetType === "delivery");
+
+  assert(
+    v11Chars.length === 2,
+    "PRESENT-04: exactly 2 character nodes from v1.1 fixture registry",
+    `got ${v11Chars.length}`,
+  );
+  assert(
+    v11Props.length === 1,
+    "PRESENT-04: exactly 1 prop node from v1.1 fixture registry",
+    `got ${v11Props.length}`,
+  );
+  assert(
+    v11Chars.every((n: any) => {
+      const u = (n.data as any)?.thumbnailUrl;
+      return typeof u === "string" && u.startsWith("/oss/");
+    }),
+    "PRESENT-04 §7 post-process: every character node carries an OSS-synthesized thumbnailUrl",
+    `got ${v11Chars.map((n: any) => (n.data as any)?.thumbnailUrl).join(", ")}`,
+  );
+  assert(
+    v11Props.every((n: any) => {
+      const u = (n.data as any)?.thumbnailUrl;
+      return typeof u === "string" && u.startsWith("/oss/");
+    }),
+    "PRESENT-04 §7 post-process: every prop node carries an OSS-synthesized thumbnailUrl",
+    `got ${v11Props.map((n: any) => (n.data as any)?.thumbnailUrl).join(", ")}`,
+  );
+  assert(
+    v11Chars.every((n: any) => /^char_\d{3}$/.test(String((n.data as any)?.output_key))),
+    "PRESENT-04 Q5: character output_key is the stable registry id char_NNN",
+    `got ${v11Chars.map((n: any) => (n.data as any)?.output_key).join(", ")}`,
+  );
+  assert(
+    v11Props.every((n: any) => /^prop_\d{3}$/.test(String((n.data as any)?.output_key))),
+    "PRESENT-04 Q5: prop output_key is the stable registry id prop_NNN",
+    `got ${v11Props.map((n: any) => (n.data as any)?.output_key).join(", ")}`,
+  );
+  assert(
+    v11Delivery.length === 0,
+    "PRESENT-04 §7: zero asset nodes leak as assetType=delivery (post-process overrode the seed)",
+    `got ${v11Delivery.length} delivery asset nodes`,
   );
 
   finish();

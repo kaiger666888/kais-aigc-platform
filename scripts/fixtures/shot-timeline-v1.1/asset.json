@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.1",
+  "asset_type": "shottimeline",
+  "source": {
+    "video_filename": "sample.mp4",
+    "duration_sec": 3.0
+  },
+  "generator": {
+    "tool": "kais-shot-timeline",
+    "version": "0.2.0-spec-fixture-v1.1",
+    "generated_at": "2026-07-24T00:00:00Z",
+    "registry_snapshot": {
+      "characters": [
+        {
+          "id": "char_001",
+          "name": "少女",
+          "representative_image": "characters/char_001.png",
+          "appearance_shots": [1, 2]
+        },
+        {
+          "id": "char_002",
+          "name": "路人",
+          "representative_image": "characters/char_002.png",
+          "appearance_shots": [1]
+        }
+      ],
+      "props": [
+        {
+          "id": "prop_001",
+          "name": "落叶",
+          "representative_image": "props/prop_001.png",
+          "appearance_shots": [2]
+        }
+      ]
+    }
+  },
+  "data": {
+    "shots": "shots.json",
+    "audio_analysis": "audio_analysis.json",
+    "transcript": "transcript.json",
+    "frames": "frames.json",
+    "prompts": "prompts.json",
+    "characters": "characters.json",
+    "props": "props.json"
+  },
+  "media": {
+    "video": "video.mp4",
+    "stems": {
+      "vocals": "stems/vocals.wav",
+      "drums": "stems/drums.wav",
+      "other": "stems/other.wav"
+    },
+    "characters": [
+      "characters/char_001.png",
+      "characters/char_002.png"
+    ],
+    "props": [
+      "props/prop_001.png"
+    ]
+  }
+}

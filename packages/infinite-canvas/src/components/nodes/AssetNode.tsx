@@ -16,6 +16,10 @@ type AssetNodeType = Node<AssetNodeData, 'asset'>
 
 const typeIcons: Record<string, string> = {
   role: '👤', tool: '🔧', scene: '🏞️', clip: '🎬',
+  // Phase 9 (PRESENT-05): v1.1 ShotTimelineAsset character/prop assetType.
+  // Additive — tool 与 prop 共用 🔧 是有意的 (tool 是 legacy P04 assetType,
+  // prop 是 v1.1 新 assetType, 渲染等价). 缺省仍走 || '📦' fallback.
+  character: '🧑', prop: '🔧',
 }
 
 const viewAngleLabels: Record<string, string> = {
