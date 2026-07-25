@@ -31,9 +31,13 @@ import type { Modality } from '../theme/catppuccin'
 import {
   computeCanvasGeometry,
   computeLaneTops,
+  computePhaseColumns,
+  computePhaseGridPlan,
   globalLaneHeight,
+  laneHeightFromRows,
   LANE_H_PKG,
   type CanvasGeometry,
+  type PhaseGridNode,
 } from '../components/canvas/laneGeometry'
 
 export interface LayoutResult {
@@ -105,14 +109,30 @@ export function bridgePosition(input: {
   return { x, y }
 }
 
+/** stage → 阶段网格 pack 列宽（global 168 / composite 280 / 标准 240）。 */
+function widthForStage(stage: string | undefined): number {
+  if (stage === 'global') return V3_NODE_SIZES.globalCard.width
+  if (stage === 'composite') return V3_NODE_SIZES.compositeCard.width
+  return V3_NODE_SIZES.card.width
+}
+
 export function useLayout(): LayoutResult {
   const graph = useCanvasStore((s) => s.graph)
   const storeNodes = useCanvasStore((s) => s.nodes)
   const storeEdges = useCanvasStore((s) => s.edges)
+  const phaseCatalog = useCanvasStore((s) => s.phaseCatalog)
 
   // 包内布局（同一 graph 引用 → 同一结果；节点水平间隙收编进 4px 网格最大档 48）
+  // colsPerRow opt-in 换行：真实数据同泳道几十节点不再铺成极宽单行（P8 换行）。
   const boxes = useMemo(
-    () => (graph ? layoutFlowGraph(graph, { gap: V3_LAYOUT.NODE_GAP_X }) : null),
+    () =>
+      graph
+        ? layoutFlowGraph(graph, {
+            gap: V3_LAYOUT.NODE_GAP_X,
+            colsPerRow: V3_LAYOUT.WRAP_COLS,
+            rowH: V3_LAYOUT.ROW_HEIGHT,
+          })
+        : null,
     [graph],
   )
 
@@ -127,17 +147,94 @@ export function useLayout(): LayoutResult {
     return map
   }, [graph])
 
+  // 换行后每泳道最大行号（engine）：阶段网格未覆盖的 lane / 无 phaseIndex 节点兜底。
+  const laneRowCount = useMemo(() => {
+    const rowsByLane = new Map<number, number>()
+    if (!boxes) return rowsByLane
+    for (const b of boxes.values()) {
+      rowsByLane.set(b.lane, Math.max(rowsByLane.get(b.lane) ?? 0, b.row))
+    }
+    return rowsByLane
+  }, [boxes])
+
+  // 阶段网格重排（修复「阶段未从左到右有序 / global 资产钉死第 0 列」）：
+  // 把有 phaseIndex 的节点按 P01→P14 横向铺带（x 主排序键 = phaseIndex），按 stage 泳道纵向成行；
+  // global 资产进 lane 0 但落其阶段 band 的 x——脱离第 0 列、随阶段横向移动。
+  // 网格产出权威阶段竖带（按 index 有序、带边界跨泳道对齐）供 PhaseColumns 直接消费。
+  const slotStride = V3_NODE_SIZES.card.width + V3_LAYOUT.NODE_GAP_X
+  const phaseGrid = useMemo(() => {
+    if (!graph || !boxes) return null
+    // 只排实际渲染的节点（storeNodes 已排除 deprecated 折叠成员 / 折叠事件），避免虚高行数。
+    const gridNodes: PhaseGridNode[] = []
+    for (const n of storeNodes) {
+      const v3 = n.data?.v3 as
+        | { phaseIndex?: number; kind?: string; scope?: 'episode' | 'global'; stage?: string }
+        | undefined
+      const phaseIndex = v3?.phaseIndex
+      if (phaseIndex == null) continue
+      const box = boxes.get(n.id)
+      if (!box) continue
+      const scope = v3?.kind === 'asset' ? v3.scope : undefined
+      const stage = (n.data?.stage as string | undefined) ?? v3?.stage
+      const orderKey = scope === 'global'
+        ? (globalSlotIndexById.get(n.id) ?? 0)
+        : Math.round(box.x / slotStride)
+      gridNodes.push({
+        id: n.id,
+        phaseIndex,
+        lane: box.lane,
+        orderKey,
+        width: widthForStage(stage),
+      })
+    }
+    if (gridNodes.length === 0) return null
+    return computePhaseGridPlan({
+      nodes: gridNodes,
+      phaseCatalog,
+      maxRowsPerBand: V3_LAYOUT.PHASE_MAX_ROWS_PER_BAND,
+      maxBandCols: V3_LAYOUT.PHASE_MAX_BAND_COLS,
+      slotStride,
+      gap: V3_LAYOUT.NODE_GAP_X,
+      mainX: V3_LAYOUT.MAIN_X,
+    })
+  }, [storeNodes, boxes, globalSlotIndexById, phaseCatalog, slotStride])
+
+  // 逐泳道带高：阶段网格 row 为主、engine row 兜底；空泳道取基准带高。
+  // 网格激活时 global 泳道（lane 0）按网格行数算高（global 资产已横向铺开，不再纵向堆叠第 0 列）。
+  const heights = useMemo(() => {
+    const rowsByLane = new Map<number, number>()
+    for (const [lane, r] of phaseGrid?.laneRows ?? []) {
+      rowsByLane.set(lane, Math.max(rowsByLane.get(lane) ?? 0, r))
+    }
+    for (const [lane, r] of laneRowCount) {
+      rowsByLane.set(lane, Math.max(rowsByLane.get(lane) ?? 0, r))
+    }
+    const useGrid = !!phaseGrid
+    return V3_LAYOUT.LANE_HEIGHTS.map((h, i) => {
+      const maxRow = rowsByLane.get(i) ?? 0
+      const wrapped = laneHeightFromRows(h, maxRow + 1, V3_LAYOUT.ROW_HEIGHT)
+      // 网格未激活（无 phaseIndex / fixture）→ global 泳道按第 0 列堆叠序算高（向后兼容）
+      return i === 0 && !useGrid ? Math.max(globalLaneHeight(globalSlotIndexById.size), wrapped) : wrapped
+    })
+  }, [phaseGrid, laneRowCount, globalSlotIndexById.size])
+
   // 泳道几何（带高/带顶/第 0 列/locked zone 的范围输入）
-  const laneTops = useMemo(() => {
-    const heights = V3_LAYOUT.LANE_HEIGHTS.map((h, i) =>
-      i === 0 ? globalLaneHeight(globalSlotIndexById.size) : h,
-    )
-    return computeLaneTops(heights)
-  }, [globalSlotIndexById.size])
+  const laneTops = useMemo(() => computeLaneTops(heights), [heights])
 
   const nodes = useMemo(() => {
     if (!graph || !boxes) return storeNodes
+    const gridPos = phaseGrid?.positions
     return storeNodes.map((n) => {
+      // 阶段网格覆盖的节点：x 来自网格，y 据 laneTops + row 解析
+      if (gridPos) {
+        const gp = gridPos.get(n.id)
+        if (gp) {
+          const y = (laneTops[gp.lane] ?? gp.lane * (LANE_H_PKG + V3_LAYOUT.LANE_GAP))
+            + V3_LAYOUT.LANE_TOP_INSET + gp.row * V3_LAYOUT.ROW_HEIGHT
+          return { ...n, position: { x: gp.x, y } }
+        }
+      }
+      // 未覆盖（无 phaseIndex）：退回 bridgePosition 基准位
       const v3 = n.data?.v3 as { kind?: string; scope?: 'episode' | 'global' } | undefined
       const pos = bridgePosition({
         nodeId: n.id,
@@ -148,12 +245,13 @@ export function useLayout(): LayoutResult {
       })
       return pos ? { ...n, position: pos } : n
     })
-  }, [graph, boxes, storeNodes, laneTops, globalSlotIndexById])
+  }, [graph, boxes, storeNodes, laneTops, phaseGrid, globalSlotIndexById])
 
   const geometry = useMemo(() => {
     if (!graph) return null
-    return computeCanvasGeometry({
+    const g = computeCanvasGeometry({
       globalAssetCount: globalSlotIndexById.size,
+      heights,
       boxes: nodes.map((n) => ({
         x: n.position.x,
         y: n.position.y,
@@ -162,7 +260,18 @@ export function useLayout(): LayoutResult {
         locked: (n.data?.curation as string | undefined) === 'locked',
       })),
     })
-  }, [graph, nodes, globalSlotIndexById.size])
+    // 阶段竖带：网格产出为权威（按 index 有序、带边界对齐）；无网格退回 median 投影（向后兼容）。
+    const phaseColumns = phaseGrid?.phaseColumns ?? computePhaseColumns({
+      nodes: nodes.map((n) => ({
+        x: n.position.x,
+        width: n.width ?? V3_NODE_SIZES.card.width,
+        phaseIndex: (n.data?.v3 as { phaseIndex?: number } | undefined)?.phaseIndex,
+      })),
+      phaseCatalog,
+      mainX: V3_LAYOUT.MAIN_X,
+    })
+    return phaseColumns.length > 0 ? { ...g, phaseColumns } : g
+  }, [graph, nodes, heights, phaseGrid, phaseCatalog, globalSlotIndexById.size])
 
   const eventProduct = useMemo(() => (graph ? buildEventProductModality(graph) : new Map<string, Modality>()), [graph])
 

@@ -25,15 +25,15 @@ export default function NodeBadges({ nodeId, asset, lod }: NodeBadgesProps): Rea
   let curationBadge: React.ReactNode = null
   if (asset.curation === 'selected') {
     curationBadge = (
-      <span key="cur" title="策展选定" style={dotStyle(off, badge.dot, 'tl', v3theme.signal.select, '#100E0A')}>✓</span>
+      <span key="cur" title="策展选定" style={dotStyle(off, badge.dot, 'tl', v3theme.signal.select, '#0A0B0E')}>✓</span>
     )
   } else if (asset.curation === 'locked') {
     curationBadge = (
-      <span key="cur" title="锁定参考（不可改选）" style={{ ...dotStyle(off, badge.dot, 'tl', 'var(--cv-bg-overlay, #313244)', v3theme.signal.locked), border: `1px solid ${v3theme.signal.locked}`, fontSize: 8 }}>🔒</span>
+      <span key="cur" title="锁定参考（不可改选）" style={{ ...dotStyle(off, badge.dot, 'tl', 'var(--cv-bg-overlay, #1E2128)', v3theme.signal.locked), border: `1px solid ${v3theme.signal.locked}`, fontSize: 8 }}>🔒</span>
     )
   } else if (asset.curation === 'deprecated') {
     curationBadge = (
-      <span key="cur" title="落选变体" style={{ ...dotStyle(off, badge.dot, 'tl', 'var(--cv-bg-overlay, #313244)', v3theme.edge.inactive), border: `1px solid ${v3theme.edge.inactive}` }}>×</span>
+      <span key="cur" title="落选变体" style={{ ...dotStyle(off, badge.dot, 'tl', 'var(--cv-bg-overlay, #1E2128)', v3theme.edge.inactive), border: `1px solid ${v3theme.edge.inactive}` }}>×</span>
     )
   }
 
@@ -49,7 +49,7 @@ export default function NodeBadges({ nodeId, asset, lod }: NodeBadgesProps): Rea
       }} />
     )
   } else if (asset.state === 'failed') {
-    execBadge = <span key="exec" title="执行失败" style={dotStyle(off, badge.dot, 'tr', v3theme.signal.rejected, '#100E0A')}>!</span>
+    execBadge = <span key="exec" title="执行失败" style={dotStyle(off, badge.dot, 'tr', v3theme.signal.rejected, '#0A0B0E')}>!</span>
   } else if (asset.state === 'pending') {
     execBadge = (
       <span key="exec" title="待执行" style={{
@@ -62,7 +62,7 @@ export default function NodeBadges({ nodeId, asset, lod }: NodeBadgesProps): Rea
     execBadge = (
       <div key="score" title={`AI Score ${Math.round(aiOverall * 100)}`} style={{
         position: 'absolute', top: off, right: off, minWidth: badge.size, height: badge.size, padding: '0 4px',
-        borderRadius: badge.size / 2, background: 'var(--cv-bg-overlay, #313244)', border: `1px solid ${col}`, color: col,
+        borderRadius: badge.size / 2, background: 'var(--cv-bg-overlay, #1E2128)', border: `1px solid ${col}`, color: col,
         fontSize: 9, lineHeight: `${badge.size}px`, fontFamily: 'var(--cv-font-mono, monospace)', fontVariantNumeric: 'tabular-nums', textAlign: 'center',
       }}>{Math.round(aiOverall * 100)}</div>
     )
@@ -90,7 +90,7 @@ export default function NodeBadges({ nodeId, asset, lod }: NodeBadgesProps): Rea
     reviewBadge = (
       <div key="review" title={`审核：${asset.reviewStatus}`} style={{
         position: 'absolute', right: off, bottom: off, width: badge.dot, height: badge.dot, borderRadius: '50%',
-        background: reviewColor, border: '1px solid var(--cv-bg-card, rgba(30,30,46,0.92))',
+        background: reviewColor, border: '1px solid var(--cv-bg-card, #16181D)',
       }} />
     )
   }

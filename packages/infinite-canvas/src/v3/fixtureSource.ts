@@ -9,7 +9,7 @@
  * 本模块不碰 store、不弹 toast——纯数据解析，副作用（toast/socket 绕过）由 store/FlowCanvas 接线。
  */
 import { validateFlowGraphV3, type FlowGraphV3 } from '@kais/flowgraph-v3'
-import { adaptV2Graph } from './adapter'
+import { adaptV2Graph, type PhaseCatalogEntry } from './adapter'
 import decomposeFixture from '../../../flowgraph-v3/fixtures/v3-decompose-import.sample.json'
 import validFixture from '../../../flowgraph-v3/fixtures/v3-valid.sample.json'
 
@@ -23,7 +23,14 @@ export interface LoadedGraph {
   source: GraphSource
   /** true = 后端不可达触发的自动降级（调用方应 toast）。 */
   fallbackUsed: boolean
+  /** 每节点原始 data 袋（穿透 migrate 白名单外字段；fixture/直通为空）。 */
+  rawDataByNodeId: Map<string, Record<string, unknown>>
+  /** 创作阶段目录（P01–P13）。 */
+  phaseCatalog: PhaseCatalogEntry[]
 }
+
+/** 空 sidecar（fixture 直通 / V3 样本无原始 data 袋时用）。 */
+const EMPTY_RAW = new Map<string, Record<string, unknown>>()
 
 export const BACKEND_FALLBACK_MESSAGE =
   '画布后端不可达，已加载离线示例数据（decompose fixture）'
@@ -55,7 +62,7 @@ export function loadFixtureGraph(mode: FixtureMode): LoadedGraph {
   const raw = FIXTURES[mode]
   const result = validateFlowGraphV3(raw)
   if (result.ok) {
-    return { graph: result.data, warnings: [], source: 'fixture', fallbackUsed: false }
+    return { graph: result.data, warnings: [], source: 'fixture', fallbackUsed: false, rawDataByNodeId: EMPTY_RAW, phaseCatalog: [] }
   }
   // fixture 自身损坏 = 工程事故：仍走消费端宽松修复（adaptV2Graph 的 V3 直通修复环），
   // 不 throw，把 zod 错误透传进 warnings 让 UI/测试可见。
@@ -65,6 +72,8 @@ export function loadFixtureGraph(mode: FixtureMode): LoadedGraph {
     warnings: [`fixture ${mode} 未过 zod，已按 P22 修复:`, ...result.errors, ...adapted.warnings],
     source: 'fixture',
     fallbackUsed: false,
+    rawDataByNodeId: adapted.rawDataByNodeId,
+    phaseCatalog: adapted.phaseCatalog,
   }
 }
 
@@ -86,7 +95,7 @@ export async function resolveInitialGraph(opts: {
     try {
       const raw = await opts.loadBackend()
       const adapted = adaptV2Graph(raw)
-      return { graph: adapted.graph, warnings: adapted.warnings, source: 'backend', fallbackUsed: false }
+      return { graph: adapted.graph, warnings: adapted.warnings, source: 'backend', fallbackUsed: false, rawDataByNodeId: adapted.rawDataByNodeId, phaseCatalog: adapted.phaseCatalog }
     } catch (err) {
       const fallback = loadFixtureGraph('decompose')
       return {
@@ -97,6 +106,8 @@ export async function resolveInitialGraph(opts: {
         ],
         source: 'fixture-fallback',
         fallbackUsed: true,
+        rawDataByNodeId: fallback.rawDataByNodeId,
+        phaseCatalog: fallback.phaseCatalog,
       }
     }
   }

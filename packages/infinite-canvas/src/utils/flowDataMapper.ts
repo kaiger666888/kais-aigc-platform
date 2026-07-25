@@ -391,9 +391,11 @@ export function flowGraphToCanvas(graph: FlowGraph): { nodes: Node[]; edges: Edg
     id: gl.id,
     type: 'canvas',
     source: gl.source,
-    sourceHandle: gl.sourceHandle,
+    // RF Handle 匹配：null = 默认 Handle（无 id 声明）。undefined 在某些 RF
+    // 版本会被序列化成 "null" 字符串导致 mismatch → edge 被静默丢弃。
+    sourceHandle: gl.sourceHandle ?? null,
     target: gl.target,
-    targetHandle: gl.targetHandle,
+    targetHandle: gl.targetHandle ?? null,
     data: {
       dataType: gl.dataType,
       branchId: gl.branchId,

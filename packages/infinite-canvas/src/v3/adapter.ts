@@ -24,7 +24,6 @@ import {
   type FlowGraphV3,
   type FlowNodeV3,
   type AssetNodeV3,
-  type EventNodeV3,
   type FlowLinkV3,
   type VariantGroupV3,
   type Stage,
@@ -339,6 +338,49 @@ function normalizeBranch(raw: unknown, index: number, warn: Warn) {
   }
 }
 
+/**
+ * 创作阶段目录（P01–P13）：扫原始节点取 phaseIndex→name。
+ *  - zone/phase 容器节点是权威（承载完整阶段名）；adapter 仍丢弃其 V3 实体（无 stage），
+ *    但在此提取目录供画布竖向阶段叠加层（PhaseColumns）与卡片使用。
+ *  - 无 zone 时退回资产节点的 phaseIndex/phaseName（仍能驱动阶段列）。
+ *  - 名字优先级：phaseName > data.label > `P0X`。
+ *  zone 与资产同名阶段冲突时 zone 胜（更完整）。
+ */
+export interface PhaseCatalogEntry {
+  index: number
+  name: string
+}
+
+export function buildPhaseCatalog(rawNodes: unknown[]): PhaseCatalogEntry[] {
+  const zone = new Map<number, string>()
+  const other = new Map<number, string>()
+  const pad = (idx: number): string => `P${String(idx).padStart(2, '0')}`
+  for (const raw of rawNodes) {
+    if (raw == null || typeof raw !== 'object') continue
+    const n = raw as Record<string, unknown>
+    const idx = typeof n.phaseIndex === 'number' && Number.isFinite(n.phaseIndex) ? n.phaseIndex : null
+    if (idx == null) continue
+    const dataLabel = n.data != null && typeof n.data === 'object'
+      ? (n.data as Record<string, unknown>).label : undefined
+    const label = typeof n.phaseName === 'string' && n.phaseName
+      ? n.phaseName
+      : typeof dataLabel === 'string' && dataLabel
+        ? dataLabel
+        : pad(idx)
+    const t = n.type
+    if (t === 'zone' || t === 'phase') {
+      if (!zone.has(idx)) zone.set(idx, label)
+    } else if (!other.has(idx)) {
+      other.set(idx, label)
+    }
+  }
+  const merged = new Map<number, string>(other)
+  for (const [idx, label] of zone) merged.set(idx, label) // zone 胜
+  return [...merged.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([index, name]) => ({ index, name }))
+}
+
 // ─── zod 修复环（消费端宽松的最后防线） ────────────────────
 
 function emptyGraph(meta: FlowGraphV3['meta']): FlowGraphV3 {
@@ -389,6 +431,13 @@ export interface AdaptResult {
   warnings: string[]
   /** 来源判定：'v2-migrated'（V2 迁移）| 'v3-passthrough'（已是 V3，校验透传）。 */
   source: 'v2-migrated' | 'v3-passthrough'
+  /**
+   * 每节点原始 data 袋（migrate 白名单之外的字段经此穿透给卡片/详情面板）。
+   * key = 节点 id（与 RF node id 一致）。V3 直通 / 空 payload 为空 Map。
+   */
+  rawDataByNodeId: Map<string, Record<string, unknown>>
+  /** 创作阶段目录（P01–P13）；无 zone 时仍含资产所见阶段。详见 buildPhaseCatalog。 */
+  phaseCatalog: PhaseCatalogEntry[]
 }
 
 /**
@@ -404,7 +453,7 @@ export function adaptV2Graph(raw: unknown): AdaptResult {
     const meta = (raw as Record<string, unknown>).meta
     if (meta != null && typeof meta === 'object' && (meta as Record<string, unknown>).version === '3') {
       const graph = repairToValid(raw as FlowGraphV3, warn)
-      return { graph, warnings, source: 'v3-passthrough' }
+      return { graph, warnings, source: 'v3-passthrough', rawDataByNodeId: new Map(), phaseCatalog: [] }
     }
   }
 
@@ -414,6 +463,8 @@ export function adaptV2Graph(raw: unknown): AdaptResult {
       graph: emptyGraph({ version: '3', projectId: 0, episodesId: 0, createdAt: 0, updatedAt: 0 }),
       warnings,
       source: 'v2-migrated',
+      rawDataByNodeId: new Map(),
+      phaseCatalog: [],
     }
   }
 
@@ -435,10 +486,19 @@ export function adaptV2Graph(raw: unknown): AdaptResult {
   // 节点 / 边 / 组 / 分支：逐条宽松归一
   const rawNodes = Array.isArray(root.nodes) ? root.nodes : []
   if (!Array.isArray(root.nodes)) warn('nodes 缺失/非数组，按空处理')
+  // 阶段目录（P01–P13）：zone 容器节点为权威（adapter 丢弃其 V3 实体，仅取目录）。
+  const phaseCatalog = buildPhaseCatalog(rawNodes)
+  // 每节点原始 data 袋：穿透 migrate 白名单之外的字段（卡片/详情面板消费）。
+  // 捕获原始 rn.data（normalizeNode 前的完整袋），key = 存活节点 id。
+  const rawDataByNodeId = new Map<string, Record<string, unknown>>()
   const nodes: FlowNodeV2[] = []
   for (const rn of rawNodes) {
     const n = normalizeNode(rn, warn)
-    if (n) nodes.push(n)
+    if (n) {
+      nodes.push(n)
+      const d = (rn as Record<string, unknown> | null)?.data
+      if (d != null && typeof d === 'object') rawDataByNodeId.set(n.id, { ...(d as Record<string, unknown>) })
+    }
   }
 
   const rawLinks = Array.isArray(root.links) ? root.links : []
@@ -494,6 +554,8 @@ export function adaptV2Graph(raw: unknown): AdaptResult {
       }),
       warnings,
       source: 'v2-migrated',
+      rawDataByNodeId,
+      phaseCatalog,
     }
   }
 
@@ -509,7 +571,7 @@ export function adaptV2Graph(raw: unknown): AdaptResult {
   }
 
   graph = repairToValid(graph, warn)
-  return { graph, warnings, source: 'v2-migrated' }
+  return { graph, warnings, source: 'v2-migrated', rawDataByNodeId, phaseCatalog }
 }
 
 // ─── graphToViewModel ────────────────────────────────────
@@ -578,7 +640,9 @@ function seedOfAsset(graph: FlowGraphV3, assetId: string): number | undefined {
  * V3 → React Flow 视图模型（纯函数）。
  *  - 位置来自包内 layoutFlowGraph（替换 dagre；position 字段仅为缓存，不作权威）。
  *  - curation:'deprecated' 不生成独立 RF 节点；牌堆数据挂 winner node.data.variantStack。
- *  - 事件节点 → type:'eventChip'，26×26。
+ *  - 事件节点不渲染：asset→event→asset 折叠为 asset→asset 直连因果边（事件经其 role:'output'
+ *    边映射到产出资产；output 边丢弃，非 output 边端点是 event 则替换为其资产）。画布只显示
+ *    script/asset/storyboard/video 实体 + 它们之间的因果 link，不合成任何虚拟节点。
  *  - 边 role/isInactive/isExplore/slotParams/branchId → edge.data 通道；指向 deprecated 成员的边随节点折叠。
  */
 export function graphToViewModel(graph: FlowGraphV3): ViewModel {
@@ -617,11 +681,20 @@ export function graphToViewModel(graph: FlowGraphV3): ViewModel {
     for (const id of deprecated) foldedIds.add(id)
   }
 
+  // 事件不渲染：asset→event→asset 折叠为 asset→asset 直连因果边。
+  // event 节点经其 role:'output' 边映射到产出资产；非 output 边端点是 event 则替换为该资产。
+  const eventToAsset = new Map<string, string>() // eventId → 产出 assetId
+  for (const l of graph.links) {
+    if (l.role === 'output' && !eventToAsset.has(l.source)) eventToAsset.set(l.source, l.target)
+  }
+  const resolveEndpoint = (id: string): string => eventToAsset.get(id) ?? id
+
   const rfNodes: Node[] = []
   const present = new Set<string>()
 
   for (const n of graph.nodes) {
     if (foldedIds.has(n.id)) continue // P12：deprecated 无独立 RF 节点
+    if (n.kind === 'event') continue // 事件不渲染：折叠为 asset→asset 因果边（见下方 resolveEndpoint）
     const box = boxes.get(n.id)
     const position = box ? { x: box.x, y: box.y } : n.position
 
@@ -659,27 +732,6 @@ export function graphToViewModel(graph: FlowGraphV3): ViewModel {
         },
       })
       present.add(n.id)
-    } else if (n.kind === 'event') {
-      const evt = n as EventNodeV3
-      rfNodes.push({
-        id: evt.id,
-        type: RF_TYPE_EVENT_CHIP,
-        position,
-        width: EVENT_CHIP_SIZE,
-        height: EVENT_CHIP_SIZE,
-        data: {
-          v3: evt,
-          op: evt.op,
-          params: evt.params,
-          executor: evt.executor,
-          ...(evt.durationS != null ? { durationS: evt.durationS } : {}),
-          chipSize: EVENT_CHIP_SIZE,
-          label: `${evt.op}`,
-          type: RF_TYPE_EVENT_CHIP,
-          state: evt.state,
-        },
-      })
-      present.add(evt.id)
     } else {
       rfNodes.push({
         id: n.id,
@@ -695,13 +747,20 @@ export function graphToViewModel(graph: FlowGraphV3): ViewModel {
 
   const rfEdges: Edge[] = []
   for (const l of graph.links) {
+    // output 边（event→asset）随 event 折叠丢弃
+    if (l.role === 'output') continue
+    // 端点是 event 则替换为其产出资产（asset→event→asset → asset→asset）
+    const source = resolveEndpoint(l.source)
+    const target = resolveEndpoint(l.target)
+    // event 折叠后两端指向同一资产（自环）→ 无因果意义，丢弃
+    if (source === target) continue
     // 折叠进牌堆的 deprecated 节点不渲染，其边随之折叠（含 isInactive 置灰边）
-    if (!present.has(l.source) || !present.has(l.target)) continue
+    if (!present.has(source) || !present.has(target)) continue
     const legacy = legacyEdgeSemantics(l)
     rfEdges.push({
       id: l.id,
-      source: l.source,
-      target: l.target,
+      source,
+      target,
       type: 'canvas',
       data: {
         // V3 通道（B 的边三态渲染消费）

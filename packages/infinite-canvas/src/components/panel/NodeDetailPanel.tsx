@@ -9,10 +9,11 @@
  * 契约（phase35 e2e 不退化）：根 data-testid="detail-panel"、✕ 关闭、detail/feedback/iteration 三 tab、
  * storyboard「镜头意图」4 select（MetaRenderer 内）。Props={node,onClose} 签名不变。
  */
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import type { Node } from '@xyflow/react'
 import type { AssetNodeV3, AIScore, StaleInfo, NodeState } from '@kais/flowgraph-v3'
 import { theme, v3theme, getScoreColor } from '../../theme/catppuccin'
+import { RAW_FIELD_LABELS, RAW_FIELD_NOISE, RAW_FIELD_GROUPS } from '../../constants'
 import { useCanvasStore } from '../../store/canvasStore'
 import { triggerStaleCascade } from '../../hooks/useStale'
 import FileViewer from '../FileViewer'
@@ -22,6 +23,7 @@ import FeedbackPanel from '../FeedbackPanel'
 import IterationPanel from '../IterationPanel'
 import MetaRenderer from './MetaRenderer'
 import TimelineStructure from '../timeline/TimelineStructure'
+import { resolveMediaUrl, resolveRelativeAssetPath, ossDirOf } from '../../utils/mediaUrl'
 
 interface Props {
   node: Node | null
@@ -144,11 +146,15 @@ export default function NodeDetailPanel({ node, onClose }: Props): React.ReactEl
 
 function AssetDetail({ asset, node, onImageClick }: { asset: AssetNodeV3; node: Node; onImageClick: (src: string) => void }) {
   const graph = useCanvasStore((s) => s.graph)
+  const rawDataByNodeId = useCanvasStore((s) => s.rawDataByNodeId)
+  const raw = rawDataByNodeId?.get(node.id) ?? undefined
   return (
     <>
-      <MediaViewer asset={asset} onImageClick={onImageClick} />
+      <MediaViewer asset={asset} raw={raw} onImageClick={onImageClick} />
       <CurationBadge curation={asset.curation} />
       <MetaRenderer asset={asset} node={node} />
+      <ShotIntentSection raw={raw} />
+      <RawDataSection nodeId={node.id} />
       <ReviewSection asset={asset} node={node} />
       <ScoreSection aiScore={asset.aiScore} />
       <StaleSection stale={asset.stale} graph={graph} />
@@ -158,49 +164,235 @@ function AssetDetail({ asset, node, onImageClick }: { asset: AssetNodeV3; node: 
   )
 }
 
-function MediaViewer({ asset, onImageClick }: { asset: AssetNodeV3; onImageClick: (src: string) => void }) {
+/**
+ * 原始字段区：渲染 migrate 白名单之外、经 adapter sidecar 穿透的富字段（后端 data 袋）。
+ * 过滤噪音键（已映射到 media/params/标题）、按 RAW_FIELD_GROUPS 分组、键值行呈现；
+ * 长文本（台词/提示词/描述）走可折叠块。rawDataByNodeId 缺省（fixture 直通）→ 不渲染。
+ */
+const RAW_LONG_KEYS = new Set(['text', 'dialogue', 'ltx_prompt', 'ltxPrompt', 'description', 'negative', 'negative_prompt', 'premise'])
+
+function RawDataSection({ nodeId }: { nodeId: string }): React.ReactElement | null {
+  const rawDataByNodeId = useCanvasStore((s) => s.rawDataByNodeId)
+  const raw = rawDataByNodeId?.get(nodeId)
+  if (!raw) return null
+
+  const entries = Object.entries(raw).filter(([, v]) => v != null && v !== '' &&
+    !(Array.isArray(v) && v.length === 0) &&
+    !(typeof v === 'object' && !Array.isArray(v)))
+    .filter(([k]) => !RAW_FIELD_NOISE.has(k))
+  if (entries.length === 0) return null
+
+  const groups: Array<[string, Array<[string, unknown]>]> = []
+  for (const g of RAW_FIELD_GROUPS) {
+    const items = entries.filter(([k]) => g.keys.has(k))
+    if (items.length > 0) groups.push([g.title, items])
+  }
+  const others = entries.filter(([k]) => !RAW_FIELD_GROUPS.some((g) => g.keys.has(k)))
+  if (others.length > 0) groups.push(['其他', others])
+
+  return (
+    <>
+      {groups.map(([title, items]) => (
+        <Fragment key={title}>
+          <SectionLabel>{title}</SectionLabel>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {items.map(([k, v]) => {
+              const label = RAW_FIELD_LABELS[k] ?? k
+              const isLong = RAW_LONG_KEYS.has(k) || (typeof v === 'string' && v.length > 80)
+              return isLong ? <LongField key={k} label={label} value={v} /> : <KvRow key={k} label={label} value={v} />
+            })}
+          </div>
+        </Fragment>
+      ))}
+    </>
+  )
+}
+
+/** 单值键值行（值做轻量格式化：布尔/数组/数字）。 */
+function KvRow({ label, value }: { label: string; value: unknown }) {
+  const text = Array.isArray(value) ? value.join(', ')
+    : typeof value === 'boolean' ? (value ? '是' : '否')
+    : String(value)
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12 }}>
+      <span style={{ color: theme.text.secondary, flexShrink: 0 }}>{label}</span>
+      <span style={{ color: theme.text.primary, fontFamily: 'var(--cv-font-mono, monospace)', textAlign: 'right', wordBreak: 'break-word' }}>{text}</span>
+    </div>
+  )
+}
+
+/** 长文本字段：可折叠多行块。 */
+function LongField({ label, value }: { label: string; value: unknown }) {
+  const [open, setOpen] = useState(false)
+  const text = String(value)
+  return (
+    <div>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        style={{ background: 'none', border: 'none', color: theme.text.secondary, fontSize: 12, cursor: 'pointer', padding: 0, marginBottom: 2 }}
+      >
+        {label} {open ? '▾' : `▸ (${text.length}字)`}
+      </button>
+      {open && (
+        <div style={{ background: theme.bg.input, borderRadius: 6, padding: 8, color: theme.text.primary, fontSize: 12, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+          {text}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MediaViewer({ asset, raw, onImageClick }: { asset: AssetNodeV3; raw: Record<string, unknown> | undefined; onImageClick: (src: string) => void }) {
   const m = asset.media
   if (asset.modality === 'text') {
-    const text = asset.content ?? ''
+    // 正文：content 优先，缺省取 description / premise（富字段穿透）；空则不渲染。
+    const text = asset.content
+      ?? (typeof raw?.description === 'string' ? raw.description : undefined)
+      ?? (typeof raw?.premise === 'string' ? raw.premise : undefined)
+      ?? ''
     if (!text) return null
     return (
       <>
         <SectionLabel>正文</SectionLabel>
-        <div style={{ background: theme.bg.input, borderRadius: 8, padding: 12, color: theme.text.primary, fontSize: 13, lineHeight: 1.8, whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: '40vh', overflowY: 'auto' }}>{text}</div>
+        <div style={{ background: theme.bg.input, borderRadius: 8, padding: 12, color: theme.text.primary, fontSize: 13, lineHeight: 1.8, whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: '48vh', overflowY: 'auto', border: `1px solid ${theme.border.default}` }}>{text}</div>
       </>
     )
   }
   if (asset.modality === 'video') {
-    const src = m.proxy ?? m.original
-    if (!src) return null
+    const src = resolveMediaUrl(m.proxy ?? m.original)
+    const poster = resolveMediaUrl(m.thumbnail) ?? undefined
+    if (!src && !poster) return null
     return (
       <>
         <SectionLabel>视频</SectionLabel>
-        <video controls poster={m.thumbnail ?? undefined} style={{ width: '100%', borderRadius: 8, background: theme.bg.image, border: `1px solid ${theme.border.default}` }}>
-          <source src={src} type="video/mp4" />浏览器不支持视频播放
-        </video>
+        {src ? (
+          <video controls poster={poster} style={{ width: '100%', borderRadius: 8, background: theme.bg.image, border: `1px solid ${theme.border.default}` }}>
+            <source src={src} type="video/mp4" />浏览器不支持视频播放
+          </video>
+        ) : poster ? (
+          <div onClick={() => onImageClick(poster)} style={{ borderRadius: 8, overflow: 'hidden', cursor: 'pointer', border: `1px solid ${theme.border.default}` }}>
+            <img src={poster} alt={asset.phaseName} style={{ width: '100%', display: 'block', maxHeight: 400, objectFit: 'contain', background: theme.bg.image }} />
+          </div>
+        ) : null}
       </>
     )
   }
   if (asset.modality === 'audio') {
-    const src = m.original
+    const src = resolveMediaUrl(m.original)
+    const waveform = resolveMediaUrl(m.waveform)
     return (
       <>
         <SectionLabel>音频</SectionLabel>
-        {m.waveform && <img src={m.waveform} alt="waveform" style={{ width: '100%', borderRadius: 6, background: theme.bg.image }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />}
+        {waveform && <img src={waveform} alt="waveform" style={{ width: '100%', borderRadius: 6, background: theme.bg.image }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />}
         {src && <audio controls style={{ width: '100%', marginTop: 6 }}><source src={src} />浏览器不支持音频播放</audio>}
-        {!src && !m.waveform && <div style={{ color: theme.text.secondary, fontSize: 12 }}>无音频文件</div>}
+        {!src && !waveform && <div style={{ color: theme.text.secondary, fontSize: 12 }}>无音频文件</div>}
       </>
     )
   }
-  // image
-  const img = m.thumbnail ?? m.original
-  if (!img) return null
+  // image：原图大图 + 相关图集（thumbnail / turnaround_sheet / crops），URL 经 mediaUrl 解析。
+  return <ImageGallery asset={asset} raw={raw} onImageClick={onImageClick} />
+}
+
+/** 图片资产图集：原图（大图，可点开 lightbox）+ 缩略图 / 转面表 / 各视角裁切。 */
+function ImageGallery({ asset, raw, onImageClick }: { asset: AssetNodeV3; raw: Record<string, unknown> | undefined; onImageClick: (src: string) => void }) {
+  const m = asset.media
+  const ossDir = ossDirOf(m.original ?? m.thumbnail)
+  // 原图（权威，可点开大图）
+  const original = resolveMediaUrl(m.original)
+  // 相关图：thumbnail → turnaround_sheet → crops.{front,three_quarter,side,back,...}
+  const related: Array<{ label: string; src: string }> = []
+  const thumb = resolveMediaUrl(m.thumbnail)
+  if (thumb) related.push({ label: '缩略图', src: thumb })
+  if (typeof raw?.turnaround_sheet === 'string') {
+    const u = resolveRelativeAssetPath(raw.turnaround_sheet, ossDir)
+    if (u) related.push({ label: '转面表', src: u })
+  }
+  if (raw?.crops && typeof raw.crops === 'object') {
+    for (const [k, v] of Object.entries(raw.crops as Record<string, unknown>)) {
+      if (typeof v !== 'string') continue
+      const u = resolveRelativeAssetPath(v, ossDir)
+      if (u) related.push({ label: k, src: u })
+    }
+  }
+  if (!original && related.length === 0) return null
   return (
     <>
-      <SectionLabel>预览图</SectionLabel>
-      <div onClick={() => onImageClick(img)} style={{ borderRadius: 8, overflow: 'hidden', cursor: 'pointer', border: `1px solid ${theme.border.default}`, marginBottom: 12 }}>
-        <img src={img} alt={asset.phaseName} style={{ width: '100%', display: 'block', maxHeight: 400, objectFit: 'contain', background: theme.bg.image }} />
+      <SectionLabel>{original ? '原图' : '预览图'}</SectionLabel>
+      {original && (
+        <div onClick={() => onImageClick(original)} style={{ borderRadius: 8, overflow: 'hidden', cursor: 'pointer', border: `1px solid ${theme.border.default}`, marginBottom: 12 }}>
+          <img src={original} alt={asset.phaseName} style={{ width: '100%', display: 'block', maxHeight: 400, objectFit: 'contain', background: theme.bg.image }} />
+        </div>
+      )}
+      {related.length > 0 && (
+        <>
+          <SectionLabel>相关图片</SectionLabel>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 12 }}>
+            {related.map((r) => (
+              <div key={r.label + r.src} onClick={() => onImageClick(r.src)} style={{ borderRadius: 6, overflow: 'hidden', cursor: 'pointer', border: `1px solid ${theme.border.default}`, position: 'relative', aspectRatio: '1' }}>
+                <img src={r.src} alt={r.label} loading="lazy" onError={(e) => { (e.currentTarget.parentElement as HTMLElement).style.display = 'none' }} style={{ width: '100%', height: '100%', objectFit: 'cover', background: theme.bg.image }} />
+                <span style={{ position: 'absolute', left: 0, bottom: 0, right: 0, padding: '2px 6px', fontSize: 10, color: theme.text.primary, background: 'rgba(0,0,0,0.55)' }}>{r.label}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </>
+  )
+}
+
+/**
+ * 镜头意图（shot_intent）：视频资产的完整创作意图（felt/visible/camera/lighting/audio/continuity）。
+ * 后端给的是大型 JSON 对象，RawDataSection 跳过对象值 → 此处专门结构化渲染。
+ */
+function ShotIntentSection({ raw }: { raw: Record<string, unknown> | undefined }) {
+  const si = raw?.shot_intent
+  if (!si || typeof si !== 'object') return null
+  const s = si as {
+    felt_intent?: string
+    visible_behavior?: string
+    camera_intent?: { shot_size?: string; movement?: string; axis?: string; endpoint?: string }
+    lighting_intent?: { key_source?: string; ratio?: string; temperature?: string }
+    audio_intent?: string
+    continuity?: { already_happened?: unknown[]; this_clip_only?: unknown[]; reserved_for_later?: unknown[]; locks?: unknown[] }
+  }
+  const arr = (x: unknown) => (Array.isArray(x) ? (x as unknown[]) : [])
+  const Row = ({ label, value }: { label: string; value: string | undefined }) =>
+    value ? (
+      <div style={{ display: 'flex', gap: 8, fontSize: 12, lineHeight: 1.6 }}>
+        <span style={{ color: theme.text.secondary, flexShrink: 0, minWidth: 56 }}>{label}</span>
+        <span style={{ color: theme.text.primary }}>{value}</span>
+      </div>
+    ) : null
+  const List = ({ label, items }: { label: string; items: unknown[] }) =>
+    items.length > 0 ? (
+      <div style={{ display: 'flex', gap: 8, fontSize: 12, lineHeight: 1.6 }}>
+        <span style={{ color: theme.text.secondary, flexShrink: 0, minWidth: 56 }}>{label}</span>
+        <span style={{ color: theme.text.primary }}>{items.map((x) => String(x)).join('、')}</span>
+      </div>
+    ) : null
+  const cam = s.camera_intent ?? {}
+  const light = s.lighting_intent ?? {}
+  const cont = s.continuity ?? {}
+  const chips = [cam.shot_size, cam.movement, cam.axis, light.ratio, light.temperature].filter(Boolean)
+  return (
+    <>
+      <SectionLabel>镜头意图</SectionLabel>
+      <div style={{ background: theme.bg.input, borderRadius: 8, padding: 10, display: 'flex', flexDirection: 'column', gap: 6, border: `1px solid ${theme.border.default}`, marginBottom: 4 }}>
+        {chips.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 }}>
+            {chips.map((c) => (
+              <span key={c} style={{ padding: '2px 8px', borderRadius: 4, background: theme.bg.surface, color: theme.text.primary, fontSize: 11, fontFamily: 'var(--cv-font-mono, monospace)' }}>{c}</span>
+            ))}
+          </div>
+        )}
+        <Row label="意图" value={s.felt_intent} />
+        <Row label="行为" value={s.visible_behavior} />
+        <Row label="运镜" value={cam.movement ? `${cam.movement}${cam.endpoint ? ' → ' + cam.endpoint : ''}` : undefined} />
+        <Row label="光照" value={[light.key_source, light.ratio, light.temperature].filter(Boolean).join(' · ') || undefined} />
+        <Row label="声音" value={s.audio_intent} />
+        <List label="本镜" items={arr(cont.this_clip_only)} />
+        <List label="预留" items={arr(cont.reserved_for_later)} />
+        <List label="锁定" items={arr(cont.locks)} />
       </div>
     </>
   )
@@ -209,9 +401,9 @@ function MediaViewer({ asset, onImageClick }: { asset: AssetNodeV3; onImageClick
 function CurationBadge({ curation }: { curation: AssetNodeV3['curation'] }) {
   const cfg: Record<string, { label: string; bg: string; color: string }> = {
     candidate: { label: '候选', bg: theme.bg.surface, color: theme.text.secondary },
-    selected: { label: '策展选定', bg: v3theme.signal.select, color: '#100E0A' },
+    selected: { label: '策展选定', bg: v3theme.signal.select, color: '#0A0B0E' },
     deprecated: { label: '落选', bg: v3theme.edge.inactive, color: theme.text.secondary },
-    locked: { label: '锁定参考', bg: v3theme.signal.locked, color: '#100E0A' },
+    locked: { label: '锁定参考', bg: v3theme.signal.locked, color: '#0A0B0E' },
   }
   const c = cfg[curation]
   if (!c) return null

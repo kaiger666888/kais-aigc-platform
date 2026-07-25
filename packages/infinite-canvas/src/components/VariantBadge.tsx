@@ -13,9 +13,9 @@ export interface VariantBadgeProps {
   status?: VariantMemberStatus
 }
 
-/** Catppuccin Mocha yellow — 与主题中 "BEST" 标签字面量解耦 */
-const BEST_BADGE_COLOR = '#f9e2af'
-const BEST_BADGE_TEXT = '#1e1e2e'
+/** BEST 标签色 = text 模态金；文字 = 冷近黑 onAccent（与主题字面量解耦） */
+const BEST_BADGE_COLOR = '#E0B665'
+const BEST_BADGE_TEXT = '#0A0B0E'
 
 /**
  * VariantBadge — V1/V2/V3 标签 + 可选 ✦ BEST 优胜标记。

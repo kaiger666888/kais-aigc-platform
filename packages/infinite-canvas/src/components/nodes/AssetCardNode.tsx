@@ -22,6 +22,7 @@ import { V3_NODE_SIZES } from '../../constants'
 import { v3theme, type Modality } from '../../theme/catppuccin'
 import { useLodLevel, type LodLevel } from '../../hooks/useLod'
 import { useCanvasUiStore } from '../canvas/canvasUiStore'
+import { useCanvasStore } from '../../store/canvasStore'
 import {
   getNodeBadgesRenderer,
   getVariantStackHandlers,
@@ -31,6 +32,7 @@ import NodeBadgesDefault from '../canvas/NodeBadgesDefault'
 import { ModalityIcon, type ModalityIconKind } from '../canvas/icons'
 import ScoreMiniBar from '../badges/ScoreMiniBar'
 import type { VariantStackData } from '../../v3/adapter'
+import { resolveMediaUrl } from '../../utils/mediaUrl'
 
 type AssetCardData = {
   v3?: AssetNodeV3
@@ -65,7 +67,7 @@ function modalityOf(data: AssetCardData): Modality {
   }
 }
 
-/** 底行元信息 `#037 · 3.3s`（shot 编号 · 时长；§4.1）。 */
+/** 底行元信息 `#037 · 3.3s`（shot 编号 · 时长；§4.1）。raw 数据缺省时的兜底。 */
 function metaLine(asset: AssetNodeV3 | undefined): string | null {
   if (!asset) return null
   const meta = asset.meta as { shotId?: string; durationS?: number }
@@ -77,6 +79,70 @@ function metaLine(asset: AssetNodeV3 | undefined): string | null {
   const dur = meta.durationS ?? asset.media.durationS
   if (typeof dur === 'number') parts.push(`${dur.toFixed(1)}s`)
   return parts.length > 0 ? parts.join(' · ') : null
+}
+
+/**
+ * 卡片表面关键字段（穿透 migrate 白名单的 raw data 袋）：按 modality/stage 取 2–3 个最关键字段。
+ * 返回 [label, value] 对；值非空才入选；用于底行紧凑 chips（替代/扩展 metaLine）。
+ */
+function pickKeyFields(
+  raw: Record<string, unknown> | undefined,
+  stage: Stage | undefined,
+  mod: Modality,
+): Array<[string, string]> {
+  if (!raw) return []
+  const out: Array<[string, string]> = []
+  const push = (key: string, label: string, fmt?: (v: string) => string) => {
+    const v = raw[key]
+    if (v == null || v === '') return
+    const s = String(v)
+    out.push([label, fmt ? fmt(s) : s])
+  }
+  const durFmt = (v: string) => {
+    const n = Number(v)
+    return Number.isFinite(n) ? `${n.toFixed(1)}s` : `${v}s`
+  }
+  switch (mod) {
+    case 'video': {
+      // 镜头意图关键值优先（shot_intent.camera_intent）——视频最核心的卡片信号
+      const si = raw.shot_intent as
+        | { camera_intent?: { shot_size?: string; movement?: string } }
+        | undefined
+      const cam = si?.camera_intent
+      if (cam?.shot_size) out.push(['景别', cam.shot_size])
+      if (cam?.movement) out.push(['运镜', cam.movement])
+      push('duration_sec', '时长', durFmt)
+      if (!out.some(([l]) => l === '景别')) push('shot_scale', '景别')
+      if (!out.some(([l]) => l === '景别')) push('shot_type', '景别')
+      push('scene_id', '场景')
+      break
+    }
+    case 'audio':
+      push('duration_sec', '时长', durFmt)
+      push('engine', '引擎')
+      push('audio_type', '类型'); if (!out.some(([l]) => l === '类型')) push('audioType', '类型')
+      push('speaker', '说话人')
+      break
+    case 'text':
+      push('hook_type', '钩子'); if (!out.some(([l]) => l === '钩子')) push('hookType', '钩子')
+      push('phase', '阶段')
+      break
+    case 'image':
+    default:
+      // global 角色/场景资产
+      if (stage === 'global') {
+        push('archetype', '原型')
+        push('character_id', '角色'); if (!out.some(([l]) => l === '角色')) push('characterId', '角色')
+        push('asset_type', '类型'); if (!out.some(([l]) => l === '类型')) push('assetType', '类型')
+      } else {
+        // storyboard / keyframe
+        push('shot_type', '景别'); if (!out.some(([l]) => l === '景别')) push('shot_scale', '景别')
+        push('duration_sec', '时长', durFmt)
+        push('scene_id', '场景')
+      }
+      break
+  }
+  return out.slice(0, 3)
 }
 
 /** 卡片盒尺寸（§4.6 变体尺寸表）。 */
@@ -145,8 +211,8 @@ function Cover({ data, mod, width, height, lod }: {
   const textExpanded = useCanvasUiStore((s) => s.expandedTexts.includes(assetId))
   const toggleText = useCanvasUiStore((s) => s.toggleText)
 
-  const videoSrc = mod === 'video' ? (asset?.media.proxy ?? asset?.media.original ?? data.filePath ?? null) : null
-  const audioSrc = mod === 'audio' ? (asset?.media.original ?? data.filePath ?? null) : null
+  const videoSrc = mod === 'video' ? resolveMediaUrl(asset?.media.proxy ?? asset?.media.original ?? data.filePath) : null
+  const audioSrc = mod === 'audio' ? resolveMediaUrl(asset?.media.original ?? data.filePath) : null
 
   // L2 视频：hover 200ms 后内联播 480p proxy（P15）
   const onEnter = useCallback(() => {
@@ -178,7 +244,7 @@ function Cover({ data, mod, width, height, lod }: {
       <div style={{
         width: '100%', height: textExpanded ? 'auto' : '100%', maxHeight: textExpanded ? 180 : undefined,
         padding: 4, background: v3theme.modalityWeak.text, borderRadius: 4, position: 'relative',
-        color: 'var(--cv-text-secondary, #A69F8F)', fontSize: 11, lineHeight: 1.5,
+        color: 'var(--cv-text-secondary, #9A9FA8)', fontSize: 11, lineHeight: 1.5,
         overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: textExpanded ? 'unset' : 3, WebkitBoxOrient: 'vertical',
       }}>
         {text || <ModalityIcon kind="text" size={32} color={v3theme.modality.text} />}
@@ -187,8 +253,8 @@ function Cover({ data, mod, width, height, lod }: {
             onClick={(e) => { e.stopPropagation(); toggleText(assetId) }}
             style={{
               position: 'absolute', right: 2, bottom: 2, padding: '0 6px', height: 16,
-              background: 'var(--cv-bg-overlay, #313244)', border: '1px solid var(--cv-line-panel, #313244)',
-              borderRadius: 3, color: 'var(--cv-text-secondary, #A69F8F)', fontSize: 9, cursor: 'pointer',
+              background: 'var(--cv-bg-overlay, #1E2128)', border: '1px solid var(--cv-line-panel, #1E2128)',
+              borderRadius: 3, color: 'var(--cv-text-secondary, #9A9FA8)', fontSize: 9, cursor: 'pointer',
             }}
           >
             {textExpanded ? '收起' : '展开'}
@@ -203,7 +269,7 @@ function Cover({ data, mod, width, height, lod }: {
   } else if (thumb) {
     body = (
       <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-        <img src={thumb} alt="" loading="lazy" onError={() => setThumbFailed(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 4, filter }} />
+        <img src={resolveMediaUrl(thumb) ?? undefined} alt="" loading="lazy" onError={() => setThumbFailed(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 4, filter }} />
         {mod === 'video' && (
           <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F2E9D8' }}>
             <ModalityIcon kind="video" size={24} color="#F2E9D8" />
@@ -271,7 +337,7 @@ function WaveformCover({ seed, color, audioSrc, enabled }: { seed: string; color
           data-testid="asset-card-audio-toggle"
           style={{
             position: 'absolute', right: 4, bottom: 4, width: 20, height: 20, borderRadius: '50%',
-            background: 'var(--cv-bg-overlay, #313244)', border: 'none', color: '#E8E2D5',
+            background: 'var(--cv-bg-overlay, #1E2128)', border: 'none', color: '#EDEEF1',
             fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
         >
@@ -330,7 +396,7 @@ function StackChrome({ stack, cardW, cardH, mod, nodeId, children }: {
           style={{
             position: 'absolute', inset: 0,
             transform: `translate(${i * V3_NODE_SIZES.stack.dx}px, ${i * V3_NODE_SIZES.stack.dy}px)`,
-            background: 'var(--cv-bg-card, rgba(30,30,46,0.92))',
+            background: 'var(--cv-bg-card, #16181D)',
             border: `1px solid ${v3theme.modalityWeak[mod]}`,
             borderRadius: 8,
             filter: `brightness(${Math.pow(V3_NODE_SIZES.stack.dimStep, i)})`,
@@ -349,9 +415,9 @@ function StackChrome({ stack, cardW, cardH, mod, nodeId, children }: {
           style={{
             position: 'absolute', top: -6, right: -28,
             width: V3_NODE_SIZES.stack.countSize, height: V3_NODE_SIZES.stack.countSize,
-            borderRadius: '50%', background: 'var(--cv-bg-overlay, #313244)',
-            border: '1px solid var(--cv-chip-border, #45475A)',
-            color: 'var(--cv-text-secondary, #A69F8F)',
+            borderRadius: '50%', background: 'var(--cv-bg-overlay, #1E2128)',
+            border: '1px solid var(--cv-chip-border, rgba(255,255,255,0.10))',
+            color: 'var(--cv-text-secondary, #9A9FA8)',
             fontFamily: 'var(--cv-font-mono, monospace)', fontSize: 10,
             cursor: 'pointer', zIndex: 4, padding: 0,
           }}
@@ -380,18 +446,18 @@ function ExpandedStackFan({ stack }: { stack: VariantStackData }) {
           data-candidate-id={c.id}
           style={{
             width: 80, height: 56, borderRadius: 6, overflow: 'hidden', position: 'relative',
-            background: 'var(--cv-bg-card, rgba(30,30,46,0.92))',
-            border: c.id === stack.winnerNodeId ? `1.5px solid ${v3theme.signal.select}` : '1px solid var(--cv-line-panel, #313244)',
+            background: 'var(--cv-bg-card, #16181D)',
+            border: c.id === stack.winnerNodeId ? `1.5px solid ${v3theme.signal.select}` : '1px solid var(--cv-line-panel, #1E2128)',
             opacity: c.curation === 'deprecated' ? 0.5 : 1,
             animation: `cv-stack-fan var(--cv-d-stack-open, 240ms) var(--cv-e-spring, cubic-bezier(0.34,1.3,0.4,1)) ${i * 30}ms backwards`,
           }}
         >
           {c.thumbnail
-            ? <img src={c.thumbnail} alt="" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ? <img src={resolveMediaUrl(c.thumbnail) ?? undefined} alt="" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             : <div style={{ width: '100%', height: '100%', background: v3theme.modalityWeak.image }} />}
           <span style={{
             position: 'absolute', left: 2, bottom: 2, fontFamily: 'var(--cv-font-mono, monospace)',
-            fontSize: 9, color: 'var(--cv-text-secondary, #A69F8F)',
+            fontSize: 9, color: 'var(--cv-text-secondary, #9A9FA8)',
           }}>
             {c.seed != null ? `seed ${c.seed}` : c.id.slice(-6)}
           </span>
@@ -415,6 +481,8 @@ function AssetCardNodeComponent({ id, data, selected }: NodeProps<AssetCardNodeT
   const trace = data.traceState
   const stack = data.variantStack
   const expanded = useCanvasUiStore((s) => (stack ? s.expandedStacks.includes(id) : false))
+  // raw data 袋（穿透 migrate 白名单外字段）——必须在所有 early return 之前调 hook（rules of hooks）
+  const rawDataByNodeId = useCanvasStore((s) => s.rawDataByNodeId)
 
   if (lod === 0) return <L0Block data={data} />
 
@@ -426,6 +494,9 @@ function AssetCardNodeComponent({ id, data, selected }: NodeProps<AssetCardNodeT
 
   const title = (data.label ?? asset?.phaseName ?? id) as string
   const meta = metaLine(asset)
+  const raw = rawDataByNodeId?.get(id)
+  // 关键字段 chips（raw 优先；缺省退回 metaLine 的 shot# · 时长）
+  const keyFields = raw ? pickKeyFields(raw, stage, mod) : []
   const Badges = getNodeBadgesRenderer() ?? NodeBadgesDefault
   // L2 近景且有评分 → 底部渲染 ScoreMiniBar（任务 2A）；卡高随之自适应避免裁切。
   const showScore = !isL1 && !!asset?.aiScore
@@ -435,25 +506,25 @@ function AssetCardNodeComponent({ id, data, selected }: NodeProps<AssetCardNodeT
       data-testid="asset-card"
       data-node-id={id}
       data-stage={stage}
+      className="cv-asset-card"
       style={{
         position: 'relative',
         width: w,
         height: (stage === 'script' || showScore) ? 'auto' : h,
         minHeight: stage === 'script' && !isL1 ? V3_NODE_SIZES.textCard.minH : showScore ? h : undefined,
-        background: 'var(--cv-bg-card, rgba(30,30,46,0.92))',
+        background: 'var(--cv-bg-card, #16181D)',
         borderRadius: V3_NODE_SIZES.card.radius,
-        // 选中 2px 暖白环（outline 不占盒模型）；stale 1.5px 虚线描边（§4.5 三重冗余之二）
-        outline: selected
-          ? `2px solid ${v3theme.signal.select}`
-          : stale
-            ? `1.5px dashed ${v3theme.signal.stale}`
-            : 'none',
-        outlineOffset: stale && !selected ? 0 : 0,
-        // P18 溯源通道（C 接线）：压暗 0.28 + saturate(0.4) / 祖先链提亮
-        opacity: trace === 'dimmed' ? 0.28 : 1,
+        // 真实纵深：inset 顶高光（「从上方打光」）+ 柔投影（Linear/Vercel 手法）
+        boxShadow: selected
+          ? 'var(--cv-glow-select, 0 0 0 1px rgba(237,238,241,0.55), 0 0 14px rgba(237,238,241,0.16))'
+          : 'var(--cv-shadow-card, 0 1px 2px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.04) inset)',
+        // stale 1.5px 虚线描边（§4.5 三重冗余之二；选中改用 boxShadow 冷白辉光，不再叠 outline）
+        outline: selected ? 'none' : stale ? `1.5px dashed ${v3theme.signal.stale}` : 'none',
+        // P18 溯源通道（C 接线）：压暗 + saturate(0.4) / 祖先链提亮
+        opacity: trace === 'dimmed' ? 0.25 : 1,
         filter: trace === 'dimmed' ? 'saturate(0.4)' : trace === 'highlighted' ? 'brightness(1.12)' : undefined,
-        transition: 'opacity var(--cv-d-dim, 180ms) var(--cv-e-inout, cubic-bezier(0.45,0,0.25,1)), outline-color var(--cv-d-select, 120ms) var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1))',
-        color: 'var(--cv-text-primary, #E8E2D5)',
+        transition: 'box-shadow var(--cv-d-select, 120ms) var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1)), opacity var(--cv-d-dim, 180ms) var(--cv-e-inout, cubic-bezier(0.45,0,0.25,1)), filter var(--cv-d-dim, 180ms) var(--cv-e-inout, cubic-bezier(0.45,0,0.25,1))',
+        color: 'var(--cv-text-primary, #EDEEF1)',
         display: 'flex',
         flexDirection: 'row',
         overflow: 'visible',
@@ -484,15 +555,27 @@ function AssetCardNodeComponent({ id, data, selected }: NodeProps<AssetCardNodeT
         <Cover data={data} mod={mod} width={w - V3_NODE_SIZES.card.modBarW - 16} height={isL1 ? 100 - 14 - 28 : coverH} lod={lod} />
         {/* composite 迷你胶片条（§4.6：宣示「我有内部结构」，点击开右面板 TimelineStructure —— D） */}
         {!isL1 && stage === 'composite' && <Filmstrip asset={asset} />}
-        {/* 底行元信息 */}
-        {!isL1 && meta && (
+        {/* 底行元信息：raw 关键字段 chips 优先，缺省退回 metaLine（shot# · 时长） */}
+        {!isL1 && (keyFields.length > 0 ? (
+          <div style={{
+            display: 'flex', flexWrap: 'wrap', gap: '0 6px', rowGap: 2, flex: '0 0 auto',
+            fontFamily: 'var(--cv-font-mono, monospace)', fontVariantNumeric: 'tabular-nums',
+            fontSize: 10, color: 'var(--cv-text-secondary, #9A9FA8)',
+          }}>
+            {keyFields.map(([label, value]) => (
+              <span key={label} style={{ whiteSpace: 'nowrap', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <span style={{ opacity: 0.55 }}>{label}:</span>{value}
+              </span>
+            ))}
+          </div>
+        ) : meta ? (
           <div style={{
             fontFamily: 'var(--cv-font-mono, monospace)', fontVariantNumeric: 'tabular-nums',
-            fontSize: 10, color: 'var(--cv-text-secondary, #A69F8F)', flex: '0 0 auto',
+            fontSize: 10, color: 'var(--cv-text-secondary, #9A9FA8)', flex: '0 0 auto',
           }}>
             {meta}
           </div>
-        )}
+        ) : null)}
         {/* 任务 2A：底部迷你评分条（overall 大字 + dimensions 迷你水平条） */}
         {showScore && <ScoreMiniBar score={asset?.aiScore} />}
       </div>
@@ -532,8 +615,8 @@ function Filmstrip({ asset }: { asset: AssetNodeV3 | undefined }) {
       style={{ display: 'flex', height: V3_NODE_SIZES.compositeCard.filmstripH, borderRadius: 4, overflow: 'hidden', flex: '0 0 auto' }}
     >
       {cells.map((thumb, i) => (
-        <div key={i} style={{ flex: 1, background: v3theme.modalityWeak.video, borderRight: i < 7 ? '1px solid var(--cv-bg-canvas, #100E0A)' : 'none' }}>
-          {thumb && <img src={thumb} alt="" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+        <div key={i} style={{ flex: 1, background: v3theme.modalityWeak.video, borderRight: i < 7 ? '1px solid var(--cv-bg-canvas, #0A0B0E)' : 'none' }}>
+          {thumb && <img src={resolveMediaUrl(thumb) ?? undefined} alt="" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
         </div>
       ))}
     </div>

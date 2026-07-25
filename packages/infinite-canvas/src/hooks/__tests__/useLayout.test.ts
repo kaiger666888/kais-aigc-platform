@@ -4,7 +4,10 @@ import { bridgePosition, resolveProductModality } from '../useLayout'
 import {
   computeCanvasGeometry,
   computeLaneTops,
+  computePhaseColumns,
+  computePhaseGridPlan,
   globalLaneHeight,
+  laneHeightFromRows,
   LANE_H_PKG,
 } from '../../components/canvas/laneGeometry'
 import { loadFixtureGraph } from '../../v3/fixtureSource'
@@ -46,6 +49,182 @@ describe('laneGeometry', () => {
     })
     expect(geo.lockedZone).toBeNull()
   })
+
+  it('laneHeightFromRows：max(基准带高, 行数 × 行高)', () => {
+    expect(laneHeightFromRows(240, 1, 192)).toBe(240) // 1 行 192 < 基准 240 → 基准
+    expect(laneHeightFromRows(240, 2, 192)).toBe(384) // 2 行 384 > 240
+    expect(laneHeightFromRows(240, 5, 192)).toBe(960) // 5 行 → 960（真实 script 泳道量级）
+  })
+
+  it('computeCanvasGeometry：传入 heights 覆盖 LANE_HEIGHTS 派生（换行带高透传）', () => {
+    const geo = computeCanvasGeometry({
+      globalAssetCount: 0,
+      heights: [200, 960, 240, 240, 240, 180, 180, 180, 180, 280],
+      boxes: [{ x: 0, y: 0, width: 240, height: 160, locked: false }],
+    })
+    expect(geo.bands[1]!.height).toBe(960) // script 泳道换行后带高
+    expect(geo.bands[2]!.top).toBe(200 + 48 + 960 + 48) // storyboard 带顶随 script 撑高下移
+  })
+})
+
+// ─── computePhaseColumns（竖向创作阶段叠加层：median-x 投影，不动布局引擎） ───
+
+describe('computePhaseColumns', () => {
+  const cat = [
+    { index: 1, name: 'P01 · 选题' },
+    { index: 2, name: 'P02 · 大纲' },
+    { index: 3, name: 'P03 · 剧本' },
+  ]
+
+  it('按各阶段 median-x 升序排成非重叠竖带，边界=相邻 median 中点', () => {
+    const cols = computePhaseColumns({
+      mainX: 214,
+      phaseCatalog: cat,
+      nodes: [
+        { x: 300, width: 240, phaseIndex: 1 }, // 中心 420
+        { x: 360, width: 240, phaseIndex: 1 }, // 中心 480 → P1 median 450
+        { x: 900, width: 240, phaseIndex: 2 }, // 中心 1020
+        { x: 1500, width: 240, phaseIndex: 3 }, // 中心 1620
+      ],
+    })
+    expect(cols.map((c) => c.index)).toEqual([1, 2, 3])
+    // P1 中心 = median(420, 480) = 450；P2 中心 = 1020；P3 中心 = 1620
+    // 边界 P1|P2 = (450+1020)/2 = 735；P2|P3 = (1020+1620)/2 = 1320
+    const [c1, c2, c3] = cols
+    expect(c1!.x1).toBeCloseTo(735, 5)
+    expect(c2!.x0).toBeCloseTo(735, 5)
+    expect(c2!.x1).toBeCloseTo(1320, 5)
+    expect(c3!.x0).toBeCloseTo(1320, 5)
+    // 首带左缘夹在 mainX（median - halfStep < mainX → 取 mainX）
+    expect(c1!.x0).toBe(214)
+  })
+
+  it('排除 global 第 0 列（中心 x ≤ mainX）节点', () => {
+    const cols = computePhaseColumns({
+      mainX: 214,
+      phaseCatalog: cat,
+      nodes: [
+        { x: 16, width: 168, phaseIndex: 1 }, // global 列（中心 100 ≤ 214）→ 排除
+        { x: 400, width: 240, phaseIndex: 2 },
+      ],
+    })
+    expect(cols.map((c) => c.index)).toEqual([2])
+  })
+
+  it('无 phaseIndex 节点 / 无有效节点 → 空数组', () => {
+    expect(computePhaseColumns({ mainX: 214, nodes: [{ x: 400, width: 240 }] })).toEqual([])
+    expect(computePhaseColumns({ mainX: 214, nodes: [] })).toEqual([])
+  })
+
+  it('name 取自 phaseCatalog，group 取自 PHASE_GROUPS', () => {
+    const cols = computePhaseColumns({
+      mainX: 214,
+      phaseCatalog: cat,
+      nodes: [{ x: 400, width: 240, phaseIndex: 1 }],
+    })
+    expect(cols[0]!.name).toBe('P01 · 选题')
+    expect(cols[0]!.group).toBe('research') // PHASE_GROUPS[1]
+  })
+})
+
+// ─── computePhaseGridPlan（阶段网格：x 主排序键 = phaseIndex，global 资产随阶段） ───
+
+describe('computePhaseGridPlan', () => {
+  const slotStride = 240 + V3_LAYOUT.NODE_GAP_X // 288
+  const mainX = V3_LAYOUT.MAIN_X
+
+  it('阶段按 index 升序铺成邻接非重叠竖带，x 随 index 单调', () => {
+    const plan = computePhaseGridPlan({
+      mainX,
+      slotStride,
+      gap: V3_LAYOUT.NODE_GAP_X,
+      maxRowsPerBand: 4,
+      maxBandCols: 8,
+      nodes: [
+        { id: 'a3', phaseIndex: 3, lane: 1, orderKey: 0, width: 240 },
+        { id: 'a1', phaseIndex: 1, lane: 1, orderKey: 0, width: 240 },
+        { id: 'a2', phaseIndex: 2, lane: 1, orderKey: 0, width: 240 },
+      ],
+    })
+    expect(plan.phaseColumns.map((c) => c.index)).toEqual([1, 2, 3])
+    // 带邻接：前带 x1 = 后带 x0
+    expect(plan.phaseColumns[0]!.x1).toBeCloseTo(plan.phaseColumns[1]!.x0, 5)
+    expect(plan.phaseColumns[1]!.x1).toBeCloseTo(plan.phaseColumns[2]!.x0, 5)
+    // x 随 index 单调递增
+    expect(plan.phaseColumns[0]!.cx).toBeLessThan(plan.phaseColumns[1]!.cx)
+    expect(plan.phaseColumns[1]!.cx).toBeLessThan(plan.phaseColumns[2]!.cx)
+    // 首带左缘起自主区
+    expect(plan.phaseColumns[0]!.x0).toBe(mainX)
+  })
+
+  it('global 资产（lane 0）落其阶段 band 的 x，脱离第 0 列', () => {
+    const plan = computePhaseGridPlan({
+      mainX,
+      slotStride,
+      gap: V3_LAYOUT.NODE_GAP_X,
+      maxRowsPerBand: 4,
+      maxBandCols: 8,
+      nodes: [
+        { id: 'g', phaseIndex: 4, lane: 0, orderKey: 0, width: 168 }, // global 角色（P04）
+        { id: 's', phaseIndex: 4, lane: 1, orderKey: 0, width: 240 }, // 同阶段 script
+      ],
+    })
+    const gx = plan.positions.get('g')!.x
+    // 不再钉在 col0（x≈16），而在主区 P04 band 内（x ≥ mainX）
+    expect(gx).toBeGreaterThanOrEqual(mainX)
+    // 与同阶段 script 共享 band 起始区间
+    const band = plan.phaseColumns.find((c) => c.index === 4)!
+    expect(gx).toBeGreaterThanOrEqual(band.x0)
+    expect(gx).toBeLessThanOrEqual(band.x1)
+  })
+
+  it('自适应带宽：节点多的阶段带更宽（bandCols = ceil(最密泳道/maxRows)）', () => {
+    const plan = computePhaseGridPlan({
+      mainX,
+      slotStride,
+      gap: V3_LAYOUT.NODE_GAP_X,
+      maxRowsPerBand: 4,
+      maxBandCols: 8,
+      nodes: [
+        // P9：22 个 storyboard（最密）→ ceil(22/4)=6 槽
+        ...Array.from({ length: 22 }, (_, i) => ({ id: `sb${i}`, phaseIndex: 9, lane: 2, orderKey: i, width: 240 })),
+        // P2：1 个 → 1 槽
+        { id: 's2', phaseIndex: 2, lane: 1, orderKey: 0, width: 240 },
+      ],
+    })
+    const p9 = plan.phaseColumns.find((c) => c.index === 9)!
+    const p2 = plan.phaseColumns.find((c) => c.index === 2)!
+    expect(Math.round((p9.x1 - p9.x0) / slotStride)).toBe(6)
+    expect(Math.round((p2.x1 - p2.x0) / slotStride)).toBe(1)
+    // P9 storyboard 同泳道 ≤ maxRows 行（22 / floor(6*288/288)=6 列 → 4 行，row 最大 3）
+    expect(plan.laneRows.get(2)).toBeLessThanOrEqual(3)
+  })
+
+  it('orderKey 决定组内顺序（保因果序），同一 (lane,phase) 横向铺开', () => {
+    const plan = computePhaseGridPlan({
+      mainX,
+      slotStride,
+      gap: V3_LAYOUT.NODE_GAP_X,
+      maxRowsPerBand: 1, // 3 节点 → 3 列横向铺开（保因果序映射到 x）
+      maxBandCols: 8,
+      nodes: [
+        { id: 'x0', phaseIndex: 1, lane: 1, orderKey: 5, width: 240 },
+        { id: 'x1', phaseIndex: 1, lane: 1, orderKey: 1, width: 240 },
+        { id: 'x2', phaseIndex: 1, lane: 1, orderKey: 3, width: 240 },
+      ],
+    })
+    // orderKey 升序 → x1(1) < x2(3) < x0(5) 横向铺开
+    expect(plan.positions.get('x1')!.x).toBeLessThan(plan.positions.get('x2')!.x)
+    expect(plan.positions.get('x2')!.x).toBeLessThan(plan.positions.get('x0')!.x)
+  })
+
+  it('空输入 → 空结果', () => {
+    const plan = computePhaseGridPlan({
+      mainX, slotStride, gap: V3_LAYOUT.NODE_GAP_X, maxRowsPerBand: 4, maxBandCols: 8, nodes: [],
+    })
+    expect(plan.positions.size).toBe(0)
+    expect(plan.phaseColumns).toEqual([])
+  })
 })
 
 // ─── bridgePosition（B7：包内 laneH 语义 → tokens 泳道几何） ───
@@ -61,13 +240,13 @@ describe('bridgePosition', () => {
   })
 
   it('episode 资产：x = 包内槽位 + 主区起点 214；y = tokens 带顶 + 16 留白 + 带内偏移', () => {
-    const box = { x: 0, y: 2 * LANE_H_PKG, lane: 2, layer: 0 } // storyboard 泳道
+    const box = { x: 0, y: 2 * LANE_H_PKG, lane: 2, layer: 0, row: 0 } // storyboard 泳道
     expect(bridgePosition({ nodeId: 'a', scope: 'episode', box, laneTops, globalSlotIndex: 0 }))
       .toEqual({ x: V3_LAYOUT.MAIN_X, y: laneTops[2]! + V3_LAYOUT.LANE_TOP_INSET })
   })
 
   it('入种口事件芯片（x<0）留在第 0 列左侧', () => {
-    const box = { x: -160, y: 3 * LANE_H_PKG, lane: 3, layer: 0 }
+    const box = { x: -160, y: 3 * LANE_H_PKG, lane: 3, layer: 0, row: 0 }
     const pos = bridgePosition({ nodeId: 'e', scope: undefined, box, laneTops, globalSlotIndex: 0 })
     expect(pos!.x).toBe(-160)
     expect(pos!.y).toBe(laneTops[3]! + V3_LAYOUT.LANE_TOP_INSET)

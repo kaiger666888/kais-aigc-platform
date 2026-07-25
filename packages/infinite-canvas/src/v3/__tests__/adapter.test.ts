@@ -12,7 +12,6 @@ import {
   adaptV2Graph,
   graphToViewModel,
   getViewModel,
-  EVENT_CHIP_SIZE,
   RF_TYPE_EVENT_CHIP,
 } from '../adapter'
 import { getFixtureMode, loadFixtureGraph } from '../fixtureSource'
@@ -117,7 +116,7 @@ function syntheticBackendV2() {
 // ─── 1. 合成 payload → 适配 → zod 过 ───
 
 describe('adaptV2Graph：_recon V2 结构合成 payload', () => {
-  const { graph, warnings } = adaptV2Graph(syntheticBackendV2())
+  const { graph, warnings, rawDataByNodeId, phaseCatalog } = adaptV2Graph(syntheticBackendV2())
 
   it('产出过包内 zod', () => {
     const result = validateFlowGraphV3(graph)
@@ -191,6 +190,27 @@ describe('adaptV2Graph：_recon V2 结构合成 payload', () => {
     expect(graph.branches).toHaveLength(1)
     expect(graph.branches[0]).toMatchObject({ id: 'br_main', name: '主线' })
     expect(typeof (graph.branches[0] as { createdAt?: number }).createdAt).toBe('number')
+  })
+
+  it('rawDataByNodeId 穿透 migrate 白名单外字段（卡片/详情面板消费）', () => {
+    // video 节点的配方字段（migrate 进 params）+ 描述字段都应在原始袋里
+    const videoRaw = rawDataByNodeId.get('n_video')
+    expect(videoRaw).toBeTruthy()
+    expect(videoRaw).toMatchObject({ shotId: 'shot-001', durationS: 4, seed: 88421, engine: 'wan2.2-i2v' })
+    // script 节点富字段（hookType/hookIntensity 在 V3 meta 白名单内，但仍穿透原始袋）
+    const scriptRaw = rawDataByNodeId.get('n_script')
+    expect(scriptRaw).toMatchObject({ hookType: '悬念', hookIntensity: 0.8 })
+    // 被丢弃的 zone 节点不进 rawDataByNodeId（无 V3 实体）
+    expect(rawDataByNodeId.has('n_zone')).toBe(false)
+  })
+
+  it('phaseCatalog：zone 阶段目录提取 + 资产/超集阶段补全，zone 名胜出', () => {
+    const indices = phaseCatalog.map((c) => c.index)
+    // 资产阶段 0/1/2/4/5 + zone 阶段 2 + 被丢弃超集节点(3d→3/suggestion→2)的阶段 → 合并去重升序
+    expect(indices).toEqual([0, 1, 2, 3, 4, 5])
+    // index 2 同时来自 zone（phaseName 'z'）/ phase('p') / 资产 n_sb('storyboard') / suggestion('s') → zone 胜
+    const p2 = phaseCatalog.find((c) => c.index === 2)
+    expect(p2?.name).toBe('z')
   })
 })
 
@@ -275,15 +295,15 @@ describe('graphToViewModel：v3-valid fixture', () => {
     }
   })
 
-  it('事件节点 → 26×26 eventChip', () => {
+  it('事件节点不渲染：无 eventChip，因果边直连 asset→asset', () => {
+    // 视图层不再合成 eventChip 节点
     const chips = vm.rfNodes.filter((n) => n.type === RF_TYPE_EVENT_CHIP)
-    expect(chips.length).toBeGreaterThan(0)
-    for (const c of chips) {
-      expect(c.width).toBe(EVENT_CHIP_SIZE)
-      expect(c.height).toBe(EVENT_CHIP_SIZE)
-      const data = c.data as { chipSize: number; op: string; params: unknown }
-      expect(data.chipSize).toBe(EVENT_CHIP_SIZE)
-      expect(typeof data.op).toBe('string')
+    expect(chips).toHaveLength(0)
+    // 因果边端点不经过任何 event 节点（asset→event→asset 已折叠为 asset→asset）
+    const eventIds = new Set(graph.nodes.filter((n) => n.kind === 'event').map((n) => n.id))
+    for (const e of vm.rfEdges) {
+      expect(eventIds.has(e.source)).toBe(false)
+      expect(eventIds.has(e.target)).toBe(false)
     }
   })
 
@@ -325,17 +345,19 @@ describe('graphToViewModel：v3-decompose fixture（99 节点解构集）', () =
     )
     const rfIds = new Set(vm.rfNodes.map((n) => n.id))
     for (const a of lockedAssets) expect(rfIds.has(a.id)).toBe(true)
-    expect(vm.rfNodes.length).toBe(graph.nodes.length) // 无 deprecated → 不折叠
+    // 无 deprecated → 不折叠；事件不渲染 → rfNodes = 非事件节点数
+    expect(vm.rfNodes.length).toBe(graph.nodes.filter((n) => n.kind !== 'event').length)
     const seq = vm.rfEdges.filter((e) => (e.data as { role: string }).role === 'sequence')
     expect(seq.length).toBe(92) // 93 镜头 92 条 sequence 边
   })
 
-  it('shot_decompose 事件芯片存在', () => {
-    const chip = vm.rfNodes.find(
-      (n) => n.type === RF_TYPE_EVENT_CHIP && (n.data as { op: string }).op === 'shot_decompose',
-    )
-    expect(chip).toBeTruthy()
-    expect(chip!.width).toBe(EVENT_CHIP_SIZE)
+  it('shot_decompose 事件在数据层保留，但视图层不渲染为芯片', () => {
+    // 数据层：解构事件仍是图的一等实体（变体组/完整性契约依赖它）
+    const evt = graph.nodes.find((n) => n.kind === 'event' && n.op === 'shot_decompose')
+    expect(evt).toBeTruthy()
+    // 视图层：不渲染任何 eventChip
+    const chip = vm.rfNodes.find((n) => n.type === RF_TYPE_EVENT_CHIP)
+    expect(chip).toBeUndefined()
   })
 
   it('composite 资产带 TimelineStructure 进 data', () => {

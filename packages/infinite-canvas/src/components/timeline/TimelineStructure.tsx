@@ -108,7 +108,7 @@ export default function TimelineStructure({ asset }: { asset: AssetNodeV3 }): Re
       <div style={{ position: 'relative', height: 16, borderRadius: 4, background: theme.bg.surface, border: `1px solid ${theme.border.subtle}`, overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, display: 'flex' }}>
           {cells.map((c, i) => (
-            <div key={i} style={{ width: c.w, borderRight: '1px solid var(--cv-bg-canvas, #100E0A)', background: i % 2 === 0 ? 'rgba(157,180,142,0.10)' : 'transparent' }} />
+            <div key={i} style={{ width: c.w, borderRight: '1px solid var(--cv-bg-canvas, #0A0B0E)', background: i % 2 === 0 ? 'rgba(157,180,142,0.10)' : 'transparent' }} />
           ))}
         </div>
         <div style={{
@@ -141,7 +141,7 @@ function FilmstripRow({ cells, thumbOf, onShotClick }: {
             data-shot-id={shot.shotId}
             onClick={() => onShotClick(shot)}
             title={`shot ${shot.shotId}${nonlinear ? '  (~ 非线性宽)' : ''} · ${(shot.endS - shot.startS).toFixed(1)}s · 点击选中分镜`}
-            style={{ width: w, minWidth: MIN_CELL_W, flex: '0 0 auto', display: 'flex', cursor: 'pointer', borderRight: '1px solid var(--cv-bg-canvas, #100E0A)', position: 'relative' }}
+            style={{ width: w, minWidth: MIN_CELL_W, flex: '0 0 auto', display: 'flex', cursor: 'pointer', borderRight: '1px solid var(--cv-bg-canvas, #0A0B0E)', position: 'relative' }}
           >
             {/* 首帧|尾帧对劈 */}
             <div style={{ flex: 1, overflow: 'hidden', background: v3theme.modalityWeak.video }}>
@@ -150,7 +150,7 @@ function FilmstripRow({ cells, thumbOf, onShotClick }: {
                   : <span style={{ margin: 'auto', fontSize: 10, color: theme.text.disabled }}>#{shot.index + 1}</span>}
             </div>
             {(last && last !== first) && (
-              <div style={{ flex: 1, overflow: 'hidden', borderLeft: '1px solid var(--cv-bg-canvas, #100E0A)', background: v3theme.modalityWeak.video }}>
+              <div style={{ flex: 1, overflow: 'hidden', borderLeft: '1px solid var(--cv-bg-canvas, #0A0B0E)', background: v3theme.modalityWeak.video }}>
                 <img src={last} alt="" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
             )}
@@ -174,7 +174,7 @@ function DialogueRow({ cells }: { cells: Cell[] }) {
           key={shot.shotId}
           title={shot.dialogueText ?? ''}
           style={{
-            width: w, minWidth: MIN_CELL_W, flex: '0 0 auto', borderRight: '1px solid var(--cv-bg-canvas, #100E0A)',
+            width: w, minWidth: MIN_CELL_W, flex: '0 0 auto', borderRight: '1px solid var(--cv-bg-canvas, #0A0B0E)',
             padding: '0 4px', fontSize: 10, lineHeight: '20px', color: v3theme.modalityDim.text,
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}
@@ -203,7 +203,7 @@ function WaveformRow({ cells, track, label, color, assetOf }: {
         const heights = pseudoWaveform(`${shot.shotId}-${track}`, Math.max(8, Math.floor(w / 3)))
         const energy = shotEnergy(`${shot.shotId}-${track}`)
         return (
-          <div key={shot.shotId} style={{ width: w, minWidth: MIN_CELL_W, flex: '0 0 auto', height: '100%', display: 'flex', alignItems: 'center', gap: 1, padding: '0 2px', borderRight: '1px solid var(--cv-bg-canvas, #100E0A)' }} title={`${label} · ${shot.shotId}${present ? '' : '（无轨资产）'}`}>
+          <div key={shot.shotId} style={{ width: w, minWidth: MIN_CELL_W, flex: '0 0 auto', height: '100%', display: 'flex', alignItems: 'center', gap: 1, padding: '0 2px', borderRight: '1px solid var(--cv-bg-canvas, #0A0B0E)' }} title={`${label} · ${shot.shotId}${present ? '' : '（无轨资产）'}`}>
             {present ? heights.map((h, i) => (
               <div key={i} style={{ flex: 1, height: `${Math.round(h * energy * 100)}%`, maxWidth: 3, background: color, opacity: 0.75, borderRadius: 1 }} />
             )) : <span style={{ fontSize: 8, color: theme.text.disabled, margin: 'auto' }}>—</span>}

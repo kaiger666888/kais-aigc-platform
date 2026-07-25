@@ -46,7 +46,7 @@ export default function NodeBadgesDefault({ asset, lod }: NodeBadgesProps): Reac
           height: badge.size,
           padding: '0 4px',
           borderRadius: badge.size / 2,
-          background: 'var(--cv-bg-overlay, #313244)',
+          background: 'var(--cv-bg-overlay, #1E2128)',
           border: `1px solid ${col}`,
           color: col,
           fontSize: 9,
@@ -90,7 +90,7 @@ export default function NodeBadgesDefault({ asset, lod }: NodeBadgesProps): Reac
           height: badge.dot,
           borderRadius: '50%',
           background: reviewColor,
-          border: '1px solid var(--cv-bg-card, rgba(30,30,46,0.92))',
+          border: '1px solid var(--cv-bg-card, #16181D)',
         }}
       />,
     )

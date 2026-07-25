@@ -28,6 +28,15 @@ const LANE_LABELS: Record<string, string> = {
   composite: '成片',
 }
 
+/**
+ * 管道序号：剧本→成片 是真实的生产顺序，序号编码「这一步在管线里的位置」
+ * （结构信息，非装饰）。global 是横切参考列（角色/风格资产，不属于序列环节）→ 不编号。
+ */
+const PIPELINE_SEQ: Record<string, string> = {
+  script: '01', storyboard: '02', keyframe: '03', video: '04',
+  voice: '05', foley: '06', bgm: '07', mix: '08', composite: '09',
+}
+
 const HATCH_ID = 'cv-locked-zone-hatch'
 /** 单带 / 分隔线长度（足够覆盖最大画布；overflow:visible 不裁剪，不挡交互）。 */
 const SPAN = 100000
@@ -68,21 +77,37 @@ export default function LaneBands({ geometry }: { geometry: CanvasGeometry }): R
         </pattern>
       </defs>
 
-      {/* 十条泳道带 + 带名标签 */}
+      {/* 十条泳道带 + 带名标签（管道序号 + 带名） */}
       {bands.map((b) => {
         const fill = v3theme.lane[b.lane as keyof typeof v3theme.lane] ?? v3theme.surface.canvas
+        const seq = PIPELINE_SEQ[b.lane]
+        const label = LANE_LABELS[b.lane] ?? b.lane
         return (
           <g key={b.lane}>
             <rect x={0} y={b.top} width={SPAN} height={b.height} fill={fill} />
+            {/* 带顶细发丝线（强化带的边界，结构可读） */}
+            <line x1={0} y1={b.top} x2={SPAN} y2={b.top} stroke="rgba(255,255,255,0.04)" strokeWidth={1} />
+            {seq && (
+              <text
+                x={colX + 8}
+                y={b.top + V3_LAYOUT.LANE_TOP_INSET}
+                fill={v3theme.laneNum}
+                fontSize={9}
+                fontFamily="var(--cv-font-mono, monospace)"
+                dominantBaseline="hanging"
+              >
+                {seq}
+              </text>
+            )}
             <text
-              x={colX + 8}
+              x={colX + 8 + (seq ? 22 : 0)}
               y={b.top + V3_LAYOUT.LANE_TOP_INSET}
               fill={v3theme.laneLabel}
               fontSize={10}
               fontFamily="var(--cv-font-mono, monospace)"
               dominantBaseline="hanging"
             >
-              {LANE_LABELS[b.lane] ?? b.lane}
+              {label}
             </text>
           </g>
         )

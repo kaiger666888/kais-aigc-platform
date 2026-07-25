@@ -39,10 +39,10 @@ const REF = v3theme.edge.ref // reference 点线族
 
 const REF_ROLES = new Set(['reference', 'lora_ref', 'prompt_ref'])
 
-/** 模态 hex + 40% 透明度（因果边描边）。 */
+/** 模态 hex + 55% 透明度（因果边描边；v2 提可见 40%→55%）。 */
 function causalStroke(mod: Modality | undefined): string {
-  const hex = mod ? v3theme.modality[mod] : '#6E6A5E'
-  return `${hex}66`
+  const hex = mod ? v3theme.modality[mod] : '#6B7080'
+  return `${hex}8C`
 }
 
 function CanvasEdgeComponent(props: EdgeProps) {
@@ -98,26 +98,35 @@ function CanvasEdgeComponent(props: EdgeProps) {
     )
   }
 
-  // 因果边（含全部输入槽位 role 与 output）：产物模态色 @40% 1.5px，端点 4px 圆点
+  // 因果边（含全部输入槽位 role 与 output）：产物模态色 @55% 1.5px，端点圆点；高亮态加 glow
   const highlighted = data?.highlighted === true || props.selected === true
   const mod = data?.productModality
+  const stroke = highlighted ? (mod ? v3theme.modality[mod] : v3theme.signal.select) : causalStroke(mod)
   return (
     <>
+      {/* 高亮态柔光底层（溯源/选中：模态色大面积弥散，制造「亮起来」的层次） */}
+      {highlighted && (
+        <BaseEdge
+          id={`${props.id}-glow`}
+          path={edgePath}
+          style={{ stroke, strokeWidth: 6, opacity: 0.18, filter: 'blur(2px)', pointerEvents: 'none' }}
+        />
+      )}
       <BaseEdge
         id={props.id}
         path={edgePath}
         style={{
-          stroke: highlighted ? (mod ? v3theme.modality[mod] : v3theme.signal.select) : causalStroke(mod),
+          stroke,
           strokeWidth: highlighted ? 2.5 : 1.5,
           transition: 'stroke-width var(--cv-d-ancestor, 160ms) var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1)), stroke var(--cv-d-ancestor, 160ms) var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1))',
         }}
       />
-      {/* 端点圆点 4px = 100% 模态色（无箭头；方向由布局左→右保证） */}
+      {/* 端点圆点 = 100% 模态色（无箭头；方向由布局左→右保证） */}
       <circle
         cx={props.targetX}
         cy={props.targetY}
-        r={2}
-        fill={mod ? v3theme.modality[mod] : '#6E6A5E'}
+        r={highlighted ? 2.5 : 2}
+        fill={mod ? v3theme.modality[mod] : '#6B7080'}
         style={{ pointerEvents: 'none' }}
       />
     </>

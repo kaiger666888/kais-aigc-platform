@@ -41,7 +41,7 @@ export const V3_NODE_SIZES = {
 export const V3_LAYOUT = {
   /** 十泳道带高（px, zoom=1），序 = 包内 STAGE_ORDER：global→composite */
   LANE_HEIGHTS: [200, 280, 240, 240, 240, 180, 180, 180, 180, 280] as readonly number[],
-  /** 带间凹槽（露画布底 #100E0A） */
+  /** 带间凹槽（露画布底 #0A0B0E） */
   LANE_GAP: 48,
   /** 带内顶部留白（给 sticky 泳道标签留位） */
   LANE_TOP_INSET: 16,
@@ -54,6 +54,24 @@ export const V3_LAYOUT = {
   MAIN_X: 200 + 2 + 12,
   /** 包内布局节点水平间隙（4px 网格内最大档；x 槽位步进 = 240 + 48） */
   NODE_GAP_X: 48,
+  /**
+   * 泳道换行列数（P8 opt-in 换行）：同泳道超过此列数按 restart-left 折行。
+   * 真实数据（项目 1784044301156）实测：主区宽 ≈ 28×288+214 ≈ 8374px，宽高比 ≈1.81:1
+   * （落在 1.5–2.5 目标，且接近视口 1.78:1 → fitView scale 最优）。
+   * 调参规律：值↑ → 更宽更矮、宽高比↑；偏离视口比例越远 scale 越低。
+   */
+  WRAP_COLS: 28,
+  /** 换行行高：资产卡高 160 + 垂直间隙 16。换行时 y = lane*laneH + row*ROW_HEIGHT。 */
+  ROW_HEIGHT: 176,
+  /**
+   * 阶段网格带内目标最大行数（自适应带宽）：每个阶段带的列数 = ceil(该阶段最密泳道节点数 / 此值)，
+   * 使同一阶段内任一泳道不超过 ~此值 行（节点多的阶段自动加宽带、少则收窄），平衡宽高比与可读性。
+   * 真实数据（项目 1784044301156）实测 maxRows=4 → 主区 ≈35 槽×288≈10080px、最高泳道 ~4 行，
+   * fitView scale 优于定宽带。调参：值↑→更窄更高、scale↓；值↓→更宽更矮。
+   */
+  PHASE_MAX_ROWS_PER_BAND: 4,
+  /** 阶段带宽上限（槽位）：防单阶段节点极多时带过宽。 */
+  PHASE_MAX_BAND_COLS: 8,
 } as const
 
 /**
@@ -286,3 +304,87 @@ export const NODE_SCHEMA: Record<string, StructuredField[]> = {
     { key: 'duration', label: '时长(秒)', type: 'number', unit: 's' },
   ],
 }
+
+// ═══════════════════════════════════════════════════════════════
+// 创作阶段（P01–P13 管线维度）与后端 raw 字段展示常量
+// 后端 src/routes/canvas/v2/import-from-dir.ts 的 PHASE_DEFS 是权威；
+// V3 迁移只把白名单字段进 meta 严格联合（types.ts AssetStageMeta），其余富字段
+// 在 migrate.buildMeta 丢弃。富字段经 adapter sidecar（rawDataByNodeId）穿透到
+// 前端，卡片/详情面板按下列标签·分组·噪音表渲染。字段名以后端 snake_case 为准。
+// ═══════════════════════════════════════════════════════════════
+
+/** 创作阶段分组（后端 PHASE_DEF_MAP.phaseGroup 的前端固化镜像，配色用）。 */
+export type PhaseGroup = 'research' | 'story' | 'production' | 'post'
+
+/** phaseIndex → 分组（无 sidecar 时的兜底分组与配色依据）。 */
+export const PHASE_GROUPS: Record<number, PhaseGroup> = {
+  1: 'research', 2: 'research',
+  3: 'story', 4: 'story', 5: 'story',
+  6: 'production', 7: 'production', 8: 'production', 9: 'production',
+  10: 'post', 11: 'post', 12: 'post', 13: 'post', 14: 'post',
+}
+
+/**
+ * 后端 raw data 字段（snake_case 为主）→ 中文展示标签。
+ * V3 meta 白名单之外的字段（scene_id/shot_scale/duration_sec/…）经 sidecar 穿透后按此翻译。
+ */
+export const RAW_FIELD_LABELS: Record<string, string> = {
+  // 身份与场景
+  scene_id: '场景', scene_number: '场景号', shot_id: '镜头', shot_type: '景别',
+  shot_scale: '景别规格', framing: '景别', scene: '场景', subject: '主体',
+  character_id: '角色ID', characterId: '角色ID', role: '角色', name: '名称',
+  // 运镜与构图
+  camera_movement: '运镜', cameraMovement: '运镜', cameraMovementType: '运镜',
+  axis_line: '轴线', axisLine: '轴线', composition: '构图', framing_rule: '构图',
+  // 叙事节拍
+  beat: '节拍', snyder_beat: 'Snyder节拍', shot_intent: '镜头意图',
+  conflict_intensity: '冲突强度', intensity: '强度', emotion: '情绪', mood: '情绪',
+  hook_type: '钩子类型', hookType: '钩子类型', premise: '前提', theme: '主题',
+  // 音频
+  speaker: '说话人', audio_path: '音频路径', audioPath: '音频路径',
+  audio_type: '音频类型', audioType: '音频类型', sfx_notes: '音效备注',
+  dialogue: '对白', voice: '人声', music: '音乐',
+  // 时长与规格
+  duration_sec: '时长', duration: '时长', durationS: '时长', resolution: '分辨率',
+  fps: '帧率', num_frames: '帧数', total_duration_sec: '总时长',
+  // 生成配方
+  ltx_prompt: '生成提示词', ltxPrompt: '生成提示词', prompt: '提示词',
+  negative: '反向提示词', negative_prompt: '反向提示词',
+  style_prefix: '风格前缀', color_guidance: '色彩引导', color_palette: '色彩',
+  seed: '种子', guidance_scale: '引导系数', cfg: 'CFG', steps: '步数',
+  // 审计评分
+  murch_score: 'Murch分', murchScore: 'Murch分', audit_grade: '审计评级',
+  auditGrade: '审计评级', clip_i: 'CLIP-i', clipi_target: 'CLIP-i一致性',
+  // 资产描述
+  archetype: '原型', age_range: '年龄段', ageRange: '年龄段',
+  asset_type: '资产类型', assetType: '资产类型', turnaround_sheet: '转面表',
+  tags: '标签', layers: '图层', crops: '裁切', view_angle: '视角', viewAngle: '视角',
+  // 来源与其它
+  provenance: '来源', description: '描述', text: '台词', label_text: '标签文本',
+  engine: '引擎', model_version: '模型版本',
+}
+
+/**
+ * 不在详情面板 raw 区重复展示的键：已映射到 media/params/标题，或无展示意义。
+ * （media.original ← filePath/file_path；media.thumbnail ← thumbnailUrl/thumbnail；
+ *  params.prompt/seed/modelVersion ← prompt/seed/engine；标题 ← label/phaseName）
+ */
+export const RAW_FIELD_NOISE: ReadonlySet<string> = new Set([
+  'filePath', 'file_path', 'thumbnailUrl', 'thumbnail', 'thumb',
+  'prompt', 'seed', 'engine',
+  'id', 'nodeId', 'node_id', 'label', 'phaseName', 'phaseIndex', 'phase',
+  '__synthetic_fields', 'position', 'size', 'state', 'branchId', 'branch_id',
+  'type', 'stage', 'modality', 'scope', 'curation', 'reviewStatus', 'aiScore',
+])
+
+/** 详情面板 raw 字段分组顺序；未命中分组的键归入「其他」。 */
+export const RAW_FIELD_GROUPS: ReadonlyArray<{ title: string; keys: ReadonlySet<string> }> = [
+  { title: '身份与场景', keys: new Set(['scene_id', 'scene_number', 'shot_id', 'shot_type', 'shot_scale', 'framing', 'scene', 'subject', 'character_id', 'characterId', 'role', 'name']) },
+  { title: '运镜与构图', keys: new Set(['camera_movement', 'cameraMovement', 'cameraMovementType', 'axis_line', 'axisLine', 'composition', 'framing_rule']) },
+  { title: '叙事节拍', keys: new Set(['beat', 'snyder_beat', 'shot_intent', 'conflict_intensity', 'intensity', 'emotion', 'mood', 'hook_type', 'hookType', 'premise', 'theme']) },
+  { title: '音频', keys: new Set(['speaker', 'audio_path', 'audioPath', 'audio_type', 'audioType', 'sfx_notes', 'dialogue', 'voice', 'music']) },
+  { title: '时长与规格', keys: new Set(['duration_sec', 'duration', 'durationS', 'resolution', 'fps', 'num_frames', 'total_duration_sec']) },
+  { title: '生成配方', keys: new Set(['ltx_prompt', 'ltxPrompt', 'negative', 'negative_prompt', 'style_prefix', 'color_guidance', 'color_palette', 'guidance_scale', 'cfg', 'steps', 'model_version']) },
+  { title: '审计评分', keys: new Set(['murch_score', 'murchScore', 'audit_grade', 'auditGrade', 'clip_i', 'clipi_target']) },
+  { title: '资产描述', keys: new Set(['archetype', 'age_range', 'ageRange', 'asset_type', 'assetType', 'turnaround_sheet', 'tags', 'layers', 'crops', 'view_angle', 'viewAngle']) },
+]

@@ -15,10 +15,10 @@ let nextId = 0
 // ─── ToastContainer ───────────────────────────────────────
 
 const typeColors: Record<ToastType, { bg: string; border: string; icon: string }> = {
-  success: { bg: '#1e2e1e', border: '#a6e3a1', icon: '✓' },
-  error:   { bg: '#2e1e1e', border: '#f38ba8', icon: '✗' },
-  info:    { bg: '#1e1e2e', border: '#89b4fa', icon: 'ℹ' },
-  warning: { bg: '#2e2a1e', border: '#f9e2af', icon: '⚠' },
+  success: { bg: '#16201C', border: '#56B89A', icon: '✓' },
+  error:   { bg: '#20161A', border: '#DD6A82', icon: '✗' },
+  info:    { bg: '#16181D', border: '#9A9FA8', icon: 'ℹ' },
+  warning: { bg: '#1F1A14', border: '#E0B665', icon: '⚠' },
 }
 
 export function ToastContainer({ toasts, onDismiss }: {
@@ -48,7 +48,7 @@ export function ToastContainer({ toasts, onDismiss }: {
               border: `1px solid ${c.border}`,
               borderRadius: 8,
               padding: '10px 16px',
-              color: '#cdd6f4',
+              color: '#EDEEF1',
               fontSize: 13,
               display: 'flex',
               alignItems: 'center',

@@ -20,6 +20,7 @@ import ZoneNodeComponent from './nodes/ZoneNode'
 import AssetCardNode from './nodes/AssetCardNode'
 import EventChipNode from './nodes/EventChipNode'
 import LaneBands from './canvas/LaneBands'
+import PhaseColumns from './canvas/PhaseColumns'
 import { EventChipClickContext, type EventChipClickInfo } from './canvas/eventChipBus'
 import CanvasEdgeComponent from './edges/CanvasEdge'
 import CanvasContextMenu from './CanvasContextMenu'
@@ -45,6 +46,7 @@ import { useLayout } from '../hooks/useLayout'
 import { canvasStateKey, loadCanvasState, useCanvasPersistence } from '../hooks/useCanvasPersistence'
 import { getFixtureMode } from '../v3/fixtureSource'
 import { theme, miniMapNodeColors, v3theme } from '../theme/catppuccin'
+import { UiIcon } from './canvas/icons'
 import { LAYOUT, V3_LAYOUT } from '../constants'
 
 /**
@@ -113,6 +115,19 @@ function CanvasInner() {
 
   // SPEC-step5 B.7：包内布局 → RF 坐标桥（tokens 泳道几何 + 边产物模态色富化）
   const { nodes: layoutedNodes, edges: layoutedEdges, geometry } = useLayout()
+
+  // RF 12 handleBounds 时序修复：节点首帧 mount 后 RF 才注册 handleBounds；
+  // 同帧传入 edges 会被 error008 静默丢弃且不重试。
+  // 延迟传入 edges（setTimeout 0 = 下一个事件循环 tick，确保 DOM 测量完成）。
+  const [edgesReady, setEdgesReady] = useState(false)
+  useEffect(() => {
+    if (layoutedNodes.length > 0 && !edgesReady) {
+      const timer = setTimeout(() => setEdgesReady(true), 100)
+      return () => clearTimeout(timer)
+    }
+    if (layoutedNodes.length === 0 && edgesReady) setEdgesReady(false)
+  }, [layoutedNodes.length, edgesReady])
+  const edgesDeferred = edgesReady ? layoutedEdges : []
 
   // SPEC-step5 B.8：fixture 模式（?fixture=decompose|valid，绕过 socket/REST）
   const fixtureMode = getFixtureMode()
@@ -513,9 +528,9 @@ function CanvasInner() {
   )
   const tracedEdges = useMemo(
     () => trace.active
-      ? layoutedEdges.map((e) => ({ ...e, data: { ...e.data, highlighted: trace.highlightedEdges.has(e.id) } }))
-      : layoutedEdges,
-    [layoutedEdges, trace],
+      ? edgesDeferred.map((e) => ({ ...e, data: { ...e.data, highlighted: trace.highlightedEdges.has(e.id) } }))
+      : edgesDeferred,
+    [edgesDeferred, trace],
   )
 
   // Esc 退出溯源高亮 / 关芯片 popover（VariantPicker / EventParamsPopover 各自处理自身 Esc，
@@ -539,8 +554,12 @@ function CanvasInner() {
     <>
       {/* 顶部导航栏 */}
       <div style={topBarStyle}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ color: theme.node.script, fontWeight: 600, fontSize: 14 }}>无限画布</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ display: 'flex', color: theme.node.script }}>
+            <UiIcon kind="graph" size={16} />
+          </span>
+          <span style={{ color: theme.text.primary, fontWeight: 600, fontSize: 13, letterSpacing: '0.02em' }}>无限画布</span>
+          <span style={{ width: 1, height: 14, background: theme.border.default }} />
         </div>
 
         {fixtureMode ? (
@@ -604,11 +623,9 @@ function CanvasInner() {
           selectionKeyCode="Shift"
           // V3：position 是布局引擎计算缓存（宪法 §7），手拖不改 canonical——禁拖防止「拖了弹回」困惑
           nodesDraggable={!graph}
-          // P16 视口即渲染边界：采用 RF 内建 onlyRenderVisibleElements（视口外节点物理卸载）。
-          // 取舍：内建是「完全卸载」而非 24×14 占位块——占位语义由 LOD L0 色块承担
-          //（全景 zoom<0.35 时全部在渲染节点本身就是色块），自实现视口占位会与 RF 的
-          // measured 尺寸缓存重复一套 intersection 计算，收益低、一致性风险高，故取内建。
-          onlyRenderVisibleElements
+          // P16 视口即渲染边界：onlyRenderVisibleElements 导致 fitView 前 handleBounds 缺失
+          // → 边创建失败 → 连锁：无边 → fitView 范围更小 → 更多节点卸载。
+          // 149 节点全量渲染性能足够（L0 色块极轻），先关掉。
           style={{ background: theme.bg.canvas }}
           proOptions={{ hideAttribution: true }}
         >
@@ -616,6 +633,8 @@ function CanvasInner() {
 
           {/* B2 十泳道背景带 + 第 0 列 + locked 参考区（geometry 来自 useLayout 桥） */}
           {geometry && <LaneBands geometry={geometry} />}
+          {/* 竖向创作阶段叠加层（P01–P13；不动布局引擎，从节点 median-x 投影） */}
+          {geometry && geometry.phaseColumns && <PhaseColumns geometry={geometry} />}
           <Controls
             position="bottom-left"
             showInteractive={false}
@@ -634,15 +653,15 @@ function CanvasInner() {
             style={{ background: theme.bg.card, border: `1px solid ${theme.border.default}`, borderRadius: 8 }}
           />
 
-          <Panel position="top-left" style={{ display: 'flex', gap: 8, marginTop: 4, alignItems: 'center' }}>
+          <Panel position="top-left" style={{ display: 'flex', gap: 8, marginTop: 8, marginLeft: 8, alignItems: 'center' }}>
             <ToolbarButton onClick={handleSave} disabled={saving || !projectId}>
-              {saving ? '保存中...' : '💾 保存'}
+              <UiIcon kind="save" />{saving ? '保存中…' : '保存'}
             </ToolbarButton>
             <ToolbarButton onClick={handleAutoLayout} disabled={!projectId || nodes.length === 0}>
-              📐 整理布局
+              <UiIcon kind="layout" />整理
             </ToolbarButton>
             <ToolbarButton onClick={() => reactFlow.fitView({ padding: 0.15, duration: 600 })}>
-              🔍 适配视图
+              <UiIcon kind="fit" />适配
             </ToolbarButton>
             {/* Phase 36 — 一键成片 */}
             <ToolbarButton
@@ -650,17 +669,18 @@ function CanvasInner() {
               disabled={orchestration.status === 'running' || !projectId || nodes.length === 0}
               accent
             >
+              <UiIcon kind="rocket" />
               {orchestration.status === 'running'
-                ? `🚀 运行中 (${orchestration.completed}/${orchestration.total})`
+                ? `运行中 ${orchestration.completed}/${orchestration.total}`
                 : orchestration.status === 'done' && orchestration.total > 0
-                ? `🚀 完成 (${orchestration.completed}/${orchestration.total})`
-                : '🚀 一键成片'}
+                ? `完成 ${orchestration.completed}/${orchestration.total}`
+                : '一键成片'}
             </ToolbarButton>
             {orchestration.status === 'running' && orchestration.total > 0 && (
               <div style={{
                 width: 120,
-                height: 6,
-                borderRadius: 3,
+                height: 4,
+                borderRadius: 2,
                 background: theme.bg.surface,
                 overflow: 'hidden',
               }}>
@@ -677,33 +697,43 @@ function CanvasInner() {
               onClick={handleIterate}
               disabled={!projectId || nodes.length === 0}
             >
+              <UiIcon kind="iterate" />
               {iteration.status === 'planning'
-                ? '🔄 诊断中...'
+                ? '诊断中…'
                 : iteration.status === 'executing'
-                ? '🔄 迭代中...'
+                ? '迭代中…'
                 : iteration.status === 'plan_ready'
-                ? '🔄 计划就绪'
+                ? '计划就绪'
                 : iteration.status === 'done'
-                ? '🔄 待审阅'
-                : '🔄 迭代'}
+                ? '待审阅'
+                : '迭代'}
             </ToolbarButton>
             {/* Phase 45 (TEXT-03) — Tier 2 search filter */}
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="搜索描述/标签..."
-              style={{
-                padding: '6px 10px',
-                borderRadius: 6,
-                background: theme.bg.input,
-                border: `1px solid ${theme.border.subtle}`,
-                color: theme.text.primary,
-                fontSize: 12,
-                minWidth: 180,
-                outline: 'none',
-              }}
-            />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <span style={{ position: 'absolute', left: 9, display: 'flex', color: theme.text.tertiary, pointerEvents: 'none' }}>
+                <UiIcon kind="search" size={13} />
+              </span>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="搜索描述 / 标签…"
+                className="cv-search-input"
+                style={{
+                  padding: '6px 10px 6px 28px',
+                  borderRadius: 7,
+                  background: theme.bg.input,
+                  border: `1px solid ${theme.border.default}`,
+                  color: theme.text.primary,
+                  fontSize: 12,
+                  minWidth: 200,
+                  boxShadow: 'var(--cv-shadow-card, 0 1px 2px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.04) inset)',
+                  transition: 'border-color 120ms var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1))',
+                }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = theme.border.strong }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = theme.border.default }}
+              />
+            </div>
           </Panel>
 
           {/* 空状态引导 */}
@@ -716,8 +746,11 @@ function CanvasInner() {
                 padding: '32px 48px',
                 textAlign: 'center',
                 maxWidth: 400,
+                boxShadow: 'var(--cv-shadow-pop, 0 12px 32px rgba(0,0,0,0.6))',
               }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>🎨</div>
+                <div style={{ display: 'flex', justifyContent: 'center', color: theme.text.tertiary, marginBottom: 14 }}>
+                  <UiIcon kind="graph" size={40} />
+                </div>
                 <div style={{ color: theme.text.primary, fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
                   欢迎使用无限画布
                 </div>
@@ -770,16 +803,24 @@ function ToolbarButton({ onClick, children, disabled, accent }: { onClick: () =>
       onClick={onClick}
       disabled={disabled}
       style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
         background: accent && !disabled ? theme.button.primary : theme.bg.card,
-        color: accent && !disabled ? theme.text.onAccent : (disabled ? theme.text.disabled : theme.text.primary),
+        color: accent && !disabled ? theme.text.onAccent : (disabled ? theme.text.disabled : theme.text.secondary),
         border: `1px solid ${accent && !disabled ? theme.button.primary : theme.border.default}`,
-        borderRadius: 6,
-        padding: '6px 12px',
+        borderRadius: 7,
+        padding: '6px 11px',
         fontSize: 12,
+        fontWeight: 500,
+        letterSpacing: '0.01em',
         cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.6 : 1,
-        fontWeight: accent ? 600 : 400,
+        opacity: disabled ? 0.5 : 1,
+        boxShadow: accent && !disabled ? 'none' : 'var(--cv-shadow-card, 0 1px 2px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.04) inset)',
+        transition: 'background 120ms var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1)), color 120ms var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1)), border-color 120ms var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1))',
       }}
+      onMouseEnter={(e) => { if (!disabled) { e.currentTarget.style.color = theme.text.primary; e.currentTarget.style.borderColor = theme.border.strong } }}
+      onMouseLeave={(e) => { if (!accent) { e.currentTarget.style.color = disabled ? theme.text.disabled : theme.text.secondary; e.currentTarget.style.borderColor = theme.border.default } }}
     >
       {children}
     </button>

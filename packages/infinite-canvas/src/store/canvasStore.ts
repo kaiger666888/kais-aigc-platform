@@ -16,7 +16,7 @@ import {
   rollbackWinnerSelection,
   syncWinnerToGroups,
 } from './variantOps'
-import { adaptV2Graph, getViewModel } from '../v3/adapter'
+import { adaptV2Graph, getViewModel, type PhaseCatalogEntry } from '../v3/adapter'
 import {
   resolveInitialGraph,
   loadFixtureGraph,
@@ -36,6 +36,13 @@ interface CanvasState {
   graph: FlowGraphV3 | null
   /** 适配层产出的消费端宽松警告（P22：emit warning，不 crash）。 */
   warnings: string[]
+  /**
+   * 每节点原始 data 袋（穿透 migrate 白名单外字段）：key = 节点 id。
+   * 卡片 KeyFields / 详情面板 RawDataSection 消费。fixture 直通 / graph 为空时为 null。
+   */
+  rawDataByNodeId: Map<string, Record<string, unknown>> | null
+  /** 创作阶段目录（P01–P13，来自 zone 节点 + 资产 phaseIndex）；竖向阶段叠加层消费。 */
+  phaseCatalog: PhaseCatalogEntry[] | null
   /** 设置 canonical graph 并重建派生 RF 模型（nodes/edges/variantGroups/branches 同步）。 */
   setGraph: (graph: FlowGraphV3 | null, warnings?: string[]) => void
   /** 纯函数变换接缝（B/C/D 专用）：fn 必须是 V3 纯函数（selectVariant/markStaleDownstream/自写映射）。 */
@@ -242,9 +249,11 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   // ─── V3 canonical ───
   graph: null,
   warnings: [],
+  rawDataByNodeId: null,
+  phaseCatalog: null,
   setGraph: (graph, warnings) => {
     if (!graph) {
-      set({ graph: null, warnings: warnings ?? [], nodes: [], edges: [], viewport: null })
+      set({ graph: null, warnings: warnings ?? [], nodes: [], edges: [], viewport: null, rawDataByNodeId: null, phaseCatalog: null })
       return
     }
     // memo 化派生：同一 graph 引用 → 同一 RF 模型引用（组件 memo 有效）
@@ -276,7 +285,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     get().applyGraphTransform((g) => markStaleDownstream(g, changedAssetIds, Date.now()))
   },
   loadGraphFromV2: (raw) => {
-    const { graph, warnings, source } = adaptV2Graph(raw)
+    const { graph, warnings, source, rawDataByNodeId, phaseCatalog } = adaptV2Graph(raw)
+    set({ rawDataByNodeId, phaseCatalog })
     get().setGraph(graph, warnings)
     if (warnings.length > 0) {
       get().showToast(
@@ -287,6 +297,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   },
   loadGraphFromFixture: (mode) => {
     const loaded = loadFixtureGraph(mode)
+    set({ rawDataByNodeId: loaded.rawDataByNodeId, phaseCatalog: loaded.phaseCatalog })
     get().setGraph(loaded.graph, loaded.warnings)
     get().showToast(`已加载 fixture: ${mode}（${loaded.graph.nodes.length} 节点）`, 'info')
   },
@@ -295,6 +306,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     setLoading(true)
     try {
       const loaded = await resolveInitialGraph({ loadBackend })
+      set({ rawDataByNodeId: loaded.rawDataByNodeId, phaseCatalog: loaded.phaseCatalog })
       get().setGraph(loaded.graph, loaded.warnings)
       if (loaded.fallbackUsed) {
         showToast(BACKEND_FALLBACK_MESSAGE, 'warning')
