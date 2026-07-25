@@ -1,11 +1,15 @@
 /**
  * src/utils/mediaUrl.ts — 媒体（图/视/音）URL 解析。
  *
- * 后端 media.original/thumbnail 是 `/oss/...` 相对路径：
- *  - 部署在后端同源（:10588/infinite-canvas/）→ 浏览器同源解析即命中 /oss 静态；
- *  - vite dev（:3001）→ vite proxy 把 /oss 转发到 :10588；
- *  - 纯静态托管（无 proxy / 跨源）→ 需显式拼后端 origin（VITE_OSS_ORIGIN）。
- * 故对 /oss/ 路径按需前缀 VITE_OSS_ORIGIN（缺省 '' = 同源/proxy）。
+ * 后端 media.original/thumbnail 有三种形态：
+ *  - `/oss/...` 相对路径（理想态）——按需前缀 VITE_OSS_ORIGIN：
+ *      · 部署在后端同源（:10588/infinite-canvas/）→ 同源即命中 /oss 静态；
+ *      · vite dev（:3001）→ vite proxy 把 /oss 转发到 :10588；
+ *      · 纯静态托管（跨源）→ 显式拼后端 origin（VITE_OSS_ORIGIN）。
+ *  - 绝对文件系统路径（后端 data.filePath 实存形态，如
+ *    `/data/workspace/kais-movie-agent/runs/scifi-epic/assets/...`）——按 oss 符号链接
+ *    挂载点反推为 `/oss/<project>/...`（见 fsToOssPath）。
+ *  - `http(s)://` / `data:` ——原样返回。
  *
  * turnaround_sheet / crops 等后端给的是 `assets/P04/L1/foo.png` 相对路径（非 /oss/），
  * 但其 basename 与 media.original 同目录：据 original 的 /oss 目录 + basename 复原可访问 URL。
@@ -16,11 +20,80 @@ const OSS_ORIGIN =
     (import.meta as { env?: Record<string, string> }).env?.VITE_OSS_ORIGIN) ||
   ''
 
-/** `/oss/...` 或绝对 URL → 可访问 URL（/oss/ 按需前缀 origin）。其余原样返回。 */
+/**
+ * 绝对文件系统路径 → /oss/ 相对路径（按后端 oss 符号链接挂载点反推）。
+ *
+ * 后端 /oss 静态服务根（data/oss/）下有符号链接：如 `scifi-epic → .../kais-movie-agent/runs/scifi-epic`。
+ * 故 FS 路径 `.../kais-movie-agent/runs/<project>/<rest>` 可经 `/oss/<project>/<rest>` 访问。
+ * 符号链接名 ≠ 路径段（如 pipeline-runs/ep-volvo-love ↔ oss/volvo）无法自动反推 ——
+ * 靠 `VITE_OSS_FS_MAP`（JSON: `[{prefix, oss}]`，字面前缀替换）显式补位。
+ *
+ * 命中返回 `/oss/...`；不命中返回 null（调用方原样回退，浏览器可能 404 但不崩溃）。
+ */
+const DEFAULT_FS_TO_OSS_RULES: ReadonlyArray<{
+  fsRegex: RegExp
+  rewrite: (m: RegExpMatchArray) => string
+}> = [
+  // /.../kais-movie-agent/runs/<project>/<rest?> → /oss/<project>/<rest?>
+  // 注意 /runs/ 字面段，避免误匹配 /pipeline-runs/（后者走 VITE_OSS_FS_MAP）
+  {
+    fsRegex: /^\/.*\/kais-movie-agent\/runs\/([^/]+)(\/.*)?$/,
+    rewrite: (m) => `/oss/${m[1]!}${m[2] ?? ''}`,
+  },
+]
+
+/** 解析 VITE_OSS_FS_MAP（JSON: `[{prefix:string, oss:string}]`）为字面前缀替换表。 */
+const ENV_FS_TO_OSS_RULES: ReadonlyArray<{ prefix: string; oss: string }> = (() => {
+  const raw =
+    (typeof import.meta !== 'undefined' &&
+      (import.meta as { env?: Record<string, string> }).env?.VITE_OSS_FS_MAP) ||
+    ''
+  if (!raw) return []
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .filter(
+        (r): r is { prefix: string; oss: string } =>
+          !!r &&
+          typeof (r as { prefix?: unknown }).prefix === 'string' &&
+          typeof (r as { oss?: unknown }).oss === 'string',
+      )
+      .map((r) => ({ prefix: r.prefix, oss: r.oss }))
+  } catch {
+    return []
+  }
+})()
+
+/** 绝对 FS 路径 → /oss/ 路径；不命中已知挂载点返回 null。 */
+function fsToOssPath(absPath: string): string | null {
+  for (const r of DEFAULT_FS_TO_OSS_RULES) {
+    const m = absPath.match(r.fsRegex)
+    if (m) return r.rewrite(m)
+  }
+  for (const r of ENV_FS_TO_OSS_RULES) {
+    if (absPath.startsWith(r.prefix)) return `${r.oss}${absPath.slice(r.prefix.length)}`
+  }
+  return null
+}
+
+/**
+ * `/oss/...`、绝对文件系统路径或绝对 URL → 可访问 URL。
+ * - http(s):// / data: 原样返回；
+ * - /oss/ 按需前缀 origin；
+ * - 其它绝对路径（/ 开头）尝试 fsToOssPath 转 /oss/，不命中则原样返回；
+ * - 相对路径原样返回。
+ */
 export function resolveMediaUrl(path: string | null | undefined): string | null {
   if (path == null || path === '') return null
   if (/^https?:\/\//i.test(path) || /^data:/i.test(path)) return path
   if (path.startsWith('/oss/')) return `${OSS_ORIGIN}${path}`
+  // 后端 data.filePath 存的是绝对文件系统路径 → 尝试经 /oss 静态服务访问
+  if (path.startsWith('/')) {
+    const oss = fsToOssPath(path)
+    if (oss) return `${OSS_ORIGIN}${oss}`
+    return path // 不命中已知挂载点：原样返回（浏览器可能 404，但不崩溃）
+  }
   return path
 }
 

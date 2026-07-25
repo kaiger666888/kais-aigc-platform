@@ -31,9 +31,10 @@ export default function MetaRenderer({ asset, node }: { asset: AssetNodeV3; node
             ['时长', typeof meta.durationS === 'number' ? `${meta.durationS}s` : undefined],
           ]} />
           {meta.promptMeta && <PromptFacetsView facets={meta.promptMeta} />}
-          {/* 镜头意图下拉编辑器（phase35 契约：4 select，读写 data[field]） */}
+          {/* 镜头意图下拉编辑器（phase35 契约：4 select，读写 data[field]）。
+              标题唯一占「镜头意图」——ShotIntentSection 改用「创作意图」避免重复。 */}
           <SectionLabel>镜头意图</SectionLabel>
-          <MetadataEditor nodeId={node.id} data={node.data as Record<string, unknown>} />
+          <MetadataEditor nodeId={node.id} data={node.data as Record<string, unknown>} meta={meta as Record<string, unknown>} />
         </>
       )
 
@@ -126,13 +127,15 @@ function PromptFacetsView({ facets }: { facets: PromptFacets }) {
 
 /**
  * 镜头意图下拉编辑器（迁移自旧 NodeDetailPanel，零退化 phase35 契约）。
- * 读 data[field]（旧扁平通道，V3 权威值在 data.meta）；写 setNodes data[field]。
+ * 读：data[field]（可编辑覆盖层，e2e 读写/往返契约通道）?? asset.meta[field]（V3 权威值，
+ * 迁移后落在 data.meta；flat data[field] 通常不存在）；两者皆空才显示「未设置」，避免真实
+ * 数据下拉恒为空。写：setNodes data[field]（与 e2e 往返断言一致，不污染 meta）。
  */
 const FIELD_LABELS: Record<typeof METADATA_FIELD_ORDER[number], string> = {
   cameraMovement: '运镜', framing: '景别', composition: '构图', pacing: '节奏',
 }
 
-function MetadataEditor({ nodeId, data }: { nodeId: string; data: Record<string, unknown> }) {
+function MetadataEditor({ nodeId, data, meta }: { nodeId: string; data: Record<string, unknown>; meta: Record<string, unknown> }) {
   const setNodes = useCanvasStore((s) => s.setNodes)
 
   const setField = (field: typeof METADATA_FIELD_ORDER[number], value: string) => {
@@ -145,7 +148,7 @@ function MetadataEditor({ nodeId, data }: { nodeId: string; data: Record<string,
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {METADATA_FIELD_ORDER.map((field) => {
         const labels = METADATA_LABELS[field]
-        const currentValue = data[field] as string | undefined
+        const currentValue = (data[field] as string | undefined) ?? (meta[field] as string | undefined)
         const hasMatch = currentValue != null && currentValue !== '' && currentValue in labels
         const extraOption = !hasMatch && currentValue != null && currentValue !== '' ? currentValue : null
         return (

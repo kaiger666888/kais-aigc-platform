@@ -12,7 +12,7 @@
  *  | type:'reference' / ensure_reference_link → 统一为边 role:'reference'
  *  | sequence 边            → 边 role:'sequence'
  *  | data.filePath          → media.original
- *  | data.thumbnailUrl      → media.thumbnail
+ *  | data.thumbnailPath     → media.thumbnail（data.thumbnailUrl 为旧别名兜底）
  *  | 节点 data 上的 prompt/seed/engine → 生成事件 params；无事件的补 import 种子事件（P2）
  *  | isWinner               → curation:'selected'
  *
@@ -477,10 +477,12 @@ export function migrateV2toV3(v2: FlowGraphV2Export): {
       modality: plan.modality,
       scope: plan.scope,
       media: {
-        // 【§14】data.filePath → media.original；data.thumbnailUrl → media.thumbnail
+        // 【§14】data.filePath → media.original；data.thumbnailPath → media.thumbnail
+        // （后端实际字段是 thumbnailPath；thumbnailUrl 为旧别名兜底。thumbnailPath 未进
+        //  v2types 白名单——后端富字段，按 §7「V2 公共字段全保留」宽松消费，cast 读取）
         original: d.filePath ?? null,
         proxy: null,
-        thumbnail: d.thumbnailUrl ?? null,
+        thumbnail: ((d as Record<string, unknown>).thumbnailPath as string | null | undefined) ?? d.thumbnailUrl ?? null,
         waveform: null,
         ...(d.durationS != null ? { durationS: d.durationS } : {}),
       },

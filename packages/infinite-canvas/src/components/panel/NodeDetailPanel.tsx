@@ -341,8 +341,10 @@ function ImageGallery({ asset, raw, onImageClick }: { asset: AssetNodeV3; raw: R
 }
 
 /**
- * 镜头意图（shot_intent）：视频资产的完整创作意图（felt/visible/camera/lighting/audio/continuity）。
+ * 创作意图（shot_intent）：视频资产的完整创作意图（felt/visible/camera/lighting/audio/continuity）。
  * 后端给的是大型 JSON 对象，RawDataSection 跳过对象值 → 此处专门结构化渲染。
+ * 标题用「创作意图」而非「镜头意图」：MetaRenderer 内嵌的下拉编辑器已占用「镜头意图」标题
+ * （phase35 e2e 契约，4 select），此处避免出现两个「镜头意图」。
  */
 function ShotIntentSection({ raw }: { raw: Record<string, unknown> | undefined }) {
   const si = raw?.shot_intent
@@ -376,7 +378,7 @@ function ShotIntentSection({ raw }: { raw: Record<string, unknown> | undefined }
   const chips = [cam.shot_size, cam.movement, cam.axis, light.ratio, light.temperature].filter(Boolean)
   return (
     <>
-      <SectionLabel>镜头意图</SectionLabel>
+      <SectionLabel>创作意图</SectionLabel>
       <div style={{ background: theme.bg.input, borderRadius: 8, padding: 10, display: 'flex', flexDirection: 'column', gap: 6, border: `1px solid ${theme.border.default}`, marginBottom: 4 }}>
         {chips.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 }}>
