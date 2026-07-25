@@ -117,12 +117,14 @@ export default async function startServe(randomPort: Boolean = false) {
     // (JS runtime vendored into src/runtime/ during 260702 retirement, but
     // legacy media outputs may still live here).
     const KAIS_OUTPUT_DIR =
-      process.env.KAIS_OUTPUT_DIR || "/data/workspace/kais-movie-agent";
+      process.env.KAIS_OUTPUT_DIR || "/data/workspace/kais-hermes-skills/runs";
 
     // 安全检查：只允许已知的目录前缀（必须以 sep 结尾，避免共享前缀漏洞）
     const allowedPrefixes = [
       KAIS_OUTPUT_DIR.endsWith("/") ? KAIS_OUTPUT_DIR : KAIS_OUTPUT_DIR + "/",
       "/mnt/agents/output/",
+      "/home/kai/workspace/kais-movie-agent/",   // legacy pipeline-runs path
+      "/data/workspace/kais-movie-agent/",       // legacy scifi-epic path
     ];
     const isAllowed = allowedPrefixes.some((p) => filePath.startsWith(p));
     if (!isAllowed) {
