@@ -31,6 +31,7 @@ interface Props {
   params?: Record<string, unknown>
   modality?: Modality
   highlighted?: boolean
+  dimmed?: boolean
   lod: number
 }
 
@@ -54,6 +55,7 @@ function EdgeOpChipComponent({
   params,
   modality,
   highlighted,
+  dimmed,
   lod,
 }: Props): React.ReactElement {
   const onEventChipClick = useEventChipClick()
@@ -110,6 +112,8 @@ function EdgeOpChipComponent({
         position: 'absolute',
         transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
         pointerEvents: 'all',
+        opacity: dimmed ? 0.15 : 1,
+        transition: 'opacity var(--cv-d-dim, 180ms) var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1))',
       }}
     >
       {/* 内层：反缩放芯片本体（恒定屏幕尺寸） */}

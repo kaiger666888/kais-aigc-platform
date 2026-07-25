@@ -28,6 +28,8 @@ type EdgeData = {
   productModality?: Modality
   /** C 的 P18 溯源高亮通道 */
   highlighted?: boolean
+  /** C 的 P18 溯源压暗：非祖先边在 trace 激活时压暗（与节点 dimmed 对称） */
+  dimmed?: boolean
   /** P19：折叠 event 的 op 配方（边中点 op 芯片 = 拓扑线说明标签） */
   op?: string
   eventId?: string
@@ -66,10 +68,26 @@ function CanvasEdgeComponent(props: EdgeProps) {
     targetY: props.targetY,
   }
 
-  // L0 全景：1px 暖灰直线（§7：200 条贝塞尔在 L0 是性能与视觉双重浪费），不渲染芯片
+  // L0 全景：1px 直线（§7：200 条贝塞尔在 L0 是性能与视觉双重浪费），不渲染芯片。
+  // 但溯源态不能丢——祖先直线高亮(模态色+加粗)、非祖先直线压暗，与 L1/L2 一致。
   if (lod === 0) {
     const [path] = getStraightPath(pathArgs)
-    return <BaseEdge id={props.id} path={path} style={{ stroke: NEUTRAL, strokeWidth: 1 }} />
+    const hl0 = data?.highlighted === true || props.selected === true
+    const dim0 = !!data?.dimmed
+    const mod0 = data?.productModality
+    const stroke0 = hl0 ? (mod0 ? v3theme.modality[mod0] : v3theme.signal.select) : NEUTRAL
+    return (
+      <BaseEdge
+        id={props.id}
+        path={path}
+        style={{
+          stroke: stroke0,
+          strokeWidth: hl0 ? 2 : 1,
+          opacity: dim0 ? 0.12 : 1,
+          transition: 'stroke-width var(--cv-d-ancestor, 160ms) var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1)), opacity var(--cv-d-dim, 180ms) var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1))',
+        }}
+      />
+    )
   }
 
   const [edgePath, labelX, labelY] = getBezierPath(pathArgs)
@@ -85,13 +103,13 @@ function CanvasEdgeComponent(props: EdgeProps) {
     data?.refType === 'reference'
 
   const highlighted = data?.highlighted === true || props.selected === true
+  const dimmed = !!data?.dimmed
   const mod = data?.productModality
 
   let stroke: string
   let strokeWidth: number
   let strokeDasharray: string | undefined
   let strokeLinecap: 'round' | undefined
-  let showGlow = false
   let showEndpointDot = false
 
   if (isInactive) {
@@ -109,14 +127,26 @@ function CanvasEdgeComponent(props: EdgeProps) {
     strokeDasharray = '1 4'
     strokeLinecap = 'round'
   } else {
-    // 因果边（含全部输入槽位 role 与 output）：产物模态色 @55% 1.5px，端点圆点；高亮态加 glow
-    stroke = highlighted ? (mod ? v3theme.modality[mod] : v3theme.signal.select) : causalStroke(mod)
-    strokeWidth = highlighted ? 2.5 : 1.5
-    showGlow = highlighted
+    // 因果边（含全部输入槽位 role 与 output）：产物模态色 @55% 1.5px，端点圆点
+    stroke = causalStroke(mod)
+    strokeWidth = 1.5
     showEndpointDot = true
   }
 
+  // 溯源/选中高亮：一律覆盖（不分分支）。sequence/reference 分支的祖先边也必须亮——
+  // 否则点节点后这些拓扑线不变样（实测回归点：折叠后大量边落在 seq/ref 分支）。
+  // 模态色 100% + 2.5px + 去 dash + glow。
+  if (highlighted) {
+    stroke = mod ? v3theme.modality[mod] : v3theme.signal.select
+    strokeWidth = 2.5
+    strokeDasharray = undefined
+    strokeLinecap = undefined
+    showEndpointDot = true
+  }
+
+  const showGlow = highlighted
   const hasOp = !!data?.op
+  const edgeOpacity = dimmed ? 0.12 : 1
 
   return (
     <>
@@ -136,8 +166,9 @@ function CanvasEdgeComponent(props: EdgeProps) {
           strokeWidth,
           strokeDasharray,
           strokeLinecap,
+          opacity: edgeOpacity,
           transition:
-            'stroke-width var(--cv-d-ancestor, 160ms) var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1)), stroke var(--cv-d-ancestor, 160ms) var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1))',
+            'stroke-width var(--cv-d-ancestor, 160ms) var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1)), stroke var(--cv-d-ancestor, 160ms) var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1)), opacity var(--cv-d-dim, 180ms) var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1))',
         }}
       />
       {/* 端点圆点 = 100% 模态色（无箭头；方向由布局左→右保证） */}
@@ -147,7 +178,7 @@ function CanvasEdgeComponent(props: EdgeProps) {
           cy={props.targetY}
           r={highlighted ? 2.5 : 2}
           fill={mod ? v3theme.modality[mod] : '#6B7080'}
-          style={{ pointerEvents: 'none' }}
+          style={{ pointerEvents: 'none', opacity: edgeOpacity }}
         />
       )}
       {/* P19 边中点 op 芯片：折叠 event 的 op 配方标在拓扑线上（拓扑说明标签） */}
@@ -163,6 +194,7 @@ function CanvasEdgeComponent(props: EdgeProps) {
             params={data!.params}
             modality={mod}
             highlighted={highlighted}
+            dimmed={dimmed}
             lod={lod}
           />
         </EdgeLabelRenderer>
