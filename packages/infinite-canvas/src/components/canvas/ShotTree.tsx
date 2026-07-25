@@ -13,7 +13,7 @@
  * 浮层式左侧栏（镜像 NodeDetailPanel 的 overlay 风格，不重构 flex）：top 起在工具栏下方，
  * 避开 top-left 工具栏 Panel；可折叠为左缘窄轨。
  */
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import { useCanvasStore } from '../../store/canvasStore'
 import { theme } from '../../theme/catppuccin'
@@ -96,12 +96,24 @@ export default function ShotTree(): React.ReactElement | null {
   const nodes = useCanvasStore((s) => s.nodes)
   const selectedNode = useCanvasStore((s) => s.selectedNode)
   const setSelectedNode = useCanvasStore((s) => s.setSelectedNode)
+  const setDetailNode = useCanvasStore((s) => s.setDetailNode)
   const reactFlow = useReactFlow()
   const [open, setOpen] = useState(true)
+  // 分类折叠态：key = `scene:<前缀>` / `shots` / `globals`。默认全展开。
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
 
   const tree = useMemo(() => deriveTree(graph), [graph])
 
-  // 点击 → 居中 + 选中
+  const toggle = useCallback((key: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }, [])
+
+  // 单击 → 居中 + 选中（驱动溯源高亮，不开右面板）
   const jumpTo = (nodeId: string) => {
     const rfNode = reactFlow.getNode(nodeId) ?? nodes.find((n) => n.id === nodeId)
     if (rfNode) {
@@ -111,6 +123,12 @@ export default function ShotTree(): React.ReactElement | null {
     }
     const full = nodes.find((n) => n.id === nodeId)
     setSelectedNode((full ?? ({ id: nodeId } as unknown as Node)))
+  }
+
+  // 双击 → 在单击已选中+居中的基础上，钉选到右详情面板（setDetailNode）
+  const openDetail = (nodeId: string) => {
+    const full = nodes.find((n) => n.id === nodeId)
+    setDetailNode((full ?? ({ id: nodeId } as unknown as Node)))
   }
 
   if (!tree) return null
@@ -172,61 +190,139 @@ export default function ShotTree(): React.ReactElement | null {
       </div>
 
       {/* 列表 */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '6px 6px 10px' }}>
-        {tree.scenes.length === 0 && tree.flatShots.length === 0 && (
+      <div style={{ flex: 1, overflowY: 'auto', padding: '6px 6px 4px' }}>
+        {tree.scenes.length === 0 && tree.flatShots.length === 0 && tree.globals.length === 0 && (
           <Empty>本集无分镜节点</Empty>
         )}
 
-        {/* 场景分组 */}
+        {/* 场景分组（可折叠） */}
         {tree.scenes.map((sg) => (
-          <div key={sg.scene} style={{ marginBottom: 4 }}>
-            <SectionLabel>场景 {sg.scene} · {sg.shots.length}</SectionLabel>
+          <CollapsibleSection
+            key={sg.scene}
+            title={`场景 ${sg.scene}`}
+            count={sg.shots.length}
+            collapsed={collapsed.has(`scene:${sg.scene}`)}
+            onToggle={() => toggle(`scene:${sg.scene}`)}
+          >
             {sg.shots.map((s) => (
-              <TreeItem key={s.id} active={s.id === selectedId} onClick={() => jumpTo(s.id)}>
+              <TreeItem key={s.id} active={s.id === selectedId}
+                onClick={() => jumpTo(s.id)}
+                onDoubleClick={() => openDetail(s.id)}>
                 <span style={{ fontFamily: 'var(--cv-font-mono, monospace)', color: theme.text.secondary, fontSize: 10.5 }}>{s.shotId}</span>
                 {s.label && <span style={{ color: theme.text.tertiary, fontSize: 10 }}> · {s.label}</span>}
               </TreeItem>
             ))}
-          </div>
+          </CollapsibleSection>
         ))}
 
-        {/* 平铺镜头（无场景结构） */}
-        {tree.flatShots.map((s) => (
-          <TreeItem key={s.id} active={s.id === selectedId} onClick={() => jumpTo(s.id)}>
-            <span style={{ fontFamily: 'var(--cv-font-mono, monospace)', color: theme.text.secondary, fontSize: 10.5 }}>{s.shotId}</span>
-            {s.label && <span style={{ color: theme.text.tertiary, fontSize: 10 }}> · {s.label}</span>}
-          </TreeItem>
-        ))}
+        {/* 平铺镜头（无场景结构）→ 单一可折叠「镜头」分类 */}
+        {tree.flatShots.length > 0 && (
+          <CollapsibleSection
+            title="镜头"
+            count={tree.flatShots.length}
+            collapsed={collapsed.has('shots')}
+            onToggle={() => toggle('shots')}
+          >
+            {tree.flatShots.map((s) => (
+              <TreeItem key={s.id} active={s.id === selectedId}
+                onClick={() => jumpTo(s.id)}
+                onDoubleClick={() => openDetail(s.id)}>
+                <span style={{ fontFamily: 'var(--cv-font-mono, monospace)', color: theme.text.secondary, fontSize: 10.5 }}>{s.shotId}</span>
+                {s.label && <span style={{ color: theme.text.tertiary, fontSize: 10 }}> · {s.label}</span>}
+              </TreeItem>
+            ))}
+          </CollapsibleSection>
+        )}
 
-        {/* 全局资产 */}
+        {/* 全局资产（可折叠） */}
         {tree.globals.length > 0 && (
-          <div style={{ marginTop: 8 }}>
-            <SectionLabel>全局资产 · {tree.globals.length}</SectionLabel>
+          <CollapsibleSection
+            title="全局资产"
+            count={tree.globals.length}
+            collapsed={collapsed.has('globals')}
+            onToggle={() => toggle('globals')}
+          >
             {tree.globals.map((g) => (
-              <TreeItem key={g.id} active={g.id === selectedId} onClick={() => jumpTo(g.id)}>
+              <TreeItem key={g.id} active={g.id === selectedId}
+                onClick={() => jumpTo(g.id)}
+                onDoubleClick={() => openDetail(g.id)}>
                 <span style={{ color: theme.text.secondary, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.label}</span>
                 <span style={{ color: theme.text.tertiary, fontSize: 9.5, marginLeft: 4 }}>· {g.sub}</span>
               </TreeItem>
             ))}
-          </div>
+          </CollapsibleSection>
         )}
+
+        {/* 操作提示 */}
+        <div style={{ padding: '10px 10px 6px', fontSize: 9.5, color: theme.text.tertiary, lineHeight: 1.6, letterSpacing: 0.2 }}>
+          单击选中溯源 · 双击查看详情
+        </div>
       </div>
     </div>
   )
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }): React.ReactElement {
+/** 可折叠分类头：caret 旋转指示态 + 标题 + 右侧计数。折叠时隐藏子项但保留计数。 */
+function CollapsibleSection({ title, count, collapsed, onToggle, children }: {
+  title: string
+  count: number
+  collapsed: boolean
+  onToggle: () => void
+  children: React.ReactNode
+}): React.ReactElement {
   return (
-    <div style={{ fontSize: 9, color: theme.text.tertiary, textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600, padding: '6px 8px 3px' }}>
-      {children}
+    <div style={{ marginBottom: 2 }}>
+      <button
+        onClick={onToggle}
+        aria-expanded={!collapsed}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 5,
+          width: '100%',
+          padding: '6px 8px',
+          border: 'none',
+          background: 'transparent',
+          color: theme.text.tertiary,
+          cursor: 'pointer',
+          fontSize: 9,
+          textTransform: 'uppercase',
+          letterSpacing: '1px',
+          fontWeight: 600,
+          textAlign: 'left',
+          borderRadius: 4,
+          transition: 'background 120ms var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1)), color 120ms var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1))',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = theme.text.secondary }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = theme.text.tertiary }}
+      >
+        <span
+          aria-hidden="true"
+          style={{
+            display: 'inline-block',
+            fontSize: 8,
+            lineHeight: 1,
+            color: theme.text.tertiary,
+            transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+            transition: 'transform var(--cv-d-select, 120ms) var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1))',
+          }}
+        >
+          ▾
+        </span>
+        <span style={{ flex: 1 }}>{title}</span>
+        <span style={{ fontFamily: 'var(--cv-font-mono, monospace)', fontSize: 9.5, fontWeight: 500, opacity: 0.7 }}>{count}</span>
+      </button>
+      {!collapsed && <div>{children}</div>}
     </div>
   )
 }
 
-function TreeItem({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }): React.ReactElement {
+function TreeItem({ active, onClick, onDoubleClick, children }: { active: boolean; onClick: () => void; onDoubleClick?: () => void; children: React.ReactNode }): React.ReactElement {
   return (
     <button
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
+      title={onDoubleClick ? '单击选中 · 双击查看详情' : undefined}
       style={{
         display: 'flex',
         alignItems: 'center',

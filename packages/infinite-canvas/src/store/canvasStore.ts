@@ -111,6 +111,11 @@ interface CanvasState {
   // UI
   selectedNode: Node | null
   setSelectedNode: (node: Node | null) => void
+  /** 详情面板「钉选」节点：仅双击设置（左树/卡片），与 selectedNode 解耦——
+   *  单击只 setSelectedNode（驱动溯源高亮 + RF 选中环），不开右面板；
+   *  双击才 setDetailNode 让 NodeDetailPanel 出现。 */
+  detailNode: Node | null
+  setDetailNode: (node: Node | null) => void
   menuPos: { x: number; y: number; nodeId?: string } | null
   setMenuPos: (pos: { x: number; y: number; nodeId?: string } | null) => void
   // Phase 37 — 多选节点 ID (用于批量执行)
@@ -268,9 +273,12 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       branches: graph.branches.length > 0 ? toLegacyBranches(graph.branches) : state.branches,
       viewport: graph.meta.viewport ?? state.viewport,
       hasData: true,
-      // 选中节点随派生模型刷新（保持引用与 nodes 一致）
+      // 选中节点 / 钉选详情节点随派生模型刷新（保持引用与 nodes 一致）
       selectedNode: state.selectedNode
         ? vm.rfNodes.find((n) => n.id === state.selectedNode!.id) ?? null
+        : null,
+      detailNode: state.detailNode
+        ? vm.rfNodes.find((n) => n.id === state.detailNode!.id) ?? null
         : null,
     }))
   },
@@ -401,6 +409,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   // UI
   selectedNode: null,
   setSelectedNode: (node) => set({ selectedNode: node }),
+  detailNode: null,
+  setDetailNode: (node) => set({ detailNode: node }),
   menuPos: null,
   setMenuPos: (pos) => set({ menuPos: pos }),
   // Phase 37 — 多选

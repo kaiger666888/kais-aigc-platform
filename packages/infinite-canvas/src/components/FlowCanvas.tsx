@@ -154,9 +154,10 @@ function CanvasInner() {
 
   const menuPos = useCanvasStore((s) => s.menuPos)
   const setMenuPos = useCanvasStore((s) => s.setMenuPos)
-  const selectedNode = useCanvasStore((s) => s.selectedNode)
 
   const setSelectedNode = useCanvasStore((s) => s.setSelectedNode)
+  const detailNode = useCanvasStore((s) => s.detailNode)
+  const setDetailNode = useCanvasStore((s) => s.setDetailNode)
   // Phase 37 — 多选
   const selectedNodeIds = useCanvasStore((s) => s.selectedNodeIds)
   const setSelectedNodeIds = useCanvasStore((s) => s.setSelectedNodeIds)
@@ -372,8 +373,18 @@ function CanvasInner() {
   const onNodeClick = useCallback((_event: React.MouseEvent, node: any) => {
     // 事件芯片自带点击行为（P19 参数 popover 出口），不进节点详情面板
     if (node?.type === 'eventChip') return
+    // 单击 = 选中 + 溯源高亮（不开右面板）；双击见 onNodeDoubleClick
     setSelectedNode(node)
   }, [setSelectedNode])
+
+  // 双击 = 打开右详情面板（与单击解耦：单击只驱动溯源高亮 + 选中环）
+  // 注意：ReactFlow 默认 zoomOnDoubleClick=true 会吞掉 dblclick 用于缩放，导致此回调不触发；
+  // 已在 <ReactFlow> 上设 zoomOnDoubleClick={false} 放行。
+  const onNodeDoubleClick = useCallback((_event: React.MouseEvent, node: any) => {
+    if (node?.type === 'eventChip') return
+    setSelectedNode(node)
+    setDetailNode(node)
+  }, [setSelectedNode, setDetailNode])
 
   const handleSave = useCallback(async () => {
     if (!projectId || !episodesId) return
@@ -540,15 +551,17 @@ function CanvasInner() {
 
   // Esc 退出溯源高亮 / 关芯片 popover（VariantPicker / EventParamsPopover 各自处理自身 Esc，
   // 有模态覆盖层时不在此连带关闭详情面板）。
+  // 两段式：钉选详情面板开着 → 先关面板（保留溯源）；否则清选中退溯源。
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
       if (useVariantPickerStore.getState().open || activeChip) return
+      if (detailNode) { setDetailNode(null); return }
       setSelectedNode(null)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [setSelectedNode, activeChip])
+  }, [setSelectedNode, setDetailNode, activeChip, detailNode])
 
   // 全屏加载 — 骨架屏
   if (loading && !hasData) {
@@ -617,6 +630,7 @@ function CanvasInner() {
           onPaneContextMenu={onPaneContextMenu}
           onPaneClick={onPaneClick}
           onNodeClick={onNodeClick}
+          onNodeDoubleClick={onNodeDoubleClick}
           onSelectionChange={onSelectionChange}
           onMoveEnd={handleMoveEnd}
           fitView={hasData && !persistedViewport}
@@ -626,6 +640,7 @@ function CanvasInner() {
           selectionOnDrag
           panOnDrag={[1]}
           selectionKeyCode="Shift"
+          zoomOnDoubleClick={false}
           // V3：position 是布局引擎计算缓存（宪法 §7），手拖不改 canonical——禁拖防止「拖了弹回」困惑
           nodesDraggable={!graph}
           // P16 视口即渲染边界：onlyRenderVisibleElements 导致 fitView 前 handleBounds 缺失
@@ -790,8 +805,8 @@ function CanvasInner() {
         <ShotTree />
 
         <NodeDetailPanel
-          node={selectedNode}
-          onClose={() => setSelectedNode(null)}
+          node={detailNode}
+          onClose={() => setDetailNode(null)}
         />
 
         {/* P12 变体候选列表（牌堆 ×N 章 → onStackToggle → variantPickerStore）。 */}

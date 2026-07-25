@@ -2,14 +2,16 @@
  * src/components/edges/CanvasEdge.tsx — 边三态 + reference 点线族（设计 §6，宪法 P11 落地）。
  *
  * tokens §2.3 冲突裁决已执行：
- *  - sequence 蓝实线+箭头 → 1px 暖灰虚线 dash 2 6（P11：排序约束不是因果，视觉退场）；
- *  - parallel 绿虚线并入 reference 点线族（dash 1 4）；branchColors 不再给单条边染色
+ *  - sequence 蓝实线+箭头 → 1.6px 暖灰虚线 dash 3 6（P11：排序约束不是因果，视觉退场）；
+ *  - parallel 绿虚线并入 reference 点线族（dash 2 5）；branchColors 不再给单条边染色
  *    （分支是导航语义，归属由 zone/面板表达，getBranchColor 调用点已移出边渲染）；
- *  - 默认 dataType 彩色 2px 实线 → 因果边 = 产物模态色 @40% 透明度 1.5px，
- *    无箭头（方向由布局保证左→右），端点 4px 圆点 = 100% 模态色。
- *    【偏差】起止 24px 渐变淡出（规范允许的唯一渐变）未实现：直给 40% 均匀描边 +
+ *  - 默认 dataType 彩色 2px 实线 → 因果边 = 产物模态色 @75% 透明度 2px，
+ *    无箭头（方向由布局保证左→右），端点 2.5px 圆点 = 100% 模态色。
+ *    可见度提升（2026-07）：边线原本 1px + 10–16% alpha 实测几乎不可见，整体
+ *    提到 ≥1.6px / 中性族 alpha 0.42 / 因果族 alpha 0.55→0.75。
+ *    【偏差】起止 24px 渐变淡出（规范允许的唯一渐变）未实现：直给 75% 均匀描边 +
  *    端点圆点；渐变需 per-edge userSpaceOnUse 渐变定义，收益低于复杂度，待 review 回定。
- *  - isInactive 5 5 @0.4 → dash 4 4 @25%（与 sequence 同族更低明度，统一进 token）。
+ *  - isInactive 5 5 @0.4 → dash 4 4 @22%（与 sequence 同族更低明度，统一进 token）。
  *  - 选中/溯源高亮（data.highlighted 或 RF selected）→ 2.5px + 100% 不透明（P18，C 接线）。
  *  - LOD L0（§7）：全部边 → 1px 暖灰直线（不画贝塞尔，性能与视觉双重退场）。
  */
@@ -42,16 +44,19 @@ type EdgeData = {
   refType?: string
 }
 
-const NEUTRAL = v3theme.edge.neutral // sequence
-const INACTIVE = v3theme.edge.inactive // isInactive
-const REF = v3theme.edge.ref // reference 点线族
+// 可见度提升（2026-07）：theme tokens 的中性冷白灰族 alpha 仅 0.10–0.16，
+// 是为 badge/panel 复用而刻意压低的（见 catppuccin.edge）。边线在此用更亮的
+// 本地覆盖值，避免牵连 badge/panel，同时把因果边 alpha 从 55% 提到 75%。
+const NEUTRAL = 'rgba(255,255,255,0.42)' // sequence
+const INACTIVE = 'rgba(255,255,255,0.22)' // isInactive（相对更弱，保持置灰语义）
+const REF = 'rgba(255,255,255,0.42)' // reference 点线族
 
 const REF_ROLES = new Set(['reference', 'lora_ref', 'prompt_ref'])
 
-/** 模态 hex + 55% 透明度（因果边描边；v2 提可见 40%→55%）。 */
+/** 模态 hex + 75% 透明度（因果边描边；可见度提升：55%→75%）。 */
 function causalStroke(mod: Modality | undefined): string {
   const hex = mod ? v3theme.modality[mod] : '#6B7080'
-  return `${hex}8C`
+  return `${hex}BF`
 }
 
 function CanvasEdgeComponent(props: EdgeProps) {
@@ -82,7 +87,7 @@ function CanvasEdgeComponent(props: EdgeProps) {
         path={path}
         style={{
           stroke: stroke0,
-          strokeWidth: hl0 ? 2 : 1,
+          strokeWidth: hl0 ? 2.5 : 1.5,
           opacity: dim0 ? 0.12 : 1,
           transition: 'stroke-width var(--cv-d-ancestor, 160ms) var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1)), opacity var(--cv-d-dim, 180ms) var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1))',
         }}
@@ -114,31 +119,31 @@ function CanvasEdgeComponent(props: EdgeProps) {
 
   if (isInactive) {
     stroke = INACTIVE
-    strokeWidth = 1
+    strokeWidth = 1.4
     strokeDasharray = '4 4'
   } else if (isSequence) {
     stroke = NEUTRAL
-    strokeWidth = 1
-    strokeDasharray = '2 6'
+    strokeWidth = 1.6
+    strokeDasharray = '3 6'
     strokeLinecap = 'round'
   } else if (isReference) {
     stroke = REF
-    strokeWidth = 1
-    strokeDasharray = '1 4'
+    strokeWidth = 1.6
+    strokeDasharray = '2 5'
     strokeLinecap = 'round'
   } else {
-    // 因果边（含全部输入槽位 role 与 output）：产物模态色 @55% 1.5px，端点圆点
+    // 因果边（含全部输入槽位 role 与 output）：产物模态色 @75% 2px，端点圆点
     stroke = causalStroke(mod)
-    strokeWidth = 1.5
+    strokeWidth = 2
     showEndpointDot = true
   }
 
   // 溯源/选中高亮：一律覆盖（不分分支）。sequence/reference 分支的祖先边也必须亮——
   // 否则点节点后这些拓扑线不变样（实测回归点：折叠后大量边落在 seq/ref 分支）。
-  // 模态色 100% + 2.5px + 去 dash + glow。
+  // 模态色 100% + 3px + 去 dash + glow。
   if (highlighted) {
     stroke = mod ? v3theme.modality[mod] : v3theme.signal.select
-    strokeWidth = 2.5
+    strokeWidth = 3
     strokeDasharray = undefined
     strokeLinecap = undefined
     showEndpointDot = true
@@ -176,7 +181,7 @@ function CanvasEdgeComponent(props: EdgeProps) {
         <circle
           cx={props.targetX}
           cy={props.targetY}
-          r={highlighted ? 2.5 : 2}
+          r={highlighted ? 3 : 2.5}
           fill={mod ? v3theme.modality[mod] : '#6B7080'}
           style={{ pointerEvents: 'none', opacity: edgeOpacity }}
         />

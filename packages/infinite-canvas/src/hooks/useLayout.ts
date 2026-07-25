@@ -86,6 +86,137 @@ export function resolveProductModality(
   return CAUSAL_DEFAULT_MODALITY
 }
 
+// ─── 镜头级拓扑边推导（后端 output 边只表达 phase-hub 因果；shot 内
+// storyboard↔video / shot 序列 / 角色→分镜 关系在此从节点 metadata 补全） ───
+//
+// 背景：后端 canvas links 的 dataType 一律 'output'，迁移后只合成
+// script→X 的 phase-hub 因果边（prompt_ref，点线，弱可见）。同一 shot 的
+// storyboard→video、scene 内 shot 顺序、角色→分镜 这三类「镜头级」关系并
+// 未进 link 表——这里从节点 rawData（shot_id / character_refs / scene 前缀）
+// 纯函数推导，合成视图期 RF Edge。产物不进 canonical、不持久化（仅渲染层）。
+
+/** shot_id 的场景前缀（S1_03 → 'S1'）；无前缀返回 null。 */
+function scenePrefixOf(shotId: unknown): string | null {
+  if (typeof shotId !== 'string' || !shotId) return null
+  const m = shotId.match(/^(S\d+)/i)
+  return m ? m[1] : null
+}
+
+/** shot_id 的组内序号（S1_03 → 3）；无数字返回 0。 */
+function shotOrdinalOf(shotId: unknown): number {
+  if (typeof shotId !== 'string') return 0
+  const m = shotId.match(/(\d+)\s*$/)
+  return m ? Number(m[1]) : 0
+}
+
+export interface DerivedShotEdgesInput {
+  rfNodes: Node[]
+  existingEdges: Edge[]
+  rawDataByNodeId: Map<string, Record<string, unknown>> | null
+}
+
+/**
+ * 推导镜头级拓扑边（纯函数，可测）。
+ *  - storyboard → video：同 shot_id（rawData.shot_id），video 模态因果边。
+ *  - shot 序列：shot_id 的 S{n} 前缀分组，组内按序号相邻相连（sequence）。
+ *  - 角色 → storyboard：storyboard.character_refs[].name ↔ 角色 asset.characterCanonical；
+ *    每个角色取 base 卡（有 turnaround_sheet）作单一源，避免 N×M 边爆炸。
+ * 已与 existingEdges 按 (source,target) 去重，端点必须都在渲染节点集内。
+ */
+export function deriveShotLevelEdges(input: DerivedShotEdgesInput): Edge[] {
+  const { rfNodes, existingEdges, rawDataByNodeId } = input
+  if (!rawDataByNodeId) return []
+  const idSet = new Set(rfNodes.map((n) => n.id))
+  const rawOf = (id: string): Record<string, unknown> => rawDataByNodeId.get(id) ?? {}
+  const stageOf = (n: Node): string | undefined =>
+    (n.data?.stage as string | undefined) ?? n.type
+
+  const existing = new Set(existingEdges.map((e) => `${e.source}|${e.target}`))
+  const seen = new Set<string>()
+  const out: Edge[] = []
+  const push = (source: string, target: string, data: Record<string, unknown>, idHint: string) => {
+    if (!idSet.has(source) || !idSet.has(target) || source === target) return
+    const key = `${source}|${target}`
+    if (existing.has(key) || seen.has(key)) return
+    seen.add(key)
+    out.push({ id: `d_${idHint}_${source}__${target}`, source, target, type: 'canvas', data })
+  }
+
+  const storyboardsAll = rfNodes.filter((n) => stageOf(n) === 'storyboard')
+  const videos = rfNodes.filter((n) => stageOf(n) === 'video')
+
+  // 同一 shot_id 下 storyboard-stage 往往有多个子产物（shot_list / konte_sheets /
+  // transition_design…），共享 shot_id 与 assetType。这里按 shot_id 去重，取唯一代表：
+  // 优先带生成配方（ltxPrompt/intent）的「正片分镜」，避免一个 shot 产生 3× 倍边。
+  const storyByShotId = new Map<string, Node>()
+  const hasRecipe = (id: string) =>
+    rawOf(id).ltxPrompt != null || rawOf(id).intent != null
+  for (const sb of storyboardsAll) {
+    const sid = rawOf(sb.id).shot_id
+    if (typeof sid !== 'string' || !sid) continue
+    const prev = storyByShotId.get(sid)
+    if (!prev || (hasRecipe(sb.id) && !hasRecipe(prev.id))) storyByShotId.set(sid, sb)
+  }
+  const storyboards = [...storyByShotId.values()]
+
+  // 1. storyboard → video（同 shot_id）
+  const videoByShotId = new Map<string, string>()
+  for (const v of videos) {
+    const sid = rawOf(v.id).shot_id
+    if (typeof sid === 'string' && sid && sid !== 'master') videoByShotId.set(sid, v.id)
+  }
+  for (const sb of storyboards) {
+    const sid = rawOf(sb.id).shot_id
+    if (typeof sid !== 'string') continue
+    const vid = videoByShotId.get(sid)
+    if (vid) push(sb.id, vid, { role: 'shot_link', linkType: 'data_flow', dataType: 'video' }, 'sb2vid')
+  }
+
+  // 2. shot 序列（同场景前缀，按序号相邻相连）
+  const byScene = new Map<string, Node[]>()
+  for (const sb of storyboards) {
+    const scene = scenePrefixOf(rawOf(sb.id).shot_id)
+    if (!scene) continue
+    const arr = byScene.get(scene) ?? []
+    arr.push(sb)
+    byScene.set(scene, arr)
+  }
+  for (const arr of byScene.values()) {
+    arr.sort((a, b) => shotOrdinalOf(rawOf(a.id).shot_id) - shotOrdinalOf(rawOf(b.id).shot_id))
+    for (let i = 1; i < arr.length; i++) {
+      push(arr[i - 1]!.id, arr[i]!.id, { role: 'sequence', linkType: 'sequence', dataType: 'data' }, 'seq')
+    }
+  }
+
+  // 3. 角色 → storyboard（character_refs[].name ↔ 角色 asset.characterCanonical；
+  //    base 卡 = 有 turnaround_sheet 的角色资产，作单一源）
+  const baseByName = new Map<string, string>()
+  const anyByName = new Map<string, string>()
+  for (const n of rfNodes) {
+    if (stageOf(n) !== 'global') continue
+    if (rawOf(n.id).assetType !== 'character') continue
+    const name = String(rawOf(n.id).characterCanonical ?? rawOf(n.id).characterId ?? '')
+    if (!name) continue
+    if (!anyByName.has(name)) anyByName.set(name, n.id)
+    if (rawOf(n.id).turnaround_sheet != null && !baseByName.has(name)) baseByName.set(name, n.id)
+  }
+  const charByName = new Map<string, string>()
+  for (const [name, id] of anyByName) charByName.set(name, baseByName.get(name) ?? id)
+
+  for (const sb of storyboards) {
+    const refs = rawOf(sb.id).character_refs
+    if (!Array.isArray(refs)) continue
+    for (const r of refs) {
+      const name = (r as { name?: unknown } | null)?.name
+      if (typeof name !== 'string' || !name) continue
+      const charId = charByName.get(name)
+      if (charId) push(charId, sb.id, { role: 'reference', linkType: 'reference', dataType: 'image' }, 'chr2sb')
+    }
+  }
+
+  return out
+}
+
 /** 单节点 RF 坐标换算（纯函数，可测）。 */
 export function bridgePosition(input: {
   nodeId: string
@@ -302,7 +433,15 @@ export function useLayout(): LayoutResult {
 
   const edges = useMemo(() => {
     if (!graph) return storeEdges
-    return storeEdges.map((e) => {
+    // 补全镜头级拓扑（storyboard↔video / shot 序列 / 角色→分镜）；视图期合成，
+    // 不进 canonical、不持久化。shot_link 进产物模态富化，seq/ref 走中性灰族。
+    const derived = deriveShotLevelEdges({
+      rfNodes: storeNodes,
+      existingEdges: storeEdges,
+      rawDataByNodeId,
+    })
+    const base = derived.length > 0 ? [...storeEdges, ...derived] : storeEdges
+    return base.map((e) => {
       const role = (e.data as { role?: string } | undefined)?.role
       // sequence / reference 族走中性灰族，不算产物模态
       if (!role || role === 'sequence' || role === 'reference' || role === 'lora_ref' || role === 'prompt_ref') {
@@ -311,7 +450,7 @@ export function useLayout(): LayoutResult {
       const mod = resolveProductModality(e, graph, eventProduct)
       return mod ? { ...e, data: { ...e.data, productModality: mod } } : e
     })
-  }, [graph, storeEdges, eventProduct])
+  }, [graph, storeEdges, storeNodes, rawDataByNodeId, eventProduct])
 
   return { nodes, edges, geometry }
 }
