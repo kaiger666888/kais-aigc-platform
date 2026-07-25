@@ -529,7 +529,9 @@ function CanvasInner() {
   // P18 溯源高亮（SPEC C.3）：选中节点时把 traceState / highlighted 盖到派生模型——
   // AssetCardNode 读 data.traceState、CanvasEdge 读 data.highlighted，无需改 B 文件。
   // 仅 trace 激活时映射，避免常态无谓重算。
-  const trace = useTraceHighlight()
+  // 在「渲染边集」（edgesDeferred = adapter 折叠边 + useLayout 派生的镜头级边）上求闭包，
+  // 与用户实际看到的拓扑一致（点视频能沿 shot_link 亮到分镜、沿 reference 亮到角色）。
+  const trace = useTraceHighlight(edgesDeferred)
   const tracedNodes = useMemo(
     () => trace.active
       ? layoutedNodes.map((n) => ({

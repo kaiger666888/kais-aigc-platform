@@ -191,10 +191,18 @@ function Cover({ data, mod, width, height, lod }: {
 }) {
   const asset = data.v3
   const rawThumb = asset?.media.thumbnail ?? data.thumbnailUrl ?? null
-  // 缩略图加载失败 → 退回「缺封面」常态路径（弱色底 + 模态图标 @40%）
+  // 缩略图加载失败 → 先退到 original 图（_thumbs/*.webp 常未由管线生成，但 original png 可达），
+  // 再退到「缺封面」常态路径（弱色底 + 模态图标 @40%）
   const [thumbFailed, setThumbFailed] = useState(false)
+  const [origFailed, setOrigFailed] = useState(false)
   useEffect(() => setThumbFailed(false), [rawThumb])
+  // 图片模态的 original 源（视频/音频 original 不是图，不在此兜底）
+  const rawImgOrig = mod !== 'video' && mod !== 'audio' && mod !== 'text'
+    ? resolveMediaUrl(asset?.media.original ?? data.filePath ?? null)
+    : null
+  useEffect(() => setOrigFailed(false), [rawImgOrig])
   const thumb = thumbFailed ? null : rawThumb
+  const imgOrig = thumbFailed && !origFailed ? rawImgOrig : null
   const locked = data.curation === 'locked'
   const stale = data.stale != null
   const [videoPlaying, setVideoPlaying] = useState(false)
@@ -279,14 +287,27 @@ function Cover({ data, mod, width, height, lod }: {
         )}
       </div>
     )
-  } else if (mod === 'video' && videoSrc && lod === 2) {
-    // 无封面但有 proxy：弱色底 + ▶（hover 200ms 起播由外层事件驱动）
+  } else if (imgOrig) {
+    // 缩略图 webp 缺失/404 → 退到 original 图（png/jpg，可达）兜底
     body = (
-      <div style={{
-        width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: v3theme.modalityWeak.video, borderRadius: 4,
-      }}>
-        <span style={{ opacity: 0.6, display: 'flex' }}><ModalityIcon kind="video" size={24} color={v3theme.modality.video} /></span>
+      <img src={imgOrig ?? undefined} alt="" loading="lazy" onError={() => setOrigFailed(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 4, filter }} />
+    )
+  } else if (mod === 'video' && videoSrc) {
+    // 缩略图 webp 缺失/404（视频缩略图常未由管线生成，但 original mp4 可达）→
+    // 用 <video> 取 mp4 首帧兜底（preload=metadata + #t=0.1 媒体片段定位到 0.1s 帧），
+    // 叠 ▶ 图标宣示「视频，悬停播放」。比纯模态图标占位信息量大得多。
+    body = (
+      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+        <video
+          src={`${videoSrc}#t=0.1`}
+          preload="metadata"
+          muted
+          playsInline
+          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 4, filter, background: v3theme.modalityWeak.video }}
+        />
+        <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F2E9D8' }}>
+          <ModalityIcon kind="video" size={24} color="#F2E9D8" />
+        </span>
       </div>
     )
   }
