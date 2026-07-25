@@ -78,9 +78,9 @@ const nodeTypes = {
   // P19 事件芯片 / 结构节点兜底
   eventChip: EventChipNode,
   structure: FallbackNodeComponent,
-  // legacy 非 graph 路径
-  asset: AssetNodeComponent,
-  reference: AssetNodeComponent,
+  // legacy 非 graph 路径 — asset 也走 AssetCardNode 以获得 resolveMediaUrl 支持
+  asset: AssetCardNode,
+  reference: AssetCardNode,
   zone: ZoneNodeComponent,
 }
 
@@ -530,7 +530,10 @@ function CanvasInner() {
   )
   const tracedEdges = useMemo(
     () => trace.active
-      ? edgesDeferred.map((e) => ({ ...e, data: { ...e.data, highlighted: trace.highlightedEdges.has(e.id) } }))
+      ? edgesDeferred.map((e) => {
+          const hi = trace.highlightedEdges.has(e.id)
+          return { ...e, data: { ...e.data, highlighted: hi, dimmed: !hi } }
+        })
       : edgesDeferred,
     [edgesDeferred, trace],
   )
