@@ -14,9 +14,10 @@
  *  - LOD L0（§7）：全部边 → 1px 暖灰直线（不画贝塞尔，性能与视觉双重退场）。
  */
 import { memo } from 'react'
-import { BaseEdge, getBezierPath, getStraightPath, type EdgeProps } from '@xyflow/react'
+import { BaseEdge, EdgeLabelRenderer, getBezierPath, getStraightPath, type EdgeProps } from '@xyflow/react'
 import { v3theme, type Modality } from '../../theme/catppuccin'
 import { useLodLevel } from '../../hooks/useLod'
+import EdgeOpChip from './EdgeOpChip'
 
 type EdgeData = {
   // V3 通道（adapter + useLayout 富化）
@@ -27,6 +28,12 @@ type EdgeData = {
   productModality?: Modality
   /** C 的 P18 溯源高亮通道 */
   highlighted?: boolean
+  /** P19：折叠 event 的 op 配方（边中点 op 芯片 = 拓扑线说明标签） */
+  op?: string
+  eventId?: string
+  executor?: 'human' | 'gpu0' | 'gpu1' | 'cloud' | string
+  durationS?: number
+  params?: Record<string, unknown>
   // 旧通道（非 graph 路径过渡兼容）
   linkType?: string
   dataType?: string
@@ -59,53 +66,62 @@ function CanvasEdgeComponent(props: EdgeProps) {
     targetY: props.targetY,
   }
 
-  // L0 全景：1px 暖灰直线（§7：200 条贝塞尔在 L0 是性能与视觉双重浪费）
+  // L0 全景：1px 暖灰直线（§7：200 条贝塞尔在 L0 是性能与视觉双重浪费），不渲染芯片
   if (lod === 0) {
     const [path] = getStraightPath(pathArgs)
     return <BaseEdge id={props.id} path={path} style={{ stroke: NEUTRAL, strokeWidth: 1 }} />
   }
 
-  const [edgePath] = getBezierPath(pathArgs)
+  const [edgePath, labelX, labelY] = getBezierPath(pathArgs)
 
-  // 三态优先级：isInactive > sequence > reference 族 > 因果
-  if (data?.isInactive) {
-    return (
-      <BaseEdge
-        id={props.id}
-        path={edgePath}
-        style={{ stroke: INACTIVE, strokeWidth: 1, strokeDasharray: '4 4' }}
-      />
-    )
-  }
+  // 三态优先级：isInactive > sequence > reference 族 > 因果。统一算描边态后一次渲染，
+  // 便于在任意分支的边中点挂 op 芯片（折叠 event 的 op 配方 = 拓扑说明标签，P19）。
+  const isInactive = !!data?.isInactive
+  const isSequence = role === 'sequence' || linkType === 'sequence'
+  const isReference =
+    (role != null && REF_ROLES.has(role)) ||
+    linkType === 'reference' ||
+    linkType === 'parallel' ||
+    data?.refType === 'reference'
 
-  if (role === 'sequence' || linkType === 'sequence') {
-    return (
-      <BaseEdge
-        id={props.id}
-        path={edgePath}
-        style={{ stroke: NEUTRAL, strokeWidth: 1, strokeDasharray: '2 6', strokeLinecap: 'round' }}
-      />
-    )
-  }
-
-  if ((role && REF_ROLES.has(role)) || linkType === 'reference' || linkType === 'parallel' || data?.refType === 'reference') {
-    return (
-      <BaseEdge
-        id={props.id}
-        path={edgePath}
-        style={{ stroke: REF, strokeWidth: 1, strokeDasharray: '1 4', strokeLinecap: 'round' }}
-      />
-    )
-  }
-
-  // 因果边（含全部输入槽位 role 与 output）：产物模态色 @55% 1.5px，端点圆点；高亮态加 glow
   const highlighted = data?.highlighted === true || props.selected === true
   const mod = data?.productModality
-  const stroke = highlighted ? (mod ? v3theme.modality[mod] : v3theme.signal.select) : causalStroke(mod)
+
+  let stroke: string
+  let strokeWidth: number
+  let strokeDasharray: string | undefined
+  let strokeLinecap: 'round' | undefined
+  let showGlow = false
+  let showEndpointDot = false
+
+  if (isInactive) {
+    stroke = INACTIVE
+    strokeWidth = 1
+    strokeDasharray = '4 4'
+  } else if (isSequence) {
+    stroke = NEUTRAL
+    strokeWidth = 1
+    strokeDasharray = '2 6'
+    strokeLinecap = 'round'
+  } else if (isReference) {
+    stroke = REF
+    strokeWidth = 1
+    strokeDasharray = '1 4'
+    strokeLinecap = 'round'
+  } else {
+    // 因果边（含全部输入槽位 role 与 output）：产物模态色 @55% 1.5px，端点圆点；高亮态加 glow
+    stroke = highlighted ? (mod ? v3theme.modality[mod] : v3theme.signal.select) : causalStroke(mod)
+    strokeWidth = highlighted ? 2.5 : 1.5
+    showGlow = highlighted
+    showEndpointDot = true
+  }
+
+  const hasOp = !!data?.op
+
   return (
     <>
       {/* 高亮态柔光底层（溯源/选中：模态色大面积弥散，制造「亮起来」的层次） */}
-      {highlighted && (
+      {showGlow && (
         <BaseEdge
           id={`${props.id}-glow`}
           path={edgePath}
@@ -117,18 +133,40 @@ function CanvasEdgeComponent(props: EdgeProps) {
         path={edgePath}
         style={{
           stroke,
-          strokeWidth: highlighted ? 2.5 : 1.5,
-          transition: 'stroke-width var(--cv-d-ancestor, 160ms) var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1)), stroke var(--cv-d-ancestor, 160ms) var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1))',
+          strokeWidth,
+          strokeDasharray,
+          strokeLinecap,
+          transition:
+            'stroke-width var(--cv-d-ancestor, 160ms) var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1)), stroke var(--cv-d-ancestor, 160ms) var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1))',
         }}
       />
       {/* 端点圆点 = 100% 模态色（无箭头；方向由布局左→右保证） */}
-      <circle
-        cx={props.targetX}
-        cy={props.targetY}
-        r={highlighted ? 2.5 : 2}
-        fill={mod ? v3theme.modality[mod] : '#6B7080'}
-        style={{ pointerEvents: 'none' }}
-      />
+      {showEndpointDot && (
+        <circle
+          cx={props.targetX}
+          cy={props.targetY}
+          r={highlighted ? 2.5 : 2}
+          fill={mod ? v3theme.modality[mod] : '#6B7080'}
+          style={{ pointerEvents: 'none' }}
+        />
+      )}
+      {/* P19 边中点 op 芯片：折叠 event 的 op 配方标在拓扑线上（拓扑说明标签） */}
+      {hasOp && (
+        <EdgeLabelRenderer>
+          <EdgeOpChip
+            labelX={labelX}
+            labelY={labelY}
+            op={data!.op!}
+            eventId={data!.eventId}
+            executor={data!.executor}
+            durationS={data!.durationS}
+            params={data!.params}
+            modality={mod}
+            highlighted={highlighted}
+            lod={lod}
+          />
+        </EdgeLabelRenderer>
+      )}
     </>
   )
 }

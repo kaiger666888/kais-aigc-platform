@@ -21,6 +21,8 @@ import AssetCardNode from './nodes/AssetCardNode'
 import EventChipNode from './nodes/EventChipNode'
 import LaneBands from './canvas/LaneBands'
 import PhaseColumns from './canvas/PhaseColumns'
+import Legend from './canvas/Legend'
+import ShotTree from './canvas/ShotTree'
 import { EventChipClickContext, type EventChipClickInfo } from './canvas/eventChipBus'
 import CanvasEdgeComponent from './edges/CanvasEdge'
 import CanvasContextMenu from './CanvasContextMenu'
@@ -635,6 +637,8 @@ function CanvasInner() {
           {geometry && <LaneBands geometry={geometry} />}
           {/* 竖向创作阶段叠加层（P01–P13；不动布局引擎，从节点 median-x 投影） */}
           {geometry && geometry.phaseColumns && <PhaseColumns geometry={geometry} />}
+          {/* 浮动图例（右上角，可折叠；解释模态色/边线型/op 芯片/状态） */}
+          <Legend />
           <Controls
             position="bottom-left"
             showInteractive={false}
@@ -778,6 +782,9 @@ function CanvasInner() {
 
         {/* 事件参数 popover（SPEC B.3 出口 → D 的 EventParamsPopover；芯片点击经 eventChipBus 落 activeChip）。 */}
         <EventParamsPopover anchor={activeChip} onClose={() => setActiveChip(null)} />
+
+        {/* 左侧 集→场景→镜头 导航树（点击居中+选中，93 镜项目跳转用） */}
+        <ShotTree />
 
         <NodeDetailPanel
           node={selectedNode}

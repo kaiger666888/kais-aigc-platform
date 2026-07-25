@@ -24,6 +24,7 @@ import {
   type FlowGraphV3,
   type FlowNodeV3,
   type AssetNodeV3,
+  type EventNodeV3,
   type FlowLinkV3,
   type VariantGroupV3,
   type Stage,
@@ -689,6 +690,12 @@ export function graphToViewModel(graph: FlowGraphV3): ViewModel {
   }
   const resolveEndpoint = (id: string): string => eventToAsset.get(id) ?? id
 
+  // event → op 配方查表（P19：折叠 asset→event→asset 为 asset→asset 直连边时，
+  // 把中间 event 的 op/params/executor/durationS 挂到产出边上，供边中点 op 芯片渲染
+  // —— 即「拓扑线上的说明标签」。输入边 l.target 为 event，其 op 即该边携带的生成步骤。）
+  const eventNodeById = new Map<string, EventNodeV3>()
+  for (const n of graph.nodes) if (n.kind === 'event') eventNodeById.set(n.id, n)
+
   const rfNodes: Node[] = []
   const present = new Set<string>()
 
@@ -757,6 +764,8 @@ export function graphToViewModel(graph: FlowGraphV3): ViewModel {
     // 折叠进牌堆的 deprecated 节点不渲染，其边随之折叠（含 isInactive 置灰边）
     if (!present.has(source) || !present.has(target)) continue
     const legacy = legacyEdgeSemantics(l)
+    // 折叠来源 event（输入边 l.target 为 event；防御性也查 l.source）→ op 配方挂边
+    const foldEvent = eventNodeById.get(l.target) ?? eventNodeById.get(l.source)
     rfEdges.push({
       id: l.id,
       source,
@@ -773,6 +782,16 @@ export function graphToViewModel(graph: FlowGraphV3): ViewModel {
         // 旧 CanvasEdge 过渡别名
         linkType: legacy.linkType,
         dataType: legacy.dataType,
+        // P19：折叠 event 的 op 配方（边中点 op 芯片 = 拓扑线说明标签）
+        ...(foldEvent
+          ? {
+              op: foldEvent.op,
+              eventId: foldEvent.id,
+              executor: foldEvent.executor,
+              durationS: foldEvent.durationS,
+              params: foldEvent.params,
+            }
+          : {}),
       },
     })
   }
