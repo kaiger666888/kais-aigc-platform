@@ -145,9 +145,11 @@ function pickKeyFields(
   return out.slice(0, 3)
 }
 
-/** 卡片盒尺寸（§4.6 变体尺寸表）。 */
+/**
+ * 卡片盒尺寸。global 资产（角色/场景卡）现入 图片 模态泳道、铺在主区，用标准卡尺寸
+ *（240×160）以保证可见（旧 168×120 是第 0 列侧栏时代的小卡，已废止）。composite 仍 280×180。
+ */
 function cardSize(stage: Stage | undefined): { w: number; h: number } {
-  if (stage === 'global') return { w: V3_NODE_SIZES.globalCard.width, h: V3_NODE_SIZES.globalCard.height }
   if (stage === 'composite') return { w: V3_NODE_SIZES.compositeCard.width, h: V3_NODE_SIZES.compositeCard.height }
   return { w: V3_NODE_SIZES.card.width, h: V3_NODE_SIZES.card.height }
 }
@@ -490,7 +492,7 @@ function AssetCardNodeComponent({ id, data, selected }: NodeProps<AssetCardNodeT
   const isL1 = lod === 1
   const w = isL1 ? V3_NODE_SIZES.l1.width : cardW
   const h = isL1 ? V3_NODE_SIZES.l1.height : cardH
-  const coverH = stage === 'global' ? V3_NODE_SIZES.globalCard.coverH : V3_NODE_SIZES.card.coverH
+  const coverH = V3_NODE_SIZES.card.coverH
 
   const title = (data.label ?? asset?.phaseName ?? id) as string
   const meta = metaLine(asset)

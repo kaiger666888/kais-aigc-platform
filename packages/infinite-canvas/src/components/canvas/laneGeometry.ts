@@ -8,6 +8,7 @@
  */
 import { V3_LAYOUT, V3_NODE_SIZES, PHASE_GROUPS, type PhaseGroup } from '../../constants'
 import { STAGE_ORDER } from '@kais/flowgraph-v3'
+import type { LaneModality } from '../../v3/lanes'
 
 /**
  * 包内 layoutFlowGraph 的统一带高（layout.ts 的 DEFAULT_LANE_H）。
@@ -17,10 +18,23 @@ import { STAGE_ORDER } from '@kais/flowgraph-v3'
  */
 export const LANE_H_PKG = 200
 
+export interface CanvasBand {
+  /** 泳道键：stage 路径 = stage 名；模态路径 = subClass。 */
+  lane: string
+  top: number
+  height: number
+  /** 模态路径：模态（文字/图片/视频/音频）；stage 路径缺省。 */
+  modality?: LaneModality
+  /** 模态路径：功能子类键。 */
+  subClass?: string
+  /** 模态路径：子类中文标签（角色/场景/…）；stage 路径缺省。 */
+  label?: string
+}
+
 export interface CanvasGeometry {
-  /** 十条泳道带（序 = STAGE_ORDER：global→composite）。 */
-  bands: Array<{ lane: string; top: number; height: number }>
-  /** 第 0 列 global 锚定区。 */
+  /** 泳道带：模态路径按 (模态,子类) 有序、仅含非空；stage fallback 路径 = STAGE_ORDER 十带。 */
+  bands: CanvasBand[]
+  /** 第 0 列 global 锚定区（模态路径下作左 gutter / 阶段标签位）。 */
   globalColumn: { width: number; x?: number }
   /** locked 参考区（locked 节点包围盒 + 24 padding）；无 locked 节点为 null。 */
   lockedZone: { x: number; y: number; width: number; height: number } | null
@@ -267,6 +281,31 @@ export function laneHeightFromRows(baseHeight: number, rowCount: number, rowH: n
  *  - 第 0 带高用 globalLaneHeight(globalAssetCount) 自适应，其余沿用 LANE_HEIGHTS。
  *  - locked 参考区 = locked 节点包围盒 + 24 padding（四向）；无 locked 节点 → null。
  */
+/** locked 参考区（§1.3 拉片参考）：locked 节点包围盒 + 24 padding；无 locked 节点 → null。 */
+function computeLockedZone(boxes: Array<{ x: number; y: number; width: number; height: number; locked: boolean }>): CanvasGeometry['lockedZone'] {
+  const locked = boxes.filter((b) => b.locked)
+  if (locked.length === 0) return null
+  let minX = Infinity
+  let minY = Infinity
+  let maxRight = -Infinity
+  let maxBottom = -Infinity
+  for (const b of locked) {
+    if (b.x < minX) minX = b.x
+    if (b.y < minY) minY = b.y
+    const right = b.x + b.width
+    const bottom = b.y + b.height
+    if (right > maxRight) maxRight = right
+    if (bottom > maxBottom) maxBottom = bottom
+  }
+  const pad = 24
+  return {
+    x: minX - pad,
+    y: minY - pad,
+    width: maxRight - minX + pad * 2,
+    height: maxBottom - minY + pad * 2,
+  }
+}
+
 export function computeCanvasGeometry(input: {
   globalAssetCount: number
   boxes: Array<{ x: number; y: number; width: number; height: number; locked: boolean }>
@@ -280,40 +319,43 @@ export function computeCanvasGeometry(input: {
     input.heights ??
     V3_LAYOUT.LANE_HEIGHTS.map((h, i) => (i === 0 ? globalLaneHeight(input.globalAssetCount) : h))
   const tops = computeLaneTops(heights)
-  const bands = STAGE_ORDER.map((lane, i) => ({
+  const bands: CanvasBand[] = STAGE_ORDER.map((lane, i) => ({
     lane,
     top: tops[i] ?? 0,
     height: heights[i] ?? 0,
   }))
 
-  // locked 参考区（§1.3 拉片参考）：locked 节点包围盒 + 24 padding
-  const locked = input.boxes.filter((b) => b.locked)
-  let lockedZone: CanvasGeometry['lockedZone'] = null
-  if (locked.length > 0) {
-    let minX = Infinity
-    let minY = Infinity
-    let maxRight = -Infinity
-    let maxBottom = -Infinity
-    for (const b of locked) {
-      if (b.x < minX) minX = b.x
-      if (b.y < minY) minY = b.y
-      const right = b.x + b.width
-      const bottom = b.y + b.height
-      if (right > maxRight) maxRight = right
-      if (bottom > maxBottom) maxBottom = bottom
-    }
-    const pad = 24
-    lockedZone = {
-      x: minX - pad,
-      y: minY - pad,
-      width: maxRight - minX + pad * 2,
-      height: maxBottom - minY + pad * 2,
-    }
-  }
-
   return {
     bands,
     globalColumn: { width: V3_LAYOUT.GLOBAL_COL_WIDTH },
-    lockedZone,
+    lockedZone: computeLockedZone(input.boxes),
+  }
+}
+
+/**
+ * 模态泳道几何：bands 按 (模态,子类) 有序、仅含**非空**活动泳道（空泳道折叠，省纵向空间）。
+ * 每带带模态色弱底 + 子类标签；LaneBands 据此按模态分组渲染大标签。heights 由调用方按
+ * 各活动泳道 max row 折算（laneHeightFromRows）。locked 参考区同 computeCanvasGeometry。
+ */
+export function computeModalityGeometry(input: {
+  /** 活动泳道（有序；仅含实际有节点的 LANE_DEFS 子集）。 */
+  lanes: ReadonlyArray<{ modality: LaneModality; subClass: string; label: string }>
+  /** 各活动泳道带高（与 lanes 等长、同序）。 */
+  heights: readonly number[]
+  boxes: Array<{ x: number; y: number; width: number; height: number; locked: boolean }>
+}): CanvasGeometry {
+  const tops = computeLaneTops(input.heights)
+  const bands: CanvasBand[] = input.lanes.map((l, i) => ({
+    lane: l.subClass,
+    top: tops[i] ?? 0,
+    height: input.heights[i] ?? 0,
+    modality: l.modality,
+    subClass: l.subClass,
+    label: l.label,
+  }))
+  return {
+    bands,
+    globalColumn: { width: V3_LAYOUT.GLOBAL_COL_WIDTH },
+    lockedZone: computeLockedZone(input.boxes),
   }
 }
