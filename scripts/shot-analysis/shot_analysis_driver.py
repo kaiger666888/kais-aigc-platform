@@ -24,16 +24,22 @@ import urllib.request
 SERVER = os.environ.get("COMFYUI_URL", "http://localhost:8188")
 
 # QwenVL prompt 模板(对齐 Kimi 文档 §4.4,严格 JSON)
+# 加 subjects(角色识别)+ action_detail(实际动作):看真实视频多帧识别毛毛虫/独角仙/螳螂/蜈蚣,
+# 用于核对 prompts.json 的 subject/action 是否与原片相符(2026-07-25 小江湖 EP01 审计)。
 SEMANTIC_PROMPT = (
-    "你是摄影指导分析助手。这是同一镜头的采样帧。只输出一个JSON对象,禁止任何其他文字:\n"
+    "你是动画《小江湖》的分镜分析助手。这是同一镜头的多个采样帧。只输出一个JSON对象,禁止任何其他文字:\n"
     '{"shot_scale":"大特写|特写|近景|中景|全景|远景 之一",'
     '"camera_primitive":"static|pan_left|pan_right|tilt_up|tilt_down|dolly_in|dolly_out|'
     'zoom_in|zoom_out|truck|arc_left|arc_right|follow|handheld|crane 之一",'
     '"camera_speed":"slow|medium|fast",'
-    '"subject_motion":"主体运动方向与方式,不超过15字",'
+    '"subjects":"本镜画面实际出现的角色,从[毛毛虫小孩(橙黄绒毛圆胖、头顶绿草辫)、'
+    '独角仙武士(红棕甲壳、头顶双叉弯角)、螳螂武士(绿色身体、白色大复眼、镰刀前足)、'
+    '巨型红蜈蚣(暗红多足长身)]里按实际出现列出,多个用顿号分隔;空镜填无",'
+    '"action_detail":"本镜主体实际在做什么(谁→做什么→动作过程),不超过40字",'
+    '"subject_motion":"主体整体运动方向与方式,不超过15字",'
     '"lens_feel":"wide|normal|telephoto",'
     '"lighting":"不超过3个关键词"}\n'
-    "无法判断的字段填null。"
+    "无法判断的字段填null。只描述画面真实发生的,不要推测。"
 )
 
 
@@ -77,7 +83,7 @@ def build_prompt(video, shot, shot_id, fps, grid_n, do_semantic, do_subject,
                 "attention_mode": "auto", "use_torch_compile": False, "device": "auto",
                 "preset_prompt": "🖼️ Detailed Description",   # custom_prompt 会完全覆盖它
                 "custom_prompt": SEMANTIC_PROMPT,
-                "max_tokens": 256, "temperature": 0.1, "top_p": 0.9,
+                "max_tokens": 400, "temperature": 0.1, "top_p": 0.9,
                 "num_beams": 1, "repetition_penalty": 1.2,
                 "frame_count": 16, "keep_model_loaded": True, "seed": 1,
                 "video": ["load", 0],            # 帧序列作为 video 输入

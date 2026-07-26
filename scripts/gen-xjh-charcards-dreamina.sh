@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # 《小江湖》EP01 角色卡(4 视角 turnaround)+ 森林背景变体,用 Dreamina CLI 生成。
-# ⚠️ 用 text2image(不要用 image2image——对 turnaround sheet 会无限 querying 卡死,见 memory reference_dreamina_cli)。
+# ⚠️ DEPRECATED(text2image 版——角色不像原视频)。正式 turnaround 卡已改用 image2image 单参考
+#    (锚真实视频帧保真)+ four-views prompt 生成,产物 refs/char_*_turnaround.png,
+#    消费方 scripts/gen-from-shot-timeline.ts 的 ALL_REFS/pickRefs 引用。
+#    image2image 单参考 + four-views 经验证可靠(2026-07-25 全 4 角色成功);仅多参考(3+)会卡死,见 memory reference_dreamina_cli。
+# 本脚本保留作 text2image 备用,输出 char_*_card.png(勿覆盖 _turnaround)。
 # 下载用官方 query_result --download_dir(签名 URL curl 并发会偶发 0 字节,串行最稳)。
 # 角色卡规范见 docs/ltx-msr-input-guide.md §2.2(正面近照 + 全身正/侧/背,横排 4 格白底)。
 set -uo pipefail
