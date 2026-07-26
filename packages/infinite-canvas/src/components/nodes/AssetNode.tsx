@@ -20,6 +20,10 @@ const typeIcons: Record<string, string> = {
   // Additive — tool 与 prop 共用 🔧 是有意的 (tool 是 legacy P04 assetType,
   // prop 是 v1.1 新 assetType, 渲染等价). 缺省仍走 || '📦' fallback.
   character: '🧑', prop: '🔧',
+  // Phase 17 (CONSUMER-01): v1.2 ShotTimelineAsset dialogue/music/sfx audio
+  // modalities. Additive typeIcons map extension only (PRESENT-05 spirit) —
+  // no new components/renderers. Fallback still || '📦'.
+  dialogue: '💬', music: '🎵', sfx: '🔊',
 }
 
 const viewAngleLabels: Record<string, string> = {
