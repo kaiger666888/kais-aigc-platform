@@ -367,15 +367,17 @@ function CanvasInner() {
   const onPaneClick = useCallback(() => {
     setMenuPos(null)
     setSelectedNode(null)
+    setDetailNode(null) // 单击空白画布 → 右详情面板自动缩回
     setActiveChip(null) // 关掉事件芯片 popover 插槽
-  }, [setMenuPos, setSelectedNode])
+  }, [setMenuPos, setSelectedNode, setDetailNode])
 
   const onNodeClick = useCallback((_event: React.MouseEvent, node: any) => {
     // 事件芯片自带点击行为（P19 参数 popover 出口），不进节点详情面板
     if (node?.type === 'eventChip') return
-    // 单击 = 选中 + 溯源高亮（不开右面板）；双击见 onNodeDoubleClick
+    // 单击 = 选中 + 溯源高亮（不开右面板），且若右面板已开则自动缩回（双击才再次打开）
     setSelectedNode(node)
-  }, [setSelectedNode])
+    setDetailNode(null)
+  }, [setSelectedNode, setDetailNode])
 
   // 双击 = 打开右详情面板（与单击解耦：单击只驱动溯源高亮 + 选中环）
   // 注意：ReactFlow 默认 zoomOnDoubleClick=true 会吞掉 dblclick 用于缩放，导致此回调不触发；

@@ -138,15 +138,13 @@ function CanvasEdgeComponent(props: EdgeProps) {
     showEndpointDot = true
   }
 
-  // 溯源/选中高亮：一律覆盖（不分分支）。sequence/reference 分支的祖先边也必须亮——
-  // 否则点节点后这些拓扑线不变样（实测回归点：折叠后大量边落在 seq/ref 分支）。
-  // 模态色 100% + 3px + 去 dash + glow。
+  // 溯源/选中高亮：只改「粗细 + 亮度/颜色」，保留线型（sequence 虚线 / reference 点线
+  // 维持各自的 dasharray 与 linecap）——高亮不改变拓扑语义，只强调。覆盖不分分支：
+  // sequence/reference 分支的祖先边也必须亮，否则点节点后这些拓扑线不变样。
+  // 模态色 100% + 加粗 + glow；dasharray/linecap/端点圆点沿用各分支既定值。
   if (highlighted) {
     stroke = mod ? v3theme.modality[mod] : v3theme.signal.select
     strokeWidth = 3
-    strokeDasharray = undefined
-    strokeLinecap = undefined
-    showEndpointDot = true
   }
 
   const showGlow = highlighted

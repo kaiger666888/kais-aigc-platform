@@ -48,8 +48,19 @@ function framingLabel(raw?: string): string {
   return (METADATA_LABELS.framing as Record<string, string>)[raw] ?? raw
 }
 
-/** 从 graph 派生导航层级。 */
-function deriveTree(graph: FlowGraphV3 | null) {
+/** 取「干净」字符串：非空且非 'unknown'（V3 迁移对缺失字段常填字面 'unknown'，需滤掉）。 */
+function clean(v: unknown): string | undefined {
+  if (typeof v !== 'string') return undefined
+  const s = v.trim()
+  return s && s.toLowerCase() !== 'unknown' ? s : undefined
+}
+
+/** 从 graph 派生导航层级。shotId/景别优先取 rawDataByNodeId（V3 meta 的 shotId/shotType
+ *  常被迁移污染为 asset id 片段 / 字面 'unknown'），保证镜头行显示干净的 S1_01 / medium。 */
+function deriveTree(
+  graph: FlowGraphV3 | null,
+  rawDataByNodeId: Map<string, Record<string, unknown>> | null,
+) {
   if (!graph) return null
   const shots: ShotItem[] = []
   const globals: GlobalItem[] = []
@@ -57,14 +68,17 @@ function deriveTree(graph: FlowGraphV3 | null) {
     if (n.kind !== 'asset') continue
     const a = n as AssetNodeV3
     const m = a.meta // 按 meta.stage 判别窄化（AssetStageMeta 联合由 meta.stage 区分）
+    const raw = rawDataByNodeId?.get(a.id) ?? {}
     if (m.stage === 'storyboard') {
-      shots.push({
-        id: a.id,
-        shotId: m.shotId ?? a.id,
-        label: framingLabel(m.framing) || m.shotType || '',
-      })
+      const shotId =
+        clean(raw.shot_id) ?? clean(m.shotId) ?? a.id
+      const framing = clean(raw.shot_type) ?? clean(raw.shot_scale) ?? clean(m.shotType) ?? clean(m.framing)
+      shots.push({ id: a.id, shotId, label: framing ? framingLabel(framing) : '' })
     } else if (m.stage === 'global' && a.scope === 'global') {
-      globals.push({ id: a.id, label: a.phaseName || a.id, sub: m.assetType ?? 'asset' })
+      const name =
+        clean(raw.characterCanonical) ?? clean(raw.characterId) ?? clean(raw.name) ?? clean(raw.label)
+      const sub = clean(m.assetType) ?? clean(raw.assetType) ?? clean(raw.archetype) ?? 'asset'
+      globals.push({ id: a.id, label: name ?? a.phaseName ?? a.id, sub })
     }
   }
   // 自然序：按 shotId 排（含数字时按数值升序）
@@ -94,6 +108,7 @@ function deriveTree(graph: FlowGraphV3 | null) {
 export default function ShotTree(): React.ReactElement | null {
   const graph = useCanvasStore((s) => s.graph)
   const nodes = useCanvasStore((s) => s.nodes)
+  const rawDataByNodeId = useCanvasStore((s) => s.rawDataByNodeId)
   const selectedNode = useCanvasStore((s) => s.selectedNode)
   const setSelectedNode = useCanvasStore((s) => s.setSelectedNode)
   const setDetailNode = useCanvasStore((s) => s.setDetailNode)
@@ -102,7 +117,7 @@ export default function ShotTree(): React.ReactElement | null {
   // 分类折叠态：key = `scene:<前缀>` / `shots` / `globals`。默认全展开。
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
 
-  const tree = useMemo(() => deriveTree(graph), [graph])
+  const tree = useMemo(() => deriveTree(graph, rawDataByNodeId), [graph, rawDataByNodeId])
 
   const toggle = useCallback((key: string) => {
     setCollapsed((prev) => {
@@ -113,7 +128,7 @@ export default function ShotTree(): React.ReactElement | null {
     })
   }, [])
 
-  // 单击 → 居中 + 选中（驱动溯源高亮，不开右面板）
+  // 单击 → 居中 + 选中（驱动溯源高亮，不开右面板），且若右面板已开则自动缩回
   const jumpTo = (nodeId: string) => {
     const rfNode = reactFlow.getNode(nodeId) ?? nodes.find((n) => n.id === nodeId)
     if (rfNode) {
@@ -123,6 +138,7 @@ export default function ShotTree(): React.ReactElement | null {
     }
     const full = nodes.find((n) => n.id === nodeId)
     setSelectedNode((full ?? ({ id: nodeId } as unknown as Node)))
+    setDetailNode(null)
   }
 
   // 双击 → 在单击已选中+居中的基础上，钉选到右详情面板（setDetailNode）
