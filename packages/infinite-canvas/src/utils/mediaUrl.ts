@@ -81,7 +81,9 @@ function fsToOssPath(absPath: string): string | null {
  * `/oss/...`、绝对文件系统路径或绝对 URL → 可访问 URL。
  * - http(s):// / data: 原样返回；
  * - /oss/ 按需前缀 origin；
- * - 其它绝对路径（/ 开头）尝试 fsToOssPath 转 /oss/，不命中则原样返回；
+ * - 其它绝对路径（/ 开头）尝试 fsToOssPath 转 /oss/，不命中则回退到
+ *   /local-file?path=<encoded>（后端白名单已覆盖 kais-hermes-skills/runs
+ *   及 legacy kais-movie-agent 路径）；
  * - 相对路径原样返回。
  */
 export function resolveMediaUrl(path: string | null | undefined): string | null {
@@ -92,7 +94,10 @@ export function resolveMediaUrl(path: string | null | undefined): string | null 
   if (path.startsWith('/')) {
     const oss = fsToOssPath(path)
     if (oss) return `${OSS_ORIGIN}${oss}`
-    return path // 不命中已知挂载点：原样返回（浏览器可能 404，但不崩溃）
+    // /oss 不命中 → 回退到 /local-file 端点（后端 app.ts 白名单安全代理）
+    // 这覆盖 kais-hermes-skills/runs、kais-hermes-skills/skills/kais-movie-pipeline
+    // 等新管线路径，以及任何 /oss 符号链接未覆盖的绝对路径。
+    return `${OSS_ORIGIN}/local-file?path=${encodeURIComponent(path)}`
   }
   return path
 }

@@ -13,6 +13,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { applyLayout } from '@kais/flowgraph-v3'
+import { FITVIEW_MIN_ZOOM } from '../hooks/useLod'
 
 import AssetNodeComponent from './nodes/AssetNode'
 import FallbackNodeComponent from './nodes/FallbackNode'
@@ -311,7 +312,8 @@ function CanvasInner() {
   const effEid = episodesId ?? graphMetaIds?.episodesId ?? null
   const persistenceKey = effPid != null && effEid != null ? canvasStateKey(effPid, effEid) : null
   const { onMoveEnd: persistViewport } = useCanvasPersistence(persistenceKey, layoutedNodes.length > 0)
-  // 有持久化 viewport 时跳过 fitView（P17：刷新原样恢复优先于适配视图）
+  // 有持久化 viewport 时跳过 fitView（P17：刷新原样恢复优先于适配视图）；
+  // 实际恢复 + 缩放下限钳制在 useCanvasPersistence（setViewport 处）统一做。
   const persistedViewport = useMemo(
     () => (persistenceKey ? loadCanvasState(persistenceKey).viewport : undefined),
     [persistenceKey],
@@ -418,7 +420,7 @@ function CanvasInner() {
     }
     // 短延迟后 fitView，等待 React 重渲染拿到 measured 尺寸
     setTimeout(() => {
-      reactFlow.fitView({ padding: 0.15, duration: 600 })
+      reactFlow.fitView({ padding: 0.15, minZoom: FITVIEW_MIN_ZOOM, duration: 600 })
     }, 50)
     showToast?.('已整理为紧凑布局', 'success')
   }, [graph, applyGraphTransform, nodes, edges, setNodes, setEdges, reactFlow, showToast])
@@ -638,7 +640,7 @@ function CanvasInner() {
           onSelectionChange={onSelectionChange}
           onMoveEnd={handleMoveEnd}
           fitView={hasData && !persistedViewport}
-          fitViewOptions={{ padding: 0.15, minZoom: 0.1, maxZoom: 1.5, duration: 600 }}
+          fitViewOptions={{ padding: 0.15, minZoom: FITVIEW_MIN_ZOOM, maxZoom: 1.5, duration: 600 }}
           minZoom={0.05}
           maxZoom={4}
           selectionOnDrag
@@ -664,7 +666,7 @@ function CanvasInner() {
           <Controls
             position="bottom-left"
             showInteractive={false}
-            fitViewOptions={{ padding: 0.15, duration: 600 }}
+            fitViewOptions={{ padding: 0.15, minZoom: FITVIEW_MIN_ZOOM, duration: 600 }}
             style={{ background: theme.bg.card, borderRadius: 8, border: `1px solid ${theme.border.default}` }}
           />
           <MiniMap
@@ -686,7 +688,7 @@ function CanvasInner() {
             <ToolbarButton onClick={handleAutoLayout} disabled={!projectId || nodes.length === 0}>
               <UiIcon kind="layout" />整理
             </ToolbarButton>
-            <ToolbarButton onClick={() => reactFlow.fitView({ padding: 0.15, duration: 600 })}>
+            <ToolbarButton onClick={() => reactFlow.fitView({ padding: 0.15, minZoom: FITVIEW_MIN_ZOOM, duration: 600 })}>
               <UiIcon kind="fit" />适配
             </ToolbarButton>
             {/* Phase 36 — 一键成片 */}

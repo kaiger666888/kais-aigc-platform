@@ -13,6 +13,7 @@ import { useEffect, useRef } from 'react'
 import { useReactFlow, type Viewport } from '@xyflow/react'
 import { useCanvasStore } from '../store/canvasStore'
 import { useCanvasUiStore } from '../components/canvas/canvasUiStore'
+import { FITVIEW_MIN_ZOOM } from './useLod'
 
 export interface PersistedCanvasState {
   viewport?: Viewport
@@ -97,9 +98,14 @@ export function useCanvasPersistence(stateKey: string | null, nodesReady: boolea
 
     // 视口恢复（优先于 fitView；rAF 等 React Flow 完成首帧测量）
     if (saved.viewport && Number.isFinite(saved.viewport.x) && Number.isFinite(saved.viewport.zoom)) {
-      restoredViewportRef.current = saved.viewport
+      // 钳制缩放下限：旧 session 在大图上可能存了亚像素缩放（fitView ~0.05）→ 恢复后
+      // 全员 LOD 0 色块、看不到缩略图。抬到 FITVIEW_MIN_ZOOM 保证可读；用户仍可手动缩小看全景。
+      const vp = saved.viewport.zoom < FITVIEW_MIN_ZOOM
+        ? { ...saved.viewport, zoom: FITVIEW_MIN_ZOOM }
+        : saved.viewport
+      restoredViewportRef.current = vp
       requestAnimationFrame(() => {
-        reactFlow.setViewport(saved.viewport!, { duration: 0 })
+        reactFlow.setViewport(vp, { duration: 0 })
       })
     }
 

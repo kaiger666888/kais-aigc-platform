@@ -125,6 +125,8 @@ export default async function startServe(randomPort: Boolean = false) {
       "/mnt/agents/output/",
       "/home/kai/workspace/kais-movie-agent/",   // legacy pipeline-runs path
       "/data/workspace/kais-movie-agent/",       // legacy scifi-epic path
+      "/data/workspace/kais-hermes-skills/skills/kais-movie-pipeline/episodes/", // V8.6 pipeline episode assets
+      "/data/workspace/kais-hermes-skills/skills/kais-movie-pipeline/assets/",   // V8.6 pipeline shared assets
     ];
     const isAllowed = allowedPrefixes.some((p) => filePath.startsWith(p));
     if (!isAllowed) {
