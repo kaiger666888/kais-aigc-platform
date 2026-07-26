@@ -1164,6 +1164,138 @@ export async function extractShotTimelineArtifacts(
     collectRegistryEntries(propFile, "prop", true);
   }
 
+  // ── (d.2) Phase 17 (CONSUMER-01): v1.2 audio semantic → per-shot asset 子节点 ──
+  // v1.2 ShotTimelineAsset 的 per-shot 三模态音频语义 (dialogue/music/sfx).
+  // 数据源: data.audio_semantic 外部 JSON (tryReadJSON, mirror :962-968 +
+  // :1161-1164). 门控 (T-17-01 graceful-degrade): 仅当 KNOWN_VERSIONS.has(version)
+  // 时 emit —— 旧 consumer (无 "1.2" entry) 静默跳过, 保持 SPEC §4 兼容契约.
+  // 缺席/空 audio_semantic → 不 emit 任何音频子节点 (mirror v1.0 ep01 graceful).
+  //
+  // Modalities emitted (per shot, gated on non-null modality):
+  //   - dialogue child  ← shot.dialogue (text/events/spk_id 任一非空)
+  //   - music child     ← shot.reproduction.music_gen (text 非空)
+  //   - sfx child       ← shot.sfx (description/events 任一非空)
+  //
+  // NOTE (MUS-04 LOCKED — T-17-02): music modality sub-object is OMITTED in
+  // v1.2 audio_semantic.schema.json (only reproduction.music_gen NL prompt
+  // is the music signal). Tempo/mood/key/VA fields DO NOT EXIST in v1.2.
+  // The music child surfaces ONLY reproduction.music_gen.{text,confidence,
+  // fidelity_disclaimer}. NO instruments field is EVER emitted (case-insensitive
+  // grep `\\binstruments?\\b` on this file MUST return 0 matches; MUS-04
+  // deferred v1.3 per PROJECT.md Key Decisions Row 4).
+  //
+  // §7 caveat (mirror D-PRESENT-04-Q2): canvasType:"asset" → buildPhaseTree sets
+  // type:"asset" (:838). But assetType CANNOT pass via extra —— buildPhaseTree
+  // seeds artData.assetType = def.assetType ("delivery" for p13) at :692, and
+  // the extra-merge guard at :724 (`if (!(k in artData))`) silently drops
+  // extra.assetType. So (1) push RawArtifact BEFORE buildPhaseTree (本块),
+  // (2) post-process tree.artifactNodes AFTER buildPhaseTree to override
+  // data.assetType to "dialogue"/"music"/"sfx" (见 (e.3) 块). 缺一不可.
+  //
+  // filePath for audio children (CR-01 mirror): asset schema (canvasAssetSchema
+  // .ts:23-25,77-83) marks filePath as universalRequired. Audio semantic
+  // children have NO dedicated media file (the actual stems are the existing
+  // vocals/drums/other nodes at :1042-1054). The truthful non-empty filePath
+  // is the master video —— all audio semantic info is derived from analyzing
+  // its audio track. thumbnailUrl deliberately undefined → AssetNode.tsx :127
+  // falls back to typeIcons emoji (💬/🎵/🔊), no broken image preview.
+  type AudioChildEntry = {
+    output_key: string;
+    kind: "dialogue" | "music" | "sfx";
+  };
+  const audioChildEntries: AudioChildEntry[] = [];
+
+  // T-17-01 graceful-degrade gate: emit audio children only when the consumer
+  // recognizes schema_version "1.2". Older consumers (without the 1.2 entry in
+  // SHOT_TIMELINE_KNOWN_VERSIONS) skip emission entirely via this gate — SPEC §4
+  // graceful-degrade contract. `version` is read at :952 above.
+  if (SHOT_TIMELINE_KNOWN_VERSIONS.has(version) && version === "1.2") {
+    const audioSemantic = await tryReadJSON(
+      join(workdir, dataPaths.audio_semantic ?? "audio_semantic.json"),
+    );
+    const audioShots: any[] = Array.isArray(audioSemantic?.shots) ? audioSemantic.shots : [];
+    for (const audioShot of audioShots) {
+      if (!audioShot || audioShot.shot_id == null) continue;
+      const sid = String(audioShot.shot_id);
+
+      // ── dialogue child (when dialogue non-null + has signal) ──
+      const dialogue = audioShot.dialogue;
+      const dialogueHasSignal =
+        dialogue != null &&
+        (typeof dialogue.text === "string" && dialogue.text.length > 0 ||
+          (Array.isArray(dialogue.events) && dialogue.events.length > 0) ||
+          (typeof dialogue.spk_id === "string" && dialogue.spk_id.length > 0));
+      if (dialogueHasSignal) {
+        const dlgText = typeof dialogue.text === "string" ? dialogue.text.slice(0, 200) : "";
+        audioChildEntries.push({ output_key: `audio_dia_${sid}`, kind: "dialogue" });
+        artifacts.push({
+          label: `Shot ${sid} · dialogue`,
+          output_key: `audio_dia_${sid}`,
+          canvasType: "asset",
+          filePath: videoOss ?? videoPath,  // CR-01: universalRequired for asset type
+          description: dlgText || `dialogue (spk: ${dialogue.spk_id ?? "?"})`,
+          extra: {
+            shot_id: sid,
+            modality: "dialogue",
+            emotion: dialogue.emotion ?? null,
+            spk_id: dialogue.spk_id ?? null,
+            dialogue_events: Array.isArray(dialogue.events) ? dialogue.events : [],
+          },
+        });
+      }
+
+      // ── music child (when reproduction.music_gen.text non-empty) ──
+      // v1.2 LOCKED: music modality sub-object OMITTED in schema; only the
+      // reproduction.music_gen NL prompt is the music signal. NO instruments
+      // field (MUS-04 deferred v1.3 — T-17-02 mitigation).
+      const musicGen = audioShot.reproduction?.music_gen;
+      const musicHasSignal =
+        musicGen != null &&
+        typeof musicGen.text === "string" &&
+        musicGen.text.length > 0;
+      if (musicHasSignal) {
+        const musText = musicGen.text.slice(0, 200);
+        audioChildEntries.push({ output_key: `audio_mus_${sid}`, kind: "music" });
+        artifacts.push({
+          label: `Shot ${sid} · music`,
+          output_key: `audio_mus_${sid}`,
+          canvasType: "asset",
+          filePath: videoOss ?? videoPath,
+          description: musText,
+          extra: {
+            shot_id: sid,
+            modality: "music",
+            music_gen_confidence: typeof musicGen.confidence === "number" ? musicGen.confidence : null,
+            music_gen_fidelity: typeof musicGen.fidelity_disclaimer === "string" ? musicGen.fidelity_disclaimer : null,
+          },
+        });
+      }
+
+      // ── sfx child (when sfx.description non-empty OR sfx.events non-empty) ──
+      const sfx = audioShot.sfx;
+      const sfxHasSignal =
+        sfx != null &&
+        ((typeof sfx.description === "string" && sfx.description.length > 0) ||
+          (Array.isArray(sfx.events) && sfx.events.length > 0));
+      if (sfxHasSignal) {
+        const sfxDesc = typeof sfx.description === "string" ? sfx.description.slice(0, 200) : "";
+        audioChildEntries.push({ output_key: `audio_sfx_${sid}`, kind: "sfx" });
+        artifacts.push({
+          label: `Shot ${sid} · sfx`,
+          output_key: `audio_sfx_${sid}`,
+          canvasType: "asset",
+          filePath: videoOss ?? videoPath,
+          description: sfxDesc || `sfx events: ${(Array.isArray(sfx.events) ? sfx.events : []).join(", ")}`,
+          extra: {
+            shot_id: sid,
+            modality: "sfx",
+            sfx_events: Array.isArray(sfx.events) ? sfx.events : [],
+          },
+        });
+      }
+    }
+  }
+
   // ── (e) 调用扩展后的 buildPhaseTree (产出 zone + summary + artifact 三级) ──
   // buildPhaseTree 内部循环会读 art.canvasType 覆盖 (Hook 2),继承所有
   // receiver-side 兼容 shim (extra-merge, SCHEMA_ALIASES, ENUM_NORMALIZERS,
@@ -1222,6 +1354,25 @@ export async function extractShotTimelineArtifacts(
           data.filePath = url;
         }
       }
+    }
+  }
+
+  // ── (e.3) Post-process §7 caveat「后半段」for v1.2 audio children ──────
+  // Mirror (e.2) pattern for character/prop. buildPhaseTree seeds ALL p13
+  // artifact assetType="delivery" (:692); the extra-merge guard (:724) silently
+  // drops extra.assetType, so audio children's assetType MUST be overridden
+  // here using output_key as the join key. Without this override, dialogue/
+  // music/sfx children would render with assetType="delivery" → AssetNode.tsx
+  // falls back to 📦 icon (WRONG — should be 💬/🎵/🔊 via typeIcons).
+  // audioChildEntries is empty when (a) older consumer (no 1.2 gate), (b) v1.0/
+  // v1.1 asset (no audio_semantic.json), or (c) all modalities null → no-op.
+  if (audioChildEntries.length > 0) {
+    const audioChildById = new Map(audioChildEntries.map((e) => [e.output_key, e]));
+    for (const node of tree.artifactNodes) {
+      const data = (node.data ?? {}) as Record<string, any>;
+      const entry = audioChildById.get(String(data.output_key));
+      if (!entry) continue;
+      data.assetType = entry.kind;  // 覆盖 "delivery" → "dialogue"/"music"/"sfx"
     }
   }
 
