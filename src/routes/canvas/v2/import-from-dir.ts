@@ -895,8 +895,14 @@ const SHOT_TIMELINE_SENTINEL_KEY = "__shot_timeline_asset__";
  * 渲染已知字段,不 reject. Phase 9 (PRESENT-04) 起新增 "1.1" 支持
  * (character/prop registry_snapshot + data.characters/props);未知/future 版本
  * 仍走 graceful-degrade warn 分支.
+ *
+ * Phase 17 (CONSUMER-01): 新增 "1.2" 支持 —— per-shot dialogue/music/sfx
+ * type:"asset" 子节点经 §7 buildPhaseTree 后处理 emit (gated on
+ * KNOWN_VERSIONS.has("1.2"));audio_semantic.json + speakers.json sidecar
+ * 读取. 仍是 graceful-degrade: 无 1.2 entry 的旧 consumer 静默跳过音频子节点
+ * emission (SPEC §4 兼容契约). MUS-04 instruments 永不 emit (deferred v1.3).
  */
-const SHOT_TIMELINE_KNOWN_VERSIONS = new Set(["1", "1.1"]);
+const SHOT_TIMELINE_KNOWN_VERSIONS = new Set(["1", "1.1", "1.2"]);
 
 /**
  * 探测 video.mp4 分辨率,合成 video 子节点 `resolution` 字段.
