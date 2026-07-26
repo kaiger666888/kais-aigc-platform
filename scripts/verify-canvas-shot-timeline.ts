@@ -456,6 +456,119 @@ async function main(): Promise<void> {
       : v11Errors.map((e) => `${e.nodeId}: ${e.errors}`).join(" | "),
   );
 
+  // ═══════════════════════════════════════════════════════════════════
+  // Phase 17 (CONSUMER-01): v1.2 fixture — dialogue/music/sfx audio child emission
+  // ═══════════════════════════════════════════════════════════════════
+  // The v1.0 + v1.1 sections above are the regression gate (must stay green).
+  // This THIRD run against the v1.2 fixture (schema_version "1.2" + audio_semantic
+  // sidecar with dialogue/music/sfx modalities) exercises the §7 post-process
+  // that overrides assetType from the seeded "delivery" to "dialogue"/"music"
+  // /"sfx". Gated on KNOWN_VERSIONS.has("1.2") (Task 1) — older consumers
+  // skip emission entirely (T-17-01 graceful-degrade contract).
+  console.log("\n=== Phase 17 v1.2 fixture (CONSUMER-01) ===\n");
+
+  const V12_FIXTURE = path.resolve(__dirname, "fixtures/shot-timeline-v1.2");
+  const v12ManifestPath = path.join(V12_FIXTURE, "asset.json");
+  const v12Manifest = JSON.parse(fs.readFileSync(v12ManifestPath, "utf8"));
+  const v12WorkdirBase = path.basename(V12_FIXTURE.replace(/\/$/, ""));
+  setWorkdirToOss({ workdir: V12_FIXTURE, ossPrefix: `/oss/${v12WorkdirBase}` });
+
+  const v12Out = await extractShotTimelineArtifacts(v12Manifest, V12_FIXTURE, v12ManifestPath);
+  const v12Nodes = v12Out.nodes;
+
+  // Classify audio children by assetType (set by §7 post-process override).
+  const v12Dialogue = v12Nodes.filter((n: any) => n.type === "asset" && (n.data as any)?.assetType === "dialogue");
+  const v12Music = v12Nodes.filter((n: any) => n.type === "asset" && (n.data as any)?.assetType === "music");
+  const v12Sfx = v12Nodes.filter((n: any) => n.type === "asset" && (n.data as any)?.assetType === "sfx");
+  const v12Delivery = v12Nodes.filter((n: any) => n.type === "asset" && (n.data as any)?.assetType === "delivery");
+  // Confirm v1.1 character/prop children still emit on the v1.2 fixture
+  // (registry_snapshot carried verbatim — zero-regression proof).
+  const v12Chars = v12Nodes.filter((n: any) => n.type === "asset" && (n.data as any)?.assetType === "character");
+  const v12Props = v12Nodes.filter((n: any) => n.type === "asset" && (n.data as any)?.assetType === "prop");
+
+  // (a) fixture: Shot 1 has dialogue + sfx + reproduction.music_gen non-null
+  //     (3 children); Shot 2 has dialogue only (1 child). Total = 2 dialogue +
+  //     1 music + 1 sfx = 4 audio children.
+  assert(
+    v12Dialogue.length === 2,
+    "CONSUMER-01: exactly 2 dialogue children (one per shot with non-null dialogue)",
+    `got ${v12Dialogue.length}`,
+  );
+  assert(
+    v12Music.length === 1,
+    "CONSUMER-01: exactly 1 music child (Shot 1 only — reproduction.music_gen non-null)",
+    `got ${v12Music.length}`,
+  );
+  assert(
+    v12Sfx.length === 1,
+    "CONSUMER-01: exactly 1 sfx child (Shot 1 only — sfx.description non-empty)",
+    `got ${v12Sfx.length}`,
+  );
+
+  // (b) §7 post-process overrode the seeded "delivery" → zero assetType=delivery leak
+  //     (character/prop from v1.1 layer also non-delivery after their (e.2) override).
+  assert(
+    v12Delivery.length === 0,
+    "CONSUMER-01 §7: zero asset nodes leak as assetType=delivery (post-process overrode the seed)",
+    `got ${v12Delivery.length} delivery asset nodes`,
+  );
+
+  // (c) stable output_key pattern — audio children use audio_{dia,mus,sfx}_{shot_id}
+  assert(
+    v12Dialogue.every((n: any) => /^audio_dia_\d+$/.test(String((n.data as any)?.output_key))),
+    "CONSUMER-01: dialogue output_key matches ^audio_dia_\\d+$",
+    `got ${v12Dialogue.map((n: any) => (n.data as any)?.output_key).join(", ")}`,
+  );
+  assert(
+    v12Music.every((n: any) => /^audio_mus_\d+$/.test(String((n.data as any)?.output_key))),
+    "CONSUMER-01: music output_key matches ^audio_mus_\\d+$",
+    `got ${v12Music.map((n: any) => (n.data as any)?.output_key).join(", ")}`,
+  );
+  assert(
+    v12Sfx.every((n: any) => /^audio_sfx_\d+$/.test(String((n.data as any)?.output_key))),
+    "CONSUMER-01: sfx output_key matches ^audio_sfx_\\d+$",
+    `got ${v12Sfx.map((n: any) => (n.data as any)?.output_key).join(", ")}`,
+  );
+
+  // (d) MUS-04 LOCKED — zero audio children carry an instruments field.
+  //     T-17-02 mitigation: music child carries ONLY reproduction.music_gen
+  //     payload; tempo/mood/key/VA + instruments fields DO NOT EXIST in v1.2.
+  const allV12AssetNodes = v12Nodes.filter((n: any) => n.type === "asset");
+  const instrumentsLeaks = allV12AssetNodes.filter((n: any) =>
+    (n.data as any)?.instruments != null || (n.data as any)?.instrument != null,
+  );
+  assert(
+    instrumentsLeaks.length === 0,
+    "CONSUMER-01 MUS-04: zero audio children carry an instruments field (deferred v1.3)",
+    `got ${instrumentsLeaks.length} instruments leaks`,
+  );
+
+  // (e) v1.1 regression — character/prop children still emit on the v1.2 fixture
+  //     (registry_snapshot carried verbatim from v1.1 fixture).
+  assert(
+    v12Chars.length === 2,
+    "CONSUMER-01 regression: v1.1 character children still emit on v1.2 fixture (registry carried)",
+    `got ${v12Chars.length}`,
+  );
+  assert(
+    v12Props.length === 1,
+    "CONSUMER-01 regression: v1.1 prop children still emit on v1.2 fixture (registry carried)",
+    `got ${v12Props.length}`,
+  );
+
+  // (f) per-type Zod green on ALL v1.2 child nodes (CR-01 regression catch,
+  //     mirror v1.1 WR-03 at :449-457). Catches missing filePath / label on
+  //     any future audio child regression.
+  const v12ChildNodes = v12Nodes.filter((n: any) => n.type !== "zone" && !n.id.startsWith("sum-"));
+  const v12Errors = validateGraphNodes(v12ChildNodes);
+  assert(
+    v12Errors.length === 0,
+    "CONSUMER-01 CANVAS-03: all v1.2 child nodes pass per-type Zod (regression catch for missing filePath / label / assetType)",
+    v12Errors.length === 0
+      ? undefined
+      : v12Errors.map((e) => `${e.nodeId}: ${e.errors}`).join(" | "),
+  );
+
   finish();
 }
 
