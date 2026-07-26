@@ -122,6 +122,8 @@ export default function ProjectSelector({
         加载画布
       </button>
 
+      {selectedProject?.name && <CopyableName name={selectedProject.name} />}
+
       {error && <span style={{ color: theme.status.rejected, fontSize: 11 }}>{error}</span>}
     </div>
   )
@@ -136,6 +138,62 @@ function formatCounts(p: ProjectInfo): string {
   if (p.storyboardCount > 0) parts.push(`${p.storyboardCount}分镜`)
   if (p.videoCount > 0) parts.push(`${p.videoCount}视频`)
   return parts.length > 0 ? parts.join(' · ') : '空'
+}
+
+/** 复制文本：优先 navigator.clipboard；非安全上下文（http / Tailscale IP）退到 execCommand。 */
+async function copyText(text: string): Promise<void> {
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    try { await navigator.clipboard.writeText(text); return } catch { /* fall through */ }
+  }
+  if (typeof document === 'undefined') return
+  const ta = document.createElement('textarea')
+  ta.value = text
+  ta.style.position = 'fixed'
+  ta.style.top = '-1000px'
+  ta.style.opacity = '0'
+  document.body.appendChild(ta)
+  ta.focus()
+  ta.select()
+  try { document.execCommand('copy') } finally { document.body.removeChild(ta) }
+}
+
+/** 当前项目名标签：常驻展示，单击复制，复制成功显示 ✓。 */
+function CopyableName({ name }: { name: string }) {
+  const [copied, setCopied] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const onClick = useCallback(async () => {
+    try {
+      await copyText(name)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch { /* ignore */ }
+  }, [name])
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      title="点击复制项目名"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        background: hovered ? theme.bg.input : theme.bg.surface,
+        color: copied ? theme.state.success : theme.text.primary,
+        border: `1px solid ${hovered ? theme.border.default : theme.border.subtle}`,
+        borderRadius: 6,
+        padding: '5px 10px',
+        fontSize: 12,
+        cursor: 'pointer',
+        maxWidth: 280,
+        transition: 'background 120ms, border-color 120ms, color 120ms',
+      }}
+    >
+      <span style={{ opacity: 0.5, fontSize: 11 }}>📄</span>
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+      <span style={{ opacity: 0.6, fontSize: 13 }}>{copied ? '✓' : '⎘'}</span>
+    </button>
+  )
 }
 
 const selectStyle: React.CSSProperties = {
