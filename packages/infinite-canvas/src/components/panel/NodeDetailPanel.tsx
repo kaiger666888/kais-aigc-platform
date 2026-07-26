@@ -261,7 +261,14 @@ function MediaViewer({ asset, raw, onImageClick }: { asset: AssetNodeV3; raw: Re
   if (asset.modality === 'video') {
     const src = resolveMediaUrl(m.proxy ?? m.original)
     const poster = resolveMediaUrl(m.thumbnail) ?? undefined
-    if (!src && !poster) return null
+    if (!src && !poster) {
+      return (
+        <>
+          <SectionLabel>视频</SectionLabel>
+          <MissingPlaceholder path={m.proxy ?? m.original} />
+        </>
+      )
+    }
     return (
       <>
         <SectionLabel>视频</SectionLabel>
@@ -293,16 +300,22 @@ function MediaViewer({ asset, raw, onImageClick }: { asset: AssetNodeV3; raw: Re
   return <ImageGallery asset={asset} raw={raw} onImageClick={onImageClick} />
 }
 
-/** 图片资产图集：原图（大图，可点开 lightbox）+ 缩略图 / 转面表 / 各视角裁切。 */
+/**
+ * 图片资产图集：原图（大图，可点开 lightbox）+ 转面表 / 各视角裁切。
+ *
+ * 加载失败有友好兜底（对齐 AssetCardNode.Cover 的三层兜底，解决「双击弹窗看不到原图」）：
+ *  - 主图：原图 404 → 退缩略图 → 退「文件缺失」占位（显示路径，定位死链），
+ *    不再显示裸 broken-image 图标；
+ *  - 相关图：单张 404 → 保留格子标注「缺失」，不再 parentElement.display='none' 静默消失。
+ *  缩略图不再单列于相关图——它现在是主图 original 失败时的兜底源，避免重复。
+ */
 function ImageGallery({ asset, raw, onImageClick }: { asset: AssetNodeV3; raw: Record<string, unknown> | undefined; onImageClick: (src: string) => void }) {
   const m = asset.media
   const ossDir = ossDirOf(m.original ?? m.thumbnail)
-  // 原图（权威，可点开大图）
   const original = resolveMediaUrl(m.original)
-  // 相关图：thumbnail → turnaround_sheet → crops.{front,three_quarter,side,back,...}
-  const related: Array<{ label: string; src: string }> = []
   const thumb = resolveMediaUrl(m.thumbnail)
-  if (thumb) related.push({ label: '缩略图', src: thumb })
+  // 相关图：turnaround_sheet → crops.{front,three_quarter,side,back,...}（缩略图改作主图兜底，不单列）
+  const related: Array<{ label: string; src: string }> = []
   if (typeof raw?.turnaround_sheet === 'string') {
     const u = resolveRelativeAssetPath(raw.turnaround_sheet, ossDir)
     if (u) related.push({ label: '转面表', src: u })
@@ -314,29 +327,109 @@ function ImageGallery({ asset, raw, onImageClick }: { asset: AssetNodeV3; raw: R
       if (u) related.push({ label: k, src: u })
     }
   }
-  if (!original && related.length === 0) return null
+  if (!original && !thumb && related.length === 0) return null
   return (
     <>
       <SectionLabel>{original ? '原图' : '预览图'}</SectionLabel>
-      {original && (
-        <div onClick={() => onImageClick(original)} style={{ borderRadius: 8, overflow: 'hidden', cursor: 'pointer', border: `1px solid ${theme.border.default}`, marginBottom: 12 }}>
-          <img src={original} alt={asset.phaseName} style={{ width: '100%', display: 'block', maxHeight: 400, objectFit: 'contain', background: theme.bg.image }} />
-        </div>
-      )}
+      <MainImage
+        original={original}
+        fallback={thumb}
+        alt={asset.phaseName}
+        missingPath={m.original ?? m.thumbnail ?? undefined}
+        onImageClick={onImageClick}
+      />
       {related.length > 0 && (
         <>
           <SectionLabel>相关图片</SectionLabel>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 12 }}>
             {related.map((r) => (
-              <div key={r.label + r.src} onClick={() => onImageClick(r.src)} style={{ borderRadius: 6, overflow: 'hidden', cursor: 'pointer', border: `1px solid ${theme.border.default}`, position: 'relative', aspectRatio: '1' }}>
-                <img src={r.src} alt={r.label} loading="lazy" onError={(e) => { (e.currentTarget.parentElement as HTMLElement).style.display = 'none' }} style={{ width: '100%', height: '100%', objectFit: 'cover', background: theme.bg.image }} />
-                <span style={{ position: 'absolute', left: 0, bottom: 0, right: 0, padding: '2px 6px', fontSize: 10, color: theme.text.primary, background: 'rgba(0,0,0,0.55)' }}>{r.label}</span>
-              </div>
+              <GalleryImage key={r.label + r.src} label={r.label} src={r.src} onImageClick={onImageClick} />
             ))}
           </div>
         </>
       )}
     </>
+  )
+}
+
+/** 主图三层兜底：原图 → 缩略图 → 文件缺失占位（对齐 AssetCardNode.Cover）。 */
+function MainImage({ original, fallback, alt, missingPath, onImageClick }: {
+  original: string | null
+  fallback: string | null
+  alt: string
+  missingPath: string | undefined
+  onImageClick: (src: string) => void
+}) {
+  const [stage, setStage] = useState<'original' | 'fallback' | 'failed'>(
+    original ? 'original' : fallback ? 'fallback' : 'failed',
+  )
+  // 切换节点（original/fallback 引用变）时重试，避免上个节点的失败态串到新节点。
+  useEffect(() => {
+    setStage(original ? 'original' : fallback ? 'fallback' : 'failed')
+  }, [original, fallback])
+  if (stage === 'failed') {
+    return <MissingPlaceholder path={missingPath} />
+  }
+  const src = stage === 'original' ? original : fallback
+  return (
+    <div onClick={() => src && onImageClick(src)} style={{ borderRadius: 8, overflow: 'hidden', cursor: 'pointer', border: `1px solid ${theme.border.default}`, marginBottom: 12 }}>
+      <img
+        src={src ?? undefined}
+        alt={alt}
+        style={{ width: '100%', display: 'block', maxHeight: 400, objectFit: 'contain', background: theme.bg.image }}
+        onError={() => setStage((s) => (s === 'original' && fallback ? 'fallback' : 'failed'))}
+      />
+    </div>
+  )
+}
+
+/** 相关图：单张 404 → 保留格子标注「缺失」（不静默消失，让用户知道有这图但加载失败）。 */
+function GalleryImage({ label, src, onImageClick }: { label: string; src: string; onImageClick: (src: string) => void }) {
+  const [failed, setFailed] = useState(false)
+  useEffect(() => { setFailed(false) }, [src])
+  if (failed) {
+    return (
+      <div style={{ borderRadius: 6, overflow: 'hidden', border: `1px solid ${theme.border.default}`, position: 'relative', aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', background: theme.bg.image }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 18, opacity: 0.4 }}>🖼</div>
+          <div style={{ fontSize: 9, color: theme.text.disabled, marginTop: 2 }}>缺失</div>
+        </div>
+        <span style={{ position: 'absolute', left: 0, bottom: 0, right: 0, padding: '2px 6px', fontSize: 10, color: theme.text.primary, background: 'rgba(0,0,0,0.55)' }}>{label}</span>
+      </div>
+    )
+  }
+  return (
+    <div onClick={() => onImageClick(src)} style={{ borderRadius: 6, overflow: 'hidden', cursor: 'pointer', border: `1px solid ${theme.border.default}`, position: 'relative', aspectRatio: '1' }}>
+      <img src={src} alt={label} loading="lazy" onError={() => setFailed(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', background: theme.bg.image }} />
+      <span style={{ position: 'absolute', left: 0, bottom: 0, right: 0, padding: '2px 6px', fontSize: 10, color: theme.text.primary, background: 'rgba(0,0,0,0.55)' }}>{label}</span>
+    </div>
+  )
+}
+
+/**
+ * 文件缺失占位：弱色虚线框 + 🖼 + 路径 + 排查提示。
+ * 用于原图/视频文件不可达（如 scifi-epic 这类源目录已删除的死链项目）——
+ * 把不可见的 404 变成可定位的诊断信息，而非裸 broken-image 图标。
+ */
+function MissingPlaceholder({ path }: { path: string | null | undefined }) {
+  return (
+    <div style={{
+      borderRadius: 8, marginBottom: 12, padding: 20,
+      background: theme.bg.image, border: `1px dashed ${theme.border.subtle}`,
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
+      color: theme.text.disabled, textAlign: 'center',
+    }}>
+      <div style={{ fontSize: 26, opacity: 0.5 }}>🖼</div>
+      <div style={{ fontSize: 12, color: theme.text.secondary }}>文件缺失，无法预览</div>
+      {path && (
+        <div style={{ fontSize: 10, fontFamily: 'var(--cv-font-mono, monospace)', color: theme.text.disabled, wordBreak: 'break-all', maxWidth: '100%', lineHeight: 1.4 }}>
+          {path}
+        </div>
+      )}
+      <div style={{ fontSize: 10, color: theme.text.disabled, maxWidth: 320, lineHeight: 1.4 }}>
+        源文件可能已迁移或删除。检查 data/oss/ 下该项目的符号链接是否存在、指向是否有效。
+      </div>
+    </div>
   )
 }
 
