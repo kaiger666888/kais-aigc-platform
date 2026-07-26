@@ -128,6 +128,28 @@ function sniffModality(filePath: string | undefined, fallback: 'image' | 'audio'
   return fallback;
 }
 
+/**
+ * 仅当路径是前端可直接消费的形态（`/oss/...` 或绝对路径）时返回它；相对路径返回
+ * null。storyboard 的 scene_ref 常是相对 episode 根的路径（如 `assets/S07/x.png`），
+ * 前端无法解析会 404——这类由 canvas_sync / 补数据脚本解析成绝对路径回填到 filePath，
+ * migrate 层只对已是可消费形态的 scene_ref 做兜底。
+ */
+function consumableMediaPath(p: unknown): string | null {
+  return typeof p === 'string' && /^(\/oss\/|\/)/.test(p) ? p : null;
+}
+
+/** 从 character_refs[].turnaround_path 取首个字符串值（storyboard 画面再兜底）。 */
+function firstTurnaroundPath(refs: unknown): unknown {
+  if (!Array.isArray(refs)) return null;
+  for (const r of refs) {
+    if (r && typeof r === 'object') {
+      const tp = (r as Record<string, unknown>).turnaround_path;
+      if (typeof tp === 'string') return tp;
+    }
+  }
+  return null;
+}
+
 /** 【§14】节点 data 上的 prompt/seed/engine → 生成事件 params（P4：配方唯一合法存放处）。 */
 function recipeParams(v2: FlowNodeV2): GenerationParams {
   const d = v2.data ?? {};
@@ -480,7 +502,13 @@ export function migrateV2toV3(v2: FlowGraphV2Export): {
         // 【§14】data.filePath → media.original；data.thumbnailPath → media.thumbnail
         // （后端实际字段是 thumbnailPath；thumbnailUrl 为旧别名兜底。thumbnailPath 未进
         //  v2types 白名单——后端富字段，按 §7「V2 公共字段全保留」宽松消费，cast 读取）
-        original: d.filePath ?? null,
+        // storyboard 兜底：filePath 缺失时回退 scene_ref（场景参考图），再回退
+        // character_refs[].turnaround_path——但仅当已是 /oss/ 或绝对路径形态
+        // （相对路径前端无法解析，由 canvas_sync / 补数据脚本解析回填，不在此回退）。
+        original: d.filePath
+          ?? consumableMediaPath((d as Record<string, unknown>).scene_ref)
+          ?? consumableMediaPath(firstTurnaroundPath((d as Record<string, unknown>).character_refs))
+          ?? null,
         proxy: null,
         thumbnail: ((d as Record<string, unknown>).thumbnailPath as string | null | undefined) ?? d.thumbnailUrl ?? null,
         waveform: null,
