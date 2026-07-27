@@ -141,6 +141,11 @@ async function apiCall<T>(
 
 // ─── 项目 & 剧本 ─────────────────────────────────────────
 
+export interface ProjectEpisode {
+  id: number
+  nodeCount: number
+}
+
 export interface ProjectInfo {
   id: number
   name: string
@@ -151,8 +156,12 @@ export interface ProjectInfo {
   imageModel?: string | null
   videoModel?: string | null
   createTime?: number | null
-  scriptCount: number
+  /** 画布真实内容统计（从 canvas_nodes 实时聚合，替代旧的 o_script/o_assets 空表 count）。 */
   assetCount: number
+  storyboardCount: number
+  videoCount: number
+  episodeCount: number
+  episodes: ProjectEpisode[]
 }
 
 export interface ScriptInfo {

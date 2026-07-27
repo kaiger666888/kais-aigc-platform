@@ -1240,33 +1240,40 @@ export async function executeFoleyPipeline(opts: FoleyOpts): Promise<{
 // Simplified API — 只暴露用户关心的参数
 // ============================================================
 //
-// POST /api/ltx/msr (multipart/form-data)
+// POST /api/ltx/msr (multipart/form-data)  +  POST /verified (同步+BGM重生)
 //
-// 必填:
-//   prompt         — 正向提示词
-//   ref1~refN      — 2~5 张参考图 (ref1 是背景图, ref2~refN 是参考图)
+// 📖 完整入参/提示词撰写指南见 docs/ltx-msr-input-guide.md(范例源自 ~/文档/LTX/validition_v1)。
+// 本注释是 call-time 速查;不确定时读那份文档——MSR 对参考图与提示词写法高度敏感。
 //
-// 可选 (都有合理默认值):
-//   duration       — 视频秒数, 默认 3
-//   fps            — 帧率, 默认 24
-//   width          — 分辨率宽, 默认 1280
-//   height         — 分辨率高, 默认 704
-//   negativePrompt — 负向提示词, 有默认值
-//   seed           — 随机种子, 默认随机
-//   outputFilename — 输出文件名 (不含扩展名), 默认自动生成
-//   outputDir      — 容器内输出子目录, 默认 ""
+// ======================= 黄金法则(最容易踩的坑) =======================
+// 1. 参考图顺序:主体在前(slot1-4),背景=最后一张(background 槽)。见 buildMSRWorkflow
+//    msr.ts:329-332: backgroundFilename=refFilenames[last], refSlots=refFilenames.slice(0,-1)。
+//    即 ref1=第一个主体(不是背景!),refN(末位)=背景。放反→主体和背景错位。
+//    每个主体 ref 必须是「角色卡」拼图:横排 4 格 = 正面近照 + 全身正/侧/背(见 input-guide §2.2)。
+// 2. refDescription 写「身份」(每角色一段外貌/服饰/场景,不写动作),prompt 写「动作」。
+//    V2 PromptRelay:global_prompt=refDescription, local_prompts=prompt(见 node 99)。
+//    漏填 refDescription → 模型拿 prompt 当 identity → 人物漂移。强烈建议必填。
+// 3. 不要在 prompt 里写音乐词("BGM"/"soundtrack"/"epic music")——audioMode 已自动注入
+//    diegetic 正向 + 音乐/字幕负向(见 AUDIO_GUIDES),你写了反而诱发 BGM。要环境音就写
+//    具体声源(footsteps/wind/rustle)。中文对白别在正向提"字幕"(会被转录烧录)。
+// 4. 对口型标注(谁说话+台词+嘴型同步)只进 stage2PromptSuffix,绝不进 prompt
+//    ——否则 LTX 人声偏置在环境声 Stage 渗出"第二种声音"。
+// 5. width/height 必须匹配参考图宽高比(默认 1280×704=16:9;竖屏立绘改 720×1280)。
 //
-// V2 可选参数 (默认启用):
-//   useV2          — 启用 NAG + LoRA V2, 默认 true (设 "false" 退回 V1)
-//   refDescription — 参考图角色/场景描述, 用于增强 identity 一致性
-//   nagWeight      — NAG alpha (注意力引导强度), 默认 0.25
-//   nagLayers      — NAG scale (注意力层数), 默认 11
-//   nagSigmaStart  — NAG tau (裁剪阈值), 默认 2.5
-//   msrLoraVersion — LoRA 版本选择: "V2" (默认), "V1", "test"
+// ======================= 字段速查(默认值见 parseAndUploadAssets) =======================
+// 必填:projectId(number)、prompt(非空)、ref1..refN(2~5 张,主体在前背景在末位)
+// 提示词:prompt(动作)、refDescription(identity,强烈建议)、negativePrompt(有默认,勿重写)
+//         stage2PromptSuffix(仅 5stage Stage2 对口型)、foleyPrompt(仅 foley_v2a)
+// 基础:duration(3)、fps(24)、width(1280)、height(704)、seed、outputFilename、outputDir
+// V2:useV2(true)、nagWeight(0.25)、nagLayers(11)、nagSigmaStart(2.5)、relayWeight(0.0022)、msrLoraVersion(V2)
+// 音频:audioStrategy(tts/foley/ambient/silent,推荐)> audioMode(dialogue+ambient/dialogue+ambient_v2/
+//         5stage_pipeline/ambient_only/silent/auto)> 智能默认。audio(file)、dialogueEndTime(5stage/v2 必填)
+// 画面引导:firstFrame[/firstFramePath](str 0.8)、lastFrame[/lastFramePath](str 0.6)、firstFrameIdx、
+//         poseVideoFrames(JSON 数组,宿主白名单路径)、poseGuideStrength(0.7)
+// /verified 专用:maxRegenAttempts(3)、bgmThreshold(0.10)、pollTimeoutMs(600000)
+// 宿主路径白名单:/data/workspace/kais-blender-docker/outputs/ | /mnt/agents/output/ | /tmp/comfyui-ltx-input/
 //
-// 内部自动计算 (不暴露):
-//   numFrames      = roundTo8nPlus1(duration * fps + 1)
-//   msrFrameCount  = 自动匹配最接近的 [17,25,33,41]
+// 内部自动计算(不暴露):numFrames = roundTo8nPlus1(duration*fps + 1);msrFrameCount ∈ [17,25,33,41]
 
 const commonUpload = upload.fields([
   { name: "ref1", maxCount: 1 },

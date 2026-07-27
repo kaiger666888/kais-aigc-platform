@@ -33,14 +33,71 @@ const REFS_DIR = `${OUT_DIR}/refs`;
 const SHOT_FRAMES_DIR = "/data/workspace/kais-shot-timeline/output/虫虫武侠小故事《小江湖》第01话：爸爸去哪儿？（ 画面只是工具，情绪才是目的。/shot_frames";
 
 const WIDTH = 1280, HEIGHT = 704, FPS = 24;
-const MSR_FC = 41;                 // MSR 条件帧数(不影响输出时长)
+const MSR_FC = 41;                 // MSR 条件帧数上限(不影响输出时长)
+const MSR_FC_VALUES = [17, 25, 33, 41];  // LTX MSR 合法条件帧数(8k+1)
 const SEED = 12345;
 const NEG = "worst quality, blurry, jittery, distorted, text, watermark";
 const USE_FIRSTLAST = process.env.FIRSTLAST !== "0"; // 默认开首尾帧
 const CAP_SEC = Number(process.env.CAP_SEC || 0);     // 0 = 不设上限,用真实时长
 
 const DEFAULT_SHOTS = [1, 8, 17, 37, 66, 90];
-const REF_FILES = ["char_caterpillar.jpg", "char_beetle.jpg", "char_mantis.jpg", "bg_forest.jpg"]; // 干净角色图+背景图(末位=bg 槽)
+// 角色卡(4 视角 turnaround)+ 背景变体池。MSR 约定:主体进 slot1-4,背景=refFilenames 最后一张。
+// 角色卡规范见 docs/ltx-msr-input-guide.md §2.2(正面近照 + 全身正/侧/背)。
+const ALL_REFS = [
+  "char_caterpillar_turnaround.png", "char_beetle_turnaround.png", "char_mantis_turnaround.png", "char_centipede_turnaround.png",
+  "bg_forest_mossy.jpg", "bg_forest_misty.jpg",
+];
+
+/** 按镜头的 subject/scene 选 refs:命中的角色卡在前(slot1-4),匹配的背景在末位(background 槽)。
+ *  实事求是:只参考画面里实际出现的角色,不兜底。空镜(无角色)= 仅 [bg]。 */
+function pickRefs(p: { subject?: string; prompt_text?: string; scene?: string }): string[] {
+  const text = `${p.subject || ""} ${p.prompt_text || ""}`;
+  const scene = p.scene || "";
+  const subjects: string[] = [];
+  if (/毛毛虫/.test(text)) subjects.push("char_caterpillar_turnaround.png");
+  if (/独角仙/.test(text)) subjects.push("char_beetle_turnaround.png");
+  if (/螳螂/.test(text)) subjects.push("char_mantis_turnaround.png");
+  if (/蜈蚣/.test(text)) subjects.push("char_centipede_turnaround.png");
+  const subj = subjects.slice(0, 4); // LiconMSR slot1-4 最多 4 张主体(只取画面实有角色,不兜底)
+  const bg = /雾|空地|misty/.test(scene) ? "bg_forest_misty.jpg" : "bg_forest_mossy.jpg";
+  return [...subj, bg]; // 主体在前,背景最后(末位=background 槽);空镜=仅 [bg]
+}
+
+// 角色身份(对应角色卡设计,纯 identity,无动作)→ 进 refDescription(PromptRelay global_prompt)
+const CHAR_IDENTITY: Record<string, string> = {
+  毛毛虫: "毛毛虫小孩:圆滚滚胖嘟嘟的身材,橙黄色柔软绒毛,头顶绿色小草辫,大而灵动的眼睛",
+  独角仙: "独角仙武士:红棕色油亮甲壳,头顶巨大双叉弯角,前臂缠米色绑带,英武挺拔",
+  螳螂: "螳螂武士:翠绿色身体,白色大复眼,橙色触角,锋利镰刀前足,手持小刀刃",
+  蜈蚣: "巨型红蜈蚣:猩红色多节甲壳,密布黄色长足,扁平头部,一对黑色毒牙与张开的大颚钳,尾部最后一对步足特化为一对粗壮尾足、向后延伸、末端带黑色弯钩(尾勾)",
+};
+
+/**
+ * 按 LTX 多参考要求把逐镜数据拆成两路(见 docs/ltx-msr-input-guide.md §3.1):
+ *   refDescription = 身份(角色设计 + 场景 + 光照 + 风格) → PromptRelay global_prompt(全局条件,锚 identity)
+ *   prompt         = 动作 + 运镜                         → PromptRelay local_prompts(时间变化)
+ * action 字段已是「完整物理动作链」——prompts.json 源数据已按 prompts.schema.json#action 标准一次性升级
+ * (迁移记录见 data/oss/shot-timeline-ep01/action_chains.json),故 prompt = action + camera 直接拼,无需 override。
+ * 身份绝不能混进 prompt,否则模型把动作当 identity,出现不遵循提示词 / 物理违和。
+ */
+function buildPrompts(p: {
+  subject?: string; prompt_text?: string; scene?: string;
+  action?: string; camera?: string; lighting?: string; style?: string;
+}): { refDescription: string; prompt: string } {
+  const text = `${p.subject || ""} ${p.prompt_text || ""}`;
+  const ids: string[] = [];
+  if (/毛毛虫/.test(text)) ids.push(CHAR_IDENTITY["毛毛虫"]);
+  if (/独角仙/.test(text)) ids.push(CHAR_IDENTITY["独角仙"]);
+  if (/螳螂/.test(text)) ids.push(CHAR_IDENTITY["螳螂"]);
+  if (/蜈蚣/.test(text)) ids.push(CHAR_IDENTITY["蜈蚣"]);
+  const refDescription = [
+    ...ids,
+    p.scene ? `场景:${p.scene}` : "",
+    p.lighting || "",
+    p.style || "",
+  ].filter(Boolean).join("。");
+  const prompt = [p.action || "", p.camera || ""].filter(Boolean).join("。") || p.prompt_text || "";
+  return { refDescription, prompt };
+}
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
@@ -60,6 +117,14 @@ function bestNumFrames(targetDuration: number, fps: number): number {
   const target = Math.round(targetDuration * fps);
   const k = Math.round((target - 1) / 8);
   return 8 * k + 1;
+}
+
+/** 按镜 numFrames 选 MSR 条件帧数:取 [17,25,33,41] 里 ≤ numFrames 的最大值。
+ *  必须如此:msrFrameCount 的 latent 不能超过该镜 latent 序列长度,否则
+ *  LTXAddVideoICLoRAGuide 报 "Conditioning frames exceed the length of the latent sequence"(短镜 <41f 会炸)。
+ *  msrFC=numFrames 等于情况已被验证可用(如 shot12 41f/41fc),firstFrameIdx 由节点 clamp。 */
+function bestMsrFc(numFrames: number): number {
+  return MSR_FC_VALUES.filter(v => v <= numFrames).pop() ?? 17;
 }
 
 async function submitAndWait(workflow: any, label: string, prefix: string): Promise<{ file: any; elapsed: number }> {
@@ -96,6 +161,38 @@ async function submitAndWait(workflow: any, label: string, prefix: string): Prom
       throw new Error(`[${label}] ComfyUI error: ${JSON.stringify(entry.status.messages || lastStatus).slice(0, 800)}`);
     if (Date.now() - start > 900_000) throw new Error(`[${label}] timeout (last: ${lastStatus})`);
   }
+}
+
+async function waitForComfy(maxWaitSec = 180): Promise<void> {
+  const deadline = Date.now() + maxWaitSec * 1000;
+  while (Date.now() < deadline) {
+    try { const r = await axios.get(`${COMFY}/system_stats`, { timeout: 3000 }); if (r.status === 200) return; } catch {}
+    await sleep(3000);
+  }
+  throw new Error("ComfyUI 未在限期内恢复");
+}
+
+/** 带 resilience 的单镜生成:ComfyUI 致命错误(OOM/interrupted/cuda)→ docker restart → 重试。
+ *  memory reference_comfyui_vram_degradation:OOM 后 /free 无效,必须 docker restart(保留 --enable-triton-backend)。 */
+async function runShotWithResilience(wf: any, label: string, prefix: string, maxAttempts = 3) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await submitAndWait(wf, label, prefix);
+    } catch (e: any) {
+      const msg = (e.message || "").toString();
+      const fatal = /interrupt|OOM|out of memory|cuda|VRAM|FATAL|timeout/i.test(msg);
+      console.log(`[${label}] attempt ${attempt}/${maxAttempts} 失败: ${msg.slice(0, 200)}`);
+      if (fatal && attempt < maxAttempts) {
+        console.log(`[${label}] → docker restart ${CONTAINER}(OOM/中断自愈)…`);
+        try { execSync(`docker restart ${CONTAINER}`, { timeout: 90_000 }); } catch (re) { console.log(`restart 失败: ${(re as any).message}`); }
+        await waitForComfy();
+        console.log(`[${label}] ComfyUI 恢复,重试该镜`);
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw new Error(`[${label}] unreachable`);
 }
 
 function findOutputFileByPrefix(prefix: string): any | null {
@@ -168,7 +265,7 @@ function writeHtml(results: any[], mode: string) {
   <h1>《小江湖》EP01 · shot-timeline 驱动 MSR 生成 — ${mode}</h1>
   <p>refs 锁角色 + 逐镜真实首尾帧锁起止 + prompts.json 逐镜 prompt · int8_convrot · seed ${SEED} · 时长=真实duration→nearest 8k+1 · ${new Date().toISOString().slice(0,16)}</p>
 </header>
-<div class="refs"><b>参考图池(MSR multi-reference,锁角色一致性):</b><br>${REF_FILES.map(f => `<img src="refs/${f}?v=${v}">`).join("")}</div>
+<div class="refs"><b>参考图池(角色卡+背景,按镜选取):</b><br>${ALL_REFS.map(f => `<img src="refs/${f}?v=${v}" style="height:90px">`).join("")}</div>
 <main>${cards}</main>
 </body></html>`;
   fs.writeFileSync(`${OUT_DIR}/index.html`, html);
@@ -182,10 +279,11 @@ async function main() {
   fs.mkdirSync(OUT_DIR, { recursive: true });
   fs.mkdirSync(REFS_DIR, { recursive: true });
 
-  const refHosts = REF_FILES.map(f => `${REFS_DIR}/${f}`);
+  const refHosts = ALL_REFS.map(f => `${REFS_DIR}/${f}`);
   for (const f of refHosts) if (!fs.existsSync(f)) throw new Error(`missing ref: ${f}`);
-  const refs = refHosts.map(dockerCp);
-  console.log("refs (container):", refs);
+  const refContainer: Record<string, string> = {};  // 主机文件名 → 容器内文件名
+  for (const f of ALL_REFS) refContainer[f] = dockerCp(`${REFS_DIR}/${f}`);
+  console.log("ref pool (container):", refContainer);
   console.log("mode:", USE_FIRSTLAST ? "refs + 逐镜首尾帧" : "纯 refs", CAP_SEC ? `(cap ${CAP_SEC}s)` : "(真实时长)");
 
   const prompts = JSON.parse(fs.readFileSync(`${ASSET}/prompts.json`, "utf8"));
@@ -209,6 +307,13 @@ async function main() {
     const tag = process.env.RUN_TAG || (USE_FIRSTLAST ? "fl" : "base");
     const prefix = `stlep01_shot${nn}_${tag}`;
 
+    // 断点续跑:已生成的镜跳过
+    const outMp4 = `${OUT_DIR}/${prefix}.mp4`;
+    if (fs.existsSync(outMp4) && (probeDuration(outMp4) ?? 0) > 0) {
+      console.log(`\nskip #${id}: 已存在 ${prefix}.mp4(断点续跑)`);
+      continue;
+    }
+
     // 逐镜真实首尾帧
     let firstFrame: string | undefined, lastFrame: string | undefined;
     let srcFirst: string | null = null, srcLast: string | null = null;
@@ -225,12 +330,14 @@ async function main() {
       }
     }
 
+    const { refDescription, prompt } = buildPrompts(p);
     const wf = buildMSRWorkflow({
-      refFilenames: refs,
-      prompt: p.prompt_text,
+      refFilenames: pickRefs(p).map(f => refContainer[f]),
+      prompt,               // 动作 → local_prompts
+      refDescription,       // 身份 → global_prompt(LTX MSR 多参考要求;之前漏传导致把动作当 identity)
       negativePrompt: NEG,
       width: WIDTH, height: HEIGHT,
-      numFrames, msrFrameCount: MSR_FC, fps: FPS,
+      numFrames, msrFrameCount: bestMsrFc(numFrames), fps: FPS,
       seed: SEED, filenamePrefix: prefix,
       audioMode: "silent",
       ...(firstFrame ? { firstFrameFilename: firstFrame, firstFrameStrength: 0.8 } : {}),
@@ -242,7 +349,7 @@ async function main() {
     console.log(`prompt: ${p.prompt_text}`);
     if (process.env.SKIP_GEN === "1") { console.log("SKIP_GEN=1, 仅构造 workflow"); continue; }
 
-    const { file, elapsed } = await submitAndWait(wf, `shot${id}_${tag}`, prefix);
+    const { file, elapsed } = await runShotWithResilience(wf, `shot${id}_${tag}`, prefix);
     const mp4 = `${prefix}.mp4`;
     await download(file, `${OUT_DIR}/${mp4}`);
 
@@ -261,7 +368,7 @@ async function main() {
   if (results.length) {
     fs.writeFileSync(`${OUT_DIR}/results.json`, JSON.stringify({
       seed: SEED, fps: FPS, msrFc: MSR_FC, useFirstLast: USE_FIRSTLAST,
-      refs: REF_FILES, mode: USE_FIRSTLAST ? "refs+firstlast" : "refs-only", shots: results,
+      refs: ALL_REFS, mode: USE_FIRSTLAST ? "refs+firstlast" : "refs-only", shots: results,
     }, null, 2));
     const mode = `干净角色/背景refs + 真实时长 + 首尾帧 (v${Date.now().toString().slice(-5)})`;
     writeHtml(results, mode);

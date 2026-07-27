@@ -12,7 +12,7 @@ import type {
   FlowGraphV3,
   FlowLinkV3,
 } from '../src/types.js';
-import type { FlowGraphV2Export } from '../src/v2types.js';
+import type { FlowGraphV2Export, FlowNodeV2Data } from '../src/v2types.js';
 
 const v2 = v2Sample as FlowGraphV2Export;
 const { graph, report } = migrateV2toV3(v2);
@@ -162,6 +162,41 @@ describe('§14 映射表逐行', () => {
   it('data.thumbnailUrl → media.thumbnail', () => {
     expect(asset(graph, 'n_sb_01').media.thumbnail).toBe('/assets/sb/shot-001_thumb.jpg');
     expect(asset(graph, 'n_sb_02').media.thumbnail).toBeNull();
+  });
+
+  // storyboard 画面兜底：filePath 缺失时回退 scene_ref/turnaround_path。
+  // 仅 /oss/ 或绝对路径形态回退（相对路径前端无法解析，留 null 由补数据脚本处理）。
+  const migrateStoryboard = (data: FlowNodeV2Data): AssetNodeV3 => {
+    const g = migrateV2toV3({
+      meta: { projectId: 1, episodesId: 1 },
+      nodes: [{
+        id: 'sb_t', type: 'storyboard', branchId: 'br_main', phaseIndex: 2,
+        phaseName: 'storyboard', position: { x: 0, y: 0 }, size: { width: 240, height: 160 },
+        state: 'success', data,
+      }],
+      links: [],
+    }).graph;
+    return asset(g, 'sb_t');
+  };
+
+  it('filePath 缺失 + scene_ref 是 /oss/ 路径 → media.original 回退 scene_ref', () => {
+    const a = migrateStoryboard({ shotId: 'S1', shotType: 'MCU', durationS: 3, scene_ref: '/oss/pipeline/abc/S1_front.png' });
+    expect(a.media.original).toBe('/oss/pipeline/abc/S1_front.png');
+  });
+
+  it('filePath 缺失 + scene_ref 是相对路径 → 不回退（前端无法解析，留 null）', () => {
+    const a = migrateStoryboard({ shotId: 'S1', shotType: 'MCU', durationS: 3, scene_ref: 'assets/S07/S1_front.png' });
+    expect(a.media.original).toBeNull();
+  });
+
+  it('filePath 缺失 + character_refs[].turnaround_path（/oss/）→ 回退', () => {
+    const a = migrateStoryboard({ shotId: 'S1', shotType: 'MCU', durationS: 3, character_refs: [{ name: '主角', turnaround_path: '/oss/pipeline/abc/protag.png' }] });
+    expect(a.media.original).toBe('/oss/pipeline/abc/protag.png');
+  });
+
+  it('filePath 存在 → scene_ref 不覆盖（filePath 优先）', () => {
+    const a = migrateStoryboard({ shotId: 'S1', shotType: 'MCU', durationS: 3, filePath: '/oss/x.mp4', scene_ref: '/oss/y.png' });
+    expect(a.media.original).toBe('/oss/x.mp4');
   });
 
   it('节点 data 上的 prompt/seed/engine → 生成事件 params', () => {

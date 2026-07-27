@@ -11,6 +11,7 @@ import VariantBadge from '../VariantBadge'
 import FeedbackBadge from '../FeedbackBadge'
 import { useCanvasStore } from '../../store/canvasStore'
 import { fetchAssetDetail } from '../../services/canvasApi'
+import { resolveMediaUrl } from '../../utils/mediaUrl'
 
 type AssetNodeType = Node<AssetNodeData, 'asset'>
 
@@ -70,7 +71,7 @@ function AssetNodeComponent({ data, id }: NodeProps<AssetNodeType>) {
     return () => { cancelled = true }
   }, [assetId, data.thumbnailUrl])
 
-  const displayThumb = (data.thumbnailUrl as string | null) || resolvedThumb
+  const displayThumb = resolveMediaUrl((data.thumbnailUrl as string | null) || null) ?? resolvedThumb
 
   const isLoser = data.isWinner === false
   const hasVariant = data.variantGroupId != null

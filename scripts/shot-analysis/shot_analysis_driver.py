@@ -36,7 +36,7 @@ SEMANTIC_PROMPT = (
     '"subject_motion":"主体自身运动方向与方式(已扣除相机),不超过15字",'
     '"lens_feel":"wide|normal|telephoto",'
     '"lighting":"不超过3个关键词"}\n'
-    "无法判断的字段填null。"
+    "无法判断的字段填null。只描述画面真实发生的,不要推测。"
 )
 
 
@@ -80,7 +80,7 @@ def build_prompt(video, shot, shot_id, fps, grid_n, do_semantic, do_subject,
                 "attention_mode": "auto", "use_torch_compile": False, "device": "auto",
                 "preset_prompt": "🖼️ Detailed Description",   # custom_prompt 会完全覆盖它
                 "custom_prompt": SEMANTIC_PROMPT,
-                "max_tokens": 256, "temperature": 0.1, "top_p": 0.9,
+                "max_tokens": 400, "temperature": 0.1, "top_p": 0.9,
                 "num_beams": 1, "repetition_penalty": 1.2,
                 "frame_count": 16, "keep_model_loaded": True, "seed": 1,
                 "video": ["load", 0],            # 帧序列作为 video 输入

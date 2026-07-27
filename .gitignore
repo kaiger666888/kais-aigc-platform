@@ -144,3 +144,4 @@ data/*.db-shm
 # Local planning reports (keep top-level .planning/*.md tracked if desired,
 # but auto-generated reports under .planning/reports/ are scratch)
 .planning/reports/
+workflows/ltx-2.3/shot-timeline-ep01-output/

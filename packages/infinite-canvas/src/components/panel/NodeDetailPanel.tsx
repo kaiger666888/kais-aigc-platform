@@ -9,10 +9,11 @@
  * 契约（phase35 e2e 不退化）：根 data-testid="detail-panel"、✕ 关闭、detail/feedback/iteration 三 tab、
  * storyboard「镜头意图」4 select（MetaRenderer 内）。Props={node,onClose} 签名不变。
  */
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import type { Node } from '@xyflow/react'
 import type { AssetNodeV3, AIScore, StaleInfo, NodeState } from '@kais/flowgraph-v3'
 import { theme, v3theme, getScoreColor } from '../../theme/catppuccin'
+import { RAW_FIELD_LABELS, RAW_FIELD_NOISE, RAW_FIELD_GROUPS } from '../../constants'
 import { useCanvasStore } from '../../store/canvasStore'
 import { triggerStaleCascade } from '../../hooks/useStale'
 import FileViewer from '../FileViewer'
@@ -22,6 +23,7 @@ import FeedbackPanel from '../FeedbackPanel'
 import IterationPanel from '../IterationPanel'
 import MetaRenderer from './MetaRenderer'
 import TimelineStructure from '../timeline/TimelineStructure'
+import { resolveMediaUrl, resolveRelativeAssetPath, ossDirOf } from '../../utils/mediaUrl'
 
 interface Props {
   node: Node | null
@@ -144,11 +146,15 @@ export default function NodeDetailPanel({ node, onClose }: Props): React.ReactEl
 
 function AssetDetail({ asset, node, onImageClick }: { asset: AssetNodeV3; node: Node; onImageClick: (src: string) => void }) {
   const graph = useCanvasStore((s) => s.graph)
+  const rawDataByNodeId = useCanvasStore((s) => s.rawDataByNodeId)
+  const raw = rawDataByNodeId?.get(node.id) ?? undefined
   return (
     <>
-      <MediaViewer asset={asset} onImageClick={onImageClick} />
+      <MediaViewer asset={asset} raw={raw} onImageClick={onImageClick} />
       <CurationBadge curation={asset.curation} />
       <MetaRenderer asset={asset} node={node} />
+      <ShotIntentSection raw={raw} />
+      <RawDataSection nodeId={node.id} />
       <ReviewSection asset={asset} node={node} />
       <ScoreSection aiScore={asset.aiScore} />
       <StaleSection stale={asset.stale} graph={graph} />
@@ -158,49 +164,330 @@ function AssetDetail({ asset, node, onImageClick }: { asset: AssetNodeV3; node: 
   )
 }
 
-function MediaViewer({ asset, onImageClick }: { asset: AssetNodeV3; onImageClick: (src: string) => void }) {
+/**
+ * 原始字段区：渲染 migrate 白名单之外、经 adapter sidecar 穿透的富字段（后端 data 袋）。
+ * 过滤噪音键（已映射到 media/params/标题）、按 RAW_FIELD_GROUPS 分组、键值行呈现；
+ * 长文本（台词/提示词/描述）走可折叠块。rawDataByNodeId 缺省（fixture 直通）→ 不渲染。
+ */
+const RAW_LONG_KEYS = new Set(['text', 'dialogue', 'ltx_prompt', 'ltxPrompt', 'description', 'negative', 'negative_prompt', 'premise'])
+
+function RawDataSection({ nodeId }: { nodeId: string }): React.ReactElement | null {
+  const rawDataByNodeId = useCanvasStore((s) => s.rawDataByNodeId)
+  const raw = rawDataByNodeId?.get(nodeId)
+  if (!raw) return null
+
+  const entries = Object.entries(raw).filter(([, v]) => v != null && v !== '' &&
+    !(Array.isArray(v) && v.length === 0) &&
+    !(typeof v === 'object' && !Array.isArray(v)))
+    .filter(([k]) => !RAW_FIELD_NOISE.has(k))
+  if (entries.length === 0) return null
+
+  const groups: Array<[string, Array<[string, unknown]>]> = []
+  for (const g of RAW_FIELD_GROUPS) {
+    const items = entries.filter(([k]) => g.keys.has(k))
+    if (items.length > 0) groups.push([g.title, items])
+  }
+  const others = entries.filter(([k]) => !RAW_FIELD_GROUPS.some((g) => g.keys.has(k)))
+  if (others.length > 0) groups.push(['其他', others])
+
+  return (
+    <>
+      {groups.map(([title, items]) => (
+        <Fragment key={title}>
+          <SectionLabel>{title}</SectionLabel>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {items.map(([k, v]) => {
+              const label = RAW_FIELD_LABELS[k] ?? k
+              const isLong = RAW_LONG_KEYS.has(k) || (typeof v === 'string' && v.length > 80)
+              return isLong ? <LongField key={k} label={label} value={v} /> : <KvRow key={k} label={label} value={v} />
+            })}
+          </div>
+        </Fragment>
+      ))}
+    </>
+  )
+}
+
+/** 单值键值行（值做轻量格式化：布尔/数组/数字）。 */
+function KvRow({ label, value }: { label: string; value: unknown }) {
+  const text = Array.isArray(value) ? value.join(', ')
+    : typeof value === 'boolean' ? (value ? '是' : '否')
+    : String(value)
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12 }}>
+      <span style={{ color: theme.text.secondary, flexShrink: 0 }}>{label}</span>
+      <span style={{ color: theme.text.primary, fontFamily: 'var(--cv-font-mono, monospace)', textAlign: 'right', wordBreak: 'break-word' }}>{text}</span>
+    </div>
+  )
+}
+
+/** 长文本字段：可折叠多行块。 */
+function LongField({ label, value }: { label: string; value: unknown }) {
+  const [open, setOpen] = useState(false)
+  const text = String(value)
+  return (
+    <div>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        style={{ background: 'none', border: 'none', color: theme.text.secondary, fontSize: 12, cursor: 'pointer', padding: 0, marginBottom: 2 }}
+      >
+        {label} {open ? '▾' : `▸ (${text.length}字)`}
+      </button>
+      {open && (
+        <div style={{ background: theme.bg.input, borderRadius: 6, padding: 8, color: theme.text.primary, fontSize: 12, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+          {text}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MediaViewer({ asset, raw, onImageClick }: { asset: AssetNodeV3; raw: Record<string, unknown> | undefined; onImageClick: (src: string) => void }) {
   const m = asset.media
   if (asset.modality === 'text') {
-    const text = asset.content ?? ''
+    // 正文：content 优先，缺省取 description / premise（富字段穿透）；空则不渲染。
+    const text = asset.content
+      ?? (typeof raw?.description === 'string' ? raw.description : undefined)
+      ?? (typeof raw?.premise === 'string' ? raw.premise : undefined)
+      ?? ''
     if (!text) return null
     return (
       <>
         <SectionLabel>正文</SectionLabel>
-        <div style={{ background: theme.bg.input, borderRadius: 8, padding: 12, color: theme.text.primary, fontSize: 13, lineHeight: 1.8, whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: '40vh', overflowY: 'auto' }}>{text}</div>
+        <div style={{ background: theme.bg.input, borderRadius: 8, padding: 12, color: theme.text.primary, fontSize: 13, lineHeight: 1.8, whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: '48vh', overflowY: 'auto', border: `1px solid ${theme.border.default}` }}>{text}</div>
       </>
     )
   }
   if (asset.modality === 'video') {
-    const src = m.proxy ?? m.original
-    if (!src) return null
+    const src = resolveMediaUrl(m.proxy ?? m.original)
+    const poster = resolveMediaUrl(m.thumbnail) ?? undefined
+    if (!src && !poster) {
+      return (
+        <>
+          <SectionLabel>视频</SectionLabel>
+          <MissingPlaceholder path={m.proxy ?? m.original} />
+        </>
+      )
+    }
     return (
       <>
         <SectionLabel>视频</SectionLabel>
-        <video controls poster={m.thumbnail ?? undefined} style={{ width: '100%', borderRadius: 8, background: theme.bg.image, border: `1px solid ${theme.border.default}` }}>
-          <source src={src} type="video/mp4" />浏览器不支持视频播放
-        </video>
+        {src ? (
+          <video controls poster={poster} style={{ width: '100%', borderRadius: 8, background: theme.bg.image, border: `1px solid ${theme.border.default}` }}>
+            <source src={src} type="video/mp4" />浏览器不支持视频播放
+          </video>
+        ) : poster ? (
+          <div onClick={() => onImageClick(poster)} style={{ borderRadius: 8, overflow: 'hidden', cursor: 'pointer', border: `1px solid ${theme.border.default}` }}>
+            <img src={poster} alt={asset.phaseName} style={{ width: '100%', display: 'block', maxHeight: 400, objectFit: 'contain', background: theme.bg.image }} />
+          </div>
+        ) : null}
       </>
     )
   }
   if (asset.modality === 'audio') {
-    const src = m.original
+    const src = resolveMediaUrl(m.original)
+    const waveform = resolveMediaUrl(m.waveform)
     return (
       <>
         <SectionLabel>音频</SectionLabel>
-        {m.waveform && <img src={m.waveform} alt="waveform" style={{ width: '100%', borderRadius: 6, background: theme.bg.image }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />}
+        {waveform && <img src={waveform} alt="waveform" style={{ width: '100%', borderRadius: 6, background: theme.bg.image }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />}
         {src && <audio controls style={{ width: '100%', marginTop: 6 }}><source src={src} />浏览器不支持音频播放</audio>}
-        {!src && !m.waveform && <div style={{ color: theme.text.secondary, fontSize: 12 }}>无音频文件</div>}
+        {!src && !waveform && <div style={{ color: theme.text.secondary, fontSize: 12 }}>无音频文件</div>}
       </>
     )
   }
-  // image
-  const img = m.thumbnail ?? m.original
-  if (!img) return null
+  // image：原图大图 + 相关图集（thumbnail / turnaround_sheet / crops），URL 经 mediaUrl 解析。
+  return <ImageGallery asset={asset} raw={raw} onImageClick={onImageClick} />
+}
+
+/**
+ * 图片资产图集：原图（大图，可点开 lightbox）+ 转面表 / 各视角裁切。
+ *
+ * 加载失败有友好兜底（对齐 AssetCardNode.Cover 的三层兜底，解决「双击弹窗看不到原图」）：
+ *  - 主图：原图 404 → 退缩略图 → 退「文件缺失」占位（显示路径，定位死链），
+ *    不再显示裸 broken-image 图标；
+ *  - 相关图：单张 404 → 保留格子标注「缺失」，不再 parentElement.display='none' 静默消失。
+ *  缩略图不再单列于相关图——它现在是主图 original 失败时的兜底源，避免重复。
+ */
+function ImageGallery({ asset, raw, onImageClick }: { asset: AssetNodeV3; raw: Record<string, unknown> | undefined; onImageClick: (src: string) => void }) {
+  const m = asset.media
+  const ossDir = ossDirOf(m.original ?? m.thumbnail)
+  const original = resolveMediaUrl(m.original)
+  const thumb = resolveMediaUrl(m.thumbnail)
+  // 相关图：turnaround_sheet → crops.{front,three_quarter,side,back,...}（缩略图改作主图兜底，不单列）
+  const related: Array<{ label: string; src: string }> = []
+  if (typeof raw?.turnaround_sheet === 'string') {
+    const u = resolveRelativeAssetPath(raw.turnaround_sheet, ossDir)
+    if (u) related.push({ label: '转面表', src: u })
+  }
+  if (raw?.crops && typeof raw.crops === 'object') {
+    for (const [k, v] of Object.entries(raw.crops as Record<string, unknown>)) {
+      if (typeof v !== 'string') continue
+      const u = resolveRelativeAssetPath(v, ossDir)
+      if (u) related.push({ label: k, src: u })
+    }
+  }
+  if (!original && !thumb && related.length === 0) return null
   return (
     <>
-      <SectionLabel>预览图</SectionLabel>
-      <div onClick={() => onImageClick(img)} style={{ borderRadius: 8, overflow: 'hidden', cursor: 'pointer', border: `1px solid ${theme.border.default}`, marginBottom: 12 }}>
-        <img src={img} alt={asset.phaseName} style={{ width: '100%', display: 'block', maxHeight: 400, objectFit: 'contain', background: theme.bg.image }} />
+      <SectionLabel>{original ? '原图' : '预览图'}</SectionLabel>
+      <MainImage
+        original={original}
+        fallback={thumb}
+        alt={asset.phaseName}
+        missingPath={m.original ?? m.thumbnail ?? undefined}
+        onImageClick={onImageClick}
+      />
+      {related.length > 0 && (
+        <>
+          <SectionLabel>相关图片</SectionLabel>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 12 }}>
+            {related.map((r) => (
+              <GalleryImage key={r.label + r.src} label={r.label} src={r.src} onImageClick={onImageClick} />
+            ))}
+          </div>
+        </>
+      )}
+    </>
+  )
+}
+
+/** 主图三层兜底：原图 → 缩略图 → 文件缺失占位（对齐 AssetCardNode.Cover）。 */
+function MainImage({ original, fallback, alt, missingPath, onImageClick }: {
+  original: string | null
+  fallback: string | null
+  alt: string
+  missingPath: string | undefined
+  onImageClick: (src: string) => void
+}) {
+  const [stage, setStage] = useState<'original' | 'fallback' | 'failed'>(
+    original ? 'original' : fallback ? 'fallback' : 'failed',
+  )
+  // 切换节点（original/fallback 引用变）时重试，避免上个节点的失败态串到新节点。
+  useEffect(() => {
+    setStage(original ? 'original' : fallback ? 'fallback' : 'failed')
+  }, [original, fallback])
+  if (stage === 'failed') {
+    return <MissingPlaceholder path={missingPath} />
+  }
+  const src = stage === 'original' ? original : fallback
+  return (
+    <div onClick={() => src && onImageClick(src)} style={{ borderRadius: 8, overflow: 'hidden', cursor: 'pointer', border: `1px solid ${theme.border.default}`, marginBottom: 12 }}>
+      <img
+        src={src ?? undefined}
+        alt={alt}
+        style={{ width: '100%', display: 'block', maxHeight: 400, objectFit: 'contain', background: theme.bg.image }}
+        onError={() => setStage((s) => (s === 'original' && fallback ? 'fallback' : 'failed'))}
+      />
+    </div>
+  )
+}
+
+/** 相关图：单张 404 → 保留格子标注「缺失」（不静默消失，让用户知道有这图但加载失败）。 */
+function GalleryImage({ label, src, onImageClick }: { label: string; src: string; onImageClick: (src: string) => void }) {
+  const [failed, setFailed] = useState(false)
+  useEffect(() => { setFailed(false) }, [src])
+  if (failed) {
+    return (
+      <div style={{ borderRadius: 6, overflow: 'hidden', border: `1px solid ${theme.border.default}`, position: 'relative', aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', background: theme.bg.image }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 18, opacity: 0.4 }}>🖼</div>
+          <div style={{ fontSize: 9, color: theme.text.disabled, marginTop: 2 }}>缺失</div>
+        </div>
+        <span style={{ position: 'absolute', left: 0, bottom: 0, right: 0, padding: '2px 6px', fontSize: 10, color: theme.text.primary, background: 'rgba(0,0,0,0.55)' }}>{label}</span>
+      </div>
+    )
+  }
+  return (
+    <div onClick={() => onImageClick(src)} style={{ borderRadius: 6, overflow: 'hidden', cursor: 'pointer', border: `1px solid ${theme.border.default}`, position: 'relative', aspectRatio: '1' }}>
+      <img src={src} alt={label} loading="lazy" onError={() => setFailed(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', background: theme.bg.image }} />
+      <span style={{ position: 'absolute', left: 0, bottom: 0, right: 0, padding: '2px 6px', fontSize: 10, color: theme.text.primary, background: 'rgba(0,0,0,0.55)' }}>{label}</span>
+    </div>
+  )
+}
+
+/**
+ * 文件缺失占位：弱色虚线框 + 🖼 + 路径 + 排查提示。
+ * 用于原图/视频文件不可达（如 scifi-epic 这类源目录已删除的死链项目）——
+ * 把不可见的 404 变成可定位的诊断信息，而非裸 broken-image 图标。
+ */
+function MissingPlaceholder({ path }: { path: string | null | undefined }) {
+  return (
+    <div style={{
+      borderRadius: 8, marginBottom: 12, padding: 20,
+      background: theme.bg.image, border: `1px dashed ${theme.border.subtle}`,
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
+      color: theme.text.disabled, textAlign: 'center',
+    }}>
+      <div style={{ fontSize: 26, opacity: 0.5 }}>🖼</div>
+      <div style={{ fontSize: 12, color: theme.text.secondary }}>文件缺失，无法预览</div>
+      {path && (
+        <div style={{ fontSize: 10, fontFamily: 'var(--cv-font-mono, monospace)', color: theme.text.disabled, wordBreak: 'break-all', maxWidth: '100%', lineHeight: 1.4 }}>
+          {path}
+        </div>
+      )}
+      <div style={{ fontSize: 10, color: theme.text.disabled, maxWidth: 320, lineHeight: 1.4 }}>
+        源文件可能已迁移或删除。检查 data/oss/ 下该项目的符号链接是否存在、指向是否有效。
+      </div>
+    </div>
+  )
+}
+
+/**
+ * 创作意图（shot_intent）：视频资产的完整创作意图（felt/visible/camera/lighting/audio/continuity）。
+ * 后端给的是大型 JSON 对象，RawDataSection 跳过对象值 → 此处专门结构化渲染。
+ * 标题用「创作意图」而非「镜头意图」：MetaRenderer 内嵌的下拉编辑器已占用「镜头意图」标题
+ * （phase35 e2e 契约，4 select），此处避免出现两个「镜头意图」。
+ */
+function ShotIntentSection({ raw }: { raw: Record<string, unknown> | undefined }) {
+  const si = raw?.shot_intent
+  if (!si || typeof si !== 'object') return null
+  const s = si as {
+    felt_intent?: string
+    visible_behavior?: string
+    camera_intent?: { shot_size?: string; movement?: string; axis?: string; endpoint?: string }
+    lighting_intent?: { key_source?: string; ratio?: string; temperature?: string }
+    audio_intent?: string
+    continuity?: { already_happened?: unknown[]; this_clip_only?: unknown[]; reserved_for_later?: unknown[]; locks?: unknown[] }
+  }
+  const arr = (x: unknown) => (Array.isArray(x) ? (x as unknown[]) : [])
+  const Row = ({ label, value }: { label: string; value: string | undefined }) =>
+    value ? (
+      <div style={{ display: 'flex', gap: 8, fontSize: 12, lineHeight: 1.6 }}>
+        <span style={{ color: theme.text.secondary, flexShrink: 0, minWidth: 56 }}>{label}</span>
+        <span style={{ color: theme.text.primary }}>{value}</span>
+      </div>
+    ) : null
+  const List = ({ label, items }: { label: string; items: unknown[] }) =>
+    items.length > 0 ? (
+      <div style={{ display: 'flex', gap: 8, fontSize: 12, lineHeight: 1.6 }}>
+        <span style={{ color: theme.text.secondary, flexShrink: 0, minWidth: 56 }}>{label}</span>
+        <span style={{ color: theme.text.primary }}>{items.map((x) => String(x)).join('、')}</span>
+      </div>
+    ) : null
+  const cam = s.camera_intent ?? {}
+  const light = s.lighting_intent ?? {}
+  const cont = s.continuity ?? {}
+  const chips = [cam.shot_size, cam.movement, cam.axis, light.ratio, light.temperature].filter(Boolean)
+  return (
+    <>
+      <SectionLabel>创作意图</SectionLabel>
+      <div style={{ background: theme.bg.input, borderRadius: 8, padding: 10, display: 'flex', flexDirection: 'column', gap: 6, border: `1px solid ${theme.border.default}`, marginBottom: 4 }}>
+        {chips.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 }}>
+            {chips.map((c) => (
+              <span key={c} style={{ padding: '2px 8px', borderRadius: 4, background: theme.bg.surface, color: theme.text.primary, fontSize: 11, fontFamily: 'var(--cv-font-mono, monospace)' }}>{c}</span>
+            ))}
+          </div>
+        )}
+        <Row label="意图" value={s.felt_intent} />
+        <Row label="行为" value={s.visible_behavior} />
+        <Row label="运镜" value={cam.movement ? `${cam.movement}${cam.endpoint ? ' → ' + cam.endpoint : ''}` : undefined} />
+        <Row label="光照" value={[light.key_source, light.ratio, light.temperature].filter(Boolean).join(' · ') || undefined} />
+        <Row label="声音" value={s.audio_intent} />
+        <List label="本镜" items={arr(cont.this_clip_only)} />
+        <List label="预留" items={arr(cont.reserved_for_later)} />
+        <List label="锁定" items={arr(cont.locks)} />
       </div>
     </>
   )
@@ -209,9 +496,9 @@ function MediaViewer({ asset, onImageClick }: { asset: AssetNodeV3; onImageClick
 function CurationBadge({ curation }: { curation: AssetNodeV3['curation'] }) {
   const cfg: Record<string, { label: string; bg: string; color: string }> = {
     candidate: { label: '候选', bg: theme.bg.surface, color: theme.text.secondary },
-    selected: { label: '策展选定', bg: v3theme.signal.select, color: '#100E0A' },
+    selected: { label: '策展选定', bg: v3theme.signal.select, color: '#0A0B0E' },
     deprecated: { label: '落选', bg: v3theme.edge.inactive, color: theme.text.secondary },
-    locked: { label: '锁定参考', bg: v3theme.signal.locked, color: '#100E0A' },
+    locked: { label: '锁定参考', bg: v3theme.signal.locked, color: '#0A0B0E' },
   }
   const c = cfg[curation]
   if (!c) return null

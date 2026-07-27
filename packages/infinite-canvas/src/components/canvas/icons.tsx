@@ -187,3 +187,94 @@ export function EventOpIcon({
   }
   return opGlyph(op, size, color)
 }
+
+// ─── UI 操作图标（工具栏；stroke = currentColor，跟随按钮文字色） ─────────────
+
+export type UiIconKind = 'save' | 'layout' | 'fit' | 'rocket' | 'iterate' | 'search' | 'graph'
+
+/** UI 操作图标：线性几何，stroke=currentColor，size 默认 14 匹配 12px 按钮。 */
+export function UiIcon({
+  kind,
+  size = 14,
+}: {
+  kind: UiIconKind
+  size?: number
+}): React.ReactElement {
+  const common = {
+    width: size,
+    height: size,
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.8,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    'aria-hidden': true,
+    style: { display: 'block' as const, flex: '0 0 auto' },
+  }
+  switch (kind) {
+    case 'save':
+      // 软盘：方框 + 顶部槽 + 内部小条
+      return (
+        <svg {...common}>
+          <path d="M5 3h11l3 3v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+          <path d="M8 3v5h7V3" />
+          <path d="M8 14h8v6H8z" />
+        </svg>
+      )
+    case 'layout':
+      // 自动整理：三节点小图（左源 → 右两分支），暗示「重排拓扑」
+      return (
+        <svg {...common}>
+          <circle cx="5" cy="6" r="2" />
+          <circle cx="5" cy="18" r="2" />
+          <circle cx="19" cy="12" r="2" />
+          <path d="M7 7l10 4M7 17l10-4" />
+        </svg>
+      )
+    case 'fit':
+      // 适配视图：四角向内收的取景框
+      return (
+        <svg {...common}>
+          <path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4" />
+        </svg>
+      )
+    case 'rocket':
+      // 一键成片：火箭
+      return (
+        <svg {...common}>
+          <path d="M12 3c3 2 4.5 5 4.5 9l-1.5 3h-6L7.5 12c0-4 1.5-7 4.5-9z" />
+          <circle cx="12" cy="10" r="1.6" />
+          <path d="M9 18l-2 2M15 18l2 2M10.5 21h3" />
+        </svg>
+      )
+    case 'iterate':
+      // 迭代：循环箭头
+      return (
+        <svg {...common}>
+          <path d="M4 12a8 8 0 0 1 13.7-5.6L20 8" />
+          <path d="M20 4v4h-4" />
+          <path d="M20 12a8 8 0 0 1-13.7 5.6L4 16" />
+          <path d="M4 20v-4h4" />
+        </svg>
+      )
+    case 'search':
+      // 搜索：放大镜
+      return (
+        <svg {...common}>
+          <circle cx="11" cy="11" r="6" />
+          <path d="m20 20-4.3-4.3" />
+        </svg>
+      )
+    case 'graph':
+      // 画布空状态：连线城市景
+      return (
+        <svg {...common}>
+          <circle cx="6" cy="7" r="2" />
+          <circle cx="18" cy="7" r="2" />
+          <rect x="9" y="15" width="6" height="5" rx="1" />
+          <path d="M8 7h8M12 9v6" />
+        </svg>
+      )
+  }
+}

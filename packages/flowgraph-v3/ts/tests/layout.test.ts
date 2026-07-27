@@ -246,7 +246,7 @@ describe('构造用例', () => {
     expect(layoutFlowGraph(graph([], []), OPTS).size).toBe(0);
     const single = layoutFlowGraph(graph([asset('only', 'video')], []), OPTS);
     const b = single.get('only')!;
-    expect(b).toEqual({ x: 0, y: laneOf('video') * OPTS.laneH, layer: 0, lane: laneOf('video') });
+    expect(b).toEqual({ x: 0, y: laneOf('video') * OPTS.laneH, layer: 0, lane: laneOf('video'), row: 0 });
   });
 
   it('多个 global 资产在第 0 列内沿 y 堆叠（P9）', () => {
@@ -424,5 +424,93 @@ describe('槽位单调分配（槽位碰撞修复回归）', () => {
         expect(bx.get(l.target)!.x).toBeGreaterThan(bx.get(l.source)!.x);
       }
     }
+  });
+});
+
+describe('泳道换行（P8 opt-in，colsPerRow）', () => {
+  const WRAP_OPTS = { ...OPTS, colsPerRow: 4 };
+  const stride = OPTS.nodeW + OPTS.gap; // 320
+  const rowH = 192; // DEFAULT_ROW_H（OPTS 不传 rowH → 默认）
+
+  /** n 个 script 资产按 sequence 链同泳道同层 → 槽位 0..n-1（无因果抬升）。 */
+  const buildChain = (n: number): FlowGraphV3 => {
+    const nodes: AssetNodeV3[] = [];
+    for (let i = 0; i < n; i++) nodes.push(asset(`s${i}`, 'script'));
+    const links: FlowLinkV3[] = [];
+    for (let i = 0; i < n - 1; i++) links.push(link(`seq${i}`, `s${i}`, `s${i + 1}`, 'sequence'));
+    return graph(nodes, links);
+  };
+
+  it('restart-left 投影：row=floor(slot/N)，行内 x 从 0 重启、y 随行递增', () => {
+    const g = buildChain(8);
+    const boxes = layoutFlowGraph(g, WRAP_OPTS);
+    const lane = laneOf('script');
+    for (let i = 0; i < 8; i++) {
+      const b = boxes.get(`s${i}`)!;
+      const row = Math.floor(i / 4);
+      const col = i % 4;
+      expect(b.row).toBe(row);
+      expect(b.x).toBe(col * stride);
+      expect(b.y).toBe(lane * OPTS.laneH + row * rowH);
+    }
+    // 行内左→右（P7 单调保持）
+    for (let i = 1; i < 4; i++) expect(boxes.get(`s${i}`)!.x).toBeGreaterThan(boxes.get(`s${i - 1}`)!.x);
+    // 跨行：row1 节点 y 严格大于 row0
+    expect(boxes.get('s4')!.y).toBeGreaterThan(boxes.get('s0')!.y);
+  });
+
+  it('换行后同泳道无 (x,y) 碰撞', () => {
+    const boxes = layoutFlowGraph(buildChain(8), WRAP_OPTS);
+    const seen = new Set<string>();
+    for (let i = 0; i < 8; i++) {
+      const b = boxes.get(`s${i}`)!;
+      const key = `${b.x}|${b.y}`;
+      expect(seen.has(key)).toBe(false);
+      seen.add(key);
+    }
+  });
+
+  it('行内因果左→右保持；换行边界处 target.x 可小于 source.x（restart-left，非蛇形）', () => {
+    const boxes = layoutFlowGraph(buildChain(8), WRAP_OPTS);
+    // sequence s3→s4 是换行边界：s3(row0,col3) → s4(row1,col0)，x 反向但 row 递增
+    expect(boxes.get('s4')!.row).toBeGreaterThan(boxes.get('s3')!.row);
+    expect(boxes.get('s4')!.x).toBeLessThan(boxes.get('s3')!.x);
+    // 行内 sequence s0→s1：x 递增
+    expect(boxes.get('s1')!.x).toBeGreaterThan(boxes.get('s0')!.x);
+  });
+
+  it('默认不换行（colsPerRow 缺省=∞）：8 节点单行、row 全 0、x 递增（向后兼容）', () => {
+    const boxes = layoutFlowGraph(buildChain(8), OPTS);
+    for (let i = 0; i < 8; i++) {
+      expect(boxes.get(`s${i}`)!.row).toBe(0);
+      expect(boxes.get(`s${i}`)!.y).toBe(laneOf('script') * OPTS.laneH);
+    }
+    for (let i = 1; i < 8; i++) expect(boxes.get(`s${i}`)!.x).toBeGreaterThan(boxes.get(`s${i - 1}`)!.x);
+  });
+
+  it('确定性：colsPerRow 下两次调用全等', () => {
+    const a = layoutFlowGraph(buildChain(8), WRAP_OPTS);
+    const b = layoutFlowGraph(buildChain(8), WRAP_OPTS);
+    expect([...a.entries()]).toEqual([...b.entries()]);
+  });
+
+  it('eventChip 随压平前驱换行：前驱槽位 7 → 芯片槽位 7.5 → row1（floor(7.5/4)=1）', () => {
+    // s0..s7 sequence 链（layer0，槽位 0..7）；s7→e1(reference)→s8(output) 使 s8 layer2 槽位 8。
+    // e1 压平前驱 = s7(slot7) → 芯片分数槽位 7.5 → row1、col 3.5。
+    const nodes: FlowNodeV3[] = [];
+    for (let i = 0; i < 9; i++) nodes.push(asset(`s${i}`, 'script'));
+    nodes.push(evt('e1'));
+    const links: FlowLinkV3[] = [];
+    for (let i = 0; i < 8; i++) links.push(link(`seq${i}`, `s${i}`, `s${i + 1}`, 'sequence'));
+    links.push(link('cin', 's7', 'e1', 'reference'));
+    links.push(link('cout', 'e1', 's8', 'output'));
+    const boxes = layoutFlowGraph(graph(nodes, links), WRAP_OPTS);
+    const chip = boxes.get('e1')!;
+    expect(chip.lane).toBe(laneOf('script')); // 产出 s8 在 script 泳道
+    expect(chip.row).toBe(1); // 7.5/4 → row1
+    expect(chip.y).toBe(laneOf('script') * OPTS.laneH + 1 * rowH);
+    // x = 3.5*stride（半列），落在 row1 第 3~4 列之间
+    expect(chip.x).toBeGreaterThan(3 * stride);
+    expect(chip.x).toBeLessThan(4 * stride);
   });
 });

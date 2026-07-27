@@ -168,56 +168,112 @@ export function needsThumbnailing(thumbnailUrl: string): boolean {
 }
 
 /**
- * 处理单个 node payload（用于 node_upsert 事件）。
- * 若 payload.data.thumbnailUrl 指向原图则生成缩略图并替换，同时保留原路径到 filePath。
- * 原地修改 payload 并返回是否变更。
+ * 判断 thumbnailUrl 是否"已声明为缩略图但磁盘上文件缺失"——需要自愈。
+ * 背景：同步管线有时把 data.thumbnailUrl 写成 /oss/_thumbs/...webp 形态却没真正生成文件，
+ * 而 needsThumbnailing() 见 URL 含 /_thumbs/ 即返回 false → 旧 save-hook 跳过 → 永久 404。
+ * 本函数补上"文件到底在不在"这一层判定，供自愈路径使用。
+ */
+export function isThumbnailMissing(thumbnailUrl: string): boolean {
+  if (
+    !thumbnailUrl ||
+    !thumbnailUrl.startsWith("/oss/") ||
+    !thumbnailUrl.includes("/_thumbs/")
+  ) {
+    return false;
+  }
+  return !fs.existsSync(ossUrlToFs(thumbnailUrl));
+}
+
+/**
+ * 单节点缩略图自愈（幂等，原地修改 data，返回是否变更）。覆盖四种情况：
+ *  A) thumbnailUrl 指向原图/原视频（needsThumbnailing）→ 生成 _thumbs webp 并改写 URL
+ *     （保留原图路径到 filePath）。
+ *  B) thumbnailUrl 已是 _thumbs 路径但文件缺失（isThumbnailMissing）→ 从 filePath
+ *     （原图/原视频）重新生成；生成的实际路径若与现 URL 不一致则对齐。
+ *  C) 无 thumbnailUrl，但 filePath 是可生成的媒体原图 → 补生成并填入 thumbnailUrl。
+ *  D) 无 thumbnailUrl/filePath，但 scene_ref 是可生成的 /oss 媒体（storyboard 场景
+ *     参考图，canvas_sync 未回填到 filePath 时）→ 从 scene_ref 生成并补 filePath。
+ * 源文件缺失/非媒体则跳过（不抛错，保持 save 容错）。
+ */
+async function healNodeDataThumbnail(
+  data: Record<string, unknown>,
+): Promise<boolean> {
+  const thumb = data.thumbnailUrl as string | undefined;
+  const fp = data.filePath as string | undefined;
+  const isGeneratableOriginal = (p: string | undefined): p is string =>
+    !!p && p.startsWith("/oss/") && !p.includes("/_thumbs/") && isMediaPath(p);
+
+  // A) 指向原图/原视频
+  if (thumb && needsThumbnailing(thumb)) {
+    const result = await ensureThumbnail(thumb);
+    if (!result.skipped && result.thumbnailUrl !== thumb) {
+      if (!data.filePath) data.filePath = thumb;
+      data.thumbnailUrl = result.thumbnailUrl;
+      return true;
+    }
+    return false;
+  }
+
+  // B) 已是 _thumbs 路径但文件缺失 → 从 filePath 重生成
+  if (thumb && isThumbnailMissing(thumb) && isGeneratableOriginal(fp)) {
+    const result = await ensureThumbnail(fp);
+    if (!result.skipped) {
+      if (result.thumbnailUrl !== thumb) data.thumbnailUrl = result.thumbnailUrl;
+      return true;
+    }
+  }
+
+  // C) 无 thumbnailUrl，但有可生成的 filePath → 补填
+  if (!thumb && isGeneratableOriginal(fp)) {
+    const result = await ensureThumbnail(fp);
+    if (!result.skipped) {
+      data.thumbnailUrl = result.thumbnailUrl;
+      return true;
+    }
+  }
+
+  // D) 无 thumbnailUrl/filePath，但 scene_ref 是可生成的 /oss 媒体（storyboard 场景
+  // 参考图，canvas_sync 未回填到 filePath 时）→ 从 scene_ref 生成并补 filePath。
+  // 仅 /oss/ 形态有效：相对路径需 workdir 解析（由补数据脚本处理），绝对 fs 路径
+  // ensureThumbnail 会 skipped（其 toThumbnailUrl 要求 /oss/ 前缀）。
+  const sceneRef = data.scene_ref as string | undefined;
+  if (!thumb && isGeneratableOriginal(sceneRef)) {
+    const result = await ensureThumbnail(sceneRef);
+    if (!result.skipped) {
+      if (!data.filePath) data.filePath = sceneRef;
+      data.thumbnailUrl = result.thumbnailUrl;
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * 处理单个 node payload（用于 node create/update）。
+ * 原地修改 payload.data，返回是否变更。覆盖原图→缩略图改写 + 缺失文件自愈 + 空值补填。
  */
 export async function processNodePayloadThumbnail(
   payload: Record<string, unknown>,
 ): Promise<boolean> {
   const data = payload.data as Record<string, unknown> | undefined;
   if (!data) return false;
-  const thumb = data.thumbnailUrl as string | undefined;
-  if (!thumb || !needsThumbnailing(thumb)) return false;
-
-  const result = await ensureThumbnail(thumb);
-  if (result.skipped || result.thumbnailUrl === thumb) return false;
-
-  if (!data.filePath) {
-    data.filePath = thumb;
-  }
-  data.thumbnailUrl = result.thumbnailUrl;
-  return true;
+  return healNodeDataThumbnail(data);
 }
 
 /**
- * 遍历 FlowGraph 节点，为每个指向原图的 thumbnailUrl 生成缩略图并替换。
- * 同时将原始路径保存到 filePath（若 filePath 为空）。
- * 幂等。返回是否有任何修改。
+ * 遍历 FlowGraph 节点，为每个节点确保缩略图存在（原图改写 + 缺失自愈 + 空值补填）。
+ * 幂等。返回是否有任何修改。save-v2 在落库前调用——这是所有图进 DB 的总闸。
  */
 export async function processGraphThumbnails(graph: {
   nodes?: Array<{ data?: Record<string, unknown> }>;
 }): Promise<boolean> {
   let changed = false;
   if (!graph?.nodes) return changed;
-
   for (const node of graph.nodes) {
     const data = node.data;
     if (!data) continue;
-    const thumb = data.thumbnailUrl as string | undefined;
-    if (!thumb || !needsThumbnailing(thumb)) continue;
-
-    const result = await ensureThumbnail(thumb);
-    if (result.skipped) continue; // 源文件缺失或非媒体，跳过
-
-    if (result.thumbnailUrl !== thumb) {
-      // 保留原图路径到 filePath（若为空）
-      if (!data.filePath) {
-        data.filePath = thumb;
-      }
-      data.thumbnailUrl = result.thumbnailUrl;
-      changed = true;
-    }
+    if (await healNodeDataThumbnail(data)) changed = true;
   }
   return changed;
 }

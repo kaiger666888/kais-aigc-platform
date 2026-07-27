@@ -63,13 +63,13 @@ function apiCall(apiPath, body, timeoutMs = 10000) {
 // ─── Canvas Graph load/save via v2 API ────────────────────
 
 async function loadGraph(projectId, episodesId) {
-  const res = await apiCall('/api/v2/canvas/load', { projectId, episodesId });
+  const res = await apiCall('/api/canvas/v2/load-v2', { projectId, episodesId });
   if (res.code === 404 || !res.data) return null;
   return res.data;
 }
 
 async function saveGraph(projectId, episodesId, graph) {
-  const res = await apiCall('/api/v2/canvas/save', { projectId, episodesId, graph });
+  const res = await apiCall('/api/canvas/v2/save-v2', { projectId, episodesId, graph });
   if (res.code !== 200 && res.code !== 0) {
     throw new Error(`Save failed: ${res.message || JSON.stringify(res)}`);
   }

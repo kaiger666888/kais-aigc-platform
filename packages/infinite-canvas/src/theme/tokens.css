@@ -1,75 +1,88 @@
-/* Step 5 — Design Tokens（step5-design-tokens.md §1 逐值落地，不许改设计）
- * 命名约定：--cv-* 画布域 / --cv-node-* 节点域 / --cv-lane-* 泳道域 / --cv-badge-* 角标域
- * / --cv-tl-* 时间轴域 / --cv-motion-* 动效域。
- * TS 侧镜像见 theme/catppuccin.ts 的 v3theme 导出。
- */
+/* ───────────────────────────────────────────────────────────────
+ * Design Tokens — v2「冷中性壳 + 暖模态通道」
+ * 方向：结构/表面/面板 = Linear 级冷中性灰（统一色温，杀掉暖底×冷卡的廉价冲突）；
+ *       颜色只留给 4 个产物模态通道（text/image/audio/video）=「内容色」；
+ *       信号色（approved/rejected/running）复用模态色 → 全 UI 一套 4 色词汇表。
+ * 命名约定：--cv-* 画布域 / --cv-node-* 节点域 / --cv-lane-* 泳道域 / --cv-badge-*
+ * / --cv-tl-* 时间轴域 / --cv-motion-* 动效域。TS 侧镜像见 theme/catppuccin.ts。
+ * ─────────────────────────────────────────────────────────────── */
 :root {
-  /* ── 基础表面（保留 Catppuccin 结构，画布底/文字暖化） ── */
-  --cv-bg-canvas:        #100E0A;  /* 替换 catppuccin.crust 作画布底 */
-  --cv-bg-panel:         #181825;  /* = mantle，保留 */
-  --cv-bg-card:          rgba(30,30,46,0.92); /* = base@0.92 */
-  --cv-bg-overlay:       #313244;  /* = surface0，保留 */
-  --cv-bg-elevated:      #45475A;  /* = surface1，保留 */
-  --cv-line-panel:       #313244;  /* 面板内分隔线 */
-  --cv-line-canvas:      #2A2721;  /* 画布泳道分隔线（暖灰，新增） */
-  --cv-shadow-drag:      0 8px 24px rgba(0,0,0,0.5);
+  /* ── 冷中性表面梯度（替换 Catppuccin 冷蓝紫 + 暖黑混色 → 统一冷色温） ── */
+  --cv-bg-canvas:        #0A0B0E;  /* 画布冷近黑（原暖 #100E0A） */
+  --cv-bg-panel:         #111317;  /* 顶栏/面板（原蓝紫 #181825） */
+  --cv-bg-card:          #16181D;  /* 卡片表面（原冷蓝 rgba(30,30,46,0.92)） */
+  --cv-bg-card-hover:    #1E2128;  /* 卡片 hover/提升 */
+  --cv-bg-overlay:       #1E2128;  /* 浮层/角标底（原 #313244） */
+  --cv-bg-elevated:      #272B33;  /* 最高层（原 #45475A） */
+  --cv-line-panel:       rgba(255,255,255,0.06);  /* 面板内发丝线 */
+  --cv-line-canvas:      rgba(255,255,255,0.04);  /* 画布发丝线 */
+  --cv-line-strong:      rgba(255,255,255,0.12);  /* 强边/选中描边 */
 
-  /* ── 文字（暖化，替换冷白系） ── */
-  --cv-text-primary:     #E8E2D5;  /* 替换 text #cdd6f4 */
-  --cv-text-secondary:   #A69F8F;  /* 替换 subtext0 #a6adc8 */
-  --cv-text-disabled:    #6E6A5E;  /* 替换 surface2 作禁用文字 */
-  --cv-text-on-accent:   #1E1E2E;  /* 保留 base */
+  /* ── 真实纵深（Linear/Vercel 手法：inset 顶高光 =「从上方打光」+ 柔和投影） ── */
+  --cv-shadow-card:      0 1px 2px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.04) inset;
+  --cv-shadow-card-hi:   0 6px 16px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.08) inset;
+  --cv-shadow-pop:       0 12px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08);
+  --cv-shadow-drag:      0 16px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.10) inset;
+  --cv-glow-select:      0 0 0 1px rgba(237,238,241,0.55), 0 0 14px rgba(237,238,241,0.16);
 
-  /* ── 四模态色（颜色通道独占；替换 node.* / edge.* 蓝紫粉系） ── */
-  --cv-mod-text:         #C6B794;
-  --cv-mod-text-weak:    rgba(198,183,148,0.10);
-  --cv-mod-text-dim:     #9E9378;  /* L0 色块用（明度 70% 版） */
-  --cv-mod-image:        #9DB48E;
-  --cv-mod-image-weak:   rgba(157,180,142,0.10);
-  --cv-mod-audio:        #CE8266;
-  --cv-mod-audio-weak:   rgba(206,130,102,0.10);
-  --cv-mod-video:        #B96A72;
-  --cv-mod-video-weak:   rgba(185,106,114,0.10);
+  /* ── 文字（冷白系，匹配冷中性壳） ── */
+  --cv-text-primary:     #EDEEF1;  /* 冷纸白（原暖 #E8E2D5） */
+  --cv-text-secondary:   #9A9FA8;  /* 原 #A69F8F 暖灰 → 冷灰 */
+  --cv-text-tertiary:    #6B7080;
+  --cv-text-disabled:    #4A4F5A;
+  --cv-text-on-accent:   #0A0B0E;
 
-  /* ── 语义信号色（角标/描边专用，禁止大面积填充） ── */
-  --cv-stale:            #F0A52E;  /* 规范内唯一高饱和色 */
-  --cv-stale-weak:       rgba(240,165,46,0.5); /* 脉冲起始色 */
-  --cv-select:           #F2E9D8;  /* 选中/溯源暖白 */
-  --cv-dim-opacity:      0.28;     /* 溯源压暗 */
+  /* ── 四模态通道（唯一彩色 = 内容色；提饱和提可见，暖调以与冷壳形成焦点） ── */
+  --cv-mod-text:         #E0B665;  /* 金 */
+  --cv-mod-text-weak:    rgba(224,182,101,0.12);
+  --cv-mod-text-dim:     #B89757;  /* L0 色块用（明度降版） */
+  --cv-mod-image:        #56B89A;  /* 青绿 */
+  --cv-mod-image-weak:   rgba(86,184,154,0.12);
+  --cv-mod-audio:        #E08547;  /* 橙 */
+  --cv-mod-audio-weak:   rgba(224,133,71,0.12);
+  --cv-mod-video:        #DD6A82;  /* 玫红 */
+  --cv-mod-video-weak:   rgba(221,106,130,0.12);
+
+  /* ── 语义信号色（角标/描边专用；复用模态色 → 全 UI 一套 4 色词汇表） ── */
+  --cv-stale:            #F0A52E;  /* 规范内唯一额外高饱和（陈旧琥珀） */
+  --cv-stale-weak:       rgba(240,165,46,0.5);
+  --cv-select:           #EDEEF1;  /* 选中冷白辉光 */
+  --cv-dim-opacity:      0.25;     /* 溯源压暗 */
   --cv-dim-saturate:     0.4;
-  --cv-locked:           #8A8578;  /* 拉片参考石灰 */
-  --cv-locked-weak:      rgba(138,133,120,0.05);
-  --cv-locked-hatch:     rgba(138,133,120,0.08);
-  --cv-approved:         #9DB48E;  /* 复用 image 绿（角标小面积） */
-  --cv-rejected:         #C25E52;  /* 暖砖红，兼 failed */
-  --cv-running:          #E0B84F;
-  --cv-pending:          #A69F8F;
+  --cv-locked:           #7A8290;  /* 拉片参考冷灰 */
+  --cv-locked-weak:      rgba(122,130,144,0.06);
+  --cv-locked-hatch:     rgba(122,130,144,0.10);
+  --cv-approved:         #56B89A;  /* 复用 image 青 */
+  --cv-rejected:         #DD6A82;  /* 复用 video 玫 */
+  --cv-running:          #E0B665;  /* 复用 text 金 */
+  --cv-pending:          #9A9FA8;  /* 中性 */
 
-  /* ── 十泳道带（明度递进，零彩色；色相≈40° sat≈6%） ── */
-  --cv-lane-global:      #0E0C08;
-  --cv-lane-script:      #161410;
-  --cv-lane-storyboard:  #1A1813;
-  --cv-lane-keyframe:    #1E1C17;
-  --cv-lane-video:       #221F1A;
-  --cv-lane-voice:       #26231E;
-  --cv-lane-foley:       #2A2722;
-  --cv-lane-bgm:         #2E2B25;
-  --cv-lane-mix:         #322F29;
-  --cv-lane-composite:   #37332C;
-  --cv-lane-label:       rgba(166,159,143,0.7);
+  /* ── 十泳道带（冷中性明度梯度；结构感非装饰，零彩色） ── */
+  --cv-lane-global:      #0A0B0E;
+  --cv-lane-script:      #0E1014;
+  --cv-lane-storyboard:  #111419;
+  --cv-lane-keyframe:    #14171C;
+  --cv-lane-video:       #171A20;
+  --cv-lane-voice:       #1A1E24;
+  --cv-lane-foley:       #1D2128;
+  --cv-lane-bgm:         #20242B;
+  --cv-lane-mix:         #232830;
+  --cv-lane-composite:   #262B34;
+  --cv-lane-label:       rgba(154,159,168,0.55);
+  --cv-lane-num:         rgba(154,159,168,0.35);
   --cv-lane-gap:         48px;     /* 带间凹槽，露画布底 */
 
-  /* ── 边 ── */
+  /* ── 边（提可见：模态 40%→55%；中性换冷白灰在冷底上更亮） ── */
   --cv-edge-causal-w:        1.5px;
-  --cv-edge-causal-hi-w:     2.5px; /* 溯源高亮 */
-  --cv-edge-neutral:         rgba(110,106,94,0.5);  /* sequence */
-  --cv-edge-inactive:        rgba(110,106,94,0.25);
-  --cv-edge-ref:             rgba(110,106,94,0.4);
+  --cv-edge-causal-hi-w:     2px;   /* 溯源高亮 */
+  --cv-edge-neutral:         rgba(255,255,255,0.16);  /* sequence */
+  --cv-edge-inactive:        rgba(255,255,255,0.10);
+  --cv-edge-ref:             rgba(255,255,255,0.14);
   --cv-edge-sequence-dash:   2 6;
   --cv-edge-inactive-dash:   4 4;
   --cv-edge-ref-dash:        1 4;
 
-  /* ── 节点尺寸 ── */
+  /* ── 节点尺寸（不变） ── */
   --cv-node-w:             240px;
   --cv-node-h:             160px;
   --cv-node-radius:        8px;
@@ -93,15 +106,15 @@
   --cv-badge-tri:          14px;   /* stale 三角 */
   --cv-badge-shield-h:     18px;
   --cv-badge-offset:       -6px;   /* 浮出卡片外缘 */
-  --cv-badge-bg:           #181825;
+  --cv-badge-bg:           #111317;
 
   /* ── 事件芯片 ── */
   --cv-chip-size:          26px;
   --cv-chip-radius:        6px;
   --cv-chip-icon:          14px;
   --cv-chip-max-w:         80px;   /* P19 硬上限 */
-  --cv-chip-bg:            #313244;
-  --cv-chip-border:        #45475A;
+  --cv-chip-bg:            #1E2128;
+  --cv-chip-border:        rgba(255,255,255,0.10);
 
   /* ── 变体牌堆 ── */
   --cv-stack-layers:       3;      /* 最大外露层数 */
@@ -132,7 +145,7 @@
   --cv-tl-voice-op:        1;
   --cv-tl-foley-op:        0.7;
   --cv-tl-bgm-op:          0.5;
-  --cv-tl-dialogue-bg:     rgba(198,183,148,0.15);
+  --cv-tl-dialogue-bg:     rgba(224,182,101,0.15);
   --cv-tl-min-h:           420px;
 
   /* ── LOD 阈值（±0.03 迟滞） ── */
@@ -142,7 +155,7 @@
 
   /* ── 字体 ── */
   --cv-font-ui:   "Inter","Noto Sans SC","PingFang SC",system-ui,sans-serif;
-  --cv-font-mono: "JetBrains Mono","SF Mono",monospace;
+  --cv-font-mono: "JetBrains Mono","SF Mono",ui-monospace,monospace;
   --cv-fs-t1: 14px; --cv-fs-t2: 12px; --cv-fs-t3: 11px;
   --cv-fs-t4: 10px; --cv-fs-t5: 9px;
 
@@ -166,6 +179,8 @@
   --cv-d-running-spin:  1.2s;
   --cv-pulse-max:       8;       /* 同屏脉冲节点上限 */
   --cv-cascade-batch:   3;       /* 级联并行批大小 */
+
+  color-scheme: dark;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -175,4 +190,27 @@
     --cv-d-stale-pulse: 0ms; --cv-d-stale-hop: 0ms;
     --cv-d-lod-crossfade: 80ms; --cv-d-panel: 80ms; --cv-d-running-spin: 2.4s;
   }
+}
+
+/* ── React Flow 全局表面同色温（默认 RF chrome 是冷白，需统一到冷中性） ── */
+.react-flow__edge .react-flow__edge-path { transition: stroke-width var(--cv-d-ancestor) var(--cv-e-out), stroke var(--cv-d-ancestor) var(--cv-e-out), opacity var(--cv-d-ancestor) var(--cv-e-out); }
+.react-flow__controls { box-shadow: var(--cv-shadow-pop) !important; border-radius: 10px !important; overflow: hidden; }
+.react-flow__controls-button { background: var(--cv-bg-card) !important; border-bottom: 1px solid var(--cv-line-panel) !important; color: var(--cv-text-secondary) !important; }
+.react-flow__controls-button:hover { background: var(--cv-bg-card-hover) !important; color: var(--cv-text-primary) !important; }
+.react-flow__controls-button svg { fill: currentColor; }
+.react-flow__minimap { background: var(--cv-bg-panel) !important; border-radius: 10px; }
+.react-flow__attribution { display: none; }
+
+/* ── 资产卡 hover 提升态（纵深 + 微上浮；不与选中态冲突） ── */
+.cv-asset-card { will-change: box-shadow; }
+.react-flow__node:not(.selected):hover .cv-asset-card {
+  box-shadow: var(--cv-shadow-card-hi) !important;
+}
+
+/* ── 键盘焦点可见（质量底线；仅 :focus-visible，不打扰鼠标点击） ── */
+.cv-search-input { outline: none; }
+.cv-search-input:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--cv-select, #EDEEF1);
+  outline-offset: 2px;
 }

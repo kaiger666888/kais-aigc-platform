@@ -2,7 +2,7 @@
  * src/components/nodes/EventChipNode.tsx — 事件芯片（P19：事件是边上的小芯片，不是节点）。
  *
  * 设计 §4.7 逐值：
- *  - 26×26 圆角 6，底 #313244 + 1px 边框 #45475A，图标 14px #A69F8F；
+ *  - 26×26 圆角 6，底 #1E2128 + 1px 边框 rgba(255,255,255,0.10)，图标 14px #9A9FA8；
  *    executor=human → 人形图标，gpu/cloud → op 族图标（人机同构 P5 只靠图标区分）。
  *  - 常态零文字；hover（delay 150ms）出一行摘要 tooltip（T3 11px）：
  *    `wan22_i2v · gpu0 · 41s · seed 8842`；hover/选中关联时展开为「图标+op 名」横条
@@ -115,8 +115,8 @@ function EventChipNodeComponent({ id, data }: NodeProps<EventChipNodeType>) {
         height: size,
         padding: expanded ? '0 6px' : 0,
         justifyContent: expanded ? 'flex-start' : 'center',
-        background: full ? 'var(--cv-chip-bg, #313244)' : 'transparent',
-        border: full ? '1px solid var(--cv-chip-border, #45475A)' : 'none',
+        background: full ? 'var(--cv-chip-bg, #1E2128)' : 'transparent',
+        border: full ? '1px solid var(--cv-chip-border, rgba(255,255,255,0.10))' : 'none',
         borderRadius: V3_NODE_SIZES.chip.radius,
         cursor: 'pointer',
         transition: 'width var(--cv-d-select, 120ms) var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1))',
@@ -124,13 +124,13 @@ function EventChipNodeComponent({ id, data }: NodeProps<EventChipNodeType>) {
       }}
     >
       <Handle type="target" position={Position.Left} style={{ opacity: 0, width: 4, height: 4, border: 'none' }} />
-      <EventOpIcon op={op} executor={executor} size={V3_NODE_SIZES.chip.icon} color={'#A69F8F'} />
+      <EventOpIcon op={op} executor={executor} size={V3_NODE_SIZES.chip.icon} color={'#9A9FA8'} />
       {expanded && (
         <span
           style={{
             fontFamily: 'var(--cv-font-mono, monospace)',
             fontSize: 10,
-            color: 'var(--cv-text-secondary, #A69F8F)',
+            color: 'var(--cv-text-secondary, #9A9FA8)',
             maxWidth: 56,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -151,9 +151,9 @@ function EventChipNodeComponent({ id, data }: NodeProps<EventChipNodeType>) {
             transform: 'translateX(-50%)',
             padding: '3px 8px',
             borderRadius: 4,
-            background: 'var(--cv-bg-overlay, #313244)',
-            border: '1px solid var(--cv-chip-border, #45475A)',
-            color: 'var(--cv-text-primary, #E8E2D5)',
+            background: 'var(--cv-bg-overlay, #1E2128)',
+            border: '1px solid var(--cv-chip-border, rgba(255,255,255,0.10))',
+            color: 'var(--cv-text-primary, #EDEEF1)',
             fontSize: 11, // T3
             fontFamily: 'var(--cv-font-mono, monospace)',
             fontVariantNumeric: 'tabular-nums',

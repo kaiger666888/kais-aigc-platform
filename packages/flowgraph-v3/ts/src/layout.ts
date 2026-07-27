@@ -10,7 +10,10 @@
  *        因果约束压平到资产层（asset→event→asset 折叠为 asset→asset，事件作传递介质；
  *        加上直接 asset→asset 因果边），slot(v) = max(组内候选槽, max_{压平前驱 u} slot(u)+1)，
  *        同泳道槽位冲突顺次右移——跨泳道前驱可抬高槽位留出空隙（空隙合法，重叠非法）。
- *  - P8  y 轴是管线阶段：Stage 枚举序即泳道序，一泳道一条水平带，同泳道不换行。
+ *  - P8  y 轴是管线阶段：Stage 枚举序即泳道序，一泳道一条水平带。
+ *        【换行·opt-in】同泳道节点过多时（colsPerRow 为有限正数）按 restart-left 换行：
+ *        行内仍左→右（P7 单调保持），超 colsPerRow 列折到下一行（行号递增、x 从 0 重启）。
+ *        默认 colsPerRow=∞ 不换行（现状/向后兼容）。换行放宽「一泳道一行」为「一泳道多行」。
  *  - P9  全局资产锚定第 0 列：scope:'global' 的资产钉死 x=0，不参与拓扑分层；
  *        多个 global 资产在第 0 列内按 id 序沿 y 方向在 global 泳道带内堆叠（不与其他泳道抢道）。
  *  - P11 边语义分流：sequence 边不进因果分层，只做同（泳道, 层）内的横向排序约束
@@ -43,15 +46,21 @@ export interface LayoutBox {
   y: number;
   layer: number;
   lane: number;
+  /** 换行后所在行号（0 起；不换行恒 0）。y = lane*laneH + row*rowH，行内左→右保 P7。 */
+  row: number;
   stacked?: boolean;
 }
 
 export interface LayoutOptions {
   /** @deprecated 槽位单调分配后 x 只由 slot * (nodeW+gap) 决定，列宽参数不再参与计算（保留仅为 API 兼容）。 */
   colW?: number;
-  laneH?: number; // 泳道带高
+  laneH?: number; // 泳道带高（base，必须与消费端 LANE_H_PKG 相等以对齐）
   nodeW?: number; // 节点宽（槽位步进 = nodeW + gap）
   gap?: number; // 节点间隙
+  /** 泳道换行列数（restart-left）：有限正数开启换行，默认 ∞ 不换行（现状）。 */
+  colsPerRow?: number;
+  /** 换行行高（行间距）：换行时 y = lane*laneH + row*rowH；不换行时不用。 */
+  rowH?: number;
 }
 
 /** P8：§8 Stage 枚举序 = 泳道序（y 轴）。 */
@@ -71,6 +80,7 @@ export const STAGE_ORDER: readonly Stage[] = [
 const DEFAULT_NODE_W = 240;
 const DEFAULT_GAP = 80;
 const DEFAULT_LANE_H = 200;
+const DEFAULT_ROW_H = 192; // 换行行高：资产卡 160 + 垂直间隙 32
 
 /** P11：因果边 = 非 sequence 且未置灰；sequence 只做同泳道横向排序。 */
 function isCausal(link: FlowLinkV3): boolean {
@@ -185,6 +195,23 @@ export function layoutFlowGraph(graph: FlowGraphV3, opts: LayoutOptions = {}): M
   const gap = opts.gap ?? DEFAULT_GAP;
   const laneH = opts.laneH ?? DEFAULT_LANE_H;
   const slotStride = nodeW + gap; // 槽位步进：x = slot * slotStride（资产唯一 x 来源）
+  const colsPerRow = opts.colsPerRow ?? Infinity;
+  const rowH = opts.rowH ?? DEFAULT_ROW_H;
+  const wrap = Number.isFinite(colsPerRow) && colsPerRow > 0; // ∞/非正 → 不换行（现状）
+
+  /**
+   * 槽位 → (x, y, row) 投影（P8 换行）。
+   *  - 不换行：x = slot*stride、y = lane*laneH、row 0（现状，向后兼容）。
+   *  - 换行（restart-left）：row = floor(slot/cols)、col = slot - row*cols（slot 可为分数，芯片半列），
+   *    x = col*stride、y = lane*laneH + row*rowH。行内左→右保 P7 单调；跨行上→下。
+   *    非蛇形：奇数行不反向，因果方向每行一致。
+   */
+  const project = (slot: number, lane: number): { x: number; y: number; row: number } => {
+    if (!wrap) return { x: slot * slotStride, y: lane * laneH, row: 0 };
+    const row = Math.floor(slot / colsPerRow);
+    const col = slot - row * colsPerRow; // 分数 slot（芯片半列）亦可
+    return { x: col * slotStride, y: lane * laneH + row * rowH, row };
+  };
 
   const nodeById = new Map<string, FlowNodeV3>(graph.nodes.map((n) => [n.id, n]));
   const isAsset = (n: FlowNodeV3): n is AssetNodeV3 => n.kind === 'asset';
@@ -242,7 +269,7 @@ export function layoutFlowGraph(graph: FlowGraphV3, opts: LayoutOptions = {}): M
   {
     let cursorY = 0; // global 泳道带顶
     for (const n of globalAssets) {
-      boxes.set(n.id, { x: 0, y: cursorY, layer: 0, lane: 0 });
+      boxes.set(n.id, { x: 0, y: cursorY, layer: 0, lane: 0, row: 0 });
       cursorY += n.size.height + gap;
     }
   }
@@ -388,18 +415,20 @@ export function layoutFlowGraph(graph: FlowGraphV3, opts: LayoutOptions = {}): M
       while (used.has(s)) s++;
       used.add(s);
     }
-    boxes.set(n.id, { x: s * slotStride, y: lane * laneH, layer, lane });
+    const p = project(s, lane);
+    boxes.set(n.id, { x: p.x, y: p.y, layer, lane, row: p.row });
   }
 
   // ---- P12 落地：deprecated 贴 winner 坐标 ----
   for (const [depId, winId] of stackedToWinner) {
     const win = boxes.get(winId);
-    if (win) boxes.set(depId, { x: win.x, y: win.y, layer: win.layer, lane: win.lane, stacked: true });
+    if (win) boxes.set(depId, { x: win.x, y: win.y, layer: win.layer, lane: win.lane, row: win.row, stacked: true });
   }
 
   // ---- P19 落地：事件芯片（不占资产槽位）----
-  // x = (max(压平后资产前驱槽位) + 0.5) * slotStride：落在前驱资产列与产物列之间的边上，
+  // 芯片分数槽位 = (max(压平后资产前驱槽位) + 0.5)：落在前驱资产列与产物列之间的边上，
   // 半列偏移保证不撞任何资产列；无压平资产前驱的种子芯片沿用 -0.5 槽入种口。
+  // 换行：分数槽位同样走 project（restart-left）；种子芯片（负槽位）特判 row 0、留第 0 列左侧。
   const causalIn = new Map<string, string[]>();
   for (const l of graph.links) {
     if (!isCausal(l)) continue;
@@ -407,8 +436,9 @@ export function layoutFlowGraph(graph: FlowGraphV3, opts: LayoutOptions = {}): M
     if (arr) arr.push(l.source);
     else causalIn.set(l.target, [l.source]);
   }
+  const chipSlot = new Map<string, number>(); // eventId → 分数槽位
+  const chipMeta = new Map<string, { lane: number; layer: number }>();
   const chipGroups = new Map<string, string[]>(); // `${lane}|${halfColKey}` → event ids（子槽位去重叠）
-  const chipBase = new Map<string, { x: number; y: number; layer: number; lane: number }>();
   for (const n of graph.nodes) {
     if (n.kind !== 'event') continue;
     const lane = laneOfNode(n);
@@ -429,16 +459,17 @@ export function layoutFlowGraph(graph: FlowGraphV3, opts: LayoutOptions = {}): M
         }
       }
     }
+    let slot: number;
     let halfColKey: string;
-    let x: number;
     if (maxPredSlot !== null) {
-      x = (maxPredSlot + 0.5) * slotStride;
+      slot = maxPredSlot + 0.5;
       halfColKey = `in${maxPredSlot}`;
     } else {
-      x = -0.5 * slotStride; // 入种口：第 0 列左侧半列（沿用现状）
+      slot = -0.5; // 入种口：第 0 列左侧半列（沿用现状）
       halfColKey = 'seed';
     }
-    chipBase.set(n.id, { x, y: lane * laneH, layer, lane });
+    chipSlot.set(n.id, slot);
+    chipMeta.set(n.id, { lane, layer });
     const key = `${lane}|${halfColKey}`;
     const arr = chipGroups.get(key);
     if (arr) arr.push(n.id);
@@ -447,9 +478,16 @@ export function layoutFlowGraph(graph: FlowGraphV3, opts: LayoutOptions = {}): M
   for (const ids of chipGroups.values()) {
     ids.sort();
     ids.forEach((id, i) => {
-      const base = chipBase.get(id)!;
+      const slot = chipSlot.get(id)!;
+      const { lane, layer } = chipMeta.get(id)!;
       // 同（泳道, 半列）多芯片按 id 序加 1/4 槽位子槽位，避免芯片互相重叠
-      boxes.set(id, { x: base.x + i * (slotStride / 4), y: base.y, layer: base.layer, lane: base.lane });
+      if (slot < 0) {
+        // 种子芯片不进换行：row 0，x 留第 0 列左侧
+        boxes.set(id, { x: slot * slotStride + i * (slotStride / 4), y: lane * laneH, layer, lane, row: 0 });
+      } else {
+        const p = project(slot, lane);
+        boxes.set(id, { x: p.x + i * (slotStride / 4), y: p.y, layer, lane, row: p.row });
+      }
     });
   }
 

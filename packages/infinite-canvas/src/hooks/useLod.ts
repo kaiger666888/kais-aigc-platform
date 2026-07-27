@@ -1,7 +1,7 @@
 /**
  * src/hooks/useLod.ts — LOD 三级（P16；tokens --cv-lod-* 逐值）。
  *
- * 阈值：L0 全景 <0.35 / L1 中景 0.35–0.8 / L2 近景 ≥0.8，±0.03 迟滞防抖动
+ * 阈值：L0 全景 <0.22 / L1 中景 0.22–0.6 / L2 近景 ≥0.6，±0.03 迟滞防抖动
  * （跨越阈值需越过对侧 0.03 才切换，在阈值附近往复缩放不闪切）。
  * 每个消费组件各自持有迟滞状态（同一 zoom 输入下推导结果一致，无级联错乱）。
  */
@@ -10,9 +10,17 @@ import { useViewport } from '@xyflow/react'
 
 export type LodLevel = 0 | 1 | 2
 
-export const LOD_L0_MAX = 0.35
-export const LOD_L1_MAX = 0.8
+export const LOD_L0_MAX = 0.22
+export const LOD_L1_MAX = 0.6
 export const LOD_HYSTERESIS = 0.03
+
+/**
+ * fitView 的缩放下限。真实项目图常达数万 px 宽（如 34160px），天然 fit-zoom 会到亚像素
+ * （~0.05）→ 全员落 LOD 0 色块 → 画布加载后看不到任何缩略图。设此下限让初始视图与
+ * 「适配」按钮都保持可读缩放：FITVIEW_MIN_ZOOM > LOD_L0_MAX ⇒ 落 L1（封面/缩略图可见），
+ * 超大图只显示局部（可拖拽/MiniMap 导航），而非缩成看不见的色块海。
+ */
+export const FITVIEW_MIN_ZOOM = 0.4
 
 /** 无迟滞直判（初始化用）。 */
 export function lodLevelForZoom(zoom: number): LodLevel {
