@@ -5,27 +5,26 @@ import { canvasStateKey, loadCanvasState, saveCanvasState, type StorageLike } fr
 // ─── LOD 三级 + ±0.03 迟滞（tokens --cv-lod-*；B5） ───
 
 describe('useLod 纯函数', () => {
-  it('lodLevelForZoom：L0<0.35 / L1 0.35–0.8 / L2≥0.8', () => {
+  it('lodLevelForZoom：L0<0.22 / L1 0.22–0.6 / L2≥0.6', () => {
     expect(lodLevelForZoom(0.1)).toBe(0)
-    expect(lodLevelForZoom(0.349)).toBe(0)
-    expect(lodLevelForZoom(0.35)).toBe(1)
-    expect(lodLevelForZoom(0.79)).toBe(1)
-    expect(lodLevelForZoom(0.8)).toBe(2)
+    expect(lodLevelForZoom(0.219)).toBe(0)
+    expect(lodLevelForZoom(0.22)).toBe(1)
+    expect(lodLevelForZoom(0.59)).toBe(1)
+    expect(lodLevelForZoom(0.6)).toBe(2)
     expect(lodLevelForZoom(2)).toBe(2)
   })
 
-  it('迟滞：L1 在阈值带内（0.32–0.38 / 0.77–0.83）保持不闪切', () => {
-    expect(resolveLodLevel(0.36, 1)).toBe(1) // 越过 0.35 但未过 0.38 上迟滞 → 仍 L1
-    expect(resolveLodLevel(0.33, 1)).toBe(1) // 跌破 0.35 但未破 0.32 下迟滞 → 仍 L1
-    expect(resolveLodLevel(0.81, 1)).toBe(1)
-    expect(resolveLodLevel(0.78, 2)).toBe(2) // L2 跌破 0.8 但未破 0.77 → 仍 L2
+  it('迟滞：L1 在阈值带内（0.19–0.25 / 0.57–0.63）保持不闪切', () => {
+    expect(resolveLodLevel(0.20, 1)).toBe(1) // 跌破 L0_MAX 0.22 但未破下迟滞 0.19 → 仍 L1
+    expect(resolveLodLevel(0.62, 1)).toBe(1) // 越过 L1_MAX 0.6 但未过上迟滞 0.63 → 仍 L1
+    expect(resolveLodLevel(0.58, 2)).toBe(2) // L2 跌破 0.6 但未破下迟滞 0.57 → 仍 L2
   })
 
   it('迟滞：越过对侧 0.03 才切换', () => {
-    expect(resolveLodLevel(0.38, 0)).toBe(1)
-    expect(resolveLodLevel(0.31, 1)).toBe(0)
-    expect(resolveLodLevel(0.83, 1)).toBe(2)
-    expect(resolveLodLevel(0.76, 2)).toBe(1)
+    expect(resolveLodLevel(0.25, 0)).toBe(1) // L0→L1（越过 up0=0.25）
+    expect(resolveLodLevel(0.18, 1)).toBe(0) // L1→L0（跌破 down1=0.19）
+    expect(resolveLodLevel(0.63, 1)).toBe(2) // L1→L2（越过 up1=0.63）
+    expect(resolveLodLevel(0.56, 2)).toBe(1) // L2→L1（跌破 down2=0.57）
     expect(resolveLodLevel(0.9, 0)).toBe(2) // 跨级直跳
     expect(resolveLodLevel(0.1, 2)).toBe(0)
   })
