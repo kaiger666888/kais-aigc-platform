@@ -25,10 +25,59 @@ interface Scope {
   episodesId: number;
 }
 
-// ─── Internal helpers ─────────────────────────────
+// ─── Internal helpers ─────────────────────────────────────
 
 function now(): number {
   return Date.now();
+}
+
+// ─── Batch chunking (SQLite compound-SELECT safety) ────────────
+//
+// Knex compiles a batch `.insert(rows)` against SQLite3 as
+//   INSERT INTO t (...) SELECT ... UNION ALL SELECT ... UNION ALL ...
+// SQLite caps compound SELECT terms at SQLITE_MAX_COMPOUND_SELECT (500).
+// Exceeding it throws `too many terms in compound SELECT` and rolls the
+// whole transaction back — silently losing the save on large pipelines.
+// Chunk size 400 stays safely under the 500 limit (and, at 22 cols × 400
+// = 8800 bound params, well under modern SQLite's 32766-variable limit).
+const SQLITE_CHUNK_SIZE = 400;
+
+/**
+ * Insert `rows` into `tableName` in chunks of SQLITE_CHUNK_SIZE, UPSERTing
+ * on `conflictTarget` and merging `mergeColumns`. Splits one oversized
+ * INSERT … UNION ALL chain into several safe ones without changing the
+ * transaction boundary (caller still wraps in a single trx).
+ */
+async function chunkedInsert(
+  trx: any,
+  tableName: string,
+  rows: any[],
+  conflictTarget: string[],
+  mergeColumns: string[],
+): Promise<void> {
+  for (let i = 0; i < rows.length; i += SQLITE_CHUNK_SIZE) {
+    const chunk = rows.slice(i, i + SQLITE_CHUNK_SIZE);
+    await trx(tableName)
+      .insert(chunk)
+      .onConflict(conflictTarget)
+      .merge(mergeColumns);
+  }
+}
+
+/**
+ * Delete rows matching `where` whose id is in `ids`, chunked so a large
+ * stale-id list never overflows SQLite's variable / compound limits.
+ */
+async function chunkedDelete(
+  trx: any,
+  tableName: string,
+  where: any,
+  ids: string[],
+): Promise<void> {
+  for (let i = 0; i < ids.length; i += SQLITE_CHUNK_SIZE) {
+    const chunk = ids.slice(i, i + SQLITE_CHUNK_SIZE);
+    await trx(tableName).where(where).whereIn("id", chunk).del();
+  }
 }
 
 // ─── Node CRUD ────────────────────────────────────
@@ -429,11 +478,13 @@ export async function saveFullGraph(scope: Scope, graph: FlowGraphV2): Promise<v
         created_at: ts,
         updated_at: ts,
       }));
-      await trx("canvas_nodes")
-        .insert(nodeRows)
-        .onConflict(conflictTarget)
+      await chunkedInsert(
+        trx,
+        "canvas_nodes",
+        nodeRows,
+        conflictTarget,
         // Only merge mutable columns — preserve created_at on existing rows.
-        .merge([
+        [
           "type",
           "branch_id",
           "phase_index",
@@ -452,7 +503,8 @@ export async function saveFullGraph(scope: Scope, graph: FlowGraphV2): Promise<v
           "variant_of",
           "variant_group_id",
           "updated_at",
-        ]);
+        ],
+      );
     }
     // Delete nodes that no longer exist in the new graph
     const existingNodeRows: any[] = await trx("canvas_nodes").where(where).select("id");
@@ -460,7 +512,7 @@ export async function saveFullGraph(scope: Scope, graph: FlowGraphV2): Promise<v
       .map((r) => r.id)
       .filter((id: string) => !newNodeIds.has(id));
     if (nodeIdsToDelete.length > 0) {
-      await trx("canvas_nodes").where(where).whereIn("id", nodeIdsToDelete).del();
+      await chunkedDelete(trx, "canvas_nodes", where, nodeIdsToDelete);
     }
 
     // ── 2. Upsert links ──
@@ -479,10 +531,12 @@ export async function saveFullGraph(scope: Scope, graph: FlowGraphV2): Promise<v
         created_at: ts,
         updated_at: ts,
       }));
-      await trx("canvas_links")
-        .insert(linkRows)
-        .onConflict(conflictTarget)
-        .merge([
+      await chunkedInsert(
+        trx,
+        "canvas_links",
+        linkRows,
+        conflictTarget,
+        [
           "source_id",
           "target_id",
           "branch_id",
@@ -490,7 +544,8 @@ export async function saveFullGraph(scope: Scope, graph: FlowGraphV2): Promise<v
           "is_explore",
           "is_inactive",
           "updated_at",
-        ]);
+        ],
+      );
     }
     // Delete links that no longer exist in the new graph
     const existingLinkRows: any[] = await trx("canvas_links").where(where).select("id");
@@ -498,7 +553,7 @@ export async function saveFullGraph(scope: Scope, graph: FlowGraphV2): Promise<v
       .map((r) => r.id)
       .filter((id: string) => !newLinkIds.has(id));
     if (linkIdsToDelete.length > 0) {
-      await trx("canvas_links").where(where).whereIn("id", linkIdsToDelete).del();
+      await chunkedDelete(trx, "canvas_links", where, linkIdsToDelete);
     }
 
     // ── 3. Upsert branches ──
@@ -517,10 +572,12 @@ export async function saveFullGraph(scope: Scope, graph: FlowGraphV2): Promise<v
         created_at: b.createdAt ?? ts,
         updated_at: b.updatedAt ?? ts,
       }));
-      await trx("canvas_branches")
-        .insert(branchRows)
-        .onConflict(conflictTarget)
-        .merge([
+      await chunkedInsert(
+        trx,
+        "canvas_branches",
+        branchRows,
+        conflictTarget,
+        [
           "label",
           "parent_id",
           "parent_node_id",
@@ -528,7 +585,8 @@ export async function saveFullGraph(scope: Scope, graph: FlowGraphV2): Promise<v
           "fork_reason",
           "metadata",
           "updated_at",
-        ]);
+        ],
+      );
     }
     // Delete branches that no longer exist in the new graph
     // (never delete the implicit "main" branch)
@@ -537,7 +595,7 @@ export async function saveFullGraph(scope: Scope, graph: FlowGraphV2): Promise<v
       .map((r) => r.id)
       .filter((id: string) => !newBranchIds.has(id) && id !== "main");
     if (branchIdsToDelete.length > 0) {
-      await trx("canvas_branches").where(where).whereIn("id", branchIdsToDelete).del();
+      await chunkedDelete(trx, "canvas_branches", where, branchIdsToDelete);
     }
 
     // ── 4. Upsert variant groups ──
@@ -555,17 +613,20 @@ export async function saveFullGraph(scope: Scope, graph: FlowGraphV2): Promise<v
         created_at: ts,
         updated_at: ts,
       }));
-      await trx("canvas_variant_groups")
-        .insert(vgRows)
-        .onConflict(conflictTarget)
-        .merge([
+      await chunkedInsert(
+        trx,
+        "canvas_variant_groups",
+        vgRows,
+        conflictTarget,
+        [
           "phase_index",
           "branch_id",
           "variant_node_ids",
           "winner_node_id",
           "select_mode",
           "updated_at",
-        ]);
+        ],
+      );
     }
     // Delete variant groups that no longer exist in the new graph
     const existingVgRows: any[] = await trx("canvas_variant_groups").where(where).select("id");
@@ -573,7 +634,7 @@ export async function saveFullGraph(scope: Scope, graph: FlowGraphV2): Promise<v
       .map((r) => r.id)
       .filter((id: string) => !newVgIds.has(id));
     if (vgIdsToDelete.length > 0) {
-      await trx("canvas_variant_groups").where(where).whereIn("id", vgIdsToDelete).del();
+      await chunkedDelete(trx, "canvas_variant_groups", where, vgIdsToDelete);
     }
 
     // ── 5. Touch meta ──
