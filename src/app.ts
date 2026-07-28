@@ -128,16 +128,42 @@ export default async function startServe(randomPort: Boolean = false) {
       "/data/workspace/kais-hermes-skills/skills/kais-movie-pipeline/episodes/", // V8.6 pipeline episode assets
       "/data/workspace/kais-hermes-skills/skills/kais-movie-pipeline/assets/",   // V8.6 pipeline shared assets
     ];
-    const isAllowed = allowedPrefixes.some((p) => filePath.startsWith(p));
+
+    // 相对路径解析：canvas 节点可能存 /assets/P09/S2-01.png 形式
+    // 1) 先查 pipeline shared assets 目录
+    // 2) 找不到 → fallback 遍历 runs/<各项目>/assets/ 目录
+    let resolvedPath = filePath;
+    const PIPELINE_ASSETS_DIR = "/data/workspace/kais-hermes-skills/skills/kais-movie-pipeline/assets";
+    const RUNS_DIR = KAIS_OUTPUT_DIR.endsWith("/")
+      ? KAIS_OUTPUT_DIR
+      : KAIS_OUTPUT_DIR + "/";
+    if (filePath.startsWith("/assets/")) {
+      resolvedPath = PIPELINE_ASSETS_DIR + filePath.slice("/assets".length);
+      if (!fs.existsSync(resolvedPath)) {
+        // fallback: search runs/<project>/assets/<relPath>
+        const relPath = filePath.slice("/assets".length);
+        try {
+          for (const dir of fs.readdirSync(RUNS_DIR)) {
+            const candidate = path.join(RUNS_DIR, dir, "assets", relPath);
+            if (fs.existsSync(candidate)) {
+              resolvedPath = candidate;
+              break;
+            }
+          }
+        } catch { /* ignore directory read errors */ }
+      }
+    }
+
+    const isAllowed = allowedPrefixes.some((p) => resolvedPath.startsWith(p));
     if (!isAllowed) {
       return res.status(403).send("Access denied: path outside allowed directories");
     }
 
-    if (!fs.existsSync(filePath)) {
+    if (!fs.existsSync(resolvedPath)) {
       return res.status(404).send("File not found");
     }
 
-    res.sendFile(path.resolve(filePath));
+    res.sendFile(path.resolve(resolvedPath));
   });
 
   // data/web 静态网站
