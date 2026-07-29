@@ -22,7 +22,6 @@ export const LTX_DEFAULTS = {
   //   - 体积 43GB → 21GB,常驻 24GB VRAM,无需 LowVRAM 层间 offload
   //   - per-step ~30s+ → ~12-16s (2-3× 提速)
   // 前提:ComfyUI-INT8-Fast 节点 + --enable-triton-backend 启动标志
-  // 回退:git revert 此 commit 恢复 BF16 (ltx-2.3-22b-distilled-1.1.safetensors)
   msrModelName: "ltx-2.3-22b-distilled-1.1_transformer_only_int8_convrot.safetensors",
   // int8 transformer 不含内嵌 VAE,必须独立加载
   msrVideoVAE: "LTX23_video_vae_bf16.safetensors",
