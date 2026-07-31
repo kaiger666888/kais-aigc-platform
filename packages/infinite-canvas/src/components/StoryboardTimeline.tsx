@@ -16,7 +16,7 @@
  * 无需额外 API 调用。Socket 实时同步、审核操作全部复用现有 store 逻辑。
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useCanvasStore } from '../store/canvasStore'
 import { theme, v3theme } from '../theme/catppuccin'
 import { METADATA_LABELS } from '../constants'
@@ -43,6 +43,18 @@ interface StoryboardShot {
     lighting?: string
     style?: string
   }
+  /** P11 视频产物（.mp4）路径 — 经 resolveMediaUrl 后供 <video> 播放。 */
+  videoUrl?: string | null
+  /** 首帧图：优先 P11 video 节点 thumbnailUrl，兜底 storyboard 场景图。 */
+  firstFrame?: string | null
+  /** 尾帧图：P11 I-frame `*_frame_last` 节点（多数分镜缺失）。 */
+  lastFrame?: string | null
+  /** P09 文字首帧描述（无首帧图时降级展示）。 */
+  startFrameDesc?: string
+  /** P09 文字尾帧描述（无尾帧图时降级展示）。 */
+  endFrameDesc?: string
+  /** 规一化 shot 键（s1_1）— 跨 storyboard↔video 无 link，靠它关联。 */
+  shotKey?: string | null
 }
 
 /** 带累计起止时间的分镜（时间轴几何用）。 */
@@ -55,9 +67,25 @@ interface TimedShot extends StoryboardShot {
 
 // ─── 提取分镜数据 ──────────────────────────────────────
 
+/**
+ * 规一化 shot 键：从任意候选串（shot_id / label / node id / filePath）中提取 `s{n}_{m}`。
+ * storyboard 与 P11 video 间无 link，且 video 节点 shot_id 字段常坏（`S1 1` 带空格），
+ * 故统一从多源正则提取 + 空格→下划线 + 抹前导零，保证两侧能对上。
+ */
+function shotKeyFromCandidates(...candidates: Array<unknown>): string | null {
+  for (const c of candidates) {
+    if (!c || typeof c !== 'string') continue
+    const norm = c.toLowerCase().replace(/\s+/g, '_')
+    const m = norm.match(/s0*(\d+)_0*(\d+)/)
+    if (m) return `s${m[1]}_${m[2]}`
+  }
+  return null
+}
+
 function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<string, Record<string, unknown>> | null): StoryboardShot[] {
   if (!graph) return []
 
+  // Pass 1：storyboard 节点 → 分镜（保留原逻辑，仅追加帧描述 / shotKey）
   const shots: StoryboardShot[] = []
   for (const node of graph.nodes) {
     if (node.kind !== 'asset' || node.stage !== 'storyboard') continue
@@ -96,7 +124,48 @@ function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<string, Re
       pacing,
       promptText,
       promptFacets: meta.promptMeta,
+      startFrameDesc: (raw.start_frame_description as string) ?? undefined,
+      endFrameDesc: (raw.end_frame_description as string) ?? undefined,
+      shotKey: shotKeyFromCandidates(raw.shot_id, raw.label, meta.shotId, node.id),
     })
+  }
+
+  // Pass 2：P11 video / I-frame 节点 → 按 shotKey 建映射（storyboard↔video 无 link）
+  const videoByShot = new Map<string, { filePath: string | null; thumbnail: string | null }>()
+  const lastFrameByShot = new Map<string, string>()
+  for (const node of graph.nodes) {
+    if (node.kind !== 'asset') continue
+    const raw = rawDataByNodeId?.get(node.id) ?? {}
+    const filePath = (raw.filePath as string) ?? node.media.original ?? null
+    const thumb = (raw.thumbnailUrl as string) ?? node.media.thumbnail ?? null
+
+    // P11 视频产物（.mp4 等）— 首帧缩略取其 thumbnailUrl
+    if (node.stage === 'video' || (filePath && /\.(mp4|mov|webm|mkv)$/i.test(filePath))) {
+      const key = shotKeyFromCandidates(raw.shot_id, raw.label, node.id, filePath)
+      if (key && !videoByShot.has(key)) videoByShot.set(key, { filePath, thumbnail: thumb })
+      continue
+    }
+    // P11 末帧抽帧（`*_frame_last.*`）— 尾帧图（多数分镜缺失）
+    if (filePath && /_frame_last\./i.test(filePath)) {
+      const key = shotKeyFromCandidates(raw.shot_id, raw.label, node.id, filePath)
+      if (key && thumb && !lastFrameByShot.has(key)) lastFrameByShot.set(key, thumb)
+    }
+  }
+
+  // Pass 3：视频 / 末帧挂回分镜（video 缺失时 firstFrame 兜底 storyboard 场景图）
+  for (const shot of shots) {
+    const key = shot.shotKey
+    const v = key ? videoByShot.get(key) : undefined
+    if (v) {
+      shot.videoUrl = v.filePath
+      shot.firstFrame = v.thumbnail ?? shot.thumbnail
+    } else {
+      shot.firstFrame = shot.thumbnail
+    }
+    if (key) {
+      const lf = lastFrameByShot.get(key)
+      if (lf) shot.lastFrame = lf
+    }
   }
 
   // 按 shotId 排序（自然排序：S01, S02, ..., S10）
@@ -246,6 +315,85 @@ function StateDot({ state }: { state: string }) {
   )
 }
 
+// ─── 首尾帧缩略盒 ──────────────────────────────────────
+
+/**
+ * 单帧缩略盒：有图显图；无图降级为「标签 + 文字描述 + 播放提示」占位。
+ * 用于 ShotRow 的首帧 / 尾帧并排展示。
+ */
+function FrameBox({
+  url,
+  label,
+  placeholderTag,
+  placeholderText,
+  playHint,
+  badge,
+}: {
+  url: string | null
+  label: string
+  placeholderTag?: string
+  placeholderText?: string
+  playHint?: boolean
+  badge?: ReactNode
+}) {
+  return (
+    <div
+      title={label}
+      style={{
+        position: 'relative',
+        width: 104,
+        aspectRatio: '16 / 9',
+        borderRadius: 3,
+        overflow: 'hidden',
+        flexShrink: 0,
+        background: url ? v3theme.surface.canvas : v3theme.modalityWeak.video,
+        border: `1px solid ${url ? theme.border.default : theme.border.dim}`,
+      }}
+    >
+      {url ? (
+        <img
+          src={url}
+          alt={label}
+          loading="lazy"
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden' }}
+        />
+      ) : (
+        <div style={{
+          width: '100%', height: '100%',
+          padding: '3px 5px',
+          display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+        }}>
+          {placeholderTag && (
+            <div style={{
+              fontSize: 8, fontWeight: 700, letterSpacing: 0.4,
+              color: v3theme.modality.video, textTransform: 'uppercase',
+            }}>
+              {placeholderTag}
+            </div>
+          )}
+          <div style={{
+            fontSize: 9, lineHeight: 1.25, color: theme.text.tertiary,
+            overflow: 'hidden', display: '-webkit-box',
+            WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+          }}>
+            {placeholderText || '无帧描述'}
+          </div>
+          {playHint && (
+            <div style={{
+              fontSize: 8, fontWeight: 600, color: v3theme.modality.video,
+              display: 'inline-flex', alignItems: 'center', gap: 2,
+            }}>
+              ▶ 点击播放
+            </div>
+          )}
+        </div>
+      )}
+      {badge}
+    </div>
+  )
+}
+
 // ─── 左面板：分镜行 ────────────────────────────────────
 
 function ShotRow({
@@ -264,6 +412,7 @@ function ShotRow({
   rowRef: (el: HTMLDivElement | null) => void
 }) {
   const [hovered, setHovered] = useState(false)
+  const [expanded, setExpanded] = useState(false)
   const { node } = shot
 
   // 构造 prompt 摘要
@@ -280,7 +429,10 @@ function ShotRow({
     return ''
   }, [shot.promptText, shot.promptFacets])
 
-  const thumbUrl = resolveMediaUrl(shot.thumbnail)
+  // 首帧：优先 P11 video 缩略；尾帧：P11 frame_last（多数缺失 → 文字占位）
+  const firstFrameUrl = resolveMediaUrl(shot.firstFrame ?? shot.thumbnail)
+  const lastFrameUrl = resolveMediaUrl(shot.lastFrame)
+  const hasFrameDesc = !!(shot.startFrameDesc || shot.endFrameDesc)
 
   return (
     <div
@@ -306,7 +458,7 @@ function ShotRow({
     >
       {/* 序号 */}
       <span style={{
-        width: 34,
+        width: 30,
         flexShrink: 0,
         paddingTop: 4,
         textAlign: 'right',
@@ -318,45 +470,47 @@ function ShotRow({
         {index + 1}
       </span>
 
-      {/* 首帧缩略图（仅一张 → 单张显示） */}
-      <div style={{
-        flexShrink: 0,
-        width: 132,
-        aspectRatio: '16 / 9',
-        borderRadius: 3,
-        overflow: 'hidden',
-        background: v3theme.surface.canvas,
-        position: 'relative',
-        border: `1px solid ${theme.border.default}`,
-      }}>
-        {thumbUrl ? (
-          <img
-            src={thumbUrl}
-            alt={shot.shotId}
-            loading="lazy"
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-          />
-        ) : (
-          <div style={{
-            width: '100%', height: '100%',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: theme.text.tertiary,
-          }}>
-            <UiIcon kind="image" size={22} />
-          </div>
-        )}
-        {/* 时长徽章 */}
-        <div style={{
-          position: 'absolute', bottom: 3, right: 3,
-          padding: '1px 6px', borderRadius: 4,
-          background: 'rgba(0,0,0,0.75)', color: '#fff',
-          fontSize: 10, fontWeight: 600,
-          fontFamily: 'var(--cv-font-mono, monospace)',
-          backdropFilter: 'blur(4px)',
-        }}>
-          {formatDuration(shot.durationS)}
-        </div>
+      {/* 首尾帧并排（首帧 = P11 video 缩略 / 场景图；尾帧 = frame_last 或文字占位） */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+        <FrameBox
+          url={firstFrameUrl}
+          label={`${shot.shotId} · 首帧`}
+          placeholderTag="首帧"
+          placeholderText={shot.startFrameDesc}
+          playHint={!firstFrameUrl && !!shot.videoUrl}
+          badge={shot.videoUrl ? (
+            <div style={{
+              position: 'absolute', top: 3, left: 3,
+              display: 'inline-flex', alignItems: 'center', gap: 2,
+              padding: '1px 5px', borderRadius: 4,
+              background: 'rgba(0,0,0,0.72)', color: '#fff',
+              fontSize: 9, fontWeight: 600,
+              fontFamily: 'var(--cv-font-mono, monospace)',
+              backdropFilter: 'blur(4px)',
+            }}>
+              ▶ {formatDuration(shot.durationS)}
+            </div>
+          ) : (
+            <div style={{
+              position: 'absolute', bottom: 3, right: 3,
+              padding: '1px 6px', borderRadius: 4,
+              background: 'rgba(0,0,0,0.72)', color: '#fff',
+              fontSize: 10, fontWeight: 600,
+              fontFamily: 'var(--cv-font-mono, monospace)',
+              backdropFilter: 'blur(4px)',
+            }}>
+              {formatDuration(shot.durationS)}
+            </div>
+          )}
+        />
+        <span style={{ color: theme.text.tertiary, fontSize: 11, flexShrink: 0 }}>→</span>
+        <FrameBox
+          url={lastFrameUrl}
+          label={`${shot.shotId} · 尾帧`}
+          placeholderTag="尾帧"
+          placeholderText={shot.endFrameDesc}
+          playHint={!!shot.videoUrl}
+        />
       </div>
 
       {/* 主体 */}
@@ -431,6 +585,38 @@ function ShotRow({
             WebkitBoxOrient: 'vertical',
           }}>
             {promptSummary}
+          </div>
+        )}
+
+        {/* 首尾帧文字描述（可折叠；无帧图时为主要画面信息） */}
+        {hasFrameDesc && (
+          <div style={{ marginTop: 4 }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v) }}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                fontSize: 10, color: theme.text.tertiary,
+                display: 'inline-flex', alignItems: 'center', gap: 3,
+              }}
+            >
+              {expanded ? '▴ 收起首尾帧' : '▾ 首尾帧描述'}
+            </button>
+            {expanded && (
+              <div style={{ marginTop: 3, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {shot.startFrameDesc && (
+                  <div style={{ fontSize: 10, lineHeight: 1.45, color: theme.text.secondary }}>
+                    <span style={{ color: v3theme.modality.video, fontWeight: 700, marginRight: 4 }}>首</span>
+                    {shot.startFrameDesc}
+                  </div>
+                )}
+                {shot.endFrameDesc && (
+                  <div style={{ fontSize: 10, lineHeight: 1.45, color: theme.text.secondary }}>
+                    <span style={{ color: v3theme.modality.video, fontWeight: 700, marginRight: 4 }}>尾</span>
+                    {shot.endFrameDesc}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -561,6 +747,85 @@ function ShotBlock({
   )
 }
 
+// ─── 底部视频播放器 ────────────────────────────────────
+
+/**
+ * 底部内嵌播放器：选中带 P11 视频的分镜后滑出。src 变更经 key 重挂载触发 autoPlay；
+ * 无视频数据的项目不渲染（graceful degradation）。
+ */
+function VideoPlayer({
+  shotId,
+  videoUrl,
+  durationLabel,
+  onClose,
+}: {
+  shotId: string
+  videoUrl: string
+  durationLabel: string
+  onClose: () => void
+}) {
+  // <video> 元素的真实时长优先于 storyboard durationS（后者常因 duration_sec 未映射为 0）
+  const [realDur, setRealDur] = useState<number | null>(null)
+  return (
+    <div style={{
+      flexShrink: 0,
+      height: 230,
+      display: 'flex', flexDirection: 'column',
+      background: theme.bg.panel,
+      borderTop: `1px solid ${theme.border.default}`,
+    }}>
+      <div style={{
+        flexShrink: 0,
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '6px 16px',
+        borderBottom: `1px solid ${theme.border.dim}`,
+      }}>
+        <UiIcon kind="film" size={14} />
+        <span style={{
+          fontSize: 12, fontWeight: 600, color: theme.text.primary,
+          fontFamily: 'var(--cv-font-mono, monospace)',
+        }}>
+          {shotId}
+        </span>
+        <span style={{ fontSize: 10, color: v3theme.modality.video, fontWeight: 600 }}>
+          {realDur != null ? formatDuration(realDur) : durationLabel}
+        </span>
+        <span style={{ flex: 1 }} />
+        <button
+          onClick={onClose}
+          title="关闭播放器"
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            padding: '2px 7px', borderRadius: 3,
+            color: theme.text.tertiary, fontSize: 13, lineHeight: 1,
+          }}
+        >
+          ✕
+        </button>
+      </div>
+      <div style={{ flex: 1, minHeight: 0, padding: '8px 16px', display: 'flex' }}>
+        <video
+          key={videoUrl}
+          src={videoUrl}
+          controls
+          autoPlay
+          playsInline
+          onLoadedMetadata={(e) => {
+            const d = (e.currentTarget as HTMLVideoElement).duration
+            if (isFinite(d) && d > 0) setRealDur(d)
+          }}
+          style={{
+            maxWidth: '100%', maxHeight: '100%', height: '100%',
+            margin: '0 auto', borderRadius: 4,
+            background: '#000',
+            border: `1px solid ${theme.border.default}`,
+          }}
+        />
+      </div>
+    </div>
+  )
+}
+
 // ─── 主组件 ────────────────────────────────────────────
 
 export default function StoryboardTimeline() {
@@ -569,6 +834,9 @@ export default function StoryboardTimeline() {
   const setSelectedNode = useCanvasStore((s) => s.setSelectedNode)
   const detailNode = useCanvasStore((s) => s.detailNode)
   const rawDataByNodeId = useCanvasStore((s) => s.rawDataByNodeId)
+
+  // 底部播放器：选中带 P11 视频的分镜时滑出
+  const [activeVideo, setActiveVideo] = useState<{ shotId: string; videoUrl: string; durationS: number } | null>(null)
 
   const baseShots = useMemo(() => extractShots(graph, rawDataByNodeId), [graph, rawDataByNodeId])
 
@@ -593,9 +861,10 @@ export default function StoryboardTimeline() {
     const rejected = shots.filter((s) => s.node.reviewStatus === 'rejected').length
     const pending = shots.filter((s) => !s.node.reviewStatus || s.node.reviewStatus === 'pending').length
     const withThumbs = shots.filter((s) => s.thumbnail).length
+    const withVideo = shots.filter((s) => s.videoUrl).length
     const scores = shots.filter((s) => s.node.aiScore?.overall != null).map((s) => s.node.aiScore!.overall)
     const avgScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null
-    return { totalDurationSum, approved, rejected, pending, withThumbs, avgScore, count: shots.length }
+    return { totalDurationSum, approved, rejected, pending, withThumbs, withVideo, avgScore, count: shots.length }
   }, [shots])
 
   // 时间刻度
@@ -652,6 +921,10 @@ export default function StoryboardTimeline() {
     if (rfNode) {
       setSelectedNode(rfNode)
       setDetailNode(rfNode)
+    }
+    // 有 P11 视频则滑出底部播放器并自动播放
+    if (shot.videoUrl) {
+      setActiveVideo({ shotId: shot.shotId, videoUrl: shot.videoUrl, durationS: shot.durationS })
     }
     centerOther(from, shot.node.id)
   }
@@ -737,9 +1010,18 @@ export default function StoryboardTimeline() {
           <span style={{ color: theme.text.tertiary }}>缩略图</span>
           <span style={{ fontWeight: 600, color: theme.text.secondary }}>{stats.withThumbs}/{stats.count}</span>
         </div>
+        {stats.withVideo > 0 && (
+          <>
+            <div style={{ width: 1, height: 14, background: theme.border.default }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ color: theme.text.tertiary }}>视频</span>
+              <span style={{ fontWeight: 600, color: v3theme.modality.video }}>{stats.withVideo}/{stats.count}</span>
+            </div>
+          </>
+        )}
         <span style={{ flex: 1 }} />
         <span style={{ color: theme.text.tertiary, fontSize: 11 }}>
-          💡 点击分镜查看详情，左右面板滚动同步
+          💡 点击分镜播放视频 / 查看详情，左右面板滚动同步
         </span>
       </div>
 
@@ -819,6 +1101,16 @@ export default function StoryboardTimeline() {
           </div>
         )}
       </div>
+
+      {/* ─── 底部视频播放器（选中带 P11 视频的分镜后滑出） ─── */}
+      {activeVideo && (
+        <VideoPlayer
+          shotId={activeVideo.shotId}
+          videoUrl={resolveMediaUrl(activeVideo.videoUrl) ?? ''}
+          durationLabel={formatDuration(activeVideo.durationS)}
+          onClose={() => setActiveVideo(null)}
+        />
+      )}
     </div>
   )
 }
