@@ -72,6 +72,12 @@ RUN git clone --depth 1 https://github.com/FunAudioLLM/CosyVoice.git /opt/CosyVo
 # gold-team no longer bundles acestep Python sources, /opt/acestep dir,
 # or any ACESTEP_* env vars.
 
+# ── Hunyuan3D (image-to-3D) ────────────────────────────────────────────────
+# pip package for shape generation + PBR texture painting
+RUN pip install --no-cache-dir hy3dgen trimesh \
+    -i https://pypi.tuna.tsinghua.edu.cn/simple || \
+    pip install --no-cache-dir hy3dgen trimesh
+
 # ── Kimodo (motion diffusion) ──────────────────────────────────────────────
 # Install with --no-deps + SKIP_MOTION_CORRECTION to avoid C++ build + dep conflicts
 # (kimodo requires transformers==5.1 which conflicts with CosyVoice's 4.51.3)
