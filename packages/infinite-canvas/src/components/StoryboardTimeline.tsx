@@ -218,6 +218,27 @@ function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<string, Re
       const lf = lastFrameByShot.get(key)
       if (lf) shot.lastFrame = lf
     }
+
+    // Pass 3 兜底：从 P11 video 节点的 OSS 路径直接构造首尾帧 URL。
+    // 磁盘上有成对 first_frames_*/last_frames_* 文件且已生成 .webp 缩略图，
+    // 但它们不以独立节点出现在 canvas（Pass 2 的 *_frame_last 匹配不到），
+    // 故据 videoUrl 反推缩略图目录、shotKey 反构造文件名补齐缺失的帧。
+    const videoOssPath = shot.videoUrl
+    if (videoOssPath && key && videoOssPath.startsWith('/oss/')) {
+      const slash = videoOssPath.lastIndexOf('/')
+      if (slash > 0) {
+        const ossDir = videoOssPath.substring(0, slash) // /oss/pipeline/7052cea6
+        const thumbDir = ossDir.replace(/^\/oss\//, '/oss/_thumbs/') // /oss/_thumbs/pipeline/7052cea6
+        // shotKey 规一化为小写（s1_1）；磁盘文件名首字母大写（S1_1）
+        const shotFileName = key.replace(/^s/, 'S')
+        if (!shot.firstFrame) {
+          shot.firstFrame = `${thumbDir}/first_frames_${shotFileName}.webp`
+        }
+        if (!shot.lastFrame) {
+          shot.lastFrame = `${thumbDir}/last_frames_${shotFileName}.webp`
+        }
+      }
+    }
   }
 
   // Pass 4：P10 音频节点（voice / foley / bgm，modality=audio）→ 按 shotKey 建映射，挂回分镜
