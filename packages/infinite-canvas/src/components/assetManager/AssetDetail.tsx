@@ -4,9 +4,11 @@
  */
 import { useMemo, useState } from 'react'
 import { useCanvasStore } from '../../store/canvasStore'
+import { resolveMediaUrl } from '../../utils/mediaUrl'
+import { useRealAssets } from './useRealAssets'
 import {
   ASSETS, COMPOSITIONS, APPEARS, EPISODES, TYPE_LABEL,
-  assetByUuid, modalityVar,
+  assetByUuid, assetDetailToItem, modalityVar,
   type AssetItem,
 } from './assetManagerData'
 
@@ -25,8 +27,15 @@ export default function AssetDetail() {
   const setAssetView = useCanvasStore((s) => s.setAssetView)
   const openAssetDetail = useCanvasStore((s) => s.openAssetDetail)
   const [view, setView] = useState('front')
+  const { assets: realAssets } = useRealAssets()
 
-  const a = uuid ? assetByUuid(uuid) : undefined
+  // 取数：真实资产优先（资产库进入），否则回退 mock（角色衣柜/场景管理进入）。
+  const a = useMemo<AssetItem | undefined>(() => {
+    if (!uuid) return undefined
+    const real = realAssets.find((d) => (d.uuid || `id-${d.id}`) === uuid)
+    if (real) return assetDetailToItem(real)
+    return assetByUuid(uuid)
+  }, [uuid, realAssets])
 
   const rels = useMemo<RelNode[]>(() => {
     if (!a) return []
@@ -84,18 +93,27 @@ export default function AssetDetail() {
   if (a.seed) rows.push(['种子', a.seed])
   if (a.voice) rows.push(['声纹', a.voice])
   if (a.slot) rows.push(['装备槽', a.slot])
+  if (a.characterId) rows.push(['角色ID', a.characterId])
+  if (a.viewAngle) rows.push(['视角', a.viewAngle])
+  if (a.filePath) rows.push(['文件', a.filePath])
   if (a.diff) rows.push(['差异', Object.entries(a.diff).map(([k, v]) => `${k}:${v}`).join(' · ')])
 
   // 关系图径向坐标（固定 viewBox，免测量）
   const cx = 200, cy = 110, r = 76
   const nodes = rels.slice(0, 8)
 
+  const imgUrl = a.filePath ? resolveMediaUrl(a.filePath) : null
+
   return (
     <div className="am-det">
       <div className="am-det__left">
         <button className="am-det__back" onClick={() => setAssetView('library')}>‹ 返回资产库</button>
         <div className="am-det__stage">
-          <div className="am-det__big" style={cssVars({ filter: `drop-shadow(0 18px 40px rgba(0,0,0,.5))` })}>{a.emoji}</div>
+          {imgUrl ? (
+            <img className="am-det__big-img" src={imgUrl} alt={a.name} />
+          ) : (
+            <div className="am-det__big" style={cssVars({ filter: `drop-shadow(0 18px 40px rgba(0,0,0,.5))` })}>{a.emoji}</div>
+          )}
         </div>
         <div className="am-det__views">
           {views.map((v) => (

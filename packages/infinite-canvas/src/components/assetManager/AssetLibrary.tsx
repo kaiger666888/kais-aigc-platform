@@ -1,23 +1,47 @@
 /**
  * 视图A · 资产库 —— 左栏类型树 + Masonry 卡片网格 + 搜索/作用域/标签筛选。
+ *
+ * 数据来源：真实 `/api/v1/assets-registry/search`（useRealAssets 缓存）。
+ * 管线产出的资产经 canvas_sync 自动注册后即出现在此处，无需手动同步。
+ * 缩略图从 JOIN o_image 的 filePath 经 resolveMediaUrl 渲染；缺图回退类型 emoji。
+ *
  * 点击卡片 → openAssetDetail(uuid)（store 驱动切到详情子视图）。
  * 卡片 hover「添加到画布」→ 画布联动（占位 · TODO 待后端 place 端点）。
  */
 import { useMemo, useState } from 'react'
 import { useCanvasStore } from '../../store/canvasStore'
 import { placeAssetOnCanvas } from '../../services/canvasApi'
+import { resolveMediaUrl } from '../../utils/mediaUrl'
+import { useRealAssets } from './useRealAssets'
 import {
-  ASSETS, TYPE_GROUPS, TYPE_LABEL, allTags,
-  type AssetItem, type AssetScope, type AssetType,
-  modalityVar, modalityWeakVar,
+  REAL_TYPE_GROUPS, TYPE_LABEL, SCOPE_LOOKUP, realTags,
+  assetDetailToItem, modalityVar, modalityWeakVar,
+  type AssetItem, type AssetType,
 } from './assetManagerData'
 
-/** 把自定义 CSS 变量安全注入 style（TS 不认 --foo 键）。 */
+type LibScope = 'all' | 'current' | 'library' | 'project'
+
 function cssVars(vars: Record<string, string>): React.CSSProperties {
   return vars as React.CSSProperties
 }
 
-const SCOPE_LABEL: Record<AssetScope, string> = { library: '全局库', series: '系列', project: '项目' }
+/** 缩略图：优先 filePath 真图，加载失败/缺图回退类型 emoji。 */
+function Thumb({ item }: { item: AssetItem }) {
+  const [broken, setBroken] = useState(false)
+  const url = item.filePath ? resolveMediaUrl(item.filePath) : null
+  if (url && !broken) {
+    return (
+      <img
+        className="am-card__img"
+        src={url}
+        alt={item.name}
+        loading="lazy"
+        onError={() => setBroken(true)}
+      />
+    )
+  }
+  return <span className="am-card__emoji">{item.emoji}</span>
+}
 
 export default function AssetLibrary() {
   const openAssetDetail = useCanvasStore((s) => s.openAssetDetail)
@@ -25,25 +49,49 @@ export default function AssetLibrary() {
   const projectId = useCanvasStore((s) => s.projectId)
   const episodesId = useCanvasStore((s) => s.episodesId)
 
-  const [scope, setScope] = useState<AssetScope | 'all'>('all')
+  const { assets, loading, error, reload } = useRealAssets()
+
+  const [scope, setScope] = useState<LibScope>('all')
   const [typeFilter, setTypeFilter] = useState<AssetType | null>(null)
   const [tagFilter, setTagFilter] = useState<string | null>(null)
   const [search, setSearch] = useState('')
 
-  const filtered = useMemo(() => ASSETS.filter((a) => {
-    if (scope !== 'all' && a.scope !== scope) return false
-    if (typeFilter && a.type !== typeFilter) return false
-    if (tagFilter && !(a.tags ?? []).includes(tagFilter)) return false
+  const tags = useMemo(() => realTags(assets.map(assetDetailToItem)), [assets])
+
+  const scopeMatches = useMemo(() => {
+    return (d: typeof assets[number]) => {
+      if (scope === 'library') return d.projectId == null
+      if (scope === 'project') return d.projectId != null
+      if (scope === 'current') return projectId != null && d.projectId === projectId
+      return true // all
+    }
+  }, [scope, projectId])
+
+  const filtered = useMemo(() => assets.filter((d) => {
+    if (!scopeMatches(d)) return false
+    if (typeFilter && d.type !== typeFilter) return false
+    if (tagFilter) {
+      const dt = d.tags ? d.tags.split(',').map((s) => s.trim()) : []
+      if (!dt.includes(tagFilter)) return false
+    }
     if (search) {
       const q = search.toLowerCase()
-      const hay = `${a.name} ${a.desc ?? ''} ${(a.tags ?? []).join(' ')}`.toLowerCase()
+      const hay = `${d.name ?? ''} ${d.describe ?? ''} ${d.prompt ?? ''} ${d.tags ?? ''}`.toLowerCase()
       if (!hay.includes(q)) return false
     }
     return true
-  }), [scope, typeFilter, tagFilter, search])
+  }), [assets, scopeMatches, typeFilter, tagFilter, search])
 
-  const countByType = (t: AssetType) => ASSETS.filter((a) => a.type === t && (scope === 'all' || a.scope === scope)).length
-  const countAll = ASSETS.filter((a) => scope === 'all' || a.scope === scope).length
+  const items = useMemo(() => filtered.map(assetDetailToItem), [filtered])
+
+  const countByType = (t: string) => assets.filter((d) => d.type === t && scopeMatches(d)).length
+  const countAll = assets.filter(scopeMatches).length
+
+  const scopeOptions: LibScope[] = projectId
+    ? ['all', 'current', 'library', 'project']
+    : ['all', 'library', 'project']
+  const scopeLabel = (s: LibScope): string =>
+    s === 'all' ? '全部' : s === 'current' ? '当前项目' : SCOPE_LOOKUP[s]
 
   const handleAddToCanvas = async (a: AssetItem) => {
     if (!projectId || episodesId == null) {
@@ -68,7 +116,7 @@ export default function AssetLibrary() {
             <span className="am-tree-node__ic">▦</span>全部<span className="am-tree-node__n">{countAll}</span>
           </button>
         </div>
-        {TYPE_GROUPS.map((g) => (
+        {REAL_TYPE_GROUPS.map((g) => (
           <div className="am-tree-group" key={g.group}>
             <div className="am-tree-group__h" style={{ marginTop: 8 }}>{g.group}</div>
             {g.items.map((it) => (
@@ -88,34 +136,46 @@ export default function AssetLibrary() {
       {/* 主区域 */}
       <div className="am-lib__main">
         <div className="am-lib__toolbar">
-          {/* 作用域分段 */}
           <div className="am-scope">
-            {(['all', 'library', 'series', 'project'] as const).map((sc) => (
-              <button
-                key={sc}
-                className={scope === sc ? 'is-on' : ''}
-                onClick={() => setScope(sc)}
-              >{sc === 'all' ? '全部' : SCOPE_LABEL[sc]}</button>
+            {scopeOptions.map((sc) => (
+              <button key={sc} className={scope === sc ? 'is-on' : ''} onClick={() => setScope(sc)}>
+                {scopeLabel(sc)}
+              </button>
             ))}
           </div>
-          {/* 搜索 */}
           <label className="am-search">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="搜索资产 / 标签…" />
           </label>
           <span className="am-head" style={{ marginLeft: 4 }}>标签</span>
           <button className={`am-chip ${!tagFilter ? 'is-on' : ''}`} onClick={() => setTagFilter(null)}>全部</button>
-          {allTags().map((t) => (
+          {tags.map((t) => (
             <button key={t} className={`am-chip ${tagFilter === t ? 'is-on' : ''}`} onClick={() => setTagFilter(t)}>{t}</button>
           ))}
           <span className="am-lib__count">{filtered.length} 项资产</span>
         </div>
+
         <div className="am-scroll" style={{ flex: 1, overflowY: 'auto' }}>
-          {filtered.length === 0 ? (
-            <div className="am-empty">没有匹配的资产。<br />试试清除筛选或搜索。</div>
+          {loading ? (
+            <div className="am-loading">
+              {[1, 2, 3, 4, 5, 6].map((i) => <div className="am-skeleton-card" key={i} />)}
+              <div className="am-loading__label">正在从资产注册表加载…</div>
+            </div>
+          ) : error ? (
+            <div className="am-empty">
+              资产加载失败：{error}<br />
+              <button className="am-btn am-btn--ghost" style={{ marginTop: 12 }} onClick={reload}>重试</button>
+            </div>
+          ) : items.length === 0 ? (
+            <div className="am-empty">
+              没有匹配的资产。<br />
+              {assets.length === 0
+                ? '资产库为空 —— 运行管线（P04 角色设计 / P07 场景）后会自动注册到这里。'
+                : '试试清除筛选或搜索。'}
+            </div>
           ) : (
             <div className="am-grid">
-              {filtered.map((a) => {
+              {items.map((a) => {
                 const isKey = a.type === 'prop_key'
                 return (
                   <div
@@ -132,13 +192,13 @@ export default function AssetLibrary() {
                       onClick={(e) => { e.stopPropagation(); void handleAddToCanvas(a) }}
                       title="添加到当前画布"
                     >＋ 画布</button>
-                    <div className="am-card__thumb">{a.emoji}</div>
+                    <div className="am-card__thumb"><Thumb item={a} /></div>
                     <div className="am-card__typebar" />
                     <div className="am-card__body">
                       <div className="am-card__name">{a.name}</div>
                       <div className="am-card__meta">
-                        <span className="am-card__typetag">{TYPE_LABEL[a.type]}</span>
-                        <span className="am-card__scope">{SCOPE_LABEL[a.scope]}</span>
+                        <span className="am-card__typetag">{TYPE_LABEL[a.type] ?? a.type}</span>
+                        <span className="am-card__scope">{a.scope === 'library' ? '全局库' : '项目'}</span>
                       </div>
                     </div>
                   </div>

@@ -1,24 +1,28 @@
 /**
  * 资产管理中心 — 数据层（细粒度资产类型 + 组合关系）。
  *
- * ⚠️ 数据来源说明：
- * 现网 `/api/v1/assets-registry` 只有粗粒度 type（character|scene|prop|...），
- * 且无 costume/accessory/scene_variant 数据，更无组合关系（o_asset_composition 未建表）。
- * 因此本模块提供**演示用 mock 数据集**（短剧「流浪猫小橘」），保证 4 个子视图可完整跑通。
+ * 数据来源：
+ *   - 资产库 / 详情 → 真实 `/api/v1/assets-registry`（assetDetailToItem 映射）。
+ *   - 角色衣柜 / 场景管理 → mock 数据集（组合关系 o_asset_composition 未建表，
+ *     待后端落地 design.md §3 后接真实 API）。
  *
  * 真实接入路径（TODO，待后端落地 design.md §3 的 o_asset_composition/o_loadout）：
- *   - 列表/搜索 → services/canvasApi.ts 的 searchAssets()（已存在，可直接接）
  *   - 组合关系 → 需新增 GET /api/v1/assets/:uuid/composition（TODO）
  *   - 角色衣柜 → 需新增 GET /api/v1/characters/:uuid/wardrobe（TODO）
  * 见 /tmp/asset-manager-design.md §4 API 设计。
  */
+import type { AssetDetail } from '../../services/canvasApi'
 
-// ─── 细粒度资产类型 ───────────────────────────────────────
+// ─── 资产类型（细粒度 mock + 粗粒度真实 registry） ─────────
+// 细粒度（mock / 未来 o_asset_composition）+ 粗粒度（现网 assets-registry 实际 type）。
 export type AssetType =
+  // 细粒度
   | 'character' | 'costume' | 'accessory'
   | 'scene' | 'scene_variant'
   | 'prop' | 'prop_key' | 'prop_consumable'
   | 'style' | 'audio'
+  // 粗粒度（现网 registry 真实数据）
+  | 'clip' | 'voice' | 'video' | 'storyboard' | 'script_phase' | 'outline' | 'topic' | 'delivery'
 
 export type AssetModality = 'image' | 'text' | 'audio' | 'video'
 export type AssetScope = 'library' | 'series' | 'project'
@@ -50,6 +54,15 @@ export interface AssetItem {
   variantOf?: string
   /** scene_variant 的差异参数 */
   diff?: Record<string, string>
+  // ── 真实 registry 字段（assetDetailToItem 填充） ──
+  /** 真实 o_assets.id（数字主键） */
+  id?: number
+  /** JOIN o_image 得到的文件路径（缩略图渲染用） */
+  filePath?: string
+  characterId?: string
+  viewAngle?: string
+  /** 来源标记：真实 API / mock（驱动详情视图的取数路径） */
+  source?: 'real' | 'mock'
 }
 
 // ─── 组合关系 ─────────────────────────────────────────────
@@ -195,10 +208,18 @@ export const TYPE_LABEL: Record<AssetType, string> = {
   scene: '场景', scene_variant: '场景变体',
   prop: '道具', prop_key: '关键道具', prop_consumable: '消耗品',
   style: '风格', audio: '音频',
+  // 粗粒度（现网 registry 真实数据）
+  clip: '片段', voice: '声纹', video: '视频', storyboard: '分镜',
+  script_phase: '剧本', outline: '大纲', topic: '选题', delivery: '交付',
 }
 
 export const SLOT_LABEL: Record<EquipSlot, string> = {
   head: '头饰', body: '服装', accessory: '配饰', hand: '手持道具', feet: '足部',
+}
+
+/** 作用域 → 中文（资产库 scope 分段用）。 */
+export const SCOPE_LOOKUP: Record<AssetScope, string> = {
+  library: '全局库', series: '系列', project: '项目',
 }
 
 // ─── 纯函数 helper ────────────────────────────────────────
@@ -212,3 +233,80 @@ export const allTags = (): string[] =>
 export const modalityVar = (m: AssetModality): string =>
   ({ image: '--cv-mod-image', text: '--cv-mod-text', audio: '--cv-mod-audio', video: '--cv-mod-video' })[m]
 export const modalityWeakVar = (m: AssetModality): string => modalityVar(m) + '-weak'
+
+// ─── 真实 API 数据映射（assets-registry → AssetItem） ──────
+//
+// 现网 /api/v1/assets-registry 返回粗粒度 type + filePath（JOIN o_image）。
+// 这里把 AssetDetail 映射成统一的 AssetItem，使资产库/详情视图既能吃真实数据，
+// 又复用既有渲染。emoji/modality 由 type 派生（真实资产无 emoji 字段）。
+
+/** 粗/细 type → 模态色。视觉类=青、文本类=金、音频=橙、视频=玫。 */
+export function modalityOfType(type: string): AssetModality {
+  if (['voice', 'audio'].includes(type)) return 'audio'
+  if (['video', 'clip'].includes(type)) return 'video'
+  if (['script_phase', 'outline', 'topic', 'style', 'delivery'].includes(type)) return 'text'
+  return 'image' // character/scene/prop/costume/accessory/storyboard/...
+}
+
+/** type → 展示用 emoji（真实资产无 emoji，按类型给默认图标）。 */
+export function emojiOfType(type: string): string {
+  const map: Record<string, string> = {
+    character: '👤', scene: '🌆', scene_variant: '🌗', prop: '📦', prop_key: '🗝️',
+    prop_consumable: '🥫', costume: '👘', accessory: '💍', style: '🎨', audio: '🎵',
+    voice: '🎙️', video: '🎬', clip: '🎞️', storyboard: '🎬', script_phase: '📝',
+    outline: '🗂️', topic: '💡', delivery: '📦',
+  }
+  return map[type] ?? '📦'
+}
+
+/** 真实资产资产库左栏用的粗粒度类型树（按现网实际 type 分组）。 */
+export const REAL_TYPE_GROUPS: TypeGroup[] = [
+  { group: '角色 / 场景 / 道具', items: [
+    { t: 'character', ic: '👤', n: '角色' },
+    { t: 'scene', ic: '🌆', n: '场景' },
+    { t: 'prop', ic: '📦', n: '道具' },
+  ]},
+  { group: '媒体产物', items: [
+    { t: 'video', ic: '🎬', n: '视频' },
+    { t: 'audio', ic: '🎵', n: '音频' },
+    { t: 'voice', ic: '🎙️', n: '声纹' },
+    { t: 'storyboard', ic: '🎬', n: '分镜' },
+    { t: 'clip', ic: '🎞️', n: '片段' },
+  ]},
+  { group: '文本产物', items: [
+    { t: 'script_phase', ic: '📝', n: '剧本' },
+    { t: 'outline', ic: '🗂️', n: '大纲' },
+    { t: 'topic', ic: '💡', n: '选题' },
+    { t: 'delivery', ic: '📦', n: '交付' },
+  ]},
+]
+
+/** 真实 registry 的 AssetDetail → 统一 AssetItem（资产库/详情消费）。 */
+export function assetDetailToItem(d: AssetDetail): AssetItem {
+  const type = (d.type || 'prop') as AssetType
+  const tags = d.tags ? d.tags.split(',').map((s) => s.trim()).filter(Boolean) : []
+  return {
+    uuid: d.uuid || `id-${d.id}`,
+    name: d.name || '未命名资产',
+    type,
+    modality: modalityOfType(type),
+    emoji: emojiOfType(type),
+    scope: d.projectId == null ? 'library' : 'project',
+    desc: d.describe ?? undefined,
+    tags,
+    model: d.model ?? undefined,
+    prompt: d.prompt ?? undefined,
+    views: type === 'scene' ? ['overview', 'wide', 'close'] : ['front', 'side', 'back'],
+    id: d.id,
+    filePath: d.filePath ?? undefined,
+    characterId: d.characterId ?? undefined,
+    viewAngle: d.viewAngle ?? undefined,
+    source: 'real',
+  }
+}
+
+/** 取全部真实资产的标签集合（资产库标签筛选用）。 */
+export function realTags(items: AssetItem[]): string[] {
+  return [...new Set(items.flatMap((a) => a.tags ?? []))].sort()
+}
+

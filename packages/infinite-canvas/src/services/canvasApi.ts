@@ -275,9 +275,21 @@ export async function fetchProjectAssets(
 
 /**
  * 搜索资产（跨项目）。
+ * 参数对齐后端 POST /api/v1/assets-registry/search 的 schema：
+ * query / type / projectId(null=全局) / characterId / tags / state / limit / offset / includeFile。
  */
 export async function searchAssets(
-  params: { query?: string; type?: string; characterId?: string; tags?: string },
+  params: {
+    query?: string
+    type?: string
+    projectId?: number | null
+    characterId?: string
+    tags?: string
+    state?: string
+    limit?: number
+    offset?: number
+    includeFile?: boolean
+  },
   cancelToken?: CancelToken,
 ): Promise<AssetDetail[]> {
   const json = await apiCall<{ data: { assets: AssetDetail[] } }>('/v1/assets-registry/search', params, { cancelToken })
