@@ -49,6 +49,8 @@ type AssetCardData = {
   thumbnailUrl?: string | null
   filePath?: string | null
   state?: string
+  /** 语义标签（canvas sync 写入）：📋 概览 / ✅ 已选 / 未选 / 🔄 候选 等 */
+  tags?: string[]
 }
 
 type AssetCardNodeType = Node<AssetCardData>
@@ -195,6 +197,17 @@ function Cover({ data, mod, width, height, lod }: {
   // 再退到「缺封面」常态路径（弱色底 + 模态图标 @40%）
   const [thumbFailed, setThumbFailed] = useState(false)
   const [origFailed, setOrigFailed] = useState(false)
+  // 动态封面高度：根据图片真实宽高比自适应，避免裁切（竖图加高、宽图保持）
+  // clamp 到 [baseHeight, baseHeight * 2.2]，让卡片高度跟随图片比例
+  const [dynCoverH, setDynCoverH] = useState<number | null>(null)
+  const onImgLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget
+    if (!img.naturalWidth || !img.naturalHeight) return
+    const ratio = img.naturalWidth / img.naturalHeight
+    // 按封面区实际宽度等比例算高度
+    const computed = width / ratio
+    setDynCoverH(Math.round(Math.max(height * 0.6, Math.min(height * 2.2, computed))))
+  }, [width, height])
   useEffect(() => setThumbFailed(false), [rawThumb])
   // 图片模态的 original 源（视频/音频 original 不是图，不在此兜底）
   const rawImgOrig = mod !== 'video' && mod !== 'audio' && mod !== 'text'
@@ -278,8 +291,8 @@ function Cover({ data, mod, width, height, lod }: {
     body = <video src={videoSrc} autoPlay muted loop style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 4, filter }} />
   } else if (thumb) {
     body = (
-      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-        <img src={resolveMediaUrl(thumb) ?? undefined} alt="" loading="lazy" onError={() => setThumbFailed(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 4, filter }} />
+      <div style={{ position: 'relative', width: '100%', height: '100%', background: v3theme.modalityWeak[mod] }}>
+        <img src={resolveMediaUrl(thumb) ?? undefined} alt="" loading="lazy" onLoad={onImgLoad} onError={() => setThumbFailed(true)} style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: 4, filter }} />
         {mod === 'video' && (
           <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F2E9D8' }}>
             <ModalityIcon kind="video" size={24} color="#F2E9D8" />
@@ -290,7 +303,7 @@ function Cover({ data, mod, width, height, lod }: {
   } else if (imgOrig) {
     // 缩略图 webp 缺失/404 → 退到 original 图（png/jpg，可达）兜底
     body = (
-      <img src={imgOrig ?? undefined} alt="" loading="lazy" onError={() => setOrigFailed(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 4, filter }} />
+      <img src={imgOrig ?? undefined} alt="" loading="lazy" onLoad={onImgLoad} onError={() => setOrigFailed(true)} style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: 4, filter, background: v3theme.modalityWeak[mod] }} />
     )
   } else if (mod === 'video' && videoSrc) {
     // 缩略图 webp 缺失/404（视频缩略图常未由管线生成，但 original mp4 可达）→
@@ -312,12 +325,16 @@ function Cover({ data, mod, width, height, lod }: {
     )
   }
 
+  const effectiveHeight = (mod === 'text' && textExpanded) ? 'auto' as const
+    : (dynCoverH != null && mod !== 'text' && mod !== 'audio' && !videoPlaying) ? dynCoverH
+    : height
+
   return (
     <div
       data-testid="asset-card-cover"
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}
-      style={{ width, height: mod === 'text' && textExpanded ? 'auto' : height, borderRadius: 4, overflow: 'hidden', flex: '0 0 auto' }}
+      style={{ width, height: effectiveHeight, borderRadius: 4, overflow: 'hidden', flex: '0 0 auto', transition: dynCoverH != null ? 'height 160ms ease-out' : undefined }}
     >
       {body}
     </div>
@@ -515,9 +532,14 @@ function AssetCardNodeComponent({ id, data, selected }: NodeProps<AssetCardNodeT
   const h = isL1 ? V3_NODE_SIZES.l1.height : cardH
   const coverH = V3_NODE_SIZES.card.coverH
 
-  const title = (data.label ?? asset?.phaseName ?? id) as string
-  const meta = metaLine(asset)
   const raw = rawDataByNodeId?.get(id)
+  // title 优先从 raw data 袋的 label 读取（canvas sync 写入的语义化 label，
+  // migrate 不保留 label 到 V3 asset schema，但 rawDataByNodeId 存了完整原始 data）
+  const title = (raw?.label as string | undefined) ?? (data.label as string | undefined) ?? asset?.phaseName ?? id
+  const meta = metaLine(asset)
+  // tags 优先从 raw data 袋读取（canvas sync 写入的语义标签在 V2 node.data 里，
+  // migrate 不会将其传入 V3 asset schema，但 adapter 会把原始 data 完整存入 rawDataByNodeId）
+  const tags = (raw?.tags as string[] | undefined) ?? (data.tags as string[] | undefined) ?? []
   // 关键字段 chips（raw 优先；缺省退回 metaLine 的 shot# · 时长）
   const keyFields = raw ? pickKeyFields(raw, stage, mod) : []
   const Badges = getNodeBadgesRenderer() ?? NodeBadgesDefault
@@ -533,8 +555,9 @@ function AssetCardNodeComponent({ id, data, selected }: NodeProps<AssetCardNodeT
       style={{
         position: 'relative',
         width: w,
-        height: (stage === 'script' || showScore) ? 'auto' : h,
-        minHeight: stage === 'script' && !isL1 ? V3_NODE_SIZES.textCard.minH : showScore ? h : undefined,
+        // 所有卡都用 auto 高度，让动态封面按图片宽高比自适应撑开
+        height: 'auto',
+        minHeight: stage === 'script' && !isL1 ? V3_NODE_SIZES.textCard.minH : h,
         background: 'var(--cv-bg-card, #16181D)',
         borderRadius: V3_NODE_SIZES.card.radius,
         // 真实纵深：inset 顶高光（「从上方打光」）+ 柔投影（Linear/Vercel 手法）
@@ -574,6 +597,25 @@ function AssetCardNodeComponent({ id, data, selected }: NodeProps<AssetCardNodeT
             {title}
           </span>
         </div>
+        {/* 语义标签（📋 概览 / ✅ 已选 / 未选 / 🔄 候选） */}
+        {!isL1 && tags.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, flex: '0 0 auto' }}>
+            {tags.map((tag, i) => {
+              const isSelected = tag.includes('已选') || tag.includes('选中')
+              const isCandidate = tag.includes('候选') || tag.includes('概览')
+              const bg = isSelected ? 'rgba(166,227,161,0.15)' : isCandidate ? 'rgba(137,180,250,0.12)' : 'rgba(148,163,184,0.10)'
+              const color = isSelected ? '#a6e3a1' : isCandidate ? '#89b4fa' : '#94a3b8'
+              return (
+                <span key={i} style={{
+                  padding: '1px 6px', borderRadius: 3, fontSize: 10,
+                  background: bg, color, fontWeight: 500, whiteSpace: 'nowrap',
+                }}>
+                  {tag}
+                </span>
+              )
+            })}
+          </div>
+        )}
         {/* 封面区 */}
         <Cover data={data} mod={mod} width={w - V3_NODE_SIZES.card.modBarW - 16} height={isL1 ? 100 - 14 - 28 : coverH} lod={lod} />
         {/* composite 迷你胶片条（§4.6：宣示「我有内部结构」，点击开右面板 TimelineStructure —— D） */}
