@@ -173,6 +173,20 @@ function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<string, Re
   return shots
 }
 
+// ─── 响应式布局 ────────────────────────────────────────
+
+type LayoutMode = 'landscape' | 'portrait'
+
+/**
+ * 窗口宽高比检测：超宽屏（width ≥ 1400 且 宽 > 高 × 1.2）→ 横版
+ * （播放器在左、双面板在右）；否则竖版 / 窄窗口（播放器在顶部、双面板在下方）。
+ * 监听 resize 在两者间切换，切换时 activeVideo 状态保留不断。
+ */
+function detectLayout(w: number, h: number): LayoutMode {
+  if (w >= 1400 && w > h * 1.2) return 'landscape'
+  return 'portrait'
+}
+
 // ─── 工具 ──────────────────────────────────────────────
 
 const PX_PER_SEC = 30 // 右面板每秒像素（线性时间轴）
@@ -223,16 +237,16 @@ function reviewColor(status?: string): string {
 
 // ─── 子组件 ────────────────────────────────────────────
 
-function MetaChip({ label, value, color }: { label: string; value: string; color?: string }) {
+function MetaChip({ label, value, color, compact }: { label: string; value: string; color?: string; compact?: boolean }) {
   if (!value) return null
   return (
     <span style={{
       display: 'inline-flex',
       alignItems: 'center',
       gap: 3,
-      padding: '2px 7px',
+      padding: compact ? '2px 6px' : '2px 7px',
       borderRadius: 5,
-      fontSize: 10,
+      fontSize: compact ? 9 : 10,
       fontWeight: 500,
       background: color ? `${color}14` : 'rgba(255,255,255,0.06)',
       color: color ?? theme.text.secondary,
@@ -328,6 +342,7 @@ function FrameBox({
   placeholderText,
   playHint,
   badge,
+  width = 104,
 }: {
   url: string | null
   label: string
@@ -335,13 +350,14 @@ function FrameBox({
   placeholderText?: string
   playHint?: boolean
   badge?: ReactNode
+  width?: number
 }) {
   return (
     <div
       title={label}
       style={{
         position: 'relative',
-        width: 104,
+        width,
         aspectRatio: '16 / 9',
         borderRadius: 3,
         overflow: 'hidden',
@@ -403,6 +419,7 @@ function ShotRow({
   onClick,
   isSelected,
   rowRef,
+  compact,
 }: {
   shot: TimedShot
   index: number
@@ -410,6 +427,7 @@ function ShotRow({
   onClick: () => void
   isSelected: boolean
   rowRef: (el: HTMLDivElement | null) => void
+  compact?: boolean
 }) {
   const [hovered, setHovered] = useState(false)
   const [expanded, setExpanded] = useState(false)
@@ -477,6 +495,7 @@ function ShotRow({
           label={`${shot.shotId} · 首帧`}
           placeholderTag="首帧"
           placeholderText={shot.startFrameDesc}
+          width={compact ? 88 : 104}
           playHint={!firstFrameUrl && !!shot.videoUrl}
           badge={shot.videoUrl ? (
             <div style={{
@@ -509,6 +528,7 @@ function ShotRow({
           label={`${shot.shotId} · 尾帧`}
           placeholderTag="尾帧"
           placeholderText={shot.endFrameDesc}
+          width={compact ? 88 : 104}
           playHint={!!shot.videoUrl}
         />
       </div>
@@ -543,6 +563,7 @@ function ShotRow({
               label="🎥"
               value={METADATA_LABELS.cameraMovement[shot.cameraMovement as keyof typeof METADATA_LABELS.cameraMovement] ?? shot.cameraMovement}
               color={v3theme.modality.video}
+              compact={compact}
             />
           )}
           {shot.framing && (
@@ -550,12 +571,14 @@ function ShotRow({
               label="🖼"
               value={METADATA_LABELS.framing[shot.framing as keyof typeof METADATA_LABELS.framing] ?? shot.framing}
               color={v3theme.modality.image}
+              compact={compact}
             />
           )}
           {shot.composition && (
             <MetaChip
               label="📐"
               value={METADATA_LABELS.composition[shot.composition as keyof typeof METADATA_LABELS.composition] ?? shot.composition}
+              compact={compact}
             />
           )}
           {shot.pacing && (
@@ -563,6 +586,7 @@ function ShotRow({
               label="⚡"
               value={METADATA_LABELS.pacing[shot.pacing as keyof typeof METADATA_LABELS.pacing] ?? shot.pacing}
               color={v3theme.modality.audio}
+              compact={compact}
             />
           )}
           <span style={{
@@ -750,30 +774,41 @@ function ShotBlock({
 // ─── 底部视频播放器 ────────────────────────────────────
 
 /**
- * 底部内嵌播放器：选中带 P11 视频的分镜后滑出。src 变更经 key 重挂载触发 autoPlay；
+ * 内嵌播放器：选中带 P11 视频的分镜后滑出。src 变更经 key 重挂载触发 autoPlay；
  * 无视频数据的项目不渲染（graceful degradation）。
+ *
+ * mode='landscape'：宽度由父级 flex 控制（0 0 38%），高度填满列，置于双面板左侧。
+ * mode='portrait' ：宽度满、高度固定（portraitHeight 计算值），置于双面板顶部。
+ * 两种模式下 <video> 均 width/height 100% + objectFit: contain（保持视频比例）。
  */
 function VideoPlayer({
   shotId,
   videoUrl,
   durationLabel,
+  mode,
+  portraitHeight,
   onClose,
 }: {
   shotId: string
   videoUrl: string
   durationLabel: string
+  mode: LayoutMode
+  portraitHeight: number
   onClose: () => void
 }) {
   // <video> 元素的真实时长优先于 storyboard durationS（后者常因 duration_sec 未映射为 0）
   const [realDur, setRealDur] = useState<number | null>(null)
+  const isLandscape = mode === 'landscape'
   return (
     <div style={{
-      flexShrink: 0,
-      height: 230,
       display: 'flex', flexDirection: 'column',
+      // landscape：宽度由父级 flex 控制（0 0 38%）、高度填满；portrait：宽度满、高度固定（计算值）
+      ...(isLandscape
+        ? { flex: '0 0 38%', minWidth: 360, maxWidth: 520, height: '100%', borderRight: `1px solid ${theme.border.default}` }
+        : { width: '100%', flexShrink: 0, height: portraitHeight, borderTop: `1px solid ${theme.border.default}`, borderBottom: `1px solid ${theme.border.default}` }),
       background: theme.bg.panel,
-      borderTop: `1px solid ${theme.border.default}`,
     }}>
+      {/* header：shotId + 时长 + ✕（两种模式均在顶部） */}
       <div style={{
         flexShrink: 0,
         display: 'flex', alignItems: 'center', gap: 8,
@@ -803,7 +838,8 @@ function VideoPlayer({
           ✕
         </button>
       </div>
-      <div style={{ flex: 1, minHeight: 0, padding: '8px 16px', display: 'flex' }}>
+      {/* <video> 居中填充；两种模式均 width/height 100% + objectFit: contain */}
+      <div style={{ flex: 1, minHeight: 0, padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <video
           key={videoUrl}
           src={videoUrl}
@@ -815,12 +851,38 @@ function VideoPlayer({
             if (isFinite(d) && d > 0) setRealDur(d)
           }}
           style={{
-            maxWidth: '100%', maxHeight: '100%', height: '100%',
+            width: '100%', height: '100%', objectFit: 'contain',
+            maxWidth: '100%', maxHeight: '100%',
             margin: '0 auto', borderRadius: 4,
             background: '#000',
             border: `1px solid ${theme.border.default}`,
           }}
         />
+      </div>
+    </div>
+  )
+}
+
+/**
+ * 横版占位框：未选中带视频的分镜时，播放器列（flex 0 0 38%）保留同尺寸占位，
+ * 提示「点击分镜播放视频」。竖版无视频时直接不渲染播放器（节省空间）。
+ */
+function PlayerPlaceholder() {
+  return (
+    <div style={{
+      flex: '0 0 38%', minWidth: 360, maxWidth: 520, height: '100%',
+      display: 'flex', flexDirection: 'column',
+      background: theme.bg.panel,
+      borderRight: `1px solid ${theme.border.default}`,
+    }}>
+      <div style={{
+        flex: 1, minHeight: 0,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        gap: 10, color: theme.text.tertiary,
+      }}>
+        <UiIcon kind="film" size={36} />
+        <span style={{ fontSize: 13, fontWeight: 500, color: theme.text.secondary }}>▶ 点击分镜播放视频</span>
+        <span style={{ fontSize: 11, opacity: 0.7 }}>选中含 P11 视频的分镜自动播放</span>
       </div>
     </div>
   )
@@ -929,15 +991,25 @@ export default function StoryboardTimeline() {
     centerOther(from, shot.node.id)
   }
 
-  // ─── 响应式：<1100px 隐藏右面板 ──────────────────────
-  const [showTimeline, setShowTimeline] = useState(() =>
-    typeof window !== 'undefined' ? window.innerWidth >= 1100 : true,
-  )
+  // ─── 响应式：窗口尺寸 → showTimeline(<1100 隐藏右面板) + 横/竖版布局 ──
+  const [winSize, setWinSize] = useState(() => ({
+    w: typeof window !== 'undefined' ? window.innerWidth : 1920,
+    h: typeof window !== 'undefined' ? window.innerHeight : 1080,
+  }))
   useEffect(() => {
-    const onResize = () => setShowTimeline(window.innerWidth >= 1100)
+    const onResize = () => setWinSize({ w: window.innerWidth, h: window.innerHeight })
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [])
+  const showTimeline = winSize.w >= 1100
+  const layoutMode: LayoutMode = detectLayout(winSize.w, winSize.h)
+  const isLandscape = layoutMode === 'landscape'
+  // 竖版播放器高度 = min(窗口宽 × 9/16, 280)
+  const portraitPlayerH = Math.min(winSize.w * 9 / 16, 280)
+  // 窄统计栏（<900）隐藏评分 / 审核 / 缩略图，只留核心数据
+  const narrowStats = winSize.w < 900
+  // 竖版分镜行紧凑：首尾帧 88px、chips 9px
+  const compactRows = layoutMode === 'portrait'
 
   // ─── 空状态 ──────────────────────────────────────────
   if (shots.length === 0) {
@@ -961,6 +1033,93 @@ export default function StoryboardTimeline() {
     )
   }
 
+  // ─── 双面板 + 播放器（横/竖版复用同一份 JSX） ──────────
+  const player = activeVideo ? (
+    <VideoPlayer
+      shotId={activeVideo.shotId}
+      videoUrl={resolveMediaUrl(activeVideo.videoUrl) ?? ''}
+      durationLabel={formatDuration(activeVideo.durationS)}
+      mode={layoutMode}
+      portraitHeight={portraitPlayerH}
+      onClose={() => setActiveVideo(null)}
+    />
+  ) : null
+
+  const leftPanel = (
+    <div
+      ref={leftRef}
+      onScroll={() => handleScroll('left')}
+      style={{
+        flex: '1 1 auto',
+        minWidth: 320,
+        overflowY: 'auto',
+        borderRight: showTimeline ? `1px solid ${theme.border.default}` : 'none',
+      }}
+    >
+      {shots.map((shot, i) => (
+        <ShotRow
+          key={shot.node.id}
+          shot={shot}
+          index={i}
+          total={shots.length}
+          onClick={() => selectShot(shot, 'left')}
+          isSelected={detailNode?.id === shot.node.id}
+          rowRef={(el) => { leftRowRefs.current[shot.node.id] = el }}
+          compact={compactRows}
+        />
+      ))}
+    </div>
+  )
+
+  const rightPanel = showTimeline ? (
+    <div
+      ref={rightRef}
+      onScroll={() => handleScroll('right')}
+      style={{
+        flex: '0 0 400px',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        position: 'relative',
+        background: theme.bg.panel,
+      }}
+    >
+      <div style={{ position: 'relative', height: timelinePxHeight }}>
+        {/* 时间刻度轴（左侧 36px） */}
+        <div style={{
+          position: 'absolute', left: 0, top: 0, width: 36, bottom: 0,
+          borderRight: `1px solid ${theme.border.default}`,
+          zIndex: 5,
+        }}>
+          {ticks.map((t) => (
+            <div key={t} style={{
+              position: 'absolute', right: 4,
+              top: t * PX_PER_SEC,
+              transform: 'translateY(-50%)',
+              fontSize: 9, color: theme.text.tertiary,
+              fontFamily: 'var(--cv-font-mono, monospace)',
+            }}>
+              {formatTime(t)}s
+            </div>
+          ))}
+        </div>
+
+        {/* 分镜块（右移让出时间轴） */}
+        <div style={{ position: 'absolute', left: 36, right: 0, top: 0 }}>
+          {shots.map((shot, i) => (
+            <ShotBlock
+              key={shot.node.id}
+              shot={shot}
+              index={i}
+              onClick={() => selectShot(shot, 'right')}
+              isSelected={detailNode?.id === shot.node.id}
+              blockRef={(el) => { rightBlockRefs.current[shot.node.id] = el }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  ) : null
+
   return (
     <div style={{
       width: '100%', height: '100%',
@@ -970,7 +1129,7 @@ export default function StoryboardTimeline() {
       {/* ─── 统计概览栏 ─── */}
       <div style={{
         flexShrink: 0,
-        display: 'flex', alignItems: 'center', gap: 20,
+        display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 20,
         padding: '10px 24px',
         background: theme.bg.panel,
         borderBottom: `1px solid ${theme.border.default}`,
@@ -987,7 +1146,7 @@ export default function StoryboardTimeline() {
             {stats.totalDurationSum > 0 ? formatDuration(stats.totalDurationSum) : '—'}
           </span>
         </div>
-        {stats.avgScore != null && (
+        {!narrowStats && stats.avgScore != null && (
           <>
             <div style={{ width: 1, height: 14, background: theme.border.default }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -998,18 +1157,22 @@ export default function StoryboardTimeline() {
             </div>
           </>
         )}
-        <div style={{ width: 1, height: 14, background: theme.border.default }} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ color: theme.text.tertiary }}>审核</span>
-          <span style={{ color: v3theme.signal.approved, fontWeight: 600 }}>✓ {stats.approved}</span>
-          <span style={{ color: v3theme.signal.pending, fontWeight: 600 }}>○ {stats.pending}</span>
-          <span style={{ color: v3theme.signal.rejected, fontWeight: 600 }}>✕ {stats.rejected}</span>
-        </div>
-        <div style={{ width: 1, height: 14, background: theme.border.default }} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ color: theme.text.tertiary }}>缩略图</span>
-          <span style={{ fontWeight: 600, color: theme.text.secondary }}>{stats.withThumbs}/{stats.count}</span>
-        </div>
+        {!narrowStats && (
+          <>
+            <div style={{ width: 1, height: 14, background: theme.border.default }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ color: theme.text.tertiary }}>审核</span>
+              <span style={{ color: v3theme.signal.approved, fontWeight: 600 }}>✓ {stats.approved}</span>
+              <span style={{ color: v3theme.signal.pending, fontWeight: 600 }}>○ {stats.pending}</span>
+              <span style={{ color: v3theme.signal.rejected, fontWeight: 600 }}>✕ {stats.rejected}</span>
+            </div>
+            <div style={{ width: 1, height: 14, background: theme.border.default }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ color: theme.text.tertiary }}>缩略图</span>
+              <span style={{ fontWeight: 600, color: theme.text.secondary }}>{stats.withThumbs}/{stats.count}</span>
+            </div>
+          </>
+        )}
         {stats.withVideo > 0 && (
           <>
             <div style={{ width: 1, height: 14, background: theme.border.default }} />
@@ -1019,98 +1182,39 @@ export default function StoryboardTimeline() {
             </div>
           </>
         )}
-        <span style={{ flex: 1 }} />
-        <span style={{ color: theme.text.tertiary, fontSize: 11 }}>
-          💡 点击分镜播放视频 / 查看详情，左右面板滚动同步
-        </span>
-      </div>
-
-      {/* ─── 双面板 ─── */}
-      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-        {/* 左面板：分镜列表 */}
-        <div
-          ref={leftRef}
-          onScroll={() => handleScroll('left')}
-          style={{
-            flex: '1 1 auto',
-            minWidth: 320,
-            overflowY: 'auto',
-            borderRight: showTimeline ? `1px solid ${theme.border.default}` : 'none',
-          }}
-        >
-          {shots.map((shot, i) => (
-            <ShotRow
-              key={shot.node.id}
-              shot={shot}
-              index={i}
-              total={shots.length}
-              onClick={() => selectShot(shot, 'left')}
-              isSelected={detailNode?.id === shot.node.id}
-              rowRef={(el) => { leftRowRefs.current[shot.node.id] = el }}
-            />
-          ))}
-        </div>
-
-        {/* 右面板：垂直时间轴 */}
-        {showTimeline && (
-          <div
-            ref={rightRef}
-            onScroll={() => handleScroll('right')}
-            style={{
-              flex: '0 0 400px',
-              overflowY: 'auto',
-              overflowX: 'hidden',
-              position: 'relative',
-              background: theme.bg.panel,
-            }}
-          >
-            <div style={{ position: 'relative', height: timelinePxHeight }}>
-              {/* 时间刻度轴（左侧 36px） */}
-              <div style={{
-                position: 'absolute', left: 0, top: 0, width: 36, bottom: 0,
-                borderRight: `1px solid ${theme.border.default}`,
-                zIndex: 5,
-              }}>
-                {ticks.map((t) => (
-                  <div key={t} style={{
-                    position: 'absolute', right: 4,
-                    top: t * PX_PER_SEC,
-                    transform: 'translateY(-50%)',
-                    fontSize: 9, color: theme.text.tertiary,
-                    fontFamily: 'var(--cv-font-mono, monospace)',
-                  }}>
-                    {formatTime(t)}s
-                  </div>
-                ))}
-              </div>
-
-              {/* 分镜块（右移让出时间轴） */}
-              <div style={{ position: 'absolute', left: 36, right: 0, top: 0 }}>
-                {shots.map((shot, i) => (
-                  <ShotBlock
-                    key={shot.node.id}
-                    shot={shot}
-                    index={i}
-                    onClick={() => selectShot(shot, 'right')}
-                    isSelected={detailNode?.id === shot.node.id}
-                    blockRef={(el) => { rightBlockRefs.current[shot.node.id] = el }}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
+        {!narrowStats && (
+          <>
+            <span style={{ flex: 1 }} />
+            <span style={{ color: theme.text.tertiary, fontSize: 11 }}>
+              💡 点击分镜播放视频 / 查看详情，左右面板滚动同步
+            </span>
+          </>
         )}
       </div>
 
-      {/* ─── 底部视频播放器（选中带 P11 视频的分镜后滑出） ─── */}
-      {activeVideo && (
-        <VideoPlayer
-          shotId={activeVideo.shotId}
-          videoUrl={resolveMediaUrl(activeVideo.videoUrl) ?? ''}
-          durationLabel={formatDuration(activeVideo.durationS)}
-          onClose={() => setActiveVideo(null)}
-        />
+      {/* 横版：播放器在左、双面板在右；竖版：播放器在顶、双面板在下 */}
+      {isLandscape ? (
+        <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+          {/* 左：播放器列（无视频时同尺寸占位） */}
+          {activeVideo ? player : <PlayerPlaceholder />}
+          {/* 右：双面板（分镜列表 + 时间轴，滚动同步） */}
+          <div style={{ flex: '1 1 auto', display: 'flex', minWidth: 0 }}>
+            {leftPanel}
+            {rightPanel}
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* 竖版：播放器在顶部（无视频不渲染，节省空间） */}
+          {activeVideo && player}
+          {/* 双面板 */}
+          <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+            {leftPanel}
+            {rightPanel}
+          </div>
+        </>
       )}
+
     </div>
   )
 }
