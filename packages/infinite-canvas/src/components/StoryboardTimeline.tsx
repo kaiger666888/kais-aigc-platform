@@ -1,22 +1,23 @@
 /**
  * 分镜时间轴视图 — 无限画布的第二种浏览模式。
  *
- * 布局对齐 kais-shot-timeline 双面板设计：
+ * 布局：播放器 + 单列分镜列表（占满宽度）
  *   ┌ 统计栏 ─────────────────────────────────────────────┐
- *   ├ 左面板：分镜列表（flex:1） ── ┬─ 右面板：垂直时间轴（400px） ┤
- *   │  序号 + 首帧缩略 + 时间 +      │  时间刻度 + 分镜边界 +       │
- *   │  元数据 chips + prompt         │  按时长比例的块 + 审核色编码  │
- *   └────────────────────────────────┴──────────────────────────────┘
+ *   ├ 横版：[ 播放器 | 分镜列表（flex:1） ]                  │
+ *   ├ 竖版：[ 播放器 ] → [ 分镜列表（flex:1） ]              │
+ *   │  序号 + 首尾帧 + 时间 + 元数据 chips + 音轨 chips +     │
+ *   │  prompt + 审核色编码                                    │
+ *   └────────────────────────────────────────────────────────┘
  *
- *   - 左右面板垂直滚动比例同步（自适应模式）
- *   - 点击左侧分镜 → 右面板对应块居中高亮；点击右侧块 → 左侧对应行居中高亮
- *   - 点击任一块 → setSelectedNode + setDetailNode（打开右详情面板，复用画布交互）
+ *   - 单击分镜 → 选中（高亮）+ 滚动加载视频播放器（不弹详情）
+ *   - 双击分镜 → 额外打开右详情面板（复用画布交互）
+ *   - 点击音轨 chip → 底部 mini 音频播放器
  *
  * 数据直接消费 useCanvasStore.graph（FlowGraphV3）+ rawDataByNodeId（V2 穿透），
  * 无需额外 API 调用。Socket 实时同步、审核操作全部复用现有 store 逻辑。
  */
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useCanvasStore } from '../store/canvasStore'
 import { theme, v3theme } from '../theme/catppuccin'
 import { METADATA_LABELS } from '../constants'
@@ -24,6 +25,15 @@ import type { AssetNodeV3, FlowGraphV3 } from '@kais/flowgraph-v3'
 import { UiIcon } from './canvas/icons'
 
 // ─── 类型 ──────────────────────────────────────────────
+
+/** P10 音频轨（voice / foley / bgm）描述。 */
+interface AudioTrack {
+  clipType: string // dialogue / ambient / sfx / bgm
+  audioType: string // 人声 / 环境音 / 音效 / 背景音乐
+  speaker?: string
+  durationS: number
+  filePath: string
+}
 
 interface StoryboardShot {
   node: AssetNodeV3
@@ -53,8 +63,10 @@ interface StoryboardShot {
   startFrameDesc?: string
   /** P09 文字尾帧描述（无尾帧图时降级展示）。 */
   endFrameDesc?: string
-  /** 规一化 shot 键（s1_1）— 跨 storyboard↔video 无 link，靠它关联。 */
+  /** 规一化 shot 键（s1_1）— 跨 storyboard↔video↔audio 无 link，靠它关联。 */
   shotKey?: string | null
+  /** P10 音频轨（每分镜 1–2 条）。 */
+  audioTracks?: AudioTrack[]
 }
 
 /** 带累计起止时间的分镜（时间轴几何用）。 */
@@ -82,11 +94,29 @@ function shotKeyFromCandidates(...candidates: Array<unknown>): string | null {
   return null
 }
 
+/** 音频类型 → 图标。按 clip_type / audio_type 关键词匹配。 */
+function audioIcon(clipType: string, audioType: string): string {
+  const t = `${clipType} ${audioType}`.toLowerCase()
+  if (/人声|dialogue|voice/.test(t)) return '🎙️'
+  if (/环境|ambient/.test(t)) return '🌊'
+  if (/音效|sfx|effect/.test(t)) return '🔊'
+  if (/背景音乐|bgm|music/.test(t)) return '🎵'
+  return '🔈'
+}
+
+/** 规范化 speaker：'none' / 'null' / 空 → undefined（仅人声有实际值）。 */
+function normalizeSpeaker(v: unknown): string | undefined {
+  if (typeof v !== 'string') return undefined
+  const s = v.trim()
+  if (!s || /^(none|null|无|未知)$/i.test(s)) return undefined
+  return s
+}
+
 function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<string, Record<string, unknown>> | null): StoryboardShot[] {
   if (!graph) return []
 
   // Pass 1：storyboard 节点 → 分镜（保留原逻辑，仅追加帧描述 / shotKey）
-  const shots: StoryboardShot[] = []
+  const collected: StoryboardShot[] = []
   for (const node of graph.nodes) {
     if (node.kind !== 'asset' || node.stage !== 'storyboard') continue
     const meta = node.meta
@@ -113,7 +143,7 @@ function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<string, Re
       displayShotId = raw.label as string
     }
 
-    shots.push({
+    collected.push({
       node,
       shotId: displayShotId,
       durationS,
@@ -128,6 +158,28 @@ function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<string, Re
       endFrameDesc: (raw.end_frame_description as string) ?? undefined,
       shotKey: shotKeyFromCandidates(raw.shot_id, raw.label, meta.shotId, node.id),
     })
+  }
+
+  // 去重：a-shot_list-* 与 a-transition_design-* 共享 shot_id，每个 shotKey 只保留一条。
+  // 优先 id 含 'shot_list' 的（字段更完整）；无 shotKey 的分镜原样保留。
+  const byKey = new Map<string, StoryboardShot>()
+  const shots: StoryboardShot[] = []
+  for (const shot of collected) {
+    const key = shot.shotKey
+    if (!key) {
+      shots.push(shot)
+      continue
+    }
+    const prev = byKey.get(key)
+    if (!prev) {
+      byKey.set(key, shot)
+      shots.push(shot)
+    } else if (!prev.node.id.includes('shot_list') && shot.node.id.includes('shot_list')) {
+      // 已存的不是 shot_list、当前是 → 替换
+      const idx = shots.indexOf(prev)
+      if (idx >= 0) shots[idx] = shot
+      byKey.set(key, shot)
+    }
   }
 
   // Pass 2：P11 video / I-frame 节点 → 按 shotKey 建映射（storyboard↔video 无 link）
@@ -168,6 +220,36 @@ function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<string, Re
     }
   }
 
+  // Pass 4：P10 音频节点（voice / foley / bgm，modality=audio）→ 按 shotKey 建映射，挂回分镜
+  const audioByShot = new Map<string, AudioTrack[]>()
+  for (const node of graph.nodes) {
+    if (node.kind !== 'asset') continue
+    const isAudio = node.modality === 'audio' || node.stage === 'voice' || node.stage === 'foley' || node.stage === 'bgm'
+    if (!isAudio) continue
+    const raw = rawDataByNodeId?.get(node.id) ?? {}
+    const filePath = (raw.filePath as string) ?? node.media.original ?? null
+    if (!filePath) continue
+    const key = shotKeyFromCandidates(raw.shot_id, raw.label, node.id, filePath)
+    if (!key) continue
+    const track: AudioTrack = {
+      clipType: (raw.clip_type as string) ?? '',
+      audioType: (raw.audio_type as string) ?? (raw.audioType as string) ?? '',
+      // speaker 仅人声有意义；'none' / 'null' / 空 视为无
+      speaker: normalizeSpeaker(raw.speaker as string),
+      durationS: (raw.duration_sec as number) ?? node.media.durationS ?? 0,
+      filePath,
+    }
+    const arr = audioByShot.get(key)
+    if (arr) arr.push(track)
+    else audioByShot.set(key, [track])
+  }
+  for (const shot of shots) {
+    if (shot.shotKey) {
+      const tracks = audioByShot.get(shot.shotKey)
+      if (tracks && tracks.length) shot.audioTracks = tracks
+    }
+  }
+
   // 按 shotId 排序（自然排序：S01, S02, ..., S10）
   shots.sort((a, b) => a.shotId.localeCompare(b.shotId, undefined, { numeric: true, sensitivity: 'base' }))
   return shots
@@ -179,7 +261,7 @@ type LayoutMode = 'landscape' | 'portrait'
 
 /**
  * 窗口宽高比检测：超宽屏（width ≥ 1400 且 宽 > 高 × 1.2）→ 横版
- * （播放器在左、双面板在右）；否则竖版 / 窄窗口（播放器在顶部、双面板在下方）。
+ * （播放器在左、分镜列表在右）；否则竖版 / 窄窗口（播放器在顶部、列表在下方）。
  * 监听 resize 在两者间切换，切换时 activeVideo 状态保留不断。
  */
 function detectLayout(w: number, h: number): LayoutMode {
@@ -189,7 +271,6 @@ function detectLayout(w: number, h: number): LayoutMode {
 
 // ─── 工具 ──────────────────────────────────────────────
 
-const PX_PER_SEC = 30 // 右面板每秒像素（线性时间轴）
 const MIN_LAYOUT_DUR = 0.6 // durationS 缺失/0 时的兜底时长
 
 function formatDuration(sec: number): string {
@@ -214,25 +295,6 @@ function resolveMediaUrl(url: string | null | undefined): string | null {
   if (url.startsWith('http')) return url
   // 相对路径加前缀
   return url
-}
-
-/** 选一个「好看」的时间刻度步长（秒），使整条轴约 6–10 个刻度。 */
-function niceStep(total: number): number {
-  if (total <= 0) return 1
-  const target = total / 8
-  const pow = Math.pow(10, Math.floor(Math.log10(target)))
-  for (const m of [1, 2, 5, 10]) {
-    const step = m * pow
-    if (step >= target) return step
-  }
-  return 10 * pow
-}
-
-/** 审核状态 → 语义色（复用模态/信号色，不引入新色）。 */
-function reviewColor(status?: string): string {
-  if (status === 'approved') return v3theme.signal.approved
-  if (status === 'rejected') return v3theme.signal.rejected
-  return v3theme.signal.pending
 }
 
 // ─── 子组件 ────────────────────────────────────────────
@@ -410,23 +472,27 @@ function FrameBox({
   )
 }
 
-// ─── 左面板：分镜行 ────────────────────────────────────
+// ─── 分镜行 ────────────────────────────────────────────
 
 function ShotRow({
   shot,
   index,
   total,
   onClick,
+  onDoubleClick,
   isSelected,
-  rowRef,
+  onAudioPlay,
+  activeAudioPath,
   compact,
 }: {
   shot: TimedShot
   index: number
   total: number
   onClick: () => void
+  onDoubleClick: () => void
   isSelected: boolean
-  rowRef: (el: HTMLDivElement | null) => void
+  onAudioPlay?: (track: AudioTrack) => void
+  activeAudioPath?: string | null
   compact?: boolean
 }) {
   const [hovered, setHovered] = useState(false)
@@ -451,10 +517,11 @@ function ShotRow({
   const firstFrameUrl = resolveMediaUrl(shot.firstFrame ?? shot.thumbnail)
   const lastFrameUrl = resolveMediaUrl(shot.lastFrame)
   const hasFrameDesc = !!(shot.startFrameDesc || shot.endFrameDesc)
+  const audioTracks = shot.audioTracks ?? []
 
   return (
     <div
-      ref={rowRef}
+      data-testid="shot-row"
       style={{
         display: 'flex',
         alignItems: 'flex-start',
@@ -471,6 +538,7 @@ function ShotRow({
         transition: 'background 120ms',
       }}
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -557,7 +625,7 @@ function ShotRow({
         </div>
 
         {/* 元数据 chips */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: promptSummary ? 4 : 0 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: (promptSummary || audioTracks.length > 0) ? 4 : 0 }}>
           {shot.cameraMovement && (
             <MetaChip
               label="🎥"
@@ -597,6 +665,44 @@ function ShotRow({
           </span>
         </div>
 
+        {/* 音轨 chips（P10 音频：人声 / 环境音 / 音效 / 背景音乐） */}
+        {audioTracks.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: promptSummary ? 4 : 0 }}>
+            {audioTracks.map((track, ti) => {
+              const isActive = activeAudioPath === track.filePath
+              return (
+                <button
+                  key={ti}
+                  data-testid="audio-chip"
+                  onClick={(e) => { e.stopPropagation(); onAudioPlay?.(track) }}
+                  onDoubleClick={(e) => e.stopPropagation()}
+                  title={`${track.audioType || track.clipType || '音频'}${track.speaker ? ' · ' + track.speaker : ''} · ${formatDuration(track.durationS)}`}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 3,
+                    padding: compact ? '2px 6px' : '2px 7px',
+                    borderRadius: 5,
+                    fontSize: compact ? 9 : 10,
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    background: isActive ? `${v3theme.modality.audio}30` : `${v3theme.modality.audio}14`,
+                    color: v3theme.modality.audio,
+                    border: `1px solid ${isActive ? v3theme.modality.audio : `${v3theme.modality.audio}30`}`,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <span>{audioIcon(track.clipType, track.audioType)}</span>
+                  {track.speaker && <span style={{ fontWeight: 600 }}>{track.speaker}</span>}
+                  <span style={{ opacity: 0.85, fontFamily: 'var(--cv-font-mono, monospace)' }}>
+                    {formatDuration(track.durationS)}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+
         {/* Prompt 摘要 */}
         {promptSummary && (
           <div style={{
@@ -617,6 +723,7 @@ function ShotRow({
           <div style={{ marginTop: 4 }}>
             <button
               onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v) }}
+              onDoubleClick={(e) => e.stopPropagation()}
               style={{
                 background: 'none', border: 'none', cursor: 'pointer', padding: 0,
                 fontSize: 10, color: theme.text.tertiary,
@@ -648,137 +755,14 @@ function ShotRow({
   )
 }
 
-// ─── 右面板：时间轴块 ──────────────────────────────────
-
-function ShotBlock({
-  shot,
-  index,
-  onClick,
-  isSelected,
-  blockRef,
-}: {
-  shot: TimedShot
-  index: number
-  onClick: () => void
-  isSelected: boolean
-  blockRef: (el: HTMLDivElement | null) => void
-}) {
-  const [hovered, setHovered] = useState(false)
-  const { node } = shot
-  const height = Math.max(shot.layoutDur * PX_PER_SEC, MIN_LAYOUT_DUR * PX_PER_SEC)
-  const accent = reviewColor(node.reviewStatus)
-  const showBody = height >= 56
-
-  const promptSummary = useMemo(() => {
-    if (shot.promptText) return shot.promptText
-    if (shot.promptFacets) {
-      const parts = [shot.promptFacets.subject, shot.promptFacets.action, shot.promptFacets.scene].filter(Boolean)
-      if (parts.length > 0) return parts.join('，')
-    }
-    return ''
-  }, [shot.promptText, shot.promptFacets])
-
-  const thumbUrl = resolveMediaUrl(shot.thumbnail)
-
-  return (
-    <div
-      ref={blockRef}
-      style={{
-        height,
-        display: 'flex',
-        alignItems: 'stretch',
-        gap: 6,
-        padding: showBody ? '4px 8px' : '0 8px',
-        cursor: 'pointer',
-        background: isSelected
-          ? `${accent}1f`
-          : hovered
-            ? `${accent}14`
-            : 'transparent',
-        borderLeft: `3px solid ${accent}`,
-        borderBottom: `1px solid ${theme.border.dim}`,
-        transition: 'background 120ms',
-        overflow: 'hidden',
-      }}
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      title={`${shot.shotId} · ${formatTime(shot.startSec)}→${formatTime(shot.endSec)}`}
-    >
-      {/* 缩略图缩略（块够高才显示） */}
-      {showBody && (
-        <div style={{
-          flexShrink: 0,
-          width: 48,
-          alignSelf: 'center',
-          aspectRatio: '16 / 9',
-          borderRadius: 2,
-          overflow: 'hidden',
-          background: v3theme.surface.canvas,
-          border: `1px solid ${theme.border.default}`,
-        }}>
-          {thumbUrl ? (
-            <img
-              src={thumbUrl}
-              alt={shot.shotId}
-              loading="lazy"
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-            />
-          ) : null}
-        </div>
-      )}
-
-      {/* 文本 */}
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{
-            fontSize: 10, fontWeight: 700, color: v3theme.modality.image,
-            fontFamily: 'var(--cv-font-mono, monospace)',
-          }}>
-            #{index + 1}
-          </span>
-          <span style={{
-            fontSize: 10, color: theme.text.secondary, fontWeight: 600,
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>
-            {shot.shotId}
-          </span>
-          <span style={{ flex: 1 }} />
-          <span style={{
-            fontSize: 10, fontWeight: 600, color: v3theme.modality.text,
-            fontFamily: 'var(--cv-font-mono, monospace)', flexShrink: 0,
-          }}>
-            {formatDuration(shot.durationS)}
-          </span>
-        </div>
-        {showBody && promptSummary && (
-          <div style={{
-            fontSize: 10,
-            lineHeight: 1.4,
-            color: theme.text.tertiary,
-            marginTop: 2,
-            overflow: 'hidden',
-            display: '-webkit-box',
-            WebkitLineClamp: height >= 90 ? 2 : 1,
-            WebkitBoxOrient: 'vertical',
-          }}>
-            {promptSummary}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 // ─── 底部视频播放器 ────────────────────────────────────
 
 /**
  * 内嵌播放器：选中带 P11 视频的分镜后滑出。src 变更经 key 重挂载触发 autoPlay；
  * 无视频数据的项目不渲染（graceful degradation）。
  *
- * mode='landscape'：宽度由父级 flex 控制（0 0 38%），高度填满列，置于双面板左侧。
- * mode='portrait' ：宽度满、高度固定（portraitHeight 计算值），置于双面板顶部。
+ * mode='landscape'：宽度由父级 flex 控制（0 0 38%），高度填满列，置于列表左侧。
+ * mode='portrait' ：宽度满、高度固定（portraitHeight 计算值），置于列表顶部。
  * 两种模式下 <video> 均 width/height 100% + objectFit: contain（保持视频比例）。
  */
 function VideoPlayer({
@@ -897,8 +881,10 @@ export default function StoryboardTimeline() {
   const detailNode = useCanvasStore((s) => s.detailNode)
   const rawDataByNodeId = useCanvasStore((s) => s.rawDataByNodeId)
 
-  // 底部播放器：选中带 P11 视频的分镜时滑出
+  // 视频播放器：单击选中带 P11 视频的分镜即加载
   const [activeVideo, setActiveVideo] = useState<{ shotId: string; videoUrl: string; durationS: number } | null>(null)
+  // 音频 mini 播放器：点击分镜音轨 chip 即加载
+  const [activeAudio, setActiveAudio] = useState<AudioTrack | null>(null)
 
   const baseShots = useMemo(() => extractShots(graph, rawDataByNodeId), [graph, rawDataByNodeId])
 
@@ -913,9 +899,6 @@ export default function StoryboardTimeline() {
     })
   }, [baseShots])
 
-  const totalDuration = shots.length ? shots[shots.length - 1].endSec : 0
-  const timelinePxHeight = totalDuration * PX_PER_SEC
-
   // 统计
   const stats = useMemo(() => {
     const totalDurationSum = shots.reduce((sum, s) => sum + s.durationS, 0)
@@ -924,74 +907,32 @@ export default function StoryboardTimeline() {
     const pending = shots.filter((s) => !s.node.reviewStatus || s.node.reviewStatus === 'pending').length
     const withThumbs = shots.filter((s) => s.thumbnail).length
     const withVideo = shots.filter((s) => s.videoUrl).length
+    const withAudio = shots.filter((s) => s.audioTracks && s.audioTracks.length > 0).length
+    const audioCount = shots.reduce((sum, s) => sum + (s.audioTracks?.length ?? 0), 0)
     const scores = shots.filter((s) => s.node.aiScore?.overall != null).map((s) => s.node.aiScore!.overall)
     const avgScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null
-    return { totalDurationSum, approved, rejected, pending, withThumbs, withVideo, avgScore, count: shots.length }
+    return { totalDurationSum, approved, rejected, pending, withThumbs, withVideo, withAudio, audioCount, avgScore, count: shots.length }
   }, [shots])
-
-  // 时间刻度
-  const ticks = useMemo(() => {
-    const step = niceStep(totalDuration)
-    const arr: number[] = []
-    for (let t = 0; t <= totalDuration + 0.001; t += step) arr.push(Math.round(t * 100) / 100)
-    return arr
-  }, [totalDuration])
 
   // 查找 RF Node（用于打开详情面板）
   const nodes = useCanvasStore((s) => s.nodes)
 
-  // ─── 双面板滚动同步 ──────────────────────────────────
-  const leftRef = useRef<HTMLDivElement | null>(null)
-  const rightRef = useRef<HTMLDivElement | null>(null)
-  const leftRowRefs = useRef<Record<string, HTMLDivElement | null>>({})
-  const rightBlockRefs = useRef<Record<string, HTMLDivElement | null>>({})
-  const syncing = useRef(false)
-
-  /** 比例同步：把 dst 滚到与 src 相同的滚动比例（自适应模式，两面板总高不同）。 */
-  const proportionallySync = (src: HTMLElement, dst: HTMLElement) => {
-    const srcMax = src.scrollHeight - src.clientHeight
-    const dstMax = dst.scrollHeight - dst.clientHeight
-    if (srcMax <= 0 || dstMax <= 0) return
-    dst.scrollTop = (src.scrollTop / srcMax) * dstMax
-  }
-
-  const handleScroll = (which: 'left' | 'right') => {
-    if (syncing.current) return
-    syncing.current = true
-    const src = which === 'left' ? leftRef.current : rightRef.current
-    const dst = which === 'left' ? rightRef.current : leftRef.current
-    if (src && dst) proportionallySync(src, dst)
-    requestAnimationFrame(() => { syncing.current = false })
-  }
-
-  /** 点击分镜 → 把「另一面板」对应元素居中到视口。 */
-  const centerOther = (from: 'left' | 'right', id: string) => {
-    const dst = from === 'left' ? rightRef.current : leftRef.current
-    const el = from === 'left' ? rightBlockRefs.current[id] : leftRowRefs.current[id]
-    if (!dst || !el) return
-    syncing.current = true
-    const cRect = dst.getBoundingClientRect()
-    const eRect = el.getBoundingClientRect()
-    const offsetTop = eRect.top - cRect.top + dst.scrollTop
-    const target = offsetTop - (dst.clientHeight - eRect.height) / 2
-    dst.scrollTo({ top: Math.max(0, target), behavior: 'smooth' })
-    window.setTimeout(() => { syncing.current = false }, 350)
-  }
-
-  const selectShot = (shot: StoryboardShot, from: 'left' | 'right') => {
+  // 单击：只选中（高亮）+ 加载视频播放器（不弹详情）
+  const selectShot = (shot: StoryboardShot) => {
     const rfNode = nodes.find((n) => n.id === shot.node.id)
-    if (rfNode) {
-      setSelectedNode(rfNode)
-      setDetailNode(rfNode)
-    }
-    // 有 P11 视频则滑出底部播放器并自动播放
+    if (rfNode) setSelectedNode(rfNode)
     if (shot.videoUrl) {
       setActiveVideo({ shotId: shot.shotId, videoUrl: shot.videoUrl, durationS: shot.durationS })
     }
-    centerOther(from, shot.node.id)
   }
 
-  // ─── 响应式：窗口尺寸 → showTimeline(<1100 隐藏右面板) + 横/竖版布局 ──
+  // 双击：额外打开右侧详情面板（在单击选中的基础上）
+  const openDetail = (shot: StoryboardShot) => {
+    const rfNode = nodes.find((n) => n.id === shot.node.id)
+    if (rfNode) setDetailNode(rfNode)
+  }
+
+  // ─── 响应式：窗口尺寸 → 横/竖版布局 ──────────────────
   const [winSize, setWinSize] = useState(() => ({
     w: typeof window !== 'undefined' ? window.innerWidth : 1920,
     h: typeof window !== 'undefined' ? window.innerHeight : 1080,
@@ -1001,7 +942,6 @@ export default function StoryboardTimeline() {
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [])
-  const showTimeline = winSize.w >= 1100
   const layoutMode: LayoutMode = detectLayout(winSize.w, winSize.h)
   const isLandscape = layoutMode === 'landscape'
   // 竖版播放器高度 = min(窗口宽 × 9/16, 280)
@@ -1033,7 +973,7 @@ export default function StoryboardTimeline() {
     )
   }
 
-  // ─── 双面板 + 播放器（横/竖版复用同一份 JSX） ──────────
+  // ─── 播放器 + 分镜列表（横/竖版复用同一份 JSX） ──────────
   const player = activeVideo ? (
     <VideoPlayer
       shotId={activeVideo.shotId}
@@ -1045,80 +985,24 @@ export default function StoryboardTimeline() {
     />
   ) : null
 
-  const leftPanel = (
-    <div
-      ref={leftRef}
-      onScroll={() => handleScroll('left')}
-      style={{
-        flex: '1 1 auto',
-        minWidth: 320,
-        overflowY: 'auto',
-        borderRight: showTimeline ? `1px solid ${theme.border.default}` : 'none',
-      }}
-    >
+  const shotList = (
+    <div style={{ flex: '1 1 auto', minWidth: 320, overflowY: 'auto' }}>
       {shots.map((shot, i) => (
         <ShotRow
           key={shot.node.id}
           shot={shot}
           index={i}
           total={shots.length}
-          onClick={() => selectShot(shot, 'left')}
+          onClick={() => selectShot(shot)}
+          onDoubleClick={() => openDetail(shot)}
           isSelected={detailNode?.id === shot.node.id}
-          rowRef={(el) => { leftRowRefs.current[shot.node.id] = el }}
+          onAudioPlay={(track) => setActiveAudio(track)}
+          activeAudioPath={activeAudio?.filePath ?? null}
           compact={compactRows}
         />
       ))}
     </div>
   )
-
-  const rightPanel = showTimeline ? (
-    <div
-      ref={rightRef}
-      onScroll={() => handleScroll('right')}
-      style={{
-        flex: '0 0 400px',
-        overflowY: 'auto',
-        overflowX: 'hidden',
-        position: 'relative',
-        background: theme.bg.panel,
-      }}
-    >
-      <div style={{ position: 'relative', height: timelinePxHeight }}>
-        {/* 时间刻度轴（左侧 36px） */}
-        <div style={{
-          position: 'absolute', left: 0, top: 0, width: 36, bottom: 0,
-          borderRight: `1px solid ${theme.border.default}`,
-          zIndex: 5,
-        }}>
-          {ticks.map((t) => (
-            <div key={t} style={{
-              position: 'absolute', right: 4,
-              top: t * PX_PER_SEC,
-              transform: 'translateY(-50%)',
-              fontSize: 9, color: theme.text.tertiary,
-              fontFamily: 'var(--cv-font-mono, monospace)',
-            }}>
-              {formatTime(t)}s
-            </div>
-          ))}
-        </div>
-
-        {/* 分镜块（右移让出时间轴） */}
-        <div style={{ position: 'absolute', left: 36, right: 0, top: 0 }}>
-          {shots.map((shot, i) => (
-            <ShotBlock
-              key={shot.node.id}
-              shot={shot}
-              index={i}
-              onClick={() => selectShot(shot, 'right')}
-              isSelected={detailNode?.id === shot.node.id}
-              blockRef={(el) => { rightBlockRefs.current[shot.node.id] = el }}
-            />
-          ))}
-        </div>
-      </div>
-    </div>
-  ) : null
 
   return (
     <div style={{
@@ -1182,37 +1066,75 @@ export default function StoryboardTimeline() {
             </div>
           </>
         )}
+        {stats.audioCount > 0 && (
+          <>
+            <div style={{ width: 1, height: 14, background: theme.border.default }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ color: theme.text.tertiary }}>音轨</span>
+              <span style={{ fontWeight: 600, color: v3theme.modality.audio }}>{stats.audioCount}</span>
+            </div>
+          </>
+        )}
         {!narrowStats && (
           <>
             <span style={{ flex: 1 }} />
             <span style={{ color: theme.text.tertiary, fontSize: 11 }}>
-              💡 点击分镜播放视频 / 查看详情，左右面板滚动同步
+              💡 单击播放视频，双击查看详情
             </span>
           </>
         )}
       </div>
 
-      {/* 横版：播放器在左、双面板在右；竖版：播放器在顶、双面板在下 */}
+      {/* 横版：播放器在左、分镜列表在右；竖版：播放器在顶、列表在下 */}
       {isLandscape ? (
         <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
           {/* 左：播放器列（无视频时同尺寸占位） */}
           {activeVideo ? player : <PlayerPlaceholder />}
-          {/* 右：双面板（分镜列表 + 时间轴，滚动同步） */}
-          <div style={{ flex: '1 1 auto', display: 'flex', minWidth: 0 }}>
-            {leftPanel}
-            {rightPanel}
-          </div>
+          {/* 右：分镜列表（占满剩余宽度） */}
+          {shotList}
         </div>
       ) : (
         <>
           {/* 竖版：播放器在顶部（无视频不渲染，节省空间） */}
           {activeVideo && player}
-          {/* 双面板 */}
-          <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-            {leftPanel}
-            {rightPanel}
-          </div>
+          {/* 分镜列表（占满宽度） */}
+          {shotList}
         </>
+      )}
+
+      {/* ─── 音频 mini 播放器（点击音轨 chip 滑出） ─── */}
+      {activeAudio && (
+        <div style={{
+          flexShrink: 0,
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '6px 16px',
+          background: theme.bg.panel,
+          borderTop: `1px solid ${theme.border.default}`,
+        }}>
+          <span style={{ fontSize: 13 }}>{audioIcon(activeAudio.clipType, activeAudio.audioType)}</span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: v3theme.modality.audio, whiteSpace: 'nowrap' }}>
+            {activeAudio.audioType || activeAudio.clipType || '音频'}
+            {activeAudio.speaker ? ` · ${activeAudio.speaker}` : ''}
+          </span>
+          <audio
+            key={activeAudio.filePath}
+            src={resolveMediaUrl(activeAudio.filePath) ?? ''}
+            controls
+            autoPlay
+            style={{ height: 28, flex: 1, maxWidth: 480, minWidth: 160 }}
+          />
+          <button
+            onClick={() => setActiveAudio(null)}
+            title="关闭音频"
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              padding: '2px 7px', borderRadius: 3,
+              color: theme.text.tertiary, fontSize: 13, lineHeight: 1,
+            }}
+          >
+            ✕
+          </button>
+        </div>
       )}
 
     </div>
