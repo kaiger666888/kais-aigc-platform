@@ -15,7 +15,7 @@ export const NODE_SIZES = {
  */
 export const V3_NODE_SIZES = {
   /** L2 标准资产卡 */
-  card: { width: 240, height: 160, radius: 8, modBarW: 3, titleH: 24, coverH: 96, metaH: 20 },
+  card: { width: 240, height: 212, radius: 8, modBarW: 3, titleH: 24, coverH: 140, metaH: 20 },
   /** global 第 0 列小卡 */
   globalCard: { width: 168, height: 120, coverH: 64 },
   /** composite 成片卡（封面下加迷你胶片条） */
@@ -61,8 +61,8 @@ export const V3_LAYOUT = {
    * 调参规律：值↑ → 更宽更矮、宽高比↑；偏离视口比例越远 scale 越低。
    */
   WRAP_COLS: 28,
-  /** 换行行高：资产卡高 160 + 垂直间隙 16。换行时 y = lane*laneH + row*ROW_HEIGHT。 */
-  ROW_HEIGHT: 176,
+  /** 换行行高：资产卡高 212 + 垂直间隙 16。换行时 y = lane*laneH + row*ROW_HEIGHT。 */
+  ROW_HEIGHT: 228,
   /**
    * 阶段网格带内目标最大行数（自适应带宽）：每个阶段带的列数 = ceil(该阶段最密泳道节点数 / 此值)，
    * 使同一阶段内任一泳道不超过 ~此值 行（节点多的阶段自动加宽带、少则收窄），平衡宽高比与可读性。
