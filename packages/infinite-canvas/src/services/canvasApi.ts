@@ -924,3 +924,44 @@ export async function listIterationPlans(
   }
 }
 
+// ─── 资产管理中心 (Asset Manager) ─────────────────────────
+//
+// 资产管理中心的 API 接缝。现网 `/api/v1/assets-registry` 已有基础 CRUD（见上方
+// searchAssets / fetchAssetDetail / fetchProjectAssets），但缺少组合关系
+// (o_asset_composition) 与搭配预设 (o_loadout) —— 见 /tmp/asset-manager-design.md §3/§4。
+// 下面两个函数为**前瞻接缝**：标注 TODO，待后端落地后实现真实调用；
+// 当前由 assetManager/assetManagerData.ts 的 mock 数据驱动 UI。
+
+export interface AssetCompositionEntry {
+  parentUuid: string
+  childUuid: string
+  relation: 'variant_of' | 'wears' | 'holds' | 'appears_in'
+  slot?: string
+  loadoutUuid?: string
+}
+
+/**
+ * TODO(backend): 获取某资产的组合关系（穿戴/手持/变体/出场）。
+ * 计划端点：GET /api/v1/assets/:uuid/composition → { parents, children }。
+ * 后端需先落地 o_asset_composition 表（design.md §3.1）。
+ */
+export async function fetchAssetComposition(_uuid: string): Promise<AssetCompositionEntry[] | null> {
+  // TODO: return (await fetch(`${API_BASE}/v1/assets-registry/${_uuid}/composition`)).json()...
+  return null
+}
+
+/**
+ * TODO(backend): 把资产库的资产「投放」到当前画布 —— 在 (projectId, episodesId) 下
+ * 创建一个引用该 assetUuid 的画布节点。计划端点：POST /api/v1/assets/:uuid/place。
+ * 当前仅触发一次 store 的乐观节点插入（见 AssetLibrary 的 onPlaceToCanvas），
+ * 真实持久化待后端落地。返回 true 表示已（乐观）处理。
+ */
+export async function placeAssetOnCanvas(
+  _projectId: number,
+  _episodesId: number,
+  _assetUuid: string,
+): Promise<boolean> {
+  // TODO: await apiCall('/v1/assets-registry/place', { projectId, episodesId, assetUuid })
+  return true
+}
+

@@ -143,6 +143,18 @@ interface CanvasState {
   finishOrchestration: (result: { completed: number; total: number; failed: number; failedNodes: string[]; mode: 'full' | 'batch' }) => void
   resetOrchestration: () => void
 
+  // 视图模式 — 'canvas' = ReactFlow 画布, 'timeline' = 分镜时间轴, 'assets' = 全局资产管理中心
+  viewMode: 'canvas' | 'timeline' | 'assets'
+  setViewMode: (mode: 'canvas' | 'timeline' | 'assets') => void
+
+  // 资产管理子视图 + 选中资产（assets 视图内部状态；详情由 Library 卡片点击驱动）
+  assetView: 'library' | 'detail' | 'wardrobe' | 'scenes'
+  setAssetView: (view: 'library' | 'detail' | 'wardrobe' | 'scenes') => void
+  selectedAssetUuid: string | null
+  setSelectedAssetUuid: (uuid: string | null) => void
+  /** 打开某资产的详情（同时设选中 + 切到 detail 子视图） */
+  openAssetDetail: (uuid: string) => void
+
   // Iteration Engine — diagnose / plan / execute / confirm
   iteration: IterationState
   setIterationPlan: (plan: IterationPlan) => void
@@ -622,6 +634,17 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     },
   })),
   resetOrchestration: () => set({ orchestration: INITIAL_ORCHESTRATION }),
+
+  // 视图模式
+  viewMode: 'canvas',
+  setViewMode: (mode) => set({ viewMode: mode }),
+
+  // 资产管理子视图
+  assetView: 'library',
+  setAssetView: (view) => set({ assetView: view }),
+  selectedAssetUuid: null,
+  setSelectedAssetUuid: (uuid) => set({ selectedAssetUuid: uuid }),
+  openAssetDetail: (uuid) => set({ selectedAssetUuid: uuid, assetView: 'detail' }),
 
   // Iteration Engine
   iteration: INITIAL_ITERATION,

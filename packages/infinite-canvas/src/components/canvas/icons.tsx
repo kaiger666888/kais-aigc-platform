@@ -190,7 +190,7 @@ export function EventOpIcon({
 
 // ─── UI 操作图标（工具栏；stroke = currentColor，跟随按钮文字色） ─────────────
 
-export type UiIconKind = 'save' | 'layout' | 'fit' | 'rocket' | 'iterate' | 'search' | 'graph'
+export type UiIconKind = 'save' | 'layout' | 'fit' | 'rocket' | 'iterate' | 'search' | 'graph' | 'film' | 'image' | 'assets'
 
 /** UI 操作图标：线性几何，stroke=currentColor，size 默认 14 匹配 12px 按钮。 */
 export function UiIcon({
@@ -274,6 +274,33 @@ export function UiIcon({
           <circle cx="18" cy="7" r="2" />
           <rect x="9" y="15" width="6" height="5" rx="1" />
           <path d="M8 7h8M12 9v6" />
+        </svg>
+      )
+    case 'film':
+      // 时间轴：胶片条
+      return (
+        <svg {...common}>
+          <rect x="3" y="5" width="18" height="14" rx="1.5" />
+          <path d="M3 9h18M3 15h18M7 5v14M17 5v14" />
+        </svg>
+      )
+    case 'image':
+      // 图片占位
+      return (
+        <svg {...common}>
+          <rect x="3" y="5" width="18" height="14" rx="1.5" />
+          <circle cx="9" cy="10" r="1.8" />
+          <path d="m3 17 5-4 4 3 3-2 6 5" />
+        </svg>
+      )
+    case 'assets':
+      // 资产管理中心：2×2 资源格（collection）
+      return (
+        <svg {...common}>
+          <rect x="3" y="3" width="7.5" height="7.5" rx="1.4" />
+          <rect x="13.5" y="3" width="7.5" height="7.5" rx="1.4" />
+          <rect x="3" y="13.5" width="7.5" height="7.5" rx="1.4" />
+          <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.4" />
         </svg>
       )
   }

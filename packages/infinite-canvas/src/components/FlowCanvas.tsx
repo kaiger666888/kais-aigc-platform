@@ -13,7 +13,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { applyLayout } from '@kais/flowgraph-v3'
-import { FITVIEW_MIN_ZOOM } from '../hooks/useLod'
+import { FITVIEW_MIN_ZOOM, LodProvider } from '../hooks/useLod'
 
 import AssetNodeComponent from './nodes/AssetNode'
 import FallbackNodeComponent from './nodes/FallbackNode'
@@ -45,6 +45,8 @@ import { canvasToFlowGraph } from '../utils/flowDataMapper'
 import { getLayoutedElements } from '../utils/autoLayout'
 import { loadCanvasGraph, saveCanvasGraph, convertProjectData, fetchSkillNodeTypes, orchestrateCanvas, fetchCanvasHealth } from '../services/canvasApi'
 import { useCanvasSocket } from '../hooks/useCanvasSocket'
+import StoryboardTimeline from './StoryboardTimeline'
+import AssetManager from './assetManager/AssetManager'
 import { useLayout } from '../hooks/useLayout'
 import { canvasStateKey, loadCanvasState, useCanvasPersistence } from '../hooks/useCanvasPersistence'
 import { getFixtureMode } from '../v3/fixtureSource'
@@ -167,6 +169,10 @@ function CanvasInner() {
   const toasts = useCanvasStore((s) => s.toasts)
   const dismissToast = useCanvasStore((s) => s.dismissToast)
   const selectWinner = useCanvasStore((s) => s.selectWinner)
+
+  // 视图模式切换：画布 / 时间轴
+  const viewMode = useCanvasStore((s) => s.viewMode)
+  const setViewMode = useCanvasStore((s) => s.setViewMode)
 
   // Phase 36 — 编排状态
   const orchestration = useCanvasStore((s) => s.orchestration)
@@ -584,6 +590,19 @@ function CanvasInner() {
           </span>
           <span style={{ color: theme.text.primary, fontWeight: 600, fontSize: 13, letterSpacing: '0.02em' }}>无限画布</span>
           <span style={{ width: 1, height: 14, background: theme.border.default }} />
+
+          {/* 视图模式切换 */}
+          <div style={{ display: 'flex', gap: 2, background: theme.bg.input, borderRadius: 7, padding: 2, border: `1px solid ${theme.border.default}` }}>
+            <ViewModeButton active={viewMode === 'canvas'} onClick={() => setViewMode('canvas')}>
+              <UiIcon kind="graph" size={13} />画布
+            </ViewModeButton>
+            <ViewModeButton active={viewMode === 'timeline'} onClick={() => setViewMode('timeline')}>
+              <UiIcon kind="film" size={13} />时间轴
+            </ViewModeButton>
+            <ViewModeButton active={viewMode === 'assets'} onClick={() => setViewMode('assets')}>
+              <UiIcon kind="assets" size={13} />资产
+            </ViewModeButton>
+          </div>
         </div>
 
         {fixtureMode ? (
@@ -620,9 +639,23 @@ function CanvasInner() {
         </div>
       )}
 
-      {/* 画布区域 */}
+      {/* 画布区域 / 时间轴视图 */}
       <div style={{ width: '100%', height: 'calc(100vh - 48px)', position: 'relative' }}>
+        {viewMode === 'timeline' ? (
+          <>
+            <StoryboardTimeline />
+            {/* 右详情面板复用 */}
+            <NodeDetailPanel
+              node={detailNode}
+              onClose={() => setDetailNode(null)}
+            />
+          </>
+        ) : viewMode === 'assets' ? (
+          <AssetManager />
+        ) : (
+        <>
         <EventChipClickContext.Provider value={handleEventChipClick}>
+        <LodProvider>
         <ReactFlow
           nodes={tracedNodes}
           edges={tracedEdges}
@@ -647,21 +680,14 @@ function CanvasInner() {
           panOnDrag={[1]}
           selectionKeyCode="Shift"
           zoomOnDoubleClick={false}
-          // V3：position 是布局引擎计算缓存（宪法 §7），手拖不改 canonical——禁拖防止「拖了弹回」困惑
           nodesDraggable={!graph}
-          // P16 视口即渲染边界：onlyRenderVisibleElements 导致 fitView 前 handleBounds 缺失
-          // → 边创建失败 → 连锁：无边 → fitView 范围更小 → 更多节点卸载。
-          // 149 节点全量渲染性能足够（L0 色块极轻），先关掉。
           style={{ background: theme.bg.canvas }}
           proOptions={{ hideAttribution: true }}
         >
           <Background color={theme.border.canvas} gap={20} size={1} />
 
-          {/* B2 十泳道背景带 + 第 0 列 + locked 参考区（geometry 来自 useLayout 桥） */}
           {geometry && <LaneBands geometry={geometry} />}
-          {/* 竖向创作阶段叠加层（P01–P13；不动布局引擎，从节点 median-x 投影） */}
           {geometry && geometry.phaseColumns && <PhaseColumns geometry={geometry} />}
-          {/* 浮动图例（右上角，可折叠；解释模态色/边线型/op 芯片/状态） */}
           <Legend />
           <Controls
             position="bottom-left"
@@ -691,7 +717,6 @@ function CanvasInner() {
             <ToolbarButton onClick={() => reactFlow.fitView({ padding: 0.15, minZoom: FITVIEW_MIN_ZOOM, duration: 600 })}>
               <UiIcon kind="fit" />适配
             </ToolbarButton>
-            {/* Phase 36 — 一键成片 */}
             <ToolbarButton
               onClick={handleOrchestrate}
               disabled={orchestration.status === 'running' || !projectId || nodes.length === 0}
@@ -706,11 +731,8 @@ function CanvasInner() {
             </ToolbarButton>
             {orchestration.status === 'running' && orchestration.total > 0 && (
               <div style={{
-                width: 120,
-                height: 4,
-                borderRadius: 2,
-                background: theme.bg.surface,
-                overflow: 'hidden',
+                width: 120, height: 4, borderRadius: 2,
+                background: theme.bg.surface, overflow: 'hidden',
               }}>
                 <div style={{
                   width: `${(orchestration.completed / orchestration.total) * 100}%`,
@@ -720,7 +742,6 @@ function CanvasInner() {
                 }} />
               </div>
             )}
-            {/* Iteration Engine — 诊断 / 重生成 / 确认 */}
             <ToolbarButton
               onClick={handleIterate}
               disabled={!projectId || nodes.length === 0}
@@ -736,7 +757,6 @@ function CanvasInner() {
                 ? '待审阅'
                 : '迭代'}
             </ToolbarButton>
-            {/* Phase 45 (TEXT-03) — Tier 2 search filter */}
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <span style={{ position: 'absolute', left: 9, display: 'flex', color: theme.text.tertiary, pointerEvents: 'none' }}>
                 <UiIcon kind="search" size={13} />
@@ -764,7 +784,6 @@ function CanvasInner() {
             </div>
           </Panel>
 
-          {/* 空状态引导 */}
           {!hasData && !loading && (
             <Panel position="top-center" style={{ marginTop: 60 }}>
               <div style={{
@@ -802,24 +821,15 @@ function CanvasInner() {
             />
           )}
         </ReactFlow>
+        </LodProvider>
         </EventChipClickContext.Provider>
 
-        {/* 事件参数 popover（SPEC B.3 出口 → D 的 EventParamsPopover；芯片点击经 eventChipBus 落 activeChip）。 */}
         <EventParamsPopover anchor={activeChip} onClose={() => setActiveChip(null)} />
-
-        {/* 左侧 集→场景→镜头 导航树（点击居中+选中，93 镜项目跳转用） */}
         <ShotTree />
-
-        <NodeDetailPanel
-          node={detailNode}
-          onClose={() => setDetailNode(null)}
-        />
-
-        {/* P12 变体候选列表（牌堆 ×N 章 → onStackToggle → variantPickerStore）。 */}
+        <NodeDetailPanel node={detailNode} onClose={() => setDetailNode(null)} />
         <VariantPicker />
-
-        {iteration.panelOpen && (
-          <IterationPanel />
+        {iteration.panelOpen && <IterationPanel />}
+        </>
         )}
       </div>
 
@@ -852,6 +862,31 @@ function ToolbarButton({ onClick, children, disabled, accent }: { onClick: () =>
       }}
       onMouseEnter={(e) => { if (!disabled) { e.currentTarget.style.color = theme.text.primary; e.currentTarget.style.borderColor = theme.border.strong } }}
       onMouseLeave={(e) => { if (!accent) { e.currentTarget.style.color = disabled ? theme.text.disabled : theme.text.secondary; e.currentTarget.style.borderColor = theme.border.default } }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function ViewModeButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        background: active ? theme.bg.card : 'transparent',
+        color: active ? theme.text.primary : theme.text.tertiary,
+        border: 'none',
+        borderRadius: 5,
+        padding: '4px 10px',
+        fontSize: 12,
+        fontWeight: 600,
+        cursor: 'pointer',
+        transition: 'background 120ms var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1)), color 120ms var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1))',
+        boxShadow: active ? '0 1px 3px rgba(0,0,0,0.3)' : 'none',
+      }}
     >
       {children}
     </button>
