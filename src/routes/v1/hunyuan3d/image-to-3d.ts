@@ -10,15 +10,19 @@ const router = express.Router();
  * POST /api/v1/hunyuan3d/image-to-3d
  *
  * Submit an image-to-3D task via gold-team unified task API.
- * Supports both single-view (2.1) and multiview (2mv) modes.
+ * Supports both single-view (2mini/2.1) and multiview (2mv) modes.
  *
- * Single-view body: { image, model?, steps?, seed? }
+ * Single-view body: { image, model?, texture_mode?, steps?, seed?, render_size?, texture_size? }
+ *   - model: "mini" (default, recommended) or "full"
+ *   - texture_mode: "none" (geometry only) or "texture" (PBR multiview paint, adds ~8min)
+ *   - render_size/texture_size: PBR resolution (default 1024; use 512 for low VRAM)
+ *
  * Multiview body:  { mode: "mv", front, left?, back?, right?, steps?, seed? }
  *
  * Returns: { task_id, status }
  */
 export default router.post("/image-to-3d", async (req, res) => {
-  const { image, mode, front, left, back, right, model, steps, seed } = req.body || {};
+  const { image, mode, front, left, back, right, model, texture_mode, steps, seed, render_size, texture_size } = req.body || {};
 
   // Multiview mode
   if (mode === "mv" || front) {
@@ -72,7 +76,7 @@ export default router.post("/image-to-3d", async (req, res) => {
     }
   }
 
-  // Single-view mode (default, Hunyuan3D-2.1)
+  // Single-view mode (default, Hunyuan3D-2mini)
   if (!image) {
     return res.status(400).send(error("'image' field is required (URL or local path)"));
   }
@@ -80,8 +84,11 @@ export default router.post("/image-to-3d", async (req, res) => {
   const task_id = `hy3d_${uuidv4().replace(/-/g, "").slice(0, 12)}`;
   const params: Record<string, any> = {
     input_image: image,
-    model: model || "full",
+    model: model || "mini",
+    texture_mode: texture_mode || "none",
     steps: steps || 50,
+    render_size: render_size || 1024,
+    texture_size: texture_size || 1024,
   };
   if (seed !== undefined) params.seed = seed;
 
