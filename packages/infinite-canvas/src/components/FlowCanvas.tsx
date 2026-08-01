@@ -786,12 +786,10 @@ function CanvasInner() {
                 : '迭代'}
             </ToolbarButton>
             {/* 视口历史导航：后退 / 前进（浏览器式，针对画布视口） */}
-            <ToolbarButton onClick={handleViewportBack} disabled={!viewportHistory.canBack} title="后退">
-              ←
-            </ToolbarButton>
-            <ToolbarButton onClick={handleViewportForward} disabled={!viewportHistory.canForward} title="前进">
-              →
-            </ToolbarButton>
+            <div style={{ display: 'flex', gap: 0, borderRadius: 7, overflow: 'hidden', border: `1px solid ${theme.border.default}`, boxShadow: 'var(--cv-shadow-card, 0 1px 2px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.04) inset)' }}>
+              <NavArrowButton onClick={handleViewportBack} disabled={!viewportHistory.canBack} title="后退到上一个视口位置" label="←" />
+              <NavArrowButton onClick={handleViewportForward} disabled={!viewportHistory.canForward} title="前进到下一个视口位置" label="→" />
+            </div>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <span style={{ position: 'absolute', left: 9, display: 'flex', color: theme.text.tertiary, pointerEvents: 'none' }}>
                 <UiIcon kind="search" size={13} />
@@ -900,6 +898,37 @@ function ToolbarButton({ onClick, children, disabled, accent, title }: { onClick
       onMouseLeave={(e) => { if (!accent) { e.currentTarget.style.color = disabled ? theme.text.disabled : theme.text.secondary; e.currentTarget.style.borderColor = theme.border.default } }}
     >
       {children}
+    </button>
+  )
+}
+
+/** 视口导航圆形箭头按钮 — 比普通工具栏按钮更大更醒目，视觉上类似浏览器后退/前进。 */
+function NavArrowButton({ onClick, disabled, title, label }: { onClick: () => void; disabled?: boolean; title?: string; label: string }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 34,
+        height: 32,
+        background: disabled ? theme.bg.surface : theme.bg.card,
+        color: disabled ? theme.text.disabled : theme.text.primary,
+        border: 'none',
+        borderLeft: label === '→' ? `1px solid ${theme.border.default}` : 'none',
+        fontSize: 18,
+        fontWeight: 700,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.35 : 1,
+        transition: 'background 120ms var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1)), opacity 120ms var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1))',
+      }}
+      onMouseEnter={(e) => { if (!disabled) { e.currentTarget.style.background = theme.bg.surface } }}
+      onMouseLeave={(e) => { if (!disabled) { e.currentTarget.style.background = theme.bg.card } }}
+    >
+      {label}
     </button>
   )
 }
