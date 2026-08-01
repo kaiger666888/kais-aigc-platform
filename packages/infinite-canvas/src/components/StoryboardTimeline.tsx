@@ -83,15 +83,32 @@ interface TimedShot extends StoryboardShot {
  * 规一化 shot 键：从任意候选串（shot_id / label / node id / filePath）中提取 `s{n}_{m}`。
  * storyboard 与 P11 video 间无 link，且 video 节点 shot_id 字段常坏（`S1 1` 带空格），
  * 故统一从多源正则提取 + 空格→下划线 + 抹前导零，保证两侧能对上。
+ *
+ * 正则第二段 `[a-z]*0*(\d+)`：容忍 Scene/Beat 记法 `S01_B01` —— 大小写归一后 `B` 变成
+ * `b`，夹在 `_` 与数字之间；旧正则 `_0*(\d+)` 要求下划线后紧跟数字，遇到 `b` 即失配，
+ * 导致所有分镜 shotKey 落空、去重永不触发（同一 shot 的 shot_list/e_konte/transition
+ * 三类节点各占一个序号位）。`[a-z]*` 吞掉该字母前缀再取数字。
  */
 function shotKeyFromCandidates(...candidates: Array<unknown>): string | null {
   for (const c of candidates) {
     if (!c || typeof c !== 'string') continue
     const norm = c.toLowerCase().replace(/\s+/g, '_')
-    const m = norm.match(/s0*(\d+)_0*(\d+)/)
+    const m = norm.match(/s0*(\d+)_[a-z]*0*(\d+)/)
     if (m) return `s${m[1]}_${m[2]}`
   }
   return null
+}
+
+/**
+ * 同一 shotKey 下三类 storyboard 节点的优先级（数字越小越优先）。
+ * shot_list 字段最完整（镜头/运镜/构图/prompt 齐全），e_konte_sheets 次之，
+ * transition_design 仅转场信息。去重时每 key 只保留最高优先级的一条。
+ */
+function storyboardTypeRank(nodeId: string): number {
+  if (nodeId.includes('shot_list')) return 0
+  if (nodeId.includes('e_konte_sheets')) return 1
+  if (nodeId.includes('transition_design')) return 2
+  return 3
 }
 
 /** 音频类型 → 图标。按 clip_type / audio_type 关键词匹配。 */
@@ -160,8 +177,9 @@ function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<string, Re
     })
   }
 
-  // 去重：a-shot_list-* 与 a-transition_design-* 共享 shot_id，每个 shotKey 只保留一条。
-  // 优先 id 含 'shot_list' 的（字段更完整）；无 shotKey 的分镜原样保留。
+  // 去重：a-shot_list-* / a-e_konte_sheets-* / a-transition_design-* 三类节点共享同一
+  // shot_id（如 S01_B01），每个 shotKey 只保留优先级最高的一条（见 storyboardTypeRank）。
+  // 无 shotKey 的分镜（shotKey 解析失败）原样保留。
   const byKey = new Map<string, StoryboardShot>()
   const shots: StoryboardShot[] = []
   for (const shot of collected) {
@@ -174,8 +192,8 @@ function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<string, Re
     if (!prev) {
       byKey.set(key, shot)
       shots.push(shot)
-    } else if (!prev.node.id.includes('shot_list') && shot.node.id.includes('shot_list')) {
-      // 已存的不是 shot_list、当前是 → 替换
+    } else if (storyboardTypeRank(shot.node.id) < storyboardTypeRank(prev.node.id)) {
+      // 当前优先级更高 → 就地替换（顺序无关）
       const idx = shots.indexOf(prev)
       if (idx >= 0) shots[idx] = shot
       byKey.set(key, shot)

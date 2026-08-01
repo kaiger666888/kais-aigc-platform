@@ -14,12 +14,12 @@ import { placeAssetOnCanvas } from '../../services/canvasApi'
 import { resolveMediaUrl } from '../../utils/mediaUrl'
 import { useRealAssets } from './useRealAssets'
 import {
-  REAL_TYPE_GROUPS, TYPE_LABEL, SCOPE_LOOKUP, realTags,
+  REAL_TYPE_GROUPS, TYPE_LABEL, realTags,
   assetDetailToItem, modalityVar, modalityWeakVar,
   type AssetItem, type AssetType,
 } from './assetManagerData'
 
-type LibScope = 'all' | 'current' | 'library' | 'project'
+type LibScope = 'all' | 'current' | 'library'
 
 function cssVars(vars: Record<string, string>): React.CSSProperties {
   return vars as React.CSSProperties
@@ -49,9 +49,9 @@ export default function AssetLibrary() {
   const projectId = useCanvasStore((s) => s.projectId)
   const episodesId = useCanvasStore((s) => s.episodesId)
 
-  const { assets, loading, error, reload } = useRealAssets()
+  const { assets, loading, error, reload } = useRealAssets(projectId)
 
-  const [scope, setScope] = useState<LibScope>('all')
+  const [scope, setScope] = useState<LibScope>('current')
   const [typeFilter, setTypeFilter] = useState<AssetType | null>(null)
   const [tagFilter, setTagFilter] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -61,7 +61,6 @@ export default function AssetLibrary() {
   const scopeMatches = useMemo(() => {
     return (d: typeof assets[number]) => {
       if (scope === 'library') return d.projectId == null
-      if (scope === 'project') return d.projectId != null
       if (scope === 'current') return projectId != null && d.projectId === projectId
       return true // all
     }
@@ -88,10 +87,10 @@ export default function AssetLibrary() {
   const countAll = assets.filter(scopeMatches).length
 
   const scopeOptions: LibScope[] = projectId
-    ? ['all', 'current', 'library', 'project']
-    : ['all', 'library', 'project']
+    ? ['all', 'current', 'library']
+    : ['all', 'library']
   const scopeLabel = (s: LibScope): string =>
-    s === 'all' ? '全部' : s === 'current' ? '当前项目' : SCOPE_LOOKUP[s]
+    s === 'all' ? '全部资产' : s === 'current' ? '本项目' : '全局资产'
 
   const handleAddToCanvas = async (a: AssetItem) => {
     if (!projectId || episodesId == null) {
@@ -198,7 +197,7 @@ export default function AssetLibrary() {
                       <div className="am-card__name">{a.name}</div>
                       <div className="am-card__meta">
                         <span className="am-card__typetag">{TYPE_LABEL[a.type] ?? a.type}</span>
-                        <span className="am-card__scope">{a.scope === 'library' ? '全局库' : '项目'}</span>
+                        <span className="am-card__scope">{a.scope === 'library' ? '全局资产' : '项目资产'}</span>
                       </div>
                     </div>
                   </div>

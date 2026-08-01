@@ -39,7 +39,7 @@ export default function AssetManager() {
             <UiIcon kind="assets" size={15} />
           </span>
           资产管理中心
-          <span className="am-title__sub">ASSET MANAGER · 流浪猫小橘</span>
+          <span className="am-title__sub">ASSET MANAGER</span>
         </div>
         <nav className="am-tabs">
           {TABS.map((t) => (
