@@ -69,6 +69,19 @@ function modalityOf(data: AssetCardData): Modality {
   }
 }
 
+/**
+ * 从 storyboard 节点 id 提取子类型标签。
+ * P09 产出三类 storyboard 节点（shot_list / e_konte_sheets / transition_design），
+ * 共享同一 shot_id label，需附加子类型区分。颜色取自 v3theme.modality
+ *（镜头=image 青 / 绘卷=text 金 / 转场=video 玫）。
+ */
+function storyboardSubtype(id: string): string | null {
+  if (id.includes('shot_list')) return '镜头'
+  if (id.includes('e_konte_sheets')) return '绘卷'
+  if (id.includes('transition_design')) return '转场'
+  return null
+}
+
 /** 底行元信息 `#037 · 3.3s`（shot 编号 · 时长；§4.1）。raw 数据缺省时的兜底。 */
 function metaLine(asset: AssetNodeV3 | undefined): string | null {
   if (!asset) return null
@@ -521,6 +534,9 @@ function AssetCardNodeComponent({ id, data, selected }: NodeProps<AssetCardNodeT
   // title 优先从 raw data 袋的 label 读取（canvas sync 写入的语义化 label，
   // migrate 不保留 label 到 V3 asset schema，但 rawDataByNodeId 存了完整原始 data）
   const title = (raw?.label as string | undefined) ?? (data.label as string | undefined) ?? asset?.phaseName ?? id
+  // P09 分镜拆解产出三类 storyboard 节点（shot_list / e_konte_sheets / transition_design），
+  // 共享同一 shot_id label → 按 node id 前缀派生子类型 chip 区分（见 storyboardSubtype）
+  const subType = stage === 'storyboard' ? storyboardSubtype(id) : null
   const meta = metaLine(asset)
   // tags 优先从 raw data 袋读取（canvas sync 写入的语义标签在 V2 node.data 里，
   // migrate 不会将其传入 V3 asset schema，但 adapter 会把原始 data 完整存入 rawDataByNodeId）
@@ -576,10 +592,30 @@ function AssetCardNodeComponent({ id, data, selected }: NodeProps<AssetCardNodeT
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
+              minWidth: 0,
             }}
           >
             {title}
           </span>
+          {/* storyboard 三类节点同名子类型 chip（镜头/绘卷/转场；色取自 v3theme.modality） */}
+          {subType && (
+            <span style={{
+              fontSize: isL1 ? 7 : 9,
+              fontWeight: 600,
+              padding: '1px 4px',
+              borderRadius: 3,
+              background: subType === '镜头' ? 'rgba(86,184,154,0.18)'
+                        : subType === '绘卷' ? 'rgba(224,182,101,0.18)'
+                        : 'rgba(221,106,130,0.18)',
+              color: subType === '镜头' ? '#56B89A'
+                   : subType === '绘卷' ? '#E0B665'
+                   : '#DD6A82',
+              flexShrink: 0,
+              whiteSpace: 'nowrap',
+            }}>
+              {subType}
+            </span>
+          )}
         </div>
         {/* 语义标签（📋 概览 / ✅ 已选 / 未选 / 🔄 候选） */}
         {!isL1 && tags.length > 0 && (
