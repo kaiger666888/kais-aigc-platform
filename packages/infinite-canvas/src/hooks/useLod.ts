@@ -5,7 +5,7 @@
  * （跨越阈值需越过对侧 0.03 才切换，在阈值附近往复缩放不闪切）。
  * 每个消费组件各自持有迟滞状态（同一 zoom 输入下推导结果一致，无级联错乱）。
  */
-import { useEffect, useState } from 'react'
+import { createContext, createElement, useContext, useEffect, useState, type ReactNode } from 'react'
 import { useViewport } from '@xyflow/react'
 
 export type LodLevel = 0 | 1 | 2
@@ -52,12 +52,33 @@ export function resolveLodLevel(zoom: number, prev: LodLevel): LodLevel {
   }
 }
 
-/** 当前 LOD 级（订阅 React Flow viewport zoom，带迟滞）。 */
-export function useLodLevel(): LodLevel {
+/**
+ * LOD 上下文（P16 性能修正）。
+ *
+ * 旧版每个消费组件各自 useViewport()：缩放/平移每帧 zoom/x/y 变 → useStore(shallow)
+ * 判变 → 全体消费组件（数百 AssetCardNode + 全部 CanvasEdge）每帧重跑组件体，即便 LOD
+ * 桶没变。大图（如 369 节点项目）即掉帧。
+ *
+ * 现在 LodProvider 是唯一 viewport 订阅者：它持有迟滞状态，仅当 LOD 桶(0/1/2) 跨越
+ * 阈值时 setLevel；context value 是原始 number，不变则消费组件不重渲染。连续缩放从
+ * 「每帧 × N 组件」降到「跨阈值 2~3 次 × N 组件」。
+ *
+ * 消费侧无感：useLodLevel() 仍是 () => LodLevel，仅改为读 context。用 createElement
+ * 而非 JSX 以保持本文件为 .ts（hook 模块，无其余 JSX）。必须在 <LodProvider> 下使用
+ *（包住 <ReactFlow>，置于 <ReactFlowProvider> 内）。
+ */
+const LodContext = createContext<LodLevel>(2) // 兜底 L2（满细节）：漏包 Provider 时不致退化为看不见的色块
+
+export function LodProvider({ children }: { children: ReactNode }) {
   const { zoom } = useViewport()
   const [level, setLevel] = useState<LodLevel>(() => lodLevelForZoom(zoom))
   useEffect(() => {
     setLevel((prev) => resolveLodLevel(zoom, prev))
   }, [zoom])
-  return level
+  return createElement(LodContext.Provider, { value: level }, children)
+}
+
+/** 当前 LOD 级（读 context；仅跨阈值时重渲染）。 */
+export function useLodLevel(): LodLevel {
+  return useContext(LodContext)
 }

@@ -49,6 +49,7 @@ import StoryboardTimeline from './StoryboardTimeline'
 import AssetManager from './assetManager/AssetManager'
 import { useLayout } from '../hooks/useLayout'
 import { canvasStateKey, loadCanvasState, useCanvasPersistence } from '../hooks/useCanvasPersistence'
+import { useViewportHistory } from '../hooks/useViewportHistory'
 import { getFixtureMode } from '../v3/fixtureSource'
 import { theme, miniMapNodeColors, v3theme } from '../theme/catppuccin'
 import { UiIcon } from './canvas/icons'
@@ -325,10 +326,37 @@ function CanvasInner() {
     [persistenceKey],
   )
 
+  // P-viewport-history：画布视口历史导航（后退/前进）。
+  // skipPushRef 防止 back/forward 的程序性 setViewport 触发的 onMoveEnd 被再次记入历史。
+  const viewportHistory = useViewportHistory()
+  const skipPushRef = useRef(false)
+
   const handleMoveEnd = useCallback(
-    (_e: unknown, viewport: { x: number; y: number; zoom: number }) => persistViewport(viewport),
-    [persistViewport],
+    (_e: unknown, viewport: { x: number; y: number; zoom: number }) => {
+      if (!skipPushRef.current) {
+        viewportHistory.push(viewport)
+      }
+      skipPushRef.current = false
+      persistViewport(viewport)
+    },
+    [persistViewport, viewportHistory],
   )
+
+  const handleViewportBack = useCallback(() => {
+    const prev = viewportHistory.back()
+    if (prev) {
+      skipPushRef.current = true
+      reactFlow.setViewport(prev, { duration: 300 })
+    }
+  }, [viewportHistory, reactFlow])
+
+  const handleViewportForward = useCallback(() => {
+    const next = viewportHistory.forward()
+    if (next) {
+      skipPushRef.current = true
+      reactFlow.setViewport(next, { duration: 300 })
+    }
+  }, [viewportHistory, reactFlow])
 
   const onConnect: OnConnect = useCallback(
     (params: Connection) => {
@@ -757,6 +785,13 @@ function CanvasInner() {
                 ? '待审阅'
                 : '迭代'}
             </ToolbarButton>
+            {/* 视口历史导航：后退 / 前进（浏览器式，针对画布视口） */}
+            <ToolbarButton onClick={handleViewportBack} disabled={!viewportHistory.canBack} title="后退">
+              ←
+            </ToolbarButton>
+            <ToolbarButton onClick={handleViewportForward} disabled={!viewportHistory.canForward} title="前进">
+              →
+            </ToolbarButton>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <span style={{ position: 'absolute', left: 9, display: 'flex', color: theme.text.tertiary, pointerEvents: 'none' }}>
                 <UiIcon kind="search" size={13} />
@@ -838,11 +873,12 @@ function CanvasInner() {
   )
 }
 
-function ToolbarButton({ onClick, children, disabled, accent }: { onClick: () => void; children: React.ReactNode; disabled?: boolean; accent?: boolean }) {
+function ToolbarButton({ onClick, children, disabled, accent, title }: { onClick: () => void; children: React.ReactNode; disabled?: boolean; accent?: boolean; title?: string }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
+      title={title}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
