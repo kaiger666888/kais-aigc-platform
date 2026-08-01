@@ -296,6 +296,22 @@ export async function searchAssets(
   return json.data.assets
 }
 
+/**
+ * Update a single asset's metadata via PATCH /api/v1/assets/:id.
+ * Used for isPrimaryView, tags, state, etc.
+ */
+export async function updateAsset(
+  assetId: number,
+  updates: { isPrimaryView?: boolean; tags?: string; state?: string; name?: string; describe?: string },
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/v1/assets-registry/${assetId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  })
+  if (!res.ok) throw new ApiError(`HTTP ${res.status}`, 'network', res.status)
+}
+
 // ─── 画布图（FlowGraph） ──────────────────────────────────
 
 /** 保存画布图（FlowGraph 格式） */

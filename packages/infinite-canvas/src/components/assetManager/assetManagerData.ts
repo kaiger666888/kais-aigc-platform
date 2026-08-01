@@ -63,6 +63,8 @@ export interface AssetItem {
   viewAngle?: string
   /** 来源标记：真实 API / mock（驱动详情视图的取数路径） */
   source?: 'real' | 'mock'
+  /** 正式使用版本标记（管线下游 P05+ 使用 isPrimaryView=true 的资产） */
+  isPrimaryView?: boolean
 }
 
 // ─── 组合关系 ─────────────────────────────────────────────
@@ -302,6 +304,7 @@ export function assetDetailToItem(d: AssetDetail): AssetItem {
     characterId: d.characterId ?? undefined,
     viewAngle: d.viewAngle ?? undefined,
     source: 'real',
+    isPrimaryView: d.isPrimaryView ?? false,
   }
 }
 

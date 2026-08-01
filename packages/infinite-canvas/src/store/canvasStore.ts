@@ -154,6 +154,7 @@ interface CanvasState {
   setSelectedAssetUuid: (uuid: string | null) => void
   /** 打开某资产的详情（同时设选中 + 切到 detail 子视图） */
   openAssetDetail: (uuid: string) => void
+  closeAssetDetail: () => void
 
   // Iteration Engine — diagnose / plan / execute / confirm
   iteration: IterationState
@@ -644,7 +645,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   setAssetView: (view) => set({ assetView: view }),
   selectedAssetUuid: null,
   setSelectedAssetUuid: (uuid) => set({ selectedAssetUuid: uuid }),
-  openAssetDetail: (uuid) => set({ selectedAssetUuid: uuid, assetView: 'detail' }),
+  openAssetDetail: (uuid) => set({ selectedAssetUuid: uuid }),
+  closeAssetDetail: () => set({ selectedAssetUuid: null }),
 
   // Iteration Engine
   iteration: INITIAL_ITERATION,

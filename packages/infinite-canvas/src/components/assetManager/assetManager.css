@@ -10,8 +10,8 @@
 .am-title{font-weight:600;font-size:13px;color:var(--cv-text-primary);white-space:nowrap;display:flex;align-items:center;gap:8px}
 .am-title .am-title__sub{font-size:10px;font-weight:400;color:var(--cv-text-tertiary);font-family:var(--cv-font-mono)}
 .am-scope{display:flex;background:var(--cv-bg-card);border-radius:7px;padding:3px;border:1px solid var(--cv-line-panel)}
-.am-scope button{font-size:12px;padding:6px 12px;border-radius:5px;color:var(--cv-text-tertiary);transition:.12s;white-space:nowrap}
-.am-scope button:hover{color:var(--cv-text-secondary)}
+.am-scope button{font-size:12px;padding:6px 12px;border-radius:5px;color:var(--cv-text-secondary);transition:.12s;white-space:nowrap}
+.am-scope button:hover{color:var(--cv-text-primary)}
 .am-scope button.is-on{background:var(--cv-bg-elevated);color:var(--cv-text-primary);box-shadow:var(--cv-shadow-card)}
 .am-search{position:relative;display:flex;align-items:center}
 .am-search svg{position:absolute;left:10px;opacity:.5;pointer-events:none}
@@ -40,6 +40,14 @@
 .am-head{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--cv-text-tertiary)}
 .am-empty{padding:50px 24px;text-align:center;color:var(--cv-text-disabled);font-size:12.5px;line-height:1.7}
 
+/* ── loading / skeleton ── */
+.am-loading{display:grid;grid-template-columns:repeat(auto-fill,minmax(184px,1fr));gap:13px;padding:14px 16px;position:relative}
+.am-loading__label{grid-column:1/-1;text-align:center;color:var(--cv-text-tertiary);font-size:11.5px;font-family:var(--cv-font-mono);margin-top:6px}
+.am-skeleton-card{height:178px;border-radius:10px;background:var(--cv-bg-card);box-shadow:var(--cv-shadow-card);
+  background-image:linear-gradient(90deg,var(--cv-bg-card) 0%,var(--cv-bg-card-hover) 50%,var(--cv-bg-card) 100%);
+  background-size:200% 100%;animation:am-shimmer 1.3s infinite linear}
+@keyframes am-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
 /* ──────────────── 视图A · 资产库 ──────────────── */
 .am-lib{display:grid;grid-template-columns:220px 1fr;height:100%}
 .am-tree{border-right:1px solid var(--cv-line-panel);padding:12px 9px;overflow-y:auto}
@@ -61,8 +69,10 @@
   box-shadow:var(--cv-shadow-card);transition:transform .14s,box-shadow .14s;border:1px solid transparent;animation:am-pop .2s ease-out}
 @keyframes am-pop{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
 .am-card:hover{transform:translateY(-2px);box-shadow:var(--cv-shadow-card-hi);border-color:var(--cv-line-strong)}
-.am-card__thumb{height:120px;display:grid;place-items:center;font-size:50px;background:var(--cardw);position:relative}
-.am-card__thumb::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 40%,transparent 40%,rgba(0,0,0,.25) 100%)}
+.am-card__thumb{height:280px;display:grid;place-items:center;font-size:50px;background:var(--cardw);position:relative;overflow:hidden}
+.am-card__thumb::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 40%,transparent 40%,rgba(0,0,0,.25) 100%);pointer-events:none}
+.am-card__img{width:100%;height:100%;object-fit:contain;position:relative;z-index:1}
+.am-card__emoji{position:relative;z-index:1;filter:drop-shadow(0 4px 10px rgba(0,0,0,.4))}
 .am-card__typebar{height:3px;background:var(--cardc)}
 .am-card__keyflag{position:absolute;top:7px;left:7px;z-index:2;font-family:var(--cv-font-mono);font-size:9px;
   color:var(--cv-mod-text);background:rgba(10,11,14,.7);padding:3px 7px;border-radius:10px}
@@ -82,9 +92,11 @@
 .am-det__back{position:absolute;top:12px;left:12px;z-index:5;display:flex;align-items:center;gap:5px;font-size:11px;
   color:var(--cv-text-secondary);background:var(--cv-bg-panel);padding:5px 10px;border-radius:16px;border:1px solid var(--cv-line-panel);transition:.12s}
 .am-det__back:hover{color:var(--cv-text-primary);border-color:var(--cv-line-strong)}
-.am-det__stage{flex:1;display:grid;place-items:center;position:relative;
+.am-det__stage{flex:1;min-height:0;display:grid;place-items:center;position:relative;overflow-y:auto;overflow-x:hidden;
   background:radial-gradient(circle at 50% 38%,rgba(86,184,154,.06),transparent 60%),var(--cv-bg-canvas)}
 .am-det__big{font-size:150px;filter:drop-shadow(0 18px 40px rgba(0,0,0,.5));transition:transform .3s}
+.am-det__big-img{max-width:90%;max-height:calc(100% - 10px);border-radius:8px;object-fit:contain;
+  box-shadow:0 18px 40px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.06) inset}
 .am-det__views{display:flex;justify-content:center;gap:7px;padding:12px 0 16px;border-top:1px solid var(--cv-line-panel)}
 .am-vtab{font-family:var(--cv-font-mono);font-size:11px;color:var(--cv-text-tertiary);padding:5px 13px;border-radius:15px;
   border:1px solid var(--cv-line-panel);background:var(--cv-bg-card);transition:.12s}
@@ -203,7 +215,7 @@
   box-shadow:var(--cv-shadow-card);transition:.14s;position:relative}
 .am-variant:hover{transform:translateY(-2px);box-shadow:var(--cv-shadow-card-hi);border-color:var(--cv-line-strong)}
 .am-variant.is-pick{border-color:var(--cv-mod-image);box-shadow:var(--cv-shadow-card-hi),0 0 0 1px var(--cv-mod-image)}
-.am-variant__thumb{height:112px;display:grid;place-items:center;font-size:46px;position:relative}
+.am-variant__thumb{height:280px;display:grid;place-items:center;font-size:46px;position:relative;overflow:hidden}
 .am-variant__veil{position:absolute;inset:0}
 .am-variant__time{position:absolute;top:7px;right:7px;font-family:var(--cv-font-mono);font-size:9px;color:var(--cv-text-secondary);
   background:rgba(10,11,14,.7);padding:3px 7px;border-radius:10px}
@@ -216,7 +228,7 @@
 .am-cmp-head{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--cv-text-tertiary);margin:18px 0 10px}
 .am-cmp-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}
 .am-cmp-pane{background:var(--cv-bg-card);border-radius:10px;overflow:hidden}
-.am-cmp-pane__thumb{height:130px;display:grid;place-items:center;font-size:54px;position:relative}
+.am-cmp-pane__thumb{height:280px;display:grid;place-items:center;font-size:54px;position:relative;overflow:hidden}
 .am-cmp-pane__name{font-size:12.5px;font-weight:500}
 .am-cmp-pane__body{padding:11px}
 .am-diff-row{display:flex;align-items:center;gap:9px;padding:5px 0;font-size:11px;border-bottom:1px solid var(--cv-line-canvas)}
@@ -230,3 +242,41 @@
   .am-ward{grid-template-columns:1fr}.am-inv,.am-charpick{display:none}.am-doll__stage{grid-template-columns:1fr}
   .am-slots{border-left:none;border-top:1px solid var(--cv-line-panel)}
   .am-search input{width:130px}.am-search input:focus{width:150px}}
+
+/* ── Refresh Button ── */
+.am-btn--refresh{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;font-size:12px;border-radius:6px;
+  cursor:pointer;transition:all .15s ease;white-space:nowrap}
+.am-btn--refresh:disabled{opacity:.5;cursor:not-allowed}
+.am-btn--refresh.is-spinning svg{animation:am-spin .8s linear infinite}
+@keyframes am-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+/* ──────────────── 选定/待选 资产模型 ──────────────── */
+/* 待选资产卡片上的「设为选定」按钮（同组仅保留一个选定） */
+.am-card__select-btn{position:absolute;bottom:46px;left:7px;z-index:3;display:flex;align-items:center;gap:4px;
+  font-size:10px;color:var(--cv-text-on-accent);background:var(--cv-mod-image);padding:4px 9px;border-radius:14px;
+  font-weight:600;transition:.12s;opacity:.9}
+.am-card__select-btn:hover{opacity:1;filter:brightness(1.1)}
+
+/* 选定资产卡片上的「取消选定」按钮（退回待选） */
+.am-card__deselect-btn{position:absolute;bottom:46px;left:7px;z-index:3;display:flex;align-items:center;gap:4px;
+  font-size:10px;color:var(--cv-text-secondary);background:var(--cv-bg-card);padding:4px 9px;border-radius:14px;
+  font-weight:500;transition:.12s;border:1px solid var(--cv-line-panel)}
+.am-card__deselect-btn:hover{color:var(--cv-mod-video);border-color:var(--cv-mod-video)}
+
+/* 选定资产徽标（管线下游实际使用的版本） */
+.am-card__primary-flag{position:absolute;top:7px;left:7px;z-index:2;font-family:var(--cv-font-mono);font-size:9px;
+  color:var(--cv-mod-image);background:rgba(86,184,154,.15);padding:3px 7px;border-radius:10px;
+  border:1px solid rgba(86,184,154,.3);font-weight:600}
+
+/* ──────────────── 详情 Drawer（右侧滑出） ──────────────── */
+.am-drawer-overlay{position:absolute;inset:0;z-index:50;background:rgba(0,0,0,.35);animation:am-fade-in .15s ease-out}
+@keyframes am-fade-in{from{opacity:0}to{opacity:1}}
+.am-drawer{position:absolute;top:0;right:0;bottom:0;width:50%;min-width:480px;max-width:90vw;z-index:51;background:var(--cv-bg-panel);
+  border-left:1px solid var(--cv-line-panel);box-shadow:-12px 0 40px rgba(0,0,0,.3);animation:am-slide-in .2s ease-out;
+  display:flex;flex-direction:column;overflow:hidden}
+@keyframes am-slide-in{from{transform:translateX(100%)}to{transform:translateX(0)}}
+.am-drawer__close{position:absolute;top:10px;right:12px;z-index:10;width:28px;height:28px;border-radius:7px;
+  display:grid;place-items:center;font-size:14px;color:var(--cv-text-tertiary);background:var(--cv-bg-card);
+  border:1px solid var(--cv-line-panel);cursor:pointer;transition:.12s}
+.am-drawer__close:hover{color:var(--cv-text-primary);border-color:var(--cv-line-strong)}
+.am-drawer .am-det{height:100%}

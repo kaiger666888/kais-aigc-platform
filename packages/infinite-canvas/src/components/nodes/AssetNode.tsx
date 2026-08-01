@@ -223,7 +223,7 @@ function AssetNodeComponent({ data, id }: NodeProps<AssetNodeType>) {
           gap: 4,
         }}>
           <span>{data.viewGroup as string}</span>
-          {data.isPrimaryView === true && (
+          {!!data.isPrimaryView && (
             <span style={{ color: catppuccinGold }}>★</span>
           )}
         </div>

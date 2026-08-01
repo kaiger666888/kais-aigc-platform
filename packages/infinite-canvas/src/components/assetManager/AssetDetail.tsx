@@ -24,10 +24,11 @@ const REL_LABEL: Record<string, string> = {
 
 export default function AssetDetail() {
   const uuid = useCanvasStore((s) => s.selectedAssetUuid)
-  const setAssetView = useCanvasStore((s) => s.setAssetView)
+  const closeAssetDetail = useCanvasStore((s) => s.closeAssetDetail)
   const openAssetDetail = useCanvasStore((s) => s.openAssetDetail)
+  const projectId = useCanvasStore((s) => s.projectId)
   const [view, setView] = useState('front')
-  const { assets: realAssets } = useRealAssets()
+  const { assets: realAssets } = useRealAssets(projectId)
 
   // 取数：真实资产优先（资产库进入），否则回退 mock（角色衣柜/场景管理进入）。
   const a = useMemo<AssetItem | undefined>(() => {
@@ -77,7 +78,7 @@ export default function AssetDetail() {
       <div className="am-empty" style={{ padding: 60 }}>
         请从资产库选择一个资产查看详情。
         <div style={{ marginTop: 14 }}>
-          <button className="am-btn am-btn--ghost" onClick={() => setAssetView('library')}>返回资产库</button>
+          <button className="am-btn am-btn--ghost" onClick={closeAssetDetail}>返回资产库</button>
         </div>
       </div>
     )
@@ -107,7 +108,7 @@ export default function AssetDetail() {
   return (
     <div className="am-det">
       <div className="am-det__left">
-        <button className="am-det__back" onClick={() => setAssetView('library')}>‹ 返回资产库</button>
+        <button className="am-det__back" onClick={closeAssetDetail}>‹ 返回资产库</button>
         <div className="am-det__stage">
           {imgUrl ? (
             <img className="am-det__big-img" src={imgUrl} alt={a.name} />
