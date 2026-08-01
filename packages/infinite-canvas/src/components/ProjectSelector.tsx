@@ -122,7 +122,7 @@ export default function ProjectSelector({
         加载画布
       </button>
 
-      {selectedProject?.name && <CopyableName name={selectedProject.name} />}
+      {selectedProject?.name && <CopyableName name={selectedProject.name} id={selectedProject.id} />}
 
       {error && <span style={{ color: theme.status.rejected, fontSize: 11 }}>{error}</span>}
     </div>
@@ -157,17 +157,17 @@ async function copyText(text: string): Promise<void> {
   try { document.execCommand('copy') } finally { document.body.removeChild(ta) }
 }
 
-/** 当前项目名标签：常驻展示，单击复制，复制成功显示 ✓。 */
-function CopyableName({ name }: { name: string }) {
+/** 当前项目名标签：常驻展示，单击复制（含项目 ID），复制成功显示 ✓。 */
+function CopyableName({ name, id }: { name: string; id: number }) {
   const [copied, setCopied] = useState(false)
   const [hovered, setHovered] = useState(false)
   const onClick = useCallback(async () => {
     try {
-      await copyText(name)
+      await copyText(`${name} (ID: ${id})`)
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     } catch { /* ignore */ }
-  }, [name])
+  }, [name, id])
   return (
     <button
       onClick={onClick}
