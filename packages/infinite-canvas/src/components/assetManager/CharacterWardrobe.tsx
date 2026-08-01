@@ -1,234 +1,136 @@
 /**
- * 视图C · 角色衣柜 —— paper-doll 装备面板（签名交互）。
- * 选角色 → 中央角色立于聚光灯 + 浮动装备徽标；4 装备槽可拖拽/点击装备；
- * 物品抽屉拖到角色或槽位均可；同槽自动替换；可命名保存搭配（写回 COMPOSITIONS mock）。
- * 组合关系数据走 assetManagerData（TODO 待后端 GET /characters/:uuid/wardrobe）。
+ * 视图C · 角色衣柜 —— 角色造型展示（真实数据）。
+ * 从 useRealAssets(projectId) 拉取 type==='character' 资产；
+ * 左列角色列表（turnaround 缩略图 + 名字），右侧选中角色的大图 + 角色定位 / 元信息。
+ * 后端尚无结构化的服装 / 道具 / 配饰资产，故"换装"暂退化为"造型展示"：
+ * 大 turnaround 图 + 角色名 / 定位（从 name 中的括注解析，如"沈知意 (女主)"）+ 可用元数据。
  */
 import { useMemo, useState } from 'react'
 import { useCanvasStore } from '../../store/canvasStore'
-import {
-  ASSETS, COMPOSITIONS, DEFAULT_LOADOUTS, SLOT_LABEL, TYPE_LABEL,
-  assetByUuid,
-  type AssetItem, type EquipSlot,
-} from './assetManagerData'
+import { useRealAssets } from './useRealAssets'
+import { assetDetailToItem, TYPE_LABEL, type AssetItem } from './assetManagerData'
+import { resolveMediaUrl } from '../../utils/mediaUrl'
 
-interface SlotDef { key: EquipSlot; label: string; ic: string }
-const SLOTS: SlotDef[] = [
-  { key: 'head', label: '头饰 / 帽子', ic: '🎩' },
-  { key: 'body', label: '服装', ic: '👘' },
-  { key: 'accessory', label: '配饰', ic: '💍' },
-  { key: 'hand', label: '手持道具', ic: '✋' },
-]
+/** "沈知意 (女主)" → { display:"沈知意", role:"女主" }；无括注则 role=null。 */
+function parseCharName(raw: string): { display: string; role: string | null } {
+  const m = raw.match(/\s*[（(]([^)）]+)[)）]\s*$/)
+  if (!m || m.index === undefined) return { display: raw, role: null }
+  return { display: raw.slice(0, m.index).trim(), role: m[1].trim() }
+}
 
-// 浮动装备徽标的固定位置（相对角色容器）
-const BADGE_POS: Record<EquipSlot, React.CSSProperties> = {
-  head: { top: '6%', left: '50%', transform: 'translateX(-50%)' },
-  body: { bottom: '28%', right: '-6px' },
-  accessory: { top: '44%', left: '-6px' },
-  hand: { bottom: '6%', right: '4%' },
-  feet: { bottom: '2%', left: '50%', transform: 'translateX(-50%)' },
+/** 带 emoji 兜底的图片：filePath 解析失败或 <img> 报错时回落到类型 emoji。 */
+function Img({ item, className, fallback }: { item: AssetItem; className: string; fallback?: string }) {
+  const [broken, setBroken] = useState(false)
+  const url = item.filePath ? resolveMediaUrl(item.filePath) : null
+  if (url && !broken) {
+    return <img className={className} src={url} alt={item.name} loading="lazy" onError={() => setBroken(true)} />
+  }
+  return <span className={fallback ?? 'am-card__emoji'}>{item.emoji}</span>
 }
 
 export default function CharacterWardrobe() {
-  const showToast = useCanvasStore((s) => s.showToast)
+  const projectId = useCanvasStore((s) => s.projectId)
+  const { assets, loading, error, reload } = useRealAssets(projectId)
 
-  const [charId, setCharId] = useState<string>('chr-xiaoju')
-  const [loadout, setLoadout] = useState<string>('默认造型')
-  // 每个角色的当前装备：charId → slot → assetUuid（本地状态；保存时写回 COMPOSITIONS）
-  const [equippedMap, setEquippedMap] = useState<Record<string, Partial<Record<EquipSlot, string>>>>(() => {
-    const init: Record<string, Partial<Record<EquipSlot, string>>> = {}
-    for (const c of ['chr-xiaoju', 'chr-xiaoyue']) {
-      init[c] = {}
-      COMPOSITIONS.filter((r) => r.a === c && r.loadout === '默认造型').forEach((r) => {
-        if (r.slot) init[c][r.slot] = r.b
-      })
-    }
-    return init
-  })
-  const [invFilter, setInvFilter] = useState<'all' | string>('all')
-  const [loadoutName, setLoadoutName] = useState('默认造型')
+  const characters = useMemo(
+    () => assets.filter((a) => a.type === 'character').map(assetDetailToItem),
+    [assets],
+  )
 
-  const char = assetByUuid(charId)!
-  const equipped = equippedMap[charId] ?? {}
+  const [selectedUuid, setSelectedUuid] = useState<string | null>(null)
+  const char = useMemo(
+    () => characters.find((c) => c.uuid === selectedUuid) ?? characters[0],
+    [characters, selectedUuid],
+  )
+  const { display, role } = char ? parseCharName(char.name) : { display: '', role: null }
 
-  const characters = useMemo(() => ASSETS.filter((a) => a.type === 'character'), [])
+  const rows: Array<[string, string]> = []
+  if (char?.prompt) rows.push(['Prompt', char.prompt])
+  if (char?.desc && char.desc !== char.name) rows.push(['描述', char.desc])
+  if (char?.characterId) rows.push(['角色ID', char.characterId])
+  if (char?.model) rows.push(['模型', char.model])
+  if (char?.filePath) rows.push(['文件', char.filePath])
 
-  const availableItems = useMemo(() => {
-    return ASSETS
-      .filter((a) => ['costume', 'accessory', 'prop', 'prop_key', 'prop_consumable'].includes(a.type))
-      .filter((a) => !a.forChar || a.forChar === charId)
-  }, [charId])
-
-  const invItems = invFilter === 'all' ? availableItems : availableItems.filter((i) => i.type === invFilter)
-  const equippedUuids = Object.values(equipped)
-
-  const syncFromLoadout = (cId: string, lot: string) => {
-    const def = COMPOSITIONS.filter((r) => r.a === cId && r.loadout === lot)
-    if (!def.length) return // 无该搭配定义 → 保留当前
-    const next: Partial<Record<EquipSlot, string>> = {}
-    def.forEach((r) => { if (r.slot) next[r.slot] = r.b })
-    setEquippedMap((m) => ({ ...m, [cId]: next }))
+  if (loading) {
+    return (
+      <div className="am-loading">
+        {[1, 2, 3, 4].map((i) => <div className="am-skeleton-card" key={i} />)}
+        <div className="am-loading__label">正在加载角色资产…</div>
+      </div>
+    )
   }
-
-  const equip = (uuid: string) => {
-    const a = assetByUuid(uuid)
-    if (!a) return
-    const slot: EquipSlot = a.slot ?? (a.type === 'accessory' ? 'accessory' : a.type.includes('prop') ? 'hand' : 'body')
-    setEquippedMap((m) => ({ ...m, [charId]: { ...(m[charId] ?? {}), [slot]: uuid } }))
-    showToast(`已装备 ${a.name} → ${SLOT_LABEL[slot]}`, 'success')
+  if (error) {
+    return (
+      <div className="am-empty">
+        角色资产加载失败：{error}<br />
+        <button className="am-btn am-btn--ghost" style={{ marginTop: 12 }} onClick={reload}>重试</button>
+      </div>
+    )
   }
-
-  const unequip = (slot: EquipSlot) => {
-    setEquippedMap((m) => {
-      const next = { ...(m[charId] ?? {}) }
-      delete next[slot]
-      return { ...m, [charId]: next }
-    })
-  }
-
-  const handleSlotDrop = (slot: EquipSlot, uuid: string) => {
-    const a = assetByUuid(uuid)
-    if (!a) return
-    setEquippedMap((m) => ({ ...m, [charId]: { ...(m[charId] ?? {}), [slot]: uuid } }))
-    showToast(`已装备 ${a.name} → ${SLOTS.find((s) => s.key === slot)?.label}`, 'success')
-  }
-
-  const [dragging, setDragging] = useState<string | null>(null)
-
-  const saveLoadout = () => {
-    const name = loadoutName.trim() || '未命名搭配'
-    setLoadout(name)
-    showToast(`已保存搭配 ${name}（${Object.keys(equipped).length} 件）`, 'success')
-    // TODO(backend): POST /api/v1/loadouts { characterUuid, name, items[] } → 写 o_loadout + o_asset_composition
+  if (characters.length === 0) {
+    return (
+      <div className="am-empty">
+        本项目暂无角色资产。<br />
+        运行管线 P04（角色设计）后，turnaround 三视图会自动注册到这里。
+      </div>
+    )
   }
 
   return (
-    <div className="am-ward">
-      {/* 角色选择 */}
-      <aside className="am-charpick">
-        <div className="am-head" style={{ padding: '0 4px 4px' }}>选择角色</div>
-        {characters.map((c) => (
-          <div
-            key={c.uuid}
-            className={`am-charpick__card ${charId === c.uuid ? 'is-on' : ''}`}
-            data-uuid={c.uuid}
-            onClick={() => { setCharId(c.uuid); setLoadout('默认造型'); setLoadoutName('默认造型'); syncFromLoadout(c.uuid, '默认造型') }}
-          >
-            <div className="am-charpick__ava">{c.emoji}</div>
-            <div><b>{c.name}</b><span>{c.uuid}</span></div>
-          </div>
-        ))}
-      </aside>
-
-      {/* paper-doll */}
-      <div className="am-doll">
-        <div className="am-doll__stage">
-          <div
-            className="am-doll__fig"
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => { e.preventDefault(); const u = e.dataTransfer.getData('text/plain'); if (u) equip(u) }}
-          >
-            <div className="am-doll__spot" />
-            <div className="am-doll__charwrap">
-              <div className="am-gearbadges">
-                {SLOTS.map((sl) => {
-                  const uid = equipped[sl.key]
-                  if (!uid) return null
-                  const it = assetByUuid(uid)!
-                  return (
-                    <div className="am-gearbadge" key={sl.key} style={BADGE_POS[sl.key]}>
-                      <span className="e">{it.emoji}</span>{it.name}
-                    </div>
-                  )
-                })}
-              </div>
-              <div className={`am-doll__char ${Object.keys(equipped).length > 0 ? 'is-geared' : ''}`}>{char.emoji}</div>
-              <div className="am-doll__nameplate">
-                <b>{char.name}</b>
-                <span>{char.uuid} · {char.desc}</span>
+    <div className="am-scene">
+      {/* 角色列表 */}
+      <aside className="am-scene__list">
+        <div className="am-head" style={{ padding: '0 4px 8px' }}>角色 · {characters.length}</div>
+        {characters.map((c) => {
+          const { display, role } = parseCharName(c.name)
+          return (
+            <div
+              key={c.uuid}
+              className={`am-scene-card ${char?.uuid === c.uuid ? 'is-on' : ''}`}
+              onClick={() => setSelectedUuid(c.uuid)}
+            >
+              <div className="am-scene-card__ic"><Img item={c} className="am-card__img" /></div>
+              <div>
+                <b>{display}</b>
+                <span>{role ?? (c.uuid.slice(-6))}</span>
               </div>
             </div>
-          </div>
-
-          {/* 装备槽 */}
-          <div className="am-slots">
-            <div className="am-head">装备槽 · 拖拽物品到角色或槽位</div>
-            {SLOTS.map((sl) => {
-              const uid = equipped[sl.key]
-              const it = uid ? assetByUuid(uid) : undefined
-              return (
-                <div
-                  key={sl.key}
-                  className={`am-slot ${it ? 'is-equipped' : ''}`}
-                  onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('is-over') }}
-                  onDragLeave={(e) => e.currentTarget.classList.remove('is-over')}
-                  onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove('is-over'); const u = e.dataTransfer.getData('text/plain'); if (u) handleSlotDrop(sl.key, u) }}
-                >
-                  <div className="am-slot__ic">{it ? it.emoji : sl.ic}</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="am-slot__label">{sl.label}</div>
-                    {it ? <div className="am-slot__item">{it.name}</div> : <div className="am-slot__empty">空 · 拖入{sl.label}</div>}
-                  </div>
-                  {it ? (
-                    <button className="am-slot__rm" onClick={() => unequip(sl.key)}>卸下</button>
-                  ) : (
-                    <span className="am-slot__add">＋</span>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* 搭配保存 */}
-        <div className="am-doll__footer">
-          <input className="am-loadout-name" value={loadoutName} onChange={(e) => setLoadoutName(e.target.value)} placeholder="搭配名称…" />
-          <button className="am-btn am-btn--primary" onClick={saveLoadout}>保存搭配</button>
-          <div className="am-loadout-list">
-            {DEFAULT_LOADOUTS.map((l) => (
-              <button
-                key={l}
-                className={`am-loadout-chip ${loadout === l ? 'is-on' : ''}`}
-                onClick={() => { setLoadout(l); setLoadoutName(l); syncFromLoadout(charId, l) }}
-              >{l}</button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* 物品抽屉 */}
-      <aside className="am-inv">
-        <div className="am-inv__h"><span className="am-head">可用物品 · 拖到装备槽或角色</span></div>
-        <div className="am-inv__filter">
-          <button className={invFilter === 'all' ? 'is-on' : ''} onClick={() => setInvFilter('all')}>全部</button>
-          {[...new Set(availableItems.map((i) => i.type))].map((t) => (
-            <button key={t} className={invFilter === t ? 'is-on' : ''} onClick={() => setInvFilter(t)}>{TYPE_LABEL[t as AssetItem['type']]}</button>
-          ))}
-        </div>
-        <div className="am-inv__grid">
-          {invItems.length === 0 ? (
-            <div className="am-empty" style={{ gridColumn: '1/-1', padding: '24px 8px' }}>该角色暂无可装备物品</div>
-          ) : invItems.map((it) => {
-            const isEq = equippedUuids.includes(it.uuid)
-            return (
-              <div
-                key={it.uuid}
-                className={`am-inv-item ${isEq ? 'is-equipped' : ''} ${dragging === it.uuid ? 'is-dragging' : ''}`}
-                data-uuid={it.uuid}
-                draggable={!isEq}
-                onDragStart={(e) => { setDragging(it.uuid); e.dataTransfer.setData('text/plain', it.uuid); e.dataTransfer.effectAllowed = 'copy' }}
-                onDragEnd={() => setDragging(null)}
-                onClick={() => { if (!isEq) equip(it.uuid) }}
-                title={isEq ? '已装备' : `${it.name}（点击或拖拽装备）`}
-              >
-                <div className="e">{it.emoji}</div>
-                <div className="n">{it.name}</div>
-                <div className="t">{TYPE_LABEL[it.type]}{it.slot ? `/${it.slot}` : ''}</div>
-              </div>
-            )
-          })}
-        </div>
+          )
+        })}
       </aside>
+
+      {/* 角色造型展示 */}
+      <div className="am-scene__main">
+        {char && (
+          <>
+            <div className="am-scene__head">
+              <h1>{display}</h1>
+              {role && <span className="am-badge">{role}</span>}
+              <span className="am-det__sub" style={{ fontFamily: 'var(--cv-font-mono)' }}>{char.uuid}</span>
+            </div>
+            <div className="am-scene__hint">
+              {TYPE_LABEL.character} · 角色造型展示（turnaround 三视图）· 共 {characters.length} 个角色
+            </div>
+
+            <div className="am-det__stage" style={{ minHeight: 340, borderRadius: 10 }}>
+              {/* key=uuid：切换角色时重置内部 broken 兜底状态 */}
+              <Img key={char.uuid} item={char} className="am-det__big-img" fallback="am-det__big" />
+            </div>
+
+            {rows.length > 0 && (
+              <>
+                <div className="am-seclabel">元信息</div>
+                {rows.map(([k, v]) => (
+                  <div className="am-meta-row" key={k}>
+                    <div className="am-meta-row__k">{k}</div>
+                    <div className="am-meta-row__v">{v}</div>
+                  </div>
+                ))}
+              </>
+            )}
+          </>
+        )}
+      </div>
     </div>
   )
 }

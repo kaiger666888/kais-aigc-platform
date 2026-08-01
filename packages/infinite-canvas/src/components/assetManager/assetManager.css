@@ -21,8 +21,8 @@
 .am-search input:focus{border-color:var(--cv-line-strong);background:var(--cv-bg-card-hover);outline:none;width:250px}
 .am-tabs{display:flex;gap:2px;margin-left:auto;background:var(--cv-bg-card);border-radius:7px;padding:3px;border:1px solid var(--cv-line-panel)}
 .am-tab{display:flex;align-items:center;gap:6px;font-size:12.5px;padding:6px 13px;border-radius:5px;
-  color:var(--cv-text-tertiary);transition:.12s;white-space:nowrap}
-.am-tab:hover{color:var(--cv-text-secondary)}
+  color:var(--cv-text-secondary);transition:.12s;white-space:nowrap}
+.am-tab:hover{color:var(--cv-text-primary)}
 .am-tab.is-on{background:var(--cv-bg-elevated);color:var(--cv-text-primary);box-shadow:var(--cv-shadow-card)}
 .am-tab .am-dot{width:6px;height:6px;border-radius:50%;background:var(--cv-mod-image)}
 
