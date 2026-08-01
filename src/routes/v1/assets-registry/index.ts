@@ -87,7 +87,9 @@ const searchSchema = z.object({
   projectId: z.number().nullable().optional(),
   characterId: z.string().optional(),
   tags: z.string().optional(),
-  state: z.string().optional().default("active"),
+  // state 不设默认值 —— 三态模型下「淘汰」资产也需被前端拉取展示。
+  // 仅当调用方显式传 state 时才过滤。
+  state: z.string().optional(),
   limit: z.number().int().min(1).max(200).optional().default(50),
   offset: z.number().int().min(0).optional().default(0),
   includeFile: z.boolean().optional().default(true), // JOIN o_image
@@ -107,7 +109,8 @@ router.post("/search", async (req, res) => {
       q = q.select("a.*");
     }
 
-    q = q.where("a.state", s.state);
+    // 仅当显式传 state 时过滤；否则返回所有状态（含 active / archived / eliminated）。
+    if (s.state) q = q.andWhere("a.state", s.state);
 
     if (s.query) {
       q = q.andWhere(function () {
@@ -178,7 +181,8 @@ const updateSchema = z.object({
   isPrimaryView: z.boolean().optional(),
   model: z.string().optional(),
   tags: z.string().optional(),
-  state: z.enum(["active", "archived"]).optional(),
+  // 三态模型允许 eliminated：选定(active) / 待选(active) / 淘汰(eliminated)。
+  state: z.enum(["active", "archived", "eliminated"]).optional(),
   meta: z.any().optional(),
   imageId: z.number().nullable().optional(),
 });

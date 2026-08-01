@@ -41,6 +41,11 @@ export interface UseRealAssets {
   loading: boolean
   error: string | null
   reload: () => void
+  /**
+   * 乐观更新单条资产的字段：直接改本地 assets state + 模块级缓存，
+   * 不触发 reload（避免列表闪烁/滚动跳顶）。后端 API 已另行同步。
+   */
+  patchLocal: (assetId: number, patch: Partial<AssetDetail>) => void
 }
 
 export function useRealAssets(projectId?: number | null): UseRealAssets {
@@ -77,5 +82,14 @@ export function useRealAssets(projectId?: number | null): UseRealAssets {
     load()
   }, [pid, load])
 
-  return { assets, loading, error, reload }
+  // 乐观更新：同步修改 state 与模块级缓存，绝不触发网络请求 / reload。
+  const patchLocal = useCallback((assetId: number, patch: Partial<AssetDetail>) => {
+    setAssets((prev) => prev.map((a) => (a.id === assetId ? { ...a, ...patch } : a)))
+    const cached = cacheMap.get(pid)
+    if (cached) {
+      cacheMap.set(pid, cached.map((a) => (a.id === assetId ? { ...a, ...patch } : a)))
+    }
+  }, [pid])
+
+  return { assets, loading, error, reload, patchLocal }
 }

@@ -5,10 +5,14 @@
  * 管线产出的资产经 canvas_sync 自动注册后即出现在此处，无需手动同步。
  * 缩略图从 JOIN o_image 的 filePath 经 resolveMediaUrl 渲染；缺图回退类型 emoji。
  *
- * 两段式资产模型：
- *   - 选定资产 (isPrimaryView=true) —— 管线下游实际使用的版本，每个 characterId 组仅一个。
- *   - 待选资产 (isPrimaryView=false) —— 同组的备选变体，未被管线使用。
- * 切换"选定"：同 characterId 组内旧 primary 自动置 false，新选资产置 true。
+ * 三态资产模型：
+ *   - 选定 (isPrimaryView=true, state='active') —— 管线下游实际使用的版本，每组仅一个。
+ *   - 待选 (isPrimaryView=false, state='active') —— 同组备选变体，未被管线使用。
+ *   - 淘汰 (state='eliminated') —— 同组被淘汰的变体，isPrimaryView 必为 false。
+ * 切换流转（乐观更新，绝不 reload）：
+ *   - 待选→选定：新选资产置 selected，同组旧选定自动淘汰。
+ *   - 选定→待选：该资产退回待选，同组淘汰资产自动恢复待选。
+ *   - 淘汰→待选：手动恢复。
  *
  * 点击卡片 → openAssetDetail(uuid)（store 驱动切到详情子视图）。
  * 卡片 hover「添加到画布」→ 画布联动（占位 · TODO 待后端 place 端点）。
@@ -24,7 +28,7 @@ import {
   type AssetItem, type AssetType,
 } from './assetManagerData'
 
-type AssetTab = 'selected' | 'candidate'
+type AssetTab = 'selected' | 'candidate' | 'eliminated'
 
 function cssVars(vars: Record<string, string>): React.CSSProperties {
   return vars as React.CSSProperties
@@ -83,7 +87,7 @@ export default function AssetLibrary() {
     rawCloseAssetDetail()
   }, [rawCloseAssetDetail])
 
-  const { assets, loading, error, reload } = useRealAssets(projectId)
+  const { assets, loading, error, reload, patchLocal } = useRealAssets(projectId)
 
   const [tab, setTab] = useState<AssetTab>('selected')
   const [typeFilter, setTypeFilter] = useState<AssetType | null>(null)
@@ -106,12 +110,13 @@ export default function AssetLibrary() {
     return true
   }), [assets, typeFilter, tagFilter, search])
 
-  // 按 tab 拆分：选定资产 (isPrimaryView===true) / 待选资产 (其余)。
+  // 按 tab 拆分三态：选定 / 待选 / 淘汰。
+  // isPrimaryView 从 SQLite 返回的是整数 0/1，需用 !! 转换；state 为 'eliminated' 即淘汰。
   const tabFiltered = useMemo(() => {
     return filtered.filter((d) => {
-      // isPrimaryView 从 SQLite 返回的是整数 0/1，不能 === true 比较
-      if (tab === 'selected') return !!d.isPrimaryView
-      return !d.isPrimaryView
+      if (tab === 'selected') return !!d.isPrimaryView && d.state !== 'eliminated'
+      if (tab === 'eliminated') return d.state === 'eliminated'
+      return !d.isPrimaryView && d.state !== 'eliminated' // candidate
     })
   }, [filtered, tab])
 
@@ -135,9 +140,13 @@ export default function AssetLibrary() {
 
     const needsInit: number[] = []
     for (const group of groups.values()) {
-      const hasPrimary = group.some((d) => !!d.isPrimaryView)
-      if (!hasPrimary && group.length > 0) {
-        needsInit.push(group[0].id)
+      // 选定只能从非淘汰资产里挑；淘汰的不参与自动选定。
+      const activeGroup = group.filter((d) => d.state !== 'eliminated')
+      const hasPrimary = activeGroup.some((d) => !!d.isPrimaryView)
+      // 场景资产不自动选定——由用户手动选择
+      const isSceneGroup = activeGroup.some((d) => d.type === 'scene')
+      if (!hasPrimary && activeGroup.length > 0 && !isSceneGroup) {
+        needsInit.push(activeGroup[0].id)
       }
     }
 
@@ -164,22 +173,28 @@ export default function AssetLibrary() {
     showToast(`已添加到画布 · ${a.name}（占位 · 待后端 place 端点）`, 'success')
   }
 
-  // 切换组内选定资产：先把同组其它 primary 全部置 false，再把目标置 true。
+  // 待选→选定：新选资产置 selected，同组旧选定资产自动淘汰（三态流转）。
+  // 全程乐观更新——绝不 reload（避免列表闪烁/跳顶），仅在后端失败时回滚。
   const handleSelect = async (assetId: number, groupKey: string) => {
     const sameGroup = assets.filter((d) => getGroupKey(d) === groupKey)
+    const oldPrimaries = sameGroup.filter((d) => !!d.isPrimaryView && d.id !== assetId)
 
-    for (const d of sameGroup) {
-      if (d.isPrimaryView) {
-        try { await updateAsset(d.id, { isPrimaryView: false }) } catch { /* 忽略单项失败 */ }
-      }
+    // 1. 乐观更新 UI：旧选定 → 淘汰；新选 → 选定。
+    for (const d of oldPrimaries) {
+      patchLocal(d.id, { isPrimaryView: false, state: 'eliminated' })
     }
+    patchLocal(assetId, { isPrimaryView: true, state: 'active' })
 
+    // 2. 后端同步（不 reload；失败时整体回滚到真实状态）。
     try {
-      await updateAsset(assetId, { isPrimaryView: true })
+      for (const d of oldPrimaries) {
+        try { await updateAsset(d.id, { isPrimaryView: false, state: 'eliminated' }) } catch { /* 忽略单项失败 */ }
+      }
+      await updateAsset(assetId, { isPrimaryView: true, state: 'active' })
       showToast('已设为选定资产', 'success')
-      await reload()
     } catch (err) {
       showToast('设置失败: ' + (err as Error).message, 'error')
+      await reload()
     }
   }
 
@@ -229,6 +244,12 @@ export default function AssetLibrary() {
             >
               ○ 待选资产
             </button>
+            <button
+              className={tab === 'eliminated' ? 'is-on' : ''}
+              onClick={() => setTab('eliminated')}
+            >
+              ✕ 淘汰资产
+            </button>
           </div>
           <label className="am-search">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
@@ -272,7 +293,9 @@ export default function AssetLibrary() {
                 ? '资产库为空 —— 运行管线（P04 角色设计 / P07 场景）后会自动注册到这里。'
                 : tab === 'selected'
                   ? '当前没有选定资产 —— 切换到「待选资产」选出一个作为正式版本。'
-                  : '当前没有待选资产 —— 所有变体均已设为选定。'}
+                  : tab === 'eliminated'
+                    ? '当前没有淘汰资产 —— 待选中的资产被新选定取代后会自动归入此处。'
+                    : '当前没有待选资产 —— 所有变体均已设为选定。'}
             </div>
           ) : (
             <div className="am-grid">
@@ -310,22 +333,53 @@ export default function AssetLibrary() {
                       >★ 选定</button>
                     )}
 
-                    {/* 选定资产 tab 下显示「取消选定」按钮（退回待选） */}
+                    {/* 选定资产 tab 下显示「取消选定」按钮（退回待选，同组淘汰自动恢复） */}
                     {tab === 'selected' && (
                       <button
                         className="am-card__deselect-btn"
                         onClick={async (e) => {
                           e.stopPropagation()
+                          // 同组被淘汰的兄弟变体（不含自身）将随取消选定一并恢复为待选。
+                          const eliminated = assets.filter(
+                            (dd) => getGroupKey(dd) === groupKey && dd.id !== d.id && dd.state === 'eliminated',
+                          )
+                          // 乐观更新 UI：该资产 → 待选；同组淘汰 → 恢复待选。
+                          patchLocal(d.id, { isPrimaryView: false, state: 'active' })
+                          for (const dd of eliminated) patchLocal(dd.id, { state: 'active' })
+                          // 后端同步（不 reload；失败时回滚）。
                           try {
-                            await updateAsset(d.id, { isPrimaryView: false })
+                            await updateAsset(d.id, { isPrimaryView: false, state: 'active' })
+                            for (const dd of eliminated) {
+                              try { await updateAsset(dd.id, { state: 'active' }) } catch { /* 忽略单项失败 */ }
+                            }
                             showToast('已退回待选资产', 'success')
-                            await reload()
                           } catch (err) {
                             showToast('操作失败: ' + (err as Error).message, 'error')
+                            await reload()
                           }
                         }}
-                        title="退回待选资产"
+                        title="退回待选资产（同组淘汰将一并恢复）"
                       >✕ 取消选定</button>
+                    )}
+
+                    {/* 淘汰资产 tab 下显示「恢复待选」按钮 */}
+                    {tab === 'eliminated' && (
+                      <button
+                        className="am-card__select-btn"
+                        onClick={async (e) => {
+                          e.stopPropagation()
+                          // 乐观更新 UI：淘汰 → 待选。
+                          patchLocal(d.id, { state: 'active', isPrimaryView: false })
+                          try {
+                            await updateAsset(d.id, { state: 'active' })
+                            showToast('已恢复到待选', 'success')
+                          } catch (err) {
+                            showToast('恢复失败: ' + (err as Error).message, 'error')
+                            await reload()
+                          }
+                        }}
+                        title="恢复到待选资产"
+                      >↻ 恢复</button>
                     )}
 
                     <div className="am-card__thumb"><Thumb item={a} /></div>
