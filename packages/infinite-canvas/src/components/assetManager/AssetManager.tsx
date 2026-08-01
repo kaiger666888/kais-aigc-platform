@@ -5,6 +5,7 @@
  * 资产详情改为右侧 drawer（selectedAssetUuid != null 时弹出），
  * 不再独占整个视图。双击资产库卡片弹出，点击资产库空白区域关闭。
  */
+import { useCallback } from 'react'
 import { useCanvasStore } from '../../store/canvasStore'
 import { UiIcon } from '../canvas/icons'
 import AssetLibrary from './AssetLibrary'
@@ -23,9 +24,19 @@ const TABS: Array<{ key: AssetView; label: string }> = [
 
 export default function AssetManager() {
   const assetView = useCanvasStore((s) => s.assetView)
-  const setAssetView = useCanvasStore((s) => s.setAssetView)
+  const rawSetAssetView = useCanvasStore((s) => s.setAssetView)
   const selectedAssetUuid = useCanvasStore((s) => s.selectedAssetUuid)
-  const closeAssetDetail = useCanvasStore((s) => s.closeAssetDetail)
+  const rawCloseAssetDetail = useCanvasStore((s) => s.closeAssetDetail)
+
+  // 子视图切换 / 详情关闭都是导航交互 → 先拍快照进应用历史栈（navPushCallback 由 FlowCanvas 注入）。
+  const setAssetView = useCallback((v: AssetView) => {
+    useCanvasStore.getState().navPushCallback?.()
+    rawSetAssetView(v)
+  }, [rawSetAssetView])
+  const closeAssetDetail = useCallback(() => {
+    useCanvasStore.getState().navPushCallback?.()
+    rawCloseAssetDetail()
+  }, [rawCloseAssetDetail])
 
   return (
     <div className="am-root">

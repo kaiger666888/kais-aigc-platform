@@ -13,7 +13,7 @@
  * 点击卡片 → openAssetDetail(uuid)（store 驱动切到详情子视图）。
  * 卡片 hover「添加到画布」→ 画布联动（占位 · TODO 待后端 place 端点）。
  */
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useCanvasStore } from '../../store/canvasStore'
 import { placeAssetOnCanvas, updateAsset, type AssetDetail } from '../../services/canvasApi'
 import { resolveMediaUrl } from '../../utils/mediaUrl'
@@ -67,11 +67,21 @@ function getGroupKey(d: AssetDetail): string {
 }
 
 export default function AssetLibrary() {
-  const openAssetDetail = useCanvasStore((s) => s.openAssetDetail)
-  const closeAssetDetail = useCanvasStore((s) => s.closeAssetDetail)
+  const rawOpenAssetDetail = useCanvasStore((s) => s.openAssetDetail)
+  const rawCloseAssetDetail = useCanvasStore((s) => s.closeAssetDetail)
   const showToast = useCanvasStore((s) => s.showToast)
   const projectId = useCanvasStore((s) => s.projectId)
   const episodesId = useCanvasStore((s) => s.episodesId)
+
+  // 打开 / 关闭资产详情都是导航交互 → 先拍快照进应用历史栈（navPushCallback 由 FlowCanvas 注入）。
+  const openAssetDetail = useCallback((uuid: string) => {
+    useCanvasStore.getState().navPushCallback?.()
+    rawOpenAssetDetail(uuid)
+  }, [rawOpenAssetDetail])
+  const closeAssetDetail = useCallback(() => {
+    useCanvasStore.getState().navPushCallback?.()
+    rawCloseAssetDetail()
+  }, [rawCloseAssetDetail])
 
   const { assets, loading, error, reload } = useRealAssets(projectId)
 

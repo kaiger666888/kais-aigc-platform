@@ -49,7 +49,7 @@ import StoryboardTimeline from './StoryboardTimeline'
 import AssetManager from './assetManager/AssetManager'
 import { useLayout } from '../hooks/useLayout'
 import { canvasStateKey, loadCanvasState, useCanvasPersistence } from '../hooks/useCanvasPersistence'
-import { useViewportHistory } from '../hooks/useViewportHistory'
+import { useNavHistory, type NavSnapshot } from '../hooks/useNavHistory'
 import { getFixtureMode } from '../v3/fixtureSource'
 import { theme, miniMapNodeColors, v3theme } from '../theme/catppuccin'
 import { UiIcon } from './canvas/icons'
@@ -326,37 +326,70 @@ function CanvasInner() {
     [persistenceKey],
   )
 
-  // P-viewport-history：画布视口历史导航（后退/前进）。
-  // skipPushRef 防止 back/forward 的程序性 setViewport 触发的 onMoveEnd 被再次记入历史。
-  const viewportHistory = useViewportHistory()
-  const skipPushRef = useRef(false)
+  // 应用级状态历史导航（全局后退/前进）：替代旧的画布视口历史。
+  // getViewport 注入 reactFlow.getViewport() —— 始终精确、零 store 副作用
+  // （store.setViewport 会改写 graph 引用触发 useLayout 全量重布，不可在每次平移调用）。
+  const getViewport = useCallback(
+    () => {
+      const v = reactFlow.getViewport()
+      return { x: v.x, y: v.y, zoom: v.zoom }
+    },
+    [reactFlow],
+  )
+  const navHistory = useNavHistory(getViewport)
+
+  // navSkipRef 防止 apply（程序性恢复状态）触发递归 push：
+  //  - apply 设置 true → setViewport 动画（duration 300）触发的 onMoveEnd 等回调检查它 → 跳过 push；
+  //  - 兜底重置：覆盖无 onMoveEnd（视口为空/未移动）导致 flag 卡死的情形，
+  //    350ms > 300ms 动画，确保动画结束前的 onMoveEnd 也被跳过，且用户下次交互能被记录。
+  const navSkipRef = useRef(false)
+
+  // 把 navHistory.push 注入 store，让 AssetManager/AssetLibrary 等子组件的导航交互也进历史栈。
+  useEffect(() => {
+    useCanvasStore.getState().setNavPushCallback(navHistory.push)
+    return () => {
+      useCanvasStore.getState().setNavPushCallback(null)
+    }
+  }, [navHistory])
 
   const handleMoveEnd = useCallback(
     (_e: unknown, viewport: { x: number; y: number; zoom: number }) => {
-      if (!skipPushRef.current) {
-        viewportHistory.push(viewport)
-      }
-      skipPushRef.current = false
+      if (!navSkipRef.current) navHistory.push()
       persistViewport(viewport)
     },
-    [persistViewport, viewportHistory],
+    [navHistory, persistViewport],
   )
 
-  const handleViewportBack = useCallback(() => {
-    const prev = viewportHistory.back()
-    if (prev) {
-      skipPushRef.current = true
-      reactFlow.setViewport(prev, { duration: 300 })
-    }
-  }, [viewportHistory, reactFlow])
+  // 应用一个历史快照：恢复完整应用状态（视图模式 / 子视图 / 选中 / 详情 / 视口）。
+  const applyNavSnapshot = useCallback(
+    (snap: NavSnapshot) => {
+      navSkipRef.current = true
+      const store = useCanvasStore.getState()
+      store.setViewMode(snap.viewMode)
+      store.setAssetView(snap.assetView)
+      store.setSelectedAssetUuid(snap.selectedAssetUuid)
+      // selectedNode / detailNode 需从当前 nodes 数组按 id 还原（保持引用一致）
+      const nodes = store.nodes
+      store.setSelectedNode(snap.selectedNodeId ? nodes.find((n) => n.id === snap.selectedNodeId) ?? null : null)
+      store.setDetailNode(snap.detailNodeId ? nodes.find((n) => n.id === snap.detailNodeId) ?? null : null)
+      if (snap.viewport) {
+        reactFlow.setViewport(snap.viewport, { duration: 300 })
+      }
+      // 兜底重置（见 navSkipRef 注释）
+      window.setTimeout(() => { navSkipRef.current = false }, 350)
+    },
+    [reactFlow],
+  )
 
-  const handleViewportForward = useCallback(() => {
-    const next = viewportHistory.forward()
-    if (next) {
-      skipPushRef.current = true
-      reactFlow.setViewport(next, { duration: 300 })
-    }
-  }, [viewportHistory, reactFlow])
+  const handleNavBack = useCallback(() => {
+    const snap = navHistory.back()
+    if (snap) applyNavSnapshot(snap)
+  }, [navHistory, applyNavSnapshot])
+
+  const handleNavForward = useCallback(() => {
+    const snap = navHistory.forward()
+    if (snap) applyNavSnapshot(snap)
+  }, [navHistory, applyNavSnapshot])
 
   const onConnect: OnConnect = useCallback(
     (params: Connection) => {
@@ -402,27 +435,37 @@ function CanvasInner() {
 
   const onPaneClick = useCallback(() => {
     setMenuPos(null)
+    if (!navSkipRef.current) navHistory.push()
     setSelectedNode(null)
     setDetailNode(null) // 单击空白画布 → 右详情面板自动缩回
     setActiveChip(null) // 关掉事件芯片 popover 插槽
-  }, [setMenuPos, setSelectedNode, setDetailNode])
+  }, [navHistory, setMenuPos, setSelectedNode, setDetailNode])
 
   const onNodeClick = useCallback((_event: React.MouseEvent, node: any) => {
     // 事件芯片自带点击行为（P19 参数 popover 出口），不进节点详情面板
     if (node?.type === 'eventChip') return
     // 单击 = 选中 + 溯源高亮（不开右面板），且若右面板已开则自动缩回（双击才再次打开）
+    if (!navSkipRef.current) navHistory.push()
     setSelectedNode(node)
     setDetailNode(null)
-  }, [setSelectedNode, setDetailNode])
+  }, [navHistory, setSelectedNode, setDetailNode])
 
   // 双击 = 打开右详情面板（与单击解耦：单击只驱动溯源高亮 + 选中环）
   // 注意：ReactFlow 默认 zoomOnDoubleClick=true 会吞掉 dblclick 用于缩放，导致此回调不触发；
   // 已在 <ReactFlow> 上设 zoomOnDoubleClick={false} 放行。
   const onNodeDoubleClick = useCallback((_event: React.MouseEvent, node: any) => {
     if (node?.type === 'eventChip') return
+    if (!navSkipRef.current) navHistory.push()
     setSelectedNode(node)
     setDetailNode(node)
-  }, [setSelectedNode, setDetailNode])
+  }, [navHistory, setSelectedNode, setDetailNode])
+
+  // 视图模式切换：先拍当前状态进历史（记录切之前的视图），再切。
+  const handleSetViewMode = useCallback((mode: 'canvas' | 'timeline' | 'assets') => {
+    if (navSkipRef.current) { setViewMode(mode); return }
+    navHistory.push()
+    setViewMode(mode)
+  }, [navHistory, setViewMode])
 
   const handleSave = useCallback(async () => {
     if (!projectId || !episodesId) return
@@ -621,15 +664,21 @@ function CanvasInner() {
 
           {/* 视图模式切换 */}
           <div style={{ display: 'flex', gap: 2, background: theme.bg.input, borderRadius: 7, padding: 2, border: `1px solid ${theme.border.default}` }}>
-            <ViewModeButton active={viewMode === 'canvas'} onClick={() => setViewMode('canvas')}>
+            <ViewModeButton active={viewMode === 'canvas'} onClick={() => handleSetViewMode('canvas')}>
               <UiIcon kind="graph" size={13} />画布
             </ViewModeButton>
-            <ViewModeButton active={viewMode === 'timeline'} onClick={() => setViewMode('timeline')}>
+            <ViewModeButton active={viewMode === 'timeline'} onClick={() => handleSetViewMode('timeline')}>
               <UiIcon kind="film" size={13} />时间轴
             </ViewModeButton>
-            <ViewModeButton active={viewMode === 'assets'} onClick={() => setViewMode('assets')}>
+            <ViewModeButton active={viewMode === 'assets'} onClick={() => handleSetViewMode('assets')}>
               <UiIcon kind="assets" size={13} />资产
             </ViewModeButton>
+          </div>
+
+          {/* 应用级历史导航：后退 / 前进（全局功能，恢复完整应用状态） */}
+          <div style={{ display: 'flex', gap: 0, borderRadius: 7, overflow: 'hidden', border: `1px solid ${theme.border.default}`, boxShadow: 'var(--cv-shadow-card, 0 1px 2px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.04) inset)' }}>
+            <NavArrowButton onClick={handleNavBack} disabled={!navHistory.canBack} title="后退到上一个状态" label="←" />
+            <NavArrowButton onClick={handleNavForward} disabled={!navHistory.canForward} title="前进到下一个状态" label="→" />
           </div>
         </div>
 
@@ -785,11 +834,6 @@ function CanvasInner() {
                 ? '待审阅'
                 : '迭代'}
             </ToolbarButton>
-            {/* 视口历史导航：后退 / 前进（浏览器式，针对画布视口） */}
-            <div style={{ display: 'flex', gap: 0, borderRadius: 7, overflow: 'hidden', border: `1px solid ${theme.border.default}`, boxShadow: 'var(--cv-shadow-card, 0 1px 2px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.04) inset)' }}>
-              <NavArrowButton onClick={handleViewportBack} disabled={!viewportHistory.canBack} title="后退到上一个视口位置" label="←" />
-              <NavArrowButton onClick={handleViewportForward} disabled={!viewportHistory.canForward} title="前进到下一个视口位置" label="→" />
-            </div>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <span style={{ position: 'absolute', left: 9, display: 'flex', color: theme.text.tertiary, pointerEvents: 'none' }}>
                 <UiIcon kind="search" size={13} />

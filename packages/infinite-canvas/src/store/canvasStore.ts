@@ -156,6 +156,11 @@ interface CanvasState {
   openAssetDetail: (uuid: string) => void
   closeAssetDetail: () => void
 
+  // 应用级导航历史注入点：FlowCanvas 挂载时把 navHistory.push 注入，
+  // 子组件（AssetManager/AssetLibrary）经 store 调用，让它们的导航交互也进历史栈。
+  navPushCallback: (() => void) | null
+  setNavPushCallback: (fn: (() => void) | null) => void
+
   // Iteration Engine — diagnose / plan / execute / confirm
   iteration: IterationState
   setIterationPlan: (plan: IterationPlan) => void
@@ -647,6 +652,10 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   setSelectedAssetUuid: (uuid) => set({ selectedAssetUuid: uuid }),
   openAssetDetail: (uuid) => set({ selectedAssetUuid: uuid }),
   closeAssetDetail: () => set({ selectedAssetUuid: null }),
+
+  // 应用级导航历史注入点（FlowCanvas 挂载时注入 navHistory.push）
+  navPushCallback: null,
+  setNavPushCallback: (fn) => set({ navPushCallback: fn }),
 
   // Iteration Engine
   iteration: INITIAL_ITERATION,
