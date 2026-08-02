@@ -19,6 +19,7 @@ from src.v6.engines.tts import TTSTracker
 from src.v6.engines.tts_http import TripleTrackTTSEngine
 from src.v6.engines.hunyuan3d import Hunyuan3DEngine
 from src.v6.engines.hunyuan3d_mv import Hunyuan3DMvEngine
+from src.v6.engines.color_grade import ColorGradeEngine
 from src.v6.gpu_monitor import get_gpu_vram_usage
 from src.v6.middleware.gpu_guard import GPUGuardMiddleware
 from src.v6.routers import tasks, engines, events, health
@@ -152,6 +153,15 @@ async def lifespan(app: FastAPI):
         logger.info("Hunyuan3D-2mv engine registered")
     except Exception as e:
         logger.warning("Hunyuan3D-2mv engine init failed: %s", e)
+
+    # ── Color Grade engine (CPU-only ffmpeg + LUT) ─────────────────────
+    try:
+        color_grade_engine = ColorGradeEngine()
+        await color_grade_engine.start()
+        executor.register_engine(color_grade_engine)
+        logger.info("Color Grade engine registered")
+    except Exception as e:
+        logger.warning("Color Grade engine init failed: %s", e)
 
     # ── Docker Backend ──────────────────────────────────────────────────
     # NOTE: ACE-Step standalone engine removed in v1.5 (commit history).

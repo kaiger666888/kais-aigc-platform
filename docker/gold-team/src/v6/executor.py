@@ -596,6 +596,19 @@ class TaskExecutor:
                         filename_prefix=task.params.get("filename_prefix", "refined"),
                     )
                     logger.info("Auto-built Image Refine workflow for task %s", task.task_id)
+                elif task.type == TaskType.COLOR_GRADE:
+                    # ── COLOR_GRADE: CPU-only video color grading (ffmpeg + LUT) ──
+                    # The ColorGradeEngine consumes task.params directly as its
+                    # workflow (input_path, output_path, mode, preset/lut/cdl
+                    # values, contrast, brightness, saturation_boost,
+                    # copy_audio). No ComfyUI workflow needed — the engine
+                    # spawns ffmpeg and returns a video artifact, which the
+                    # common media collector below handles correctly.
+                    workflow = dict(task.params)
+                    logger.info(
+                        "Auto-built color-grade workflow for task %s (mode=%s)",
+                        task.task_id, task.params.get("mode", "preset"),
+                    )
                 elif task.type == TaskType.SHOT_ANALYSIS:
                     # ── SHOT_ANALYSIS: per-shot cinematic deconstruction ──
                     # Self-contained execution path: the workflow's real output is a

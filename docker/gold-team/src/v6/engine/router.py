@@ -27,6 +27,7 @@ DEDICATED_ENGINES: dict[TaskType, str] = {
     TaskType.TTS_ZH: "tts-tracker",
     TaskType.TTS_EN: "tts-tracker",
     TaskType.TTS_BILINGUAL: "tts-tracker",
+    TaskType.COLOR_GRADE: "color-grade",
 }
 
 # ─── Light task types routed to auxiliary ───
@@ -57,6 +58,7 @@ VRAM_ESTIMATES: dict[TaskType, float] = {
     TaskType.IMAGE_DRAW_IPADAPTER: 16.0,  # FLUX + IP-Adapter
     TaskType.CONTROLNET_DEPTH: 18.0,     # FLUX + ControlNet
     TaskType.WAN_I2V: 20.0,              # Wan 2.1 14B
+    TaskType.COLOR_GRADE: 0.0,           # CPU only — ffmpeg + LUT, no GPU VRAM
 }
 
 # Auxiliary VRAM cap — only accept tasks needing < 5 GB
