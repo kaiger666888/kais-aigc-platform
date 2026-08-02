@@ -280,3 +280,13 @@
   border:1px solid var(--cv-line-panel);cursor:pointer;transition:.12s}
 .am-drawer__close:hover{color:var(--cv-text-primary);border-color:var(--cv-line-strong)}
 .am-drawer .am-det{height:100%}
+
+/* ── 层级树（二级折叠） ── */
+.am-tree-node--child{padding-left:24px}
+.am-tree-node--grandchild{padding-left:40px}
+.am-tree-node--parent{font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--cv-text-tertiary)}
+.am-tree-toggle{width:14px;text-align:center;font-size:10px;color:var(--cv-text-tertiary);transition:transform .15s;cursor:pointer}
+.am-tree-toggle.is-expanded{transform:rotate(0deg)}
+.am-tree-toggle.is-collapsed{transform:rotate(-90deg)}
+.am-tree-section{margin-bottom:6px}
+.am-tree-children{overflow:hidden;transition:max-height .2s ease}

@@ -23,9 +23,11 @@ import { placeAssetOnCanvas, updateAsset, type AssetDetail } from '../../service
 import { resolveMediaUrl } from '../../utils/mediaUrl'
 import { useRealAssets } from './useRealAssets'
 import {
-  REAL_TYPE_GROUPS, TYPE_LABEL, realTags,
+  TYPE_LABEL, realTags,
   assetDetailToItem, modalityVar, modalityWeakVar,
-  type AssetItem, type AssetType,
+  inferLevel, inferSceneId, inferShotId, inferSubtype,
+  SUBTYPE_LABEL, SUBTYPE_EMOJI, LEVEL_LABEL,
+  type AssetItem, type AssetType, type AssetLevel, type AssetSubtype,
 } from './assetManagerData'
 
 type AssetTab = 'selected' | 'candidate' | 'eliminated'
@@ -102,6 +104,27 @@ export default function AssetLibrary() {
   const [tagFilter, setTagFilter] = useState<string | null>(null)
   const [search, setSearch] = useState('')
 
+  // ── 层级树筛选状态 ──
+  // levelFilter: null=全部；entityFilter: 选中的具体实体（角色/场景/分镜/子类型）。
+  type EntityFilter =
+    | { type: 'character'; id: string }
+    | { type: 'scene'; id: string }
+    | { type: 'shot'; id: string }
+    | { type: 'subtype'; id: AssetSubtype }
+    | null
+  const [levelFilter, setLevelFilter] = useState<AssetLevel | null>(null)
+  const [entityFilter, setEntityFilter] = useState<EntityFilter>(null)
+  // 各层级 section 的折叠状态（默认全展开）
+  const [collapsedLevels, setCollapsedLevels] = useState<Set<AssetLevel>>(new Set())
+  const toggleLevel = useCallback((lv: AssetLevel) => {
+    setCollapsedLevels((prev) => {
+      const next = new Set(prev)
+      if (next.has(lv)) next.delete(lv)
+      else next.add(lv)
+      return next
+    })
+  }, [])
+
   const tags = useMemo(() => realTags(assets.map(assetDetailToItem)), [assets])
 
   const filtered = useMemo(() => assets.filter((d) => {
@@ -115,8 +138,23 @@ export default function AssetLibrary() {
       const hay = `${d.name ?? ''} ${d.describe ?? ''} ${d.prompt ?? ''} ${d.tags ?? ''}`.toLowerCase()
       if (!hay.includes(q)) return false
     }
+    // 层级筛选
+    if (levelFilter && inferLevel(d) !== levelFilter) return false
+    // 实体筛选
+    if (entityFilter) {
+      if (entityFilter.type === 'character') {
+        // id === '' 表示"全部角色"，仅校验层级已在上面完成
+        if (entityFilter.id !== '' && d.characterId !== entityFilter.id) return false
+      } else if (entityFilter.type === 'scene') {
+        if (inferSceneId(d) !== entityFilter.id) return false
+      } else if (entityFilter.type === 'shot') {
+        if (inferShotId(d) !== entityFilter.id) return false
+      } else if (entityFilter.type === 'subtype') {
+        if (inferSubtype(d) !== entityFilter.id) return false
+      }
+    }
     return true
-  }), [assets, typeFilter, tagFilter, search])
+  }), [assets, typeFilter, tagFilter, search, levelFilter, entityFilter])
 
   // 按 tab 拆分三态：选定 / 待选 / 淘汰。
   // isPrimaryView 从 SQLite 返回的是整数 0/1，需用 !! 转换；state 为 'eliminated' 即淘汰。
@@ -168,8 +206,65 @@ export default function AssetLibrary() {
     }
   }, [assets, loading, projectId, reload])
 
-  const countByType = (t: string) => assets.filter((d) => d.type === t).length
   const countAll = assets.length
+
+  // ── 层级树数据（useMemo 派生） ──
+  // 全剧级 · 角色列表：按 characterId 分组
+  const showCharacters = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const d of assets) {
+      if (inferLevel(d) === 'show' && d.type === 'character' && d.characterId) {
+        counts.set(d.characterId, (counts.get(d.characterId) ?? 0) + 1)
+      }
+    }
+    return [...counts.entries()]
+      .map(([id, n]) => ({ id, n }))
+      .sort((a, b) => a.id.localeCompare(b.id))
+  }, [assets])
+
+  // 全剧级 · 设定图 / Turnaround 计数（按 subtype）
+  const showSubtypeCounts = useMemo(() => {
+    const counts = { character_concept: 0, turnaround_sheet: 0 }
+    for (const d of assets) {
+      if (inferLevel(d) !== 'show') continue
+      const st = inferSubtype(d)
+      if (st === 'character_concept') counts.character_concept++
+      else if (st === 'turnaround_sheet') counts.turnaround_sheet++
+    }
+    return counts
+  }, [assets])
+
+  // 场景级 · 场景列表：按 inferSceneId 分组
+  const sceneGroups = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const d of assets) {
+      if (inferLevel(d) !== 'scene') continue
+      const sid = inferSceneId(d)
+      if (sid) counts.set(sid, (counts.get(sid) ?? 0) + 1)
+    }
+    return [...counts.entries()]
+      .map(([id, n]) => ({ id, n }))
+      .sort((a, b) => a.id.localeCompare(b.id))
+  }, [assets])
+
+  // 分镜级 · 分镜列表：按 inferShotId 分组
+  const shotGroups = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const d of assets) {
+      if (inferLevel(d) !== 'shot') continue
+      const sid = inferShotId(d)
+      if (sid) counts.set(sid, (counts.get(sid) ?? 0) + 1)
+    }
+    return [...counts.entries()]
+      .map(([id, n]) => ({ id, n }))
+      .sort((a, b) => a.id.localeCompare(b.id))
+  }, [assets])
+
+  const showCount = showCharacters.reduce((s, c) => s + c.n, 0)
+    + showSubtypeCounts.character_concept
+    + showSubtypeCounts.turnaround_sheet
+  const sceneCount = sceneGroups.reduce((s, c) => s + c.n, 0)
+  const shotCount = shotGroups.reduce((s, c) => s + c.n, 0)
 
   const handleAddToCanvas = async (a: AssetItem) => {
     if (!projectId || episodesId == null) {
@@ -208,32 +303,165 @@ export default function AssetLibrary() {
 
   return (
     <div className="am-lib">
-      {/* 左栏类型树 */}
+      {/* 左栏层级树（Show → Scene → Shot） */}
       <aside className="am-tree">
         <div className="am-tree-group">
-          <div className="am-tree-group__h"><span>资产类型</span></div>
+          <div className="am-tree-group__h"><span>资产层级</span></div>
           <button
-            className={`am-tree-node ${!typeFilter ? 'is-on' : ''}`}
-            onClick={() => { setTypeFilter(null); setTagFilter(null) }}
+            className={`am-tree-node ${!levelFilter && !entityFilter && !typeFilter ? 'is-on' : ''}`}
+            onClick={() => {
+              setLevelFilter(null); setEntityFilter(null)
+              setTypeFilter(null); setTagFilter(null)
+            }}
           >
             <span className="am-tree-node__ic">▦</span>全部<span className="am-tree-node__n">{countAll}</span>
           </button>
         </div>
-        {REAL_TYPE_GROUPS.map((g) => (
-          <div className="am-tree-group" key={g.group}>
-            <div className="am-tree-group__h" style={{ marginTop: 8 }}>{g.group}</div>
-            {g.items.map((it) => (
+
+        {/* ── 全剧级 (Show) ── */}
+        <div className="am-tree-section">
+          <button
+            className="am-tree-node am-tree-node--parent"
+            onClick={() => toggleLevel('show')}
+          >
+            <span className={`am-tree-toggle ${collapsedLevels.has('show') ? 'is-collapsed' : 'is-expanded'}`}>▼</span>
+            <span className="am-tree-node__ic">🎭</span>{LEVEL_LABEL.show}
+            <span className="am-tree-node__n">{showCount}</span>
+          </button>
+          {!collapsedLevels.has('show') && (
+            <div className="am-tree-children">
+              {showCharacters.length > 0 && (
+                <>
+                  <button
+                    className={`am-tree-node am-tree-node--child ${levelFilter === 'show' && entityFilter?.type === 'character' && !entityFilter.id ? 'is-on' : ''}`}
+                    onClick={() => {
+                      setLevelFilter('show'); setEntityFilter({ type: 'character', id: '' })
+                      setTypeFilter('character'); setTagFilter(null)
+                    }}
+                  >
+                    <span className="am-tree-node__ic">👥</span>全部角色
+                    <span className="am-tree-node__n">{showCharacters.reduce((s, c) => s + c.n, 0)}</span>
+                  </button>
+                  {showCharacters.map((c) => (
+                    <button
+                      key={c.id}
+                      className={`am-tree-node am-tree-node--grandchild ${entityFilter?.type === 'character' && entityFilter.id === c.id ? 'is-on' : ''}`}
+                      onClick={() => {
+                        setLevelFilter('show'); setEntityFilter({ type: 'character', id: c.id })
+                        setTypeFilter(null); setTagFilter(null)
+                      }}
+                    >
+                      <span className="am-tree-node__ic">·</span>{c.id}
+                      <span className="am-tree-node__n">{c.n}</span>
+                    </button>
+                  ))}
+                </>
+              )}
+              {showSubtypeCounts.character_concept > 0 && (
+                <button
+                  className={`am-tree-node am-tree-node--child ${entityFilter?.type === 'subtype' && entityFilter.id === 'character_concept' ? 'is-on' : ''}`}
+                  onClick={() => {
+                    setLevelFilter('show'); setEntityFilter({ type: 'subtype', id: 'character_concept' })
+                    setTypeFilter(null); setTagFilter(null)
+                  }}
+                >
+                  <span className="am-tree-node__ic">{SUBTYPE_EMOJI.character_concept}</span>{SUBTYPE_LABEL.character_concept}
+                  <span className="am-tree-node__n">{showSubtypeCounts.character_concept}</span>
+                </button>
+              )}
+              {showSubtypeCounts.turnaround_sheet > 0 && (
+                <button
+                  className={`am-tree-node am-tree-node--child ${entityFilter?.type === 'subtype' && entityFilter.id === 'turnaround_sheet' ? 'is-on' : ''}`}
+                  onClick={() => {
+                    setLevelFilter('show'); setEntityFilter({ type: 'subtype', id: 'turnaround_sheet' })
+                    setTypeFilter(null); setTagFilter(null)
+                  }}
+                >
+                  <span className="am-tree-node__ic">{SUBTYPE_EMOJI.turnaround_sheet}</span>{SUBTYPE_LABEL.turnaround_sheet}
+                  <span className="am-tree-node__n">{showSubtypeCounts.turnaround_sheet}</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── 场景级 (Scene) ── */}
+        <div className="am-tree-section">
+          <button
+            className="am-tree-node am-tree-node--parent"
+            onClick={() => toggleLevel('scene')}
+          >
+            <span className={`am-tree-toggle ${collapsedLevels.has('scene') ? 'is-collapsed' : 'is-expanded'}`}>▼</span>
+            <span className="am-tree-node__ic">🏠</span>{LEVEL_LABEL.scene}
+            <span className="am-tree-node__n">{sceneCount}</span>
+          </button>
+          {!collapsedLevels.has('scene') && (
+            <div className="am-tree-children">
               <button
-                key={it.t}
-                className={`am-tree-node ${typeFilter === it.t ? 'is-on' : ''}`}
-                onClick={() => { setTypeFilter(it.t); setTagFilter(null) }}
+                className={`am-tree-node am-tree-node--child ${levelFilter === 'scene' && !entityFilter ? 'is-on' : ''}`}
+                onClick={() => {
+                  setLevelFilter('scene'); setEntityFilter(null)
+                  setTypeFilter(null); setTagFilter(null)
+                }}
               >
-                <span className="am-tree-node__ic">{it.ic}</span>{it.n}
-                <span className="am-tree-node__n">{countByType(it.t)}</span>
+                <span className="am-tree-node__ic">▦</span>全部场景
+                <span className="am-tree-node__n">{sceneCount}</span>
               </button>
-            ))}
-          </div>
-        ))}
+              {sceneGroups.map((s) => (
+                <button
+                  key={s.id}
+                  className={`am-tree-node am-tree-node--grandchild ${entityFilter?.type === 'scene' && entityFilter.id === s.id ? 'is-on' : ''}`}
+                  onClick={() => {
+                    setLevelFilter('scene'); setEntityFilter({ type: 'scene', id: s.id })
+                    setTypeFilter(null); setTagFilter(null)
+                  }}
+                >
+                  <span className="am-tree-node__ic">·</span>{s.id}
+                  <span className="am-tree-node__n">{s.n}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── 分镜级 (Shot) ── */}
+        <div className="am-tree-section">
+          <button
+            className="am-tree-node am-tree-node--parent"
+            onClick={() => toggleLevel('shot')}
+          >
+            <span className={`am-tree-toggle ${collapsedLevels.has('shot') ? 'is-collapsed' : 'is-expanded'}`}>▼</span>
+            <span className="am-tree-node__ic">🎬</span>{LEVEL_LABEL.shot}
+            <span className="am-tree-node__n">{shotCount}</span>
+          </button>
+          {!collapsedLevels.has('shot') && (
+            <div className="am-tree-children">
+              <button
+                className={`am-tree-node am-tree-node--child ${levelFilter === 'shot' && !entityFilter ? 'is-on' : ''}`}
+                onClick={() => {
+                  setLevelFilter('shot'); setEntityFilter(null)
+                  setTypeFilter(null); setTagFilter(null)
+                }}
+              >
+                <span className="am-tree-node__ic">▦</span>全部首尾帧
+                <span className="am-tree-node__n">{shotCount}</span>
+              </button>
+              {shotGroups.map((s) => (
+                <button
+                  key={s.id}
+                  className={`am-tree-node am-tree-node--grandchild ${entityFilter?.type === 'shot' && entityFilter.id === s.id ? 'is-on' : ''}`}
+                  onClick={() => {
+                    setLevelFilter('shot'); setEntityFilter({ type: 'shot', id: s.id })
+                    setTypeFilter(null); setTagFilter(null)
+                  }}
+                >
+                  <span className="am-tree-node__ic">·</span>{s.id}
+                  <span className="am-tree-node__n">{s.n}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </aside>
 
       {/* 主区域 */}

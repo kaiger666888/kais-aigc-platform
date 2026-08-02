@@ -313,3 +313,96 @@ export function realTags(items: AssetItem[]): string[] {
   return [...new Set(items.flatMap((a) => a.tags ?? []))].sort()
 }
 
+// ─── 层级推断（纯前端，不改后端） ─────────────────────────
+
+/** 资产层级 */
+export type AssetLevel = 'show' | 'scene' | 'shot'
+
+/** 资产子类型（从现有数据推断） */
+export type AssetSubtype =
+  | 'character_concept'    // 角色设定图（全剧级）
+  | 'turnaround_sheet'     // Turnaround 多视角（全剧级）
+  | 'scene_base'           // 场景基础图（场景级）
+  | 'scene_variant'        // 场景变体（场景级）
+  | 'keyframe_first'       // 首帧（分镜级）
+  | 'keyframe_last'        // 尾帧（分镜级）
+  | 'unknown'
+
+/** 从 AssetDetail 推断层级 */
+export function inferLevel(d: AssetDetail): AssetLevel {
+  if (d.type === 'keyframe') return 'shot'
+  if (d.type === 'scene' || d.type === 'scene_variant' || d.type === 'scene_image') return 'scene'
+  return 'show'  // character 默认全剧级
+}
+
+/** 从 AssetDetail 推断子类型 */
+export function inferSubtype(d: AssetDetail): AssetSubtype {
+  if (d.type === 'character') {
+    if (d.viewAngle && ['front', 'side', 'back', 'three_quarter'].includes(d.viewAngle)) {
+      return 'turnaround_sheet'
+    }
+    return 'character_concept'
+  }
+  if (d.type === 'keyframe') {
+    return (d.name || '').includes('_first_') || (d.name || '').includes('first') ? 'keyframe_first' : 'keyframe_last'
+  }
+  if (d.type === 'scene' || d.type === 'scene_variant' || d.type === 'scene_image') {
+    return 'scene_variant'  // 当前数据都是多视角变体
+  }
+  return 'unknown'
+}
+
+/** 从 AssetDetail 提取 sceneId（从 name/filePath 正则） */
+export function inferSceneId(d: AssetDetail): string | null {
+  // keyframe: name 形如 "S01_first_v1"
+  if (d.type === 'keyframe') {
+    const m = (d.name || '').match(/^(S\d+)/i)
+    if (m) return m[1]
+  }
+  // scene: filePath 形如 .../S01_angle_left.png 或 name 含场景名
+  const fn = (d.filePath || d.name || '').split('/').pop() || ''
+  const m = fn.match(/S(\d+)/i)
+  if (m) return `S${m[1].padStart(2, '0')}`
+  // scene name 形如 "沈家客厅 v1"，无 S 编号 → 用 name 去版本后缀
+  if (d.type === 'scene') {
+    return (d.name || '').replace(/\s*v\d+$/i, '').trim() || null
+  }
+  return null
+}
+
+/** 从 AssetDetail 提取 shotId */
+export function inferShotId(d: AssetDetail): string | null {
+  if (d.type !== 'keyframe') return null
+  const m = (d.name || '').match(/^(S\d+)/i)
+  return m ? m[1] : null
+}
+
+/** 子类型中文标签 */
+export const SUBTYPE_LABEL: Record<AssetSubtype, string> = {
+  character_concept: '设定图',
+  turnaround_sheet: 'Turnaround',
+  scene_base: '场景基底',
+  scene_variant: '场景变体',
+  keyframe_first: '首帧',
+  keyframe_last: '尾帧',
+  unknown: '其他',
+}
+
+/** 子类型 emoji */
+export const SUBTYPE_EMOJI: Record<AssetSubtype, string> = {
+  character_concept: '🎨',
+  turnaround_sheet: '👤',
+  scene_base: '🏠',
+  scene_variant: '🌗',
+  keyframe_first: '▶️',
+  keyframe_last: '⏹️',
+  unknown: '📦',
+}
+
+/** 层级中文标签 */
+export const LEVEL_LABEL: Record<AssetLevel, string> = {
+  show: '全剧级',
+  scene: '场景级',
+  shot: '分镜级',
+}
+
