@@ -177,8 +177,7 @@ function paddedShotIdOf(shotId: string | null | undefined): string | null {
  * 故三态全部落在 data 内（isPrimaryView + curationState）。
  */
 function deriveInitialCuration(raw: Record<string, unknown>): FrameCuration {
-  if (raw.curationState === 'eliminated') return 'eliminated'
-  if (raw.isPrimaryView === true) return 'selected'
+  // 用户手动选定之前，所有变体默认待选（不自动选 v1）
   return 'candidate'
 }
 
@@ -757,10 +756,10 @@ function FrameVariantThumb({
         e.stopPropagation()
         if (curation === 'eliminated') onRestore(v.nodeId)
         else if (curation === 'candidate') onSelect(v.nodeId)
-        // selected → 无操作
+        // selected → 无操作（如需取消选定，恢复淘汰池中的变体即可）
       }}
       onDoubleClick={(e) => e.stopPropagation()}
-      title={`${v.variant} · ${isSelected ? '选定' : isEliminated ? '淘汰（点击恢复）' : '待选（点击选定）'}`}
+      title={`${v.variant} · ${isSelected ? '选定' : isEliminated ? '淘汰（点击恢复为待选）' : '待选（点击选定，其余自动淘汰）'}`}
       style={{
         position: 'relative',
         width: size,
@@ -1445,8 +1444,8 @@ export default function StoryboardTimeline() {
           if (aid == null) continue
           const a = map.get(aid)
           if (!a) continue
+          // 用户手动选定前，全部默认待选（不自动选 v1）
           if (a.state === 'eliminated') curationUpdate[nodeId] = 'eliminated'
-          else if (a.isPrimaryView) curationUpdate[nodeId] = 'selected'
           else curationUpdate[nodeId] = 'candidate'
         }
         if (Object.keys(curationUpdate).length > 0 && !cancelled) {
@@ -1539,35 +1538,36 @@ export default function StoryboardTimeline() {
   const curationOf = useCallback((v: FrameVariant): FrameCuration =>
     frameCuration[v.nodeId] ?? v.initialCuration, [frameCuration])
 
-  // 待选→选定：新选置 selected，同组旧选定 → eliminated。乐观更新 + 异步落库 + 失败回滚。
+  // 待选→选定：新选置 selected，同组其余全部 → eliminated。乐观更新 + 异步落库 + 失败回滚。
   const handleSelectVariant = useCallback((nodeId: string) => {
     const group = frameGroupOfNode.get(nodeId)
     if (!group) return
-    const oldSelected = group.filter((v) => v.nodeId !== nodeId && curationOf(v) === 'selected')
+    // 同组其余全部淘汰（无论之前是选定还是待选）
+    const others = group.filter((v) => v.nodeId !== nodeId)
 
     // 乐观更新本地覆盖（不触发 graph 重建 → 不闪烁）
     setFrameCuration((prev) => {
       const next = { ...prev, [nodeId]: 'selected' as FrameCuration }
-      for (const v of oldSelected) next[v.nodeId] = 'eliminated'
+      for (const v of others) next[v.nodeId] = 'eliminated'
       return next
     })
 
     void (async () => {
       try {
         await patchFrameNode(nodeId, 'selected')
-        for (const v of oldSelected) await patchFrameNode(v.nodeId, 'eliminated')
+        for (const v of others) await patchFrameNode(v.nodeId, 'eliminated')
       } catch (err) {
         showToast('帧选择保存失败: ' + (err as Error).message, 'error')
         // 回滚本地覆盖
         setFrameCuration((prev) => {
           const next = { ...prev }
           delete next[nodeId]
-          for (const v of oldSelected) delete next[v.nodeId]
+          for (const v of others) delete next[v.nodeId]
           return next
         })
       }
     })()
-  }, [frameGroupOfNode, curationOf, patchFrameNode, showToast])
+  }, [frameGroupOfNode, patchFrameNode, showToast])
 
   // 淘汰→待选：恢复为 candidate。乐观 + 异步落库 + 失败回滚。
   const handleRestoreVariant = useCallback((nodeId: string) => {
