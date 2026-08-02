@@ -357,14 +357,13 @@ export function inferSubtype(d: AssetDetail): AssetSubtype {
     ) {
       return 'costume_turnaround'
     }
-    // viewAngle=null + filePath/name 含 base_turnaround = 真正的 turnaround 整图（②）
-    if (!d.viewAngle) {
-      return 'turnaround_sheet'
-    }
     // viewAngle=front/side/back/three_quarter = 从 turnaround 整图裁出的拆分视角图
-    if (['front', 'side', 'back', 'three_quarter'].includes(d.viewAngle)) {
+    if (d.viewAngle && ['front', 'side', 'back', 'three_quarter'].includes(d.viewAngle as string)) {
       return 'turnaround_view'
     }
+    // character + viewAngle=null = 角色设定图（①）
+    // 这些 base_turnaround_*.png 虽然视觉上是灰底紧身衣多角度图，
+    // 但在管线语义中就是角色设定图（步骤①），不是独立的 turnaround_sheet（②）
     return 'character_concept'
   }
   if (d.type === 'keyframe') {
@@ -466,11 +465,11 @@ export function computeGenerationChain(item: AssetItem, all: AssetItem[]): Chain
         direction: 'up', kind: 'scene_angle_shot', emoji: SUBTYPE_EMOJI.scene_angle_shot,
         label: x.name, detail: '场景角度图', uuid: x.uuid,
       }))
-      // 参考来源 ↑：② 灰底 Turnaround（角色身份锚点 —— 全剧级，无 shot→character 映射，列全部角色锚点）
-      const turns = all.filter((x) => inferSubtypeFromItem(x) === 'turnaround_sheet')
+      // 参考来源 ↑：① 角色设定图（角色身份锚点 —— 全剧级，无 shot→character 映射，列全部角色设定）
+      const turns = all.filter((x) => inferSubtypeFromItem(x) === 'character_concept')
       turns.slice(0, 4).forEach((x) => up.push({
-        direction: 'up', kind: 'turnaround_sheet', emoji: SUBTYPE_EMOJI.turnaround_sheet,
-        label: x.name, detail: '角色锚点参考', uuid: x.uuid,
+        direction: 'up', kind: 'character_concept', emoji: SUBTYPE_EMOJI.character_concept,
+        label: x.name, detail: '角色设定图参考', uuid: x.uuid,
       }))
     }
 
@@ -545,10 +544,10 @@ export function computeGenerationChain(item: AssetItem, all: AssetItem[]): Chain
   // —— 人物定妆 Turnaround（⑦）：上游=灰底Turnaround(同角色) + 场景角度(同shot) ——
   if (subtype === 'costume_turnaround') {
     if (item.characterId) {
-      const base = all.find((x) => inferSubtypeFromItem(x) === 'turnaround_sheet' && x.characterId === item.characterId)
+      const base = all.find((x) => inferSubtypeFromItem(x) === 'character_concept' && x.characterId === item.characterId)
       if (base) up.push({
-        direction: 'up', kind: 'turnaround_sheet', emoji: SUBTYPE_EMOJI.turnaround_sheet,
-        label: base.name, detail: '灰底 Turnaround 参考', uuid: base.uuid,
+        direction: 'up', kind: 'character_concept', emoji: SUBTYPE_EMOJI.character_concept,
+        label: base.name, detail: '角色设定图参考', uuid: base.uuid,
       })
     }
     up.push({
@@ -566,13 +565,12 @@ export function computeGenerationChain(item: AssetItem, all: AssetItem[]): Chain
     }
   }
 
-  // —— 角色设定图（①）：下游=灰底 Turnaround（同 characterId） ——
+  // —— 角色设定图（①）：下游=首尾帧/场景角度图（管线说明，无精确键） ——
   if (subtype === 'character_concept' && item.characterId) {
-    const turns = all.filter((x) => inferSubtypeFromItem(x) === 'turnaround_sheet' && x.characterId === item.characterId)
-    turns.slice(0, 3).forEach((x) => down.push({
-      direction: 'down', kind: 'turnaround_sheet', emoji: SUBTYPE_EMOJI.turnaround_sheet,
-      label: x.name, detail: '灰底 Turnaround · 选定后生成', uuid: x.uuid,
-    }))
+    down.push({
+      direction: 'down', kind: 'pipeline_note', emoji: '🎬',
+      label: '⑧⑨ 首尾帧 / ⑥ 场景角度图', detail: '作为角色身份锚点被下游引用',
+    })
   }
 
   // —— 场景设定图（③）：下游=场景角度图（说明，无精确键） ——
@@ -601,8 +599,8 @@ function inferSubtypeFromItem(a: AssetItem): AssetSubtype {
       nm.includes('costume_turnaround') || nm.includes('定妆turnaround') ||
       tags.includes('costume_turnaround')
     ) return 'costume_turnaround'
-    if (!a.viewAngle) return 'turnaround_sheet'
     if (['front', 'side', 'back', 'three_quarter'].includes(a.viewAngle ?? '')) return 'turnaround_view'
+    // character + viewAngle=null = 角色设定图（①），非 turnaround_sheet
     return 'character_concept'
   }
   if (t === 'keyframe') {
