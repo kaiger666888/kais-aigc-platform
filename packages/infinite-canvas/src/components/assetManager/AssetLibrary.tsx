@@ -60,10 +60,18 @@ function Thumb({ item }: { item: AssetItem }) {
  * 否则不同 type 会被拆成多组、各组各选一个 primary，导致一个角色多张图进入选定资产。
  */
 function getGroupKey(d: AssetDetail): string {
+  // keyframe（首尾帧）按 characterId + name 前缀分组
+  // 例如 S01_first_v1 和 S01_last_v1 是不同的帧，不应混在一组
+  if (d.type === 'keyframe' && d.characterId) {
+    // name 形如 "S01_first_v1"，取 _v 前的部分作为子组键
+    const base = d.name?.replace(/_v\d+$/, '') || ''
+    return `keyframe:${d.characterId}:${base}`
+  }
+  // 角色类资产（character/turnaround 等）一律按 characterId 统一分组
   if (d.characterId) {
     return `char:${d.characterId}`
   }
-  // 场景类资产按 characterId（实际存的是场景ID如 S01）分组
+  // 场景类资产按 name 分组
   if (d.type === 'scene' || d.type === 'scene_variant' || d.type === 'scene_image') {
     return `scene:${d.name}`
   }

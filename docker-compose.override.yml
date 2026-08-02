@@ -1,0 +1,5 @@
+services:
+  kais-gold-team:
+    volumes:
+      - /data/workspace/kais-gold-team/src:/app/src:ro
+      - /data/workspace/kais-gold-team/scripts:/app/scripts:ro
