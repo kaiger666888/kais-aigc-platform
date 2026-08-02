@@ -361,9 +361,14 @@ export function inferSubtype(d: AssetDetail): AssetSubtype {
     if (d.viewAngle && ['front', 'side', 'back', 'three_quarter'].includes(d.viewAngle as string)) {
       return 'turnaround_view'
     }
-    // character + viewAngle=null = 角色设定图（①）
-    // 这些 base_turnaround_*.png 虽然视觉上是灰底紧身衣多角度图，
-    // 但在管线语义中就是角色设定图（步骤①），不是独立的 turnaround_sheet（②）
+    // ② 灰底Turnaround（独立产出）：name 含 "灰底Turnaround" 或 filePath 匹配 turnaround_*.png（非 base_ 前缀）
+    if (
+      nm.includes('灰底turnaround') ||
+      (fp.includes('turnaround_sheets/turnaround_') && !fp.includes('base_turnaround'))
+    ) {
+      return 'turnaround_sheet'
+    }
+    // 其余 character + viewAngle=null = 角色设定图（①）
     return 'character_concept'
   }
   if (d.type === 'keyframe') {
@@ -600,7 +605,12 @@ function inferSubtypeFromItem(a: AssetItem): AssetSubtype {
       tags.includes('costume_turnaround')
     ) return 'costume_turnaround'
     if (['front', 'side', 'back', 'three_quarter'].includes(a.viewAngle ?? '')) return 'turnaround_view'
-    // character + viewAngle=null = 角色设定图（①），非 turnaround_sheet
+    // ② 灰底Turnaround（独立产出）
+    if (
+      nm.includes('灰底turnaround') ||
+      (fp.includes('turnaround_sheets/turnaround_') && !fp.includes('base_turnaround'))
+    ) return 'turnaround_sheet'
+    // 其余 = 角色设定图（①）
     return 'character_concept'
   }
   if (t === 'keyframe') {

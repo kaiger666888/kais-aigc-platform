@@ -222,13 +222,14 @@ export default function AssetLibrary() {
       .sort((a, b) => a.id.localeCompare(b.id))
   }, [assets])
 
-  // 全剧级 · 角色设定图 / 视角拆分 计数（按 subtype）
+  // 全剧级 · 角色设定图 / 灰底Turnaround / 视角拆分 计数（按 subtype）
   const showSubtypeCounts = useMemo(() => {
-    const counts = { character_concept: 0, turnaround_view: 0 }
+    const counts = { character_concept: 0, turnaround_sheet: 0, turnaround_view: 0 }
     for (const d of assets) {
       if (inferLevel(d) !== 'show') continue
       const st = inferSubtype(d)
       if (st === 'character_concept') counts.character_concept++
+      else if (st === 'turnaround_sheet') counts.turnaround_sheet++
       else if (st === 'turnaround_view') counts.turnaround_view++
     }
     return counts
@@ -262,6 +263,7 @@ export default function AssetLibrary() {
 
   const showCount = showCharacters.reduce((s, c) => s + c.n, 0)
     + showSubtypeCounts.character_concept
+    + showSubtypeCounts.turnaround_sheet
     + showSubtypeCounts.turnaround_view
   const sceneCount = sceneGroups.reduce((s, c) => s + c.n, 0)
   const shotCount = shotGroups.reduce((s, c) => s + c.n, 0)
@@ -367,6 +369,18 @@ export default function AssetLibrary() {
                 >
                   <span className="am-tree-node__ic">{SUBTYPE_EMOJI.character_concept}</span>{SUBTYPE_LABEL.character_concept}
                   <span className="am-tree-node__n">{showSubtypeCounts.character_concept}</span>
+                </button>
+              )}
+              {showSubtypeCounts.turnaround_sheet > 0 && (
+                <button
+                  className={`am-tree-node am-tree-node--child ${entityFilter?.type === 'subtype' && entityFilter.id === 'turnaround_sheet' ? 'is-on' : ''}`}
+                  onClick={() => {
+                    setLevelFilter('show'); setEntityFilter({ type: 'subtype', id: 'turnaround_sheet' })
+                    setTypeFilter(null); setTagFilter(null)
+                  }}
+                >
+                  <span className="am-tree-node__ic">{SUBTYPE_EMOJI.turnaround_sheet}</span>{SUBTYPE_LABEL.turnaround_sheet}
+                  <span className="am-tree-node__n">{showSubtypeCounts.turnaround_sheet}</span>
                 </button>
               )}
               {showSubtypeCounts.turnaround_view > 0 && (
