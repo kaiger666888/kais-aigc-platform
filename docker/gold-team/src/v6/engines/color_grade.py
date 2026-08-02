@@ -1,10 +1,12 @@
 """ColorGradeEngine — CPU-only video color grading via ffmpeg.
 
-Supports three grading modes:
+Supports four grading modes:
     * ``lut``    — apply an external ``.cube`` 3D LUT.
     * ``cdl``    — ASC-CDL style slope/offset/power via ffmpeg ``colorbalance`` + ``eq``.
     * ``preset`` — generate (or fetch cached) a ``.cube`` LUT for one of the
                    six built-in cinematic presets, then apply it.
+    * ``cxsz``   — CxSxZ 28-combination colour recipe (C01-C28) rendered via
+                   ``colorbalance`` + ``eq`` (see color_grade_cxsz.py).
 
 All processing runs on CPU through ffmpeg's ``lut3d`` / ``colorbalance`` /
 ``eq`` filters; the engine reports ``BackendType.SUBPROCESS`` and consumes no
@@ -220,6 +222,34 @@ class ColorGradeEngine(BaseEngine):
         vf = f"{colorbalance}{curves},{eq}"
         return self._wrap_ffmpeg_cmd(vf, input_path, output_path, params)
 
+    def _build_cxsz_mode_cmd(self, params: dict[str, Any], input_path: str, output_path: str) -> list[str]:
+        """mode=cxsz — render a CxSxZ combination (C01-C28) via colorbalance+eq.
+
+        Validates the combination ID and delegates filter construction to
+        ``color_grade_cxsz.cxsz_to_ffmpeg``. The generated ``colorbalance`` +
+        ``eq`` chain is used directly as the video filter, so no intermediate
+        .cube LUT is produced.
+        """
+        from src.v6.engines.color_grade_cxsz import VALID_COMBINATIONS, cxsz_to_ffmpeg
+
+        combination = params.get("combination", "C01")
+        if combination not in VALID_COMBINATIONS:
+            raise ValueError(
+                f"Unknown CxSxZ combination {combination!r}; "
+                f"valid IDs: C01-C28 ({len(VALID_COMBINATIONS)} defined)"
+            )
+        strength = float(params.get("strength", 0.8))
+        if not 0.0 <= strength <= 1.0:
+            raise ValueError(f"cxsz strength must be in [0, 1] (got {strength!r})")
+        platform = params.get("platform")
+
+        filter_str = cxsz_to_ffmpeg(combination, strength=strength, platform=platform)
+        logger.info(
+            "color-grade cxsz '%s' (strength=%.2f, platform=%s) -> filter: %s",
+            combination, strength, platform or "-", filter_str,
+        )
+        return self._wrap_ffmpeg_cmd(filter_str, input_path, output_path, params)
+
     def _build_preset_mode_cmd(self, params: dict[str, Any], input_path: str, output_path: str) -> list[str]:
         """mode=preset — generate/fetch a cached .cube, then apply as lut mode."""
         preset = params.get("preset", "teal_orange")
@@ -282,9 +312,12 @@ class ColorGradeEngine(BaseEngine):
 
         Required keys:
             input_path  (str):  source video.
-            mode        (str):  "lut" | "cdl" | "preset" (default "preset").
+            mode        (str):  "lut" | "cdl" | "preset" | "cxsz" (default "preset").
         Optional:
             output_path (str):  graded video path (auto-generated if empty).
+            combination (str):  CxSxZ ID "C01".."C28" (mode=cxsz).
+            strength    (float): 0.0-1.0 blend (mode=cxsz/preset).
+            platform    (str):  "douyin"|"kuaishou"|... saturation compensation.
         """
         job_id = str(uuid.uuid4())[:12]
         params = params or {}
@@ -303,8 +336,8 @@ class ColorGradeEngine(BaseEngine):
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
         mode = str(p.get("mode", "preset")).lower()
-        if mode not in ("lut", "cdl", "preset"):
-            raise ValueError(f"color_grade mode must be lut/cdl/preset (got: {mode!r})")
+        if mode not in ("lut", "cdl", "preset", "cxsz"):
+            raise ValueError(f"color_grade mode must be lut/cdl/preset/cxsz (got: {mode!r})")
 
         if mode == "preset":
             preset = p.get("preset", "teal_orange")
@@ -318,6 +351,8 @@ class ColorGradeEngine(BaseEngine):
             cmd = self._build_lut_mode_cmd(p, input_path, output_path)
         elif mode == "cdl":
             cmd = self._build_cdl_mode_cmd(p, input_path, output_path)
+        elif mode == "cxsz":
+            cmd = self._build_cxsz_mode_cmd(p, input_path, output_path)
         else:
             cmd = self._build_preset_mode_cmd(p, input_path, output_path)
 
