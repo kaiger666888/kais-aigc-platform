@@ -60,6 +60,10 @@
   background:transparent;border:none;cursor:pointer;color:#B8BCC4;font-size:12.5px;transition:.1s}
 .am-tree-node:hover{background:var(--cv-bg-card);color:var(--cv-text-primary)}
 .am-tree-node.is-on{background:var(--cv-mod-image-weak);color:var(--cv-mod-image);box-shadow:none}
+/* count=0 的固定条目（DB 暂无数据的管线中间产物）：灰色、不可点击 */
+.am-tree-node.is-empty{opacity:.45;color:var(--cv-text-tertiary);cursor:not-allowed}
+.am-tree-node.is-empty:hover{background:transparent;color:var(--cv-text-tertiary)}
+.am-tree-node:disabled{cursor:not-allowed}
 .am-tree-node__ic{width:17px;text-align:center;font-size:13px}
 .am-tree-node__n{margin-left:auto;font-family:var(--cv-font-mono);font-size:10.5px;color:var(--cv-text-tertiary)}
 .am-tree-node.is-on .am-tree-node__n{color:var(--cv-mod-image)}

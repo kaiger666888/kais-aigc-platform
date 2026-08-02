@@ -327,7 +327,8 @@ export type AssetSubtype =
   | 'character_concept'    // ① 角色设定图（全剧级，非 turnaround 的 character 资产）
   | 'turnaround_sheet'     // ② 灰底紧身衣 Turnaround 整图（全剧级身份锚点，viewAngle=null）
   | 'turnaround_view'      // Turnaround 拆分视角（全剧级，viewAngle=front/side/back/three_quarter）
-  | 'scene_base'           // ③ 场景设定图（全剧级，如「宴会厅 v1」）
+  | 'scene_base'           // ③ 场景设定图（场景级，如「宴会厅 v1」）
+  | 'scene_three_view'     // ④ 三视角场景（场景级，全剧级场景的多视角，name「场景 SSx」）
   | 'scene_angle_shot'     // ⑥ 场景角度图（分镜级，scene_refs 目录，S0X_front/angle_left/angle_right）
   | 'scene_variant'        // 场景变体（场景级，旧兜底）
   | 'costume_turnaround'   // ⑦ 人物定妆 Turnaround（分镜级，参考②+⑤ —— 管线尚未产出，前端预留识别）
@@ -377,34 +378,42 @@ export function inferSubtype(d: AssetDetail): AssetSubtype {
   if (d.type === 'scene' || d.type === 'scene_variant' || d.type === 'scene_image') {
     const fp = (d.filePath || '').toLowerCase()
     const nm = (d.name || '').toLowerCase()
+    const cid = (d.characterId || '').toUpperCase()
+    // ④ 三视角场景（场景级 · 全剧级场景的多视角图）：name 形如「场景 SS1」或 characterId 以 SS 开头。
+    //    与 ⑥ 的区别：三视角挂在全剧级场景（SS）上，场景角度图挂在分镜（S0X）上。
+    if (/场景\s*ss\d+/.test(nm) || /^ss\d+/.test(cid)) {
+      return 'scene_three_view'
+    }
     // ⑥ 场景角度图（分镜级）：scene_refs 目录 / 名称含「场景角度图」/ 文件名 S0X_front|angle_*
     if (
-      fp.includes('scene_refs') || fp.includes('scene_angle') ||
       nm.includes('场景角度图') ||
+      fp.includes('scene_refs') || fp.includes('scene_angle') ||
       /\bs\d+_(front|angle_left|angle_right)\b/.test(fp)
     ) {
       return 'scene_angle_shot'
     }
-    // ③ 场景设定图（全剧级，如「宴会厅 v1」）
+    // ③ 场景设定图（场景级，如「宴会厅 v1」）
     return 'scene_base'
   }
   return 'unknown'
 }
 
-/** 从 AssetDetail 提取 sceneId（从 name/filePath 正则） */
+/** 从 AssetDetail 提取 sceneId（场景设定图按场景名分组，分镜按 S 编号） */
 export function inferSceneId(d: AssetDetail): string | null {
-  // keyframe: name 形如 "S01_first_v1"
+  // keyframe: name 形如 "S01_first_v1" → 按分镜 S 编号分组
   if (d.type === 'keyframe') {
     const m = (d.name || '').match(/^(S\d+)/i)
     if (m) return m[1]
   }
-  // scene: filePath 形如 .../S01_angle_left.png 或 name 含场景名
-  const fn = (d.filePath || d.name || '').split('/').pop() || ''
-  const m = fn.match(/S(\d+)/i)
-  if (m) return `S${m[1].padStart(2, '0')}`
-  // scene name 形如 "沈家客厅 v1"，无 S 编号 → 用 name 去版本后缀
-  if (d.type === 'scene') {
-    return (d.name || '').replace(/\s*v\d+$/i, '').trim() || null
+  // scene: 优先用场景名分组（「宴会厅 v1」→「宴会厅」），便于层级树显示可读场景名；
+  //        name 缺失时回退到 filePath 里的 S 编号。
+  if (d.type === 'scene' || d.type === 'scene_variant' || d.type === 'scene_image') {
+    const nm = (d.name || '').replace(/\s*v\d+$/i, '').trim()
+    if (nm) return nm
+    const fn = (d.filePath || '').split('/').pop() || ''
+    const m = fn.match(/S(\d+)/i)
+    if (m) return `S${m[1].padStart(2, '0')}`
+    return null
   }
   return null
 }
@@ -619,9 +628,11 @@ function inferSubtypeFromItem(a: AssetItem): AssetSubtype {
   if (t === 'scene' || t === 'scene_variant' || t === 'scene_image') {
     const fp = (a.filePath || '').toLowerCase()
     const nm = (a.name || '').toLowerCase()
+    const cid = (a.characterId || '').toUpperCase()
+    if (/场景\s*ss\d+/.test(nm) || /^ss\d+/.test(cid)) return 'scene_three_view'
     if (
-      fp.includes('scene_refs') || fp.includes('scene_angle') ||
       nm.includes('场景角度图') ||
+      fp.includes('scene_refs') || fp.includes('scene_angle') ||
       /\bs\d+_(front|angle_left|angle_right)\b/.test(fp)
     ) return 'scene_angle_shot'
     return 'scene_base'
@@ -631,13 +642,14 @@ function inferSubtypeFromItem(a: AssetItem): AssetSubtype {
 
 /** 子类型中文标签 */
 export const SUBTYPE_LABEL: Record<AssetSubtype, string> = {
-  character_concept: '角色设定',
-  turnaround_sheet: '灰底Turnaround',
+  character_concept: '角色设定图',
+  turnaround_sheet: '灰色紧身衣Turnaround',
   turnaround_view: '视角拆分',
   scene_base: '场景设定图',
+  scene_three_view: '三视角场景',
   scene_angle_shot: '场景角度图',
   scene_variant: '场景变体',
-  costume_turnaround: '人物定妆Turnaround',
+  costume_turnaround: '分镜级Turnaround',
   keyframe_first: '首帧',
   keyframe_last: '尾帧',
   unknown: '其他',
@@ -646,12 +658,13 @@ export const SUBTYPE_LABEL: Record<AssetSubtype, string> = {
 /** 子类型 emoji */
 export const SUBTYPE_EMOJI: Record<AssetSubtype, string> = {
   character_concept: '🎨',
-  turnaround_sheet: '👤',
+  turnaround_sheet: '👕',
   turnaround_view: '📐',
   scene_base: '🏠',
+  scene_three_view: '📐',
   scene_angle_shot: '🎥',
   scene_variant: '🌗',
-  costume_turnaround: '👗',
+  costume_turnaround: '🎭',
   keyframe_first: '▶️',
   keyframe_last: '⏹️',
   unknown: '📦',

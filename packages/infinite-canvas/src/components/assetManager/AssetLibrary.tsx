@@ -80,6 +80,14 @@ function getGroupKey(d: AssetDetail): string {
   return `${d.type}:${d.name}`
 }
 
+/**
+ * 始终在层级树显示的子类型条目（即使 DB 暂无数据，也以 count=0 灰色不可点击呈现）。
+ * 对应 Kai 管线中尚未注册到 o_assets 的中间产物：②灰底 Turnaround / ④三视角 / ⑦分镜级 Turnaround。
+ */
+const ALWAYS_SHOW_SUBTYPES: ReadonlySet<AssetSubtype> = new Set([
+  'turnaround_sheet', 'scene_three_view', 'costume_turnaround',
+])
+
 export default function AssetLibrary() {
   const rawOpenAssetDetail = useCanvasStore((s) => s.openAssetDetail)
   const rawCloseAssetDetail = useCanvasStore((s) => s.closeAssetDetail)
@@ -145,6 +153,8 @@ export default function AssetLibrary() {
       if (entityFilter.type === 'character') {
         // id === '' 表示"全部角色"，仅校验层级已在上面完成
         if (entityFilter.id !== '' && d.characterId !== entityFilter.id) return false
+        // 角色列表仅含角色设定图（①）—— 灰底 Turnaround 等另由 subtype 条目进入
+        if (inferSubtype(d) !== 'character_concept') return false
       } else if (entityFilter.type === 'scene') {
         if (inferSceneId(d) !== entityFilter.id) return false
       } else if (entityFilter.type === 'shot') {
@@ -209,37 +219,42 @@ export default function AssetLibrary() {
   const countAll = assets.length
 
   // ── 层级树数据（useMemo 派生） ──
-  // 全剧级 · 角色列表：按 characterId 分组
+  // 全剧级 · 角色列表：仅角色设定图（①），按 characterId 分组，附带可读角色名
   const showCharacters = useMemo(() => {
     const counts = new Map<string, number>()
+    const names = new Map<string, string>()
     for (const d of assets) {
-      if (inferLevel(d) === 'show' && d.type === 'character' && d.characterId) {
-        counts.set(d.characterId, (counts.get(d.characterId) ?? 0) + 1)
+      if (inferLevel(d) !== 'show') continue
+      if (inferSubtype(d) !== 'character_concept') continue
+      if (!d.characterId) continue
+      counts.set(d.characterId, (counts.get(d.characterId) ?? 0) + 1)
+      if (!names.has(d.characterId)) {
+        const nm = (d.name || '').replace(/\s*v\d+$/i, '').trim()
+        if (nm) names.set(d.characterId, nm)
       }
     }
     return [...counts.entries()]
-      .map(([id, n]) => ({ id, n }))
-      .sort((a, b) => a.id.localeCompare(b.id))
+      .map(([id, n]) => ({ id, n, label: names.get(id) || id }))
+      .sort((a, b) => a.label.localeCompare(b.label))
   }, [assets])
 
-  // 全剧级 · 角色设定图 / 灰底Turnaround / 视角拆分 计数（按 subtype）
-  const showSubtypeCounts = useMemo(() => {
-    const counts = { character_concept: 0, turnaround_sheet: 0, turnaround_view: 0 }
+  // 全子类型计数（驱动各层级固定条目 + count 徽标）
+  const subtypeCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
     for (const d of assets) {
-      if (inferLevel(d) !== 'show') continue
       const st = inferSubtype(d)
-      if (st === 'character_concept') counts.character_concept++
-      else if (st === 'turnaround_sheet') counts.turnaround_sheet++
-      else if (st === 'turnaround_view') counts.turnaround_view++
+      counts[st] = (counts[st] ?? 0) + 1
     }
     return counts
   }, [assets])
+  const sub = useCallback((st: AssetSubtype): number => subtypeCounts[st] ?? 0, [subtypeCounts])
 
-  // 场景级 · 场景列表：按 inferSceneId 分组
+  // 场景级 · 场景设定图列表（③）：仅 scene_base，按场景名分组
   const sceneGroups = useMemo(() => {
     const counts = new Map<string, number>()
     for (const d of assets) {
       if (inferLevel(d) !== 'scene') continue
+      if (inferSubtype(d) !== 'scene_base') continue
       const sid = inferSceneId(d)
       if (sid) counts.set(sid, (counts.get(sid) ?? 0) + 1)
     }
@@ -248,7 +263,7 @@ export default function AssetLibrary() {
       .sort((a, b) => a.id.localeCompare(b.id))
   }, [assets])
 
-  // 分镜级 · 分镜列表：按 inferShotId 分组
+  // 分镜级 · 首尾帧列表（⑧⑨）：按 inferShotId 分组
   const shotGroups = useMemo(() => {
     const counts = new Map<string, number>()
     for (const d of assets) {
@@ -261,12 +276,36 @@ export default function AssetLibrary() {
       .sort((a, b) => a.id.localeCompare(b.id))
   }, [assets])
 
-  const showCount = showCharacters.reduce((s, c) => s + c.n, 0)
-    + showSubtypeCounts.character_concept
-    + showSubtypeCounts.turnaround_sheet
-    + showSubtypeCounts.turnaround_view
-  const sceneCount = sceneGroups.reduce((s, c) => s + c.n, 0)
-  const shotCount = shotGroups.reduce((s, c) => s + c.n, 0)
+  // 各层级 section 计数（仅统计归属本 section 的资产）
+  const showCount = sub('character_concept') + sub('turnaround_sheet') + sub('turnaround_view')
+  const sceneCount = sub('scene_base') + sub('scene_three_view')
+  const shotCount =
+    sub('keyframe_first') + sub('keyframe_last') + sub('scene_angle_shot') + sub('costume_turnaround')
+
+  // ── 层级树 subtype 条目渲染辅助 ──
+  const subtypeOn = (st: AssetSubtype) => entityFilter?.type === 'subtype' && entityFilter.id === st
+  const clickSubtype = (st: AssetSubtype) => {
+    setLevelFilter(null); setEntityFilter({ type: 'subtype', id: st })
+    setTypeFilter(null); setTagFilter(null)
+  }
+  /** 渲染一个 subtype 条目；count=0 时仅 ALWAYS_SHOW 子类型以灰色不可点击显示。 */
+  const renderSubtypeNode = (st: AssetSubtype, always = false) => {
+    const n = sub(st)
+    const empty = n === 0
+    if (empty && !always && !ALWAYS_SHOW_SUBTYPES.has(st)) return null
+    const showEmpty = empty && (always || ALWAYS_SHOW_SUBTYPES.has(st))
+    return (
+      <button
+        key={st}
+        className={`am-tree-node am-tree-node--child ${subtypeOn(st) ? 'is-on' : ''} ${showEmpty ? 'is-empty' : ''}`}
+        disabled={showEmpty}
+        onClick={showEmpty ? undefined : () => clickSubtype(st)}
+      >
+        <span className="am-tree-node__ic">{SUBTYPE_EMOJI[st]}</span>{SUBTYPE_LABEL[st]}
+        <span className="am-tree-node__n">{n}</span>
+      </button>
+    )
+  }
 
   const handleAddToCanvas = async (a: AssetItem) => {
     if (!projectId || episodesId == null) {
@@ -335,7 +374,7 @@ export default function AssetLibrary() {
               {showCharacters.length > 0 && (
                 <>
                   <button
-                    className={`am-tree-node am-tree-node--child ${levelFilter === 'show' && entityFilter?.type === 'character' && !entityFilter.id ? 'is-on' : ''}`}
+                    className={`am-tree-node am-tree-node--child ${entityFilter?.type === 'character' && !entityFilter.id ? 'is-on' : ''}`}
                     onClick={() => {
                       setLevelFilter('show'); setEntityFilter({ type: 'character', id: '' })
                       setTypeFilter('character'); setTagFilter(null)
@@ -350,51 +389,19 @@ export default function AssetLibrary() {
                       className={`am-tree-node am-tree-node--grandchild ${entityFilter?.type === 'character' && entityFilter.id === c.id ? 'is-on' : ''}`}
                       onClick={() => {
                         setLevelFilter('show'); setEntityFilter({ type: 'character', id: c.id })
-                        setTypeFilter(null); setTagFilter(null)
+                        setTypeFilter('character'); setTagFilter(null)
                       }}
                     >
-                      <span className="am-tree-node__ic">·</span>{c.id}
+                      <span className="am-tree-node__ic">·</span>{c.label}
                       <span className="am-tree-node__n">{c.n}</span>
                     </button>
                   ))}
                 </>
               )}
-              {showSubtypeCounts.character_concept > 0 && (
-                <button
-                  className={`am-tree-node am-tree-node--child ${entityFilter?.type === 'subtype' && entityFilter.id === 'character_concept' ? 'is-on' : ''}`}
-                  onClick={() => {
-                    setLevelFilter('show'); setEntityFilter({ type: 'subtype', id: 'character_concept' })
-                    setTypeFilter(null); setTagFilter(null)
-                  }}
-                >
-                  <span className="am-tree-node__ic">{SUBTYPE_EMOJI.character_concept}</span>{SUBTYPE_LABEL.character_concept}
-                  <span className="am-tree-node__n">{showSubtypeCounts.character_concept}</span>
-                </button>
-              )}
-              {showSubtypeCounts.turnaround_sheet > 0 && (
-                <button
-                  className={`am-tree-node am-tree-node--child ${entityFilter?.type === 'subtype' && entityFilter.id === 'turnaround_sheet' ? 'is-on' : ''}`}
-                  onClick={() => {
-                    setLevelFilter('show'); setEntityFilter({ type: 'subtype', id: 'turnaround_sheet' })
-                    setTypeFilter(null); setTagFilter(null)
-                  }}
-                >
-                  <span className="am-tree-node__ic">{SUBTYPE_EMOJI.turnaround_sheet}</span>{SUBTYPE_LABEL.turnaround_sheet}
-                  <span className="am-tree-node__n">{showSubtypeCounts.turnaround_sheet}</span>
-                </button>
-              )}
-              {showSubtypeCounts.turnaround_view > 0 && (
-                <button
-                  className={`am-tree-node am-tree-node--child ${entityFilter?.type === 'subtype' && entityFilter.id === 'turnaround_view' ? 'is-on' : ''}`}
-                  onClick={() => {
-                    setLevelFilter('show'); setEntityFilter({ type: 'subtype', id: 'turnaround_view' })
-                    setTypeFilter(null); setTagFilter(null)
-                  }}
-                >
-                  <span className="am-tree-node__ic">{SUBTYPE_EMOJI.turnaround_view}</span>{SUBTYPE_LABEL.turnaround_view}
-                  <span className="am-tree-node__n">{showSubtypeCounts.turnaround_view}</span>
-                </button>
-              )}
+              {/* ① 角色设定图（有数据才显示） */}
+              {renderSubtypeNode('character_concept')}
+              {/* ② 灰色紧身衣 Turnaround —— 始终显示，DB 无数据时 count=0 灰色不可点击 */}
+              {renderSubtypeNode('turnaround_sheet', true)}
             </div>
           )}
         </div>
@@ -411,22 +418,20 @@ export default function AssetLibrary() {
           </button>
           {!collapsedLevels.has('scene') && (
             <div className="am-tree-children">
+              {/* ③ 全部场景设定（仅 scene_base，三视角/角度图已分离到独立条目） */}
               <button
-                className={`am-tree-node am-tree-node--child ${levelFilter === 'scene' && !entityFilter ? 'is-on' : ''}`}
-                onClick={() => {
-                  setLevelFilter('scene'); setEntityFilter(null)
-                  setTypeFilter(null); setTagFilter(null)
-                }}
+                className={`am-tree-node am-tree-node--child ${subtypeOn('scene_base') ? 'is-on' : ''}`}
+                onClick={() => clickSubtype('scene_base')}
               >
-                <span className="am-tree-node__ic">▦</span>全部场景
-                <span className="am-tree-node__n">{sceneCount}</span>
+                <span className="am-tree-node__ic">▦</span>全部场景设定
+                <span className="am-tree-node__n">{sub('scene_base')}</span>
               </button>
               {sceneGroups.map((s) => (
                 <button
                   key={s.id}
                   className={`am-tree-node am-tree-node--grandchild ${entityFilter?.type === 'scene' && entityFilter.id === s.id ? 'is-on' : ''}`}
                   onClick={() => {
-                    setLevelFilter('scene'); setEntityFilter({ type: 'scene', id: s.id })
+                    setLevelFilter(null); setEntityFilter({ type: 'scene', id: s.id })
                     setTypeFilter(null); setTagFilter(null)
                   }}
                 >
@@ -434,6 +439,8 @@ export default function AssetLibrary() {
                   <span className="am-tree-node__n">{s.n}</span>
                 </button>
               ))}
+              {/* ④ 三视角场景 —— 从场景级分离出的独立条目，DB 无数据时灰色不可点击 */}
+              {renderSubtypeNode('scene_three_view', true)}
             </div>
           )}
         </div>
@@ -450,6 +457,7 @@ export default function AssetLibrary() {
           </button>
           {!collapsedLevels.has('shot') && (
             <div className="am-tree-children">
+              {/* ⑥ 全部首尾帧（仅 keyframe，shot 级目前仅有首尾帧） */}
               <button
                 className={`am-tree-node am-tree-node--child ${levelFilter === 'shot' && !entityFilter ? 'is-on' : ''}`}
                 onClick={() => {
@@ -458,7 +466,7 @@ export default function AssetLibrary() {
                 }}
               >
                 <span className="am-tree-node__ic">▦</span>全部首尾帧
-                <span className="am-tree-node__n">{shotCount}</span>
+                <span className="am-tree-node__n">{sub('keyframe_first') + sub('keyframe_last')}</span>
               </button>
               {shotGroups.map((s) => (
                 <button
@@ -473,6 +481,10 @@ export default function AssetLibrary() {
                   <span className="am-tree-node__n">{s.n}</span>
                 </button>
               ))}
+              {/* ⑦ 分镜级 Turnaround（人物定妆）—— DB 无数据，count=0 灰色不可点击 */}
+              {renderSubtypeNode('costume_turnaround', true)}
+              {/* ⑥ 场景角度图（分镜级参考）—— 从场景级移到分镜级 */}
+              {renderSubtypeNode('scene_angle_shot')}
             </div>
           )}
         </div>
