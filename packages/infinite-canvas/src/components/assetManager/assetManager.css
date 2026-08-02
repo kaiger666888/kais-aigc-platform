@@ -9,28 +9,30 @@
   border-bottom:1px solid var(--cv-line-panel);flex-wrap:wrap}
 .am-title{font-weight:600;font-size:13px;color:var(--cv-text-primary);white-space:nowrap;display:flex;align-items:center;gap:8px}
 .am-title .am-title__sub{font-size:10px;font-weight:400;color:var(--cv-text-tertiary);font-family:var(--cv-font-mono)}
-.am-scope{display:flex;background:var(--cv-bg-card);border-radius:7px;padding:3px;border:1px solid var(--cv-line-panel)}
-.am-scope button{font-size:12px;padding:6px 12px;border-radius:5px;color:var(--cv-text-secondary);transition:.12s;white-space:nowrap}
+.am-scope{display:flex;background:transparent;border-radius:0;padding:0;border:none;border-bottom:1px solid var(--cv-line-panel)}
+.am-scope button{font-size:12px;padding:8px 14px;border-radius:0;position:relative;color:#B8BCC4;transition:.12s;white-space:nowrap;background:transparent;border:none}
 .am-scope button:hover{color:var(--cv-text-primary)}
-.am-scope button.is-on{background:var(--cv-bg-elevated);color:var(--cv-text-primary);box-shadow:var(--cv-shadow-card)}
+.am-scope button.is-on{opacity:1;color:var(--cv-mod-image)}
+.am-scope button.is-on::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--cv-mod-image);border-radius:1px}
 .am-search{position:relative;display:flex;align-items:center}
 .am-search svg{position:absolute;left:10px;opacity:.5;pointer-events:none}
 .am-search input{background:var(--cv-bg-card);border:1px solid var(--cv-line-panel);border-radius:7px;
   padding:7px 12px 7px 32px;color:var(--cv-text-primary);width:220px;font-size:12px;transition:.15s}
 .am-search input::placeholder{color:var(--cv-text-tertiary)}
 .am-search input:focus{border-color:var(--cv-line-strong);background:var(--cv-bg-card-hover);outline:none;width:250px}
-.am-tabs{display:flex;gap:2px;margin-left:auto;background:var(--cv-bg-card);border-radius:7px;padding:3px;border:1px solid var(--cv-line-panel)}
-.am-tab{display:flex;align-items:center;gap:6px;font-size:12.5px;padding:6px 13px;border-radius:5px;
-  color:var(--cv-text-secondary);transition:.12s;white-space:nowrap}
+.am-tabs{display:flex;gap:0;margin-left:auto;background:transparent;border-radius:0;padding:0;border:none;border-bottom:1px solid var(--cv-line-panel)}
+.am-tab{display:flex;align-items:center;gap:6px;font-size:12.5px;padding:8px 14px;border-radius:0;position:relative;
+  color:#B8BCC4;transition:.12s;white-space:nowrap;background:transparent;border:none}
 .am-tab:hover{color:var(--cv-text-primary)}
-.am-tab.is-on{background:var(--cv-bg-elevated);color:var(--cv-text-primary);box-shadow:var(--cv-shadow-card)}
+.am-tab.is-on{opacity:1;color:var(--cv-mod-image)}
+.am-tab.is-on::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--cv-mod-image);border-radius:1px}
 .am-tab .am-dot{width:6px;height:6px;border-radius:50%;background:var(--cv-mod-image)}
 
 .am-body{flex:1;min-height:0;overflow:hidden;position:relative}
 
 /* ── 通用 chip / badge ── */
 .am-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:4px 10px;border-radius:14px;
-  background:var(--cv-bg-card);color:var(--cv-text-secondary);border:1px solid var(--cv-line-panel);transition:.12s;white-space:nowrap;cursor:pointer}
+  background:var(--cv-bg-card);color:#B8BCC4;border:1px solid var(--cv-line-panel);transition:.12s;white-space:nowrap;cursor:pointer}
 .am-chip:hover{color:var(--cv-text-primary);border-color:var(--cv-line-strong)}
 .am-chip.is-on{background:var(--cv-mod-image-weak);color:var(--cv-mod-image);border-color:rgba(86,184,154,.3)}
 .am-badge{display:inline-flex;align-items:center;gap:4px;font-family:var(--cv-font-mono);font-size:9.5px;
@@ -55,9 +57,9 @@
 .am-tree-group__h{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--cv-text-tertiary);
   padding:4px 8px 5px;display:flex;align-items:center;justify-content:space-between}
 .am-tree-node{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:6px 8px;border-radius:5px;
-  color:var(--cv-text-secondary);font-size:12.5px;transition:.1s}
+  background:transparent;border:none;cursor:pointer;color:#B8BCC4;font-size:12.5px;transition:.1s}
 .am-tree-node:hover{background:var(--cv-bg-card);color:var(--cv-text-primary)}
-.am-tree-node.is-on{background:var(--cv-bg-card);color:var(--cv-text-primary);box-shadow:var(--cv-shadow-card)}
+.am-tree-node.is-on{background:var(--cv-mod-image-weak);color:var(--cv-mod-image);box-shadow:none}
 .am-tree-node__ic{width:17px;text-align:center;font-size:13px}
 .am-tree-node__n{margin-left:auto;font-family:var(--cv-font-mono);font-size:10.5px;color:var(--cv-text-tertiary)}
 .am-tree-node.is-on .am-tree-node__n{color:var(--cv-mod-image)}
@@ -126,6 +128,26 @@
 .am-app-item__ic{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;font-size:15px;background:var(--cv-mod-image-weak)}
 .am-app-item__t b{font-size:12px;font-weight:500}
 .am-app-item__t span{display:block;font-size:10.5px;color:var(--cv-text-tertiary);font-family:var(--cv-font-mono);margin-top:1px}
+
+/* ─── 生成链路（AssetChainTrace · 资产详情底部因果链） ─── */
+.am-chain{display:flex;flex-direction:column;gap:12px;margin-top:8px}
+.am-chain__group{display:flex;flex-direction:column;gap:5px}
+.am-chain__title{font-size:10.5px;color:var(--cv-text-tertiary);letter-spacing:.02em;margin-bottom:1px}
+.am-chain-link{display:flex;align-items:center;gap:9px;width:100%;padding:7px 10px;border-radius:8px;
+  background:var(--cv-bg-card);border:1px solid var(--cv-line-panel);text-align:left;transition:.14s;font-family:inherit}
+.am-chain-link.is-clickable{cursor:pointer}
+.am-chain-link.is-clickable:hover{background:var(--cv-mod-image-weak);border-color:rgba(86,184,154,.3)}
+.am-chain-link.is-note{cursor:default;opacity:.82}
+.am-chain-link__arrow{flex:none;font-size:12px;color:var(--cv-text-tertiary);font-family:var(--cv-font-mono);width:10px}
+.am-chain-link__ic{flex:none;width:24px;height:24px;border-radius:6px;display:grid;place-items:center;font-size:14px;
+  background:var(--cv-mod-image-weak)}
+.am-chain-link.is-note .am-chain-link__ic{background:var(--cv-bg-elevated);opacity:.8}
+.am-chain-link__body{display:flex;flex-direction:column;min-width:0}
+.am-chain-link__label{font-size:12px;color:var(--cv-text-primary);font-weight:500;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.am-chain-link.is-note .am-chain-link__label{font-weight:400;color:var(--cv-text-secondary)}
+.am-chain-link__detail{font-size:10px;color:var(--cv-text-tertiary);font-family:var(--cv-font-mono);margin-top:1px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* ──────────────── 视图C · 角色衣柜 (paper-doll) ──────────────── */
 .am-ward{display:grid;grid-template-columns:190px 1fr 270px;height:100%}
@@ -282,8 +304,10 @@
 .am-drawer .am-det{height:100%}
 
 /* ── 层级树（二级折叠） ── */
-.am-tree-node--child{padding-left:24px}
-.am-tree-node--grandchild{padding-left:40px}
+.am-tree-node--child{padding-left:28px;position:relative}
+.am-tree-node--child::before{content:'';position:absolute;left:14px;top:0;bottom:0;width:1px;background:var(--cv-line-panel)}
+.am-tree-node--grandchild{padding-left:48px;position:relative}
+.am-tree-node--grandchild::before{content:'';position:absolute;left:34px;top:0;bottom:0;width:1px;background:var(--cv-line-panel)}
 .am-tree-node--parent{font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--cv-text-tertiary)}
 .am-tree-toggle{width:14px;text-align:center;font-size:10px;color:var(--cv-text-tertiary);transition:transform .15s;cursor:pointer}
 .am-tree-toggle.is-expanded{transform:rotate(0deg)}
