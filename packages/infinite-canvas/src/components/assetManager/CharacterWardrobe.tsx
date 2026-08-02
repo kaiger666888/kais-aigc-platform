@@ -28,14 +28,33 @@ function Img({ item, className, fallback }: { item: AssetItem; className: string
   return <span className={fallback ?? 'am-card__emoji'}>{item.emoji}</span>
 }
 
+const VIEW_ORDER = ['front', 'three_quarter', 'side', 'back'] as const
+const VIEW_LABEL: Record<string, string> = {
+  front: '正面', three_quarter: '3/4 侧', side: '侧面', back: '背面',
+}
+
 export default function CharacterWardrobe() {
   const projectId = useCanvasStore((s) => s.projectId)
   const { assets, loading, error, reload } = useRealAssets(projectId)
 
-  const characters = useMemo(
-    () => assets.filter((a) => a.type === 'character').map(assetDetailToItem),
-    [assets],
-  )
+  // Base turnaround characters: viewAngle is null/empty (the whole sheet image)
+  // Split view characters: viewAngle is front/back/side/three_quarter
+  const { baseChars, viewItemsByChar } = useMemo(() => {
+    const charAssets = assets.filter((a) => a.type === 'character')
+    const base = charAssets
+      .filter((a) => !a.viewAngle) // whole turnaround sheet, no split view
+      .map(assetDetailToItem)
+    const views: Record<string, AssetItem[]> = {}
+    for (const a of charAssets) {
+      if (a.viewAngle && a.characterId) {
+        if (!views[a.characterId]) views[a.characterId] = []
+        views[a.characterId].push(assetDetailToItem(a))
+      }
+    }
+    return { baseChars: base, viewItemsByChar: views }
+  }, [assets])
+
+  const characters = baseChars
 
   const [selectedUuid, setSelectedUuid] = useState<string | null>(null)
   const char = useMemo(
@@ -43,6 +62,16 @@ export default function CharacterWardrobe() {
     [characters, selectedUuid],
   )
   const { display, role } = char ? parseCharName(char.name) : { display: '', role: null }
+
+  // Get turnaround split views for the selected character
+  const charViews = useMemo(() => {
+    if (!char?.characterId) return []
+    const items = viewItemsByChar[char.characterId] ?? []
+    // Sort by VIEW_ORDER
+    return VIEW_ORDER
+      .map((v) => items.find((it) => it.viewAngle === v))
+      .filter((it): it is AssetItem => !!it)
+  }, [char, viewItemsByChar])
 
   const rows: Array<[string, string]> = []
   if (char?.prompt) rows.push(['Prompt', char.prompt])
@@ -116,6 +145,40 @@ export default function CharacterWardrobe() {
               {/* key=uuid：切换角色时重置内部 broken 兜底状态 */}
               <Img key={char.uuid} item={char} className="am-det__big-img" fallback="am-det__big" />
             </div>
+
+            {/* Turnaround 三视图拆分 */}
+            {charViews.length > 0 && (
+              <>
+                <div className="am-seclabel">Turnaround 三视图</div>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: `repeat(${Math.min(charViews.length, 4)}, 1fr)`,
+                  gap: 8,
+                  marginTop: 4,
+                }}>
+                  {charViews.map((v) => (
+                    <div key={v.viewAngle} style={{
+                      borderRadius: 8,
+                      overflow: 'hidden',
+                      border: '1px solid var(--cv-border)',
+                      background: 'var(--cv-bg-2)',
+                    }}>
+                      <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Img item={v} className="am-card__img" />
+                      </div>
+                      <div style={{
+                        padding: '4px 8px',
+                        fontSize: 12,
+                        textAlign: 'center',
+                        color: 'var(--cv-text-2)',
+                      }}>
+                        {VIEW_LABEL[v.viewAngle ?? ''] ?? v.viewAngle}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
 
             {rows.length > 0 && (
               <>
