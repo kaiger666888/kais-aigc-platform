@@ -17,13 +17,14 @@
  * 无需额外 API 调用。Socket 实时同步、审核操作全部复用现有 store 逻辑。
  */
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useCanvasStore } from '../store/canvasStore'
 import { theme, v3theme } from '../theme/catppuccin'
 import { METADATA_LABELS } from '../constants'
 import type { AssetNodeV3, FlowGraphV3 } from '@kais/flowgraph-v3'
 import { UiIcon } from './canvas/icons'
-import { updateCanvasNode } from '../services/canvasApi'
+import { updateCanvasNode, updateAsset, convertProjectData } from '../services/canvasApi'
+import { fetchProjectAssets } from './assetManager/useRealAssets'
 
 // ─── 类型 ──────────────────────────────────────────────
 
@@ -188,6 +189,41 @@ function curationTags(c: FrameCuration): string[] {
   return ['○ 待选']
 }
 
+/**
+ * 从 nodeId + rawDataByNodeId 中提取 assets-registry 的 assetId（数字主键）。
+ * 三路 fallback：
+ *   (1) data.assetId / data.asset_id（显式字段）
+ *   (2) nodeId 格式 `asset-{id}`（V2 convert 产物）
+ *   (3) data.name / data.label → 查 nameMap（keyframe 节点用 `S01_first_v1` 格式 ID）
+ */
+function assetIdOf(
+  nodeId: string,
+  rawDataByNodeId: Map<string, Record<string, unknown>> | null,
+  nameMap?: Map<string, number>,
+): number | null {
+  const raw = rawDataByNodeId?.get(nodeId) ?? {}
+  const a = raw.assetId ?? raw.asset_id
+  if (typeof a === 'number') return a
+  if (typeof a === 'string') {
+    const n = Number(a)
+    if (!isNaN(n)) return n
+  }
+  // fallback 1: nodeId 格式 `asset-{id}`
+  const m = nodeId.match(/^asset-(\d+)$/)
+  if (m) return Number(m[1])
+  // fallback 2: 通过 name/label 查 nameMap
+  if (nameMap) {
+    const name = (raw.name as string) ?? (raw.label as string) ?? null
+    if (name) {
+      // label 可能是 "S01 first v1"（有空格），normalize 为 "S01_first_v1"
+      const normalized = name.replace(/\s+/g, '_')
+      const aid = nameMap.get(normalized) ?? nameMap.get(name)
+      if (aid != null) return aid
+    }
+  }
+  return null
+}
+
 function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<string, Record<string, unknown>> | null): StoryboardShot[] {
   if (!graph) return []
 
@@ -348,18 +384,39 @@ function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<string, Re
     }
   }
 
-  // Pass 5：P11 首尾帧变体（phaseName='p11_first_last_frames'）→ 按 {shotId}_{frameType} 分组。
-  // 这些节点 V2 type='asset' → 经 migrate 落到 V3 stage='global'，但其原始 data 袋
-  // （frame_type / variant / groupKey / shot_id / isPrimaryView / tags）经 rawDataByNodeId 穿透。
-  // 既有 Pass 2 仅认 *_frame_last / 视频扩展名，不会误收这些 .png 节点 → 无冲突。
+  // Pass 5：P11 首尾帧变体（assetType='keyframe'）→ 按 {shotId}_{frameType} 分组。
+  // 两种 data 格式兼容：
+  //   (A) canvas-saved: data 含 frame_type/variant/groupKey/shot_id（经 patchFrameNode 写入）
+  //   (B) convert 产物: data 含 assetType='keyframe'/viewAngle/label/characterId（原始 V2 convert）
   const frameGroups = new Map<string, { shotId: string; frameType: string; variants: FrameVariant[] }>()
   for (const node of graph.nodes) {
     if (node.kind !== 'asset') continue
     const raw = rawDataByNodeId?.get(node.id) ?? {}
-    const frameType = raw.frame_type as string | undefined
-    const variant = raw.variant as string | undefined
-    const groupKey = raw.groupKey as string | undefined
-    const shotId = raw.shot_id as string | undefined
+
+    // 格式 A：显式帧变体字段
+    let frameType = raw.frame_type as string | undefined
+    let variant = raw.variant as string | undefined
+    let groupKey = raw.groupKey as string | undefined
+    let shotId = raw.shot_id as string | undefined
+
+    // 格式 B：convert 产物 — 从 assetType/label 推断
+    if ((!frameType || !variant || !groupKey || !shotId) && raw.assetType === 'keyframe') {
+      const label = raw.label as string | undefined ?? ''
+      const viewAngle = raw.viewAngle as string | undefined
+      // label 格式: S01_first_v1 → shotId=S01, frameType=first, variant=v1
+      const m = label.match(/^(S\d+)_(first|last)_(v\d+)$/i)
+      if (m) {
+        shotId = shotId ?? m[1]
+        frameType = frameType ?? m[2].toLowerCase()
+        variant = variant ?? m[3].toLowerCase()
+        groupKey = groupKey ?? `${m[1]}_${m[2].toLowerCase()}`
+      } else if (viewAngle) {
+        // fallback: 用 characterId + viewAngle
+        shotId = shotId ?? (raw.characterId as string)
+        frameType = frameType ?? viewAngle.toLowerCase()
+      }
+    }
+
     if (!frameType || !variant || !groupKey || !shotId) continue
     if (frameType !== 'first' && frameType !== 'last') continue // 防御：仅 first/last
     let g = frameGroups.get(groupKey)
@@ -393,6 +450,8 @@ function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<string, Re
   // 注意：首尾帧 shot_id 是场景级（S01），storyboard 分镜是 S01_B01~B05。
   // paddedShotIdOf 把 S01_B01 → S01，导致同场景多个分镜都匹配到同一组帧变体。
   // 修复：每个帧变体组只挂到第一个匹配的分镜，避免重复。
+  // 同时：当场景有首尾帧变体时，把该 shotId 从 S01_B01 改为 S01（场景级），
+  // 并过滤掉同场景无变体的子分镜行（S01_B02~B05），避免显示废弃的分镜旧数据。
   const matchedShotIds = new Set<string>()
   const usedFrameGroups = new Set<string>() // 已挂载的帧组 shotId
   for (const shot of shots) {
@@ -402,10 +461,25 @@ function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<string, Re
     const fv = variantsByShot.get(sid)
     if (fv && (fv.first.length || fv.last.length)) {
       shot.frameVariants = fv
+      // 场景级帧变体 → shotId 改为场景标识（S01 而非 S01_B01）
+      shot.shotId = sid
       matchedShotIds.add(sid)
       usedFrameGroups.add(sid)
     }
   }
+
+  // 当某场景有首尾帧变体时，过滤掉同场景无变体的分镜子行（S01_B02~B05）。
+  // 这些子行的数据来自旧 storyboard 快照（scene_ref 指向废弃的旧图片），
+  // 会误导用户以为分镜仍使用旧素材。有变体覆盖的分镜行（S01_B01→已改名为 S01）保留。
+  const filteredShots = shots.filter((shot) => {
+    const sid = paddedShotIdOf(shot.shotId)
+    // 该 shot 自身有变体 → 保留
+    if (shot.frameVariants) return true
+    // 该 shot 无变体，但同场景有变体 → 过滤（废弃子分镜）
+    if (sid && usedFrameGroups.has(sid)) return false
+    // 该 shot 无变体、同场景也无变体 → 保留（可能是真正无帧的分镜）
+    return true
+  })
 
   // 无 storyboard/video shot 但有首尾帧的 shot_id → 合成 shot
   // （本项目形态：仅有 264 张首尾帧、无分镜/视频节点，否则 extractShots 返回空）。
@@ -416,7 +490,7 @@ function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<string, Re
     const repNodeId = fv.first[0]?.nodeId ?? fv.last[0]?.nodeId
     const repNode = repNodeId ? nodeById.get(repNodeId) : undefined
     if (!repNode || repNode.kind !== 'asset') continue
-    shots.push({
+    filteredShots.push({
       node: repNode,
       shotId: sid,
       durationS: 0,
@@ -424,6 +498,10 @@ function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<string, Re
       frameVariants: fv,
     })
   }
+
+  // 替换 shots 为过滤后的列表
+  shots.length = 0
+  shots.push(...filteredShots)
 
   // 按 shotId 排序（自然排序：S01, S02, ..., S10）
   shots.sort((a, b) => a.shotId.localeCompare(b.shotId, undefined, { numeric: true, sensitivity: 'base' }))
@@ -1260,16 +1338,138 @@ export default function StoryboardTimeline() {
 
   const baseShots = useMemo(() => extractShots(graph, rawDataByNodeId), [graph, rawDataByNodeId])
 
+  /**
+   * 独立帧数据加载：当 canvas graph 中没有帧变体时（savedGraph 只保存了角色等部分节点），
+   * 直接从 convert API 拉取全量节点，提取 keyframe 节点构建额外的 shots。
+   * 这解决了 load-v2 savedGraph 只有 8 个角色节点、首尾帧节点缺失的问题。
+   */
+  const [extraFrameShots, setExtraFrameShots] = useState<StoryboardShot[]>([])
+  // 存储 convert API 的 extraRaw 数据，供 assets sync effect 使用
+  // （store 的 rawDataByNodeId 不包含 convert 返回的节点）
+  const extraRawRef = useRef<Map<string, Record<string, unknown>> | null>(null)
+  const hasFrameVariants = baseShots.some((s) => s.frameVariants && (s.frameVariants.first.length || s.frameVariants.last.length))
+  useEffect(() => {
+    if (hasFrameVariants || !projectId || !episodesId) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const converted = await convertProjectData(projectId, episodesId)
+        if (cancelled || !converted?.nodes?.length) return
+        // 构建 rawDataByNodeId map
+        const extraRaw = new Map<string, Record<string, unknown>>()
+        for (const n of converted.nodes) {
+          if (n.id && n.data) extraRaw.set(n.id, n.data as Record<string, unknown>)
+        }
+        extraRawRef.current = extraRaw
+        // 构建临时 V3-shaped graph
+        const tempGraph = {
+          ...converted,
+          nodes: converted.nodes.map((n) => ({
+            id: n.id,
+            kind: 'asset' as const,
+            stage: (n.data as Record<string, unknown>)?.assetType ?? 'global',
+            meta: {},
+            media: {},
+            content: null,
+            reviewStatus: null,
+            aiScore: null,
+          })),
+        } as unknown as FlowGraphV3
+        const shots = extractShots(tempGraph, extraRaw)
+        if (!cancelled && shots.length > 0) setExtraFrameShots(shots)
+      } catch {
+        // 静默
+      }
+    })()
+    return () => { cancelled = true }
+  }, [hasFrameVariants, projectId, episodesId])
+
+  // 合并 baseShots + extraFrameShots
+  const allBaseShots = useMemo(() => {
+    if (extraFrameShots.length === 0) return baseShots
+    // 去重：按 shotId
+    const existingIds = new Set(baseShots.map((s) => s.shotId))
+    const extras = extraFrameShots.filter((s) => !existingIds.has(s.shotId))
+    return [...baseShots, ...extras]
+  }, [baseShots, extraFrameShots])
+
+  /**
+   * 从 assets-registry (o_assets) 同步权威三态。
+   *
+   * Canvas 节点的 isPrimaryView/curationState 是 convert 时的一次性快照，不会因用户在
+   * 资产管理器中的操作而更新。资产管理器直接 PATCH o_assets 表（isPrimaryView + state），
+   * 所以此处从 o_assets 拉取最新值，覆盖 frameCuration 的初始态，确保两处一致。
+   * 只在 graph 加载完成且有帧变体时跑一次（projectId 变化也重跑）。
+   */
+  // extraFrameShots 变化时重置 assetsSynced，让三态同步重新跑
+  useEffect(() => { setAssetsSynced(false) }, [extraFrameShots])
+
+  const [assetsSynced, setAssetsSynced] = useState(false)
+  useEffect(() => {
+    if (!projectId || assetsSynced) return
+    // 收集所有帧变体 nodeId
+    const variantNodeIds: string[] = []
+    for (const shot of allBaseShots) {
+      if (!shot.frameVariants) continue
+      for (const v of [...shot.frameVariants.first, ...shot.frameVariants.last]) {
+        variantNodeIds.push(v.nodeId)
+      }
+    }
+    if (variantNodeIds.length === 0) return
+
+    let cancelled = false
+    void (async () => {
+      try {
+        const assets = await fetchProjectAssets(projectId)
+        if (cancelled) return
+        // assetId → { isPrimaryView, state } 映射
+        const map = new Map<number, { isPrimaryView: boolean; state: string }>()
+        // name → assetId 映射（用于 keyframe 节点 fallback 查找）
+        const nameMap = new Map<string, number>()
+        for (const a of assets) {
+          map.set(a.id, {
+            isPrimaryView: !!a.isPrimaryView,
+            state: a.state ?? 'active',
+          })
+          if (a.name) nameMap.set(a.name, a.id)
+        }
+        // 用 o_assets 数据覆盖三态
+        const curationUpdate: Record<string, FrameCuration> = {}
+        // 合并 store rawDataByNodeId + extraRawRef（convert API 返回的节点 raw）
+        const mergedRaw = new Map(rawDataByNodeId ?? [])
+        if (extraRawRef.current) {
+          for (const [k, v] of extraRawRef.current) mergedRaw.set(k, v)
+        }
+        for (const nodeId of variantNodeIds) {
+          const aid = assetIdOf(nodeId, mergedRaw, nameMap)
+          if (aid == null) continue
+          const a = map.get(aid)
+          if (!a) continue
+          if (a.state === 'eliminated') curationUpdate[nodeId] = 'eliminated'
+          else if (a.isPrimaryView) curationUpdate[nodeId] = 'selected'
+          else curationUpdate[nodeId] = 'candidate'
+        }
+        if (Object.keys(curationUpdate).length > 0 && !cancelled) {
+          setFrameCuration((prev) => ({ ...prev, ...curationUpdate }))
+        }
+        setAssetsSynced(true)
+      } catch {
+        // 后端不可达时静默——退回 canvas 节点派生的初始三态
+      }
+    })()
+    return () => { cancelled = true }
+  }, [projectId, allBaseShots, rawDataByNodeId, assetsSynced])
+
   // 计算累计起止时间 → 时间轴几何
   const shots = useMemo<TimedShot[]>(() => {
     let cum = 0
-    return baseShots.map((s) => {
+    return allBaseShots.map((s) => {
       const layoutDur = s.durationS > 0 ? s.durationS : MIN_LAYOUT_DUR
       const startSec = cum
       cum += layoutDur
       return { ...s, startSec, endSec: startSec + layoutDur, layoutDur }
     })
-  }, [baseShots])
+  }, [allBaseShots])
 
   // 统计
   const stats = useMemo(() => {
@@ -1306,6 +1506,8 @@ export default function StoryboardTimeline() {
    * （顶层浅合并会整体替换 data）。从 store 的 rawDataByNodeId 取原始 data 叠加三态字段
    * （isPrimaryView + curationState + 同步刷新 tags，保持 data 自洽可读）。
    * 不 reload、不 toast —— 失败由调用方回滚本地覆盖并提示。
+   *
+   * 同时同步 o_assets 表（PATCH /v1/assets-registry/{assetId}），确保资产管理器与时间轴一致。
    */
   const patchFrameNode = useCallback(async (
     nodeId: string,
@@ -1315,9 +1517,22 @@ export default function StoryboardTimeline() {
     const raw = useCanvasStore.getState().rawDataByNodeId?.get(nodeId) ?? {}
     const isPrimary = curation === 'selected'
     const curationState = curation === 'eliminated' ? 'eliminated' : 'active'
+    // 写 canvas 节点
     await updateCanvasNode(projectId, episodesId, nodeId, {
       data: { ...raw, isPrimaryView: isPrimary, curationState, tags: curationTags(curation) },
     })
+    // 同步 o_assets（assetId 从 raw 中取）
+    const aid = assetIdOf(nodeId, useCanvasStore.getState().rawDataByNodeId)
+    if (aid != null) {
+      try {
+        await updateAsset(aid, {
+          isPrimaryView: isPrimary,
+          state: curationState === 'eliminated' ? 'eliminated' : 'active',
+        })
+      } catch {
+        // o_assets 更新失败不阻断——canvas 节点已更新，下次 assets sync 会自愈
+      }
+    }
   }, [projectId, episodesId])
 
   /** 当前三态：本地覆盖优先，否则取节点派生初始值。 */
