@@ -643,7 +643,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   resetOrchestration: () => set({ orchestration: INITIAL_ORCHESTRATION }),
 
   // 视图模式
-  viewMode: 'canvas',
+  viewMode: 'assets',
   setViewMode: (mode) => set({ viewMode: mode }),
 
   // 资产管理子视图
