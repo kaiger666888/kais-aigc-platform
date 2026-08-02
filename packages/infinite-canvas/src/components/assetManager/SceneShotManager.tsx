@@ -42,11 +42,20 @@ const angleRank = (a?: string): number => {
 }
 
 /** 从 filePath（或 name）提取 {sceneId, angle}，如 .../S01_angle_left.png → S01 / angle_left。 */
+/** 从 filePath 或 name 提取 {sceneId, angle}。
+ *  支持两种格式：
+ *  - 设定图: scene_S02_v3.png → { S02, main }（版本号不是角度）
+ *  - 参考图: S01_angle_left.png → { S01, angle_left }
+ */
 function parseScene(text?: string): { sceneId: string; angle: string } | null {
   const fn = (text ?? '').split('/').pop() ?? ''
-  const m = fn.match(/S(\d+)[_\s-]+([A-Za-z_]+)\./i)
-  if (!m) return null
-  return { sceneId: `S${m[1].padStart(2, '0')}`, angle: m[2].toLowerCase() }
+  // 设定图格式：scene_S02_v3.png / scene_S10_v1.png
+  const m1 = fn.match(/^scene_S(\d+)_v\d+/i)
+  if (m1) return { sceneId: `S${m1[1].padStart(2, '0')}`, angle: 'main' }
+  // 参考图格式：S01_front.png / S01_angle_left.png
+  const m2 = fn.match(/^S(\d+)[_\s-]+([A-Za-z_]+)\./i)
+  if (m2) return { sceneId: `S${m2[1].padStart(2, '0')}`, angle: m2[2].toLowerCase() }
+  return null
 }
 
 function cssVars(vars: Record<string, string>): React.CSSProperties {
@@ -63,7 +72,7 @@ function Img({ item, className, fallback }: { item: AssetItem; className: string
   return <span className={fallback ?? 'am-card__emoji'}>{item.emoji}</span>
 }
 
-interface SceneGroup { id: string; variants: AssetItem[] }
+interface SceneGroup { id: string; label: string; variants: AssetItem[] }
 
 // ─── 分镜首尾帧 name 解析 ─────────────────────────────────
 // name 形如 S01_first_v1 / S01_last_v1 / S01_B01_first_v1（场景级或分镜级）。
@@ -253,26 +262,29 @@ export default function SceneShotManager() {
 
   // ── 层1：场景设定图（type==='scene'，并合并 keyframe 所属场景保证层2可达）──
   const groups = useMemo<SceneGroup[]>(() => {
-    const map = new Map<string, AssetItem[]>()
+    const map = new Map<string, { label: string; variants: AssetItem[] }>()
     for (const d of assets) {
       if (d.type !== 'scene') continue
+      if (!d.isPrimaryView || (d.state ?? 'active') === 'eliminated') continue
       const item = assetDetailToItem(d)
       const parsed = parseScene(item.filePath) ?? parseScene(item.name)
       const sceneId = parsed?.sceneId ?? (d.name?.trim() || `场景-${d.id}`)
       const angle = parsed?.angle ?? (item.viewAngle ?? 'main')
       if (!item.viewAngle) item.viewAngle = angle
-      if (!map.has(sceneId)) map.set(sceneId, [])
-      map.get(sceneId)!.push(item)
+      // 场景中文名（去掉版本后缀 " v3"）
+      const label = (d.name ?? sceneId).replace(/\s+v\d+$/i, '').trim() || sceneId
+      if (!map.has(sceneId)) map.set(sceneId, { label, variants: [] })
+      map.get(sceneId)!.variants.push(item)
     }
     // keyframe 所属场景若无设定图，补空组（层2仍可达）
     for (const d of assets) {
       if (d.type !== 'keyframe') continue
       const parsed = parseKeyframeName(d.name ?? '')
-      if (parsed && !map.has(parsed.sceneId)) map.set(parsed.sceneId, [])
+      if (parsed && !map.has(parsed.sceneId)) map.set(parsed.sceneId, { label: parsed.sceneId, variants: [] })
     }
-    for (const arr of map.values()) arr.sort((a, b) => angleRank(a.viewAngle) - angleRank(b.viewAngle))
+    for (const entry of map.values()) entry.variants.sort((a, b) => angleRank(a.viewAngle) - angleRank(b.viewAngle))
     return [...map.entries()]
-      .map(([id, variants]) => ({ id, variants }))
+      .map(([id, { label, variants }]) => ({ id, label, variants }))
       .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }))
   }, [assets])
 
@@ -400,7 +412,7 @@ export default function SceneShotManager() {
             >
               <div className="am-scene-card__ic">{fr ? <Img item={fr} className="am-card__img" /> : '🎬'}</div>
               <div>
-                <b>场景 {g.id}</b>
+                <b>{g.label}</b>
                 <span>{g.variants.length} 视角</span>
               </div>
             </div>
@@ -414,7 +426,7 @@ export default function SceneShotManager() {
           <>
             {/* ── 层1：场景多视角设定图 ── */}
             <div className="am-scene__head">
-              <h1>场景 {scene.id}</h1>
+              <h1>{scene.label} <span style={{fontSize:12,color:'var(--cv-text-tertiary)',fontFamily:'var(--cv-font-mono)'}}>{scene.id}</span></h1>
               <span className="am-det__sub" style={{ fontFamily: 'var(--cv-font-mono)' }}>{variants.length} 个视角</span>
             </div>
             <div className="am-scene__hint">

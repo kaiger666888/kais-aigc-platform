@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react'
 import { useCanvasStore } from '../../store/canvasStore'
 import { resolveMediaUrl } from '../../utils/mediaUrl'
 import { useRealAssets } from './useRealAssets'
+import AssetChainTrace from './AssetChainTrace'
 import {
   ASSETS, COMPOSITIONS, APPEARS, EPISODES, TYPE_LABEL,
   assetByUuid, assetDetailToItem, modalityVar,
@@ -37,6 +38,9 @@ export default function AssetDetail() {
     if (real) return assetDetailToItem(real)
     return assetByUuid(uuid)
   }, [uuid, realAssets])
+
+  // 生成链路需要同项目全部资产做跨资产关联推断。
+  const allItems = useMemo<AssetItem[]>(() => realAssets.map(assetDetailToItem), [realAssets])
 
   const rels = useMemo<RelNode[]>(() => {
     if (!a) return []
@@ -182,6 +186,9 @@ export default function AssetDetail() {
             ))}
           </div>
         )}
+
+        {/* 生成链路（管线因果链：参考来源 + 被引用） */}
+        {a && <AssetChainTrace item={a} all={allItems} />}
 
         {appears && (
           <>

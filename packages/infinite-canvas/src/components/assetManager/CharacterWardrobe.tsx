@@ -70,7 +70,9 @@ export default function CharacterWardrobe() {
 
   // Separate character assets into identity (角色图) and turnaround (拆分视角)
   const { identityChars, turnaroundByChar } = useMemo(() => {
-    const charAssets = assets.filter((a) => a.type === 'character')
+    const charAssets = assets.filter(
+      (a) => a.type === 'character' && !!a.isPrimaryView && (a.state ?? 'active') !== 'eliminated',
+    )
     // 角色图：无 viewAngle（turnaround 整图或角色设计稿）
     const identity = charAssets
       .filter((a) => !a.viewAngle)
