@@ -320,8 +320,9 @@ export type AssetLevel = 'show' | 'scene' | 'shot'
 
 /** 资产子类型（从现有数据推断） */
 export type AssetSubtype =
-  | 'character_concept'    // 角色设定图（全剧级）
-  | 'turnaround_sheet'     // Turnaround 多视角（全剧级）
+  | 'turnaround_sheet'     // Turnaround 整图（全剧级，viewAngle=null，如 base_turnaround_chengyu_v2.png）
+  | 'turnaround_view'      // Turnaround 拆分视角（全剧级，viewAngle=front/side/back/three_quarter）
+  | 'character_concept'    // 角色设定图（全剧级，非 turnaround 的 character 资产）
   | 'scene_base'           // 场景基础图（场景级）
   | 'scene_variant'        // 场景变体（场景级）
   | 'keyframe_first'       // 首帧（分镜级）
@@ -338,8 +339,16 @@ export function inferLevel(d: AssetDetail): AssetLevel {
 /** 从 AssetDetail 推断子类型 */
 export function inferSubtype(d: AssetDetail): AssetSubtype {
   if (d.type === 'character') {
-    if (d.viewAngle && ['front', 'side', 'back', 'three_quarter'].includes(d.viewAngle)) {
+    // viewAngle=null + filePath/name 含 base_turnaround = 真正的 turnaround 整图
+    const fp = (d.filePath || '').toLowerCase()
+    const nm = (d.name || '').toLowerCase()
+    if (!d.viewAngle) {
+      // base_turnaround_charId_v*.png 或 名称不含 front/side/back/three_quarter
       return 'turnaround_sheet'
+    }
+    // viewAngle=front/side/back/three_quarter = 从 turnaround 整图裁出的拆分视角图
+    if (['front', 'side', 'back', 'three_quarter'].includes(d.viewAngle)) {
+      return 'turnaround_view'
     }
     return 'character_concept'
   }
@@ -379,8 +388,9 @@ export function inferShotId(d: AssetDetail): string | null {
 
 /** 子类型中文标签 */
 export const SUBTYPE_LABEL: Record<AssetSubtype, string> = {
-  character_concept: '设定图',
   turnaround_sheet: 'Turnaround',
+  turnaround_view: '视角拆分',
+  character_concept: '设定图',
   scene_base: '场景基底',
   scene_variant: '场景变体',
   keyframe_first: '首帧',
@@ -390,8 +400,9 @@ export const SUBTYPE_LABEL: Record<AssetSubtype, string> = {
 
 /** 子类型 emoji */
 export const SUBTYPE_EMOJI: Record<AssetSubtype, string> = {
-  character_concept: '🎨',
   turnaround_sheet: '👤',
+  turnaround_view: '📐',
+  character_concept: '🎨',
   scene_base: '🏠',
   scene_variant: '🌗',
   keyframe_first: '▶️',
