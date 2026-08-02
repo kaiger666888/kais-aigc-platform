@@ -20,15 +20,23 @@ export function fetchProjectAssets(projectId: number | null): Promise<AssetDetai
   if (inflightMap.has(projectId)) return inflightMap.get(projectId)!
 
   // includeFile: true → 后端 JOIN o_image，返回 filePath（缩略图渲染必需）。
-  // 不传则 filePath 全为 null，资产卡缩略图退回 emoji 占位。
-  const params: Parameters<typeof searchAssets>[0] = { limit: 200, includeFile: true }
-  if (projectId != null) params.projectId = projectId
+  // 后端 limit 上限 200，这里循环分页拉取全部资产。
+  const baseParams: Parameters<typeof searchAssets>[0] = { limit: 200, includeFile: true }
+  if (projectId != null) baseParams.projectId = projectId
 
-  const p = searchAssets(params)
-    .then((res) => {
-      cacheMap.set(projectId, res)
-      return res
-    })
+  const p = (async () => {
+    const all: AssetDetail[] = []
+    let offset = 0
+    // 安全上限：最多拉 10 页 = 2000 条
+    for (let i = 0; i < 10; i++) {
+      const batch = await searchAssets({ ...baseParams, offset })
+      all.push(...batch)
+      if (batch.length < 200) break
+      offset += 200
+    }
+    cacheMap.set(projectId, all)
+    return all
+  })()
     .finally(() => {
       inflightMap.delete(projectId)
     })
