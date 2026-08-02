@@ -390,14 +390,20 @@ function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<string, Re
   }
 
   // 挂回已有 shot（按零填充 S{NN} 匹配 shot 标识）。
+  // 注意：首尾帧 shot_id 是场景级（S01），storyboard 分镜是 S01_B01~B05。
+  // paddedShotIdOf 把 S01_B01 → S01，导致同场景多个分镜都匹配到同一组帧变体。
+  // 修复：每个帧变体组只挂到第一个匹配的分镜，避免重复。
   const matchedShotIds = new Set<string>()
+  const usedFrameGroups = new Set<string>() // 已挂载的帧组 shotId
   for (const shot of shots) {
     const sid = paddedShotIdOf(shot.shotId)
     if (!sid) continue
+    if (usedFrameGroups.has(sid)) continue // 该帧组已挂到其他分镜，跳过
     const fv = variantsByShot.get(sid)
     if (fv && (fv.first.length || fv.last.length)) {
       shot.frameVariants = fv
       matchedShotIds.add(sid)
+      usedFrameGroups.add(sid)
     }
   }
 
