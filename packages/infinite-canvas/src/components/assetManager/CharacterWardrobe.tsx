@@ -1,9 +1,22 @@
 /**
  * 视图C · 角色衣柜 —— 角色造型展示（真实数据）。
- * 从 useRealAssets(projectId) 拉取 type==='character' 资产；
- * 左列角色列表（turnaround 缩略图 + 名字），右侧选中角色的大图 + 角色定位 / 元信息。
- * 后端尚无结构化的服装 / 道具 / 配饰资产，故"换装"暂退化为"造型展示"：
- * 大 turnaround 图 + 角色名 / 定位（从 name 中的括注解析，如"沈知意 (女主)"）+ 可用元数据。
+ *
+ * 两层分离：
+ *   1. 角色图（character identity）—— 定义角色长相/气质，用于一致性锁
+ *   2. Turnaround 四宫格 —— 分镜镜头参考（面部特写/正面全身/侧面全身/背面全身）
+ *
+ * Turnaround 四宫格布局：
+ *   ┌──────────────┬──────────────┐
+ *   │  近身面部细节  │  前视全身     │
+ *   │  (CU 参考)    │  (正面参考)   │
+ *   ├──────────────┼──────────────┤
+ *   │  侧身全身     │  背后全身     │
+ *   │  (侧面参考)   │  (背影参考)   │
+ *   └──────────────┴──────────────┘
+ *
+ * 数据模型：type='character' + viewAngle 区分：
+ *   - viewAngle=null → 角色图（身份定义）
+ *   - viewAngle=face_cu/front/side/back → turnaround 拆分视角
  */
 import { useMemo, useState } from 'react'
 import { useCanvasStore } from '../../store/canvasStore'
@@ -28,33 +41,52 @@ function Img({ item, className, fallback }: { item: AssetItem; className: string
   return <span className={fallback ?? 'am-card__emoji'}>{item.emoji}</span>
 }
 
-const VIEW_ORDER = ['front', 'three_quarter', 'side', 'back'] as const
-const VIEW_LABEL: Record<string, string> = {
-  front: '正面', three_quarter: '3/4 侧', side: '侧面', back: '背面',
+/**
+ * Turnaround 四宫格布局定义。
+ * viewAngle → 格子位置 + 显示标签。
+ * 当前磁盘文件视角 front/back/side/three_quarter 映射到四宫格：
+ *   - three_quarter 作为 face_cu（面部特写）的占位（暂无真实面部特写图）
+ *   - 如果有 face_cu 则优先用 face_cu
+ */
+const TURNAROUND_LAYOUT: Array<{ viewAngle: string; label: string; cell: string; placeholder?: boolean }> = [
+  { viewAngle: 'face_cu',       label: '近身面部', cell: '1 / 1', placeholder: true },
+  { viewAngle: 'three_quarter', label: '近身面部', cell: '1 / 1', placeholder: false },
+  { viewAngle: 'front',         label: '前视全身', cell: '1 / 2' },
+  { viewAngle: 'side',          label: '侧身全身', cell: '2 / 1' },
+  { viewAngle: 'back',          label: '背后全身', cell: '2 / 2' },
+]
+
+/** 四宫格布局样式 */
+const GRID_2x2: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '1fr 1fr',
+  gridTemplateRows: 'auto auto',
+  gap: 6,
 }
 
 export default function CharacterWardrobe() {
   const projectId = useCanvasStore((s) => s.projectId)
   const { assets, loading, error, reload } = useRealAssets(projectId)
 
-  // Base turnaround characters: viewAngle is null/empty (the whole sheet image)
-  // Split view characters: viewAngle is front/back/side/three_quarter
-  const { baseChars, viewItemsByChar } = useMemo(() => {
+  // Separate character assets into identity (角色图) and turnaround (拆分视角)
+  const { identityChars, turnaroundByChar } = useMemo(() => {
     const charAssets = assets.filter((a) => a.type === 'character')
-    const base = charAssets
-      .filter((a) => !a.viewAngle) // whole turnaround sheet, no split view
+    // 角色图：无 viewAngle（turnaround 整图或角色设计稿）
+    const identity = charAssets
+      .filter((a) => !a.viewAngle)
       .map(assetDetailToItem)
-    const views: Record<string, AssetItem[]> = {}
+    // Turnaround：有 viewAngle（front/back/side/three_quarter/face_cu）
+    const turnaround: Record<string, AssetItem[]> = {}
     for (const a of charAssets) {
       if (a.viewAngle && a.characterId) {
-        if (!views[a.characterId]) views[a.characterId] = []
-        views[a.characterId].push(assetDetailToItem(a))
+        if (!turnaround[a.characterId]) turnaround[a.characterId] = []
+        turnaround[a.characterId].push(assetDetailToItem(a))
       }
     }
-    return { baseChars: base, viewItemsByChar: views }
+    return { identityChars: identity, turnaroundByChar: turnaround }
   }, [assets])
 
-  const characters = baseChars
+  const characters = identityChars
 
   const [selectedUuid, setSelectedUuid] = useState<string | null>(null)
   const char = useMemo(
@@ -63,15 +95,30 @@ export default function CharacterWardrobe() {
   )
   const { display, role } = char ? parseCharName(char.name) : { display: '', role: null }
 
-  // Get turnaround split views for the selected character
-  const charViews = useMemo(() => {
+  // Get turnaround views for the selected character, organized as 2x2 grid
+  const turnaroundGrid = useMemo(() => {
     if (!char?.characterId) return []
-    const items = viewItemsByChar[char.characterId] ?? []
-    // Sort by VIEW_ORDER
-    return VIEW_ORDER
-      .map((v) => items.find((it) => it.viewAngle === v))
-      .filter((it): it is AssetItem => !!it)
-  }, [char, viewItemsByChar])
+    const items = turnaroundByChar[char.characterId] ?? []
+    const byAngle = new Map(items.map((it) => [it.viewAngle, it]))
+
+    const cells: Array<{ item?: AssetItem; label: string; cell: string }> = []
+    const usedAngles = new Set<string>()
+
+    for (const slot of TURNAROUND_LAYOUT) {
+      // Skip placeholder slots (face_cu) if a real one already filled this cell
+      if (usedAngles.has(slot.cell)) continue
+      const item = byAngle.get(slot.viewAngle)
+      if (item) {
+        cells.push({ item, label: slot.label, cell: slot.cell })
+        usedAngles.add(slot.cell)
+      } else if (slot.placeholder === false) {
+        // Non-placeholder slot with no image → empty cell
+        cells.push({ item: undefined, label: slot.label, cell: slot.cell })
+        usedAngles.add(slot.cell)
+      }
+    }
+    return cells
+  }, [char, turnaroundByChar])
 
   const rows: Array<[string, string]> = []
   if (char?.prompt) rows.push(['Prompt', char.prompt])
@@ -132,50 +179,74 @@ export default function CharacterWardrobe() {
       <div className="am-scene__main">
         {char && (
           <>
+            {/* === 层 1：角色身份 === */}
             <div className="am-scene__head">
               <h1>{display}</h1>
               {role && <span className="am-badge">{role}</span>}
               <span className="am-det__sub" style={{ fontFamily: 'var(--cv-font-mono)' }}>{char.uuid}</span>
             </div>
             <div className="am-scene__hint">
-              {TYPE_LABEL.character} · 角色造型展示（turnaround 三视图）· 共 {characters.length} 个角色
+              {TYPE_LABEL.character} · 共 {characters.length} 个角色
             </div>
 
             <div className="am-det__stage" style={{ minHeight: 340, borderRadius: 10 }}>
-              {/* key=uuid：切换角色时重置内部 broken 兜底状态 */}
               <Img key={char.uuid} item={char} className="am-det__big-img" fallback="am-det__big" />
             </div>
 
-            {/* Turnaround 三视图拆分 */}
-            {charViews.length > 0 && (
+            {/* === 层 2：Turnaround 四宫格（镜头参考） === */}
+            {turnaroundGrid.length > 0 && (
               <>
-                <div className="am-seclabel">Turnaround 三视图</div>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: `repeat(${Math.min(charViews.length, 4)}, 1fr)`,
-                  gap: 8,
-                  marginTop: 4,
-                }}>
-                  {charViews.map((v) => (
-                    <div key={v.viewAngle} style={{
+                <div className="am-seclabel" style={{ marginTop: 16 }}>
+                  Turnaround · 镜头参考
+                </div>
+                <div style={GRID_2x2}>
+                  {turnaroundGrid.map((cell, idx) => (
+                    <div key={`${cell.cell}-${idx}`} style={{
                       borderRadius: 8,
                       overflow: 'hidden',
                       border: '1px solid var(--cv-border)',
                       background: 'var(--cv-bg-2)',
+                      aspectRatio: '9 / 16',
+                      position: 'relative',
                     }}>
-                      <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Img item={v} className="am-card__img" />
-                      </div>
+                      {cell.item ? (
+                        <Img item={cell.item} className="am-card__img" />
+                      ) : (
+                        <div style={{
+                          height: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'var(--cv-text-3)',
+                          fontSize: 28,
+                        }}>
+                          ◌
+                        </div>
+                      )}
+                      {/* 角标 */}
                       <div style={{
+                        position: 'absolute',
+                        bottom: 0, left: 0, right: 0,
                         padding: '4px 8px',
-                        fontSize: 12,
+                        fontSize: 11,
                         textAlign: 'center',
                         color: 'var(--cv-text-2)',
+                        background: 'rgba(0,0,0,0.5)',
+                        backdropFilter: 'blur(4px)',
                       }}>
-                        {VIEW_LABEL[v.viewAngle ?? ''] ?? v.viewAngle}
+                        {cell.label}
                       </div>
                     </div>
                   ))}
+                </div>
+                <div style={{
+                  fontSize: 11,
+                  color: 'var(--cv-text-3)',
+                  marginTop: 6,
+                  lineHeight: 1.5,
+                }}>
+                  四宫格按镜头用途排列：面部特写参考 · 正面全身 · 侧面全身 · 背影全身。
+                  Turnaround 作为分镜首尾帧参考时，按镜头角度选择对应视角。
                 </div>
               </>
             )}
