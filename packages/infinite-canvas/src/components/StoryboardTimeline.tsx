@@ -17,12 +17,13 @@
  * 无需额外 API 调用。Socket 实时同步、审核操作全部复用现有 store 逻辑。
  */
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useCanvasStore } from '../store/canvasStore'
 import { theme, v3theme } from '../theme/catppuccin'
 import { METADATA_LABELS } from '../constants'
 import type { AssetNodeV3, FlowGraphV3 } from '@kais/flowgraph-v3'
 import { UiIcon } from './canvas/icons'
+import { updateCanvasNode } from '../services/canvasApi'
 
 // ─── 类型 ──────────────────────────────────────────────
 
@@ -67,6 +68,30 @@ interface StoryboardShot {
   shotKey?: string | null
   /** P10 音频轨（每分镜 1–2 条）。 */
   audioTracks?: AudioTrack[]
+  /**
+   * P11 首尾帧变体（phase_name='p11_first_last_frames'）：每组 v1/v2/v3 三张并排，
+   * 用户点选最佳变体（三态：选定 ★ / 待选 ○ / 淘汰 ✕）。首帧尾帧各一组。
+   */
+  frameVariants?: { first: FrameVariant[]; last: FrameVariant[] }
+}
+
+/**
+ * 首尾帧三态（复用 AssetLibrary 三态模型）：
+ *   - selected   ★ 选定：每组仅一个，isPrimaryView=true
+ *   - candidate  ○ 待选：同组备选变体
+ *   - eliminated ✕ 淘汰：被新选定取代（点淘汰图可恢复为待选）
+ */
+type FrameCuration = 'selected' | 'candidate' | 'eliminated'
+
+/** 单个首/尾帧变体（一个 p11_first_last_frames 节点）。 */
+interface FrameVariant {
+  nodeId: string
+  /** v1 / v2 / v3。 */
+  variant: string
+  filePath: string
+  thumbnailUrl?: string
+  /** 从节点 data 派生的初始三态（isPrimaryView + tags/curationState）。 */
+  initialCuration: FrameCuration
 }
 
 /** 带累计起止时间的分镜（时间轴几何用）。 */
@@ -127,6 +152,40 @@ function normalizeSpeaker(v: unknown): string | undefined {
   const s = v.trim()
   if (!s || /^(none|null|无|未知)$/i.test(s)) return undefined
   return s
+}
+
+/**
+ * 从任意 shot 标识（S01 / S01_B01 / s1_1 …）提取零填充 `S{NN}` 形式，
+ * 用于把 storyboard/video shot 关联到首尾帧组（帧组以 shot_id=S01 为键）。
+ * 取首个数字段：S01_B01 → S01、s1_1 → S01、S44 → S44。
+ */
+function paddedShotIdOf(shotId: string | null | undefined): string | null {
+  if (!shotId) return null
+  const m = shotId.match(/s?0*(\d+)/i)
+  if (!m) return null
+  return `S${String(Number(m[1])).padStart(2, '0')}`
+}
+
+/**
+ * 从首尾帧节点的原始 data 袋派生初始三态。
+ * 权威信号是 isPrimaryView（selected ⟺ isPrimaryView=true，每组仅一个）；
+ * curationState='eliminated' 覆盖为淘汰。**不**用 tags 作回退——历史 tags（'★ 选定'）
+ * 在点选后会与 isPrimaryView 失步（patch 改 isPrimaryView 不改 tags），用 tags 回退会
+ * 把已退选的变体误判为选定（reload 后出现同组双选定）。默认 candidate。
+ * 注意：节点的顶层 `state`（NodeState 枚举 success/failed…）不可复用为三态，
+ * 故三态全部落在 data 内（isPrimaryView + curationState）。
+ */
+function deriveInitialCuration(raw: Record<string, unknown>): FrameCuration {
+  if (raw.curationState === 'eliminated') return 'eliminated'
+  if (raw.isPrimaryView === true) return 'selected'
+  return 'candidate'
+}
+
+/** 三态 → 同义 tags 标签（patch 时同步写回，保持 data 自洽可读）。 */
+function curationTags(c: FrameCuration): string[] {
+  if (c === 'selected') return ['★ 选定']
+  if (c === 'eliminated') return ['✕ 淘汰']
+  return ['○ 待选']
 }
 
 function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<string, Record<string, unknown>> | null): StoryboardShot[] {
@@ -287,6 +346,77 @@ function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<string, Re
       const tracks = audioByShot.get(shot.shotKey)
       if (tracks && tracks.length) shot.audioTracks = tracks
     }
+  }
+
+  // Pass 5：P11 首尾帧变体（phaseName='p11_first_last_frames'）→ 按 {shotId}_{frameType} 分组。
+  // 这些节点 V2 type='asset' → 经 migrate 落到 V3 stage='global'，但其原始 data 袋
+  // （frame_type / variant / groupKey / shot_id / isPrimaryView / tags）经 rawDataByNodeId 穿透。
+  // 既有 Pass 2 仅认 *_frame_last / 视频扩展名，不会误收这些 .png 节点 → 无冲突。
+  const frameGroups = new Map<string, { shotId: string; frameType: string; variants: FrameVariant[] }>()
+  for (const node of graph.nodes) {
+    if (node.kind !== 'asset') continue
+    const raw = rawDataByNodeId?.get(node.id) ?? {}
+    const frameType = raw.frame_type as string | undefined
+    const variant = raw.variant as string | undefined
+    const groupKey = raw.groupKey as string | undefined
+    const shotId = raw.shot_id as string | undefined
+    if (!frameType || !variant || !groupKey || !shotId) continue
+    if (frameType !== 'first' && frameType !== 'last') continue // 防御：仅 first/last
+    let g = frameGroups.get(groupKey)
+    if (!g) {
+      g = { shotId, frameType, variants: [] }
+      frameGroups.set(groupKey, g)
+    }
+    g.variants.push({
+      nodeId: node.id,
+      variant,
+      filePath: (raw.filePath as string) ?? '',
+      thumbnailUrl: raw.thumbnailUrl as string | undefined,
+      initialCuration: deriveInitialCuration(raw),
+    })
+  }
+  for (const g of frameGroups.values()) g.variants.sort((a, b) => a.variant.localeCompare(b.variant))
+
+  // shot_id → { first, last } 变体组
+  const variantsByShot = new Map<string, { first: FrameVariant[]; last: FrameVariant[] }>()
+  for (const g of frameGroups.values()) {
+    let entry = variantsByShot.get(g.shotId)
+    if (!entry) {
+      entry = { first: [], last: [] }
+      variantsByShot.set(g.shotId, entry)
+    }
+    if (g.frameType === 'first') entry.first = g.variants
+    else entry.last = g.variants
+  }
+
+  // 挂回已有 shot（按零填充 S{NN} 匹配 shot 标识）。
+  const matchedShotIds = new Set<string>()
+  for (const shot of shots) {
+    const sid = paddedShotIdOf(shot.shotId)
+    if (!sid) continue
+    const fv = variantsByShot.get(sid)
+    if (fv && (fv.first.length || fv.last.length)) {
+      shot.frameVariants = fv
+      matchedShotIds.add(sid)
+    }
+  }
+
+  // 无 storyboard/video shot 但有首尾帧的 shot_id → 合成 shot
+  // （本项目形态：仅有 264 张首尾帧、无分镜/视频节点，否则 extractShots 返回空）。
+  // 代表节点取该 shot 的首帧 v1（首帧缺失退回尾帧首项），承载 state/reviewStatus 供行渲染。
+  const nodeById = new Map(graph.nodes.map((n) => [n.id, n]))
+  for (const [sid, fv] of variantsByShot) {
+    if (matchedShotIds.has(sid)) continue
+    const repNodeId = fv.first[0]?.nodeId ?? fv.last[0]?.nodeId
+    const repNode = repNodeId ? nodeById.get(repNodeId) : undefined
+    if (!repNode || repNode.kind !== 'asset') continue
+    shots.push({
+      node: repNode,
+      shotId: sid,
+      durationS: 0,
+      thumbnail: null,
+      frameVariants: fv,
+    })
   }
 
   // 按 shotId 排序（自然排序：S01, S02, ..., S10）
@@ -511,7 +641,166 @@ function FrameBox({
   )
 }
 
-// ─── 分镜行 ────────────────────────────────────────────
+// ─── 首尾帧变体选择器（三态） ──────────────────────────
+
+/**
+ * 单个首/尾帧变体缩略（9:16 竖屏）。三态视觉：
+ *   - selected ★   绿色边框 + ★ 角标
+ *   - candidate ○  灰色边框 + ○ 角标
+ *   - eliminated ✕ 半透明 + ✕ 覆盖
+ * 点击：待选→选定（onSelect）；淘汰→恢复待选（onRestore）；选定→无操作。
+ */
+function FrameVariantThumb({
+  v,
+  curation,
+  size,
+  onSelect,
+  onRestore,
+}: {
+  v: FrameVariant
+  curation: FrameCuration
+  size: number
+  onSelect: (nodeId: string) => void
+  onRestore: (nodeId: string) => void
+}) {
+  const url = resolveMediaUrl(v.thumbnailUrl ?? v.filePath)
+  const isSelected = curation === 'selected'
+  const isEliminated = curation === 'eliminated'
+  return (
+    <button
+      data-testid="frame-variant"
+      onClick={(e) => {
+        e.stopPropagation()
+        if (curation === 'eliminated') onRestore(v.nodeId)
+        else if (curation === 'candidate') onSelect(v.nodeId)
+        // selected → 无操作
+      }}
+      onDoubleClick={(e) => e.stopPropagation()}
+      title={`${v.variant} · ${isSelected ? '选定' : isEliminated ? '淘汰（点击恢复）' : '待选（点击选定）'}`}
+      style={{
+        position: 'relative',
+        width: size,
+        flexShrink: 0,
+        padding: 0,
+        border: 'none',
+        background: 'none',
+        cursor: 'pointer',
+      }}
+    >
+      <div style={{
+        position: 'relative',
+        width: '100%',
+        aspectRatio: '9 / 16',
+        borderRadius: 4,
+        overflow: 'hidden',
+        border: `2px solid ${isSelected ? v3theme.signal.approved : isEliminated ? 'transparent' : theme.border.default}`,
+        opacity: isEliminated ? 0.45 : 1,
+        background: v3theme.surface.canvas,
+        transition: 'border-color 0.15s, opacity 0.15s',
+      }}>
+        {url ? (
+          <img
+            src={url}
+            alt={v.variant}
+            loading="lazy"
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden' }}
+          />
+        ) : (
+          <div style={{
+            width: '100%', height: '100%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: theme.text.tertiary, fontSize: 9,
+          }}>
+            {v.variant}
+          </div>
+        )}
+        {isEliminated && (
+          <div style={{
+            position: 'absolute', inset: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: v3theme.signal.rejected, fontSize: size * 0.4, fontWeight: 700,
+            background: 'rgba(0,0,0,0.45)',
+          }}>✕</div>
+        )}
+      </div>
+      {/* 三态角标 */}
+      <span style={{
+        position: 'absolute', top: 2, right: 2,
+        fontSize: 11, lineHeight: 1, padding: '1px 3px', borderRadius: 3,
+        background: 'rgba(0,0,0,0.72)',
+        color: isSelected ? v3theme.signal.approved : isEliminated ? v3theme.signal.rejected : theme.text.secondary,
+      }}>
+        {isSelected ? '★' : isEliminated ? '✕' : '○'}
+      </span>
+      {/* variant 名 */}
+      <span style={{
+        position: 'absolute', bottom: 2, left: 2,
+        fontSize: 8, fontWeight: 700, padding: '0 3px', borderRadius: 2,
+        background: 'rgba(0,0,0,0.6)', color: '#fff',
+        fontFamily: 'var(--cv-font-mono, monospace)',
+      }}>{v.variant}</span>
+    </button>
+  )
+}
+
+/**
+ * 一组首/尾帧变体选择器（v1/v2/v3 并排）。curation 为本组各节点的当前三态覆盖表
+ * （由 StoryboardTimeline 维护，点击乐观更新、不 reload）。
+ */
+function FrameVariantSelector({
+  label,
+  variants,
+  curation,
+  size,
+  onSelect,
+  onRestore,
+}: {
+  label: string
+  variants: FrameVariant[]
+  curation: Record<string, FrameCuration>
+  size: number
+  onSelect: (nodeId: string) => void
+  onRestore: (nodeId: string) => void
+}) {
+  if (variants.length === 0) {
+    return (
+      <div style={{
+        width: size * 3 + 8,
+        display: 'flex', flexDirection: 'column', gap: 2, flexShrink: 0,
+      }}>
+        <div style={{ fontSize: 9, fontWeight: 600, color: theme.text.tertiary, letterSpacing: 0.3 }}>{label}</div>
+        <div style={{
+          aspectRatio: '9 / 16', width: '100%', maxWidth: size + 6,
+          borderRadius: 4, border: `1px dashed ${theme.border.dim}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: theme.text.tertiary, fontSize: 9,
+        }}>
+          无{label}
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flexShrink: 0 }}>
+      <div style={{ fontSize: 9, fontWeight: 600, color: theme.text.tertiary, letterSpacing: 0.3 }}>{label}</div>
+      <div style={{ display: 'flex', gap: 4 }}>
+        {variants.map((v) => (
+          <FrameVariantThumb
+            key={v.nodeId}
+            v={v}
+            curation={curation[v.nodeId] ?? v.initialCuration}
+            size={size}
+            onSelect={onSelect}
+            onRestore={onRestore}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+
 
 function ShotRow({
   shot,
@@ -523,6 +812,9 @@ function ShotRow({
   onAudioPlay,
   activeAudioPath,
   compact,
+  frameCuration,
+  onSelectVariant,
+  onRestoreVariant,
 }: {
   shot: TimedShot
   index: number
@@ -533,6 +825,10 @@ function ShotRow({
   onAudioPlay?: (track: AudioTrack) => void
   activeAudioPath?: string | null
   compact?: boolean
+  /** 首尾帧三态覆盖表（nodeId → 三态），由 StoryboardTimeline 维护。 */
+  frameCuration?: Record<string, FrameCuration>
+  onSelectVariant?: (nodeId: string) => void
+  onRestoreVariant?: (nodeId: string) => void
 }) {
   const [hovered, setHovered] = useState(false)
   const [expanded, setExpanded] = useState(false)
@@ -595,50 +891,72 @@ function ShotRow({
         {index + 1}
       </span>
 
-      {/* 首尾帧并排（首帧 = P11 video 缩略 / 场景图；尾帧 = frame_last 或文字占位） */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-        <FrameBox
-          url={firstFrameUrl}
-          label={`${shot.shotId} · 首帧`}
-          placeholderTag="首帧"
-          placeholderText={shot.startFrameDesc}
-          width={compact ? 88 : 104}
-          playHint={!firstFrameUrl && !!shot.videoUrl}
-          badge={shot.videoUrl ? (
-            <div style={{
-              position: 'absolute', top: 3, left: 3,
-              display: 'inline-flex', alignItems: 'center', gap: 2,
-              padding: '1px 5px', borderRadius: 4,
-              background: 'rgba(0,0,0,0.72)', color: '#fff',
-              fontSize: 9, fontWeight: 600,
-              fontFamily: 'var(--cv-font-mono, monospace)',
-              backdropFilter: 'blur(4px)',
-            }}>
-              ▶ {formatDuration(shot.durationS)}
-            </div>
-          ) : (
-            <div style={{
-              position: 'absolute', bottom: 3, right: 3,
-              padding: '1px 6px', borderRadius: 4,
-              background: 'rgba(0,0,0,0.72)', color: '#fff',
-              fontSize: 10, fontWeight: 600,
-              fontFamily: 'var(--cv-font-mono, monospace)',
-              backdropFilter: 'blur(4px)',
-            }}>
-              {formatDuration(shot.durationS)}
-            </div>
-          )}
-        />
-        <span style={{ color: theme.text.tertiary, fontSize: 11, flexShrink: 0 }}>→</span>
-        <FrameBox
-          url={lastFrameUrl}
-          label={`${shot.shotId} · 尾帧`}
-          placeholderTag="尾帧"
-          placeholderText={shot.endFrameDesc}
-          width={compact ? 88 : 104}
-          playHint={!!shot.videoUrl}
-        />
-      </div>
+      {/* 首尾帧区：有 p11 变体时渲染三态选择器（v1/v2/v3 并排），否则退回单帧缩略盒 */}
+      {shot.frameVariants && onSelectVariant && onRestoreVariant ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <FrameVariantSelector
+            label="首帧"
+            variants={shot.frameVariants.first}
+            curation={frameCuration ?? {}}
+            size={compact ? 42 : 56}
+            onSelect={onSelectVariant}
+            onRestore={onRestoreVariant}
+          />
+          <span style={{ color: theme.text.tertiary, fontSize: 13, flexShrink: 0 }}>→</span>
+          <FrameVariantSelector
+            label="尾帧"
+            variants={shot.frameVariants.last}
+            curation={frameCuration ?? {}}
+            size={compact ? 42 : 56}
+            onSelect={onSelectVariant}
+            onRestore={onRestoreVariant}
+          />
+        </div>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+          <FrameBox
+            url={firstFrameUrl}
+            label={`${shot.shotId} · 首帧`}
+            placeholderTag="首帧"
+            placeholderText={shot.startFrameDesc}
+            width={compact ? 88 : 104}
+            playHint={!firstFrameUrl && !!shot.videoUrl}
+            badge={shot.videoUrl ? (
+              <div style={{
+                position: 'absolute', top: 3, left: 3,
+                display: 'inline-flex', alignItems: 'center', gap: 2,
+                padding: '1px 5px', borderRadius: 4,
+                background: 'rgba(0,0,0,0.72)', color: '#fff',
+                fontSize: 9, fontWeight: 600,
+                fontFamily: 'var(--cv-font-mono, monospace)',
+                backdropFilter: 'blur(4px)',
+              }}>
+                ▶ {formatDuration(shot.durationS)}
+              </div>
+            ) : (
+              <div style={{
+                position: 'absolute', bottom: 3, right: 3,
+                padding: '1px 6px', borderRadius: 4,
+                background: 'rgba(0,0,0,0.72)', color: '#fff',
+                fontSize: 10, fontWeight: 600,
+                fontFamily: 'var(--cv-font-mono, monospace)',
+                backdropFilter: 'blur(4px)',
+              }}>
+                {formatDuration(shot.durationS)}
+              </div>
+            )}
+          />
+          <span style={{ color: theme.text.tertiary, fontSize: 11, flexShrink: 0 }}>→</span>
+          <FrameBox
+            url={lastFrameUrl}
+            label={`${shot.shotId} · 尾帧`}
+            placeholderTag="尾帧"
+            placeholderText={shot.endFrameDesc}
+            width={compact ? 88 : 104}
+            playHint={!!shot.videoUrl}
+          />
+        </div>
+      )}
 
       {/* 主体 */}
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -919,11 +1237,20 @@ export default function StoryboardTimeline() {
   const setSelectedNode = useCanvasStore((s) => s.setSelectedNode)
   const detailNode = useCanvasStore((s) => s.detailNode)
   const rawDataByNodeId = useCanvasStore((s) => s.rawDataByNodeId)
+  const projectId = useCanvasStore((s) => s.projectId)
+  const episodesId = useCanvasStore((s) => s.episodesId)
+  const showToast = useCanvasStore((s) => s.showToast)
 
   // 视频播放器：单击选中带 P11 视频的分镜即加载
   const [activeVideo, setActiveVideo] = useState<{ shotId: string; videoUrl: string; durationS: number } | null>(null)
   // 音频 mini 播放器：点击分镜音轨 chip 即加载
   const [activeAudio, setActiveAudio] = useState<AudioTrack | null>(null)
+  /**
+   * 首尾帧三态覆盖表（nodeId → 三态）。本地乐观状态为会话内权威源——点选只改这张表，
+   * 不触碰 store.graph（任何 graph 变更都会经 useMemo 重跑 extractShots 全量重建列表 → 闪烁）。
+   * 后端 PATCH 异步落库（node:updated 不触发前端重载），失败时回滚覆盖并 toast。
+   */
+  const [frameCuration, setFrameCuration] = useState<Record<string, FrameCuration>>({})
 
   const baseShots = useMemo(() => extractShots(graph, rawDataByNodeId), [graph, rawDataByNodeId])
 
@@ -953,8 +1280,91 @@ export default function StoryboardTimeline() {
     return { totalDurationSum, approved, rejected, pending, withThumbs, withVideo, withAudio, audioCount, avgScore, count: shots.length }
   }, [shots])
 
+  // nodeId → 同组（同 shot 的 first 或 last 集合）所有变体。三态流转需按组淘汰旧选定。
+  const frameGroupOfNode = useMemo(() => {
+    const m = new Map<string, FrameVariant[]>()
+    for (const s of shots) {
+      if (!s.frameVariants) continue
+      for (const arr of [s.frameVariants.first, s.frameVariants.last]) {
+        if (arr.length) for (const v of arr) m.set(v.nodeId, arr)
+      }
+    }
+    return m
+  }, [shots])
+
   // 查找 RF Node（用于打开详情面板）
   const nodes = useCanvasStore((s) => s.nodes)
+
+  /**
+   * 把单帧节点的三态写回后端：PATCH /canvas/v2/nodes/:nodeId，updates.data 为完整 data 袋
+   * （顶层浅合并会整体替换 data）。从 store 的 rawDataByNodeId 取原始 data 叠加三态字段
+   * （isPrimaryView + curationState + 同步刷新 tags，保持 data 自洽可读）。
+   * 不 reload、不 toast —— 失败由调用方回滚本地覆盖并提示。
+   */
+  const patchFrameNode = useCallback(async (
+    nodeId: string,
+    curation: FrameCuration,
+  ) => {
+    if (!projectId || !episodesId) throw new Error('未选择项目/剧集')
+    const raw = useCanvasStore.getState().rawDataByNodeId?.get(nodeId) ?? {}
+    const isPrimary = curation === 'selected'
+    const curationState = curation === 'eliminated' ? 'eliminated' : 'active'
+    await updateCanvasNode(projectId, episodesId, nodeId, {
+      data: { ...raw, isPrimaryView: isPrimary, curationState, tags: curationTags(curation) },
+    })
+  }, [projectId, episodesId])
+
+  /** 当前三态：本地覆盖优先，否则取节点派生初始值。 */
+  const curationOf = useCallback((v: FrameVariant): FrameCuration =>
+    frameCuration[v.nodeId] ?? v.initialCuration, [frameCuration])
+
+  // 待选→选定：新选置 selected，同组旧选定 → eliminated。乐观更新 + 异步落库 + 失败回滚。
+  const handleSelectVariant = useCallback((nodeId: string) => {
+    const group = frameGroupOfNode.get(nodeId)
+    if (!group) return
+    const oldSelected = group.filter((v) => v.nodeId !== nodeId && curationOf(v) === 'selected')
+
+    // 乐观更新本地覆盖（不触发 graph 重建 → 不闪烁）
+    setFrameCuration((prev) => {
+      const next = { ...prev, [nodeId]: 'selected' as FrameCuration }
+      for (const v of oldSelected) next[v.nodeId] = 'eliminated'
+      return next
+    })
+
+    void (async () => {
+      try {
+        await patchFrameNode(nodeId, 'selected')
+        for (const v of oldSelected) await patchFrameNode(v.nodeId, 'eliminated')
+      } catch (err) {
+        showToast('帧选择保存失败: ' + (err as Error).message, 'error')
+        // 回滚本地覆盖
+        setFrameCuration((prev) => {
+          const next = { ...prev }
+          delete next[nodeId]
+          for (const v of oldSelected) delete next[v.nodeId]
+          return next
+        })
+      }
+    })()
+  }, [frameGroupOfNode, curationOf, patchFrameNode, showToast])
+
+  // 淘汰→待选：恢复为 candidate。乐观 + 异步落库 + 失败回滚。
+  const handleRestoreVariant = useCallback((nodeId: string) => {
+    setFrameCuration((prev) => ({ ...prev, [nodeId]: 'candidate' as FrameCuration }))
+    void (async () => {
+      try {
+        await patchFrameNode(nodeId, 'candidate')
+      } catch (err) {
+        showToast('恢复失败: ' + (err as Error).message, 'error')
+        setFrameCuration((prev) => {
+          const next = { ...prev }
+          delete next[nodeId]
+          return next
+        })
+      }
+    })()
+  }, [patchFrameNode, showToast])
+
 
   // 单击：只选中（高亮）+ 加载视频播放器（不弹详情）
   const selectShot = (shot: StoryboardShot) => {
@@ -1038,6 +1448,9 @@ export default function StoryboardTimeline() {
           onAudioPlay={(track) => setActiveAudio(track)}
           activeAudioPath={activeAudio?.filePath ?? null}
           compact={compactRows}
+          frameCuration={frameCuration}
+          onSelectVariant={handleSelectVariant}
+          onRestoreVariant={handleRestoreVariant}
         />
       ))}
     </div>

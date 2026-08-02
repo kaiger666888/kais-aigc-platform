@@ -493,6 +493,29 @@ export async function createNode(
   return json.data
 }
 
+/**
+ * PATCH /api/canvas/v2/nodes/:nodeId — 单节点 UPSERT（relational store 单行 UPDATE）。
+ *
+ * `updates` 在节点**顶层浅合并**（`{ ...node, ...updates }`）：传 `{ data }` 会整体替换
+ * data 袋，调用方需发送完整 data 对象（见 StoryboardTimeline 帧选择器的 patchFrameNode）。
+ *
+ * 后端广播 `node:updated`，前端 socket 当前未消费该事件 → 不触发全图重载，
+ * 适合乐观更新（点选不闪烁、不跳顶）。写入的 relational store 正是 load-v2 的数据源。
+ */
+export async function updateCanvasNode(
+  projectId: number,
+  episodesId: number,
+  nodeId: string,
+  updates: Record<string, unknown>,
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/canvas/v2/nodes/${encodeURIComponent(nodeId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectId, episodesId, updates }),
+  })
+  if (!res.ok) throw new ApiError(`HTTP ${res.status}`, 'network', res.status)
+}
+
 /** 创建分支 */
 export async function createBranch(
   projectId: number,
