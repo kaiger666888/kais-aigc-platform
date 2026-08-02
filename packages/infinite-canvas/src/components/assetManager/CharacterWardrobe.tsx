@@ -21,7 +21,14 @@
 import { useMemo, useState } from 'react'
 import { useCanvasStore } from '../../store/canvasStore'
 import { useRealAssets } from './useRealAssets'
-import { assetDetailToItem, TYPE_LABEL, type AssetItem } from './assetManagerData'
+import {
+  assetDetailToItem,
+  inferSubtype,
+  parseTurnaroundSheetSize,
+  TYPE_LABEL,
+  validateTurnaroundSheet,
+  type AssetItem,
+} from './assetManagerData'
 import { resolveMediaUrl } from '../../utils/mediaUrl'
 
 /** "沈知意 (女主)" → { display:"沈知意", role:"女主" }；无括注则 role=null。 */
@@ -62,6 +69,51 @@ const GRID_2x2: React.CSSProperties = {
   gridTemplateColumns: '1fr 1fr',
   gridTemplateRows: 'auto auto',
   gap: 6,
+}
+
+/**
+ * Turnaround 整图方向达标徽章。
+ *
+ * 显示在「Turnaround · 镜头参考」标题旁，直观反馈整图方向是否符合竖屏短剧（9:16）要求：
+ *   ✅ 竖屏达标（portrait, 1440×2560 附近）
+ *   ⚠️ 横屏不达标（landscape, 应为竖屏）
+ *   ❓ 未知（meta 缺 sheetWidth/sheetHeight，无法判定）
+ *
+ * 复用 .am-badge 基础样式 + 方向修饰类，颜色全走 --cv-* CSS 变量（不硬编码）。
+ */
+function TurnaroundOrientationBadge({
+  validation,
+}: {
+  validation: ReturnType<typeof validateTurnaroundSheet>
+}) {
+  const { orientation, width, height } = validation
+  const sizeLabel = width && height ? `${width}×${height}` : ''
+
+  if (orientation === 'portrait') {
+    return (
+      <span
+        className="am-badge am-badge--ok"
+        title={`竖屏达标 · ${sizeLabel || '尺寸未知'}`}
+      >
+        ✅ 竖屏达标{sizeLabel && ` · ${sizeLabel}`}
+      </span>
+    )
+  }
+  if (orientation === 'landscape') {
+    return (
+      <span
+        className="am-badge am-badge--warn"
+        title={`横屏不达标 · 应为竖屏（9:16）${sizeLabel ? ` · ${sizeLabel}` : ''}`}
+      >
+        ⚠️ 横屏不达标{sizeLabel && ` · ${sizeLabel}`}
+      </span>
+    )
+  }
+  return (
+    <span className="am-badge" title="未检测到整图尺寸（meta 缺 sheetWidth/sheetHeight）">
+      ❓ 方向未知
+    </span>
+  )
 }
 
 export default function CharacterWardrobe() {
@@ -121,6 +173,33 @@ export default function CharacterWardrobe() {
     }
     return cells
   }, [char, turnaroundByChar])
+
+  /**
+   * Turnaround 整图方向检测（portrait/landscape）。
+   *
+   * 数据路径：从原始 assets（AssetDetail[]）中找到当前角色的 turnaround_sheet 节点
+   * （type='character' + viewAngle=null + inferSubtype='turnaround_sheet'），
+   * 解析其 meta JSON 的 sheetWidth/sheetHeight，调用 validateTurnaroundSheet 判定方向。
+   *
+   * 四宫格（turnaroundGrid）用的是 front/side/back 拆分视角图，不参与方向检测 ——
+   * 方向检测只针对灰底整图（a-turnaround-* 节点）。
+   */
+  const turnaroundSheetValidation = useMemo(() => {
+    if (!char?.characterId) return null
+    // 在原始 AssetDetail 中找当前角色的 turnaround_sheet（灰底整图，viewAngle=null）
+    const sheet = assets.find(
+      (a) =>
+        a.type === 'character' &&
+        !!a.isPrimaryView &&
+        (a.state ?? 'active') !== 'eliminated' &&
+        !a.viewAngle &&
+        a.characterId === char.characterId &&
+        inferSubtype(a) === 'turnaround_sheet',
+    )
+    if (!sheet) return null
+    const [w, h] = parseTurnaroundSheetSize(sheet.meta)
+    return validateTurnaroundSheet(w, h)
+  }, [assets, char])
 
   const rows: Array<[string, string]> = []
   if (char?.prompt) rows.push(['Prompt', char.prompt])
@@ -200,6 +279,9 @@ export default function CharacterWardrobe() {
               <>
                 <div className="am-seclabel" style={{ marginTop: 16 }}>
                   Turnaround · 镜头参考
+                  {turnaroundSheetValidation && (
+                    <TurnaroundOrientationBadge validation={turnaroundSheetValidation} />
+                  )}
                 </div>
                 <div style={GRID_2x2}>
                   {turnaroundGrid.map((cell, idx) => (
@@ -249,6 +331,9 @@ export default function CharacterWardrobe() {
                 }}>
                   四宫格按镜头用途排列：面部特写参考 · 正面全身 · 侧面全身 · 背影全身。
                   Turnaround 作为分镜首尾帧参考时，按镜头角度选择对应视角。
+                  {turnaroundSheetValidation && (
+                    <> 方向徽章基于灰底整图（a-turnaround-*）的 sheetWidth/sheetHeight 自动检测。</>
+                  )}
                 </div>
               </>
             )}

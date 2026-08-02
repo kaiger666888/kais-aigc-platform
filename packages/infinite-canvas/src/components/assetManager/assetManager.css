@@ -39,6 +39,9 @@
   padding:2px 7px;border-radius:10px;background:var(--cv-bg-overlay);color:var(--cv-text-secondary);white-space:nowrap}
 .am-badge--reuse{color:var(--cv-mod-image);background:var(--cv-mod-image-weak)}
 .am-badge--key{color:var(--cv-mod-text);background:var(--cv-mod-text-weak)}
+/* Turnaround 方向达标徽章：portrait=达标(青), landscape=不达标(玫红) */
+.am-badge--ok{color:var(--cv-approved);background:var(--cv-mod-image-weak)}
+.am-badge--warn{color:var(--cv-rejected);background:var(--cv-mod-video-weak)}
 .am-head{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--cv-text-tertiary)}
 .am-empty{padding:50px 24px;text-align:center;color:var(--cv-text-disabled);font-size:12.5px;line-height:1.7}
 

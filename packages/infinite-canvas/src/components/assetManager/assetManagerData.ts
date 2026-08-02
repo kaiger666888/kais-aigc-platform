@@ -398,6 +398,110 @@ export function inferSubtype(d: AssetDetail): AssetSubtype {
   return 'unknown'
 }
 
+// ─── Turnaround 整图方向检测 ───────────────────────────────
+//
+// Turnaround（灰底紧身衣4视角合一参考图）有两种布局：
+//   - portrait  (竖屏 9:16): 4-panel vertical stack, 典型 1440×2560 ← 竖屏短剧达标
+//   - landscape (横屏 16:9): 4-panel horizontal-row, 典型 2560×1440 ← 不达标
+// 当前项目是竖屏短剧（9:16），所以 turnaround 应为 portrait。
+// 尺寸来源：canvas_nodes / o_assets.meta JSON 中的 sheetWidth / sheetHeight 字段。
+
+/** Turnaround 整图方向（由 sheetWidth/sheetHeight 推断）。 */
+export type TurnaroundOrientation = 'portrait' | 'landscape' | 'unknown'
+
+/** 竖屏达标比例（9:16）的容差：aspect 在 [MIN_PORTRAIT_AR, MAX_PORTRAIT_AR] 内视为 portrait 达标。 */
+const PORTRAIT_AR = 9 / 16        // 0.5625
+const PORTRAIT_AR_TOLERANCE = 0.12 // ±12% 容差（允许 0.495 ~ 0.630）
+const MIN_PORTRAIT_AR = PORTRAIT_AR * (1 - PORTRAIT_AR_TOLERANCE)
+const MAX_PORTRAIT_AR = PORTRAIT_AR * (1 + PORTRAIT_AR_TOLERANCE)
+
+export interface TurnaroundSheetValidation {
+  orientation: TurnaroundOrientation
+  /** 当前项目（竖屏短剧）是否达标：portrait=达标, landscape/unknown=不达标。 */
+  compliant: boolean
+  /** 实际宽高比（width/height），unknown 时为 null。 */
+  aspectRatio: number | null
+  /** 检测到的尺寸（可能 undefined）。 */
+  width?: number
+  height?: number
+}
+
+/**
+ * 校验 Turnaround 整图方向是否达标（竖屏短剧需 portrait）。
+ *
+ * 判定逻辑：
+ *   - width/height 缺失或非正数 → unknown（无法判定）
+ *   - width < height → portrait（竖屏，达标）
+ *   - width > height → landscape（横屏，不达标）
+ *   - width === height → 按 aspectRatio 进一步判定，方图归 unknown
+ *
+ * @example
+ *   validateTurnaroundSheet(1440, 2560) // → portrait, compliant=true
+ *   validateTurnaroundSheet(2560, 1440) // → landscape, compliant=false
+ *   validateTurnaroundSheet(undefined, undefined) // → unknown, compliant=false
+ */
+export function validateTurnaroundSheet(
+  width?: number,
+  height?: number,
+): TurnaroundSheetValidation {
+  // 尺寸缺失或非法 → 无法判定
+  if (
+    typeof width !== 'number' || typeof height !== 'number' ||
+    !Number.isFinite(width) || !Number.isFinite(height) ||
+    width <= 0 || height <= 0
+  ) {
+    return { orientation: 'unknown', compliant: false, aspectRatio: null }
+  }
+
+  const ar = width / height
+
+  // 宽 < 高 → 竖屏（portrait），达标
+  if (width < height) {
+    return { orientation: 'portrait', compliant: true, aspectRatio: ar, width, height }
+  }
+  // 宽 > 高 → 横屏（landscape），不达标
+  if (width > height) {
+    return { orientation: 'landscape', compliant: false, aspectRatio: ar, width, height }
+  }
+  // 宽 === 高（方图）：若 aspectRatio 落在 portrait 容差内算达标，否则 unknown
+  // 实际上方图 ar=1 不可能落在 [0.495, 0.630]，所以归 unknown
+  if (ar >= MIN_PORTRAIT_AR && ar <= MAX_PORTRAIT_AR) {
+    return { orientation: 'portrait', compliant: true, aspectRatio: ar, width, height }
+  }
+  return { orientation: 'unknown', compliant: false, aspectRatio: ar, width, height }
+}
+
+/**
+ * 从 AssetDetail.meta（JSON 字符串）解析 turnaround 整图的 sheetWidth/sheetHeight。
+ *
+ * canvas_nodes / o_assets.meta JSON 中 turnaround sheet 节点形如：
+ *   { "sheetWidth": 1440, "sheetHeight": 2560, "isTurnaroundSheet": true, ... }
+ *
+ * 兼容多种字段命名（sheetWidth/sheet_width/sheetW）以应对后端命名差异。
+ * 返回 [width, height]，无法解析时返回 [undefined, undefined]。
+ */
+export function parseTurnaroundSheetSize(meta?: string | null): [number | undefined, number | undefined] {
+  if (!meta) return [undefined, undefined]
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(meta)
+  } catch {
+    return [undefined, undefined]
+  }
+  if (!parsed || typeof parsed !== 'object') return [undefined, undefined]
+  const obj = parsed as Record<string, unknown>
+  // 宽：sheetWidth / sheet_width / sheetW / width
+  const w = obj.sheetWidth ?? obj.sheet_width ?? obj.sheetW ?? obj.width
+  // 高：sheetHeight / sheet_height / sheetH / height
+  const h = obj.sheetHeight ?? obj.sheet_height ?? obj.sheetH ?? obj.height
+  const width = typeof w === 'number' ? w : (typeof w === 'string' ? Number(w) : undefined)
+  const height = typeof h === 'number' ? h : (typeof h === 'string' ? Number(h) : undefined)
+  return [
+    Number.isFinite(width) ? width : undefined,
+    Number.isFinite(height) ? height : undefined,
+  ]
+}
+
 /** 从 AssetDetail 提取 sceneId（场景设定图按场景名分组，分镜按 S 编号） */
 export function inferSceneId(d: AssetDetail): string | null {
   // keyframe: name 形如 "S01_first_v1" → 按分镜 S 编号分组
