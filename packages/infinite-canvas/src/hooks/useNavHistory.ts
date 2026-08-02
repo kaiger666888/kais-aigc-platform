@@ -41,7 +41,7 @@ export interface NavViewport {
 
 export interface NavSnapshot {
   viewMode: 'canvas' | 'timeline' | 'assets'
-  assetView: 'library' | 'detail' | 'wardrobe' | 'scenes'
+  assetView: 'library' | 'detail' | 'wardrobe' | 'scenes' | 'pipeline'
   selectedNodeId: string | null
   detailNodeId: string | null
   selectedAssetUuid: string | null

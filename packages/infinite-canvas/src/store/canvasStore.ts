@@ -148,8 +148,8 @@ interface CanvasState {
   setViewMode: (mode: 'canvas' | 'timeline' | 'assets') => void
 
   // 资产管理子视图 + 选中资产（assets 视图内部状态；详情由 Library 卡片点击驱动）
-  assetView: 'library' | 'detail' | 'wardrobe' | 'scenes'
-  setAssetView: (view: 'library' | 'detail' | 'wardrobe' | 'scenes') => void
+  assetView: 'library' | 'detail' | 'wardrobe' | 'scenes' | 'pipeline'
+  setAssetView: (view: 'library' | 'detail' | 'wardrobe' | 'scenes' | 'pipeline') => void
   selectedAssetUuid: string | null
   setSelectedAssetUuid: (uuid: string | null) => void
   /** 打开某资产的详情（同时设选中 + 切到 detail 子视图） */

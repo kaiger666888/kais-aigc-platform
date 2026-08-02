@@ -12,14 +12,16 @@ import AssetLibrary from './AssetLibrary'
 import AssetDetail from './AssetDetail'
 import CharacterWardrobe from './CharacterWardrobe'
 import SceneManager from './SceneManager'
+import FramePipelineView from './FramePipelineView'
 import './assetManager.css'
 
-type AssetView = 'library' | 'wardrobe' | 'scenes'
+type AssetView = 'library' | 'wardrobe' | 'scenes' | 'pipeline'
 
 const TABS: Array<{ key: AssetView; label: string }> = [
   { key: 'library', label: '资产库' },
   { key: 'wardrobe', label: '角色衣柜' },
   { key: 'scenes', label: '场景管理' },
+  { key: 'pipeline', label: '首尾帧流水线' },
 ]
 
 export default function AssetManager() {
@@ -68,6 +70,7 @@ export default function AssetManager() {
         {assetView === 'library' && <AssetLibrary />}
         {assetView === 'wardrobe' && <CharacterWardrobe />}
         {assetView === 'scenes' && <SceneManager />}
+        {assetView === 'pipeline' && <FramePipelineView />}
       </div>
 
       {/* 右侧详情 drawer — selectedAssetUuid 不为空时弹出 */}
