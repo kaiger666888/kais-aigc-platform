@@ -282,7 +282,6 @@ function CanvasInner() {
       const savedGraph = await loadCanvasGraph(pid, eid)
       if (savedGraph?.nodes?.length) return savedGraph
       const converted = await convertProjectData(pid, eid)
-      if (converted?.nodes?.length) return converted
       // 空项目：返回空骨架（不抛错——抛错会触发 fixture fallback，语义不对）
       return { meta: { projectId: pid, episodesId: eid }, nodes: [], links: [], branches: [], variantGroups: [] }
     })
