@@ -334,3 +334,58 @@
 .am-pipe__gen em{font-style:normal;color:var(--cv-text-tertiary)}
 .am-pipe__prev{margin-left:8px;font-family:var(--cv-font-mono);font-size:10px;color:var(--cv-text-tertiary)}
 @media (max-width:880px){.am-pipe__scene{margin-left:0}}
+
+/* ──────────────── 视图D 层2 · 分镜首尾帧行 ──────────────── */
+
+/* 分镜区统计头（复用 .am-pipe__stat / .am-pipe__legend 视觉） */
+.am-shot-head{display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  margin:22px 0 12px;padding-top:14px;border-top:1px solid var(--cv-line-panel)}
+
+.am-shot-list{display:flex;flex-direction:column;gap:8px}
+
+/* 单行：分镜号 | 角度 | 首帧…→…尾帧 | 连续性 */
+.am-shot-row{display:flex;align-items:center;gap:12px;padding:8px 10px;border-radius:10px;
+  background:var(--cv-bg-card);border:1px solid var(--cv-line-panel);box-shadow:var(--cv-shadow-card);transition:.14s;flex-wrap:wrap}
+.am-shot-row:hover{border-color:var(--cv-line-strong)}
+.am-shot-row__id{font-family:var(--cv-font-mono);font-size:12.5px;font-weight:600;color:var(--cv-text-primary);
+  min-width:62px;white-space:nowrap}
+.am-shot-row__angle{font-size:11px;color:var(--cv-text-tertiary);font-family:var(--cv-font-mono);
+  background:var(--cv-bg-overlay);padding:3px 8px;border-radius:10px;white-space:nowrap}
+
+/* 首/尾帧容器：[首帧组] → [尾帧组] */
+.am-shot-frames{display:flex;align-items:center;gap:8px;flex:1;min-width:200px}
+.am-shot-frames__group{display:flex;align-items:center;gap:6px}
+.am-shot-arrow{font-size:14px;color:var(--cv-text-tertiary);padding:0 2px;user-select:none}
+
+/* 单个版本缩略图（约 60×90 竖图） */
+.am-shot-frame{position:relative;width:60px;height:90px;border-radius:7px;overflow:hidden;cursor:pointer;
+  border:1.5px solid var(--cv-line-panel);background:var(--cv-bg-overlay);transition:.14s;flex:none}
+.am-shot-frame:hover{transform:translateY(-1px);box-shadow:var(--cv-shadow-card-hi)}
+.am-shot-frame__img{width:100%;height:100%;object-fit:cover}
+.am-shot-frame__emoji{position:absolute;inset:0;display:grid;place-items:center;font-size:24px}
+.am-shot-frame__ver{position:absolute;bottom:0;left:0;right:0;text-align:center;font-family:var(--cv-font-mono);
+  font-size:8.5px;color:var(--cv-text-secondary);background:rgba(10,11,14,.62);padding:1px 0;line-height:1.2}
+
+/* 选定态：★ + teal border */
+.am-shot-frame--selected{border-color:var(--cv-mod-image);box-shadow:0 0 0 1px var(--cv-mod-image) inset}
+.am-shot-frame__star{position:absolute;top:2px;left:2px;z-index:2;font-size:11px;color:var(--cv-mod-image);
+  text-shadow:0 1px 2px rgba(0,0,0,.5)}
+.am-shot-frame--selected .am-shot-frame__ver{color:var(--cv-mod-image);background:rgba(86,184,154,.85);font-weight:600}
+
+/* 淘汰态：半透明 + ✕ */
+.am-shot-frame--eliminated{opacity:.4}
+.am-shot-frame--eliminated:hover{transform:none;box-shadow:none}
+.am-shot-frame__x{position:absolute;inset:0;z-index:2;display:grid;place-items:center;font-size:18px;
+  color:var(--cv-mod-video);font-weight:700}
+
+/* 空（无首/尾帧）占位 */
+.am-shot-frame--empty{display:grid;place-items:center;font-size:11px;color:var(--cv-text-disabled);cursor:default}
+.am-shot-frame--empty:hover{transform:none;box-shadow:none}
+
+/* 连续性标注 */
+.am-shot-cont{font-size:11px;font-weight:600;padding:4px 10px;border-radius:12px;white-space:nowrap;flex:none}
+.am-shot-cont--cont{color:var(--cv-mod-image);background:var(--cv-mod-image-weak)}
+.am-shot-cont--cut{color:var(--cv-mod-video);background:var(--cv-mod-video-weak)}
+.am-shot-cont--none{color:var(--cv-text-disabled);background:var(--cv-bg-overlay);font-weight:400}
+
+@media (max-width:880px){.am-shot-row{gap:8px}.am-shot-frames{min-width:0;width:100%}}

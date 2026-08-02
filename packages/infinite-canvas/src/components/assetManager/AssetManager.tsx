@@ -1,9 +1,11 @@
 /**
  * 资产管理中心 —— 画布的第三种视图模式 (viewMode='assets')。
  *
- * 子视图 Tab：资产库 Library · 角色衣柜 Wardrobe · 场景管理 Scenes
- * 资产详情改为右侧 drawer（selectedAssetUuid != null 时弹出），
- * 不再独占整个视图。双击资产库卡片弹出，点击资产库空白区域关闭。
+ * 子视图 Tab（3 Tab，按工作流而非资产类型分组）：
+ *   资产库 Library · 角色 Character · 场景与分镜 SceneShot
+ * 「场景与分镜」合并了原「场景管理」(多视角设定图) 与「首尾帧流水线」(分镜级首尾帧 + 连续性判定)。
+ * 资产详情改为右侧 drawer（selectedAssetUuid != null 时弹出），不再独占整个视图。
+ * 双击资产库卡片弹出，点击资产库空白区域关闭。
  */
 import { useCallback } from 'react'
 import { useCanvasStore } from '../../store/canvasStore'
@@ -11,17 +13,15 @@ import { UiIcon } from '../canvas/icons'
 import AssetLibrary from './AssetLibrary'
 import AssetDetail from './AssetDetail'
 import CharacterWardrobe from './CharacterWardrobe'
-import SceneManager from './SceneManager'
-import FramePipelineView from './FramePipelineView'
+import SceneShotManager from './SceneShotManager'
 import './assetManager.css'
 
-type AssetView = 'library' | 'wardrobe' | 'scenes' | 'pipeline'
+type AssetView = 'library' | 'character' | 'scene_shot'
 
 const TABS: Array<{ key: AssetView; label: string }> = [
   { key: 'library', label: '资产库' },
-  { key: 'wardrobe', label: '角色衣柜' },
-  { key: 'scenes', label: '场景管理' },
-  { key: 'pipeline', label: '首尾帧流水线' },
+  { key: 'character', label: '角色' },
+  { key: 'scene_shot', label: '场景与分镜' },
 ]
 
 export default function AssetManager() {
@@ -68,9 +68,8 @@ export default function AssetManager() {
       {/* 子视图主体 + 详情 drawer */}
       <div className="am-body">
         {assetView === 'library' && <AssetLibrary />}
-        {assetView === 'wardrobe' && <CharacterWardrobe />}
-        {assetView === 'scenes' && <SceneManager />}
-        {assetView === 'pipeline' && <FramePipelineView />}
+        {assetView === 'character' && <CharacterWardrobe />}
+        {assetView === 'scene_shot' && <SceneShotManager />}
       </div>
 
       {/* 右侧详情 drawer — selectedAssetUuid 不为空时弹出 */}
