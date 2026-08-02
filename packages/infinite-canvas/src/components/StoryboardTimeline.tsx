@@ -558,10 +558,10 @@ function MetaChip({ label, value, color, compact }: { label: string; value: stri
     <span style={{
       display: 'inline-flex',
       alignItems: 'center',
-      gap: 3,
-      padding: compact ? '2px 6px' : '2px 7px',
-      borderRadius: 5,
-      fontSize: compact ? 9 : 10,
+      gap: 4,
+      padding: compact ? '4px 9px' : '4px 11px',
+      borderRadius: 6,
+      fontSize: compact ? 13 : 14,
       fontWeight: 500,
       background: color ? `${color}14` : 'rgba(255,255,255,0.06)',
       color: color ?? theme.text.secondary,
@@ -810,19 +810,19 @@ function FrameVariantThumb({
       </div>
       {/* 三态角标 */}
       <span style={{
-        position: 'absolute', top: 2, right: 2,
-        fontSize: 11, lineHeight: 1, padding: '1px 3px', borderRadius: 3,
-        background: 'rgba(0,0,0,0.72)',
-        color: isSelected ? v3theme.signal.approved : isEliminated ? v3theme.signal.rejected : theme.text.secondary,
+      position: 'absolute', top: 3, right: 3,
+      fontSize: 16, lineHeight: 1, padding: '2px 5px', borderRadius: 4,
+      background: 'rgba(0,0,0,0.72)',
+      color: isSelected ? v3theme.signal.approved : isEliminated ? v3theme.signal.rejected : theme.text.secondary,
       }}>
-        {isSelected ? '★' : isEliminated ? '✕' : '○'}
+      {isSelected ? '★' : isEliminated ? '✕' : '○'}
       </span>
       {/* variant 名 */}
       <span style={{
-        position: 'absolute', bottom: 2, left: 2,
-        fontSize: 8, fontWeight: 700, padding: '0 3px', borderRadius: 2,
-        background: 'rgba(0,0,0,0.6)', color: '#fff',
-        fontFamily: 'var(--cv-font-mono, monospace)',
+      position: 'absolute', bottom: 3, left: 3,
+      fontSize: 11, fontWeight: 700, padding: '1px 5px', borderRadius: 3,
+      background: 'rgba(0,0,0,0.6)', color: '#fff',
+      fontFamily: 'var(--cv-font-mono, monospace)',
       }}>{v.variant}</span>
     </button>
   )
@@ -867,8 +867,8 @@ function FrameVariantSelector({
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flexShrink: 0 }}>
-      <div style={{ fontSize: 9, fontWeight: 600, color: theme.text.tertiary, letterSpacing: 0.3 }}>{label}</div>
-      <div style={{ display: 'flex', gap: 4 }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: theme.text.tertiary, letterSpacing: 0.3, marginBottom: 2 }}>{label}</div>
+      <div style={{ display: 'flex', gap: 6 }}>
         {variants.map((v) => (
           <FrameVariantThumb
             key={v.nodeId}
@@ -915,7 +915,7 @@ function ShotRow({
   onRestoreVariant?: (nodeId: string) => void
 }) {
   const [hovered, setHovered] = useState(false)
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(true)
   const { node } = shot
 
   // 构造 prompt 摘要
@@ -944,8 +944,8 @@ function ShotRow({
       style={{
         display: 'flex',
         alignItems: 'flex-start',
-        gap: 8,
-        padding: '8px 12px',
+        gap: 16,
+        padding: '16px 24px',
         cursor: 'pointer',
         borderBottom: `1px solid ${theme.border.dim}`,
         background: isSelected
@@ -953,7 +953,7 @@ function ShotRow({
           : hovered
             ? theme.bg.cardHover
             : 'transparent',
-        borderLeft: isSelected ? `2px solid ${v3theme.signal.approved}` : '2px solid transparent',
+        borderLeft: isSelected ? `3px solid ${v3theme.signal.approved}` : '3px solid transparent',
         transition: 'background 120ms',
       }}
       onClick={onClick}
@@ -963,11 +963,11 @@ function ShotRow({
     >
       {/* 序号 */}
       <span style={{
-        width: 30,
+        width: 44,
         flexShrink: 0,
-        paddingTop: 4,
+        paddingTop: 8,
         textAlign: 'right',
-        fontSize: 12,
+        fontSize: 18,
         fontWeight: 700,
         color: v3theme.modality.image,
         fontFamily: 'var(--cv-font-mono, monospace)',
@@ -977,21 +977,21 @@ function ShotRow({
 
       {/* 首尾帧区：有 p11 变体时渲染三态选择器（v1/v2/v3 并排），否则退回单帧缩略盒 */}
       {shot.frameVariants && onSelectVariant && onRestoreVariant ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
           <FrameVariantSelector
             label="首帧"
             variants={shot.frameVariants.first}
             curation={frameCuration ?? {}}
-            size={compact ? 42 : 56}
+            size={compact ? 84 : 112}
             onSelect={onSelectVariant}
             onRestore={onRestoreVariant}
           />
-          <span style={{ color: theme.text.tertiary, fontSize: 13, flexShrink: 0 }}>→</span>
+          <span style={{ color: theme.text.tertiary, fontSize: 20, flexShrink: 0 }}>→</span>
           <FrameVariantSelector
             label="尾帧"
             variants={shot.frameVariants.last}
             curation={frameCuration ?? {}}
-            size={compact ? 42 : 56}
+            size={compact ? 84 : 112}
             onSelect={onSelectVariant}
             onRestore={onRestoreVariant}
           />
@@ -1045,20 +1045,20 @@ function ShotRow({
       {/* 主体 */}
       <div style={{ flex: 1, minWidth: 0 }}>
         {/* 时间信息 + 审核角标 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
           <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: 5,
-            fontSize: 11, fontWeight: 600, color: theme.text.primary,
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            fontSize: 16, fontWeight: 600, color: theme.text.primary,
           }}>
             <StateDot state={node.state} />
             <span style={{ fontFamily: 'var(--cv-font-mono, monospace)' }}>{shot.shotId}</span>
           </span>
           <span style={{
-            fontSize: 10, color: theme.text.tertiary,
+            fontSize: 13, color: theme.text.tertiary,
             fontFamily: 'var(--cv-font-mono, monospace)',
           }}>
             {formatTime(shot.startSec)}→{formatTime(shot.endSec)}
-            <span style={{ color: v3theme.modality.text, marginLeft: 3 }}>({formatDuration(shot.durationS)})</span>
+            <span style={{ color: v3theme.modality.text, marginLeft: 4 }}>({formatDuration(shot.durationS)})</span>
           </span>
           <span style={{ flex: 1 }} />
           <ReviewBadge status={node.reviewStatus} />
@@ -1066,7 +1066,7 @@ function ShotRow({
         </div>
 
         {/* 元数据 chips */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: (promptSummary || audioTracks.length > 0) ? 4 : 0 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: (promptSummary || audioTracks.length > 0) ? 6 : 0 }}>
           {shot.cameraMovement && (
             <MetaChip
               label="🎥"
@@ -1099,7 +1099,7 @@ function ShotRow({
             />
           )}
           <span style={{
-            fontSize: 9, color: theme.text.tertiary, alignSelf: 'center',
+            fontSize: 12, color: theme.text.tertiary, alignSelf: 'center',
             fontFamily: 'var(--cv-font-mono, monospace)', marginLeft: 'auto',
           }}>
             {index + 1}/{total}
@@ -1147,43 +1147,43 @@ function ShotRow({
         {/* Prompt 摘要 */}
         {promptSummary && (
           <div style={{
-            fontSize: 11,
-            lineHeight: 1.5,
+            fontSize: 14,
+            lineHeight: 1.6,
             color: theme.text.secondary,
             overflow: 'hidden',
             display: '-webkit-box',
-            WebkitLineClamp: 2,
+            WebkitLineClamp: 3,
             WebkitBoxOrient: 'vertical',
           }}>
             {promptSummary}
           </div>
         )}
 
-        {/* 首尾帧文字描述（可折叠；无帧图时为主要画面信息） */}
+        {/* 首尾帧文字描述（默认展开；无帧图时为主要画面信息） */}
         {hasFrameDesc && (
-          <div style={{ marginTop: 4 }}>
+          <div style={{ marginTop: 6, maxWidth: 420 }}>
             <button
               onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v) }}
               onDoubleClick={(e) => e.stopPropagation()}
               style={{
                 background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-                fontSize: 10, color: theme.text.tertiary,
-                display: 'inline-flex', alignItems: 'center', gap: 3,
+                fontSize: 12, color: theme.text.tertiary,
+                display: 'inline-flex', alignItems: 'center', gap: 4,
               }}
             >
               {expanded ? '▴ 收起首尾帧' : '▾ 首尾帧描述'}
             </button>
             {expanded && (
-              <div style={{ marginTop: 3, display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {shot.startFrameDesc && (
-                  <div style={{ fontSize: 10, lineHeight: 1.45, color: theme.text.secondary }}>
-                    <span style={{ color: v3theme.modality.video, fontWeight: 700, marginRight: 4 }}>首</span>
+                  <div style={{ fontSize: 12, lineHeight: 1.6, color: theme.text.secondary }}>
+                    <span style={{ color: v3theme.modality.video, fontWeight: 700, marginRight: 6 }}>首</span>
                     {shot.startFrameDesc}
                   </div>
                 )}
                 {shot.endFrameDesc && (
-                  <div style={{ fontSize: 10, lineHeight: 1.45, color: theme.text.secondary }}>
-                    <span style={{ color: v3theme.modality.video, fontWeight: 700, marginRight: 4 }}>尾</span>
+                  <div style={{ fontSize: 12, lineHeight: 1.6, color: theme.text.secondary }}>
+                    <span style={{ color: v3theme.modality.video, fontWeight: 700, marginRight: 6 }}>尾</span>
                     {shot.endFrameDesc}
                   </div>
                 )}
