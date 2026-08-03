@@ -44,6 +44,7 @@ import route40 from "./routes/production/mage/index";
 import route41 from "./routes/production/postprocess/enhance";
 import route42 from "./routes/production/postprocess/seedvr2";
 import route43 from "./routes/production/postprocess/status";
+import route43b from "./routes/production/postprocess/rtx-vsr";
 import route44 from "./routes/production/qwenTts/speak";
 import route45 from "./routes/production/qwenTts/status";
 import route46 from "./routes/production/qwenTts/voiceId";
@@ -191,6 +192,7 @@ export default async (app: Express) => {
   app.use("/api/production/postprocess/enhance", route41);
   app.use("/api/production/postprocess/seedvr2", route42);
   app.use("/api/production/postprocess/status", route43);
+  app.use("/api/production/postprocess/rtx-vsr", route43b);
   app.use("/api/production/qwenTts/speak", route44);
   app.use("/api/production/qwenTts/status", route45);
   app.use("/api/production/qwenTts/voiceId", route46);

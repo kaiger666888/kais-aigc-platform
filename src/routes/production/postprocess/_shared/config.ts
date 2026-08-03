@@ -60,4 +60,20 @@ export const SEEDVR2_DEFAULTS = {
   seed: 42,
 } as const;
 
+// ─── RTX VSR (NVIDIA RTX Video Super Resolution) ──────────
+// 独立 FastAPI 微服务，运行在 comfyui-primary 容器 :10589
+// VRAM 占用仅 ~13MB，不阻塞 ComfyUI 渲染队列
+// 宿主机访问: http://localhost:10589 (socat 转发)
+export const RTX_VSR_CONFIG = {
+  serviceUrl: process.env.RTX_VSR_URL || "http://localhost:10589",
+  outputDir: "/mnt/agents/output/gpu1/rtx-vsr",
+  webBaseUrl: process.env.WEB_BASE_URL || "http://localhost:8082/gpu1/rtx-vsr",
+  qualities: [
+    "LOW", "MEDIUM", "HIGH", "ULTRA",
+    "HIGHBITRATE_LOW", "HIGHBITRATE_MEDIUM", "HIGHBITRATE_HIGH", "HIGHBITRATE_ULTRA",
+    "DENOISE_LOW", "DENOISE_MEDIUM", "DENOISE_HIGH", "DENOISE_ULTRA",
+    "DEBLUR_LOW", "DEBLUR_MEDIUM", "DEBLUR_HIGH", "DEBLUR_ULTRA",
+  ] as const,
+} as const;
+
 export type SeedVR2ColorCorrection = typeof SEEDVR2_DEFAULTS.colorCorrection;
