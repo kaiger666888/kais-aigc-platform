@@ -145,6 +145,8 @@ import h3Route_ref2va from "./routes/production/minimax-h3/ref2va";
 import h3Route_i2va from "./routes/production/minimax-h3/i2va";
 import h3Route_t2va from "./routes/production/minimax-h3/t2va";
 import h3Route_status from "./routes/production/minimax-h3/status";
+import h3Route_replaceAudio from "./routes/production/minimax-h3/replace-audio";
+import h3Route_generate from "./routes/production/minimax-h3/generate";
 
 export default async (app: Express) => {
   app.use("/api/assets/addAssets", route1);
@@ -190,6 +192,8 @@ export default async (app: Express) => {
   app.use("/api/production/minimax-h3/i2va", h3Route_i2va);
   app.use("/api/production/minimax-h3/t2va", h3Route_t2va);
   app.use("/api/production/minimax-h3/status", h3Route_status);
+  app.use("/api/production/minimax-h3/replace-audio", h3Route_replaceAudio);
+  app.use("/api/production/minimax-h3/generate", h3Route_generate);
   app.use("/api/production/mage", route40);
   app.use("/api/production/postprocess/enhance", route41);
   app.use("/api/production/postprocess/seedvr2", route42);

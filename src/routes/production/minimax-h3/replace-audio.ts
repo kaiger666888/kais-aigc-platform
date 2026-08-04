@@ -80,7 +80,7 @@ const upload = multer({
 // LTX 常量 (v9 工作流专用, 定义在文件内部)
 // ============================================================
 
-const LTX_AMBIENT = {
+export const LTX_AMBIENT = {
   // 模型文件名
   modelName: "ltx-2.3-22b-distilled_transformer_only_fp8_input_scaled_v3.safetensors",
 
@@ -125,7 +125,7 @@ const LTX_AMBIENT = {
 // ============================================================
 
 /** 把宿主文件拷进 ComfyUI 容器(先试 docker cp,失败回退 docker exec -i cat)。 */
-function copyToContainer(localPath: string, containerPath: string) {
+export function copyToContainer(localPath: string, containerPath: string) {
   const { spawnSync } = require("child_process");
   try {
     execSync(`docker cp "${localPath}" ${H3_CONFIG.containerName}:"${containerPath}"`, { timeout: 30_000 });
@@ -144,7 +144,7 @@ function copyToContainer(localPath: string, containerPath: string) {
 // ============================================================
 
 /** 用 ffprobe 提取视频总帧数 (优先 nb_frames, 回退 duration*fps)。失败返回 0。 */
-function probeFrameCount(localPath: string): number {
+export function probeFrameCount(localPath: string): number {
   // 1. 优先读容器元数据 nb_frames
   try {
     const out = execSync(
@@ -189,7 +189,7 @@ function probeResolution(localPath: string): { width: number; height: number } |
  * LTX-2.3 numFrames 需要 8n+1 对齐 (与 msr.ts roundTo8nPlus1 一致)。
  * 无帧数上限 (v9: 移除分段逻辑)。
  */
-function alignLtxFrames(raw: number): number {
+export function alignLtxFrames(raw: number): number {
   let n = Math.ceil((raw - 1) / 8) * 8 + 1;
   if (n < 9) n = 9; // 最小 9 帧 (8*1+1)
   return n;
@@ -200,7 +200,7 @@ function alignLtxFrames(raw: number): number {
  * 同时用 -an 去除音频轨 (BGM 替换场景: 只需纯视频帧)。
  * 返回处理后的本地文件路径 (可能是原文件, 也可能是新文件)。
  */
-function ensureResolutionAndStripAudio(
+export function ensureResolutionAndStripAudio(
   localPath: string,
   targetWidth: number,
   targetHeight: number,
@@ -558,7 +558,7 @@ export function buildLtxAmbientWorkflow(opts: LtxAmbientWorkflowOpts): Record<st
 // 轮询辅助: 等待 ComfyUI 任务完成, 返回音频 outputs
 // ============================================================
 
-async function pollComfyuiCompletion(
+export async function pollComfyuiCompletion(
   comfyuiUrl: string,
   promptId: string,
   timeoutMs: number = 600_000,
@@ -596,7 +596,7 @@ async function pollComfyuiCompletion(
 // 从 ComfyUI outputs 中提取音频文件信息并下载到本地
 // ============================================================
 
-async function downloadAudioFromOutputs(
+export async function downloadAudioFromOutputs(
   comfyuiUrl: string,
   outputs: any,
   localDestPath: string,
@@ -616,10 +616,47 @@ async function downloadAudioFromOutputs(
 }
 
 // ============================================================
+// 从 ComfyUI outputs 中提取视频文件并下载到本地
+// ============================================================
+//
+// ComfyUI 不同保存节点的输出键不同:
+//   - SaveVideo (ComfyUI 核心, H3 工作流用) → outputs[node].videos
+//   - VHS_VideoCombine                              → outputs[node].gifs (即使是 mp4)
+//   - 部分老节点                                     → outputs[node].images
+// 本函数按 videos → gifs → images 顺序查找首个视频文件并下载。
+//
+// 返回下载到本地的 ComfyUI 文件名 (含扩展名); 未找到返回 null。
+
+export async function downloadVideoFromOutputs(
+  comfyuiUrl: string,
+  outputs: any,
+  localDestPath: string,
+): Promise<string | null> {
+  for (const nodeId of Object.keys(outputs)) {
+    const nodeOut = outputs[nodeId];
+    // 按优先级检查三种可能的输出键
+    for (const key of ["videos", "gifs", "images"]) {
+      const list = nodeOut[key];
+      if (Array.isArray(list) && list.length > 0) {
+        const vid = list[0];
+        const url =
+          `${comfyuiUrl}/view?filename=${encodeURIComponent(vid.filename)}` +
+          `&subfolder=${encodeURIComponent(vid.subfolder || "")}` +
+          `&type=${encodeURIComponent(vid.type || "output")}`;
+        const resp = await axios.get(url, { responseType: "arraybuffer", timeout: 300_000 });
+        fs.writeFileSync(localDestPath, Buffer.from(resp.data));
+        return vid.filename as string;
+      }
+    }
+  }
+  return null;
+}
+
+// ============================================================
 // TTS + 环境音混音 + 视频合成 (参照 msr.ts 两轨混音模式)
 // ============================================================
 
-function mergeAudioAndVideo(
+export function mergeAudioAndVideo(
   videoPath: string,
   ttsAudioPath: string | null,
   ambientAudioPath: string,
@@ -656,7 +693,7 @@ function mergeAudioAndVideo(
 // BGM 残留检测 (频谱分析: tonal_ratio + mid_freq 占比)
 // ============================================================
 
-interface BgmDetectResult {
+export interface BgmDetectResult {
   hasBgm: boolean;
   risk: "LOW" | "MEDIUM" | "HIGH";
   suspectSegments: number;
@@ -669,7 +706,7 @@ interface BgmDetectResult {
  * 原理: BGM 通常有持续的高 tonal_ratio (>0.15) 和中频占比 (>0.4)。
  * 实现: 转换到 WAV → 调用 python3 执行 FFT 分析。
  */
-function detectBgm(audioPath: string): BgmDetectResult {
+export function detectBgm(audioPath: string): BgmDetectResult {
   const pyScript = `
 import sys, json
 import numpy as np
