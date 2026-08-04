@@ -273,15 +273,33 @@ export function buildH3Ref2vaWorkflow(opts: H3Ref2vaWorkflowOpts): Record<string
       },
     },
 
-    // === 视频+音频保存 (webm 内嵌音频) ===
-    "50": {
-      class_type: "SaveWEBM",
+    // === 音频解码 (合并到视频) ===
+    "43": {
+      class_type: "VAEDecodeAudio",
+      inputs: {
+        samples: ["30", 0],
+        vae: ["13", 0],
+      },
+    },
+
+    // === 合并视频+音频 ===
+    "44": {
+      class_type: "CreateVideo",
       inputs: {
         images: ["40", 0],
-        filename_prefix: filenamePrefix,
-        codec,
         fps,
-        crf,
+        audio: ["43", 0],
+      },
+    },
+
+    // === 保存 (mp4 内嵌音频) ===
+    "50": {
+      class_type: "SaveVideo",
+      inputs: {
+        video: ["44", 0],
+        filename_prefix: filenamePrefix,
+        format: "mp4",
+        codec: "auto",
       },
     },
 
