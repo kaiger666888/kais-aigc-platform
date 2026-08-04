@@ -31,6 +31,7 @@ import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
 import {
   H3_CONFIG,
+  H3_CONSTANTS,
   H3_DEFAULTS,
   alignH3FrameCount,
   H3_DEFAULT_NEGATIVE,
@@ -85,9 +86,11 @@ function copyToContainer(localPath: string, containerPath: string) {
 //   3. SaveWEBM 输出 webm 已内嵌音频;仅当需要分离音频文件时才加 41/51 节点。
 
 interface H3Ref2vaWorkflowOpts {
-  refImageFilenames: string[];   // 1-10 参考图(已在容器内)
-  refAudioFilenames: string[];   // 0-4 参考音频(已在容器内)
-  prompt: string;                // 正面提示词(可含 <Picture N>/<Audio N> 标签)
+  refImageFilenames: string[];      // 1-9 参考图(已在容器内)
+  refAudioFilenames: string[];      // 0-3 参考音频(已在容器内)
+  refVideoFilenames: string[];      // 0-3 参考视频帧序列(已在容器内)
+  refVideoAudioFilenames: string[]; // 0-3 视频配对音轨(已在容器内)
+  prompt: string;                // 正面提示词(可含 <Picture N>/<Video N>/<Audio N> 标签)
   negativePrompt: string;        // 负面提示词(cfg=1.0 实际不生效,节点结构需要)
   width: number;
   height: number;
@@ -95,8 +98,8 @@ interface H3Ref2vaWorkflowOpts {
   seed: number;
   steps: number;
   cfg: number;                   // 必须 1.0
-  samplerName: string;
-  scheduler: string;
+  samplerName: string;           // R2V 官方推荐: res_multistep
+  scheduler: string;             // R2V 官方推荐: simple
   denoise: number;
   shiftVideo: number;
   shiftAudio: number;
@@ -111,6 +114,7 @@ interface H3Ref2vaWorkflowOpts {
 export function buildH3Ref2vaWorkflow(opts: H3Ref2vaWorkflowOpts): Record<string, any> {
   const {
     refImageFilenames, refAudioFilenames,
+    refVideoFilenames, refVideoAudioFilenames,
     prompt, negativePrompt,
     width, height, length,
     seed, steps, cfg, samplerName, scheduler, denoise,
@@ -143,6 +147,30 @@ export function buildH3Ref2vaWorkflow(opts: H3Ref2vaWorkflowOpts): Record<string
     refAudioSlots[`ref_audios.ref_audio_${i}`] = [nodeId, 0];
   });
 
+  // 参考视频 LoadImage 节点(帧序列):节点 ID 170,171,172...
+  const videoNodes: Record<string, any> = {};
+  const refVideoSlots: Record<string, any> = {};
+  refVideoFilenames.forEach((filename, i) => {
+    const nodeId = `17${i}`;   // "170","171","172"
+    videoNodes[nodeId] = {
+      class_type: "LoadImage",
+      inputs: { image: filename },
+    };
+    refVideoSlots[`ref_videos.ref_video_${i}`] = [nodeId, 0];
+  });
+
+  // 视频配对音轨 LoadAudio 节点:节点 ID 180,181,182...
+  const videoAudioNodes: Record<string, any> = {};
+  const refVideoAudioSlots: Record<string, any> = {};
+  refVideoAudioFilenames.forEach((filename, i) => {
+    const nodeId = `18${i}`;   // "180","181","182"
+    videoAudioNodes[nodeId] = {
+      class_type: "LoadAudio",
+      inputs: { audio: filename },
+    };
+    refVideoAudioSlots[`ref_video_audios.ref_video_audio_${i}`] = [nodeId, 0];
+  });
+
   return {
     // === 模型 / 文本编码器 / VAE ===
     "10": {
@@ -159,7 +187,7 @@ export function buildH3Ref2vaWorkflow(opts: H3Ref2vaWorkflowOpts): Record<string
     "12": {
       class_type: "UNETLoader",
       inputs: {
-        unet_name: H3_DEFAULTS.modelName,
+        unet_name: H3_DEFAULTS.ref2vaModel,
         weight_dtype: "default",
       },
     },
@@ -171,6 +199,8 @@ export function buildH3Ref2vaWorkflow(opts: H3Ref2vaWorkflowOpts): Record<string
     // === 参考资产加载 (动态) ===
     ...imageNodes,
     ...audioNodes,
+    ...videoNodes,
+    ...videoAudioNodes,
 
     // === 负面条件 (MiniMaxH3ImageToVideo) ===
     // H3 CFG-distilled → cfg=1.0,负面提示词实际不生效,但 KSampler 需要一个 negative conditioning 占位。
@@ -201,6 +231,8 @@ export function buildH3Ref2vaWorkflow(opts: H3Ref2vaWorkflowOpts): Record<string
         length,
         ref_image_size: refImageSize,
         ...refImageSlots,
+        ...refVideoSlots,
+        ...refVideoAudioSlots,
         ...refAudioSlots,
       },
     },
@@ -280,8 +312,10 @@ export function buildH3Ref2vaWorkflow(opts: H3Ref2vaWorkflowOpts): Record<string
 export default router.post(
   "/",
   upload.fields([
-    { name: "refImages", maxCount: 10 },
-    { name: "refAudios", maxCount: 4 },
+    { name: "refImages", maxCount: H3_CONSTANTS.MAX_REF_IMAGES },       // ≤9 张参考图
+    { name: "refVideos", maxCount: H3_CONSTANTS.MAX_REF_VIDEOS },       // ≤3 个参考视频(帧序列)
+    { name: "refVideoAudios", maxCount: H3_CONSTANTS.MAX_REF_VIDEOS },  // 视频配对音轨
+    { name: "refAudios", maxCount: H3_CONSTANTS.MAX_REF_AUDIOS },       // ≤3 个独立参考音频
   ]),
   validateFields({
     projectId: z.coerce.number(),
@@ -295,7 +329,7 @@ export default router.post(
     const height = Number(req.body.height) || H3_DEFAULTS.defaultHeight;
     const refImageSize = (req.body.refImageSize === "max" ? "max" : "match");
     const seed = req.body.seed ? Number(req.body.seed) : Math.floor(Math.random() * 2147483647);
-    const steps = Number(req.body.steps) || H3_DEFAULTS.steps;
+    const steps = Number(req.body.steps) || H3_DEFAULTS.r2vSteps;
     const shiftVideo = Number(req.body.shiftVideo) || H3_DEFAULTS.shiftVideo;
     const shiftAudio = Number(req.body.shiftAudio) || H3_DEFAULTS.shiftAudio;
     const filenamePrefix = (req.body.filenamePrefix as string) || `h3_ref2va_${projectId}_${Date.now()}`;
@@ -312,16 +346,26 @@ export default router.post(
 
     const files = req.files as Record<string, Express.Multer.File[]> | undefined;
     const refImageFiles = files?.refImages || [];
+    const refVideoFiles = files?.refVideos || [];
+    const refVideoAudioFiles = files?.refVideoAudios || [];
     const refAudioFiles = files?.refAudios || [];
 
     if (refImageFiles.length < 1) {
-      return res.status(400).send(error("At least 1 reference image required (refImages). Up to 10 supported."));
+      return res.status(400).send(error(`At least 1 reference image required (refImages). Up to ${H3_CONSTANTS.MAX_REF_IMAGES} supported.`));
     }
-    if (refImageFiles.length > 10) {
-      return res.status(400).send(error(`Too many reference images: ${refImageFiles.length} (max 10).`));
+    if (refImageFiles.length > H3_CONSTANTS.MAX_REF_IMAGES) {
+      return res.status(400).send(error(`Too many reference images: ${refImageFiles.length} (max ${H3_CONSTANTS.MAX_REF_IMAGES}).`));
     }
-    if (refAudioFiles.length > 4) {
-      return res.status(400).send(error(`Too many reference audios: ${refAudioFiles.length} (max 4).`));
+    if (refVideoFiles.length > H3_CONSTANTS.MAX_REF_VIDEOS) {
+      return res.status(400).send(error(`Too many reference videos: ${refVideoFiles.length} (max ${H3_CONSTANTS.MAX_REF_VIDEOS}).`));
+    }
+    if (refAudioFiles.length > H3_CONSTANTS.MAX_REF_AUDIOS) {
+      return res.status(400).send(error(`Too many reference audios: ${refAudioFiles.length} (max ${H3_CONSTANTS.MAX_REF_AUDIOS}).`));
+    }
+    // 总文件数限制
+    const totalRefFiles = refImageFiles.length + refVideoFiles.length + refVideoAudioFiles.length + refAudioFiles.length;
+    if (totalRefFiles > H3_CONSTANTS.MAX_REF_FILES_TOTAL) {
+      return res.status(400).send(error(`Too many reference files total: ${totalRefFiles} (max ${H3_CONSTANTS.MAX_REF_FILES_TOTAL}).`));
     }
 
     // --- 上传参考图到 ComfyUI 容器 ---
@@ -354,10 +398,45 @@ export default router.post(
     }
     for (const file of refAudioFiles) { try { fs.unlinkSync(file.path); } catch {} }
 
+    // --- 上传参考视频(帧序列)到 ComfyUI 容器 ---
+    // 注意: ComfyUI LoadImage 节点接收 IMAGE 类型。参考视频以帧序列形式传入。
+    // 实际使用时调用方应预先提取视频帧为图片序列。此处接收单个帧打包文件(如 GIF/APNG/多帧 PNG)。
+    // 简化处理: refVideos 作为额外参考图传入(ref_video_N 槽位)。
+    const refVideoFilenames: string[] = [];
+    try {
+      for (const file of refVideoFiles) {
+        const ext = path.extname(file.originalname || ".png") || ".png";
+        const filename = `${uuidv4()}${ext}`;
+        copyToContainer(file.path, `${H3_CONFIG.comfyuiInputDir}/${filename}`);
+        refVideoFilenames.push(filename);
+      }
+    } catch (err: any) {
+      for (const file of refVideoFiles) { try { fs.unlinkSync(file.path); } catch {} }
+      return res.status(502).send(error(`Failed to upload videos to ComfyUI: ${err.message}`));
+    }
+    for (const file of refVideoFiles) { try { fs.unlinkSync(file.path); } catch {} }
+
+    // --- 上传视频配对音轨到 ComfyUI 容器 ---
+    const refVideoAudioFilenames: string[] = [];
+    try {
+      for (const file of refVideoAudioFiles) {
+        const ext = path.extname(file.originalname || ".wav") || ".wav";
+        const filename = `${uuidv4()}${ext}`;
+        copyToContainer(file.path, `${H3_CONFIG.comfyuiInputDir}/${filename}`);
+        refVideoAudioFilenames.push(filename);
+      }
+    } catch (err: any) {
+      for (const file of refVideoAudioFiles) { try { fs.unlinkSync(file.path); } catch {} }
+      return res.status(502).send(error(`Failed to upload video audios to ComfyUI: ${err.message}`));
+    }
+    for (const file of refVideoAudioFiles) { try { fs.unlinkSync(file.path); } catch {} }
+
     // --- 构建 + 提交 ---
     const workflow = buildH3Ref2vaWorkflow({
       refImageFilenames,
       refAudioFilenames,
+      refVideoFilenames,
+      refVideoAudioFilenames,
       prompt,
       negativePrompt,
       width,
@@ -365,15 +444,15 @@ export default router.post(
       length,
       seed,
       steps,
-      cfg: H3_DEFAULTS.cfg,           // H3 CFG-distilled,固定 1.0
-      samplerName: H3_DEFAULTS.samplerName,
-      scheduler: H3_DEFAULTS.scheduler,
+      cfg: H3_CONSTANTS.CFG,           // H3 CFG-distilled, 固定 1.0
+      samplerName: H3_DEFAULTS.r2vSamplerName,  // R2V 官方: res_multistep
+      scheduler: H3_DEFAULTS.r2vScheduler,      // R2V 官方: simple
       denoise: H3_DEFAULTS.denoise,
       shiftVideo,
       shiftAudio,
       refImageSize,
       filenamePrefix,
-      fps: H3_DEFAULTS.fps,
+      fps: H3_CONSTANTS.FPS,
       codec: H3_DEFAULTS.codec,
       crf: H3_DEFAULTS.crf,
       saveSeparateAudio,
@@ -401,7 +480,9 @@ export default router.post(
           shiftVideo, shiftAudio, refImageSize,
           refImageCount: refImageFilenames.length,
           refAudioCount: refAudioFilenames.length,
-          cfg: H3_DEFAULTS.cfg,
+          refVideoCount: refVideoFilenames.length,
+          refVideoAudioCount: refVideoAudioFilenames.length,
+          cfg: H3_CONSTANTS.CFG,
         },
         message: "H3 ref2va task submitted to ComfyUI",
       }));
