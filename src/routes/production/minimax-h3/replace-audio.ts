@@ -662,15 +662,22 @@ export function mergeAudioAndVideo(
   ambientAudioPath: string,
   outputPath: string,
 ): void {
+  // 响度归一化策略 (EBU R128 LUFS):
+  //   - LTX Foley 原始输出极低 (~-50 LUFS), 必须归一化
+  //   - TTS 对白: -16 LUFS (清晰人声标准)
+  //   - 环境音 (有TTS时): -23 LUFS (对白背景, 不抢)
+  //   - 环境音 (无TTS时): -18 LUFS (主体音轨)
   if (ttsAudioPath && fs.existsSync(ttsAudioPath)) {
-    // 两轨混音: TTS (对白) + ambient (环境音)
-    // TTS 提升 3dB, ambient 降低 6dB, 防止对白被环境音盖住
+    // 两轨混音: TTS (对白) + ambient (环境音), 各自 loudnorm 后 amix
     const mixedAudio = outputPath.replace(/\.mp4$/, "_mixed.aac");
     execSync(
       `ffmpeg -y -i "${ttsAudioPath}" -i "${ambientAudioPath}" ` +
-      `-filter_complex "[0:a]volume=1.4[tts];[1:a]volume=0.5[amb];[tts][amb]amix=inputs=2:duration=first:weights=1 1:normalize=0[mix]" ` +
+      `-filter_complex ` +
+      `"[0:a]loudnorm=I=-16:TP=-1.5:LRA=11[tts];` +
+      `[1:a]loudnorm=I=-23:TP=-2:LRA=11[amb];` +
+      `[tts][amb]amix=inputs=2:duration=first:weights=1 1:normalize=0[mix]" ` +
       `-map "[mix]" -c:a aac -b:a 192k "${mixedAudio}"`,
-      { timeout: 60_000 },
+      { timeout: 120_000 },
     );
     // 合并视频 + 混合音频
     execSync(
@@ -680,11 +687,12 @@ export function mergeAudioAndVideo(
     );
     try { fs.unlinkSync(mixedAudio); } catch {}
   } else {
-    // 无 TTS, 直接合并视频 + 环境音
+    // 无 TTS, 环境音归一化后直接合并
     execSync(
       `ffmpeg -y -i "${videoPath}" -i "${ambientAudioPath}" ` +
-      `-map 0:v:0 -map 1:a:0 -af "apad" -c:v copy -c:a aac -b:a 192k -shortest "${outputPath}"`,
-      { timeout: 60_000 },
+      `-map 0:v:0 -map 1:a:0 -af "loudnorm=I=-18:TP=-1.5:LRA=11,apad" ` +
+      `-c:v copy -c:a aac -b:a 192k -shortest "${outputPath}"`,
+      { timeout: 120_000 },
     );
   }
 }

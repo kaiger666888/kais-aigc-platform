@@ -65,6 +65,8 @@ export interface AssetItem {
   source?: 'real' | 'mock'
   /** 正式使用版本标记（管线下游 P05+ 使用 isPrimaryView=true 的资产） */
   isPrimaryView?: boolean
+  /** 原始 meta JSON 字符串（透传给 parseCostumeMeta / parseTurnaroundSheetSize 解析富信息） */
+  meta?: string | null
 }
 
 // ─── 组合关系 ─────────────────────────────────────────────
@@ -305,6 +307,7 @@ export function assetDetailToItem(d: AssetDetail): AssetItem {
     viewAngle: d.viewAngle ?? undefined,
     source: 'real',
     isPrimaryView: d.isPrimaryView ?? false,
+    meta: d.meta,
   }
 }
 
@@ -328,7 +331,9 @@ export type AssetSubtype =
   | 'turnaround_sheet'     // ② 灰底紧身衣 Turnaround 整图（全剧级身份锚点，viewAngle=null）
   | 'turnaround_view'      // Turnaround 拆分视角（全剧级，viewAngle=front/side/back/three_quarter）
   | 'scene_base'           // ③ 场景设定图（场景级，如「宴会厅 v1」）
-  | 'scene_three_view'     // ④ 三视角场景（场景级，全剧级场景的多视角，name「场景 SSx」）
+  // @deprecated 三视角（多视角方案）已废弃，每个场景只保留一张场景设定图。
+  // 仅保留联合成员以避免其它引用处报类型错误，前端不再产生此子类型。
+  | 'scene_three_view'
   | 'scene_angle_shot'     // ⑥ 场景角度图（分镜级，scene_refs 目录，S0X_front/angle_left/angle_right）
   | 'scene_variant'        // 场景变体（场景级，旧兜底）
   | 'costume_turnaround'   // ⑦ 人物定妆 Turnaround（分镜级，参考②+⑤ —— 管线尚未产出，前端预留识别）
@@ -378,16 +383,10 @@ export function inferSubtype(d: AssetDetail): AssetSubtype {
   if (d.type === 'scene' || d.type === 'scene_variant' || d.type === 'scene_image') {
     const fp = (d.filePath || '').toLowerCase()
     const nm = (d.name || '').toLowerCase()
-    const cid = (d.characterId || '').toUpperCase()
-    // ④ 三视角场景（场景级 · 全剧级场景的多视角图）：name 形如「场景 SS1」或 characterId 以 SS 开头。
-    //    与 ⑥ 的区别：三视角挂在全剧级场景（SS）上，场景角度图挂在分镜（S0X）上。
-    if (/场景\s*ss\d+/.test(nm) || /^ss\d+/.test(cid)) {
-      return 'scene_three_view'
-    }
-    // ⑥ 场景角度图（分镜级）：scene_refs 目录 / 名称含「场景角度图」/ 文件名 S0X_front|angle_*
+    // ⑥ 场景角度图（分镜级）：名称含「场景角度图」/ 文件名 S0X_front|angle_*（不含 scene_refs 的）
     if (
       nm.includes('场景角度图') ||
-      fp.includes('scene_refs') || fp.includes('scene_angle') ||
+      fp.includes('scene_angle') ||
       /\bs\d+_(front|angle_left|angle_right)\b/.test(fp)
     ) {
       return 'scene_angle_shot'
@@ -500,6 +499,188 @@ export function parseTurnaroundSheetSize(meta?: string | null): [number | undefi
     Number.isFinite(width) ? width : undefined,
     Number.isFinite(height) ? height : undefined,
   ]
+}
+
+// ─── 服装变体（Costume Variants） ───────────────────────────
+//
+// 同一角色在不同分场/场景穿不同服装（如沈知意：宴会基线 / 日常基线 / 闪回）。
+// 不新建表 —— 服装信息存在 o_assets.meta JSON：
+//   {
+//     "costume_set":   "daily_baseline",          // 套系 ID（同一角色内唯一）
+//     "costume_label": "日常基线",                  // 显示名
+//     "costume_desc":  "白丝质衬衫+黑高腰西裤",      // 服装描述
+//     "scene_refs":    ["S02", "S03", "S07"]       // 适用场景 ID 列表
+//   }
+// meta.costume_set 区分同一角色的不同套系；scene_refs 建立服装→场景映射，
+// 驱动「角色 → 服装套系 → 适用场景 → 分镜镜头」的关系链。
+//
+// 后端无需改动：POST /api/v1/assets/update-meta 端点会合并 meta（非整体替换），
+// 适合增量写入服装字段。meta 字段也已在 PATCH /:id 的允许列表中。
+
+/** 默认套系 ID：无 meta.costume_set 的 turnaround 资产归入此套系（label='基线'）。 */
+export const DEFAULT_COSTUME_SET_ID = '__default__'
+
+/** 从 AssetDetail.meta 解析出的服装变体信息。 */
+export interface CostumeMeta {
+  /** 套系 ID（缺失 → null，归入默认套系）。 */
+  costumeSet: string | null
+  /** 显示名（如「日常基线」）。 */
+  costumeLabel: string | null
+  /** 服装描述（如「白丝质衬衫+黑高腰西裤」）。 */
+  costumeDesc: string | null
+  /** 适用场景 ID 列表（如 ["S02","S03"]）。 */
+  sceneRefs: string[]
+}
+
+/**
+ * 从 o_assets.meta（JSON 字符串）解析服装变体信息。
+ *
+ * 兼容驼峰 / 下划线两种字段命名（costume_set / costumeSet 等）。
+ * 无法解析或字段缺失时返回空值（costumeSet=null, sceneRefs=[]）。
+ */
+export function parseCostumeMeta(meta?: string | null): CostumeMeta {
+  const empty: CostumeMeta = { costumeSet: null, costumeLabel: null, costumeDesc: null, sceneRefs: [] }
+  if (!meta) return empty
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(meta)
+  } catch {
+    return empty
+  }
+  if (!parsed || typeof parsed !== 'object') return empty
+  const o = parsed as Record<string, unknown>
+  const cs = o.costume_set ?? o.costumeSet
+  const cl = o.costume_label ?? o.costumeLabel
+  const cd = o.costume_desc ?? o.costumeDesc
+  const sr = o.scene_refs ?? o.sceneRefs
+  return {
+    costumeSet: typeof cs === 'string' && cs.trim() ? cs.trim() : null,
+    costumeLabel: typeof cl === 'string' && cl.trim() ? cl.trim() : null,
+    costumeDesc: typeof cd === 'string' && cd.trim() ? cd.trim() : null,
+    sceneRefs: Array.isArray(sr) ? sr.filter((s): s is string => typeof s === 'string' && !!s.trim()).map((s) => s.trim()) : [],
+  }
+}
+
+/** 一套服装造型（同一角色的一个 costume_set）。 */
+export interface CostumeSet {
+  /** 套系 ID（meta.costume_set，或 DEFAULT_COSTUME_SET_ID）。 */
+  setId: string
+  /** 显示名（meta.costume_label，或默认套系='基线'，否则=setId）。 */
+  label: string
+  /** 服装描述（meta.costume_desc）。 */
+  desc: string | null
+  /** 是否为默认套系（无 costume_set 的资产）。 */
+  isDefault: boolean
+  /** 适用场景 ID 列表（合并该套系所有资产的 meta.scene_refs）。 */
+  sceneRefs: string[]
+  /** 该套系的 Turnaround 整图（灰底 turnaround_sheet 或 costume_turnaround）。 */
+  sheet: AssetItem | null
+  /** 该套系的拆分视角（turnaround_view：front/side/back/three_quarter）。 */
+  views: AssetItem[]
+}
+
+/**
+ * 按角色 ID 把 turnaround 相关资产分组成若干「服装套系」。
+ *
+ * 参与分组的资产子类型：
+ *   - turnaround_sheet  ② 灰底整图（套系的代表图 / hero image）
+ *   - turnaround_view   拆分视角（front/side/back/three_quarter → 四宫格）
+ *   - costume_turnaround ⑦ 人物定妆（未来管线产物，按套系归入 sheet）
+ *
+ * 无 meta.costume_set 的资产归入默认套系（label='基线'）。返回数组默认套系在最前，
+ * 其余按 label 排序；空套系（无 sheet 且无拆分视角）会被过滤掉。
+ *
+ * @param assets      项目级全部资产（useRealAssets 已按 projectId 拉取）
+ * @param characterId 角色 ID
+ */
+export function groupCharacterCostumes(assets: AssetDetail[], characterId: string): CostumeSet[] {
+  const bySet = new Map<string, CostumeSet>()
+  const ensure = (setId: string, isDefault: boolean): CostumeSet => {
+    let s = bySet.get(setId)
+    if (!s) {
+      s = {
+        setId,
+        label: isDefault ? '基线' : setId,
+        desc: null,
+        isDefault,
+        sceneRefs: [],
+        sheet: null,
+        views: [],
+      }
+      bySet.set(setId, s)
+    }
+    return s
+  }
+
+  for (const a of assets) {
+    if (a.type !== 'character') continue
+    if ((a.characterId ?? null) !== characterId) continue
+    if ((a.state ?? 'active') === 'eliminated') continue
+    const subtype = inferSubtype(a)
+    // 仅 turnaround 相关资产参与服装分组（概念图①是角色身份锚点，不属服装）
+    if (subtype !== 'turnaround_sheet' && subtype !== 'turnaround_view' && subtype !== 'costume_turnaround') continue
+
+    const cm = parseCostumeMeta(a.meta)
+    const isDefault = cm.costumeSet == null
+    const set = ensure(cm.costumeSet ?? DEFAULT_COSTUME_SET_ID, isDefault)
+    if (cm.costumeLabel) set.label = cm.costumeLabel
+    if (cm.costumeDesc && !set.desc) set.desc = cm.costumeDesc
+    for (const r of cm.sceneRefs) if (!set.sceneRefs.includes(r)) set.sceneRefs.push(r)
+
+    if ((subtype === 'turnaround_sheet' || subtype === 'costume_turnaround') && !set.sheet) {
+      set.sheet = assetDetailToItem(a)
+    }
+    if (subtype === 'turnaround_view') {
+      set.views.push(assetDetailToItem(a))
+    }
+  }
+
+  const sets = [...bySet.values()].filter((s) => s.sheet || s.views.length > 0)
+  sets.sort((a, b) => {
+    if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1
+    return a.label.localeCompare(b.label, 'zh')
+  })
+  return sets
+}
+
+/** 角色身份（左栏角色列表用，每角色一条代表图）。 */
+export interface CharacterIdentity {
+  characterId: string
+  item: AssetItem
+}
+
+/**
+ * 按角色 ID 聚合身份代表图（左栏角色列表用）。
+ *
+ * 每个角色取一张代表图，优先级：
+ *   1. character_concept（isPrimaryView 优先）—— 角色设定图，定义长相/气质
+ *   2. turnaround_sheet —— 灰底整图（无概念图时兜底）
+ *   3. 该角色的任意一张资产
+ *
+ * 这样左栏每角色只显示一条（修复旧逻辑把概念图 + 灰底整图都当作独立角色的问题）。
+ */
+export function groupCharacterIdentities(assets: AssetDetail[]): CharacterIdentity[] {
+  const byChar = new Map<string, AssetDetail[]>()
+  for (const a of assets) {
+    if (a.type !== 'character') continue
+    if ((a.state ?? 'active') === 'eliminated') continue
+    if (!a.characterId) continue
+    if (!byChar.has(a.characterId)) byChar.set(a.characterId, [])
+    byChar.get(a.characterId)!.push(a)
+  }
+
+  const out: CharacterIdentity[] = []
+  for (const [characterId, list] of byChar) {
+    const byPv = (a: AssetDetail) => (a.isPrimaryView ? 1 : 0)
+    const concept = list
+      .filter((a) => inferSubtype(a) === 'character_concept')
+      .sort((a, b) => byPv(b) - byPv(a))[0]
+    const sheet = list.find((a) => inferSubtype(a) === 'turnaround_sheet')
+    const rep = concept ?? sheet ?? list[0]
+    out.push({ characterId, item: assetDetailToItem(rep) })
+  }
+  out.sort((a, b) => a.item.name.localeCompare(b.item.name, 'zh'))
+  return out
 }
 
 /** 从 AssetDetail 提取 sceneId（场景设定图按场景名分组，分镜按 S 编号） */
@@ -732,11 +913,10 @@ function inferSubtypeFromItem(a: AssetItem): AssetSubtype {
   if (t === 'scene' || t === 'scene_variant' || t === 'scene_image') {
     const fp = (a.filePath || '').toLowerCase()
     const nm = (a.name || '').toLowerCase()
-    const cid = (a.characterId || '').toUpperCase()
-    if (/场景\s*ss\d+/.test(nm) || /^ss\d+/.test(cid)) return 'scene_three_view'
+    // 场景角度图：含 scene_angle 或文件名含角度关键词的
     if (
       nm.includes('场景角度图') ||
-      fp.includes('scene_refs') || fp.includes('scene_angle') ||
+      fp.includes('scene_angle') ||
       /\bs\d+_(front|angle_left|angle_right)\b/.test(fp)
     ) return 'scene_angle_shot'
     return 'scene_base'
@@ -744,13 +924,17 @@ function inferSubtypeFromItem(a: AssetItem): AssetSubtype {
   return 'unknown'
 }
 
-/** 子类型中文标签 */
+/**
+ * 子类型中文标签。
+ * 注意：scene_three_view 已废弃，但 AssetSubtype 联合保留该成员以避免其它引用报类型错误，
+ * 故本 Record 仍保留占位条目（不再在 UI 中使用）。
+ */
 export const SUBTYPE_LABEL: Record<AssetSubtype, string> = {
   character_concept: '角色设定图',
   turnaround_sheet: '灰色紧身衣Turnaround',
   turnaround_view: '视角拆分',
   scene_base: '场景设定图',
-  scene_three_view: '三视角场景',
+  scene_three_view: '三视角场景（已废弃）',
   scene_angle_shot: '场景角度图',
   scene_variant: '场景变体',
   costume_turnaround: '分镜级Turnaround',
@@ -759,7 +943,10 @@ export const SUBTYPE_LABEL: Record<AssetSubtype, string> = {
   unknown: '其他',
 }
 
-/** 子类型 emoji */
+/**
+ * 子类型 emoji。
+ * 注意：scene_three_view 已废弃，占位条目保留以满足 Record<AssetSubtype> 类型约束。
+ */
 export const SUBTYPE_EMOJI: Record<AssetSubtype, string> = {
   character_concept: '🎨',
   turnaround_sheet: '👕',

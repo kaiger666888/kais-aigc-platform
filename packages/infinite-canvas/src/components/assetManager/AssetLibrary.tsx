@@ -82,10 +82,11 @@ function getGroupKey(d: AssetDetail): string {
 
 /**
  * 始终在层级树显示的子类型条目（即使 DB 暂无数据，也以 count=0 灰色不可点击呈现）。
- * 对应 Kai 管线中尚未注册到 o_assets 的中间产物：②灰底 Turnaround / ④三视角 / ⑦分镜级 Turnaround。
+ * 对应 Kai 管线中尚未注册到 o_assets 的中间产物：②灰底 Turnaround / ⑦分镜级 Turnaround。
+ * （④三视角已废弃，不再常驻显示。）
  */
 const ALWAYS_SHOW_SUBTYPES: ReadonlySet<AssetSubtype> = new Set([
-  'turnaround_sheet', 'scene_three_view', 'costume_turnaround',
+  'turnaround_sheet', 'costume_turnaround',
 ])
 
 export default function AssetLibrary() {
@@ -216,14 +217,21 @@ export default function AssetLibrary() {
     }
   }, [assets, loading, projectId, reload])
 
-  const countAll = assets.length
+  // 过滤掉淘汰资产——左侧树只统计 active 资产（淘汰资产仍在「淘汰」tab 卡片区显示）。
+  // filtered/tabFiltered 不改，它们负责右侧卡片筛选。
+  const activeAssets = useMemo(
+    () => assets.filter((d) => d.state !== 'eliminated'),
+    [assets]
+  )
+
+  const countAll = activeAssets.length
 
   // ── 层级树数据（useMemo 派生） ──
   // 全剧级 · 角色列表：仅角色设定图（①），按 characterId 分组，附带可读角色名
   const showCharacters = useMemo(() => {
     const counts = new Map<string, number>()
     const names = new Map<string, string>()
-    for (const d of assets) {
+    for (const d of activeAssets) {
       if (inferLevel(d) !== 'show') continue
       if (inferSubtype(d) !== 'character_concept') continue
       if (!d.characterId) continue
@@ -236,23 +244,23 @@ export default function AssetLibrary() {
     return [...counts.entries()]
       .map(([id, n]) => ({ id, n, label: names.get(id) || id }))
       .sort((a, b) => a.label.localeCompare(b.label))
-  }, [assets])
+  }, [activeAssets])
 
   // 全子类型计数（驱动各层级固定条目 + count 徽标）
   const subtypeCounts = useMemo(() => {
     const counts: Record<string, number> = {}
-    for (const d of assets) {
+    for (const d of activeAssets) {
       const st = inferSubtype(d)
       counts[st] = (counts[st] ?? 0) + 1
     }
     return counts
-  }, [assets])
+  }, [activeAssets])
   const sub = useCallback((st: AssetSubtype): number => subtypeCounts[st] ?? 0, [subtypeCounts])
 
   // 场景级 · 场景设定图列表（③）：仅 scene_base，按场景名分组
   const sceneGroups = useMemo(() => {
     const counts = new Map<string, number>()
-    for (const d of assets) {
+    for (const d of activeAssets) {
       if (inferLevel(d) !== 'scene') continue
       if (inferSubtype(d) !== 'scene_base') continue
       const sid = inferSceneId(d)
@@ -261,12 +269,12 @@ export default function AssetLibrary() {
     return [...counts.entries()]
       .map(([id, n]) => ({ id, n }))
       .sort((a, b) => a.id.localeCompare(b.id))
-  }, [assets])
+  }, [activeAssets])
 
   // 分镜级 · 首尾帧列表（⑧⑨）：按 inferShotId 分组
   const shotGroups = useMemo(() => {
     const counts = new Map<string, number>()
-    for (const d of assets) {
+    for (const d of activeAssets) {
       if (inferLevel(d) !== 'shot') continue
       const sid = inferShotId(d)
       if (sid) counts.set(sid, (counts.get(sid) ?? 0) + 1)
@@ -274,13 +282,16 @@ export default function AssetLibrary() {
     return [...counts.entries()]
       .map(([id, n]) => ({ id, n }))
       .sort((a, b) => a.id.localeCompare(b.id))
-  }, [assets])
+  }, [activeAssets])
 
   // 各层级 section 计数（仅统计归属本 section 的资产）
   const showCount = sub('character_concept') + sub('turnaround_sheet') + sub('turnaround_view')
-  const sceneCount = sub('scene_base') + sub('scene_three_view')
+  // 场景级 = 场景设定图(③)（三视角已废弃，不再计入）
+  const sceneCount = sub('scene_base')
+  // 分镜级：首尾帧 + 场景角度图 + 人物定妆（三视角不再出现在分镜级）
   const shotCount =
-    sub('keyframe_first') + sub('keyframe_last') + sub('scene_angle_shot') + sub('costume_turnaround')
+    sub('keyframe_first') + sub('keyframe_last') + sub('scene_angle_shot') +
+    sub('costume_turnaround')
 
   // ── 层级树 subtype 条目渲染辅助 ──
   const subtypeOn = (st: AssetSubtype) => entityFilter?.type === 'subtype' && entityFilter.id === st
@@ -439,8 +450,6 @@ export default function AssetLibrary() {
                   <span className="am-tree-node__n">{s.n}</span>
                 </button>
               ))}
-              {/* ④ 三视角场景 —— 从场景级分离出的独立条目，DB 无数据时灰色不可点击 */}
-              {renderSubtypeNode('scene_three_view', true)}
             </div>
           )}
         </div>
