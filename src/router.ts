@@ -142,6 +142,7 @@ import route137 from "./routes/v1/trellis2/status";
 import route138 from "./routes/v1/tts/speak";
 import route139 from "./routes/v1/tts/status";
 import h3Route_ref2va from "./routes/production/minimax-h3/ref2va";
+import h3Route_i2va from "./routes/production/minimax-h3/i2va";
 import h3Route_t2va from "./routes/production/minimax-h3/t2va";
 import h3Route_status from "./routes/production/minimax-h3/status";
 
@@ -186,6 +187,7 @@ export default async (app: Express) => {
   app.use("/api/production/ltx/trim", route38);
   app.use("/api/production/ltx/twoStageAudioI2V", route39);
   app.use("/api/production/minimax-h3/ref2va", h3Route_ref2va);
+  app.use("/api/production/minimax-h3/i2va", h3Route_i2va);
   app.use("/api/production/minimax-h3/t2va", h3Route_t2va);
   app.use("/api/production/minimax-h3/status", h3Route_status);
   app.use("/api/production/mage", route40);
