@@ -11,58 +11,82 @@ import { validateFields } from "@/middleware/middleware";
 const router = express.Router();
 
 /**
- * RTX Video Super Resolution 配置
+ * RTX Video Super Resolution 配置 — 双 GPU 实例
  *
- * 微服务运行在 comfyui-primary 容器内 (端口 10589)，与 ComfyUI 共享 GPU。
- * 只需 ~13MB VRAM，不阻塞 ComfyUI 的渲染队列。
+ * 两个独立 VSR 微服务实例，平台统一管控，自动选择最优实例：
+ *   - 3060Ti (端口 10590): 宿主机直跑，~568 MiB VRAM，不干扰 3090 渲染
+ *   - 3090   (端口 10589): comfyui-primary 容器内，socat 转发
  *
- * 从宿主机访问: http://localhost:10589 (socat 端口转发由 kais-rtx-vsr-forward.service 管理)
- * 从 gold-team 容器访问: http://comfyui-primary:10589
- *
- * 输出目录: /mnt/agents/output/gpu1/rtx-vsr/ (容器内 = 宿主机共享挂载)
+ * 路由策略: 优先 3060Ti (3090 空闲给视频生成)，3060Ti 不可用时 fallback 到 3090
  */
+const VSR_INSTANCES = [
+  {
+    name: "3060Ti",
+    url: process.env.RTX_VSR_3060TI_URL || "http://localhost:10590",
+    outputDir: "/home/kai/shared/gpu0/rtx-vsr",
+    webBaseUrl: process.env.WEB_BASE_URL || "http://100.124.72.88:8082/gpu0/rtx-vsr",
+  },
+  {
+    name: "3090",
+    url: process.env.RTX_VSR_3090_URL || "http://localhost:10589",
+    outputDir: "/mnt/agents/output/gpu1/rtx-vsr",
+    webBaseUrl: process.env.WEB_BASE_URL || "http://100.124.72.88:8082/gpu1/rtx-vsr",
+  },
+];
+
 const RTX_VSR_CONFIG = {
-  serviceUrl: process.env.RTX_VSR_URL || "http://localhost:10589",
   timeoutMs: 120_000,
-  // 输出目录 = ComfyUI primary 的共享输出挂载
-  outputDir: "/mnt/agents/output/gpu1/rtx-vsr",
-  // 通过 8082 range_server 暴露的 URL 前缀
-  webBaseUrl: process.env.WEB_BASE_URL || "http://localhost:8082/gpu1/rtx-vsr",
+  instances: VSR_INSTANCES,
 };
+
+/**
+ * 选择可用的 VSR 实例 — 优先 3060Ti，fallback 3090
+ * 返回 { name, url, outputDir, webBaseUrl }
+ */
+async function selectInstance(): Promise<typeof VSR_INSTANCES[0]> {
+  for (const inst of VSR_INSTANCES) {
+    try {
+      const resp = await axios.get(`${inst.url}/health`, { timeout: 3_000 });
+      if (resp.data?.status === "ok") return inst;
+    } catch {}
+  }
+  throw new Error("All RTX VSR instances unavailable");
+}
 
 const LOCAL_STAGING_DIR = "/tmp/rtx-vsr-staging";
 if (!fs.existsSync(LOCAL_STAGING_DIR)) fs.mkdirSync(LOCAL_STAGING_DIR, { recursive: true });
 const upload = multer({ dest: LOCAL_STAGING_DIR, limits: { fileSize: 500 * 1024 * 1024 } });
 
 /**
- * 检查 RTX VSR 微服务是否可用
+ * GET /api/production/postprocess/rtx-vsr/health
+ * 返回所有 VSR 实例的健康状态
  */
-async function checkService(): Promise<string> {
-  const url = RTX_VSR_CONFIG.serviceUrl;
-  const resp = await axios.get(`${url}/health`, { timeout: 5_000 });
-  if (resp.data?.status === "ok") return url;
-  throw new Error("RTX VSR service unhealthy");
-}
-
-// ─── GET /api/production/postprocess/rtx-vsr/health ─────
-/** RTX VSR 服务健康检查 */
 export const healthCheck = router.get("/health", async (_req: any, res) => {
-  try {
-    const baseUrl = await checkService();
-    const resp = await axios.get(`${baseUrl}/health`, { timeout: 5_000 });
-    res.status(200).send(success({ ...resp.data, serviceUrl: baseUrl }));
-  } catch (err: any) {
-    res.status(503).send(error(`RTX VSR service unavailable: ${err.message}`));
-  }
+  const results = await Promise.all(
+    VSR_INSTANCES.map(async (inst) => {
+      try {
+        const resp = await axios.get(`${inst.url}/health`, { timeout: 3_000 });
+        return { name: inst.name, url: inst.url, status: "ok", ...resp.data };
+      } catch {
+        return { name: inst.name, url: inst.url, status: "unavailable" };
+      }
+    })
+  );
+  const anyOk = results.some((r) => r.status === "ok");
+  res.status(anyOk ? 200 : 503).send(
+    anyOk
+      ? success({ instances: results, primary: results.find((r) => r.status === "ok")?.name })
+      : error("All RTX VSR instances unavailable")
+  );
 });
 
 // ─── GET /api/production/postprocess/rtx-vsr/benchmark ─────
 /** 运行 VSR 性能基准测试 */
 export const benchmark = router.get("/benchmark", async (_req: any, res) => {
   try {
-    const baseUrl = await checkService();
-    const resp = await axios.get(`${baseUrl}/benchmark`, { timeout: 60_000 });
-    res.status(200).send(success(resp.data));
+    const inst = await selectInstance();
+    const resp = await axios.get(`${inst.url}/benchmark`, { timeout: 60_000 });
+    res.status(200).send(success({ ...resp.data, instance: inst.name }));
   } catch (err: any) {
     res.status(502).send(error(`Benchmark failed: ${err.message}`));
   }
@@ -118,7 +142,7 @@ export const upscaleImage = router.post(
     }
 
     try {
-      const baseUrl = await checkService();
+      const inst = await selectInstance();
 
       // Forward file to VSR service
       const formData = new FormData();
@@ -132,7 +156,7 @@ export const upscaleImage = router.post(
       if (targetWidth) formData.append("target_width", String(targetWidth));
       if (targetHeight) formData.append("target_height", String(targetHeight));
 
-      const vsrResp = await axios.post(`${baseUrl}/upscale`, formData, {
+      const vsrResp = await axios.post(`${inst.url}/upscale`, formData, {
         headers: formData.getHeaders(),
         timeout: RTX_VSR_CONFIG.timeoutMs,
       });
@@ -141,17 +165,15 @@ export const upscaleImage = router.post(
       try { fs.unlinkSync(req.file.path); } catch {}
 
       const data = vsrResp.data;
-      // Build accessible URL from output_path
-      // VSR service outputs to /home/kai/shared/rtx-vsr-output/ inside container
-      // which maps to /mnt/agents/output/gpu1/rtx-vsr/ on host (via shared mount)
       const outputFilename = data.output_url ? path.basename(data.output_url) : "";
       const webUrl = outputFilename
-        ? `${RTX_VSR_CONFIG.webBaseUrl}/${outputFilename}`
+        ? `${inst.webBaseUrl}/${outputFilename}`
         : undefined;
 
       res.status(200).send(success({
         ...data,
         engine: "rtx-vsr",
+        instance: inst.name,
         quality,
         webUrl,
       }));
@@ -184,7 +206,7 @@ export const upscaleBatch = router.post(
     const quality = (req.body.quality || "HIGH").toUpperCase();
 
     try {
-      const baseUrl = await checkService();
+      const inst = await selectInstance();
 
       const formData = new FormData();
       for (const file of files) {
@@ -196,7 +218,7 @@ export const upscaleBatch = router.post(
       formData.append("scale", String(scale));
       formData.append("quality", quality);
 
-      const vsrResp = await axios.post(`${baseUrl}/upscale/batch`, formData, {
+      const vsrResp = await axios.post(`${inst.url}/upscale/batch`, formData, {
         headers: formData.getHeaders(),
         timeout: RTX_VSR_CONFIG.timeoutMs,
       });
@@ -206,7 +228,7 @@ export const upscaleBatch = router.post(
         try { fs.unlinkSync(file.path); } catch {}
       }
 
-      res.status(200).send(success(vsrResp.data));
+      res.status(200).send(success({ ...vsrResp.data, instance: inst.name }));
     } catch (err: any) {
       for (const file of files) {
         try { fs.unlinkSync(file.path); } catch {}
@@ -239,7 +261,7 @@ export const upscaleVideo = router.post(
     const quality = (req.body.quality || "HIGH").toUpperCase();
 
     try {
-      const baseUrl = await checkService();
+      const inst = await selectInstance();
 
       const formData = new FormData();
       formData.append("file", fs.createReadStream(req.file.path), {
@@ -249,7 +271,7 @@ export const upscaleVideo = router.post(
       formData.append("scale", String(scale));
       formData.append("quality", quality);
 
-      const vsrResp = await axios.post(`${baseUrl}/upscale/video`, formData, {
+      const vsrResp = await axios.post(`${inst.url}/upscale/video`, formData, {
         headers: formData.getHeaders(),
         timeout: 300_000, // 5 min for video
         maxContentLength: Infinity,
@@ -261,12 +283,13 @@ export const upscaleVideo = router.post(
       const data = vsrResp.data;
       const outputFilename = data.output_url ? path.basename(data.output_url) : "";
       const webUrl = outputFilename
-        ? `${RTX_VSR_CONFIG.webBaseUrl}/${outputFilename}`
+        ? `${inst.webBaseUrl}/${outputFilename}`
         : undefined;
 
       res.status(200).send(success({
         ...data,
         engine: "rtx-vsr",
+        instance: inst.name,
         webUrl,
       }));
     } catch (err: any) {
