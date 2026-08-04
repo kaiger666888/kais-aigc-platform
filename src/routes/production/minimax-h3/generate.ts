@@ -117,6 +117,8 @@ interface H3GenOpts {
   height: number;
   length: number;
   seed: number;
+  /** 采样步数覆盖 (null 则用默认 t2v=50 / r2v=20) */
+  stepsOverride: number | null;
   /** i2va 首帧图 (容器内文件名); t2va / ref2va 传 null */
   firstFrameFilename: string | null;
   /** ref2va 参考图 (容器内文件名数组); t2va / i2va 传 [] */
@@ -128,13 +130,14 @@ function buildH3Workflow(opts: H3GenOpts): Record<string, any> {
   const {
     mode, prompt, negativePrompt,
     width, height, length, seed,
+    stepsOverride,
     firstFrameFilename, refImageFilenames, filenamePrefix,
   } = opts;
 
   const isRef2va = mode === "ref2va";
   // 模型 / 采样器 / 步数按模式选择
   const unetModel = isRef2va ? H3_DEFAULTS.ref2vaModel : H3_DEFAULTS.fl2vaModel;
-  const steps = isRef2va ? H3_DEFAULTS.r2vSteps : H3_DEFAULTS.t2vSteps;
+  const steps = stepsOverride || (isRef2va ? H3_DEFAULTS.r2vSteps : H3_DEFAULTS.t2vSteps);
   const samplerName = isRef2va ? H3_DEFAULTS.r2vSamplerName : H3_DEFAULTS.t2vSamplerName;
   const scheduler = isRef2va ? H3_DEFAULTS.r2vScheduler : H3_DEFAULTS.t2vScheduler;
 
@@ -293,6 +296,9 @@ export default router.post(
     // H3 视频生成种子 (默认随机); Foley 种子用 LTX 默认 (42)
     const h3Seed = req.body.seed ? Number(req.body.seed) : Math.floor(Math.random() * 2147483647);
 
+    // 采样步数覆盖 (可被 API 入参覆盖, 默认 t2v=50 / r2v=20)
+    const h3StepsOverride = req.body.steps ? Number(req.body.steps) : null;
+
     // ── 文件入参 ──
     const files = req.files as Record<string, Express.Multer.File[]> | undefined;
     const imageFile = files?.image?.[0];
@@ -358,6 +364,7 @@ export default router.post(
       negativePrompt: H3_DEFAULT_NEGATIVE, // H3 视频用视觉负面词; API 的 negativePrompt 留给 Foley
       width, height, length,
       seed: h3Seed,
+      stepsOverride: h3StepsOverride,
       firstFrameFilename,
       refImageFilenames,
       filenamePrefix: `${filenamePrefix}_h3`,
