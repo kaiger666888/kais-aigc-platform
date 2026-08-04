@@ -3,12 +3,17 @@
  *
  * POST /api/production/minimax-h3/t2va   (multipart/form-data 或 JSON)
  *   prompt         : string  (正面提示词, required)
- *   negativePrompt : string  (默认见 H3_DEFAULT_NEGATIVE)
- *   width/height   : number  (默认 1344×768, 必须 32 倍数)
- *   length         : number  (默认 124, 自动对齐到 n%17==5)
- *   seed/steps/shiftVideo/shiftAudio : number
+ *   projectId      : number  (required)
+ *   aspectRatio    : string  ("16:9"/"9:16"/"1:1"/"4:3"/"3:4"/"21:9",默认 "16:9")
+ *   duration       : number  (秒 4-15,自动 snap 到帧数网格;默认 5)
+ *   width/height   : number  (直接指定,覆盖 aspectRatio,必须 32 倍数)
+ *   length         : number  (帧数,覆盖 duration)
+ *   seed           : number  (默认 random)
+ *   steps          : number  (默认 50,官方 lossless 推荐)
+ *   shiftVideo     : number  (默认 12.0,⚠️ 不建议变更)
+ *   shiftAudio     : number  (默认 3.0,⚠️ 不建议变更)
+ *   negativePrompt : string  (默认见 H3_DEFAULT_NEGATIVE;cfg=1.0 实际不生效)
  *   filenamePrefix : string
- *   projectId      : string
  *
  * 与 ref2va 的区别:去掉 LoadImage / LoadAudio / ReferenceToVideo 节点,
  * 用 MiniMaxH3ImageToVideo 同时做正面 (node 20) 和负面 (node 16) 条件。
@@ -28,6 +33,9 @@ import { validateFields } from "@/middleware/middleware";
 import {
   H3_CONFIG,
   H3_DEFAULTS,
+  H3_CONSTANTS,
+  H3_RESOLUTION_TABLE,
+  H3_DURATION_TABLE,
   alignH3FrameCount,
   H3_DEFAULT_NEGATIVE,
 } from "./config";
@@ -105,7 +113,7 @@ export function buildH3T2vaWorkflow(opts: H3T2vaWorkflowOpts): Record<string, an
     "12": {
       class_type: "UNETLoader",
       inputs: {
-        unet_name: H3_DEFAULTS.modelName,
+        unet_name: H3_DEFAULTS.fl2vaModel,
         weight_dtype: "default",
       },
     },
@@ -207,22 +215,61 @@ export default router.post(
     const projectId = req.body.projectId;
     const prompt = req.body.prompt as string;
     const negativePrompt = (req.body.negativePrompt as string) || H3_DEFAULT_NEGATIVE;
-    const width = Number(req.body.width) || H3_DEFAULTS.defaultWidth;
-    const height = Number(req.body.height) || H3_DEFAULTS.defaultHeight;
     const seed = req.body.seed ? Number(req.body.seed) : Math.floor(Math.random() * 2147483647);
-    const steps = Number(req.body.steps) || H3_DEFAULTS.steps;
-    const shiftVideo = Number(req.body.shiftVideo) || H3_DEFAULTS.shiftVideo;
-    const shiftAudio = Number(req.body.shiftAudio) || H3_DEFAULTS.shiftAudio;
+    const steps = Number(req.body.steps) || H3_DEFAULTS.t2vSteps;            // 官方 lossless 推荐 50 步
+    const shiftVideo = Number(req.body.shiftVideo) || H3_DEFAULTS.shiftVideo; // ⚠️ 官方推荐 12.0,不建议变更
+    const shiftAudio = Number(req.body.shiftAudio) || H3_DEFAULTS.shiftAudio; // ⚠️ 官方推荐 3.0,不建议变更
     const filenamePrefix = (req.body.filenamePrefix as string) || `h3_t2va_${projectId}_${Date.now()}`;
+
+    // ── 分辨率解析:width/height 直接指定(最高优先)> aspectRatio 预设 > 默认 ──
+    const explicitW = req.body.width ? Number(req.body.width) : 0;
+    const explicitH = req.body.height ? Number(req.body.height) : 0;
+    const aspectRatio = (req.body.aspectRatio as string) || "16:9";
+    let width: number;
+    let height: number;
+    if (explicitW && explicitH) {
+      width = explicitW;
+      height = explicitH;
+    } else if (H3_RESOLUTION_TABLE[aspectRatio]) {
+      width = H3_RESOLUTION_TABLE[aspectRatio].width;
+      height = H3_RESOLUTION_TABLE[aspectRatio].height;
+    } else {
+      width = H3_DEFAULTS.defaultWidth;
+      height = H3_DEFAULTS.defaultHeight;
+    }
 
     // 分辨率必须 32 倍数
     if (width % 32 !== 0 || height % 32 !== 0) {
       return res.status(400).send(error(`width/height must be multiples of 32 (got ${width}×${height})`));
     }
 
-    // 帧数自动对齐到 n%17==5
-    const rawLength = Number(req.body.length) || H3_DEFAULTS.defaultLength;
-    const length = alignH3FrameCount(rawLength);
+    // ── 帧数解析:length 直接指定(覆盖 duration)> duration 查表/计算 > 默认 ──
+    const explicitLength = req.body.length ? Number(req.body.length) : 0;
+    const explicitDuration = req.body.duration ? Number(req.body.duration) : 0;
+    let length: number;
+    let durationSeconds: number;
+    if (explicitLength) {
+      length = alignH3FrameCount(explicitLength);
+      durationSeconds = length / H3_CONSTANTS.FPS;
+    } else if (explicitDuration) {
+      if (
+        explicitDuration < H3_CONSTANTS.MIN_DURATION ||
+        explicitDuration > H3_CONSTANTS.MAX_DURATION
+      ) {
+        return res
+          .status(400)
+          .send(error(`duration must be ${H3_CONSTANTS.MIN_DURATION}-${H3_CONSTANTS.MAX_DURATION}s (got ${explicitDuration})`));
+      }
+      const durKey = `${Math.round(explicitDuration)}s`;
+      length =
+        H3_DURATION_TABLE[durKey] !== undefined
+          ? H3_DURATION_TABLE[durKey]
+          : alignH3FrameCount(Math.round(explicitDuration * H3_CONSTANTS.FPS));
+      durationSeconds = explicitDuration;
+    } else {
+      length = alignH3FrameCount(H3_DEFAULTS.defaultLength);
+      durationSeconds = length / H3_CONSTANTS.FPS;
+    }
 
     const workflow = buildH3T2vaWorkflow({
       prompt,
@@ -232,14 +279,14 @@ export default router.post(
       length,
       seed,
       steps,
-      cfg: H3_DEFAULTS.cfg,
-      samplerName: H3_DEFAULTS.samplerName,
-      scheduler: H3_DEFAULTS.scheduler,
+      cfg: H3_CONSTANTS.CFG,
+      samplerName: H3_DEFAULTS.t2vSamplerName,
+      scheduler: H3_DEFAULTS.t2vScheduler,
       denoise: H3_DEFAULTS.denoise,
       shiftVideo,
       shiftAudio,
       filenamePrefix,
-      fps: H3_DEFAULTS.fps,
+      fps: H3_CONSTANTS.FPS,
       codec: H3_DEFAULTS.codec,
       crf: H3_DEFAULTS.crf,
     });
@@ -262,8 +309,18 @@ export default router.post(
         estimatedTime: "10-15 min",
         pollUrl: `/api/production/minimax-h3/status/${promptId}`,
         params: {
-          width, height, length, fps: H3_DEFAULTS.fps, seed, steps,
-          shiftVideo, shiftAudio, cfg: H3_DEFAULTS.cfg,
+          width,
+          height,
+          resolution: `${width}x${height}`,
+          aspectRatio,
+          length,
+          durationSeconds: Number(durationSeconds.toFixed(2)),
+          fps: H3_CONSTANTS.FPS,
+          seed,
+          steps,
+          shiftVideo,
+          shiftAudio,
+          cfg: H3_CONSTANTS.CFG,
         },
         message: "H3 t2va task submitted to ComfyUI",
       }));
