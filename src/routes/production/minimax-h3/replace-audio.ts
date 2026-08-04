@@ -14,10 +14,12 @@
  *   autoMerge      : boolean (true=同步等待+自动合并TTS+环境音, false=异步返回promptId)
  *   filenamePrefix : string  (输出文件名前缀)
  *
- * 工作流(v9 方案):
+ * 工作流(v9 方案 + NAG + BGM 检测重试):
  *   1. 接收视频 → 提取纯视频 (ffmpeg -an) + 可选 re-encode 到 1280x704
  *   2. 上传到 ComfyUI 容器 → docker cp 到 comfyui-primary:/root/ComfyUI/input/
  *   3. 构建 LTX 环境音工作流 → 提交到 ComfyUI (端口 8188)
+ *   4. (autoMerge) 下载音频 → BGM 频谱检测 → 残留则换 seed 重试 (最多 2 次)
+ *   5. 合并最终视频 + 音频
  *
  * 两种模式:
  *   autoMerge=false (默认): 异步模式, 返回 promptId, 客户端轮询
@@ -28,9 +30,10 @@
  *     - 无 ttsAudio: 直接合并环境音到纯视频
  *     返回最终 mp4 路径
  *
- * LTX 工作流拓扑(v9 Foley LoRA + SolidMask 方案, 已验证通过):
+ * LTX 工作流拓扑(v9 Foley LoRA + SolidMask + NAG 方案):
  *   - H3 视频帧通过 VHS_LoadVideoFFmpeg → VHS_VAEEncodeBatched → SolidMask 冻结
- *   - Foley LoRA (ltx-2.3-foley-400-steps) 提供环境音生成能力
+ *   - Foley LoRA (LTX2LoraLoaderAdvanced, video=0/audio=1) 提供环境音生成能力
+ *   - NAG 链 (PromptRelayEncode → LTX2_NAG) 采样阶段压制 BGM 残留
  *   - SolidMask (value=0) 冻结视频 latent, 采样只生成音频
  *   - LTX 蒸馏模型 9 步采样生成无 BGM 环境音
  *
@@ -81,9 +84,17 @@ const LTX_AMBIENT = {
   // 模型文件名
   modelName: "ltx-2.3-22b-distilled_transformer_only_fp8_input_scaled_v3.safetensors",
 
-  // v9: Foley LoRA (替代 ICLoRA) — 用 LoraLoaderModelOnly 加载
+  // v9: Foley LoRA — 用 LTX2LoraLoaderAdvanced 精确控制各层强度
   foleyLoraName: "ltx-2.3-foley-400-steps.safetensors",
   foleyLoraStrength: 1.0,
+
+  // NAG (Negative Augmented Guidance) — 采样阶段压制 BGM 残留
+  nagScale: 11,
+  nagAlpha: 0.25,
+  nagTau: 2.5,
+
+  // BGM 检测重试参数
+  bgmMaxRetries: 2,
 
   videoVaeName: "LTX23_video_vae_bf16.safetensors",
   audioVaeName: "LTX23_audio_vae_bf16.safetensors",
@@ -230,14 +241,18 @@ function ensureResolutionAndStripAudio(
 }
 
 // ============================================================
-// Workflow builder (v9: Foley LoRA + SolidMask)
+// Workflow builder (v9: Foley LoRA + SolidMask + NAG)
 // ============================================================
 //
-// 节点拓扑 (v9 方案, API JSON 格式, 已验证通过):
+// 节点拓扑 (v9 方案 + NAG 链, API JSON 格式):
 //
 //   模型加载:
 //     3:  UNETLoader (distilled transformer_only fp8)
-//     10: LoraLoaderModelOnly (model=[3,0], Foley LoRA, strength_model=1.0)
+//     10: LTX2LoraLoaderAdvanced (model=[3,0], Foley LoRA, video=0 audio=1)
+//
+//   NAG 链 (Negative Augmented Guidance — 采样阶段压制 BGM):
+//     99:  PromptRelayEncode (model=[10,0], clip=[26,0], latent=[23,0])
+//     121: LTX2_NAG (model=[99,0], nag_scale=11, nag_alpha=0.25, nag_tau=2.5)
 //
 //   文本:
 //     26: DualCLIPLoader (gemma + text_projection, type="ltxv")
@@ -316,14 +331,47 @@ export function buildLtxAmbientWorkflow(opts: LtxAmbientWorkflowOpts): Record<st
         weight_dtype: "default",
       },
     },
-    // 10: LoraLoaderModelOnly (Foley LoRA, strength_model=1.0)
-    // v9: 用 LoraLoaderModelOnly 替代 LTX2LoraLoaderAdvanced (后者在 ComfyUI 容器中不存在)
+    // 10: LTX2LoraLoaderAdvanced (Foley LoRA — 精确控制 video/audio 层强度)
+    //    video=0: 不影响视频生成; audio=1: 增强音频; video_to_audio=1: 跨注意力
     "10": {
-      class_type: "LoraLoaderModelOnly",
+      class_type: "LTX2LoraLoaderAdvanced",
       inputs: {
         model: ["3", 0],
         lora_name: LTX_AMBIENT.foleyLoraName,
         strength_model: LTX_AMBIENT.foleyLoraStrength,
+        video: 0.0,
+        video_to_audio: 1.0,
+        audio: 1.0,
+        audio_to_video: 0.0,
+        other: 1.0,
+      },
+    },
+
+    // === NAG 链 (Negative Augmented Guidance — 采样阶段压制 BGM) ===
+    // 99: PromptRelayEncode (将模型+CLIP+latent 包装为 relay 模型)
+    "99": {
+      class_type: "PromptRelayEncode",
+      inputs: {
+        model: ["10", 0],
+        clip: ["26", 0],
+        latent: ["23", 0],
+        global_prompt: prompt,
+        local_prompts: enhancedPrompt,
+        segment_lengths: "",
+        epsilon: 0.0022,
+      },
+    },
+    // 121: LTX2_NAG (NAG 包装 — 强化 negative prompt 对 BGM 的压制)
+    "121": {
+      class_type: "LTX2_NAG",
+      inputs: {
+        model: ["99", 0],
+        nag_scale: LTX_AMBIENT.nagScale,
+        nag_alpha: LTX_AMBIENT.nagAlpha,
+        nag_tau: LTX_AMBIENT.nagTau,
+        nag_cond_video: ["7", 1],
+        nag_cond_audio: ["7", 1],
+        inplace: true,
       },
     },
 
@@ -455,11 +503,11 @@ export function buildLtxAmbientWorkflow(opts: LtxAmbientWorkflowOpts): Record<st
       class_type: "KSamplerSelect",
       inputs: { sampler_name: LTX_AMBIENT.samplerName },
     },
-    // 37: CFGGuider (model=[10,0] Foley LoRA, cfg=1.0)
+    // 37: CFGGuider (model=[121,0] NAG-wrapped, cfg=1.0)
     "37": {
       class_type: "CFGGuider",
       inputs: {
-        model: ["10", 0],
+        model: ["121", 0],
         positive: ["7", 0],
         negative: ["7", 1],
         cfg: LTX_AMBIENT.cfg,
@@ -605,7 +653,84 @@ function mergeAudioAndVideo(
 }
 
 // ============================================================
-// Handler (v9: 简化 — 无分段, 无 BGM 检测)
+// BGM 残留检测 (频谱分析: tonal_ratio + mid_freq 占比)
+// ============================================================
+
+interface BgmDetectResult {
+  hasBgm: boolean;
+  risk: "LOW" | "MEDIUM" | "HIGH";
+  suspectSegments: number;
+  totalSegments: number;
+  details: Array<{ time: number; rms_db: number; tonal_ratio: number; mid_pct: number }>;
+}
+
+/**
+ * 用 ffmpeg + numpy FFT 频谱分析检测音频中是否残留 BGM。
+ * 原理: BGM 通常有持续的高 tonal_ratio (>0.15) 和中频占比 (>0.4)。
+ * 实现: 转换到 WAV → 调用 python3 执行 FFT 分析。
+ */
+function detectBgm(audioPath: string): BgmDetectResult {
+  const pyScript = `
+import sys, json
+import numpy as np
+from scipy.io import wavfile
+
+sr, data = wavfile.read(sys.argv[1])
+if data.ndim > 1:
+    data = data.mean(axis=1)
+data = data.astype(float)
+
+seg_len = int(sr * 1.0)
+n_segs = max(1, len(data) // seg_len)
+
+segments = []
+bgm_suspect = 0
+for i in range(n_segs):
+    seg = data[i*seg_len:(i+1)*seg_len]
+    if len(seg) < 256:
+        continue
+    freqs = np.fft.rfftfreq(len(seg), 1/sr)
+    spectrum = np.abs(np.fft.rfft(seg))
+    low = np.sum(spectrum[(freqs < 200)])
+    mid = np.sum(spectrum[(freqs >= 200) & (freqs < 2000)])
+    high = np.sum(spectrum[(freqs >= 2000)])
+    total = low + mid + high + 1e-10
+    spec_smooth = np.convolve(spectrum, np.ones(50)/50, mode='same')
+    peaks = spectrum > spec_smooth * 3
+    tonal_ratio = float(np.sum(spectrum[peaks]) / (np.sum(spectrum) + 1e-10))
+    seg_rms = float(np.sqrt(np.mean(seg**2)))
+    seg_rms_db = float(20 * np.log10(max(seg_rms, 1e-10)))
+    mid_pct = float(mid / total)
+    segments.append({"time": float(i), "rms_db": seg_rms_db, "tonal_ratio": tonal_ratio, "mid_pct": mid_pct})
+    if tonal_ratio > 0.15 and mid_pct > 0.4:
+        bgm_suspect += 1
+
+risk = "HIGH" if bgm_suspect >= n_segs * 0.5 else ("MEDIUM" if bgm_suspect > 0 else "LOW")
+print(json.dumps({"hasBgm": bgm_suspect > 0, "risk": risk, "suspectSegments": bgm_suspect, "totalSegments": n_segs, "details": segments}))
+`;
+
+  const scriptPath = path.join(LOCAL_STAGING_DIR, "_bgm_detect.py");
+  fs.writeFileSync(scriptPath, pyScript);
+
+  const wavPath = audioPath.replace(/\.\w+$/, "_detect.wav");
+  try {
+    execSync(`ffmpeg -y -i "${audioPath}" -ar 48000 -ac 1 "${wavPath}"`, { timeout: 30_000 });
+  } catch {
+    return { hasBgm: false, risk: "LOW", suspectSegments: 0, totalSegments: 0, details: [] };
+  }
+
+  try {
+    const out = execSync(`python3 "${scriptPath}" "${wavPath}"`, { timeout: 60_000 }).toString().trim();
+    try { fs.unlinkSync(wavPath); } catch {}
+    return JSON.parse(out) as BgmDetectResult;
+  } catch {
+    try { fs.unlinkSync(wavPath); } catch {}
+    return { hasBgm: false, risk: "LOW", suspectSegments: 0, totalSegments: 0, details: [] };
+  }
+}
+
+// ============================================================
+// Handler (v9: Foley LoRA + SolidMask + NAG + BGM 检测重试)
 // ============================================================
 
 export default router.post(
@@ -777,6 +902,69 @@ export default router.post(
         return res.status(502).send(error("Failed to produce ambient audio"));
       }
 
+      // ─── BGM 检测 + 重试 (autoMerge 模式) ──────────────────────────────
+      let currentSeed = seed;
+      let bestAmbientPath = ambientAudioPath;
+      let bgmResult = detectBgm(ambientAudioPath);
+      let bgmRetries = 0;
+
+      while (bgmResult.hasBgm && bgmRetries < LTX_AMBIENT.bgmMaxRetries) {
+        bgmRetries++;
+        currentSeed = seed + bgmRetries * 1000;
+        console.log(
+          `[replace-audio] BGM detected (risk=${bgmResult.risk}, ` +
+          `${bgmResult.suspectSegments}/${bgmResult.totalSegments} segs), ` +
+          `retry ${bgmRetries}/${LTX_AMBIENT.bgmMaxRetries} seed=${currentSeed}`,
+        );
+
+        // 重新构建 + 提交 (新 seed)
+        const retryWf = buildLtxAmbientWorkflow({
+          videoFilename: videoContainerFilename,
+          prompt,
+          negativePrompt,
+          numFrames,
+          seed: currentSeed,
+          filenamePrefix: `${filenamePrefix}_retry${bgmRetries}`,
+        });
+
+        const retryRes = await axios.post(
+          `${H3_CONFIG.comfyuiUrl}/prompt`,
+          { prompt: retryWf },
+          { timeout: 30_000, validateStatus: (s: number) => s < 500 },
+        );
+        if (retryRes.status !== 200) break;
+
+        const retryPoll = await pollComfyuiCompletion(
+          H3_CONFIG.comfyuiUrl, retryRes.data.prompt_id, 600_000,
+        );
+        if (!retryPoll.ok) break;
+
+        const retryAudioPath = path.join(
+          LOCAL_STAGING_DIR, `${retryRes.data.prompt_id}_ambient_retry${bgmRetries}.flac`,
+        );
+        const retryFound = await downloadAudioFromOutputs(
+          H3_CONFIG.comfyuiUrl, retryPoll.outputs, retryAudioPath,
+        );
+        if (!retryFound) break;
+
+        const retryBgm = detectBgm(retryAudioPath);
+        console.log(
+          `[replace-audio] Retry ${bgmRetries}: risk=${retryBgm.risk}, ` +
+          `${retryBgm.suspectSegments}/${retryBgm.totalSegments} segs`,
+        );
+
+        // 只有改善时才用新音频
+        if (retryBgm.suspectSegments < bgmResult.suspectSegments) {
+          try { fs.unlinkSync(bestAmbientPath); } catch {}
+          bestAmbientPath = retryAudioPath;
+          bgmResult = retryBgm;
+          if (!retryBgm.hasBgm || retryBgm.risk === "LOW") break;
+        } else {
+          try { fs.unlinkSync(retryAudioPath); } catch {}
+          break; // 没有改善, 放弃
+        }
+      }
+
       // 合并: 视频 + (可选 TTS) + 环境音
       const finalOutputPath = path.join(H3_CONFIG.outputDir, `${filenamePrefix}_final.mp4`);
       try {
@@ -786,14 +974,14 @@ export default router.post(
       mergeAudioAndVideo(
         localPureVideo,
         localTtsAudio,
-        ambientAudioPath,
+        bestAmbientPath,
         finalOutputPath,
       );
 
       // 清理临时文件
       if (localPureVideo && reencodedPath) { try { fs.unlinkSync(localPureVideo); } catch {} }
       if (localTtsAudio) { try { fs.unlinkSync(localTtsAudio); } catch {} }
-      try { fs.unlinkSync(ambientAudioPath); } catch {}
+      try { fs.unlinkSync(bestAmbientPath); } catch {}
 
       const outputUrl = `/mnt/agents/output/${filenamePrefix}_final.mp4`;
 
@@ -809,6 +997,13 @@ export default router.post(
             rawFrames,
             model: LTX_AMBIENT.modelName,
             foleyLora: LTX_AMBIENT.foleyLoraName,
+          },
+          bgmDetection: {
+            risk: bgmResult.risk,
+            suspectSegments: bgmResult.suspectSegments,
+            totalSegments: bgmResult.totalSegments,
+            retries: bgmRetries,
+            finalSeed: currentSeed,
           },
           message: "H3 video + LTX ambient merged successfully",
         }),
