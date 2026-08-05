@@ -17,7 +17,7 @@
  * 无需额外 API 调用。Socket 实时同步、审核操作全部复用现有 store 逻辑。
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useCanvasStore } from '../store/canvasStore'
 import { theme, v3theme } from '../theme/catppuccin'
 import { METADATA_LABELS } from '../constants'
@@ -35,6 +35,8 @@ interface AudioTrack {
   speaker?: string
   durationS: number
   filePath: string
+  /** 对白/旁白原文（仅 voice 节点有；竖幅对白轨展示截断文字用）。 */
+  text?: string
 }
 
 interface StoryboardShot {
@@ -371,6 +373,8 @@ function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<string, Re
       speaker: normalizeSpeaker(raw.speaker as string),
       durationS: (raw.duration_sec as number) ?? node.media.durationS ?? 0,
       filePath,
+      // 对白/旁白原文（voice 节点 raw.text），竖幅对白轨展示截断文字
+      text: (raw.text as string) ?? undefined,
     }
     const arr = audioByShot.get(key)
     if (arr) arr.push(track)
@@ -1312,6 +1316,417 @@ function PlayerPlaceholder() {
   )
 }
 
+// ─── 竖幅时间轴（VerticalTimeline） ──────────────────────
+
+interface VerticalTimelineProps {
+  shots: TimedShot[] // 复用父组件已计算的 shots（含 startSec/endSec/layoutDur）
+  selectedNodeId: string | null // 当前 detailNode?.id
+  onSelectShot: (shot: StoryboardShot) => void // 复用父组件 selectShot
+  onAudioPlay: (track: AudioTrack) => void // 复用父组件 setActiveAudio
+  activeAudioPath: string | null // 当前 activeAudio?.filePath
+}
+
+/** 竖幅时间轴：每秒高度（px）。值小 → 长分镜不至撑爆屏幕，便于纵观全局节奏。 */
+const PX_PER_SEC = 14
+
+/**
+ * 音轨 → 轨道类别（对白 / 环境 / BGM / null）。按 clip_type / audio_type 关键词匹配。
+ * 对白含 narration（旁白也走人声轨）。无法归类的返回 null（竖幅不展示）。
+ */
+function classifyAudioTrack(track: AudioTrack): 'dialogue' | 'ambient' | 'bgm' | null {
+  const t = `${track.clipType} ${track.audioType}`.toLowerCase()
+  if (/人声|dialogue|voice/.test(t)) return 'dialogue'
+  if (/背景音乐|bgm|music/.test(t)) return 'bgm'
+  if (/环境|ambient|sfx|effect|音效/.test(t)) return 'ambient'
+  return null
+}
+
+/** 三类音轨视觉元信息（背景 / 激活背景 / 左边框 / 轨头标签）。 */
+const TRACK_META = {
+  dialogue: { bg: 'rgba(137,180,250,0.30)', bgActive: 'rgba(137,180,250,0.50)', border: '#89B4FA', label: '💬 对白' },
+  ambient: { bg: 'rgba(166,227,161,0.25)', bgActive: 'rgba(166,227,161,0.45)', border: '#A6E3A1', label: '🔊 环境' },
+  bgm: { bg: 'rgba(203,166,247,0.25)', bgActive: 'rgba(203,166,247,0.45)', border: '#CBA6F7', label: '🎵 BGM' },
+} as const
+
+/** 竖幅各列宽度（header 行与内容列严格对齐；bgm 列 flex 吸收右侧余量）。 */
+const VT_COL = { time: 36, shot: 80, dialogue: 88, ambient: 60, bgm: 60 } as const
+/** 分镜矩形按场景号循环的 4 模态色板（相邻 scene 不同色）。 */
+const VT_SCENE_COLORS = [v3theme.modality.image, v3theme.modality.video, v3theme.modality.audio, v3theme.modality.text] as const
+const VT_PANEL_W = 360
+const VT_COLLAPSED_W = 44
+
+/** 从 shotId 取场景号（首个数字段），用于分镜矩形交替着色。 */
+function sceneNumOf(shotId: string): number {
+  const m = shotId.match(/s?0*(\d+)/i)
+  return m ? Number(m[1]) : 0
+}
+
+/** 累计总时长 → MM:SS（标题栏显示）。 */
+function formatTotalDuration(sec: number): string {
+  if (!isFinite(sec) || sec <= 0) return '00:00'
+  const m = Math.floor(sec / 60)
+  const s = Math.round(sec % 60)
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
+/**
+ * 单条音轨矩形（对白/环境/BGM 共用）。绝对定位到所属 shot 的 startSec，高度 ∝ durationS。
+ * 点击 → onAudioPlay（不做音频文件加载验证：磁盘 wav 可能 404，父组件 mini 播放器自然失败不崩）。
+ * 同 shot 多条同类轨按 idx 向下偏移 16px 错开，避免完全重叠。
+ */
+function AudioTrackRect({
+  shot,
+  track,
+  type,
+  index,
+  activeAudioPath,
+  onAudioPlay,
+}: {
+  shot: TimedShot
+  track: AudioTrack
+  type: 'dialogue' | 'ambient' | 'bgm'
+  index: number
+  activeAudioPath: string | null
+  onAudioPlay: (track: AudioTrack) => void
+}) {
+  const meta = TRACK_META[type]
+  const width = VT_COL[type]
+  const top = shot.startSec * PX_PER_SEC + index * 16
+  const dur = track.durationS > 0 ? track.durationS : MIN_LAYOUT_DUR
+  const height = Math.max(18, dur * PX_PER_SEC)
+  const isActive = activeAudioPath === track.filePath
+  const label = track.speaker ?? track.audioType ?? track.clipType ?? ''
+  const title = [
+    track.audioType || track.clipType || '音频',
+    track.speaker ? track.speaker : '',
+    formatDuration(track.durationS),
+  ].filter(Boolean).join(' · ') + (track.text ? `\n${track.text}` : '')
+  return (
+    <button
+      data-testid="vt-audio-rect"
+      onClick={(e) => { e.stopPropagation(); onAudioPlay(track) }}
+      title={title}
+      style={{
+        position: 'absolute',
+        top,
+        left: 2,
+        width: width - 6,
+        height,
+        minHeight: 18,
+        overflow: 'hidden',
+        cursor: 'pointer',
+        padding: '2px 14px 2px 5px',
+        borderRadius: 3,
+        textAlign: 'left',
+        background: isActive ? meta.bgActive : meta.bg,
+        border: `1px solid ${meta.border}`,
+        borderLeft: `${isActive ? 3 : 2}px solid ${meta.border}`,
+        color: '#fff',
+      }}
+    >
+      {/* 文字：对白优先显示原文（截断 2 行），否则显示 speaker/audioType 标签 */}
+      <div style={{
+        fontSize: 9, fontWeight: 600, lineHeight: 1.25,
+        overflow: 'hidden', display: '-webkit-box',
+        WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+        wordBreak: 'break-word',
+      }}>
+        {track.text ? (
+          <>
+            {label && <span style={{ opacity: 0.9 }}>{label}： </span>}
+            {track.text}
+          </>
+        ) : label}
+      </div>
+      {/* 小播放图标 */}
+      <span style={{
+        position: 'absolute', top: 3, right: 3,
+        fontSize: 9, lineHeight: 1, opacity: 0.9,
+      }}>▶</span>
+      {height >= 30 && (
+        <span style={{
+          position: 'absolute', bottom: 2, right: 4,
+          fontSize: 8, opacity: 0.75,
+          fontFamily: 'var(--cv-font-mono, monospace)',
+        }}>{formatDuration(track.durationS)}</span>
+      )}
+    </button>
+  )
+}
+
+/** 单条音轨列（对白/环境/BGM）。bgm 列 flex 吸收面板右侧余量。 */
+function TrackLane({
+  type,
+  items,
+  activeAudioPath,
+  onAudioPlay,
+}: {
+  type: 'dialogue' | 'ambient' | 'bgm'
+  items: Array<{ shot: TimedShot; track: AudioTrack }>
+  activeAudioPath: string | null
+  onAudioPlay: (track: AudioTrack) => void
+}) {
+  const containerStyle: CSSProperties = type === 'bgm'
+    ? { flex: '1 1 auto', minWidth: VT_COL.bgm, position: 'relative', zIndex: 1 }
+    : { width: VT_COL[type], position: 'relative', flexShrink: 0, zIndex: 1, borderRight: `1px solid ${theme.border.dim}` }
+  return (
+    <div style={containerStyle}>
+      {items.map(({ shot, track }, i) => (
+        <AudioTrackRect
+          key={`${shot.node.id}-${i}`}
+          shot={shot}
+          track={track}
+          type={type}
+          index={i}
+          activeAudioPath={activeAudioPath}
+          onAudioPlay={onAudioPlay}
+        />
+      ))}
+    </div>
+  )
+}
+
+/**
+ * 竖幅时间轴面板（页面右侧固定）。分镜 + 三类音轨按累计时间纵向铺开：
+ *   - 时间刻度（每 5s 一标签 + 全宽水平网格线）
+ *   - 分镜矩形（高度 ∝ 时长，最小 28px；按场景号循环 4 模态色；首帧缩略图作背景）
+ *   - 对白 / 环境 / BGM 三轨（按 clipType/audioType 分类，高度 ∝ durationS）
+ *
+ * 可折叠：展开 360px（默认），折叠 44px 仅留标题栏 + 竖向「时间轴」文字。
+ * 矩形/音轨均绝对定位对齐到 shot.startSec（父组件累计时间几何），整个内容区纵向滚动。
+ */
+function VerticalTimeline({
+  shots,
+  selectedNodeId,
+  onSelectShot,
+  onAudioPlay,
+  activeAudioPath,
+}: VerticalTimelineProps) {
+  const [collapsed, setCollapsed] = useState(false)
+
+  // 音轨按类别分桶（保留所属 shot，供定位 top = shot.startSec * PX_PER_SEC）
+  const buckets = useMemo(() => {
+    const dialogue: Array<{ shot: TimedShot; track: AudioTrack }> = []
+    const ambient: Array<{ shot: TimedShot; track: AudioTrack }> = []
+    const bgm: Array<{ shot: TimedShot; track: AudioTrack }> = []
+    for (const shot of shots) {
+      for (const track of shot.audioTracks ?? []) {
+        const cls = classifyAudioTrack(track)
+        if (cls === 'dialogue') dialogue.push({ shot, track })
+        else if (cls === 'ambient') ambient.push({ shot, track })
+        else if (cls === 'bgm') bgm.push({ shot, track })
+      }
+    }
+    return { dialogue, ambient, bgm }
+  }, [shots])
+
+  const totalSec = shots.length ? shots[shots.length - 1].endSec : 0
+
+  // 内容区高度：以 totalSec 为基线，短分镜最小高度可能让尾部超出，取两者 max
+  const contentHeight = useMemo(() => {
+    let h = totalSec * PX_PER_SEC
+    for (const s of shots) {
+      const bottom = s.startSec * PX_PER_SEC + Math.max(28, s.layoutDur * PX_PER_SEC)
+      if (bottom > h) h = bottom
+    }
+    return Math.max(h, 60)
+  }, [shots, totalSec])
+
+  // 时间刻度：每 5s 一个标签
+  const ticks = useMemo(() => {
+    if (totalSec <= 0) return [0]
+    const arr: number[] = []
+    const max = Math.ceil(totalSec / 5) * 5
+    for (let t = 0; t <= max; t += 5) arr.push(t)
+    return arr
+  }, [totalSec])
+
+  // 折叠态：44px 窄轨，仅标题栏（▶ 展开）+ 竖向「时间轴」文字
+  if (collapsed) {
+    return (
+      <div
+        data-testid="vertical-timeline"
+        style={{
+          width: VT_COLLAPSED_W, height: '100%', flexShrink: 0,
+          display: 'flex', flexDirection: 'column',
+          background: theme.bg.panel,
+          borderLeft: `1px solid ${theme.border.default}`,
+        }}
+      >
+        <div style={{
+          flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '6px 0', borderBottom: `1px solid ${theme.border.dim}`,
+        }}>
+          <button
+            onClick={() => setCollapsed(false)}
+            title="展开竖幅时间轴"
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px',
+              borderRadius: 3, color: theme.text.secondary, fontSize: 13, lineHeight: 1,
+            }}
+          >▶</button>
+        </div>
+        <div style={{
+          flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          writingMode: 'vertical-rl', textOrientation: 'mixed',
+          fontSize: 11, fontWeight: 600, letterSpacing: 2,
+          color: theme.text.tertiary, userSelect: 'none',
+        }}>
+          竖幅时间轴
+        </div>
+      </div>
+    )
+  }
+
+  const headerCellStyle: CSSProperties = {
+    fontSize: 9,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    color: theme.text.secondary,
+    fontWeight: 600,
+    padding: '0 4px',
+    display: 'flex',
+    alignItems: 'center',
+    overflow: 'hidden',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
+  }
+  const colBorder = { borderRight: `1px solid ${theme.border.dim}` }
+
+  return (
+    <div
+      data-testid="vertical-timeline"
+      style={{
+        width: VT_PANEL_W, height: '100%', flexShrink: 0,
+        display: 'flex', flexDirection: 'column',
+        background: theme.bg.panel,
+        borderLeft: `1px solid ${theme.border.default}`,
+      }}
+    >
+      {/* 标题栏：折叠按钮 · 标题 · 分镜数 · 总时长 */}
+      <div style={{
+        flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6,
+        padding: '6px 10px', borderBottom: `1px solid ${theme.border.default}`,
+      }}>
+        <button
+          data-testid="vt-collapse"
+          onClick={() => setCollapsed(true)}
+          title="折叠"
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px',
+            borderRadius: 3, color: theme.text.secondary, fontSize: 11, lineHeight: 1,
+          }}
+        >▼</button>
+        <span style={{ fontSize: 11, fontWeight: 700, color: theme.text.primary }}>竖幅时间轴</span>
+        <span style={{ fontSize: 10, color: theme.text.tertiary, fontFamily: 'var(--cv-font-mono, monospace)' }}>
+          · {shots.length} 分镜 · {formatTotalDuration(totalSec)}
+        </span>
+      </div>
+
+      {/* 轨头标签行（24px，与内容列严格对齐） */}
+      <div style={{
+        flexShrink: 0, height: 24, display: 'flex',
+        background: theme.bg.panel, borderBottom: `1px solid ${theme.border.default}`,
+      }}>
+        <div style={{ ...headerCellStyle, ...colBorder, width: VT_COL.time }}>时间</div>
+        <div style={{ ...headerCellStyle, ...colBorder, width: VT_COL.shot }}>分镜</div>
+        <div style={{ ...headerCellStyle, ...colBorder, width: VT_COL.dialogue }}>💬 对白</div>
+        <div style={{ ...headerCellStyle, ...colBorder, width: VT_COL.ambient }}>🔊 环境</div>
+        <div style={{ ...headerCellStyle, flex: '1 1 auto', minWidth: VT_COL.bgm }}>🎵 BGM</div>
+      </div>
+
+      {/* 滚动内容区 */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+        <div style={{ position: 'relative', height: contentHeight, display: 'flex' }}>
+          {/* 水平网格线层（全宽，每 5s 一条） */}
+          {ticks.map((t) => (
+            <div key={`grid-${t}`} style={{
+              position: 'absolute', top: t * PX_PER_SEC, left: 0, right: 0, height: 0,
+              borderTop: `1px solid ${theme.border.dim}`, pointerEvents: 'none', zIndex: 0,
+            }} />
+          ))}
+
+          {/* 时间刻度列（36px） */}
+          <div style={{ width: VT_COL.time, position: 'relative', flexShrink: 0, ...colBorder, zIndex: 1 }}>
+            {ticks.map((t) => (
+              <span key={`tick-${t}`} style={{
+                position: 'absolute', top: t * PX_PER_SEC - 5, left: 3,
+                fontSize: 9, fontFamily: 'var(--cv-font-mono, monospace)',
+                color: theme.text.tertiary, lineHeight: 1,
+              }}>{t}s</span>
+            ))}
+          </div>
+
+          {/* 分镜矩形轨（80px） */}
+          <div style={{ width: VT_COL.shot, position: 'relative', flexShrink: 0, ...colBorder, zIndex: 1 }}>
+            {shots.map((shot) => {
+              const top = shot.startSec * PX_PER_SEC
+              const height = Math.max(28, shot.layoutDur * PX_PER_SEC)
+              const sceneIdx = Math.max(0, sceneNumOf(shot.shotId) - 1) % VT_SCENE_COLORS.length
+              const color = VT_SCENE_COLORS[sceneIdx]
+              const selected = shot.node.id === selectedNodeId
+              const thumb = resolveMediaUrl(shot.firstFrame ?? shot.thumbnail)
+              return (
+                <button
+                  key={shot.node.id}
+                  data-testid="vt-shot-rect"
+                  onClick={() => onSelectShot(shot)}
+                  title={`${shot.shotId} · ${formatTime(shot.startSec)}→${formatTime(shot.endSec)} (${formatDuration(shot.durationS)})`}
+                  style={{
+                    position: 'absolute', top, left: 2,
+                    width: VT_COL.shot - 6, height,
+                    overflow: 'hidden', cursor: 'pointer', padding: 0,
+                    borderRadius: 4,
+                    border: selected ? `2px solid ${v3theme.signal.approved}` : `1px solid ${theme.border.default}`,
+                    background: thumb ? `${color}22` : `${color}33`,
+                    boxShadow: selected ? `0 0 0 1px ${v3theme.signal.approved}55` : 'none',
+                    transition: 'border-color 120ms',
+                  }}
+                  onMouseEnter={(e) => { if (!selected) (e.currentTarget as HTMLButtonElement).style.borderColor = theme.border.strong }}
+                  onMouseLeave={(e) => { if (!selected) (e.currentTarget as HTMLButtonElement).style.borderColor = theme.border.default }}
+                >
+                  {/* 首帧缩略图作背景（opacity 0.5） */}
+                  {thumb && (
+                    <img
+                      src={thumb}
+                      alt=""
+                      loading="lazy"
+                      style={{
+                        position: 'absolute', inset: 0, width: '100%', height: '100%',
+                        objectFit: 'cover', opacity: 0.5, display: 'block',
+                      }}
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden' }}
+                    />
+                  )}
+                  {/* 文字可读性渐变叠层 */}
+                  <div style={{
+                    position: 'absolute', inset: 0,
+                    background: 'linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.15) 50%, rgba(0,0,0,0.5) 100%)',
+                    pointerEvents: 'none',
+                  }} />
+                  <span style={{
+                    position: 'relative', display: 'block',
+                    padding: '3px 5px',
+                    fontSize: 9, fontWeight: 700, color: '#fff',
+                    fontFamily: 'var(--cv-font-mono, monospace)',
+                    textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+                    lineHeight: 1.2,
+                  }}>{shot.shotId}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* 三类音轨列（对白 88 / 环境 60 / BGM 60→flex） */}
+          <TrackLane type="dialogue" items={buckets.dialogue} activeAudioPath={activeAudioPath} onAudioPlay={onAudioPlay} />
+          <TrackLane type="ambient" items={buckets.ambient} activeAudioPath={activeAudioPath} onAudioPlay={onAudioPlay} />
+          <TrackLane type="bgm" items={buckets.bgm} activeAudioPath={activeAudioPath} onAudioPlay={onAudioPlay} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── 主组件 ────────────────────────────────────────────
 
 export default function StoryboardTimeline() {
@@ -1758,22 +2173,34 @@ export default function StoryboardTimeline() {
         )}
       </div>
 
-      {/* 横版：播放器在左、分镜列表在右；竖版：播放器在顶、列表在下 */}
-      {isLandscape ? (
-        <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-          {/* 左：播放器列（无视频时同尺寸占位） */}
-          {activeVideo ? player : <PlayerPlaceholder />}
-          {/* 右：分镜列表（占满剩余宽度） */}
-          {shotList}
+      {/* 主体：左=播放器+分镜列表（占满剩余宽度），右=竖幅时间轴（固定宽度，可折叠） */}
+      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: isLandscape ? 'row' : 'column', minWidth: 0 }}>
+          {isLandscape ? (
+            <>
+              {/* 左：播放器列（无视频时同尺寸占位） */}
+              {activeVideo ? player : <PlayerPlaceholder />}
+              {/* 右：分镜列表（占满剩余宽度） */}
+              {shotList}
+            </>
+          ) : (
+            <>
+              {/* 竖版：播放器在顶部（无视频不渲染，节省空间） */}
+              {activeVideo && player}
+              {/* 分镜列表（占满宽度） */}
+              {shotList}
+            </>
+          )}
         </div>
-      ) : (
-        <>
-          {/* 竖版：播放器在顶部（无视频不渲染，节省空间） */}
-          {activeVideo && player}
-          {/* 分镜列表（占满宽度） */}
-          {shotList}
-        </>
-      )}
+        {/* 竖幅时间轴（右侧固定面板） */}
+        <VerticalTimeline
+          shots={shots}
+          selectedNodeId={detailNode?.id ?? null}
+          onSelectShot={selectShot}
+          onAudioPlay={(track) => setActiveAudio(track)}
+          activeAudioPath={activeAudio?.filePath ?? null}
+        />
+      </div>
 
       {/* ─── 音频 mini 播放器（点击音轨 chip 滑出） ─── */}
       {activeAudio && (
