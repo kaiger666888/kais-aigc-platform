@@ -1,11 +1,16 @@
 /**
- * 视图D · 场景与分镜 —— 原「场景管理」+「首尾帧流水线」合并。
+ * 视图D · 场景管理（场景与分镜）—— 原「场景管理」+「首尾帧流水线」合并。
+ *
+ * 【管理导向】本视图仅展示「已选定」资产：
+ *   层1 只出现选定的场景设定图（isPrimaryView=true && state≠eliminated）；
+ *   层2 只出现选定的首尾帧版本（selected=true），待选/淘汰版本不渲染、不做三态展示。
+ *   资产库（左侧栏）才是生产导向、平铺所有三态资产的地方。
  *
  * 两级视图：
  *   层1：场景多视角设定图（type==='scene'，按 filePath/name 的 S0x 分组），
  *        左列场景列表 + 右侧变体网格，可选 2 个视角并排对比。（原 SceneManager）
  *   层2：该场景下分镜的首尾帧（type==='keyframe'，按 name 的 S0x[_B0x] 关联），
- *        每镜一行 [分镜号 | 场景角度 | 首帧 v1★ v2 v3 → 尾帧 v1★ v2 v3 | 🔗连续/✂断裂]。
+ *        每镜一行 [分镜号 | 场景角度 | 首帧 → 尾帧 | 🔗连续/✂断裂]。
  *        连续性判定复用 utils/continuity.ts 的 judgeContinuity（原 FramePipelineView）。
  *
  * 数据来源（与原两个视图同源）：
@@ -276,9 +281,10 @@ export default function SceneShotManager() {
       if (!map.has(sceneId)) map.set(sceneId, { label, variants: [] })
       map.get(sceneId)!.variants.push(item)
     }
-    // keyframe 所属场景若无设定图，补空组（层2仍可达）
+    // keyframe 所属场景若无设定图，补空组（层2仍可达）—— 仅计选定首尾帧，避免只有待选/淘汰帧的空场景入列
     for (const d of assets) {
       if (d.type !== 'keyframe') continue
+      if (!d.isPrimaryView || (d.state ?? 'active') === 'eliminated') continue
       const parsed = parseKeyframeName(d.name ?? '')
       if (parsed && !map.has(parsed.sceneId)) map.set(parsed.sceneId, { label: parsed.sceneId, variants: [] })
     }
@@ -305,6 +311,8 @@ export default function SceneShotManager() {
         selected: !!d.isPrimaryView && !eliminated,
         eliminated,
       }
+      // 【管理视图】只展示选定版本（selected=true）；待选/淘汰版本不渲染、不做三态展示。
+      if (!ver.selected) continue
       let sceneMap = byScene.get(sceneId)
       if (!sceneMap) { sceneMap = new Map(); byScene.set(sceneId, sceneMap) }
       let row = sceneMap.get(shotLabel)

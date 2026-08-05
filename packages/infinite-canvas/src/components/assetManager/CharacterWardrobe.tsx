@@ -1,5 +1,8 @@
 /**
- * 视图C · 角色衣柜 —— 角色造型 + 服装变体（Costume Variants）展示（真实数据）。
+ * 视图C · 角色管理（角色衣柜）—— 角色造型 + 服装变体（Costume Variants）展示（真实数据）。
+ *
+ * 【管理导向】本视图仅展示「已选定」资产（isPrimaryView=true && state≠eliminated），
+ *   对选定角色做 关系链 管理。资产库（左侧栏）才是生产导向、平铺所有三态资产的地方。
  *
  * 关系链：角色 → 服装套系（costume_set）→ 适用场景（scene_refs）→ 分镜镜头
  *
@@ -151,9 +154,17 @@ export default function CharacterWardrobe() {
   const projectId = useCanvasStore((s) => s.projectId)
   const { assets, loading, error, reload } = useRealAssets(projectId)
 
+  // 【管理视图】仅展示选定资产（isPrimaryView=true && 未淘汰）。
+  // isPrimaryView 从 SQLite 返回 0|1 整数 → !! 转布尔；state 可能为 null → ?? 'active' 兜底。
+  // 后续 groupCharacterIdentities / groupCharacterCostumes 都基于 selectedAssets，而非全量 assets。
+  const selectedAssets = useMemo(
+    () => assets.filter((d) => !!d.isPrimaryView && (d.state ?? 'active') !== 'eliminated'),
+    [assets],
+  )
+
   // 左栏：每角色一张身份代表图（概念图①优先，灰底整图兜底）—— groupCharacterIdentities
   // 修复旧逻辑把概念图 + 灰底整图都当独立角色、左栏重复的问题。
-  const identities = useMemo(() => groupCharacterIdentities(assets), [assets])
+  const identities = useMemo(() => groupCharacterIdentities(selectedAssets), [selectedAssets])
 
   const [selectedCharId, setSelectedCharId] = useState<string | null>(null)
   const identity = useMemo(
@@ -163,8 +174,8 @@ export default function CharacterWardrobe() {
 
   // 选中角色的服装套系（按 meta.costume_set 分组的 turnaround 资产）
   const costumes = useMemo(
-    () => (identity ? groupCharacterCostumes(assets, identity.characterId) : []),
-    [assets, identity],
+    () => (identity ? groupCharacterCostumes(selectedAssets, identity.characterId) : []),
+    [selectedAssets, identity],
   )
 
   // 当前选中套系：>1 套时由 pill 切换，默认选第一个（默认套系在最前）

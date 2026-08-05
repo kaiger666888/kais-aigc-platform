@@ -1,9 +1,10 @@
 /**
  * 资产管理中心 —— 画布的第三种视图模式 (viewMode='assets')。
  *
- * 子视图 Tab（3 Tab，按工作流而非资产类型分组）：
- *   资产库 Library · 角色 Character · 场景与分镜 SceneShot
- * 「场景与分镜」合并了原「场景管理」(多视角设定图) 与「首尾帧流水线」(分镜级首尾帧 + 连续性判定)。
+ * 子视图 Tab（按工作流而非资产类型分组）：
+ *   资产库 Library（生产导向，平铺所有资产三态）
+ *   角色管理 Character · 场景管理 SceneShot（管理导向，仅展示已选定资产的关系链）
+ * 「场景管理」合并了原「场景管理」(多视角设定图) 与「首尾帧流水线」(分镜级首尾帧 + 连续性判定)。
  * 资产详情改为右侧 drawer（selectedAssetUuid != null 时弹出），不再独占整个视图。
  * 双击资产库卡片弹出，点击资产库空白区域关闭。
  */
@@ -21,8 +22,8 @@ type AssetView = 'library' | 'character' | 'scene_shot' | 'documents'
 
 const TABS: Array<{ key: AssetView; label: string }> = [
   { key: 'library', label: '资产库' },
-  { key: 'character', label: '角色' },
-  { key: 'scene_shot', label: '场景与分镜' },
+  { key: 'character', label: '角色管理' },
+  { key: 'scene_shot', label: '场景管理' },
   { key: 'documents', label: '创作文档' },
 ]
 
