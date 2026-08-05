@@ -22,7 +22,7 @@ export const SA3_MODELS = [
 ] as const;
 
 /** Audio output formats */
-export const SA3_AUDIO_FORMATS = ["mp3", "wav", "flac"] as const;
+export const SA3_AUDIO_FORMATS = ["mp3", "flac"] as const;
 
 /** Reprompt categories (Medium workflow with Qwen) */
 export const SA3_REPROMPT_CATEGORIES = ["Music", "Instrument", "SFX", "One-shot"] as const;

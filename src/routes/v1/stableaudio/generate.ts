@@ -16,7 +16,7 @@ const router = express.Router();
 
 const generateSchema = z.object({
   /** Text prompt describing the desired audio */
-  prompt: z.string().max(4000),
+  prompt: z.string().min(1).max(4000),
   /** Negative prompt (things to avoid) */
   negative_prompt: z.string().max(2000).default("low quality, distorted, noise"),
   /** Duration in seconds (max ~380s for Medium) */
