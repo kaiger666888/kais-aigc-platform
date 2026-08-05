@@ -147,6 +147,12 @@ interface CanvasState {
   viewMode: 'canvas' | 'timeline' | 'assets'
   setViewMode: (mode: 'canvas' | 'timeline' | 'assets') => void
 
+  // 【资产↔画布交叉联动】需在画布中定位 + 高亮的节点 ID（由资产库卡片「定位」按钮设置）。
+  // FlowCanvas useEffect 监听：非 null 时 fitView + setSelectedNode + traceState 高亮闪烁，
+  // 1.5s 后清空。画布未命中（资产未放置）时由画布侧 toast 提示。
+  focusAssetNodeId: string | null
+  setFocusAssetNodeId: (id: string | null) => void
+
   // 资产管理子视图 + 选中资产（assets 视图内部状态；详情由 Library 卡片点击驱动）
   // 4 Tab：library 资产库 · character 角色 · scene_shot 场景与分镜 · documents 创作文档(Notion)
   assetView: 'library' | 'detail' | 'character' | 'scene_shot' | 'documents'
@@ -645,6 +651,10 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   // 视图模式
   viewMode: 'assets',
   setViewMode: (mode) => set({ viewMode: mode }),
+
+  // 【资产↔画布交叉联动】焦点资产节点 ID（画布定位 + 高亮）
+  focusAssetNodeId: null,
+  setFocusAssetNodeId: (id) => set({ focusAssetNodeId: id }),
 
   // 资产管理子视图
   assetView: 'library',

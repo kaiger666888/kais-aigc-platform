@@ -166,6 +166,10 @@ function CanvasInner() {
   const selectedNodeIds = useCanvasStore((s) => s.selectedNodeIds)
   const setSelectedNodeIds = useCanvasStore((s) => s.setSelectedNodeIds)
 
+  // 【资产↔画布交叉联动】资产库「定位」按钮设置的焦点节点 ID（非 null 时触发定位 + 高亮）
+  const focusAssetNodeId = useCanvasStore((s) => s.focusAssetNodeId)
+  const setFocusAssetNodeId = useCanvasStore((s) => s.setFocusAssetNodeId)
+
   const showToast = useCanvasStore((s) => s.showToast)
   const toasts = useCanvasStore((s) => s.toasts)
   const dismissToast = useCanvasStore((s) => s.dismissToast)
@@ -621,14 +625,27 @@ function CanvasInner() {
   // 在「渲染边集」（edgesDeferred = adapter 折叠边 + useLayout 派生的镜头级边）上求闭包，
   // 与用户实际看到的拓扑一致（点视频能沿 shot_link 亮到分镜、沿 reference 亮到角色）。
   const trace = useTraceHighlight(edgesDeferred)
+  // 【资产↔画布交叉联动】focusAssetNodeId 叠加：定位时给该节点盖 traceState='highlighted'
+  // （与溯源高亮同通道，复用 AssetCardNode 既有的 brightness(1.12) 视觉）。
   const tracedNodes = useMemo(
-    () => trace.active
-      ? layoutedNodes.map((n) => ({
-          ...n,
-          data: { ...n.data, traceState: trace.highlightedIds.has(n.id) ? 'highlighted' : 'dimmed' },
-        }))
-      : layoutedNodes,
-    [layoutedNodes, trace],
+    () => {
+      const fromTrace = trace.active
+        ? layoutedNodes.map((n) => ({
+            ...n,
+            data: { ...n.data, traceState: trace.highlightedIds.has(n.id) ? 'highlighted' : 'dimmed' },
+          }))
+        : layoutedNodes
+      // 叠加 focus 高亮（优先级高于 dimmed，让定位节点在压暗背景里仍醒目）
+      if (!focusAssetNodeId) return fromTrace
+      return fromTrace.map((n) =>
+        n.id === focusAssetNodeId
+          ? { ...n, data: { ...n.data, traceState: 'highlighted' as const } }
+          : trace.active && (n.data as any).traceState !== 'highlighted'
+            ? { ...n, data: { ...n.data, traceState: 'dimmed' as const } }
+            : n,
+      )
+    },
+    [layoutedNodes, trace, focusAssetNodeId],
   )
   const tracedEdges = useMemo(
     () => trace.active
@@ -639,6 +656,33 @@ function CanvasInner() {
       : edgesDeferred,
     [edgesDeferred, trace],
   )
+
+  // 【资产↔画布交叉联动】资产库「📍 定位」按钮的画布侧响应：
+  // focusAssetNodeId 非 null → 在 nodes 里找节点 → 命中则 fitView + 选中 + 双击开详情，
+  //   并通过上面 tracedNodes 的 focus 叠加做闪烁高亮；1.5s 后清 focusAssetNodeId 退高亮。
+  // 未命中（资产未放置在画布）→ toast 提示，并清 focusAssetNodeId。
+  useEffect(() => {
+    if (!focusAssetNodeId) return
+    const target = (nodes as any[]).find((n) => n.id === focusAssetNodeId)
+    if (!target) {
+      showToast('该资产尚未放置在画布上', 'info')
+      // 微延迟清空，避免 tracedNodes memo 在同一帧内还看到旧值
+      const t = setTimeout(() => setFocusAssetNodeId(null), 0)
+      return () => clearTimeout(t)
+    }
+    // 命中：选中 + 打开详情面板（定位即聚焦）
+    setSelectedNode(target)
+    setDetailNode(target)
+    // fitView 聚焦到该节点（下一帧执行，确保 React 已渲染 tracedNodes）
+    const tFit = setTimeout(() => {
+      reactFlow.fitView({ nodes: [{ id: focusAssetNodeId }], duration: 600, maxZoom: 1.5 })
+    }, 50)
+    // 1.5s 后清高亮 + 清 focusAssetNodeId
+    const tClear = setTimeout(() => {
+      setFocusAssetNodeId(null)
+    }, 1500)
+    return () => { clearTimeout(tFit); clearTimeout(tClear) }
+  }, [focusAssetNodeId, nodes, reactFlow, setSelectedNode, setDetailNode, showToast, setFocusAssetNodeId])
 
   // Esc 退出溯源高亮 / 关芯片 popover（VariantPicker / EventParamsPopover 各自处理自身 Esc，
   // 有模态覆盖层时不在此连带关闭详情面板）。

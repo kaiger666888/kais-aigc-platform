@@ -3,6 +3,7 @@ import type { AssetNodeData, StoryboardNodeData, VideoNodeData } from '../types/
 import { executeNode, approveNode, rejectNode, requestNodeScore, orchestrateCanvas, saveCanvasGraph } from '../services/canvasApi'
 import { submitScail2Replace, submitScail2Transfer, pollScail2UntilDone, fetchBlobFromUrl } from '../services/scail2Api'
 import { useCanvasStore } from '../store/canvasStore'
+import { fetchProjectAssets } from './assetManager/useRealAssets'
 import { canvasToFlowGraph } from '../utils/flowDataMapper'
 import { theme } from '../theme/catppuccin'
 import { LAYOUT } from '../constants'
@@ -89,6 +90,35 @@ export default function CanvasContextMenu({
       id, type: 'video', position: { x: x + LAYOUT.CONTEXT_MENU_ADD_OFFSET_X, y }, data,
     }])
     onClose()
+  }
+
+  // 【资产↔画布交叉联动】画布节点 → 资产库详情：
+  // 节点 id 形如 `asset-{numericId}`，从 useRealAssets 模块级缓存查 uuid 后 openAssetDetail + 切 assets 视图。
+  const handleViewInLibrary = async () => {
+    if (!nodeId) return
+    const m = nodeId.match(/^asset-(\d+)$/)
+    if (!m) {
+      showToast('该节点无对应资产记录（非资产节点）', 'info')
+      onClose()
+      return
+    }
+    const numericId = Number(m[1])
+    onClose()
+    try {
+      const pid = useCanvasStore.getState().projectId ?? null
+      const assets = await fetchProjectAssets(pid)
+      const found = assets.find((a) => a.id === numericId)
+      if (!found?.uuid) {
+        showToast('未在资产库中找到该资产', 'warning')
+        return
+      }
+      const store = useCanvasStore.getState()
+      store.navPushCallback?.()
+      store.openAssetDetail(found.uuid)
+      store.setViewMode('assets')
+    } catch (err: any) {
+      showToast('查询资产失败: ' + (err?.message ?? ''), 'error')
+    }
   }
 
   // Phase 37 — 批量执行多选节点
@@ -197,6 +227,14 @@ export default function CanvasContextMenu({
         onClose()
       },
     })
+    // 【资产↔画布交叉联动】画布节点 → 资产库详情（仅 asset-* 节点）
+    if (/^asset-\d+$/.test(nodeId)) {
+      items.push({
+        label: '🗂 在资产库中查看',
+        icon: '🗂',
+        action: () => { void handleViewInLibrary() },
+      })
+    }
     items.push({ label: '---', icon: '', action: () => {} })
   }
 

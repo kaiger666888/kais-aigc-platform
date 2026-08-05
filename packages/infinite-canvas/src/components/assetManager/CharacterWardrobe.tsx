@@ -321,7 +321,7 @@ export default function CharacterWardrobe() {
       <div className="am-scene__main">
         {identity && (
           <>
-            {/* === 层 1：角色身份 === */}
+            {/* === 层 1：角色身份（头部） === */}
             <div className="am-scene__head">
               <h1>{display}</h1>
               {role && <span className="am-badge">{role}</span>}
@@ -333,51 +333,11 @@ export default function CharacterWardrobe() {
               {greyBase && ` · 灰底基础参考已就位`}
             </div>
 
-            {/* === 基础/灰底 Turnaround（人物一致性锚点，独立于服装套系，不参与生产场景）=== */}
-            {greyBase && (
-              <div className="am-grey-base" style={{ marginTop: 16 }}>
-                <div className="am-seclabel" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span>👕 基础 · 灰底 Turnaround</span>
-                  {greyBaseValidation && (
-                    <TurnaroundOrientationBadge validation={greyBaseValidation} />
-                  )}
-                </div>
-                <div
-                  className="am-grey-base__thumb"
-                  style={{
-                    display: 'flex',
-                    gap: 12,
-                    alignItems: 'stretch',
-                    marginTop: 8,
-                    cursor: 'zoom-in',
-                  }}
-                  title="双击查看资产详情"
-                  onDoubleClick={(e) => { e.stopPropagation(); openAssetDetail(greyBase.uuid) }}
-                >
-                  <div className="am-det__stage" style={{ flex: '0 0 180px', minHeight: 240, borderRadius: 8, overflow: 'hidden' }}>
-                    <Img item={greyBase} className="am-det__big-img" fallback="am-det__big" />
-                  </div>
-                  <div style={{ flex: 1, fontSize: 11.5, color: 'var(--cv-text-2)', lineHeight: 1.7 }}>
-                    <div style={{ fontWeight: 600, color: 'var(--cv-text-1)', marginBottom: 4 }}>{greyBase.name}</div>
-                    <div>全剧级身份锚点 · 保持人物长相/体型一致性</div>
-                    <div style={{ color: 'var(--cv-text-3)', marginTop: 6 }}>
-                      此为管线中间态，不参与生产场景；服装变体在下方按套系区分。
-                    </div>
-                    {greyBase.filePath && (
-                      <div style={{ marginTop: 6, fontFamily: 'var(--cv-font-mono)', color: 'var(--cv-text-3)' }}>
-                        {greyBase.filePath.split('/').pop()}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 服装套系切换器（仅 >1 套才显示；多数角色只有 1 套基线，不显示切换器） */}
-            {costumes.length > 1 && (
-              <>
-                <div className="am-seclabel" style={{ marginTop: 16, marginBottom: 8 }}>服装套系</div>
-                <div className="am-costume-tabs">
+            {/* === Hero 区：左右分栏（服装套系 pills 放 Hero 上方，左大图 + 右元信息） === */}
+            <div className="am-cw-hero">
+              {/* 服装套系 pill 切换器（紧贴 Hero 上方，不单独成节；仅 >1 套才显示） */}
+              {costumes.length > 1 && (
+                <div className="am-costume-tabs am-cw-hero__pills">
                   {costumes.map((s) => (
                     <button
                       key={s.setId}
@@ -393,34 +353,75 @@ export default function CharacterWardrobe() {
                     </button>
                   ))}
                 </div>
-              </>
-            )}
-            {currentSet?.desc && (
-              <div className="am-costume-desc">{currentSet.desc}</div>
-            )}
+              )}
 
-            {/* Hero 大图：当前套系的 Turnaround 整图（无则灰底基础参考，再无则角色身份图） */}
-            {heroItem && (
-              <div className="am-det__stage" style={{ minHeight: 340, borderRadius: 10, marginTop: 16 }}>
-                <Img
-                  key={heroItem.uuid}
-                  item={heroItem}
-                  className="am-det__big-img am-dblclick-asset"
-                  fallback="am-det__big"
-                />
-                <button
-                  className="am-dblclick-hint"
-                  title="双击查看资产详情"
-                  onDoubleClick={(e) => { e.stopPropagation(); openAssetDetail(heroItem.uuid) }}
-                >ℹ 双击查看详情</button>
+              <div className="am-cw-hero__body">
+                {/* 左：Hero 大图（当前套系整图，无则灰底，再无则角色身份图） */}
+                {heroItem ? (
+                  <div className="am-det__stage am-cw-hero__img" style={{ borderRadius: 10 }}>
+                    <Img
+                      key={heroItem.uuid}
+                      item={heroItem}
+                      className="am-det__big-img am-dblclick-asset"
+                      fallback="am-det__big"
+                    />
+                    <button
+                      className="am-dblclick-hint"
+                      title="双击查看资产详情"
+                      onDoubleClick={(e) => { e.stopPropagation(); openAssetDetail(heroItem.uuid) }}
+                    >ℹ 双击查看详情</button>
+                  </div>
+                ) : (
+                  <div className="am-det__stage am-cw-hero__img" style={{ borderRadius: 10 }}>
+                    <span style={{ color: 'var(--cv-text-3)', fontSize: 13 }}>暂无 Hero 图</span>
+                  </div>
+                )}
+
+                {/* 右：元信息 / prompt / 适用场景（不再堆底部，与 Hero 并排） */}
+                <div className="am-cw-hero__meta">
+                  {currentSet?.desc && (
+                    <div className="am-costume-desc">{currentSet.desc}</div>
+                  )}
+
+                  {rows.length > 0 && (
+                    <div className="am-cw-meta-block">
+                      <div className="am-seclabel am-seclabel--inline">元信息</div>
+                      {rows.map(([k, v]) => (
+                        <div className="am-meta-row" key={k}>
+                          <div className="am-meta-row__k">{k}</div>
+                          <div className="am-meta-row__v">{v}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* 适用场景（服装→场景关系链，meta.scene_refs） */}
+                  {currentSet && currentSet.sceneRefs.length > 0 && (
+                    <div className="am-costume-scenes am-cw-hero__scenes">
+                      <span className="am-costume-scenes__label">📋 适用场景</span>
+                      <div className="am-costume-scenes__list">
+                        {currentSet.sceneRefs.map((sc) => (
+                          <span
+                            key={sc}
+                            className="am-chip"
+                            title="点击跳转「场景与分镜」"
+                            onClick={goToScenes}
+                          >
+                            {sc}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
+            </div>
 
-            {/* === 层 2：Turnaround 四宫格（镜头参考） === */}
+            {/* === 层 2：Turnaround 四宫格（镜头参考，标题清晰化） === */}
             {currentSet && (
               <>
-                <div className="am-seclabel" style={{ marginTop: 16 }}>
-                  Turnaround · 镜头参考
+                <div className="am-seclabel am-cw-quad-title">
+                  <span>🎞 Turnaround · 四宫格镜头参考</span>
                   {sheetValidation && (
                     <TurnaroundOrientationBadge validation={sheetValidation} />
                   )}
@@ -489,7 +490,7 @@ export default function CharacterWardrobe() {
                   </>
                 ) : currentSet.sheet ? (
                   <div style={{ fontSize: 11, color: 'var(--cv-text-3)', lineHeight: 1.6 }}>
-                    整图已就位（上方大图）· 拆分视角（近身面部 / 正面 / 侧面 / 背面全身）将在管线裁切后填充四宫格。
+                    整图已就位（上方 Hero 大图）· 拆分视角（近身面部 / 正面 / 侧面 / 背面全身）将在管线裁切后填充四宫格。
                     {!currentSet.isDefault && <> 当前服装：{currentSet.label}。</>}
                   </div>
                 ) : (
@@ -497,38 +498,36 @@ export default function CharacterWardrobe() {
                     暂无 Turnaround 资产。运行管线 P04（角色设计）后，灰底整图与拆分视角会自动注册到这里。
                   </div>
                 )}
-
-                {/* 适用场景（服装→场景关系链，meta.scene_refs） */}
-                {currentSet.sceneRefs.length > 0 && (
-                  <div className="am-costume-scenes">
-                    <span className="am-costume-scenes__label">📋 适用场景</span>
-                    <div className="am-costume-scenes__list">
-                      {currentSet.sceneRefs.map((sc) => (
-                        <span
-                          key={sc}
-                          className="am-chip"
-                          title="点击跳转「场景与分镜」"
-                          onClick={goToScenes}
-                        >
-                          {sc}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </>
             )}
 
-            {rows.length > 0 && (
-              <>
-                <div className="am-seclabel">元信息</div>
-                {rows.map(([k, v]) => (
-                  <div className="am-meta-row" key={k}>
-                    <div className="am-meta-row__k">{k}</div>
-                    <div className="am-meta-row__v">{v}</div>
+            {/* === 基础/灰底 Turnaround：精简为紧凑缩略图条（底部，中间态不占主视觉） === */}
+            {greyBase && (
+              <div
+                className="am-grey-strip"
+                title="双击查看资产详情"
+                onDoubleClick={(e) => { e.stopPropagation(); openAssetDetail(greyBase.uuid) }}
+              >
+                <div className="am-grey-strip__thumb">
+                  <Img item={greyBase} className="am-grey-strip__img" fallback="am-card__emoji" />
+                </div>
+                <div className="am-grey-strip__meta">
+                  <div className="am-grey-strip__title">
+                    👕 基础 · 灰底 Turnaround
+                    {greyBaseValidation && (
+                      <TurnaroundOrientationBadge validation={greyBaseValidation} />
+                    )}
                   </div>
-                ))}
-              </>
+                  <div className="am-grey-strip__hint">
+                    全剧级身份锚点（人物一致性）· 管线中间态，不参与生产场景
+                    {greyBase.filePath && (
+                      <span className="am-grey-strip__file">
+                        {' · '}{greyBase.filePath.split('/').pop()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
             )}
           </>
         )}

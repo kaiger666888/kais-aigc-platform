@@ -332,6 +332,17 @@ export default function AssetLibrary() {
     showToast(`已添加到画布 · ${a.name}（占位 · 待后端 place 端点）`, 'success')
   }
 
+  // 【资产↔画布交叉联动】从资产库卡片「定位」到画布上对应节点（asset-{id}）并高亮。
+  // 拍历史快照 → 设 focusAssetNodeId（画布侧 useEffect 监听并 fitView + 闪烁）→ 切画布视图。
+  // 资产未放置时由画布侧 toast 提示（节点不存在）。
+  const handleLocateOnCanvas = useCallback((a: AssetItem) => {
+    const nodeId = `asset-${a.id}`
+    const store = useCanvasStore.getState()
+    store.navPushCallback?.()
+    store.setFocusAssetNodeId(nodeId)
+    store.setViewMode('canvas')
+  }, [])
+
   // 待选→选定：新选资产置 selected，同组旧选定资产自动淘汰（三态流转）。
   // 全程乐观更新——绝不 reload（避免列表闪烁/跳顶），仅在后端失败时回滚。
   const handleSelect = async (assetId: number, groupKey: string) => {
@@ -612,6 +623,13 @@ export default function AssetLibrary() {
                       onClick={(e) => { e.stopPropagation(); void handleAddToCanvas(a) }}
                       title="添加到当前画布"
                     >＋ 画布</button>
+
+                    {/* 【资产↔画布交叉联动】定位到画布上对应节点（未放置时画布侧 toast 提示） */}
+                    <button
+                      className="am-card__locate"
+                      onClick={(e) => { e.stopPropagation(); handleLocateOnCanvas(a) }}
+                      title="在画布上定位此资产"
+                    >📍 定位</button>
 
                     {/* 待选资产 tab 下显示「设为选定」按钮 */}
                     {tab === 'candidate' && (
