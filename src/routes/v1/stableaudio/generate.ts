@@ -29,14 +29,16 @@ const generateSchema = z.object({
   model: z.enum([...SA3_MODELS]).default("stable_audio_3_medium.safetensors"),
   /** Text encoder */
   text_encoder: z.string().max(200).default("t5gemma_b_b_ul2.safetensors"),
-  /** Sampler (euler for Medium, lcm only for Medium LCM-distilled checkpoints) */
-  sampler_name: z.enum(["euler", "euler_ancestral", "dpmpp_2m", "dpmpp_3m_sde", "lcm"]).default("euler"),
+  /** Sampler — SA3 Medium is a distilled model, lcm is the correct sampler */
+  sampler_name: z.enum(["lcm", "euler", "euler_ancestral", "dpmpp_2m", "dpmpp_3m_sde"]).default("lcm"),
   /** Scheduler */
   scheduler: z.enum(["simple", "normal", "karras", "sgm_uniform"]).default("simple"),
-  /** Steps (50 for Medium base, 8 only for LCM-distilled checkpoints) */
-  steps: z.number().int().min(1).max(200).default(50),
-  /** CFG scale (7 for Medium base, 1 only for LCM-distilled checkpoints) */
-  cfg: z.number().min(1).max(20).default(7.0),
+  /** Steps — SA3 Medium distilled: 10 steps (official default 8) */
+  steps: z.number().int().min(1).max(200).default(10),
+  /** CFG scale — SA3 Medium distilled: must be 1.0 (high CFG amplifies artifacts) */
+  cfg: z.number().min(1).max(20).default(1.0),
+  /** ModelSampling shift for AuraFlow (SA3 Medium requires shift=1.0) */
+  model_shift: z.number().min(0).max(10).default(1.0),
   /** Denoise strength */
   denoise: z.number().min(0).max(1).default(1.0),
   /** Batch size */
@@ -59,14 +61,15 @@ type GenerateParams = z.infer<typeof generateSchema>;
  * Verified working topology (tested 2026-08-05 on comfyui-primary v0.30.1):
  *
  *   1. CheckpointLoaderSimple → MODEL + VAE (no CLIP in SA3 checkpoint)
- *   2. CLIPLoader (t5gemma, type=stable_audio) → CLIP
+ *   2. CLIPLoader (t5gemma, type=stable_diffusion) → CLIP
  *   3. CLIPTextEncode (positive)
  *   4. CLIPTextEncode (negative)
  *   5. ConditioningStableAudio (fixes seconds_total bug — PR #14858)
  *   6. EmptyLatentAudio
- *   7. KSampler
- *   8. VAEDecodeAudio
- *   9. SaveAudio / SaveAudioMP3
+ *   7. ModelSamplingAuraFlow (shift=1.0, required for SA3 Medium distilled model)
+ *   8. KSampler (lcm/simple/10steps/cfg=1)
+ *   9. VAEDecodeAudio
+ *   10. SaveAudio / SaveAudioMP3
  *
  * SA3 checkpoint does NOT include a text encoder — must use separate CLIPLoader.
  */
@@ -89,7 +92,7 @@ function buildWorkflow(p: GenerateParams) {
     class_type: "CLIPLoader",
     inputs: {
       clip_name: p.text_encoder,
-      type: "stable_audio",
+      type: "stable_diffusion",
     },
   };
 
@@ -132,11 +135,21 @@ function buildWorkflow(p: GenerateParams) {
     },
   };
 
-  // Node 7: KSampler
+  // Node 7: ModelSamplingAuraFlow — required for SA3 Medium (shift=1.0)
+  // SA3 is a flow-matching model; AuraFlow shift controls the noise schedule.
   workflow["7"] = {
-    class_type: "KSampler",
+    class_type: "ModelSamplingAuraFlow",
     inputs: {
       model: ["1", 0],
+      shift: p.model_shift,
+    },
+  };
+
+  // Node 8: KSampler
+  workflow["8"] = {
+    class_type: "KSampler",
+    inputs: {
+      model: ["7", 0],
       positive: ["5", 0],
       negative: ["5", 1],
       latent_image: ["6", 0],
@@ -149,30 +162,30 @@ function buildWorkflow(p: GenerateParams) {
     },
   };
 
-  // Node 8: VAE Decode Audio
-  workflow["8"] = {
+  // Node 9: VAE Decode Audio
+  workflow["9"] = {
     class_type: "VAEDecodeAudio",
     inputs: {
-      samples: ["7", 0],
+      samples: ["8", 0],
       vae: ["1", 2],
     },
   };
 
-  // Node 9: Save Audio
+  // Node 10: Save Audio
   if (isMP3) {
-    workflow["9"] = {
+    workflow["10"] = {
       class_type: "SaveAudioMP3",
       inputs: {
-        audio: ["8", 0],
+        audio: ["9", 0],
         filename_prefix: p.filename_prefix,
         quality: "320k",
       },
     };
   } else {
-    workflow["9"] = {
+    workflow["10"] = {
       class_type: "SaveAudio",
       inputs: {
-        audio: ["8", 0],
+        audio: ["9", 0],
         filename_prefix: p.filename_prefix,
       },
     };
@@ -278,8 +291,8 @@ export default router.post("/", async (req: Request, res: Response) => {
       return res.status(500).send(error("ComfyUI generation failed"));
     }
 
-    // 3. Extract output audio file from SaveAudio node (node 9)
-    const audioOutput = result.outputs["9"];
+    // 3. Extract output audio file from SaveAudio node (node 10)
+    const audioOutput = result.outputs["10"];
     if (!audioOutput || !audioOutput.audio) {
       return res
         .status(500)
