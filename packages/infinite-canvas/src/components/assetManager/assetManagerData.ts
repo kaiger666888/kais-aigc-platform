@@ -699,6 +699,38 @@ export function parseCostumeMeta(meta?: string | null): CostumeMeta {
   }
 }
 
+/**
+ * 从 o_assets.meta（JSON 字符串）解析生成信息。
+ *
+ * 提取 generation_method / generation_prompt / model_version / source 字段，
+ * 用于生成链路展示。无法解析时所有字段为 null。
+ */
+export interface GenMeta {
+  generationMethod: string | null
+  generationPrompt: string | null
+  modelVersion: string | null
+  source: string | null
+}
+
+export function parseGenMeta(meta?: string | null): GenMeta {
+  const empty: GenMeta = { generationMethod: null, generationPrompt: null, modelVersion: null, source: null }
+  if (!meta) return empty
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(meta)
+  } catch {
+    return empty
+  }
+  if (!parsed || typeof parsed !== 'object') return empty
+  const o = parsed as Record<string, unknown>
+  return {
+    generationMethod: typeof o.generation_method === 'string' ? o.generation_method : null,
+    generationPrompt: typeof o.generation_prompt === 'string' ? o.generation_prompt : null,
+    modelVersion: typeof o.model_version === 'string' ? o.model_version : null,
+    source: typeof o.source === 'string' ? o.source : null,
+  }
+}
+
 /** 一套服装造型（同一角色的一个 costume_set）。 */
 export interface CostumeSet {
   /** 套系 ID（meta.costume_set，或 DEFAULT_COSTUME_SET_ID）。 */
@@ -968,14 +1000,25 @@ export function computeGenerationChain(item: AssetItem, all: AssetItem[]): Chain
     }
   }
 
-  // —— 场景角度图（⑥）：上游=场景设定+分镜(说明)，下游=使用它的首尾帧 ——
+  // —— 场景角度图/三视角（⑥）：上游=场景设定图（同场景名），下游=使用它的首尾帧 ——
   if (subtype === 'scene_angle_shot') {
     const shotId = shotIdOfItem(item)
-    // 参考来源 ↑：③ 场景设定图 + ⑤ 分镜设计（无精确资产键，管线说明节点）
-    up.push({
-      direction: 'up', kind: 'pipeline_note', emoji: '🏠',
-      label: '③ 场景设定图 + ⑤ 分镜设计', detail: '管线参考来源（无可点击资产）',
-    })
+    // 参考来源 ↑：③ 场景设定图（从资产名提取场景名，去掉"三视角_xxx"后缀）
+    const sceneName = (item.name || '').replace(/\s*三视角.*$/, '').trim()
+    if (sceneName) {
+      const base = all.find((x) => inferSubtypeFromItem(x) === 'scene_base' && (x.name || '').includes(sceneName))
+      if (base) up.push({
+        direction: 'up', kind: 'scene_base', emoji: SUBTYPE_EMOJI.scene_base,
+        label: base.name, detail: '场景设定图 · image2image 参考图', uuid: base.uuid,
+      })
+    }
+    // 参考来源 ↑：⑤ 分镜设计（管线说明，无精确资产）
+    if (up.length === 0) {
+      up.push({
+        direction: 'up', kind: 'pipeline_note', emoji: '🏠',
+        label: '③ 场景设定图 + ⑤ 分镜设计', detail: '管线参考来源（无可点击资产）',
+      })
+    }
     // 被引用 ↓：使用本场景角度的首/尾帧（同 shotId）
     if (shotId) {
       const kfs = all.filter((x) =>
@@ -998,6 +1041,20 @@ export function computeGenerationChain(item: AssetItem, all: AssetItem[]): Chain
         label: concept.name, detail: '角色设定图', uuid: concept.uuid,
       })
     }
+    // 参考来源 ↑：生成 Prompt（若 meta 中有 generation_prompt）
+    const genPrompt = parseGenMeta(item.meta)?.generationPrompt
+    if (genPrompt) {
+      up.push({ direction: 'up', kind: 'prompt', emoji: '📝',
+        label: '生成 Prompt', detail: genPrompt.length > 60 ? genPrompt.slice(0, 60) + '…' : genPrompt,
+      })
+    }
+    // 参考来源 ↑：生成方法（dreamina t2i / i2i 等，从 meta.generation_method 推断）
+    const genMeta = parseGenMeta(item.meta)
+    if (genMeta.generationMethod) {
+      up.push({ direction: 'up', kind: 'pipeline_note', emoji: '🔧',
+        label: genMeta.generationMethod, detail: `模型 ${genMeta.modelVersion ?? '未知'}`,
+      })
+    }
     // 被引用 ↓：⑦ 人物定妆 Turnaround（同 characterId —— 管线产出后精确匹配）
     if (item.characterId) {
       const costumes = all.filter((x) => inferSubtypeFromItem(x) === 'costume_turnaround' && x.characterId === item.characterId)
@@ -1008,8 +1065,17 @@ export function computeGenerationChain(item: AssetItem, all: AssetItem[]): Chain
     }
   }
 
-  // —— 人物定妆 Turnaround（⑦）：上游=灰底Turnaround(同角色) + 场景角度(同shot) ——
+  // —— 人物定妆 Turnaround（⑦）：上游=灰底Turnaround(同角色) + 角色设定图 + 场景角度(同shot) ——
   if (subtype === 'costume_turnaround') {
+    // 参考来源 ↑：② 灰底 Turnaround（同 characterId —— image2image 的直接参考图）
+    if (item.characterId) {
+      const greyBase = all.find((x) => inferSubtypeFromItem(x) === 'turnaround_sheet' && x.characterId === item.characterId)
+      if (greyBase) up.push({
+        direction: 'up', kind: 'turnaround_sheet', emoji: SUBTYPE_EMOJI.turnaround_sheet,
+        label: greyBase.name, detail: '灰底 Turnaround · image2image 参考图', uuid: greyBase.uuid,
+      })
+    }
+    // 参考来源 ↑：① 角色设定图（同 characterId —— 身份锚点）
     if (item.characterId) {
       const base = all.find((x) => inferSubtypeFromItem(x) === 'character_concept' && x.characterId === item.characterId)
       if (base) up.push({
@@ -1017,10 +1083,19 @@ export function computeGenerationChain(item: AssetItem, all: AssetItem[]): Chain
         label: base.name, detail: '角色设定图参考', uuid: base.uuid,
       })
     }
-    up.push({
-      direction: 'up', kind: 'pipeline_note', emoji: '🏠',
-      label: '⑤ 分镜设计 服化道', detail: '管线参考来源（无可点击资产）',
-    })
+    // 参考来源 ↑：生成方法 + Prompt（从 meta 提取）
+    const genMeta = parseGenMeta(item.meta)
+    if (genMeta.generationMethod) {
+      up.push({ direction: 'up', kind: 'pipeline_note', emoji: '🔧',
+        label: genMeta.generationMethod, detail: `模型 ${genMeta.modelVersion ?? '未知'}`,
+      })
+    }
+    if (genMeta.generationPrompt) {
+      const p = genMeta.generationPrompt
+      up.push({ direction: 'up', kind: 'prompt', emoji: '📝',
+        label: '换装 Prompt', detail: p.length > 60 ? p.slice(0, 60) + '…' : p,
+      })
+    }
     // 被引用 ↓：首/尾帧（同 shotId）
     const shotId = shotIdOfItem(item)
     if (shotId) {
@@ -1040,12 +1115,28 @@ export function computeGenerationChain(item: AssetItem, all: AssetItem[]): Chain
     })
   }
 
-  // —— 场景设定图（③）：下游=场景角度图（说明，无精确键） ——
+  // —— 场景设定图（③）：下游=三视角场景图（同场景名，image2image 参考本图） ——
   if (subtype === 'scene_base') {
-    down.push({
-      direction: 'down', kind: 'pipeline_note', emoji: '🎥',
-      label: '⑥ 场景角度图', detail: '选定后生成多视角（分镜级）',
-    })
+    // 从资产名提取场景名（去掉版本后缀 v1/v2/v3）
+    const sceneName = (item.name || '').replace(/\s+v\d+$/i, '').trim()
+    if (sceneName) {
+      // 被引用 ↓：三视角场景图（正面/左侧/俯视）—— 名称包含场景名 + "三视角"
+      const views = all.filter((x) => {
+        const xSub = inferSubtypeFromItem(x)
+        return xSub === 'scene_angle_shot' && (x.name || '').includes(sceneName) && (x.name || '').includes('三视角')
+      })
+      views.slice(0, 4).forEach((x) => down.push({
+        direction: 'down', kind: 'scene_angle_shot', emoji: SUBTYPE_EMOJI.scene_angle_shot,
+        label: x.name, detail: '三视角 · 参考本场景图', uuid: x.uuid,
+      }))
+    }
+    // 如果没有精确匹配到三视角，回退到管线说明
+    if (down.length === 0) {
+      down.push({
+        direction: 'down', kind: 'pipeline_note', emoji: '🎥',
+        label: '⑥ 场景角度图', detail: '选定后生成多视角（分镜级）',
+      })
+    }
   }
 
   return [...up, ...down]
