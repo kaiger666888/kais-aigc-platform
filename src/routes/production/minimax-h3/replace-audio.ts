@@ -662,19 +662,20 @@ export function mergeAudioAndVideo(
   ambientAudioPath: string,
   outputPath: string,
 ): void {
-  // 响度归一化策略 (EBU R128 LUFS):
-  //   - LTX Foley 原始输出极低 (~-50 LUFS), 必须归一化
-  //   - TTS 对白: -16 LUFS (清晰人声标准)
-  //   - 环境音 (有TTS时): -23 LUFS (对白背景, 不抢)
-  //   - 环境音 (无TTS时): -18 LUFS (主体音轨)
+  // 响度归一化策略:
+  //   LTX Foley 原始输出极低 (~-50 LUFS / max_amplitude ~0.001),
+  //   loudnorm 单 pass 在极低信号下失效 → 改用 dynaudnorm + 手动增益。
+  //
+  //   - 无 TTS: dynaudnorm 将环境音归一化到合理响度
+  //   - 有 TTS: TTS dynaudnorm(f=150) 保持人声自然, 环境音降低后混音
   if (ttsAudioPath && fs.existsSync(ttsAudioPath)) {
-    // 两轨混音: TTS (对白) + ambient (环境音), 各自 loudnorm 后 amix
+    // 两轨混音: TTS (对白) + ambient (环境音)
     const mixedAudio = outputPath.replace(/\.mp4$/, "_mixed.aac");
     execSync(
       `ffmpeg -y -i "${ttsAudioPath}" -i "${ambientAudioPath}" ` +
       `-filter_complex ` +
-      `"[0:a]loudnorm=I=-16:TP=-1.5:LRA=11[tts];` +
-      `[1:a]loudnorm=I=-23:TP=-2:LRA=11[amb];` +
+      `"[0:a]dynaudnorm=f=150:g=15:p=0.9[tts];` +
+      `[1:a]dynaudnorm=f=150:g=15:p=0.9,volume=0.4[amb];` +
       `[tts][amb]amix=inputs=2:duration=first:weights=1 1:normalize=0[mix]" ` +
       `-map "[mix]" -c:a aac -b:a 192k "${mixedAudio}"`,
       { timeout: 120_000 },
@@ -687,10 +688,10 @@ export function mergeAudioAndVideo(
     );
     try { fs.unlinkSync(mixedAudio); } catch {}
   } else {
-    // 无 TTS, 环境音归一化后直接合并
+    // 无 TTS, dynaudnorm 归一化环境音后合并
     execSync(
       `ffmpeg -y -i "${videoPath}" -i "${ambientAudioPath}" ` +
-      `-map 0:v:0 -map 1:a:0 -af "loudnorm=I=-18:TP=-1.5:LRA=11,apad" ` +
+      `-map 0:v:0 -map 1:a:0 -af "dynaudnorm=f=150:g=15:p=0.9,apad" ` +
       `-c:v copy -c:a aac -b:a 192k -shortest "${outputPath}"`,
       { timeout: 120_000 },
     );
