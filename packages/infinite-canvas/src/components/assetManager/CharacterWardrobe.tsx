@@ -32,6 +32,7 @@ import {
   groupCharacterIdentities,
   groupCharacterCostumes,
   getCharacterGreyBase,
+  assetDetailToItem,
   parseTurnaroundSheetSize,
   TYPE_LABEL,
   validateTurnaroundSheet,
@@ -215,6 +216,90 @@ export default function CharacterWardrobe() {
     useCanvasStore.getState().navPushCallback?.()
     rawOpenAssetDetail(uuid)
   }, [rawOpenAssetDetail])
+
+  // 声纹（Voice Print）参考：当前角色的 type='voice' 资产。
+  //
+  // 【characterId 双形态匹配】角色资产的 characterId 是拼音（shenzhiyi），
+  // 声纹资产的 characterId 是中文名（沈知意）—— 二者形态不一致，直接相等比较
+  // 永远匹配不上。这里建立双向匹配：
+  //   1) voice.characterId === identity.characterId          （同形态直配）
+  //   2) voice.characterId === 角色中文名（parseCharName 去版本后缀）
+  //   3) voice.name 以角色中文名开头（"沈知意 声纹参考" ⊃ "沈知意"）
+  // 第 2/3 条覆盖声纹用中文名注册、角色用拼音注册的现网数据形态。
+  //
+  // meta JSON 含 instruct（声音描述）/ seed / voice_id / ref_text / ref_audio_path。
+  // 音频文件路径优先级：meta.ref_audio_path → DB filePath → 按 voice_id 推导的
+  // /mnt/agents/output/ref_<pinyin>.wav 约定路径（VoiceDesign 管线输出）。
+  const voicePrint = useMemo(() => {
+    if (!identity) return null
+    const { display: charDisplayName } = parseCharName(identity.item.name)
+    const idCharId = identity.characterId
+    const matchVoice = (a: { type: string | null; characterId: string | null; name: string | null }) => {
+      if (a.type !== 'voice') return false
+      const vCharId = a.characterId ?? ''
+      // 1) 同形态直配（拼音==拼音 或 中文==中文）
+      if (vCharId === idCharId) return true
+      // 2) 声纹的中文名 characterId === 角色显示名（去版本后缀）
+      if (charDisplayName && vCharId === charDisplayName) return true
+      // 3) 声纹 name 以角色显示名开头（"沈知意 声纹参考"）
+      if (charDisplayName && (a.name ?? '').startsWith(charDisplayName)) return true
+      return false
+    }
+    const matched = selectedAssets.filter(matchVoice)
+    if (matched.length === 0) return null
+    // isPrimaryView 优先
+    matched.sort(
+      (a, b) => (b.isPrimaryView ? 1 : 0) - (a.isPrimaryView ? 1 : 0) ||
+        (a.name || '').localeCompare(b.name || ''),
+    )
+    const d = matched[0]
+    // 解析 meta JSON：instruct / seed / model / voice_id / ref_text / ref_audio_path
+    let instruct: string | null = null
+    let seed: string | null = null
+    let model: string | null = d.model ?? null
+    let refAudioPath: string | null = null
+    let voiceId: string | null = null
+    if (d.meta) {
+      try {
+        const o = JSON.parse(d.meta)
+        if (o && typeof o === 'object') {
+          const io = o.instruct ?? o.instruction ?? o.description
+          if (typeof io === 'string' && io.trim()) instruct = io.trim()
+          const so = o.seed
+          if (so != null) seed = String(so)
+          const mo = o.model ?? o.model_version
+          if (typeof mo === 'string' && mo.trim()) model = mo.trim()
+          if (typeof o.voice_id === 'string' && o.voice_id.trim()) voiceId = o.voice_id.trim()
+          if (typeof o.ref_audio_path === 'string' && o.ref_audio_path.trim()) {
+            refAudioPath = o.ref_audio_path.trim()
+          }
+        }
+      } catch { /* meta 非 JSON，忽略 */ }
+    }
+    const item = assetDetailToItem(d)
+    // 音频 URL 解析优先级：
+    //   1) meta.ref_audio_path（管线写入的绝对路径）→ resolveMediaUrl
+    //   2) DB filePath（JOIN o_image，声纹资产通常 imageId=null 故缺省）
+    //   3) voice_id 推导：/mnt/agents/output/ref_<pinyin>.wav（VoiceDesign 约定输出）
+    //      voice_id 形如 "沈知意_vp1"，取 _vp 前的中文名 → 拼音化 → ref_<pinyin>.wav。
+    //      拼音化用角色 characterId（拼音）匹配：若 voice 的中文名 characterId 能在项目
+    //      角色资产里找到对应拼音 characterId，则用拼音；否则原样用中文名（local-file 兜底）。
+    let resolvedUrl = resolveMediaUrl(refAudioPath ?? item.filePath)
+    if (!resolvedUrl && voiceId) {
+      // voice_id = "沈知意_vp1" → 中文名 = "沈知意"
+      const cnName = voiceId.replace(/_vp\d+$/i, '').trim()
+      if (cnName) {
+        // 在全部资产里找同名角色的拼音 characterId
+        const charAsset = selectedAssets.find(
+          (a) => a.type === 'character' && (a.name ?? '').startsWith(cnName) && a.characterId,
+        )
+        const pinyin = charAsset?.characterId ?? cnName
+        const candidatePath = `/mnt/agents/output/ref_${pinyin}.wav`
+        resolvedUrl = resolveMediaUrl(candidatePath)
+      }
+    }
+    return { item, url: resolvedUrl, instruct, seed, model }
+  }, [selectedAssets, identity])
 
   // 灰底 Turnaround 基础参考（人物一致性锚点，独立于服装套系，单独展示为「基础/灰底」区域）。
   const greyBase = useMemo(
@@ -505,6 +590,43 @@ export default function CharacterWardrobe() {
                 )}
               </>
             )}
+
+            {/* === 声纹参考（Voice Print）：音频播放器 + 声纹信息 === */}
+            <div
+            className="am-grey-strip am-cw-voiceprint"
+            style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10, cursor: 'default' }}
+            >
+            <div className="am-grey-strip__title">
+              🎤 声纹参考
+            </div>
+            {voicePrint && voicePrint.url ? (
+              <>
+                <audio controls src={voicePrint.url} style={{ width: '100%' }} />
+                <div className="am-grey-strip__meta" style={{ flex: '0 0 auto' }}>
+                  {voicePrint.instruct && (
+                    <div className="am-meta-row">
+                      <div className="am-meta-row__k">声音描述</div>
+                      <div className="am-meta-row__v">{voicePrint.instruct}</div>
+                    </div>
+                  )}
+                  {voicePrint.seed && (
+                    <div className="am-meta-row">
+                      <div className="am-meta-row__k">Seed</div>
+                      <div className="am-meta-row__v" style={{ fontFamily: 'var(--cv-font-mono)' }}>{voicePrint.seed}</div>
+                    </div>
+                  )}
+                  {voicePrint.model && (
+                    <div className="am-meta-row">
+                      <div className="am-meta-row__k">模型</div>
+                      <div className="am-meta-row__v" style={{ fontFamily: 'var(--cv-font-mono)' }}>{voicePrint.model}</div>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="am-grey-strip__hint">尚未生成声纹</div>
+            )}
+            </div>
 
             {/* === 基础/灰底 Turnaround：精简为紧凑缩略图条（底部，中间态不占主视觉） === */}
             {greyBase && (

@@ -358,6 +358,7 @@ export type AssetSubtype =
   | 'midframe'                 // 关键中间帧（长镜头 >8s 的中间精确卡位）—— Notion §2d
   | 'foley_stem'               // Foley 独立音轨 —— Notion §5c
   | 'bgm_track'                // BGM 音轨 —— Notion §5d
+  | 'voice_print'              // 声纹（角色声纹参考，type='voice'）
   | 'unknown'
 
 // ─── 扩展视角矩阵（Notion 场景视角 §1.2c） ──────────────────
@@ -429,6 +430,11 @@ export function inferSubtype(d: AssetDetail): AssetSubtype {
     if (tags.includes('foley')) return 'foley_stem'
     if (tags.includes('bgm')) return 'bgm_track'
     return 'unknown'
+  }
+
+  // ── 声纹（角色声纹参考）：type='voice' 或 meta.subtype='voice_print'
+  if (d.type === 'voice' || metaSub === 'voice_print') {
+    return 'voice_print'
   }
 
   if (d.type === 'character') {
@@ -1230,6 +1236,7 @@ export const SUBTYPE_LABEL: Record<AssetSubtype, string> = {
   midframe: '关键中间帧',
   foley_stem: 'Foley音轨',
   bgm_track: 'BGM音轨',
+  voice_print: '声纹',
   unknown: '其他',
 }
 
@@ -1256,6 +1263,7 @@ export const SUBTYPE_EMOJI: Record<AssetSubtype, string> = {
   midframe: '🔀',
   foley_stem: '👣',
   bgm_track: '🎼',
+  voice_print: '🎤',
   unknown: '📦',
 }
 

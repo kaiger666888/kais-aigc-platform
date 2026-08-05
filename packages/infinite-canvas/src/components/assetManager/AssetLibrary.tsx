@@ -36,9 +36,55 @@ function cssVars(vars: Record<string, string>): React.CSSProperties {
   return vars as React.CSSProperties
 }
 
-/** 缩略图：优先 filePath 真图，加载失败/缺图回退类型 emoji。 */
-function Thumb({ item }: { item: AssetItem }) {
+/** 缩略图：优先 filePath 真图，加载失败/缺图回退类型 emoji。
+ *  声纹卡片：左侧展示角色设定图 + 右侧音频播放器（左右分栏）。
+ */
+function Thumb({ item, portraitUrl }: { item: AssetItem; portraitUrl?: string | null }) {
   const [broken, setBroken] = useState(false)
+  const [portraitBroken, setPortraitBroken] = useState(false)
+  // 声纹资产：从 meta 提取 ref_audio_path → 左角色图 + 右播放器
+  if (item.type === 'voice' || item.type === 'audio') {
+    let audioPath: string | null = null
+    if (item.meta) {
+      try {
+        const m = typeof item.meta === 'string' ? JSON.parse(item.meta) : item.meta
+        audioPath = m?.ref_audio_path ?? null
+      } catch { /* meta 非 JSON */ }
+    }
+    if (!audioPath) audioPath = item.filePath ?? null
+    const audioUrl = resolveMediaUrl(audioPath)
+    if (audioUrl) {
+      return (
+        <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
+          {/* 底层：角色设定图铺满整个卡片 */}
+          {portraitUrl && !portraitBroken && (
+            <img
+              src={portraitUrl}
+              alt={item.name}
+              loading="lazy"
+              onError={() => setPortraitBroken(true)}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
+          )}
+          {/* 底部渐变遮罩 + 播放器叠在角色图上 */}
+          <div style={{
+            position: 'absolute', bottom: '8px', left: 0, right: 0,
+            background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)',
+            padding: '4px 6px 2px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <audio
+              controls
+              preload="none"
+              src={audioUrl}
+              style={{ width: '100%', height: '28px' }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )
+    }
+  }
   const url = item.filePath ? resolveMediaUrl(item.filePath) : null
   if (url && !broken) {
     return (
@@ -206,7 +252,9 @@ export default function AssetLibrary() {
       const hasPrimary = activeGroup.some((d) => !!d.isPrimaryView)
       // 场景资产不自动选定——由用户手动选择
       const isSceneGroup = activeGroup.some((d) => d.type === 'scene')
-      if (!hasPrimary && activeGroup.length > 0 && !isSceneGroup) {
+      // 声纹资产也不自动选定——由用户手动选择
+      const isVoiceGroup = activeGroup.some((d) => d.type === 'voice' || d.type === 'audio')
+      if (!hasPrimary && activeGroup.length > 0 && !isSceneGroup && !isVoiceGroup) {
         needsInit.push(activeGroup[0].id)
       }
     }
@@ -229,6 +277,27 @@ export default function AssetLibrary() {
   )
 
   const countAll = activeAssets.length
+
+  // 角色设定图 URL 映射（角色中文名 → 设定图 URL），供声纹卡片左侧展示。
+  // 声纹 characterId 是中文名（"沈知意"），角色资产 characterId 是拼音（"shenzhiyi"），
+  // 通过角色名称去版本后缀（"沈知意 v1" → "沈知意"）建立中文名 → 图片 URL 的映射。
+  // 优先用 character_concept，其次用选定的 turnaround_sheet（灰底整图也是有效的角色形象参考）。
+  const charPortraitMap = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const d of activeAssets) {
+      const st = inferSubtype(d)
+      if (st !== 'character_concept' && st !== 'turnaround_sheet') continue
+      if (!d.filePath) continue
+      const cnName = (d.name || '').replace(/\s*v\d+\s*$/i, '').trim()
+      if (!cnName) continue
+      const url = resolveMediaUrl(d.filePath)
+      // character_concept 优先；turnaround_sheet 仅在尚无映射时填充
+      if (url && (st === 'character_concept' || !m.has(cnName))) {
+        m.set(cnName, url)
+      }
+    }
+    return m
+  }, [activeAssets])
 
   // ── 层级树数据（useMemo 派生） ──
   // 全剧级 · 角色列表：仅角色设定图（①），按 characterId 分组，附带可读角色名
@@ -343,25 +412,26 @@ export default function AssetLibrary() {
     store.setViewMode('canvas')
   }, [])
 
-  // 待选→选定：新选资产置 selected，同组旧选定资产自动淘汰（三态流转）。
+  // 待选→选定：新选资产置 selected，同组其余所有变体自动淘汰（三态流转）。
   // 全程乐观更新——绝不 reload（避免列表闪烁/跳顶），仅在后端失败时回滚。
   const handleSelect = async (assetId: number, groupKey: string) => {
     const sameGroup = assets.filter((d) => getGroupKey(d) === groupKey)
-    const oldPrimaries = sameGroup.filter((d) => !!d.isPrimaryView && d.id !== assetId)
+    // 同组中除新选资产外的所有其他变体（旧选定 + 待选）全部淘汰
+    const others = sameGroup.filter((d) => d.id !== assetId)
 
-    // 1. 乐观更新 UI：旧选定 → 淘汰；新选 → 选定。
-    for (const d of oldPrimaries) {
+    // 1. 乐观更新 UI：其余变体 → 淘汰；新选 → 选定。
+    for (const d of others) {
       patchLocal(d.id, { isPrimaryView: false, state: 'eliminated' })
     }
     patchLocal(assetId, { isPrimaryView: true, state: 'active' })
 
     // 2. 后端同步（不 reload；失败时整体回滚到真实状态）。
     try {
-      for (const d of oldPrimaries) {
+      for (const d of others) {
         try { await updateAsset(d.id, { isPrimaryView: false, state: 'eliminated' }) } catch { /* 忽略单项失败 */ }
       }
       await updateAsset(assetId, { isPrimaryView: true, state: 'active' })
-      showToast('已设为选定资产', 'success')
+      showToast('已设为选定资产，其余变体已自动淘汰', 'success')
     } catch (err) {
       showToast('设置失败: ' + (err as Error).message, 'error')
       await reload()
@@ -428,6 +498,8 @@ export default function AssetLibrary() {
               {renderSubtypeNode('character_concept')}
               {/* ② 灰色紧身衣 Turnaround —— 始终显示，DB 无数据时 count=0 灰色不可点击 */}
               {renderSubtypeNode('turnaround_sheet', true)}
+              {/* ③ 声纹参考（角色声纹，全剧级资产） */}
+              {renderSubtypeNode('voice_print', true)}
             </div>
           )}
         </div>
@@ -689,7 +761,7 @@ export default function AssetLibrary() {
                       >↻ 恢复</button>
                     )}
 
-                    <div className="am-card__thumb"><Thumb item={a} /></div>
+                    <div className="am-card__thumb"><Thumb item={a} portraitUrl={a.type === 'voice' || a.type === 'audio' ? (a.characterId ? charPortraitMap.get(a.characterId) : null) : null} /></div>
                     <div className="am-card__typebar" />
                     <div className="am-card__body">
                       <div className="am-card__name">{a.name}</div>

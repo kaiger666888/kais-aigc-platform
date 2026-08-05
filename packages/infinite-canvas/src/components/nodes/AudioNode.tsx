@@ -8,6 +8,7 @@ import ScoreBadge from '../ScoreBadge'
 import ReviewActionButtons from '../ReviewActionButtons'
 import VariantBadge from '../VariantBadge'
 import { useCanvasStore } from '../../store/canvasStore'
+import { resolveMediaUrl } from '../../utils/mediaUrl'
 
 type AudioNodeType = Node<AudioNodeData, 'audio'>
 
@@ -27,7 +28,7 @@ function AudioNodeComponent({ data, id }: NodeProps<AudioNodeType>) {
   const [duration, setDuration] = useState(data.duration ?? 0)
   const audioRef = useRef<HTMLAudioElement>(null)
 
-  const audioSrc = (data.filePath ?? data.thumbnailUrl) as string | null
+  const audioSrc = resolveMediaUrl(data.filePath ?? data.thumbnailUrl) as string | null
 
   const togglePlay = useCallback(() => {
     if (!audioRef.current || !audioSrc) return
