@@ -1,4 +1,4 @@
-// @db-hash a69fc9b7b364746f9adc21bfce8e59b4
+// @db-hash 46169422bdc50208f68a22f85653450d
 //该文件由脚本自动生成，请勿手动修改
 
 export interface canvas_branches {
@@ -225,6 +225,7 @@ export interface o_assets {
   'createdAt'?: number | null;
   'createdBy'?: string | null;
   'describe'?: string | null;
+  'episodesId'?: number | null;
   'flowId'?: number | null;
   'id'?: number;
   'imageId'?: number | null;

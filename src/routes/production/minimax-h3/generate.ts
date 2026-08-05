@@ -387,9 +387,9 @@ export default router.post(
       }
       h3PromptId = comfyRes.data.prompt_id as string;
 
-      // 轮询等待 H3 完成 (≤15 分钟)
-      // H3 视频生成轮询: 1344x768 50步在 3090 上可能 20+ 分钟
-      const poll = await pollComfyuiCompletion(H3_CONFIG.comfyuiUrl, h3PromptId, 1_800_000);
+      // 轮询等待 H3 完成 (≤45 分钟)
+      // 362帧 ref2va 实测 33 分钟 (模型重加载导致第二轮 124s/step)
+      const poll = await pollComfyuiCompletion(H3_CONFIG.comfyuiUrl, h3PromptId, 2_700_000);
       if (!poll.ok) {
         safeUnlink(localTtsAudio);
         return res.status(502).send(error(`H3 video generation failed: ${poll.error}`, {

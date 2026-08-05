@@ -153,24 +153,18 @@ router.post("/voice-id", async (req: Request, res: Response) => {
     const d = QWEN_TTS_DEFAULTS;
 
     // 构建 VoiceDesign 工作流 — 生成参考音频
+    // 仅发送 ComfyUI node AILab_Qwen3TTSVoiceDesign 定义的输入（见 object_info）。
+    // 多余字段会导致 ComfyUI 拒绝整个 prompt。
     const workflow: Record<string, unknown> = {
       "1": {
         class_type: NODE_TYPES.VOICE_DESIGN,
         inputs: {
           text: refText,
           instruct: body.instruct,
-          model_choice: "1.7B",  // 统一 1.7B
-          device: d.device,
-          precision: d.precision,
+          model_size: "1.7B",
           language: language,
-          seed: body.seed ?? d.seed,
-          max_new_tokens: d.maxNewTokens,
-          top_p: body.top_p ?? d.topP,
-          top_k: body.top_k ?? d.topK,
-          temperature: body.temperature ?? d.temperature,
-          repetition_penalty: d.repetitionPenalty,
-          attention: d.attention,
-          unload_model_after_generate: false,
+          seed: body.seed ?? 0,
+          unload_models: false,
         },
       },
       "2": {
