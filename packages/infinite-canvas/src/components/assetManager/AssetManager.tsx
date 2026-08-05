@@ -14,14 +14,16 @@ import AssetLibrary from './AssetLibrary'
 import AssetDetail from './AssetDetail'
 import CharacterWardrobe from './CharacterWardrobe'
 import SceneShotManager from './SceneShotManager'
+import DocumentPanel from './DocumentPanel'
 import './assetManager.css'
 
-type AssetView = 'library' | 'character' | 'scene_shot'
+type AssetView = 'library' | 'character' | 'scene_shot' | 'documents'
 
 const TABS: Array<{ key: AssetView; label: string }> = [
   { key: 'library', label: '资产库' },
   { key: 'character', label: '角色' },
   { key: 'scene_shot', label: '场景与分镜' },
+  { key: 'documents', label: '创作文档' },
 ]
 
 export default function AssetManager() {
@@ -70,6 +72,7 @@ export default function AssetManager() {
         {assetView === 'library' && <AssetLibrary />}
         {assetView === 'character' && <CharacterWardrobe />}
         {assetView === 'scene_shot' && <SceneShotManager />}
+        {assetView === 'documents' && <DocumentPanel />}
       </div>
 
       {/* 右侧详情 drawer — selectedAssetUuid 不为空时弹出 */}

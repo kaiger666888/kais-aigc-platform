@@ -147,6 +147,7 @@ import h3Route_t2va from "./routes/production/minimax-h3/t2va";
 import h3Route_status from "./routes/production/minimax-h3/status";
 import h3Route_replaceAudio from "./routes/production/minimax-h3/replace-audio";
 import h3Route_generate from "./routes/production/minimax-h3/generate";
+import notionProxyRoute from "./routes/notion-proxy";
 
 export default async (app: Express) => {
   app.use("/api/assets/addAssets", route1);
@@ -295,4 +296,5 @@ export default async (app: Express) => {
   app.use("/api/v1/trellis2/status", route137);
   app.use("/api/v1/tts/speak", route138);
   app.use("/api/v1/tts/status", route139);
+  app.use("/api/notion", notionProxyRoute);
 }

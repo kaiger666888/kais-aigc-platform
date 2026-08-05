@@ -148,9 +148,9 @@ interface CanvasState {
   setViewMode: (mode: 'canvas' | 'timeline' | 'assets') => void
 
   // 资产管理子视图 + 选中资产（assets 视图内部状态；详情由 Library 卡片点击驱动）
-  // 3 Tab：library 资产库 · character 角色 · scene_shot 场景与分镜（scene+keyframe 合并视图）
-  assetView: 'library' | 'detail' | 'character' | 'scene_shot'
-  setAssetView: (view: 'library' | 'detail' | 'character' | 'scene_shot') => void
+  // 4 Tab：library 资产库 · character 角色 · scene_shot 场景与分镜 · documents 创作文档(Notion)
+  assetView: 'library' | 'detail' | 'character' | 'scene_shot' | 'documents'
+  setAssetView: (view: 'library' | 'detail' | 'character' | 'scene_shot' | 'documents') => void
   selectedAssetUuid: string | null
   setSelectedAssetUuid: (uuid: string | null) => void
   /** 打开某资产的详情（同时设选中 + 切到 detail 子视图） */
