@@ -2,6 +2,7 @@ import express from "express";
 import { Router, Request, Response } from "express";
 import { success, error } from "@/lib/responseFormat";
 import { SA3_CONFIG, SA3_MODELS, SA3_AUDIO_FORMATS } from "./config";
+import { SA3_PROMPT_GUIDE } from "./prompt-guide";
 import { promises as fs } from "fs";
 import path from "path";
 
@@ -51,6 +52,12 @@ export default router.get("/", async (req: Request, res: Response) => {
         default_text_encoder: SA3_CONFIG.defaultTextEncoder,
         all_models: SA3_MODELS,
         audio_formats: SA3_AUDIO_FORMATS,
+        prompt_guide: SA3_PROMPT_GUIDE,
+        endpoints: {
+          generate: "POST /api/v1/stableaudio/generate — Text-to-Audio",
+          transform: "POST /api/v1/stableaudio/transform — Audio-to-Audio (style transfer)",
+          inpaint: "POST /api/v1/stableaudio/inpaint — Inpainting / Continuation",
+        },
       }),
     );
   } catch (err: any) {
