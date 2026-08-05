@@ -289,6 +289,15 @@ export const REAL_TYPE_GROUPS: TypeGroup[] = [
 export function assetDetailToItem(d: AssetDetail): AssetItem {
   const type = (d.type || 'prop') as AssetType
   const tags = d.tags ? d.tags.split(',').map((s) => s.trim()).filter(Boolean) : []
+  // model 回退链：顶层 model 列 → meta.model_version（灰底/换装 turnaround 走 meta）
+  let model = d.model ?? undefined
+  if (!model && d.meta) {
+    try {
+      const metaObj = typeof d.meta === 'string' ? JSON.parse(d.meta) : d.meta
+      const mv = metaObj?.model_version ?? metaObj?.model
+      if (mv) model = String(mv)
+    } catch { /* meta 非 JSON，忽略 */ }
+  }
   return {
     uuid: d.uuid || `id-${d.id}`,
     name: d.name || '未命名资产',
@@ -298,7 +307,7 @@ export function assetDetailToItem(d: AssetDetail): AssetItem {
     scope: d.projectId == null ? 'library' : 'project',
     desc: d.describe ?? undefined,
     tags,
-    model: d.model ?? undefined,
+    model,
     prompt: d.prompt ?? undefined,
     views: type === 'scene' ? ['overview', 'wide', 'close'] : ['front', 'side', 'back'],
     id: d.id,

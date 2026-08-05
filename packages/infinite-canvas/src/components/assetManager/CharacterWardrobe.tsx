@@ -266,7 +266,12 @@ export default function CharacterWardrobe() {
   if (metaItem?.desc && metaItem.desc !== metaItem.name) rows.push(['描述', metaItem.desc])
   if (identity?.characterId) rows.push(['角色ID', identity.characterId])
   if (currentSet && !currentSet.isDefault) rows.push(['服装套系', currentSet.setId])
-  if (metaItem?.model) rows.push(['模型', metaItem.model])
+  // 模型回退链：metaItem.model → 同角色概念图 model → 同套系 views 的 model
+  const modelSource =
+    metaItem?.model ??
+    identity?.item?.model ??
+    currentSet?.views.find((v) => v.model)?.model
+  if (modelSource) rows.push(['模型', modelSource])
   if (metaItem?.filePath) rows.push(['文件', metaItem.filePath])
 
   if (loading) {
