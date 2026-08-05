@@ -343,14 +343,6 @@ function CanvasInner() {
   //    350ms > 300ms 动画，确保动画结束前的 onMoveEnd 也被跳过，且用户下次交互能被记录。
   const navSkipRef = useRef(false)
 
-  // 把 navHistory.push 注入 store，让 AssetManager/AssetLibrary 等子组件的导航交互也进历史栈。
-  useEffect(() => {
-    useCanvasStore.getState().setNavPushCallback(navHistory.push)
-    return () => {
-      useCanvasStore.getState().setNavPushCallback(null)
-    }
-  }, [navHistory])
-
   const handleMoveEnd = useCallback(
     (_e: unknown, viewport: { x: number; y: number; zoom: number }) => {
       if (!navSkipRef.current) navHistory.push()
@@ -380,15 +372,32 @@ function CanvasInner() {
     [reactFlow],
   )
 
-  const handleNavBack = useCallback(() => {
-    const snap = navHistory.back()
-    if (snap) applyNavSnapshot(snap)
+  // 把 navHistory.push 注入 store，让 AssetManager/AssetLibrary 等子组件的导航交互也进历史栈。
+  // 同时注入 applyNavSnapshot，让 popstate 监听器能恢复完整应用状态。
+  // （必须在 applyNavSnapshot 定义之后，否则 TDZ 报错。）
+  useEffect(() => {
+    useCanvasStore.getState().setNavPushCallback(navHistory.push)
+    navHistory._setApplyFn?.(applyNavSnapshot)
+    return () => {
+      useCanvasStore.getState().setNavPushCallback(null)
+      navHistory._setApplyFn?.(null)
+    }
   }, [navHistory, applyNavSnapshot])
 
+  const handleNavBack = useCallback(() => {
+    // 应用内←按钮：直接调用浏览器 history.back()，由 popstate 监听器统一处理栈操作+状态恢复。
+    // 这样浏览器前进后退和应用内按钮走完全相同的路径，不会产生状态不一致。
+    if (navHistory.canBack) {
+      try { window.history.back() } catch { /* noop */ }
+    }
+  }, [navHistory])
+
   const handleNavForward = useCallback(() => {
-    const snap = navHistory.forward()
-    if (snap) applyNavSnapshot(snap)
-  }, [navHistory, applyNavSnapshot])
+    // 应用内→按钮：同上，委托给浏览器 history.forward()。
+    if (navHistory.canForward) {
+      try { window.history.forward() } catch { /* noop */ }
+    }
+  }, [navHistory])
 
   const onConnect: OnConnect = useCallback(
     (params: Connection) => {

@@ -450,6 +450,8 @@ export default function SceneShotManager() {
                   className={`am-variant ${picks.includes(v.uuid) ? 'is-pick' : ''}`}
                   style={cssVars({ '--vw': `var(${modalityWeakVar(v.modality)})` })}
                   onClick={() => togglePick(v.uuid)}
+                  onDoubleClick={(e) => { e.stopPropagation(); openAssetDetail(v.uuid) }}
+                  title="单击选入对比 · 双击查看资产详情"
                 >
                   <span className="am-variant__pickflag">✓</span>
                   <div className="am-variant__thumb" style={{ background: `var(${modalityWeakVar(v.modality)})` }}>

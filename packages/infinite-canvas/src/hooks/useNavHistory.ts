@@ -30,7 +30,7 @@
  * 仅 canBack/canForward 变化时返回对象引用才变（useMemo + flags state），
  * 既驱动按钮 disabled 重渲染，又不致 FlowCanvas 的 useCallback 每次渲染失效。
  */
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useCanvasStore } from '../store/canvasStore'
 
 export interface NavViewport {
@@ -59,6 +59,8 @@ export interface NavHistory {
   canBack: boolean
   /** 是否可前进（future 非空）。 */
   canForward: boolean
+  /** 内部：FlowCanvas 注入 applyNavSnapshot，供 popstate 监听器调用。 */
+  _setApplyFn?: (fn: ((snap: NavSnapshot) => void) | null) => void
 }
 
 /** past 栈上限（超出丢弃最早条目）。 */
@@ -115,13 +117,19 @@ export function useNavHistory(getViewport?: ViewportGetter): NavHistory {
   const currentRef = useRef<NavSnapshot | null>(null)
   const initializedRef = useRef(false)
 
+  // 浏览器 history 桥接：每次 push 同步 pushState，popstate 时还原应用状态。
+  // 用递增 idx 标记每个 history entry，popstate 时比较 idx 决定 back 还是 forward。
+  const historyIdxRef = useRef(0)
+
+  // 回调引用：FlowCanvas 注入 applyNavSnapshot，popstate 时调用它来恢复状态。
+  const applyRef = useRef<((snap: NavSnapshot) => void) | null>(null)
+
   // canBack/canForward 需驱动按钮 disabled 重渲染 → 用 state 镜像栈长度。
   const [flags, setFlags] = useState({ canBack: false, canForward: false })
 
   const syncFlags = useCallback(() => {
     const canBack = pastRef.current.length > 0
     const canForward = futureRef.current.length > 0
-    // 值未变则返回旧对象，避免无谓重渲染。
     setFlags((prev) =>
       prev.canBack === canBack && prev.canForward === canForward ? prev : { canBack, canForward },
     )
@@ -129,10 +137,12 @@ export function useNavHistory(getViewport?: ViewportGetter): NavHistory {
 
   const push = useCallback(() => {
     const snap = captureSnapshot(getViewportRef.current)
-    // 首次 push：仅设为历史起点（current），不入 past。
+    // 首次 push：仅设为历史起点（current），不入 past，不 pushState。
     if (!initializedRef.current) {
       currentRef.current = snap
       initializedRef.current = true
+      // 用初始 idx 0 标记浏览器当前 entry
+      historyIdxRef.current = 0
       return
     }
     const cur = currentRef.current
@@ -142,6 +152,11 @@ export function useNavHistory(getViewport?: ViewportGetter): NavHistory {
     if (pastRef.current.length > MAX_HISTORY) pastRef.current.shift()
     currentRef.current = snap
     futureRef.current = []
+    // 桥接到浏览器 history：pushState 生成新 entry
+    historyIdxRef.current += 1
+    try {
+      window.history.pushState({ navIdx: historyIdxRef.current }, '')
+    } catch { /* SSR / 无 history 环境 */ }
     syncFlags()
   }, [syncFlags])
 
@@ -151,6 +166,7 @@ export function useNavHistory(getViewport?: ViewportGetter): NavHistory {
     if (cur) futureRef.current.unshift(cur)
     const prev = pastRef.current.pop() ?? null
     currentRef.current = prev
+    historyIdxRef.current = Math.max(0, historyIdxRef.current - 1)
     syncFlags()
     return prev
   }, [syncFlags])
@@ -161,12 +177,41 @@ export function useNavHistory(getViewport?: ViewportGetter): NavHistory {
     if (cur) pastRef.current.push(cur)
     const next = futureRef.current.shift() ?? null
     currentRef.current = next
+    historyIdxRef.current += 1
     syncFlags()
     return next
   }, [syncFlags])
 
+  // 注册 popstate 监听器：浏览器前进后退（及应用内←/→按钮委托的 history.back/forward）
+  // → 统一由此处理：比较 idx → 应用内 back()/forward() → applyNavSnapshot 恢复状态。
+  useEffect(() => {
+    const onPopState = () => {
+      const newIdx = (window.history.state?.navIdx as number) ?? 0
+      const curIdx = historyIdxRef.current
+      if (newIdx < curIdx) {
+        // 后退
+        const snap = back()
+        if (snap && applyRef.current) applyRef.current(snap)
+      } else if (newIdx > curIdx) {
+        // 前进
+        const snap = forward()
+        if (snap && applyRef.current) applyRef.current(snap)
+      }
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [back, forward])
+
   return useMemo<NavHistory>(
-    () => ({ push, back, forward, canBack: flags.canBack, canForward: flags.canForward }),
+    () => ({
+      push,
+      back,
+      forward,
+      canBack: flags.canBack,
+      canForward: flags.canForward,
+      // 注入点：FlowCanvas 挂载时设置，popstate 时调用
+      _setApplyFn: (fn: ((snap: NavSnapshot) => void) | null) => { applyRef.current = fn },
+    }),
     [push, back, forward, flags],
   )
 }

@@ -92,7 +92,12 @@ export default function AssetDetail() {
   const views = a.views ?? (a.type === 'scene' || a.type === 'scene_variant' ? ['overview', 'wide', 'close'] : ['front'])
 
   const rows: Array<[string, string]> = []
-  if (a.prompt) rows.push(['Prompt', a.prompt])
+  if (a.prompt) {
+    rows.push(['生成 Prompt', a.prompt])
+  } else if (a.modality === 'image' || a.modality === 'video') {
+    // 视觉生成资产（图/视频）理应携带生成 prompt —— 缺失则提示（Kai 准入原则）
+    rows.push(['⚠️ Prompt', '缺失 — 该资产未携带生成 prompt'])
+  }
   if (a.desc) rows.push(['描述', a.desc])
   if (a.model) rows.push(['模型', a.model])
   if (a.seed) rows.push(['种子', a.seed])

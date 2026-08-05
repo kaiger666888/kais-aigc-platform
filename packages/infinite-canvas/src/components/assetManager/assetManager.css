@@ -446,6 +446,19 @@
 
 @media (max-width:880px){.am-shot-row{gap:8px}.am-shot-frames{min-width:0;width:100%}}
 
+/* ── 双击查看资产详情提示 & 灰底基础参考区域 ── */
+/* Hero 大图 / 服装套系缩略图悬浮提示：双击查看详情（角色管理 + 场景管理复用） */
+.am-dblclick-hint{position:absolute;right:8px;bottom:8px;z-index:2;font-size:10.5px;line-height:1;
+  padding:5px 8px;border-radius:9px;color:var(--cv-text-primary);
+  background:rgba(0,0,0,.55);backdrop-filter:blur(4px);border:none;cursor:pointer;opacity:.7;transition:opacity .12s}
+.am-dblclick-hint:hover{opacity:1}
+.am-dblclick-asset{cursor:zoom-in}
+/* 灰底基础参考区域（独立于服装套系） */
+.am-grey-base{border:1px solid var(--cv-line-panel);border-radius:10px;padding:10px 12px;
+  background:var(--cv-bg-card)}
+.am-grey-base__thumb{transition:transform .12s}
+.am-grey-base__thumb:hover{transform:translateY(-1px)}
+
 /* ════════════════════════════════════════════════════════════
  * 视图F · 创作文档 (Notion 设计文档嵌入, 全部走 --cv-* 变量)
  * 左栏 240px 文档树 + 右栏自适应内容区, 顶部工具栏 (刷新 / Notion 外链)。

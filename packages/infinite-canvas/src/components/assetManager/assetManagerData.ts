@@ -617,6 +617,38 @@ export function parseTurnaroundSheetSize(meta?: string | null): [number | undefi
 /** 默认套系 ID：无 meta.costume_set 的 turnaround 资产归入此套系（label='基线'）。 */
 export const DEFAULT_COSTUME_SET_ID = '__default__'
 
+/**
+ * 判定一个 character 资产是否为「灰底 Turnaround」（保持人物一致性的基础中间态）。
+ *
+ * 识别条件（满足其一即判定为灰底基础参考，不参与生产场景）：
+ *   - inferSubtype === 'turnaround_sheet'（② 灰底紧身衣 Turnaround 整图）
+ *   - meta.is_grey_base === true
+ *   - meta.costume_set === 'grey_base'
+ *   - name/filePath 含 '灰底'/'grey'（兜底）
+ *
+ * 灰底 turnaround 是人物一致性的基础中间态：
+ *   1. 不应出现在服装套系分组中（它是基础参考，不是服装变体）；
+ *   2. 不会出现在生产场景中；
+ *   3. 是唯一的「基线」（其他服装资产按 costume_set 区分为宴会/日常/职场…变体）。
+ */
+export function isGreyBaseTurnaround(a: AssetDetail): boolean {
+  const subtype = inferSubtype(a)
+  if (subtype === 'turnaround_sheet') return true
+  const cm = parseCostumeMeta(a.meta)
+  if (cm.costumeSet === 'grey_base') return true
+  const nm = (a.name || '').toLowerCase()
+  const fp = (a.filePath || '').toLowerCase()
+  if (nm.includes('灰底') || nm.includes('grey') || fp.includes('grey_base')) return true
+  // meta.is_grey_base（驼峰）/ is_grey_base（下划线）
+  if (a.meta) {
+    try {
+      const o = JSON.parse(a.meta)
+      if (o && typeof o === 'object' && (o.is_grey_base === true || o.isGreyBase === true)) return true
+    } catch { /* ignore */ }
+  }
+  return false
+}
+
 /** 从 AssetDetail.meta 解析出的服装变体信息。 */
 export interface CostumeMeta {
   /** 套系 ID（缺失 → null，归入默认套系）。 */
@@ -717,6 +749,10 @@ export function groupCharacterCostumes(assets: AssetDetail[], characterId: strin
     // 仅 turnaround 相关资产参与服装分组（概念图①是角色身份锚点，不属服装）
     if (subtype !== 'turnaround_sheet' && subtype !== 'turnaround_view' && subtype !== 'costume_turnaround') continue
 
+    // 灰底 turnaround 是人物一致性的基础中间态，不是服装变体 → 不参与服装套系分组，
+    // 由 getCharacterGreyBase 单独提取为「基础/灰底」参考区域。
+    if (isGreyBaseTurnaround(a)) continue
+
     const cm = parseCostumeMeta(a.meta)
     const isDefault = cm.costumeSet == null
     const set = ensure(cm.costumeSet ?? DEFAULT_COSTUME_SET_ID, isDefault)
@@ -738,6 +774,32 @@ export function groupCharacterCostumes(assets: AssetDetail[], characterId: strin
     return a.label.localeCompare(b.label, 'zh')
   })
   return sets
+}
+
+/**
+ * 提取某角色的「灰底 Turnaround」基础参考（人物一致性的基础中间态，独立于服装套系）。
+ *
+ * 灰底 turnaround 是全剧级身份锚点，保持人物长相/体型一致，不参与生产场景：
+ *   - 不应混入服装套系（宴会/日常/职场…）分组；
+ *   - 是唯一的「基线」，其他服装资产按 costume_set 区分为变体；
+ *   - 在角色管理视图单独展示为「基础 / 灰底」参考区域。
+ *
+ * 同一角色原则上只有一张灰底 turnaround；若数据异常存在多张，返回第一张（isPrimaryView 优先）。
+ *
+ * @param assets      项目级全部资产
+ * @param characterId 角色 ID
+ */
+export function getCharacterGreyBase(assets: AssetDetail[], characterId: string): AssetItem | null {
+  const matched = assets.filter(
+    (a) => a.type === 'character' &&
+      (a.characterId ?? null) === characterId &&
+      (a.state ?? 'active') !== 'eliminated' &&
+      isGreyBaseTurnaround(a),
+  )
+  if (matched.length === 0) return null
+  // isPrimaryView 优先（正式使用版本），再按 name 排序保持稳定
+  matched.sort((a, b) => (b.isPrimaryView ? 1 : 0) - (a.isPrimaryView ? 1 : 0) || (a.name || '').localeCompare(b.name || ''))
+  return assetDetailToItem(matched[0])
 }
 
 /** 角色身份（左栏角色列表用，每角色一条代表图）。 */

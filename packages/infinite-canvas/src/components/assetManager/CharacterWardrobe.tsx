@@ -25,12 +25,13 @@
  *   { costume_set, costume_label, costume_desc, scene_refs }
  * 详见 assetManagerData.ts §服装变体。
  */
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useCanvasStore } from '../../store/canvasStore'
 import { useRealAssets } from './useRealAssets'
 import {
   groupCharacterIdentities,
   groupCharacterCostumes,
+  getCharacterGreyBase,
   parseTurnaroundSheetSize,
   TYPE_LABEL,
   validateTurnaroundSheet,
@@ -208,12 +209,60 @@ export default function CharacterWardrobe() {
     useCanvasStore.getState().setAssetView('scene_shot')
   }
 
-  // Hero / 元信息以当前套系的整图为准，无整图时回退角色身份图
-  const heroItem: AssetItem | undefined = currentSet?.sheet ?? identity?.item
-  const metaItem = currentSet?.sheet ?? identity?.item
+  // 双击服装 / 灰底缩略图 → 打开资产详情 drawer（导航交互，先拍历史快照）。
+  const rawOpenAssetDetail = useCanvasStore((s) => s.openAssetDetail)
+  const openAssetDetail = useCallback((uuid: string) => {
+    useCanvasStore.getState().navPushCallback?.()
+    rawOpenAssetDetail(uuid)
+  }, [rawOpenAssetDetail])
+
+  // 灰底 Turnaround 基础参考（人物一致性锚点，独立于服装套系，单独展示为「基础/灰底」区域）。
+  const greyBase = useMemo(
+    () => (identity ? getCharacterGreyBase(selectedAssets, identity.characterId) : null),
+    [selectedAssets, identity],
+  )
+  // 灰底整图方向检测（portrait/landscape）—— 竖屏短剧需 portrait。
+  const greyBaseValidation = useMemo(() => {
+    if (!greyBase?.meta) return null
+    const [w, h] = parseTurnaroundSheetSize(greyBase.meta)
+    return validateTurnaroundSheet(w, h)
+  }, [greyBase])
+
+  // Hero / 元信息：当前套系整图 → 回退灰底基础参考 → 回退角色身份图。
+  // 灰底 turnaround 现在是独立基础参考，服装套系无整图时用它做 hero。
+  const heroItem: AssetItem | undefined = currentSet?.sheet ?? greyBase ?? identity?.item
+  const metaItem = currentSet?.sheet ?? greyBase ?? identity?.item
+
+  // —— Prompt 准入强化（Kai：一切应携带 prompt 的资产都要在详情中展示）——
+  // 换装 turnaround 的生成 prompt 常落在 costume_turnaround(=sheet) 或拆分视角(=views) 上，
+  // 灰底整图(sheet=turnaround_sheet)反而经常 prompt=null。旧逻辑只读 metaItem(=sheet) 会漏掉
+  // 换装 prompt。这里收集当前套系全部资产的 prompt（去重）逐条展示；套系内都没有时给缺失提示。
+  // 无 turnaround 套系（仅概念图①的角色）才回退到角色身份图的 prompt。
+  const promptItems: AssetItem[] = []
+  const seenPrompts = new Set<string>()
+  const pushPrompt = (it: AssetItem | null | undefined) => {
+    if (it?.prompt && !seenPrompts.has(it.prompt)) {
+      seenPrompts.add(it.prompt)
+      promptItems.push(it)
+    }
+  }
+  if (currentSet) {
+    pushPrompt(currentSet.sheet)            // 代表图（灰底 / costume_turnaround）
+    currentSet.views.forEach(pushPrompt)    // 拆分视角 / 换装兄弟资产
+  } else {
+    pushPrompt(greyBase)                    // 无套系 → 灰底基础参考
+    pushPrompt(identity?.item)              // 再 → 角色身份图（概念图①）
+  }
 
   const rows: Array<[string, string]> = []
-  if (metaItem?.prompt) rows.push(['Prompt', metaItem.prompt])
+  if (promptItems.length > 0) {
+    promptItems.forEach((it, i) => {
+      const k = promptItems.length > 1 ? `生成 Prompt ${i + 1}` : '生成 Prompt'
+      rows.push([k, it.prompt!])
+    })
+  } else {
+    rows.push(['⚠️ Prompt', '缺失 — 该资产未携带生成 prompt'])
+  }
   if (metaItem?.desc && metaItem.desc !== metaItem.name) rows.push(['描述', metaItem.desc])
   if (identity?.characterId) rows.push(['角色ID', identity.characterId])
   if (currentSet && !currentSet.isDefault) rows.push(['服装套系', currentSet.setId])
@@ -281,7 +330,48 @@ export default function CharacterWardrobe() {
             <div className="am-scene__hint">
               {TYPE_LABEL.character} · 共 {identities.length} 个角色
               {costumes.length > 1 && ` · ${costumes.length} 套服装`}
+              {greyBase && ` · 灰底基础参考已就位`}
             </div>
+
+            {/* === 基础/灰底 Turnaround（人物一致性锚点，独立于服装套系，不参与生产场景）=== */}
+            {greyBase && (
+              <div className="am-grey-base" style={{ marginTop: 16 }}>
+                <div className="am-seclabel" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span>👕 基础 · 灰底 Turnaround</span>
+                  {greyBaseValidation && (
+                    <TurnaroundOrientationBadge validation={greyBaseValidation} />
+                  )}
+                </div>
+                <div
+                  className="am-grey-base__thumb"
+                  style={{
+                    display: 'flex',
+                    gap: 12,
+                    alignItems: 'stretch',
+                    marginTop: 8,
+                    cursor: 'zoom-in',
+                  }}
+                  title="双击查看资产详情"
+                  onDoubleClick={(e) => { e.stopPropagation(); openAssetDetail(greyBase.uuid) }}
+                >
+                  <div className="am-det__stage" style={{ flex: '0 0 180px', minHeight: 240, borderRadius: 8, overflow: 'hidden' }}>
+                    <Img item={greyBase} className="am-det__big-img" fallback="am-det__big" />
+                  </div>
+                  <div style={{ flex: 1, fontSize: 11.5, color: 'var(--cv-text-2)', lineHeight: 1.7 }}>
+                    <div style={{ fontWeight: 600, color: 'var(--cv-text-1)', marginBottom: 4 }}>{greyBase.name}</div>
+                    <div>全剧级身份锚点 · 保持人物长相/体型一致性</div>
+                    <div style={{ color: 'var(--cv-text-3)', marginTop: 6 }}>
+                      此为管线中间态，不参与生产场景；服装变体在下方按套系区分。
+                    </div>
+                    {greyBase.filePath && (
+                      <div style={{ marginTop: 6, fontFamily: 'var(--cv-font-mono)', color: 'var(--cv-text-3)' }}>
+                        {greyBase.filePath.split('/').pop()}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* 服装套系切换器（仅 >1 套才显示；多数角色只有 1 套基线，不显示切换器） */}
             {costumes.length > 1 && (
@@ -293,7 +383,8 @@ export default function CharacterWardrobe() {
                       key={s.setId}
                       className={`am-costume-tab ${currentSet?.setId === s.setId ? 'is-on' : ''}`}
                       onClick={() => setSelectedSetId(s.setId)}
-                      title={s.desc ?? s.setId}
+                      onDoubleClick={(e) => { if (s.sheet) { e.stopPropagation(); openAssetDetail(s.sheet.uuid) } }}
+                      title={s.sheet ? '单击切换套系 · 双击查看资产详情' : (s.desc ?? s.setId)}
                     >
                       {s.label}
                       {s.sceneRefs.length > 0 && (
@@ -308,10 +399,20 @@ export default function CharacterWardrobe() {
               <div className="am-costume-desc">{currentSet.desc}</div>
             )}
 
-            {/* Hero 大图：当前套系的 Turnaround 整图（无则角色身份图） */}
+            {/* Hero 大图：当前套系的 Turnaround 整图（无则灰底基础参考，再无则角色身份图） */}
             {heroItem && (
               <div className="am-det__stage" style={{ minHeight: 340, borderRadius: 10, marginTop: 16 }}>
-                <Img key={heroItem.uuid} item={heroItem} className="am-det__big-img" fallback="am-det__big" />
+                <Img
+                  key={heroItem.uuid}
+                  item={heroItem}
+                  className="am-det__big-img am-dblclick-asset"
+                  fallback="am-det__big"
+                />
+                <button
+                  className="am-dblclick-hint"
+                  title="双击查看资产详情"
+                  onDoubleClick={(e) => { e.stopPropagation(); openAssetDetail(heroItem.uuid) }}
+                >ℹ 双击查看详情</button>
               </div>
             )}
 
@@ -328,14 +429,20 @@ export default function CharacterWardrobe() {
                   <>
                     <div style={GRID_2x2}>
                       {turnaroundGrid.map((cell, idx) => (
-                        <div key={`${cell.cell}-${idx}`} style={{
-                          borderRadius: 8,
-                          overflow: 'hidden',
-                          border: '1px solid var(--cv-border)',
-                          background: 'var(--cv-bg-2)',
-                          aspectRatio: '9 / 16',
-                          position: 'relative',
-                        }}>
+                        <div
+                          key={`${cell.cell}-${idx}`}
+                          style={{
+                            borderRadius: 8,
+                            overflow: 'hidden',
+                            border: '1px solid var(--cv-border)',
+                            background: 'var(--cv-bg-2)',
+                            aspectRatio: '9 / 16',
+                            position: 'relative',
+                            cursor: cell.item ? 'zoom-in' : 'default',
+                          }}
+                          title={cell.item ? '双击查看资产详情' : undefined}
+                          onDoubleClick={cell.item ? (e) => { e.stopPropagation(); openAssetDetail(cell.item!.uuid) } : undefined}
+                        >
                           {cell.item ? (
                             <Img item={cell.item} className="am-card__img" />
                           ) : (
