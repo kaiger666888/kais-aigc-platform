@@ -547,16 +547,25 @@ class TaskExecutor:
                     # v1.5: ACE-Step music generation migrated to Node-layer ComfyUI
                     # workflow (src/routes/v1/ace/generate.ts). gold-team no longer
                     # builds MUSIC/SFX workflows — reject so callers know to use
-                    # /api/v1/ace/generate instead.
+                    # the correct Node-layer routes.
+                    #
+                    # Kai 2026-08-06 引擎职责边界:
+                    #   MUSIC (songs/long BGM/repainting) → POST /api/v1/ace/generate
+                    #   SFX (sound effects/short ambient/inpainting) → POST /api/v1/stableaudio/generate
+                    #   See audio-engine-adapter skill for full boundary rules.
                     logger.error(
-                        "MUSIC/SFX task %s rejected — gold-team no longer handles music "
-                        "generation. Use POST /api/v1/ace/generate (ComfyUI workflow) instead.",
+                        "MUSIC/SFX task %s rejected — gold-team no longer handles "
+                        "audio generation. MUSIC → POST /api/v1/ace/generate (ACE-Step 1.5). "
+                        "SFX → POST /api/v1/stableaudio/generate (Stable Audio 3 medium). "
+                        "See audio-engine-adapter skill for boundary rules.",
                         task.task_id,
                     )
                     await store.update(
                         task.task_id,
                         status=TaskStatus.FAILED,
-                        error="MUSIC/SFX not supported by gold-team since v1.5; use /api/v1/ace/generate",
+                        error="MUSIC/SFX not supported by gold-team since v1.5; "
+                        "MUSIC → /api/v1/ace/generate (ACE-Step 1.5); "
+                        "SFX → /api/v1/stableaudio/generate (Stable Audio 3 medium)",
                     )
                     return
                 elif task.type == TaskType.IMAGE_TO_3D_MV:
