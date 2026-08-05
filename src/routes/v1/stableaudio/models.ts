@@ -1,7 +1,7 @@
 import express from "express";
 import { Router, Request, Response } from "express";
 import { success, error } from "@/lib/responseFormat";
-import { SA3_CONFIG, SA3_MODELS, SA3_AUDIO_FORMATS, SA3_REPROMPT_CATEGORIES } from "./config";
+import { SA3_CONFIG, SA3_MODELS, SA3_AUDIO_FORMATS } from "./config";
 import { promises as fs } from "fs";
 import path from "path";
 
@@ -51,7 +51,6 @@ export default router.get("/", async (req: Request, res: Response) => {
         default_text_encoder: SA3_CONFIG.defaultTextEncoder,
         all_models: SA3_MODELS,
         audio_formats: SA3_AUDIO_FORMATS,
-        reprompt_categories: SA3_REPROMPT_CATEGORIES,
       }),
     );
   } catch (err: any) {

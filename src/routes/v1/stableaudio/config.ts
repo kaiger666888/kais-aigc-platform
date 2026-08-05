@@ -24,12 +24,12 @@ export const SA3_MODELS = [
 /** Audio output formats */
 export const SA3_AUDIO_FORMATS = ["mp3", "flac"] as const;
 
-/** Reprompt categories (Medium workflow with Qwen) */
-export const SA3_REPROMPT_CATEGORIES = ["Music", "Instrument", "SFX", "One-shot"] as const;
+// Note: Qwen reprompt intentionally NOT integrated — KAP runs inside an agent
+// ecosystem where the caller (agent/pipeline) can expand prompts itself using
+// much stronger LLMs (GLM-5.2, Claude, etc.) without downloading a 4GB model.
 
 export type Sa3Model = (typeof SA3_MODELS)[number];
 export type Sa3AudioFormat = (typeof SA3_AUDIO_FORMATS)[number];
-export type Sa3RepromptCategory = (typeof SA3_REPROMPT_CATEGORIES)[number];
 
 /** Polling config */
 export const POLL_INTERVAL_MS = 3000;
