@@ -82,6 +82,17 @@ function storyboardSubtype(id: string): string | null {
   return null
 }
 
+/**
+ * P04 turnaround 子类型区分：灰底紧身衣（身份锚点）vs 服化道换装。
+ * 从 raw data 袋的 turnaroundType 字段读取（canvas sync 写入，migrate 不保留但 adapter 穿透）。
+ */
+function turnaroundSubtype(raw: Record<string, unknown> | undefined): string | null {
+  const tt = raw?.turnaroundType as string | undefined
+  if (tt === 'gray_base') return '灰底'
+  if (tt === 'costume') return '换装'
+  return null
+}
+
 /** 底行元信息 `#037 · 3.3s`（shot 编号 · 时长；§4.1）。raw 数据缺省时的兜底。 */
 function metaLine(asset: AssetNodeV3 | undefined): string | null {
   if (!asset) return null
@@ -536,7 +547,9 @@ function AssetCardNodeComponent({ id, data, selected }: NodeProps<AssetCardNodeT
   const title = (raw?.label as string | undefined) ?? (data.label as string | undefined) ?? asset?.phaseName ?? id
   // P09 分镜拆解产出三类 storyboard 节点（shot_list / e_konte_sheets / transition_design），
   // 共享同一 shot_id label → 按 node id 前缀派生子类型 chip 区分（见 storyboardSubtype）
-  const subType = stage === 'storyboard' ? storyboardSubtype(id) : null
+  const subType = stage === 'storyboard' ? storyboardSubtype(id)
+    : stage === 'global' ? turnaroundSubtype(raw)
+    : null
   const meta = metaLine(asset)
   // tags 优先从 raw data 袋读取（canvas sync 写入的语义标签在 V2 node.data 里，
   // migrate 不会将其传入 V3 asset schema，但 adapter 会把原始 data 完整存入 rawDataByNodeId）
@@ -606,10 +619,16 @@ function AssetCardNodeComponent({ id, data, selected }: NodeProps<AssetCardNodeT
               borderRadius: 3,
               background: subType === '镜头' ? 'rgba(86,184,154,0.18)'
                         : subType === '绘卷' ? 'rgba(224,182,101,0.18)'
-                        : 'rgba(221,106,130,0.18)',
+                        : subType === '转场' ? 'rgba(221,106,130,0.18)'
+                        : subType === '灰底' ? 'rgba(148,163,184,0.18)'
+                        : subType === '换装' ? 'rgba(180,130,255,0.18)'
+                        : 'rgba(148,163,184,0.10)',
               color: subType === '镜头' ? '#56B89A'
                    : subType === '绘卷' ? '#E0B665'
-                   : '#DD6A82',
+                   : subType === '转场' ? '#DD6A82'
+                   : subType === '灰底' ? '#94A3B8'
+                   : subType === '换装' ? '#B482FF'
+                   : '#94A3B8',
               flexShrink: 0,
               whiteSpace: 'nowrap',
             }}>
