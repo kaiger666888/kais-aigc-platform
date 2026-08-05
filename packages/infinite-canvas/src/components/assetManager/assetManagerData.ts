@@ -430,12 +430,14 @@ export function inferSubtype(d: AssetDetail): AssetSubtype {
     if (metaSub === 'costume_temporal_variant' || tags.includes('costume_temporal')) {
       return 'costume_temporal_variant'
     }
-    // ⑦ 人物定妆 Turnaround（管线尚未产出 → 前端预留识别：路径/名称/标签含 costume_turnaround）
+    // ⑦ 人物定妆/换装 Turnaround：路径/名称/标签/meta 含 costume 标识
     // 放在最前：定妆 turnaround 是分镜级产物，优先于全剧级 turnaround 整图判定。
+    const cm = parseCostumeMeta(d.meta)
     if (
       fp.includes('costume_turnaround') || fp.includes('costume-tr') ||
       nm.includes('costume_turnaround') || nm.includes('定妆turnaround') ||
-      tags.includes('costume_turnaround')
+      nm.includes('换装') || tags.includes('costume_turnaround') ||
+      (cm.costumeSet && cm.costumeSet !== 'daily_baseline' && cm.costumeSet !== 'work_baseline')
     ) {
       return 'costume_turnaround'
     }
@@ -999,10 +1001,12 @@ function inferSubtypeFromItem(a: AssetItem): AssetSubtype {
     const tags = (a.tags ?? []).join(',').toLowerCase()
     // ⑦服化道时段变体（Notion §1.1c）
     if (metaSub === 'costume_temporal_variant' || tags.includes('costume_temporal')) return 'costume_temporal_variant'
+    const cm2 = parseCostumeMeta(a.meta)
     if (
       fp.includes('costume_turnaround') || fp.includes('costume-tr') ||
       nm.includes('costume_turnaround') || nm.includes('定妆turnaround') ||
-      tags.includes('costume_turnaround')
+      nm.includes('换装') || tags.includes('costume_turnaround') ||
+      (cm2.costumeSet && cm2.costumeSet !== 'daily_baseline' && cm2.costumeSet !== 'work_baseline')
     ) return 'costume_turnaround'
     if (['front', 'side', 'back', 'three_quarter'].includes(a.viewAngle ?? '')) return 'turnaround_view'
     // ② 灰底Turnaround（独立产出）
