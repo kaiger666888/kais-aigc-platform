@@ -86,7 +86,7 @@ export const LTX_AMBIENT = {
 
   // v9: Foley LoRA — 用 LTX2LoraLoaderAdvanced 精确控制各层强度
   foleyLoraName: "ltx-2.3-foley-400-steps.safetensors",
-  foleyLoraStrength: 1.0,
+  foleyLoraStrength: 2.0, // msr.ts A/B 验证: 1.0 偏弱, 2.0 最佳
 
   // NAG (Negative Augmented Guidance) — 采样阶段压制 BGM 残留
   nagScale: 11,
@@ -101,9 +101,9 @@ export const LTX_AMBIENT = {
   clipName1: "gemma_3_12B_it_fp8_scaled.safetensors",
   clipName2: "ltx-2.3_text_projection_bf16.safetensors",
 
-  // 采样参数 (蒸馏模型: CFG=1.0, euler, 9 sigmas)
+  // 采样参数 (蒸馏模型: CFG=1.0, euler_ancestral_cfg_pp, 9 sigmas)
   cfg: 1.0,
-  samplerName: "euler",
+  samplerName: "euler_ancestral_cfg_pp",
   // 蒸馏模型专用 9 步 sigma 调度
   sigmas: "1.0, 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.421875, 0.0",
 
@@ -191,7 +191,9 @@ function probeResolution(localPath: string): { width: number; height: number } |
  */
 export function alignLtxFrames(raw: number): number {
   let n = Math.ceil((raw - 1) / 8) * 8 + 1;
-  if (n < 9) n = 9; // 最小 9 帧 (8*1+1)
+  // 最小 97 帧 (≈4s @24fps): 短视频音频 VAE 输出信号极弱 (39帧=-85dB, 124帧=-43dB)
+  // 97 帧是保证音频质量的下限, 来自实测数据 + 官方 T2A 默认值参考
+  if (n < 97) n = 97;
   return n;
 }
 
@@ -487,7 +489,20 @@ export function buildLtxAmbientWorkflow(opts: LtxAmbientWorkflowOpts): Record<st
       },
     },
 
-    // === 采样 (distilled: CFG=1.0, euler, 9 sigmas) ===
+    // === 音频归一化 (采样中改善音频质量) ===
+    // 130: LTX2AudioLatentNormalizingSampling (在 NAG 之后、CFGGuider 之前 patch model)
+    //     官方 KJNodes 节点: "Improves LTX2 generated audio quality by normalizing
+    //     audio latents at specified sampling steps."
+    //     factors "1,1,0.25,1,1,0.25,1,1" = 第3/6步以0.25强度归一化音频 latent 分布
+    "130": {
+      class_type: "LTX2AudioLatentNormalizingSampling",
+      inputs: {
+        model: ["121", 0],
+        audio_normalization_factors: "1,1,0.25,1,1,0.25,1,1",
+      },
+    },
+
+    // === 采样 (distilled: CFG=1.0, euler_ancestral_cfg_pp, 9 sigmas) ===
     // 15: RandomNoise
     "15": {
       class_type: "RandomNoise",
@@ -503,11 +518,11 @@ export function buildLtxAmbientWorkflow(opts: LtxAmbientWorkflowOpts): Record<st
       class_type: "KSamplerSelect",
       inputs: { sampler_name: LTX_AMBIENT.samplerName },
     },
-    // 37: CFGGuider (model=[121,0] NAG-wrapped, cfg=1.0)
+    // 37: CFGGuider (model=[130,0] AudioNorm+NAG-wrapped, cfg=1.0)
     "37": {
       class_type: "CFGGuider",
       inputs: {
-        model: ["121", 0],
+        model: ["130", 0],
         positive: ["7", 0],
         negative: ["7", 1],
         cfg: LTX_AMBIENT.cfg,
