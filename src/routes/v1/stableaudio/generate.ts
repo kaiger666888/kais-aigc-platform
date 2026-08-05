@@ -29,14 +29,14 @@ const generateSchema = z.object({
   model: z.enum([...SA3_MODELS]).default("stable_audio_3_medium.safetensors"),
   /** Text encoder */
   text_encoder: z.string().max(200).default("t5gemma_b_b_ul2.safetensors"),
-  /** Sampler (lcm for Medium distilled, euler/dpmpp for Base) */
-  sampler_name: z.enum(["lcm", "euler", "euler_ancestral", "dpmpp_2m", "dpmpp_3m_sde"]).default("lcm"),
+  /** Sampler (euler for Medium, lcm only for Medium LCM-distilled checkpoints) */
+  sampler_name: z.enum(["euler", "euler_ancestral", "dpmpp_2m", "dpmpp_3m_sde", "lcm"]).default("euler"),
   /** Scheduler */
   scheduler: z.enum(["simple", "normal", "karras", "sgm_uniform"]).default("simple"),
-  /** Steps (8 for Medium LCM, 50 for Base) */
-  steps: z.number().int().min(1).max(200).default(8),
-  /** CFG scale (1 for Medium LCM, 7 for Base) */
-  cfg: z.number().min(1).max(20).default(1),
+  /** Steps (50 for Medium base, 8 only for LCM-distilled checkpoints) */
+  steps: z.number().int().min(1).max(200).default(50),
+  /** CFG scale (7 for Medium base, 1 only for LCM-distilled checkpoints) */
+  cfg: z.number().min(1).max(20).default(7.0),
   /** Denoise strength */
   denoise: z.number().min(0).max(1).default(1.0),
   /** Batch size */

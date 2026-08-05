@@ -9,7 +9,7 @@ export const SA3_CONFIG = {
   comfyuiUrl: process.env.COMFYUI_URL || "http://localhost:8188",
   /** ComfyUI host output directory */
   comfyuiOutputDir: process.env.COMFYUI_OUTPUT_DIR || engineOutputDir("comfyui"),
-  /** Default model for generation (Medium = LCM distilled, 8 steps) */
+  /** Default model for generation (Medium = full checkpoint, 50 steps euler) */
   defaultModel: process.env.SA3_DEFAULT_MODEL || "stable_audio_3_medium.safetensors",
   /** Default text encoder */
   defaultTextEncoder: "t5gemma_b_b_ul2.safetensors",
