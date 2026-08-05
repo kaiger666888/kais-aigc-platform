@@ -87,6 +87,10 @@ function getGroupKey(d: AssetDetail): string {
  */
 const ALWAYS_SHOW_SUBTYPES: ReadonlySet<AssetSubtype> = new Set([
   'turnaround_sheet', 'costume_turnaround',
+  // Notion 新资产类型占位（count=0 时灰色显示，让用户知道这些分类存在）
+  'scene_blueprint', 'scene_temporal_variant', 'scene_view_angle',
+  'costume_temporal_variant', 'midframe',
+  'foley_stem', 'bgm_track',
 ])
 
 export default function AssetLibrary() {
@@ -437,6 +441,12 @@ export default function AssetLibrary() {
                 <span className="am-tree-node__ic">▦</span>全部场景设定
                 <span className="am-tree-node__n">{sub('scene_base')}</span>
               </button>
+              {/* Notion §1.2a 场景蓝图（空间结构+灭点+地标） */}
+              {renderSubtypeNode('scene_blueprint', true)}
+              {/* Notion §1.2b 场景时空变体（时段/天气） */}
+              {renderSubtypeNode('scene_temporal_variant', true)}
+              {/* Notion §1.2c 场景视角矩阵（扩展角度） */}
+              {renderSubtypeNode('scene_view_angle', true)}
               {sceneGroups.map((s) => (
                 <button
                   key={s.id}
@@ -492,8 +502,16 @@ export default function AssetLibrary() {
               ))}
               {/* ⑦ 分镜级 Turnaround（人物定妆）—— DB 无数据，count=0 灰色不可点击 */}
               {renderSubtypeNode('costume_turnaround', true)}
+              {/* Notion §1.1c 服化道时段变体 */}
+              {renderSubtypeNode('costume_temporal_variant', true)}
+              {/* Notion §2d 关键中间帧（长镜头 >8s） */}
+              {renderSubtypeNode('midframe', true)}
               {/* ⑥ 场景角度图（分镜级参考）—— 从场景级移到分镜级 */}
               {renderSubtypeNode('scene_angle_shot')}
+              {/* Notion §5c Foley 独立音轨 */}
+              {renderSubtypeNode('foley_stem', true)}
+              {/* Notion §5d BGM 音轨 */}
+              {renderSubtypeNode('bgm_track', true)}
             </div>
           )}
         </div>
