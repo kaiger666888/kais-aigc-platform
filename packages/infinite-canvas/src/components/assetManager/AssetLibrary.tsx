@@ -55,7 +55,11 @@ function Thumb({ item, portraitUrl }: { item: AssetItem; portraitUrl?: string | 
     const audioUrl = resolveMediaUrl(audioPath)
     if (audioUrl) {
       return (
-        <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
+        // 绝对定位填满 .am-card__thumb（其 position:relative）。
+        // 用 inset:0 而非 width/height:100%：父级是 display:grid;place-items:center，
+        // 百分比高度在此布局下解析不稳定（无肖像图时容器会塌缩为 0，播放条飘到卡片中段被裁剪），
+        // inset:0 让根容器恒等于 thumb 的尺寸 → 播放条 bottom:0 必然贴在卡片底边。
+        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
           {/* 底层：角色设定图铺满整个卡片 */}
           {portraitUrl && !portraitBroken && (
             <img
@@ -66,18 +70,22 @@ function Thumb({ item, portraitUrl }: { item: AssetItem; portraitUrl?: string | 
               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
             />
           )}
-          {/* 底部渐变遮罩 + 播放器叠在角色图上 */}
+          {/* 底部播放条 overlay：覆盖在角色照片底部，紧贴卡片底边（bottom:0）。
+              z-index:10 确保在图片/渐变遮罩之上；pointer-events:auto 确保可点击；
+              渐变背景保证白色播放控件在任意底图上都可见。 */}
           <div style={{
-            position: 'absolute', bottom: '8px', left: 0, right: 0,
-            background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)',
-            padding: '4px 6px 2px',
+            position: 'absolute', bottom: 0, left: 0, right: 0,
+            zIndex: 10,
+            pointerEvents: 'auto',
+            background: 'linear-gradient(to top, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.5) 55%, transparent 100%)',
+            padding: '6px 6px 4px',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <audio
               controls
               preload="none"
               src={audioUrl}
-              style={{ width: '100%', height: '28px' }}
+              style={{ width: '100%', height: '30px' }}
               onClick={(e) => e.stopPropagation()}
             />
           </div>

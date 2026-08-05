@@ -168,6 +168,27 @@ export default function CharacterWardrobe() {
   // 修复旧逻辑把概念图 + 灰底整图都当独立角色、左栏重复的问题。
   const identities = useMemo(() => groupCharacterIdentities(selectedAssets), [selectedAssets])
 
+  // 左栏角色卡片声纹徽标：该角色是否拥有声纹参考（type='voice'）。
+  // 复用下方 voicePrint 的双形态匹配（拼音 characterId ↔ 中文名），让用户在角色列表层
+  // 即可一眼看出哪个角色已生成声纹，无需逐个点进角色才能发现（Kai：声纹在角色管理无入口）。
+  const voiceOwnerIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const c of identities) {
+      const { display: charDisplayName } = parseCharName(c.item.name)
+      const idCharId = c.characterId
+      const hasVoice = selectedAssets.some((a) => {
+        if (a.type !== 'voice') return false
+        const vCharId = a.characterId ?? ''
+        if (vCharId === idCharId) return true
+        if (charDisplayName && vCharId === charDisplayName) return true
+        if (charDisplayName && (a.name ?? '').startsWith(charDisplayName)) return true
+        return false
+      })
+      if (hasVoice) ids.add(idCharId)
+    }
+    return ids
+  }, [identities, selectedAssets])
+
   const [selectedCharId, setSelectedCharId] = useState<string | null>(null)
   const identity = useMemo(
     () => identities.find((c) => c.characterId === selectedCharId) ?? identities[0],
@@ -402,6 +423,9 @@ export default function CharacterWardrobe() {
                 <b>{display}</b>
                 <span>{role ?? c.characterId}</span>
               </div>
+              {voiceOwnerIds.has(c.characterId) && (
+                <span className="am-voice-badge" title="该角色已生成声纹参考 · 点击卡片查看">🎤</span>
+              )}
             </div>
           )
         })}
