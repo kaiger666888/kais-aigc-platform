@@ -86,7 +86,7 @@ export const LTX_AMBIENT = {
 
   // v9: Foley LoRA — 用 LTX2LoraLoaderAdvanced 精确控制各层强度
   foleyLoraName: "ltx-2.3-foley-400-steps.safetensors",
-  foleyLoraStrength: 2.0, // msr.ts A/B 验证: 1.0 偏弱, 2.0 最佳
+  foleyLoraStrength: 1.0, // A/B 实测: 1.0 听感最佳(A1/A2均匀自然), 1.5 动态范围好但听感不如, 2.0 压扁
 
   // NAG (Negative Augmented Guidance) — 采样阶段压制 BGM 残留
   nagScale: 11,
@@ -101,9 +101,10 @@ export const LTX_AMBIENT = {
   clipName1: "gemma_3_12B_it_fp8_scaled.safetensors",
   clipName2: "ltx-2.3_text_projection_bf16.safetensors",
 
-  // 采样参数 (蒸馏模型: CFG=1.0, euler_ancestral_cfg_pp, 9 sigmas)
+  // 采样参数 (蒸馏模型: CFG=1.0, euler, 9 sigmas)
+  // A/B 实测: euler 听感比 euler_ancestral_cfg_pp 更均匀稳定
   cfg: 1.0,
-  samplerName: "euler_ancestral_cfg_pp",
+  samplerName: "euler",
   // 蒸馏模型专用 9 步 sigma 调度
   sigmas: "1.0, 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.421875, 0.0",
 
@@ -489,20 +490,8 @@ export function buildLtxAmbientWorkflow(opts: LtxAmbientWorkflowOpts): Record<st
       },
     },
 
-    // === 音频归一化 (采样中改善音频质量) ===
-    // 130: LTX2AudioLatentNormalizingSampling (在 NAG 之后、CFGGuider 之前 patch model)
-    //     官方 KJNodes 节点: "Improves LTX2 generated audio quality by normalizing
-    //     audio latents at specified sampling steps."
-    //     factors "1,1,0.25,1,1,0.25,1,1" = 第3/6步以0.25强度归一化音频 latent 分布
-    "130": {
-      class_type: "LTX2AudioLatentNormalizingSampling",
-      inputs: {
-        model: ["121", 0],
-        audio_normalization_factors: "1,1,0.25,1,1,0.25,1,1",
-      },
-    },
-
-    // === 采样 (distilled: CFG=1.0, euler_ancestral_cfg_pp, 9 sigmas) ===
+    // === 采样 (distilled: CFG=1.0, euler, 9 sigmas) ===
+    // AudioNorm 节点130 已移除: A/B 实测会压扁动态范围且听感更差
     // 15: RandomNoise
     "15": {
       class_type: "RandomNoise",
@@ -518,11 +507,11 @@ export function buildLtxAmbientWorkflow(opts: LtxAmbientWorkflowOpts): Record<st
       class_type: "KSamplerSelect",
       inputs: { sampler_name: LTX_AMBIENT.samplerName },
     },
-    // 37: CFGGuider (model=[130,0] AudioNorm+NAG-wrapped, cfg=1.0)
+    // 37: CFGGuider (model=[121,0] NAG-wrapped, cfg=1.0)
     "37": {
       class_type: "CFGGuider",
       inputs: {
-        model: ["130", 0],
+        model: ["121", 0],
         positive: ["7", 0],
         negative: ["7", 1],
         cfg: LTX_AMBIENT.cfg,
@@ -677,20 +666,20 @@ export function mergeAudioAndVideo(
   ambientAudioPath: string,
   outputPath: string,
 ): void {
-  // 响度归一化策略:
-  //   LTX Foley 原始输出极低 (~-50 LUFS / max_amplitude ~0.001),
-  //   loudnorm 单 pass 在极低信号下失效 → 改用 dynaudnorm + 手动增益。
+  // 响度归一化策略 (A/B 实测定稿):
+  //   loudnorm(EBU R128) 比 dynaudnorm 更自然 — 保留原始音频质感, 不会过度放大噪声
+  //   目标: I=-20 LUFS (环境音理想值), TP=-2 dBFS, LRA=11
   //
-  //   - 无 TTS: dynaudnorm 将环境音归一化到合理响度
-  //   - 有 TTS: TTS dynaudnorm(f=150) 保持人声自然, 环境音降低后混音
+  //   - 无 TTS: loudnorm 环境音到 I=-20 后合并
+  //   - 有 TTS: TTS loudnorm I=-16 (对白标准) + 环境音 loudnorm I=-24 (背景层)
   if (ttsAudioPath && fs.existsSync(ttsAudioPath)) {
     // 两轨混音: TTS (对白) + ambient (环境音)
     const mixedAudio = outputPath.replace(/\.mp4$/, "_mixed.aac");
     execSync(
       `ffmpeg -y -i "${ttsAudioPath}" -i "${ambientAudioPath}" ` +
       `-filter_complex ` +
-      `"[0:a]dynaudnorm=f=150:g=15:p=0.9[tts];` +
-      `[1:a]dynaudnorm=f=150:g=15:p=0.9,volume=0.4[amb];` +
+      `"[0:a]loudnorm=I=-16:TP=-1.5:LRA=11[tts];` +
+      `[1:a]loudnorm=I=-24:TP=-2:LRA=11,volume=0.5[amb];` +
       `[tts][amb]amix=inputs=2:duration=first:weights=1 1:normalize=0[mix]" ` +
       `-map "[mix]" -c:a aac -b:a 192k "${mixedAudio}"`,
       { timeout: 120_000 },
@@ -703,10 +692,10 @@ export function mergeAudioAndVideo(
     );
     try { fs.unlinkSync(mixedAudio); } catch {}
   } else {
-    // 无 TTS, dynaudnorm 归一化环境音后合并
+    // 无 TTS, loudnorm(EBU R128) 归一化到 I=-20 LUFS
     execSync(
       `ffmpeg -y -i "${videoPath}" -i "${ambientAudioPath}" ` +
-      `-map 0:v:0 -map 1:a:0 -af "dynaudnorm=f=150:g=15:p=0.9,apad" ` +
+      `-map 0:v:0 -map 1:a:0 -af "loudnorm=I=-20:TP=-2:LRA=11,apad" ` +
       `-c:v copy -c:a aac -b:a 192k -shortest "${outputPath}"`,
       { timeout: 120_000 },
     );
