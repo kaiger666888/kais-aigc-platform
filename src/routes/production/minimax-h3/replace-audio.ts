@@ -1,7 +1,7 @@
 /**
- * MiniMax H3 — replace-audio (H3 视频 BGM 替换 / v9 Foley LoRA + SolidMask 工作流)
+ * MiniMax H3 — replace-audio (H3 视频 BGM 替换 / N1 Foley 环境音工作流)
  *
- * 接收一个已生成的 H3 视频文件,用 LTX 2.3 + Foley LoRA 生成无 BGM 的环境音轨,
+ * 接收一个已生成的 H3 视频文件,用 LTX 2.3 dev int8 + Foley LoRA 生成无 BGM 的环境音轨,
  * 最终输出独立的环境音频(客户端拿到音频后自行用 ffmpeg 合并视频+音频)。
  *
  * POST /api/production/minimax-h3/replace-audio   (multipart/form-data)
@@ -14,7 +14,7 @@
  *   autoMerge      : boolean (true=同步等待+自动合并TTS+环境音, false=异步返回promptId)
  *   filenamePrefix : string  (输出文件名前缀)
  *
- * 工作流(v9 方案 + NAG + BGM 检测重试):
+ * 工作流(N1 方案 + BGM 检测重试):
  *   1. 接收视频 → 提取纯视频 (ffmpeg -an) + 可选 re-encode 到 1280x704
  *   2. 上传到 ComfyUI 容器 → docker cp 到 comfyui-primary:/root/ComfyUI/input/
  *   3. 构建 LTX 环境音工作流 → 提交到 ComfyUI (端口 8188)
@@ -30,20 +30,21 @@
  *     - 无 ttsAudio: 直接合并环境音到纯视频
  *     返回最终 mp4 路径
  *
- * LTX 工作流拓扑(v9 Foley LoRA + SolidMask + NAG 方案):
+ * N1 工作流拓扑 (非蒸馏 dev int8 + Foley LoRA + SolidMask + ModelSamplingLTXV):
  *   - H3 视频帧通过 VHS_LoadVideoFFmpeg → VHS_VAEEncodeBatched → SolidMask 冻结
  *   - Foley LoRA (LTX2LoraLoaderAdvanced, video=0/audio=1) 提供环境音生成能力
- *   - NAG 链 (PromptRelayEncode → LTX2_NAG) 采样阶段压制 BGM 残留
+ *   - ModelSamplingLTXV (节点200) 提供 shift 调度 (替代蒸馏固定 sigmas)
  *   - SolidMask (value=0) 冻结视频 latent, 采样只生成音频
- *   - LTX 蒸馏模型 9 步采样生成无 BGM 环境音
+ *   - LTX dev int8 模型 30 步采样 + euler_ancestral_cfg_pp + CFG 2.05
  *
- * 关键技术参数:
- *   - 模型: ltx-2.3-22b-distilled_transformer_only_fp8_input_scaled_v3.safetensors
- *   - Foley LoRA: ltx-2.3-foley-400-steps.safetensors (LoraLoaderModelOnly, strength=1.0)
+ * 关键技术参数 (N1 配置, 2026-08-05 定稿):
+ *   - 模型: ltx-2.3-22b-dev_transformer_only_int8_convrot.safetensors (非蒸馏 int8)
+ *   - Foley LoRA: ltx-2.3-foley-400-steps.safetensors (LTX2LoraLoaderAdvanced, strength=1.0)
  *   - VAE: LTX23_video_vae_bf16.safetensors, LTX23_audio_vae_bf16.safetensors
  *   - CLIP: gemma_3_12B_it_fp8_scaled + ltx-2.3_text_projection_bf16
- *   - Sigmas: 蒸馏模型专用 9 步调度
- *   - CFG: 1.0 (distilled)
+ *   - 调度: LTXVScheduler 30步 (max_shift=2.05, base_shift=0.95, stretch=true, terminal=0.1)
+ *   - CFG: 2.05
+ *   - 采样器: euler_ancestral_cfg_pp
  *   - 分辨率: 1280x704
  *   - 帧规则: 8n+1 (无上限)
  *
@@ -81,19 +82,16 @@ const upload = multer({
 // ============================================================
 
 export const LTX_AMBIENT = {
-  // 模型文件名
-  modelName: "ltx-2.3-22b-distilled_transformer_only_fp8_input_scaled_v3.safetensors",
+  // ── N1 配置 (2026-08-05 定稿, superseded 蒸馏 v9 方案) ──
+  // 非蒸馏 dev 模型: 更丰富的动态范围 (LRA 2.6~10.4 vs 蒸馏 ~0.9), 更自然的听感
+  // 代价: 渲染 ~3x (30步 vs 9步), 但 SageAttention 已全局生效缓解
+  modelName: "ltx-2.3-22b-dev_transformer_only_int8_convrot.safetensors",
 
-  // v9: Foley LoRA — 用 LTX2LoraLoaderAdvanced 精确控制各层强度
+  // Foley LoRA — LoraLoaderModelOnly (N1: 无 NAG 链, 直接接 ModelSamplingLTXV)
   foleyLoraName: "ltx-2.3-foley-400-steps.safetensors",
-  foleyLoraStrength: 1.0, // A/B 实测: 1.0 听感最佳(A1/A2均匀自然), 1.5 动态范围好但听感不如, 2.0 压扁
+  foleyLoraStrength: 1.0,
 
-  // NAG (Negative Augmented Guidance) — 采样阶段压制 BGM 残留
-  nagScale: 11,
-  nagAlpha: 0.25,
-  nagTau: 2.5,
-
-  // BGM 检测重试参数
+  // BGM 检测重试参数 (保留)
   bgmMaxRetries: 2,
 
   videoVaeName: "LTX23_video_vae_bf16.safetensors",
@@ -101,12 +99,14 @@ export const LTX_AMBIENT = {
   clipName1: "gemma_3_12B_it_fp8_scaled.safetensors",
   clipName2: "ltx-2.3_text_projection_bf16.safetensors",
 
-  // 采样参数 (蒸馏模型: CFG=1.0, euler, 9 sigmas)
-  // A/B 实测: euler 听感比 euler_ancestral_cfg_pp 更均匀稳定
-  cfg: 1.0,
-  samplerName: "euler",
-  // 蒸馏模型专用 9 步 sigma 调度
-  sigmas: "1.0, 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.421875, 0.0",
+  // ── N1 采样参数 (非蒸馏 dev 模型专用) ──
+  // CFG 2.05 + euler_ancestral_cfg_pp: 官方 foley-sliding-window.json 推荐配置
+  // 30 步 LTXVScheduler + ModelSamplingLTXV: 非蒸馏模型需要完整调度
+  cfg: 2.05,
+  samplerName: "euler_ancestral_cfg_pp",
+  schedulerSteps: 30,
+  maxShift: 2.05,
+  baseShift: 0.95,
 
   // 分辨率 (固定 1280x704)
   width: 1280,
@@ -118,7 +118,7 @@ export const LTX_AMBIENT = {
 
   // 默认负面提示词 (环境音场景: ban BGM / 人声)
   defaultNegativePrompt:
-    "music, melody, song, singing, vocals, score, soundtrack, beat, instrumental backing, tinny, harsh, clipped, distorted",
+    "music, melody, song, singing, vocals, score, soundtrack, beat, rhythm bed, instrumental backing, tinny, thin, harsh, clipped, distorted, low bitrate, subtitles, captions, on-screen text",
 } as const;
 
 // ============================================================
@@ -244,24 +244,21 @@ export function ensureResolutionAndStripAudio(
 }
 
 // ============================================================
-// Workflow builder (v9: Foley LoRA + SolidMask + NAG)
+// Workflow builder (N1: Foley LoRA + SolidMask + ModelSamplingLTXV)
 // ============================================================
 //
-// 节点拓扑 (v9 方案 + NAG 链, API JSON 格式):
+// 节点拓扑 (N1 非蒸馏 dev int8 方案, API JSON 格式):
 //
 //   模型加载:
-//     3:  UNETLoader (distilled transformer_only fp8)
+//     3:  UNETLoader (dev transformer_only int8_convrot)
 //     10: LTX2LoraLoaderAdvanced (model=[3,0], Foley LoRA, video=0 audio=1)
-//
-//   NAG 链 (Negative Augmented Guidance — 采样阶段压制 BGM):
-//     99:  PromptRelayEncode (model=[10,0], clip=[26,0], latent=[23,0])
-//     121: LTX2_NAG (model=[99,0], nag_scale=11, nag_alpha=0.25, nag_tau=2.5)
+//     200: ModelSamplingLTXV (model=[10,0], max_shift=2.05, base_shift=0.95)
 //
 //   文本:
 //     26: DualCLIPLoader (gemma + text_projection, type="ltxv")
 //     5:  CLIPTextEncode (positive)
 //     6:  CLIPTextEncode (negative)
-//     7:  LTXVConditioning (frame_rate=24)
+//     7: LTXVConditioning (frame_rate=24)
 //
 //   VAE:
 //     31: VAELoader (video VAE)
@@ -280,11 +277,11 @@ export function ensureResolutionAndStripAudio(
 //   合并 AV:
 //     23: LTXVConcatAVLatent (video_latent=[103,0], audio_latent=[50,0])
 //
-//   采样 (distilled: CFG=1.0, euler, 9 sigmas):
+//   采样 (N1: CFG=2.05, euler_ancestral_cfg_pp, 30步 LTXVScheduler):
 //     15: RandomNoise
-//     27: ManualSigmas
-//     13: KSamplerSelect (euler)
-//     37: CFGGuider (model=[10,0], cfg=1.0)
+//     27: LTXVScheduler (steps=30, max_shift=2.05, base_shift=0.95, stretch=true, terminal=0.1)
+//     13: KSamplerSelect (euler_ancestral_cfg_pp)
+//     37: CFGGuider (model=[200,0], cfg=2.05)
 //     16: SamplerCustomAdvanced
 //
 //   解码音频:
@@ -326,7 +323,7 @@ export function buildLtxAmbientWorkflow(opts: LtxAmbientWorkflowOpts): Record<st
 
   return {
     // === 模型加载 ===
-    // 3: UNETLoader (distilled transformer_only fp8)
+    // 3: UNETLoader (dev transformer_only int8_convrot — N1 非蒸馏模型)
     "3": {
       class_type: "UNETLoader",
       inputs: {
@@ -349,32 +346,14 @@ export function buildLtxAmbientWorkflow(opts: LtxAmbientWorkflowOpts): Record<st
         other: 1.0,
       },
     },
-
-    // === NAG 链 (Negative Augmented Guidance — 采样阶段压制 BGM) ===
-    // 99: PromptRelayEncode (将模型+CLIP+latent 包装为 relay 模型)
-    "99": {
-      class_type: "PromptRelayEncode",
+    // 200: ModelSamplingLTXV (N1: 非蒸馏 dev 模型需要 shift 调度)
+    //     LoRA(10) → ModelSamplingLTXV(200) → CFGGuider(37)
+    "200": {
+      class_type: "ModelSamplingLTXV",
       inputs: {
         model: ["10", 0],
-        clip: ["26", 0],
-        latent: ["23", 0],
-        global_prompt: prompt,
-        local_prompts: enhancedPrompt,
-        segment_lengths: "",
-        epsilon: 0.0022,
-      },
-    },
-    // 121: LTX2_NAG (NAG 包装 — 强化 negative prompt 对 BGM 的压制)
-    "121": {
-      class_type: "LTX2_NAG",
-      inputs: {
-        model: ["99", 0],
-        nag_scale: LTX_AMBIENT.nagScale,
-        nag_alpha: LTX_AMBIENT.nagAlpha,
-        nag_tau: LTX_AMBIENT.nagTau,
-        nag_cond_video: ["7", 1],
-        nag_cond_audio: ["7", 1],
-        inplace: true,
+        max_shift: LTX_AMBIENT.maxShift,
+        base_shift: LTX_AMBIENT.baseShift,
       },
     },
 
@@ -490,28 +469,33 @@ export function buildLtxAmbientWorkflow(opts: LtxAmbientWorkflowOpts): Record<st
       },
     },
 
-    // === 采样 (distilled: CFG=1.0, euler, 9 sigmas) ===
-    // AudioNorm 节点130 已移除: A/B 实测会压扁动态范围且听感更差
+    // === 采样 (N1: dev int8, CFG=2.05, euler_ancestral_cfg_pp, 30步) ===
     // 15: RandomNoise
     "15": {
       class_type: "RandomNoise",
       inputs: { noise_seed: seed },
     },
-    // 27: ManualSigmas (蒸馏模型专用 9 步调度)
+    // 27: LTXVScheduler (N1: 30步调度, 替代蒸馏 ManualSigmas)
     "27": {
-      class_type: "ManualSigmas",
-      inputs: { sigmas: LTX_AMBIENT.sigmas },
+      class_type: "LTXVScheduler",
+      inputs: {
+        steps: LTX_AMBIENT.schedulerSteps,
+        max_shift: LTX_AMBIENT.maxShift,
+        base_shift: LTX_AMBIENT.baseShift,
+        stretch: true,
+        terminal: 0.1,
+      },
     },
-    // 13: KSamplerSelect (euler)
+    // 13: KSamplerSelect (euler_ancestral_cfg_pp)
     "13": {
       class_type: "KSamplerSelect",
       inputs: { sampler_name: LTX_AMBIENT.samplerName },
     },
-    // 37: CFGGuider (model=[121,0] NAG-wrapped, cfg=1.0)
+    // 37: CFGGuider (model=[200,0] ModelSamplingLTXV, cfg=2.05)
     "37": {
       class_type: "CFGGuider",
       inputs: {
-        model: ["121", 0],
+        model: ["200", 0],
         positive: ["7", 0],
         negative: ["7", 1],
         cfg: LTX_AMBIENT.cfg,
