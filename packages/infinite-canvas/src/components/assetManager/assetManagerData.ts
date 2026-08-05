@@ -339,21 +339,97 @@ export type AssetSubtype =
   | 'costume_turnaround'   // ⑦ 人物定妆 Turnaround（分镜级，参考②+⑤ —— 管线尚未产出，前端预留识别）
   | 'keyframe_first'       // ⑧ 首帧（分镜级）
   | 'keyframe_last'        // ⑨ 尾帧（分镜级）
+  // ── Notion「首尾帧设计」新资产类型占位（§1.1c / §1.2 / §2d / §5）──
+  // 复用现有 DB type，用 meta.subtype 区分（不新建表）。管线尚未实装生成，
+  // 前端先建立识别 + 分类体系，待后端产出后自动归位。
+  | 'scene_blueprint'          // 场景蓝图（空间结构+灭点+地标坐标）—— Notion §1.2a
+  | 'scene_temporal_variant'   // 场景时空变体（时段/天气）—— Notion §1.2b
+  | 'scene_view_angle'         // 场景视角矩阵（扩展角度 EST/MAST/REV/OTS/LOW/HIGH/POV/DET）—— Notion §1.2c
+  | 'costume_temporal_variant' // 服化道时段变体（日/夜/黄昏）—— Notion §1.1c
+  | 'midframe'                 // 关键中间帧（长镜头 >8s 的中间精确卡位）—— Notion §2d
+  | 'foley_stem'               // Foley 独立音轨 —— Notion §5c
+  | 'bgm_track'                // BGM 音轨 —— Notion §5d
   | 'unknown'
+
+// ─── 扩展视角矩阵（Notion 场景视角 §1.2c） ──────────────────
+// 现有场景仅 3-view（front/angle_left/angle_right）。Notion 要求建立分类体系，
+// 让未来的扩展角度（室内 8 角度 / 室外 7 角度）可以归位 —— 不强制生成全部。
+/** 扩展视角类型（Notion 场景视角矩阵）—— 现有 3-view + 室内/室外扩展角度。 */
+export const EXTENDED_VIEW_ANGLES = {
+  // 现有 3-view（保留以便统一查标签）
+  front: '前视', angle_left: '左侧', angle_right: '右侧',
+  // 室内扩展
+  est: '全景', mast: '主视角', rev: '反打', ots: '过肩',
+  low: '低角度', high: '高角度', pov: '主观视角', det: '特写背景',
+} as const
+
+/** 扩展视角枚举键（用于 scene_view_angle 推断，不含现有 3-view）。 */
+export const EXTENDED_VIEW_ANGLE_KEYS = [
+  'est', 'mast', 'rev', 'ots', 'low', 'high', 'pov', 'det',
+] as const
+
+/** 室内可用角度矩阵（Notion §1.2c：室内 8 角度）。 */
+export const INDOOR_ANGLES = ['est', 'mast', 'rev', 'ots', 'low', 'high', 'pov', 'det'] as const
+/** 室外可用角度矩阵（Notion §1.2c：室外 7 角度，无 low 低角度）。 */
+export const OUTDOOR_ANGLES = ['est', 'mast', 'rev', 'ots', 'high', 'pov', 'det'] as const
+
+/**
+ * 从 AssetDetail.meta（JSON 字符串）解析 ``meta.subtype``。
+ *
+ * Notion 新资产类型（scene_blueprint / midframe / foley_stem ...）复用现有 DB
+ * type，靠 meta.subtype 区分。返回 subtype 字符串，缺失/无法解析时返回 null。
+ * 函数声明（function declaration）会被提升，inferLevel/inferSubtype/
+ * inferSubtypeFromItem 均可安全调用。
+ */
+function parseMetaSubtype(meta?: string | null): string | null {
+  if (!meta) return null
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(meta)
+  } catch {
+    return null
+  }
+  if (parsed && typeof parsed === 'object') {
+    const sub = (parsed as Record<string, unknown>).subtype
+    if (typeof sub === 'string' && sub.trim()) return sub.trim()
+  }
+  return null
+}
 
 /** 从 AssetDetail 推断层级 */
 export function inferLevel(d: AssetDetail): AssetLevel {
   if (d.type === 'keyframe') return 'shot'
   if (d.type === 'scene' || d.type === 'scene_variant' || d.type === 'scene_image') return 'scene'
+  // ── Notion 新资产类型层级推断（按 meta.subtype / type 归位）──
+  const sub = parseMetaSubtype(d.meta)
+  if (sub === 'midframe' || sub === 'costume_temporal_variant') return 'shot'
+  if (sub === 'foley_stem' || sub === 'bgm_track') return 'scene' // 音轨按场景级归类
+  if (d.type === 'audio') return 'scene'
   return 'show'  // character 默认全剧级
 }
 
 /** 从 AssetDetail 推断子类型 */
 export function inferSubtype(d: AssetDetail): AssetSubtype {
+  const metaSub = parseMetaSubtype(d.meta)
+
+  // ── 音频：Foley / BGM 独立音轨（Notion §5c/§5d，复用 audio DB type）──
+  if (d.type === 'audio') {
+    if (metaSub === 'foley_stem') return 'foley_stem'
+    if (metaSub === 'bgm_track') return 'bgm_track'
+    const tags = (d.tags || '').toLowerCase()
+    if (tags.includes('foley')) return 'foley_stem'
+    if (tags.includes('bgm')) return 'bgm_track'
+    return 'unknown'
+  }
+
   if (d.type === 'character') {
     const fp = (d.filePath || '').toLowerCase()
     const nm = (d.name || '').toLowerCase()
     const tags = (d.tags || '').toLowerCase()
+    // ⑦服化道时段变体（Notion §1.1c）：优先于定妆 turnaround 判定
+    if (metaSub === 'costume_temporal_variant' || tags.includes('costume_temporal')) {
+      return 'costume_temporal_variant'
+    }
     // ⑦ 人物定妆 Turnaround（管线尚未产出 → 前端预留识别：路径/名称/标签含 costume_turnaround）
     // 放在最前：定妆 turnaround 是分镜级产物，优先于全剧级 turnaround 整图判定。
     if (
@@ -378,11 +454,30 @@ export function inferSubtype(d: AssetDetail): AssetSubtype {
     return 'character_concept'
   }
   if (d.type === 'keyframe') {
+    // 关键中间帧（Notion §2d）：长镜头 >8s 的中间精确卡位帧
+    if (metaSub === 'midframe') return 'midframe'
+    const nm = (d.name || '').toLowerCase()
+    if (nm.includes('midframe') || nm.includes('中间帧')) return 'midframe'
     return (d.name || '').includes('_first_') || (d.name || '').includes('first') ? 'keyframe_first' : 'keyframe_last'
   }
   if (d.type === 'scene' || d.type === 'scene_variant' || d.type === 'scene_image') {
     const fp = (d.filePath || '').toLowerCase()
     const nm = (d.name || '').toLowerCase()
+    // 场景蓝图（Notion §1.2a）：空间结构 + 灭点 + 地标坐标（JSON 结构化资产）
+    if (metaSub === 'scene_blueprint' || nm.includes('场景蓝图') || fp.includes('scene_blueprint')) {
+      return 'scene_blueprint'
+    }
+    // 场景时空变体（Notion §1.2b）：同一场景的时段/天气变体
+    if (metaSub === 'scene_temporal_variant' || fp.includes('temporal_variant') || nm.includes('时空变体')) {
+      return 'scene_temporal_variant'
+    }
+    // 场景视角矩阵扩展角度（Notion §1.2c）：EST/MAST/REV/OTS/LOW/HIGH/POV/DET
+    if (
+      metaSub === 'scene_view_angle' ||
+      (d.viewAngle && (EXTENDED_VIEW_ANGLE_KEYS as readonly string[]).includes(d.viewAngle as string))
+    ) {
+      return 'scene_view_angle'
+    }
     // ⑥ 场景角度图（分镜级）：名称含「场景角度图」/ 文件名 S0X_front|angle_*（不含 scene_refs 的）
     if (
       nm.includes('场景角度图') ||
@@ -885,14 +980,25 @@ export function computeGenerationChain(item: AssetItem, all: AssetItem[]): Chain
 
 /** AssetItem → AssetSubtype（computeGenerationChain 内部用，避免重复映射 AssetDetail）。 */
 function inferSubtypeFromItem(a: AssetItem): AssetSubtype {
-  // 与 inferSubtype(AssetDetail) 保持等价：AssetItem 已含 type/characterId/viewAngle/filePath/name/tags。
+  // 与 inferSubtype(AssetDetail) 保持等价：AssetItem 已含 type/characterId/viewAngle/filePath/name/tags/meta。
   // 注意：AssetItem.type 是 AssetType 联合（不含 'keyframe'/'scene_image'），但 assetDetailToItem
   // 把 registry 的 string type 强制 as AssetType —— 运行时仍是 'keyframe' 等，故这里按 string 比较。
   const t = a.type as string
+  const metaSub = parseMetaSubtype(a.meta)
+  if (t === 'audio') {
+    if (metaSub === 'foley_stem') return 'foley_stem'
+    if (metaSub === 'bgm_track') return 'bgm_track'
+    const tags = (a.tags ?? []).join(',').toLowerCase()
+    if (tags.includes('foley')) return 'foley_stem'
+    if (tags.includes('bgm')) return 'bgm_track'
+    return 'unknown'
+  }
   if (t === 'character') {
     const fp = (a.filePath || '').toLowerCase()
     const nm = (a.name || '').toLowerCase()
     const tags = (a.tags ?? []).join(',').toLowerCase()
+    // ⑦服化道时段变体（Notion §1.1c）
+    if (metaSub === 'costume_temporal_variant' || tags.includes('costume_temporal')) return 'costume_temporal_variant'
     if (
       fp.includes('costume_turnaround') || fp.includes('costume-tr') ||
       nm.includes('costume_turnaround') || nm.includes('定妆turnaround') ||
@@ -908,11 +1014,21 @@ function inferSubtypeFromItem(a: AssetItem): AssetSubtype {
     return 'character_concept'
   }
   if (t === 'keyframe') {
+    // 关键中间帧（Notion §2d）
+    if (metaSub === 'midframe') return 'midframe'
+    const nm = (a.name || '').toLowerCase()
+    if (nm.includes('midframe') || nm.includes('中间帧')) return 'midframe'
     return (a.name || '').includes('_first_') || (a.name || '').includes('first') ? 'keyframe_first' : 'keyframe_last'
   }
   if (t === 'scene' || t === 'scene_variant' || t === 'scene_image') {
     const fp = (a.filePath || '').toLowerCase()
     const nm = (a.name || '').toLowerCase()
+    if (metaSub === 'scene_blueprint' || nm.includes('场景蓝图') || fp.includes('scene_blueprint')) return 'scene_blueprint'
+    if (metaSub === 'scene_temporal_variant' || fp.includes('temporal_variant') || nm.includes('时空变体')) return 'scene_temporal_variant'
+    if (
+      metaSub === 'scene_view_angle' ||
+      (a.viewAngle && (EXTENDED_VIEW_ANGLE_KEYS as readonly string[]).includes(a.viewAngle))
+    ) return 'scene_view_angle'
     // 场景角度图：含 scene_angle 或文件名含角度关键词的
     if (
       nm.includes('场景角度图') ||
@@ -940,6 +1056,14 @@ export const SUBTYPE_LABEL: Record<AssetSubtype, string> = {
   costume_turnaround: '分镜级Turnaround',
   keyframe_first: '首帧',
   keyframe_last: '尾帧',
+  // ── Notion 新资产类型 ──
+  scene_blueprint: '场景蓝图',
+  scene_temporal_variant: '场景时空变体',
+  scene_view_angle: '场景视角矩阵',
+  costume_temporal_variant: '服化道时段变体',
+  midframe: '关键中间帧',
+  foley_stem: 'Foley音轨',
+  bgm_track: 'BGM音轨',
   unknown: '其他',
 }
 
@@ -958,6 +1082,14 @@ export const SUBTYPE_EMOJI: Record<AssetSubtype, string> = {
   costume_turnaround: '🎭',
   keyframe_first: '▶️',
   keyframe_last: '⏹️',
+  // ── Notion 新资产类型 ──
+  scene_blueprint: '🗺️',
+  scene_temporal_variant: '🌗',
+  scene_view_angle: '🧭',
+  costume_temporal_variant: '👔',
+  midframe: '🔀',
+  foley_stem: '👣',
+  bgm_track: '🎼',
   unknown: '📦',
 }
 
