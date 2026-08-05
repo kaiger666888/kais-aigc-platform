@@ -10,6 +10,7 @@ import {
 import {
   CommonParams,
   pollUntilComplete,
+  uploadAudioToComfyUI,
   buildCommonNodes,
   buildSaveNode,
   isBaseModel,
@@ -19,15 +20,16 @@ const router = express.Router();
 
 // ─── Zod Schema ────────────────────────────────────────────────────────────
 
-const generateSchema = z.object({
-  /** Text prompt describing the desired audio */
+const transformSchema = z.object({
+  /** Text prompt describing the desired transformation */
   prompt: z.string().min(1).max(4000),
-  /** Negative prompt (things to avoid) */
+  /** Negative prompt */
   negative_prompt: z.string().max(2000).default("low quality, distorted, noise"),
-  /** Duration in seconds (max ~380s for Medium) */
-  seconds_total: z.number().min(1).max(380).default(30),
-  /** Start time for conditioning (usually 0) */
-  seconds_start: z.number().min(0).max(380).default(0),
+  /** Path to input audio file (on server filesystem) */
+  input_audio_path: z.string().min(1).max(500),
+  /** Denoise strength: 0 = keep original entirely, 1 = fully regenerate.
+   *  Typically 0.3-0.7 for style transfer, 0.5-0.8 for strong modification. */
+  denoise: z.number().min(0.01).max(1).default(0.6),
   /** Seed (-1 = random) */
   seed: z.number().int().default(-1),
   /** Checkpoint to use */
@@ -36,56 +38,83 @@ const generateSchema = z.object({
   text_encoder: z.string().max(200).default("t5gemma_b_b_ul2.safetensors"),
   /** Sampler — auto-selected by model type if not specified */
   sampler_name: z
-    .enum(["lcm", "euler", "euler_ancestral", "dpmpp_2m", "dpmpp_3m_sde"])
+    .enum(["lcm", "euler", "euler_ancestral", "dpmpp_2m"])
     .optional(),
   /** Scheduler */
   scheduler: z.enum(["simple", "normal", "karras", "sgm_uniform"]).default("simple"),
   /** Steps — auto-selected by model type if not specified */
   steps: z.number().int().min(1).max(200).optional(),
-  /** CFG scale — auto-selected by model type if not specified */
+  /** CFG scale */
   cfg: z.number().min(1).max(20).optional(),
-  /** ModelSampling shift for AuraFlow (only used by distilled Medium model) */
+  /** ModelSampling shift for AuraFlow */
   model_shift: z.number().min(0).max(10).default(1.0),
-  /** Denoise strength */
-  denoise: z.number().min(0).max(1).default(1.0),
-  /** Batch size */
-  batch_size: z.number().int().min(1).max(16).default(1),
   /** Output format */
   format: z.enum([...SA3_AUDIO_FORMATS]).default("mp3"),
-  /** Filename prefix for saved audio */
-  filename_prefix: z.string().max(200).default("stable_audio_3"),
-  /** Optional callback URL for async completion */
+  /** Filename prefix */
+  filename_prefix: z.string().max(200).default("stable_audio_3_transform"),
+  /** Optional callback URL */
   callback_url: z.string().url().optional().nullable(),
 });
 
 // ─── Workflow Builder ──────────────────────────────────────────────────────
 
-function buildWorkflow(p: Required<GenerateParams>) {
+/**
+ * Audio-to-Audio workflow topology:
+ *
+ *   1. CheckpointLoaderSimple → MODEL + VAE
+ *   2. CLIPLoader (t5gemma) → CLIP
+ *   3. CLIPTextEncode (positive)
+ *   4. CLIPTextEncode (negative)
+ *   5. ConditioningStableAudio
+ *   [6/7]. ModelSamplingAuraFlow (distilled only)
+ *   N.   LoadAudio (uploaded input) → AUDIO
+ *   N+1. VAEEncodeAudio (AUDIO + VAE) → LATENT (init_audio)
+ *   N+2. KSampler (denoise < 1.0 → partial noise → style transfer)
+ *   N+3. VAEDecodeAudio → AUDIO
+ *   N+4. SaveAudio/SaveAudioMP3
+ */
+function buildTransformWorkflow(
+  p: Required<TransformParams>,
+  uploadedFilename: string,
+) {
   const nodeSeed = p.seed === -1 ? Math.floor(Math.random() * 2147483647) : p.seed;
   const isBase = isBaseModel(p.model);
 
+  const commonParams: CommonParams = {
+    ...p,
+    seconds_total: 0, // not used in audio2audio (derived from input)
+    seconds_start: 0,
+    batch_size: 1,
+  };
   const { workflow, modelNodeId, conditioningNodeId, vaeNodeId, nextNodeId } =
-    buildCommonNodes(p);
+    buildCommonNodes(commonParams);
 
-  // Node N: Empty Latent Audio
-  const latentNodeId = String(nextNodeId);
-  workflow[latentNodeId] = {
-    class_type: "EmptyLatentAudio",
+  // Node N: LoadAudio (uploaded input)
+  const loadNodeId = String(nextNodeId);
+  workflow[loadNodeId] = {
+    class_type: "LoadAudio",
+    inputs: { audio: uploadedFilename },
+  };
+
+  // Node N+1: VAEEncodeAudio (input → latent)
+  const encodeNodeId = String(nextNodeId + 1);
+  workflow[encodeNodeId] = {
+    class_type: "VAEEncodeAudio",
     inputs: {
-      seconds: p.seconds_total,
-      batch_size: p.batch_size,
+      audio: [loadNodeId, 0],
+      vae: [vaeNodeId, 2],
     },
   };
 
-  // Node N+1: KSampler
-  const samplerNodeId = String(nextNodeId + 1);
+  // Node N+2: KSampler (with init latent, denoise < 1.0)
+  const samplerNodeId = String(nextNodeId + 2);
   workflow[samplerNodeId] = {
     class_type: "KSampler",
     inputs: {
       model: [modelNodeId, 0],
       positive: [conditioningNodeId, 0],
       negative: [conditioningNodeId, 1],
-      latent_image: [latentNodeId, 0],
+      latent_image: [encodeNodeId, 0],
       seed: nodeSeed,
       steps: p.steps,
       cfg: p.cfg,
@@ -95,8 +124,8 @@ function buildWorkflow(p: Required<GenerateParams>) {
     },
   };
 
-  // Node N+2: VAE Decode Audio
-  const decodeNodeId = String(nextNodeId + 2);
+  // Node N+3: VAE Decode Audio
+  const decodeNodeId = String(nextNodeId + 3);
   workflow[decodeNodeId] = {
     class_type: "VAEDecodeAudio",
     inputs: {
@@ -105,28 +134,34 @@ function buildWorkflow(p: Required<GenerateParams>) {
     },
   };
 
-  // Node N+3: Save Audio
-  const saveNodeId = String(nextNodeId + 3);
+  // Node N+4: Save Audio
+  const saveNodeId = String(nextNodeId + 4);
   buildSaveNode(workflow, saveNodeId, decodeNodeId, p.format, p.filename_prefix);
 
   return { workflow, saveNodeId, nodeSeed };
 }
 
-type GenerateParams = z.infer<typeof generateSchema>;
+type TransformParams = z.infer<typeof transformSchema>;
 
 // ─── Route Handler ──────────────────────────────────────────────────────────
 
 /**
- * POST /api/v1/stableaudio/generate
+ * POST /api/v1/stableaudio/transform
  *
- * Generate audio via ComfyUI Stable Audio 3 workflow (Text-to-Audio).
+ * Audio-to-Audio: transform an existing audio file using a text prompt.
  *
- * Auto-selects sampling params based on model:
- *   - Medium (distilled):  lcm/10steps/cfg=1 + ModelSamplingAuraFlow
- *   - Medium Base:         euler/50steps/cfg=7 (no AuraFlow)
+ * Body:
+ *   prompt: string (required) — describe the desired transformation
+ *   input_audio_path: string (required) — server path to input audio
+ *   denoise: number — 0.01-1.0 (default 0.6; lower = closer to original)
+ *
+ * Use cases:
+ *   - Style transfer: "bossa nova guitar version" with denoise=0.5
+ *   - Mood change: "dark horror version" with denoise=0.6
+ *   - Instrument swap: "piano arrangement" with denoise=0.7
  */
 export default router.post("/", async (req: Request, res: Response) => {
-  const parsed = generateSchema.safeParse(req.body);
+  const parsed = transformSchema.safeParse(req.body);
   if (!parsed.success) {
     return res
       .status(400)
@@ -143,22 +178,29 @@ export default router.post("/", async (req: Request, res: Response) => {
   const raw = parsed.data;
   const isBase = isBaseModel(raw.model);
 
-  // Auto-select params based on model type
-  const p: Required<GenerateParams> = {
+  const p: Required<TransformParams> = {
     ...raw,
     sampler_name: raw.sampler_name ?? (isBase ? "euler" : "lcm"),
     steps: raw.steps ?? (isBase ? 50 : 10),
     cfg: raw.cfg ?? (isBase ? 7.0 : 1.0),
     callback_url: raw.callback_url ?? null,
-  } as Required<GenerateParams>;
+  } as Required<TransformParams>;
 
   const comfyuiUrl = SA3_CONFIG.comfyuiUrl;
   const outputDir = SA3_CONFIG.comfyuiOutputDir;
 
   try {
-    const { workflow, saveNodeId, nodeSeed } = buildWorkflow(p);
+    // 0. Upload input audio to ComfyUI input dir
+    const uploadFilename = `sa3_input_${Date.now()}.${raw.input_audio_path.split(".").pop() || "wav"}`;
+    const uploadedFilename = await uploadAudioToComfyUI(
+      comfyuiUrl,
+      raw.input_audio_path,
+      uploadFilename,
+    );
 
-    // 1. Submit prompt to ComfyUI
+    // 1. Build and submit workflow
+    const { workflow, saveNodeId, nodeSeed } = buildTransformWorkflow(p, uploadedFilename);
+
     const submitRes = await fetch(`${comfyuiUrl}/prompt`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -172,11 +214,7 @@ export default router.post("/", async (req: Request, res: Response) => {
         .send(error(`ComfyUI submit failed (${submitRes.status}): ${body}`));
     }
 
-    const { prompt_id } = (await submitRes.json()) as {
-      prompt_id: string;
-      number: number;
-      node_errors?: any;
-    };
+    const { prompt_id } = (await submitRes.json()) as { prompt_id: string };
     if (!prompt_id) {
       return res.status(502).send(error("ComfyUI returned no prompt_id"));
     }
@@ -188,7 +226,7 @@ export default router.post("/", async (req: Request, res: Response) => {
       return res.status(500).send(error("ComfyUI generation failed"));
     }
 
-    // 3. Extract output audio file
+    // 3. Extract output
     const audioOutput = result.outputs[saveNodeId];
     if (!audioOutput || !audioOutput.audio) {
       return res
@@ -206,17 +244,17 @@ export default router.post("/", async (req: Request, res: Response) => {
       audio_url: audioUrl,
       filename: audioFile.filename,
       format: p.format,
-      duration: p.seconds_total,
       seed: nodeSeed,
       model: p.model,
       prompt: p.prompt,
+      input_audio: raw.input_audio_path,
+      denoise: p.denoise,
       sampler: p.sampler_name,
       steps: p.steps,
       cfg: p.cfg,
       model_type: isBase ? "base" : "distilled",
     };
 
-    // 4. Optional callback
     if (p.callback_url) {
       fetch(p.callback_url, {
         method: "POST",

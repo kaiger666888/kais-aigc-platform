@@ -148,8 +148,10 @@ import route144 from "./routes/v1/trellis2/preview";
 import route145 from "./routes/v1/trellis2/status";
 import route146 from "./routes/v1/stableaudio/generate";
 import route147 from "./routes/v1/stableaudio/models";
-import route148 from "./routes/v1/tts/speak";
-import route149 from "./routes/v1/tts/status";
+import route148 from "./routes/v1/stableaudio/transform";
+import route149 from "./routes/v1/stableaudio/inpaint";
+import route150 from "./routes/v1/tts/speak";
+import route151 from "./routes/v1/tts/status";
 
 export default async (app: Express) => {
   app.use("/api/assets/addAssets", route1);
@@ -299,6 +301,8 @@ export default async (app: Express) => {
   app.use("/api/v1/trellis2/status", route145);
   app.use("/api/v1/stableaudio/generate", route146);
   app.use("/api/v1/stableaudio/models", route147);
-  app.use("/api/v1/tts/speak", route148);
-  app.use("/api/v1/tts/status", route149);
+  app.use("/api/v1/stableaudio/transform", route148);
+  app.use("/api/v1/stableaudio/inpaint", route149);
+  app.use("/api/v1/tts/speak", route150);
+  app.use("/api/v1/tts/status", route151);
 }
