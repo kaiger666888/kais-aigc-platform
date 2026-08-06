@@ -778,14 +778,29 @@ export async function queryCinema(q: CinemaQueryInput): Promise<CinemaQueryResul
         const canonical =
           aliasHit.canonical_kb_key ?? aliasHit.primary_recommendation ?? null;
         if (canonical) {
-          const resolved = await runCoreQuery({
+          // The canonical name IS an emotion_camera key_name, so prefer an exact
+          // key_name hit — this returns the canonical emotion's OWN card rather
+          // than letting a higher-priority sibling (e.g. "Chaos / Loss of
+          // Control" matching the "confusion" token) outrank it. Fall back to a
+          // fuzzy emotion match if the canonical somehow isn't an exact key_name.
+          let resolved = await runCoreQuery({
             ...q,
-            emotion: canonical,
-            key_name: null, // drop the alias key_name so it doesn't over-constrain
+            emotion: null,
+            key_name: canonical,
             category: "emotion_camera",
             domain: null,
             resolve_alias: false,
           });
+          if (!resolved.results.length) {
+            resolved = await runCoreQuery({
+              ...q,
+              emotion: canonical,
+              key_name: null,
+              category: "emotion_camera",
+              domain: null,
+              resolve_alias: false,
+            });
+          }
           return {
             ...resolved,
             resolved_from_alias: true,
