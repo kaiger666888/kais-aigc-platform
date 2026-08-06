@@ -22,6 +22,7 @@ import { useCanvasStore } from '../../store/canvasStore'
 import { placeAssetOnCanvas, updateAsset, type AssetDetail } from '../../services/canvasApi'
 import { resolveMediaUrl } from '../../utils/mediaUrl'
 import { useRealAssets } from './useRealAssets'
+import DialoguePanel from './DialoguePanel'
 import {
   TYPE_LABEL, realTags,
   assetDetailToItem, modalityVar, modalityWeakVar,
@@ -233,6 +234,10 @@ export default function AssetLibrary() {
   const showToast = useCanvasStore((s) => s.showToast)
   const projectId = useCanvasStore((s) => s.projectId)
   const episodesId = useCanvasStore((s) => s.episodesId)
+  // 对白资产（P10 voice_clips）不在 assets-registry，而是存在于 canvas graph，
+  // 与 DialoguePanel / StoryboardTimeline 同源，故直接消费 store 的 graph。
+  const graph = useCanvasStore((s) => s.graph)
+  const rawDataByNodeId = useCanvasStore((s) => s.rawDataByNodeId)
 
   // 打开 / 关闭资产详情都是导航交互 → 先拍快照进应用历史栈（navPushCallback 由 FlowCanvas 注入）。
   const openAssetDetail = useCallback((uuid: string) => {
@@ -258,6 +263,7 @@ export default function AssetLibrary() {
     | { type: 'scene'; id: string }
     | { type: 'shot'; id: string }
     | { type: 'subtype'; id: AssetSubtype }
+    | { type: 'dialogue' }
     | null
   const [levelFilter, setLevelFilter] = useState<AssetLevel | null>(null)
   const [entityFilter, setEntityFilter] = useState<EntityFilter>(null)
@@ -432,7 +438,7 @@ export default function AssetLibrary() {
       .sort((a, b) => a.id.localeCompare(b.id))
   }, [activeAssets])
 
-  // 分镜级 · 首尾帧列表（⑧⑨）：按 inferShotId 分组
+  // 分镜级 · 首尾帧列表（⑧⑨）：按 inferShotId 分组（自然排序 S01_B01 < S02_B01 < S10_B01）
   const shotGroups = useMemo(() => {
     const counts = new Map<string, number>()
     for (const d of activeAssets) {
@@ -442,8 +448,20 @@ export default function AssetLibrary() {
     }
     return [...counts.entries()]
       .map(([id, n]) => ({ id, n }))
-      .sort((a, b) => a.id.localeCompare(b.id))
+      .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' }))
   }, [activeAssets])
+
+  // 分镜级 · 对白数（P10 voice_clips：canvas graph 中 clip_type='dialogue' 的 audio 节点）。
+  // 对白不在 assets-registry，与 DialoguePanel 同源从 store graph 抽取。
+  const dialogueCount = useMemo(() => {
+    if (!graph) return 0
+    let n = 0
+    for (const node of graph.nodes) {
+      const raw = rawDataByNodeId?.get(node.id) ?? {}
+      if (raw.clip_type === 'dialogue') n++
+    }
+    return n
+  }, [graph, rawDataByNodeId])
 
   // 各层级 section 计数（仅统计归属本 section 的资产）
   const showCount = sub('character_concept') + sub('turnaround_sheet') + sub('turnaround_view')
@@ -647,17 +665,7 @@ export default function AssetLibrary() {
           </button>
           {!collapsedLevels.has('shot') && (
             <div className="am-tree-children">
-              {/* ⑥ 全部首尾帧（仅 keyframe，shot 级目前仅有首尾帧） */}
-              <button
-                className={`am-tree-node am-tree-node--child ${levelFilter === 'shot' && !entityFilter ? 'is-on' : ''}`}
-                onClick={() => {
-                  setLevelFilter('shot'); setEntityFilter(null)
-                  setTypeFilter(null); setTagFilter(null)
-                }}
-              >
-                <span className="am-tree-node__ic">▦</span>全部首尾帧
-                <span className="am-tree-node__n">{sub('keyframe_first') + sub('keyframe_last')}</span>
-              </button>
+              {/* 分镜组（首尾帧变体，按 shot 自然序）—— S01_B01 < S02_B01 < S10_B01 */}
               {shotGroups.map((s) => (
                 <button
                   key={s.id}
@@ -675,8 +683,18 @@ export default function AssetLibrary() {
               {renderSubtypeNode('costume_turnaround', true)}
               {/* Notion §1.1c 服化道时段变体 */}
               {renderSubtypeNode('costume_temporal_variant', true)}
-              {/* Notion §2d 关键中间帧（长镜头 >8s） */}
-              {renderSubtypeNode('midframe', true)}
+              {/* 对白（P10 voice_clips，clip_type='dialogue'）—— 来自 canvas graph，非 assets-registry。
+                  点击在主区域展开对白列表（复用 DialoguePanel，无需独立 Tab）。 */}
+              <button
+                className={`am-tree-node am-tree-node--child ${entityFilter?.type === 'dialogue' ? 'is-on' : ''}`}
+                onClick={() => {
+                  setLevelFilter(null); setEntityFilter({ type: 'dialogue' })
+                  setTypeFilter(null); setTagFilter(null)
+                }}
+              >
+                <span className="am-tree-node__ic">🗣️</span>对白
+                <span className="am-tree-node__n">{dialogueCount}</span>
+              </button>
               {/* ⑥ 场景角度图（分镜级参考）—— 从场景级移到分镜级 */}
               {renderSubtypeNode('scene_angle_shot')}
               {/* Notion §5c Foley 独立音轨 */}
@@ -690,6 +708,11 @@ export default function AssetLibrary() {
 
       {/* 主区域 */}
       <div className="am-lib__main">
+        {entityFilter?.type === 'dialogue' ? (
+          // 对白视图：复用 DialoguePanel（P10 voice_clips，非 assets-registry 资产）
+          <DialoguePanel />
+        ) : (
+          <>
         <div className="am-lib__toolbar">
           <div className="am-scope">
             <button
@@ -867,6 +890,8 @@ export default function AssetLibrary() {
             </div>
           )}
         </div>
+          </>
+        )}
       </div>
     </div>
   )

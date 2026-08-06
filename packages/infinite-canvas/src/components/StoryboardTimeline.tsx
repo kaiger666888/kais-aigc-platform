@@ -355,23 +355,50 @@ function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<string, Re
     }
   }
 
-  // Pass 4：P10 音频节点（voice / foley / bgm，modality=audio）→ 按 shotKey 建映射，挂回分镜
+  // Pass 4：P10 音频节点（voice / foley / bgm）→ 按 shotKey 建映射，挂回分镜
+  // 不能仅靠 migrate 后的 node.kind/stage/modality 判定音频节点——
+  //   ① load-v2 返回的 audio 节点经迁移后 kind 可能不是 'asset'（落入事件/其他类），
+  //      旧判断 `node.kind !== 'asset' → continue` 会把它们整批跳过；
+  //   ② modality/stage 也可能因 audioType 是中文（"人声"）等而未落到 'audio'/'voice'。
+  //   故优先用 rawDataByNodeId 的原始 V2 字段（clip_type / audio_type / audio_path /
+  //   音频扩展名）识别，再回退到 modality/stage 判断，确保全部对白都能被拾取
+  //   （修「时间轴音轨只显示 1 条、实际 7 条」）。DialoguePanel 走同源逻辑证明 raw 数据齐全。
   const audioByShot = new Map<string, AudioTrack[]>()
+  // 场景级（S01）音频聚合：分镜级对白常挂在 beat（S01_B04）上，而首尾帧变体会把同场景
+  // 多个 beat 折叠成单个场景行（S01），beat 级 shotKey 挂载的对白会随被过滤的子分镜丢失。
+  // 此聚合用于折叠后回挂到场景行，确保对白不被首尾帧折叠吞掉（修音轨只显示 1 条）。
+  const audioByScene = new Map<string, AudioTrack[]>()
+  let dbgAudioTotal = 0   // 识别为音频的节点数（含无 shotKey 的）
+  let dbgAudioMatched = 0 // 成功解析出 shotKey 并挂载的节点数
   for (const node of graph.nodes) {
-    if (node.kind !== 'asset') continue
-    const isAudio = node.modality === 'audio' || node.stage === 'voice' || node.stage === 'foley' || node.stage === 'bgm'
-    if (!isAudio) continue
     const raw = rawDataByNodeId?.get(node.id) ?? {}
-    const filePath = (raw.filePath as string) ?? node.media.original ?? null
+    // node 可能是 event（无 media）—— 仅 asset 取 media 兜底字段
+    const media = node.kind === 'asset' ? node.media : undefined
+    const filePath = (raw.filePath as string) ?? media?.original ?? null
+    // 优先：原始 data 字段命中音频信号（clip_type / audio_type / audio_path / 音频文件扩展名）
+    const isAudioByRaw = !!(
+      raw.clip_type ||
+      raw.audio_type ||
+      raw.audioType ||
+      raw.audio_path ||
+      (filePath && /\.(wav|mp3|aac|flac|ogg|m4a|webm)$/i.test(filePath))
+    )
+    // 回退：migrate 后的 modality/stage（兼容仅有元数据、raw 缺字段的节点）
+    const isAudioByMeta =
+      node.kind === 'asset' &&
+      (node.modality === 'audio' || node.stage === 'voice' || node.stage === 'foley' || node.stage === 'bgm')
+    if (!isAudioByRaw && !isAudioByMeta) continue
+    dbgAudioTotal++
     if (!filePath) continue
     const key = shotKeyFromCandidates(raw.shot_id, raw.label, node.id, filePath)
     if (!key) continue
+    dbgAudioMatched++
     const track: AudioTrack = {
       clipType: (raw.clip_type as string) ?? '',
       audioType: (raw.audio_type as string) ?? (raw.audioType as string) ?? '',
       // speaker 仅人声有意义；'none' / 'null' / 空 视为无
       speaker: normalizeSpeaker(raw.speaker as string),
-      durationS: (raw.duration_sec as number) ?? node.media.durationS ?? 0,
+      durationS: (raw.duration_sec as number) ?? media?.durationS ?? 0,
       filePath,
       // 对白/旁白原文（voice 节点 raw.text），竖幅对白轨展示截断文字
       text: (raw.text as string) ?? undefined,
@@ -379,12 +406,30 @@ function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<string, Re
     const arr = audioByShot.get(key)
     if (arr) arr.push(track)
     else audioByShot.set(key, [track])
+    // 同时按场景（S01）聚合：beat 级对白（S01_B04 → s1_4）回挂到折叠后的场景行用
+    const sceneId = paddedShotIdOf((raw.shot_id as string) ?? (raw.label as string))
+    if (sceneId) {
+      const s = audioByScene.get(sceneId)
+      if (s) s.push(track)
+      else audioByScene.set(sceneId, [track])
+    }
   }
   for (const shot of shots) {
     if (shot.shotKey) {
       const tracks = audioByShot.get(shot.shotKey)
       if (tracks && tracks.length) shot.audioTracks = tracks
     }
+  }
+  // 调试日志：确认 V3 graph 中拾取到的音频节点数与命中 shotKey 的数。
+  // （修「音轨只显示 1 条」时定位用——期望 detected=7、matchedShotKey=7）
+  if (dbgAudioTotal > 0) {
+    // eslint-disable-next-line no-console
+    console.debug('[StoryboardTimeline] Pass4 audio', {
+      detected: dbgAudioTotal,
+      matchedShotKey: dbgAudioMatched,
+      shotsWithAudio: shots.filter((s) => s.audioTracks && s.audioTracks.length).length,
+      totalTracks: shots.reduce((n, s) => n + (s.audioTracks?.length ?? 0), 0),
+    })
   }
 
   // Pass 5：P11 首尾帧变体（assetType='keyframe'）→ 按 {shotId}_{frameType} 分组。
@@ -505,6 +550,25 @@ function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<string, Re
   // 替换 shots 为过滤后的列表
   shots.length = 0
   shots.push(...filteredShots)
+
+  // 场景级对白回挂：首尾帧变体把同场景多个 beat 折叠成单行后，beat 级 shotKey 挂载的对白
+  // 会随被过滤的子分镜丢失（如 S01_B04 的对白随 B02~B05 一起被过滤）。此处仅对「场景折叠行」
+  // （有 frameVariants 的行）按 paddedShotIdOf 把对白合并回折叠后的场景行——非折叠的 beat 行
+  // 保留各自 beat 级挂载，不重复挂载。按 filePath 去重避免与 beat 级挂载重复。
+  for (const shot of shots) {
+    if (!shot.frameVariants) continue // 仅场景折叠行回挂
+    const sid = paddedShotIdOf(shot.shotId)
+    if (!sid) continue
+    const sceneTracks = audioByScene.get(sid)
+    if (!sceneTracks || sceneTracks.length === 0) continue
+    const existing = shot.audioTracks ?? []
+    const seen = new Set(existing.map((t) => t.filePath))
+    const merged = [...existing]
+    for (const t of sceneTracks) {
+      if (!seen.has(t.filePath)) { merged.push(t); seen.add(t.filePath) }
+    }
+    if (merged.length) shot.audioTracks = merged
+  }
 
   // 按 shotId 排序（自然排序：S01, S02, ..., S10）
   shots.sort((a, b) => a.shotId.localeCompare(b.shotId, undefined, { numeric: true, sensitivity: 'base' }))
