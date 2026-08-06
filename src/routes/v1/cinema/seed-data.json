@@ -24929,5 +24929,3424 @@
       "fix": "重生成 cut list 优先 bgm_aligned"
     },
     "priority": 72
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "hook_type_emotional_hook",
+    "key_type": "hook_type",
+    "primary_recommendation": "情感钩 (emotional hook): 以情感共鸣(亲情 / 友情 / 爱情 / 牺牲)在开场 3 秒抓住观众",
+    "rationale": "男频 父子和解 / 兄弟背叛 / 战友情深 | 女频 母女和解 / 替身的爱 / 临终告别 | COMPLI 重叠 (情感钩)",
+    "source_file": "three-second-hooks.md",
+    "source_section": "Taxonomy",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "hook_type",
+      "emotional_hook"
+    ],
+    "extra_data": {
+      "hook_type": "emotional_hook",
+      "cn_name": "情感钩 (emotional hook)",
+      "definition": "以情感共鸣(亲情 / 友情 / 爱情 / 牺牲)在开场 3 秒抓住观众",
+      "male_use": "父子和解 / 兄弟背叛 / 战友情深",
+      "female_use": "母女和解 / 替身的爱 / 临终告别",
+      "compli_relation": "重叠 (情感钩)"
+    },
+    "priority": 76
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "hook_type_suspense_hook",
+    "key_type": "hook_type",
+    "primary_recommendation": "悬念钩 (suspense hook): 以未解之谜 / 未发生之事制造持续追看欲",
+    "rationale": "男频 主角死亡后重生 / 神秘电话 / 突然消失的家人 | 女频 失忆重逢 / 来历不明的孩子 / 锁着的房间 | COMPLI HOOK-only (COMPLI 最近 = 角色钩)",
+    "source_file": "three-second-hooks.md",
+    "source_section": "Taxonomy",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "hook_type",
+      "suspense_hook"
+    ],
+    "extra_data": {
+      "hook_type": "suspense_hook",
+      "cn_name": "悬念钩 (suspense hook)",
+      "definition": "以未解之谜 / 未发生之事制造持续追看欲",
+      "male_use": "主角死亡后重生 / 神秘电话 / 突然消失的家人",
+      "female_use": "失忆重逢 / 来历不明的孩子 / 锁着的房间",
+      "compli_relation": "HOOK-only (COMPLI 最近 = 角色钩)"
+    },
+    "priority": 76
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "hook_type_conflict_hook",
+    "key_type": "hook_type",
+    "primary_recommendation": "冲突钩 (conflict hook): 以激烈的人际冲突(商战 / 阶级 / 复仇)开场制造紧张",
+    "rationale": "男频 商战阴谋 / 阶级碰撞 / 复仇归来 | 女频 婆媳冲突 / 妯娌争斗 / 闺蜜反目 | COMPLI 重叠 (冲突钩)",
+    "source_file": "three-second-hooks.md",
+    "source_section": "Taxonomy",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "hook_type",
+      "conflict_hook"
+    ],
+    "extra_data": {
+      "hook_type": "conflict_hook",
+      "cn_name": "冲突钩 (conflict hook)",
+      "definition": "以激烈的人际冲突(商战 / 阶级 / 复仇)开场制造紧张",
+      "male_use": "商战阴谋 / 阶级碰撞 / 复仇归来",
+      "female_use": "婆媳冲突 / 妯娌争斗 / 闺蜜反目",
+      "compli_relation": "重叠 (冲突钩)"
+    },
+    "priority": 76
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "hook_type_contrast_hook",
+    "key_type": "hook_type",
+    "primary_recommendation": "反差钩 (contrast hook): 以角色身份 / 处境的强烈反差制造好奇",
+    "rationale": "男频 霸总装穷 / 草根暴富 / 学霸变学渣 | 女频 千金落难 / 丑女逆袭 / 假戏真做 | COMPLI 重叠 (反差钩)",
+    "source_file": "three-second-hooks.md",
+    "source_section": "Taxonomy",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "hook_type",
+      "contrast_hook"
+    ],
+    "extra_data": {
+      "hook_type": "contrast_hook",
+      "cn_name": "反差钩 (contrast hook)",
+      "definition": "以角色身份 / 处境的强烈反差制造好奇",
+      "male_use": "霸总装穷 / 草根暴富 / 学霸变学渣",
+      "female_use": "千金落难 / 丑女逆袭 / 假戏真做",
+      "compli_relation": "重叠 (反差钩)"
+    },
+    "priority": 76
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "hook_type_emotional_peak_hook",
+    "key_type": "hook_type",
+    "primary_recommendation": "情绪爆点钩 (emotional-peak hook): 以单帧 / 单句 / 单音效直接击穿观众情绪阈值的极致瞬间",
+    "rationale": "男频 战神归来的第一句台词 / 含冤者终于怒吼 / 兄弟为兄弟挡刀 | 女频 母亲最后一句\"妈妈爱你\" / 女主决意复仇的转身 / 替身被叫出真名 | COMPLI HOOK-only (COMPLI 最近 = 题材钩)",
+    "source_file": "three-second-hooks.md",
+    "source_section": "Taxonomy",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "hook_type",
+      "emotional_peak_hook"
+    ],
+    "extra_data": {
+      "hook_type": "emotional_peak_hook",
+      "cn_name": "情绪爆点钩 (emotional-peak hook)",
+      "definition": "以单帧 / 单句 / 单音效直接击穿观众情绪阈值的极致瞬间",
+      "male_use": "战神归来的第一句台词 / 含冤者终于怒吼 / 兄弟为兄弟挡刀",
+      "female_use": "母亲最后一句\"妈妈爱你\" / 女主决意复仇的转身 / 替身被叫出真名",
+      "compli_relation": "HOOK-only (COMPLI 最近 = 题材钩)"
+    },
+    "priority": 76
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "frame_segment_0_1s_attention_grab",
+    "key_type": "frame_segment",
+    "primary_recommendation": "0-1s Attention-Grab: 第一秒视觉/听觉/信息冲击阻止上滑。模式: 突发动作/强音效/震撼画面/反常规切入(选一,不叠加)。",
+    "rationale": "3-Second Frame Structure (CONTEXT D-2 固定三段式)。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "3-Second Frame Structure",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "frame_segment",
+      "0-1s"
+    ],
+    "extra_data": {
+      "frame_segment": "0-1s",
+      "design": "第一秒视觉/听觉/信息冲击阻止上滑。模式: 突发动作/强音效/震撼画面/反常规切入(选一,不叠加)。"
+    },
+    "priority": 74
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "frame_segment_1_2s_context_establish",
+    "key_type": "frame_segment",
+    "primary_recommendation": "1-2s Context-Establish: 一句话等价信息交代 谁/在哪/利害。模式: 一句话处境/场景标识/关系标识/利害锚定。",
+    "rationale": "3-Second Frame Structure (CONTEXT D-2 固定三段式)。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "3-Second Frame Structure",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "frame_segment",
+      "1-2s"
+    ],
+    "extra_data": {
+      "frame_segment": "1-2s",
+      "design": "一句话等价信息交代 谁/在哪/利害。模式: 一句话处境/场景标识/关系标识/利害锚定。"
+    },
+    "priority": 72
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "frame_segment_2_3s_hook_pin",
+    "key_type": "frame_segment",
+    "primary_recommendation": "2-3s Hook-Pin: 承诺后续回报。模式: 明确爽点承诺/未解之谜/倒计时感/反差承诺。",
+    "rationale": "3-Second Frame Structure (CONTEXT D-2 固定三段式)。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "3-Second Frame Structure",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "frame_segment",
+      "2-3s"
+    ],
+    "extra_data": {
+      "frame_segment": "2-3s",
+      "design": "承诺后续回报。模式: 明确爽点承诺/未解之谜/倒计时感/反差承诺。"
+    },
+    "priority": 72
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "hook_example_1_母女病房重逢",
+    "key_type": "hook_example",
+    "primary_recommendation": "示例1 母女病房重逢 (情感钩/family): 特写女儿推开病房门的颤抖的手 + 监护仪\"嘀——\"的长音突然响起(突发动作 + 强音效组合;但只用一种主导冲击:监护仪长",
+    "rationale": "0-1s 特写女儿推开病房门的颤抖的手 + 监护仪\"嘀——\"的长音突然响起(突发动作 + 强音效组合;但只用一种主导冲击:监护仪长音)。 | 1-2s 字幕打出 \"她出差三年,回来时妈妈已经认不出她了\" —— 一句话锚定关系与利害。 | 2-3s 妈妈转头,茫然问 \"你是谁?\" —— 明确承诺后续情感爆发(认回或永远失去)。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "Catalog 15 Examples",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "hook_example",
+      "emotional_hook"
+    ],
+    "extra_data": {
+      "example_num": 1,
+      "title": "母女病房重逢",
+      "hook_type": "emotional_hook",
+      "cn_type": "情感钩",
+      "genre": "family",
+      "frames": {
+        "0-1s": "特写女儿推开病房门的颤抖的手 + 监护仪\"嘀——\"的长音突然响起(突发动作 + 强音效组合;但只用一种主导冲击:监护仪长音)。",
+        "1-2s": "字幕打出 \"她出差三年,回来时妈妈已经认不出她了\" —— 一句话锚定关系与利害。",
+        "2-3s": "妈妈转头,茫然问 \"你是谁?\" —— 明确承诺后续情感爆发(认回或永远失去)。"
+      },
+      "completion_impact": "提升前 3 秒留存 ~20-30% *estimated*(family 题材在中老年女频受众中粘性最强)。"
+    },
+    "priority": 66
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "hook_example_2_替身的爱_真相之夜",
+    "key_type": "hook_example",
+    "primary_recommendation": "示例2 替身的爱 · 真相之夜 (情感钩/romance): 女主整理男主衣柜时,一张与本人几乎一模一样的旧照片从西装内袋飘落(震撼画面 + 慢镜头)。",
+    "rationale": "0-1s 女主整理男主衣柜时,一张与本人几乎一模一样的旧照片从西装内袋飘落(震撼画面 + 慢镜头)。 | 1-2s 镜头切到床头柜合照 —— 那张脸不是她,但和她九成像。一句字幕:\"原来我不是他爱的人,我只是一个影子。\" | 2-3s 男主脚步声在门外响起,女主把照片塞回原位,转身装作无事 —— 承诺后续揭穿 / 对决爆发。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "Catalog 15 Examples",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "hook_example",
+      "emotional_hook"
+    ],
+    "extra_data": {
+      "example_num": 2,
+      "title": "替身的爱 · 真相之夜",
+      "hook_type": "emotional_hook",
+      "cn_type": "情感钩",
+      "genre": "romance",
+      "frames": {
+        "0-1s": "女主整理男主衣柜时,一张与本人几乎一模一样的旧照片从西装内袋飘落(震撼画面 + 慢镜头)。",
+        "1-2s": "镜头切到床头柜合照 —— 那张脸不是她,但和她九成像。一句字幕:\"原来我不是他爱的人,我只是一个影子。\"",
+        "2-3s": "男主脚步声在门外响起,女主把照片塞回原位,转身装作无事 —— 承诺后续揭穿 / 对决爆发。"
+      },
+      "completion_impact": "提升前 3 秒留存 ~25-35% *estimated*(女频虐恋核心 [爽点](../../_shared/glossary.md#爽点-satisfaction-beat)前置触发器)。"
+    },
+    "priority": 66
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "hook_example_3_兄弟酒馆挡刀",
+    "key_type": "hook_example",
+    "primary_recommendation": "示例3 兄弟酒馆挡刀 (情感钩/revenge): 雨夜小巷,主角被三人围住,玻璃酒瓶砸下瞬间,一只手挡在主角头侧 —— 血顺着那只手滴下(突发动作 + 震撼画面组合;主导",
+    "rationale": "0-1s 雨夜小巷,主角被三人围住,玻璃酒瓶砸下瞬间,一只手挡在主角头侧 —— 血顺着那只手滴下(突发动作 + 震撼画面组合;主导 = 血滴特写)。 | 1-2s 镜头上摇,挡刀的是十年前绝交的兄弟,他低声说 \"兄弟的事,什么时候轮到别人插手\" —— 一句话锚定关系与利害。 | 2-3s 兄弟回头看了主角一眼,眼神复杂 —— 承诺后续兄弟重逢 / 误会解开 / 联手复仇。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "Catalog 15 Examples",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "hook_example",
+      "emotional_hook"
+    ],
+    "extra_data": {
+      "example_num": 3,
+      "title": "兄弟酒馆挡刀",
+      "hook_type": "emotional_hook",
+      "cn_type": "情感钩",
+      "genre": "revenge",
+      "frames": {
+        "0-1s": "雨夜小巷,主角被三人围住,玻璃酒瓶砸下瞬间,一只手挡在主角头侧 —— 血顺着那只手滴下(突发动作 + 震撼画面组合;主导 = 血滴特写)。",
+        "1-2s": "镜头上摇,挡刀的是十年前绝交的兄弟,他低声说 \"兄弟的事,什么时候轮到别人插手\" —— 一句话锚定关系与利害。",
+        "2-3s": "兄弟回头看了主角一眼,眼神复杂 —— 承诺后续兄弟重逢 / 误会解开 / 联手复仇。"
+      },
+      "completion_impact": "提升前 3 秒留存 ~15-25% *estimated*(男频复仇 + 兄弟情双触发)。"
+    },
+    "priority": 66
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "hook_example_4_死亡后第一通电话",
+    "key_type": "hook_example",
+    "primary_recommendation": "示例4 死亡后第一通电话 (悬念钩/revenge (重生题材)): 黑屏。一声突兀的手机铃声响起,主角猛地睁眼 —— 镜头是他自己的葬礼现场,而他正站在人群里看着自己的遗像(反常规切入 +",
+    "rationale": "0-1s 黑屏。一声突兀的手机铃声响起,主角猛地睁眼 —— 镜头是他自己的葬礼现场,而他正站在人群里看着自己的遗像(反常规切入 + 震撼画面组合)。 | 1-2s 字幕:\"距离他'死亡',已经过去 72 小时。\" —— 一句话锚定时间与利害。 | 2-3s 一个陌生人走到他身边,低声说:\"他们都以为你死了 —— 这是我们的机会。\" —— 抛出未解之谜 + 承诺后续复仇。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "Catalog 15 Examples",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "hook_example",
+      "suspense_hook"
+    ],
+    "extra_data": {
+      "example_num": 4,
+      "title": "死亡后第一通电话",
+      "hook_type": "suspense_hook",
+      "cn_type": "悬念钩",
+      "genre": "revenge (重生题材)",
+      "frames": {
+        "0-1s": "黑屏。一声突兀的手机铃声响起,主角猛地睁眼 —— 镜头是他自己的葬礼现场,而他正站在人群里看着自己的遗像(反常规切入 + 震撼画面组合)。",
+        "1-2s": "字幕:\"距离他'死亡',已经过去 72 小时。\" —— 一句话锚定时间与利害。",
+        "2-3s": "一个陌生人走到他身边,低声说:\"他们都以为你死了 —— 这是我们的机会。\" —— 抛出未解之谜 + 承诺后续复仇。"
+      },
+      "completion_impact": "提升前 3 秒留存 ~30-40% *estimated*(悬念 + 重生双重男频钩子,极强)。"
+    },
+    "priority": 66
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "hook_example_5_锁着的房间",
+    "key_type": "hook_example",
+    "primary_recommendation": "示例5 锁着的房间 (悬念钩/mystery): 新婚女主在新家走廊尽头发现一扇从外面挂了三把锁的门,锈迹斑斑(震撼画面 + 反常规切入)。",
+    "rationale": "0-1s 新婚女主在新家走廊尽头发现一扇从外面挂了三把锁的门,锈迹斑斑(震撼画面 + 反常规切入)。 | 1-2s 字幕:\"结婚三年,她从未被告知这扇门后面是什么。\" —— 一句话锚定关系与未知。 | 2-3s 她伸手碰锁的瞬间,门后传来一声孩子的轻笑 —— 抛出未解之谜,承诺后续揭穿。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "Catalog 15 Examples",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "hook_example",
+      "suspense_hook"
+    ],
+    "extra_data": {
+      "example_num": 5,
+      "title": "锁着的房间",
+      "hook_type": "suspense_hook",
+      "cn_type": "悬念钩",
+      "genre": "mystery",
+      "frames": {
+        "0-1s": "新婚女主在新家走廊尽头发现一扇从外面挂了三把锁的门,锈迹斑斑(震撼画面 + 反常规切入)。",
+        "1-2s": "字幕:\"结婚三年,她从未被告知这扇门后面是什么。\" —— 一句话锚定关系与未知。",
+        "2-3s": "她伸手碰锁的瞬间,门后传来一声孩子的轻笑 —— 抛出未解之谜,承诺后续揭穿。"
+      },
+      "completion_impact": "提升前 3 秒留存 ~20-30% *estimated*(女频悬疑 + 母性焦虑双触发)。"
+    },
+    "priority": 66
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "hook_example_6_失忆重逢_路口错身",
+    "key_type": "hook_example",
+    "primary_recommendation": "示例6 失忆重逢 · 路口错身 (悬念钩/romance): 繁忙十字路口,男主和女主擦肩而过 —— 两人同时回头,但只看到对方背影(突发动作:回头动作)。",
+    "rationale": "0-1s 繁忙十字路口,男主和女主擦肩而过 —— 两人同时回头,但只看到对方背影(突发动作:回头动作)。 | 1-2s 字幕:\"五年前那场车祸,带走了她的记忆,也带走了他们之间的一切。\" —— 一句话锚定前情。 | 2-3s 男主停在原地,低声说了一句她曾经最爱的口头禅 —— 女主脚步顿住,但她不知道为什么 —— 承诺后续记忆唤醒 / 真相。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "Catalog 15 Examples",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "hook_example",
+      "suspense_hook"
+    ],
+    "extra_data": {
+      "example_num": 6,
+      "title": "失忆重逢 · 路口错身",
+      "hook_type": "suspense_hook",
+      "cn_type": "悬念钩",
+      "genre": "romance",
+      "frames": {
+        "0-1s": "繁忙十字路口,男主和女主擦肩而过 —— 两人同时回头,但只看到对方背影(突发动作:回头动作)。",
+        "1-2s": "字幕:\"五年前那场车祸,带走了她的记忆,也带走了他们之间的一切。\" —— 一句话锚定前情。",
+        "2-3s": "男主停在原地,低声说了一句她曾经最爱的口头禅 —— 女主脚步顿住,但她不知道为什么 —— 承诺后续记忆唤醒 / 真相。"
+      },
+      "completion_impact": "提升前 3 秒留存 ~15-25% *estimated*(情感 + 悬念组合,男女通吃)。"
+    },
+    "priority": 66
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "hook_example_7_董事会逼宫",
+    "key_type": "hook_example",
+    "primary_recommendation": "示例7 董事会逼宫 (冲突钩/revenge (商战)): 董事会会议桌,主角站在尽头,十几个董事同时把辞职信推到他面前(突发动作:同步推信)。",
+    "rationale": "0-1s 董事会会议桌,主角站在尽头,十几个董事同时把辞职信推到他面前(突发动作:同步推信)。 | 1-2s 字幕:\"他们以为逼他下台,公司就是他们的了。\" —— 一句话锚定利害。 | 2-3s 主角笑了一下,把手机投影到会议室大屏 —— 屏幕上显示所有人的资金流水 —— 承诺后续打脸 / 翻盘。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "Catalog 15 Examples",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "hook_example",
+      "conflict_hook"
+    ],
+    "extra_data": {
+      "example_num": 7,
+      "title": "董事会逼宫",
+      "hook_type": "conflict_hook",
+      "cn_type": "冲突钩",
+      "genre": "revenge (商战)",
+      "frames": {
+        "0-1s": "董事会会议桌,主角站在尽头,十几个董事同时把辞职信推到他面前(突发动作:同步推信)。",
+        "1-2s": "字幕:\"他们以为逼他下台,公司就是他们的了。\" —— 一句话锚定利害。",
+        "2-3s": "主角笑了一下,把手机投影到会议室大屏 —— 屏幕上显示所有人的资金流水 —— 承诺后续打脸 / 翻盘。"
+      },
+      "completion_impact": "提升前 3 秒留存 ~25-35% *estimated*(男频慕强核心钩子,与 [慕强](../../_shared/glossary.md#慕强-power-fantasy) 爽点直接对接)。"
+    },
+    "priority": 66
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "hook_example_8_婆媳饭桌掀桌",
+    "key_type": "hook_example",
+    "primary_recommendation": "示例8 婆媳饭桌掀桌 (冲突钩/family): 婆婆把儿媳盛的汤直接倒回锅里,汤汁溅到儿媳白衬衫上(突发动作:倒汤)。",
+    "rationale": "0-1s 婆婆把儿媳盛的汤直接倒回锅里,汤汁溅到儿媳白衬衫上(突发动作:倒汤)。 | 1-2s 字幕:\"结婚五年,她从来没有在婆婆家上过桌吃饭。\" —— 一句话锚定关系与利害。 | 2-3s 儿媳抬头,平静地说:\"妈,从今天开始,这个家我说了算。\" —— 承诺后续逆袭 / 规则改写。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "Catalog 15 Examples",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "hook_example",
+      "conflict_hook"
+    ],
+    "extra_data": {
+      "example_num": 8,
+      "title": "婆媳饭桌掀桌",
+      "hook_type": "conflict_hook",
+      "cn_type": "冲突钩",
+      "genre": "family",
+      "frames": {
+        "0-1s": "婆婆把儿媳盛的汤直接倒回锅里,汤汁溅到儿媳白衬衫上(突发动作:倒汤)。",
+        "1-2s": "字幕:\"结婚五年,她从来没有在婆婆家上过桌吃饭。\" —— 一句话锚定关系与利害。",
+        "2-3s": "儿媳抬头,平静地说:\"妈,从今天开始,这个家我说了算。\" —— 承诺后续逆袭 / 规则改写。"
+      },
+      "completion_impact": "提升前 3 秒留存 ~20-30% *estimated*(女频家庭冲突核心,转发率高)。"
+    },
+    "priority": 66
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "hook_example_9_职场电梯打脸",
+    "key_type": "hook_example",
+    "primary_recommendation": "示例9 职场电梯打脸 (冲突钩/comedy): 电梯门开,新入职员工端着咖啡撞到 CEO,咖啡泼了一身(突发动作:碰撞)。",
+    "rationale": "0-1s 电梯门开,新入职员工端着咖啡撞到 CEO,咖啡泼了一身(突发动作:碰撞)。 | 1-2s 字幕:\"第一天上班,她就泼了全公司最不能得罪的人。\" —— 一句话锚定情境与利害。 | 2-3s CEO 没有发火,反而盯着她看了三秒,说 \"你长得像我一个故人\" —— 承诺后续身份反转 / 隐藏剧情。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "Catalog 15 Examples",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "hook_example",
+      "conflict_hook"
+    ],
+    "extra_data": {
+      "example_num": 9,
+      "title": "职场电梯打脸",
+      "hook_type": "conflict_hook",
+      "cn_type": "冲突钩",
+      "genre": "comedy",
+      "frames": {
+        "0-1s": "电梯门开,新入职员工端着咖啡撞到 CEO,咖啡泼了一身(突发动作:碰撞)。",
+        "1-2s": "字幕:\"第一天上班,她就泼了全公司最不能得罪的人。\" —— 一句话锚定情境与利害。",
+        "2-3s": "CEO 没有发火,反而盯着她看了三秒,说 \"你长得像我一个故人\" —— 承诺后续身份反转 / 隐藏剧情。"
+      },
+      "completion_impact": "提升前 3 秒留存 ~15-25% *estimated*(comedy 题材粘性较弱,但隐藏剧情承诺能拉长追看)。"
+    },
+    "priority": 66
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "hook_example_10_霸总装穷_煎饼摊",
+    "key_type": "hook_example",
+    "primary_recommendation": "示例10 霸总装穷 · 煎饼摊 (反差钩/romance): 烟火气十足的街边煎饼摊,西装革履的男人熟练地摊煎饼、刷酱、卷薄脆(反常规切入:角色与场景强烈错位)。",
+    "rationale": "0-1s 烟火气十足的街边煎饼摊,西装革履的男人熟练地摊煎饼、刷酱、卷薄脆(反常规切入:角色与场景强烈错位)。 | 1-2s 字幕:\"千亿总裁装穷三个月,只为测试她是否爱的是他这个人。\" —— 一句话锚定反差与利害。 | 2-3s 女主路过,递给他一张皱巴巴的十块钱,说\"老板,加个蛋\" —— 男主眼神闪烁 —— 承诺后续身份暴露 / 真情考验。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "Catalog 15 Examples",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "hook_example",
+      "contrast_hook"
+    ],
+    "extra_data": {
+      "example_num": 10,
+      "title": "霸总装穷 · 煎饼摊",
+      "hook_type": "contrast_hook",
+      "cn_type": "反差钩",
+      "genre": "romance",
+      "frames": {
+        "0-1s": "烟火气十足的街边煎饼摊,西装革履的男人熟练地摊煎饼、刷酱、卷薄脆(反常规切入:角色与场景强烈错位)。",
+        "1-2s": "字幕:\"千亿总裁装穷三个月,只为测试她是否爱的是他这个人。\" —— 一句话锚定反差与利害。",
+        "2-3s": "女主路过,递给他一张皱巴巴的十块钱,说\"老板,加个蛋\" —— 男主眼神闪烁 —— 承诺后续身份暴露 / 真情考验。"
+      },
+      "completion_impact": "提升前 3 秒留存 ~25-35% *estimated*(女频反差 + 浪漫双触发,小程序剧核心 [卡点](../../_shared/glossary.md#卡点-paywall-cliffhanger-paywall-moment) 转换器)。"
+    },
+    "priority": 66
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "hook_example_11_千金落难_后厨洗碗",
+    "key_type": "hook_example",
+    "primary_recommendation": "示例11 千金落难 · 后厨洗碗 (反差钩/comedy): 米其林餐厅后厨,纤尘不染的千金大小姐戴着橡胶手套,笨拙地刷盘子,一只盘子\"啪\"地摔碎(突发动作:摔碎)。",
+    "rationale": "0-1s 米其林餐厅后厨,纤尘不染的千金大小姐戴着橡胶手套,笨拙地刷盘子,一只盘子\"啪\"地摔碎(突发动作:摔碎)。 | 1-2s 字幕:\"三天前,她还是身价百亿的女继承人;现在,她时薪 25 块。\" —— 一句话锚定反差与利害。 | 2-3s 主厨走过来,把一张合同拍在她面前:\"签了它,你的债就清了\" —— 承诺后续身份反转 / 隐藏目的。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "Catalog 15 Examples",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "hook_example",
+      "contrast_hook"
+    ],
+    "extra_data": {
+      "example_num": 11,
+      "title": "千金落难 · 后厨洗碗",
+      "hook_type": "contrast_hook",
+      "cn_type": "反差钩",
+      "genre": "comedy",
+      "frames": {
+        "0-1s": "米其林餐厅后厨,纤尘不染的千金大小姐戴着橡胶手套,笨拙地刷盘子,一只盘子\"啪\"地摔碎(突发动作:摔碎)。",
+        "1-2s": "字幕:\"三天前,她还是身价百亿的女继承人;现在,她时薪 25 块。\" —— 一句话锚定反差与利害。",
+        "2-3s": "主厨走过来,把一张合同拍在她面前:\"签了它,你的债就清了\" —— 承诺后续身份反转 / 隐藏目的。"
+      },
+      "completion_impact": "提升前 3 秒留存 ~15-25% *estimated*(comedy + 反差组合,适合轻松向短剧开场)。"
+    },
+    "priority": 66
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "hook_example_12_学霸坠落_高考放榜",
+    "key_type": "hook_example",
+    "primary_recommendation": "示例12 学霸坠落 · 高考放榜 (反差钩/revenge (人生重启)): 高考放榜日,曾经年级第一的主角看到自己名字排在榜单最末位,手中奶茶\"啪\"地掉在地上(突发动作:掉落)。",
+    "rationale": "0-1s 高考放榜日,曾经年级第一的主角看到自己名字排在榜单最末位,手中奶茶\"啪\"地掉在地上(突发动作:掉落)。 | 1-2s 字幕:\"一年前,他是省状元;今天,他考了倒数第一。\" —— 一句话锚定反差与利害。 | 2-3s 一个陌生人走过来,递给他一张卡片:\"你想重来一次吗?代价是,放弃你现在拥有的一切。\" —— 抛出未解之谜 + 承诺后续逆袭。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "Catalog 15 Examples",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "hook_example",
+      "contrast_hook"
+    ],
+    "extra_data": {
+      "example_num": 12,
+      "title": "学霸坠落 · 高考放榜",
+      "hook_type": "contrast_hook",
+      "cn_type": "反差钩",
+      "genre": "revenge (人生重启)",
+      "frames": {
+        "0-1s": "高考放榜日,曾经年级第一的主角看到自己名字排在榜单最末位,手中奶茶\"啪\"地掉在地上(突发动作:掉落)。",
+        "1-2s": "字幕:\"一年前,他是省状元;今天,他考了倒数第一。\" —— 一句话锚定反差与利害。",
+        "2-3s": "一个陌生人走过来,递给他一张卡片:\"你想重来一次吗?代价是,放弃你现在拥有的一切。\" —— 抛出未解之谜 + 承诺后续逆袭。"
+      },
+      "completion_impact": "提升前 3 秒留存 ~20-30% *estimated*(反差 + 重生悬念组合,青年向男频)。"
+    },
+    "priority": 66
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "hook_example_13_战神归来_第一句话",
+    "key_type": "hook_example",
+    "primary_recommendation": "示例13 战神归来 · 第一句话 (情绪爆点钩/revenge): 黑屏。一声低沉的男声:\"五年了,我回来了。\" 紧接着是机场跑道上私人飞机降落的轰鸣(强音效 + 反常规切入)。",
+    "rationale": "0-1s 黑屏。一声低沉的男声:\"五年了,我回来了。\" 紧接着是机场跑道上私人飞机降落的轰鸣(强音效 + 反常规切入)。 | 1-2s 字幕:\"五年前他被陷害入狱;五年后,他带着整个帝国的资源回来。\" —— 一句话锚定利害。 | 2-3s 接机大厅,曾经陷害他的人如今是行业龙头 —— 两人目光相遇,对方脸色骤变 —— 承诺后续碾压式 [爽点](../../_shared/glossary.md#爽点-satisfaction-beat)。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "Catalog 15 Examples",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "hook_example",
+      "emotional_peak_hook"
+    ],
+    "extra_data": {
+      "example_num": 13,
+      "title": "战神归来 · 第一句话",
+      "hook_type": "emotional_peak_hook",
+      "cn_type": "情绪爆点钩",
+      "genre": "revenge",
+      "frames": {
+        "0-1s": "黑屏。一声低沉的男声:\"五年了,我回来了。\" 紧接着是机场跑道上私人飞机降落的轰鸣(强音效 + 反常规切入)。",
+        "1-2s": "字幕:\"五年前他被陷害入狱;五年后,他带着整个帝国的资源回来。\" —— 一句话锚定利害。",
+        "2-3s": "接机大厅,曾经陷害他的人如今是行业龙头 —— 两人目光相遇,对方脸色骤变 —— 承诺后续碾压式 [爽点](../../_shared/glossary.md#爽点-satisfaction-beat)。"
+      },
+      "completion_impact": "提升前 3 秒留存 ~30-40% *estimated*(男频战神归来核心钩子,小程序剧付费转换最强触发器之一)。"
+    },
+    "priority": 66
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "hook_example_14_母亲最后的语音",
+    "key_type": "hook_example",
+    "primary_recommendation": "示例14 母亲最后的语音 (情绪爆点钩/family): 主角在地铁里戴上耳机,微信语音自动播放 —— 母亲的声音突然响起:\"宝贝,妈妈这次可能撑不过去了。\"(强音效:语音消息提",
+    "rationale": "0-1s 主角在地铁里戴上耳机,微信语音自动播放 —— 母亲的声音突然响起:\"宝贝,妈妈这次可能撑不过去了。\"(强音效:语音消息提示音 + 内容冲击)。 | 1-2s 字幕:\"这条语音,是她在母亲过世后才发现的。\" —— 一句话锚定时间错位与利害。 | 2-3s 主角猛地站起来,地铁摇晃,她跌坐在地,语音继续:\"妈妈有件事瞒了你二十年……\" —— 抛出未解之谜,承诺后续真相 + 情感爆发。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "Catalog 15 Examples",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "hook_example",
+      "emotional_peak_hook"
+    ],
+    "extra_data": {
+      "example_num": 14,
+      "title": "母亲最后的语音",
+      "hook_type": "emotional_peak_hook",
+      "cn_type": "情绪爆点钩",
+      "genre": "family",
+      "frames": {
+        "0-1s": "主角在地铁里戴上耳机,微信语音自动播放 —— 母亲的声音突然响起:\"宝贝,妈妈这次可能撑不过去了。\"(强音效:语音消息提示音 + 内容冲击)。",
+        "1-2s": "字幕:\"这条语音,是她在母亲过世后才发现的。\" —— 一句话锚定时间错位与利害。",
+        "2-3s": "主角猛地站起来,地铁摇晃,她跌坐在地,语音继续:\"妈妈有件事瞒了你二十年……\" —— 抛出未解之谜,承诺后续真相 + 情感爆发。"
+      },
+      "completion_impact": "提升前 3 秒留存 ~25-35% *estimated*(family 题材情绪爆点 + 悬念组合,中老年女频转发率极高)。"
+    },
+    "priority": 66
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "hook_example_15_替身被叫出真名",
+    "key_type": "hook_example",
+    "primary_recommendation": "示例15 替身被叫出真名 (情绪爆点钩/mystery): 上流社会酒会,女主端着香槟,一个老人突然抓住她的手腕,颤抖地喊出一个陌生的名字(突发动作:抓手 + 强信息冲击)。",
+    "rationale": "0-1s 上流社会酒会,女主端着香槟,一个老人突然抓住她的手腕,颤抖地喊出一个陌生的名字(突发动作:抓手 + 强信息冲击)。 | 1-2s 字幕:\"所有人都以为她只是个普通的小助理 —— 直到今晚。\" —— 一句话锚定反差与利害。 | 2-3s 女主猛地抽回手,香槟杯\"啪\"地碎在地上,她的眼神从慌乱瞬间变得冰冷 —— 承诺后续身份揭穿 / 复仇 / 隐藏势力。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "Catalog 15 Examples",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "hook_example",
+      "emotional_peak_hook"
+    ],
+    "extra_data": {
+      "example_num": 15,
+      "title": "替身被叫出真名",
+      "hook_type": "emotional_peak_hook",
+      "cn_type": "情绪爆点钩",
+      "genre": "mystery",
+      "frames": {
+        "0-1s": "上流社会酒会,女主端着香槟,一个老人突然抓住她的手腕,颤抖地喊出一个陌生的名字(突发动作:抓手 + 强信息冲击)。",
+        "1-2s": "字幕:\"所有人都以为她只是个普通的小助理 —— 直到今晚。\" —— 一句话锚定反差与利害。",
+        "2-3s": "女主猛地抽回手,香槟杯\"啪\"地碎在地上,她的眼神从慌乱瞬间变得冰冷 —— 承诺后续身份揭穿 / 复仇 / 隐藏势力。"
+      },
+      "completion_impact": "提升前 3 秒留存 ~20-30% *estimated*(mystery + 反差 + 情绪爆点三重叠加,但需注意信息密度,不可再加更多元素)。"
+    },
+    "priority": 66
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "strength_tier_bullseye",
+    "key_type": "hook_type",
+    "primary_recommendation": "🎯 bullseye (一击命中): 0-1s 即给观众明确冲击;1-2s 一句话锚定利害;2-3s 承诺具体可感的后续回报。观众生理上无法上滑。",
+    "rationale": "完播率持有 ≥ 85% 持有 *estimated*. 修复 无需修复。可作为同题材其他短剧的开场模板。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "5-Tier Strength Scoring",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "strength_tier",
+      "bullseye"
+    ],
+    "extra_data": {
+      "strength_tier": "bullseye",
+      "symbol": "🎯",
+      "name": "bullseye (一击命中)",
+      "completion_hold": "≥ 85% 持有 *estimated*",
+      "trait": "0-1s 即给观众明确冲击;1-2s 一句话锚定利害;2-3s 承诺具体可感的后续回报。观众生理上无法上滑。",
+      "fix": "无需修复。可作为同题材其他短剧的开场模板。"
+    },
+    "priority": 72
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "strength_tier_strong",
+    "key_type": "hook_type",
+    "primary_recommendation": "✅ strong (强力): 三段式结构完整,但其中一段稍弱(如 0-1s 冲击到位但 2-3s 承诺略模糊)。能钩住大多数观众,但敏感观众会在 5-8s 流失。",
+    "rationale": "完播率持有 60-85% 持有 *estimated*. 修复 定位\"最弱的一帧\",针对性补强(通常是 2-3s 承诺过于抽象)。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "5-Tier Strength Scoring",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "strength_tier",
+      "strong"
+    ],
+    "extra_data": {
+      "strength_tier": "strong",
+      "symbol": "✅",
+      "name": "strong (强力)",
+      "completion_hold": "60-85% 持有 *estimated*",
+      "trait": "三段式结构完整,但其中一段稍弱(如 0-1s 冲击到位但 2-3s 承诺略模糊)。能钩住大多数观众,但敏感观众会在 5-8s 流失。",
+      "fix": "定位\"最弱的一帧\",针对性补强(通常是 2-3s 承诺过于抽象)。"
+    },
+    "priority": 72
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "strength_tier_weak",
+    "key_type": "hook_type",
+    "primary_recommendation": "⚠️ weak (弱钩): 三段式中只有一段到位。常见:0-1s 有冲击,但 1-2s 信息密度太低 / 2-3s 无承诺。慢热型,需要 pre-roll 预告片引导才能起量。",
+    "rationale": "完播率持有 30-60% 持有 *estimated*. 修复 必须重新设计至少 2 段;通常意味着题材本身需要更换钩子类型(如情感钩 → 冲突钩)。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "5-Tier Strength Scoring",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "strength_tier",
+      "weak"
+    ],
+    "extra_data": {
+      "strength_tier": "weak",
+      "symbol": "⚠️",
+      "name": "weak (弱钩)",
+      "completion_hold": "30-60% 持有 *estimated*",
+      "trait": "三段式中只有一段到位。常见:0-1s 有冲击,但 1-2s 信息密度太低 / 2-3s 无承诺。慢热型,需要 pre-roll 预告片引导才能起量。",
+      "fix": "必须重新设计至少 2 段;通常意味着题材本身需要更换钩子类型(如情感钩 → 冲突钩)。"
+    },
+    "priority": 72
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "strength_tier_broken",
+    "key_type": "hook_type",
+    "primary_recommendation": "❌ broken (失效): 三段式结构断裂。典型:开场静态 logo + 长字幕 + 旁白;或开场信息密度过高(同时给 5 个角色介绍);或 0-1s 是与剧情无关的空镜。",
+    "rationale": "完播率持有 < 30% 持有 *estimated*. 修复 推倒重做。识别失败的根因(信息过载 / 缺冲击 / 无承诺),按失败类型套用对应的修复路径(见下方自检清单)。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "5-Tier Strength Scoring",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "strength_tier",
+      "broken"
+    ],
+    "extra_data": {
+      "strength_tier": "broken",
+      "symbol": "❌",
+      "name": "broken (失效)",
+      "completion_hold": "< 30% 持有 *estimated*",
+      "trait": "三段式结构断裂。典型:开场静态 logo + 长字幕 + 旁白;或开场信息密度过高(同时给 5 个角色介绍);或 0-1s 是与剧情无关的空镜。",
+      "fix": "推倒重做。识别失败的根因(信息过载 / 缺冲击 / 无承诺),按失败类型套用对应的修复路径(见下方自检清单)。"
+    },
+    "priority": 72
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "strength_tier_anti_hook",
+    "key_type": "hook_type",
+    "primary_recommendation": "💀 anti-hook (反向钩子): 不仅没钩住,还主动触发观众反感。典型:冷开场 logo 显示 > 2s / 长静音段 / 与平台调性严重冲突的内容(如抖音放 5 分钟慢综艺开场)。",
+    "rationale": "完播率持有 主动驱动上滑 *estimated*. 修复 立即下线。这种情况通常意味着整个开场设计逻辑错误,不是修复能解决的,需重新立项。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "5-Tier Strength Scoring",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "strength_tier",
+      "anti_hook"
+    ],
+    "extra_data": {
+      "strength_tier": "anti_hook",
+      "symbol": "💀",
+      "name": "anti-hook (反向钩子)",
+      "completion_hold": "主动驱动上滑 *estimated*",
+      "trait": "不仅没钩住,还主动触发观众反感。典型:冷开场 logo 显示 > 2s / 长静音段 / 与平台调性严重冲突的内容(如抖音放 5 分钟慢综艺开场)。",
+      "fix": "立即下线。这种情况通常意味着整个开场设计逻辑错误,不是修复能解决的,需重新立项。"
+    },
+    "priority": 72
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "compli_mapping_情感钩",
+    "key_type": "hook_type",
+    "primary_recommendation": "情感钩 ↔ COMPLI 情感钩",
+    "rationale": "完全重叠 —— 两份 catalog 在情感钩上定义一致,可互相引用。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "HOOK ↔ COMPLI mapping",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "compli_mapping"
+    ],
+    "extra_data": {
+      "hook_type": "情感钩",
+      "compli_type": "情感钩",
+      "relation": "完全重叠 —— 两份 catalog 在情感钩上定义一致,可互相引用。"
+    },
+    "priority": 58
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "compli_mapping_悬念钩",
+    "key_type": "hook_type",
+    "primary_recommendation": "悬念钩 ↔ COMPLI (无直接匹配)",
+    "rationale": "HOOK-only。COMPLI 最近的是\"角色钩\"(因为悬念常由角色身份驱动),但 HOOK 强调\"瞬间注意力的设计技巧\"而非\"角色复杂度\"。下游 agent 评估合规风险时,将悬念钩映射到角色钩的风险徽章。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "HOOK ↔ COMPLI mapping",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "compli_mapping"
+    ],
+    "extra_data": {
+      "hook_type": "悬念钩",
+      "compli_type": "(无直接匹配)",
+      "relation": "HOOK-only。COMPLI 最近的是\"角色钩\"(因为悬念常由角色身份驱动),但 HOOK 强调\"瞬间注意力的设计技巧\"而非\"角色复杂度\"。下游 agent 评估合规风险时,将悬念钩映射到角色钩的风险徽章。"
+    },
+    "priority": 58
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "compli_mapping_冲突钩",
+    "key_type": "hook_type",
+    "primary_recommendation": "冲突钩 ↔ COMPLI 冲突钩",
+    "rationale": "完全重叠 —— 两份 catalog 定义一致。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "HOOK ↔ COMPLI mapping",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "compli_mapping"
+    ],
+    "extra_data": {
+      "hook_type": "冲突钩",
+      "compli_type": "冲突钩",
+      "relation": "完全重叠 —— 两份 catalog 定义一致。"
+    },
+    "priority": 58
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "compli_mapping_反差钩",
+    "key_type": "hook_type",
+    "primary_recommendation": "反差钩 ↔ COMPLI 反差钩",
+    "rationale": "完全重叠 —— 两份 catalog 定义一致。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "HOOK ↔ COMPLI mapping",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "compli_mapping"
+    ],
+    "extra_data": {
+      "hook_type": "反差钩",
+      "compli_type": "反差钩",
+      "relation": "完全重叠 —— 两份 catalog 定义一致。"
+    },
+    "priority": 58
+  },
+  {
+    "category": "hook_pattern",
+    "key_name": "compli_mapping_情绪爆点钩",
+    "key_type": "hook_type",
+    "primary_recommendation": "情绪爆点钩 ↔ COMPLI (无直接匹配)",
+    "rationale": "HOOK-only。COMPLI 最近的是\"题材钩\"(因为情绪爆点常依托特定题材的强情绪预设,如战神归来的男频慕强爆点),但 HOOK 强调\"单帧/单句直接击穿\"的设计技巧,而非\"题材本身的猎奇性\"。下游 agent 评估合规风险时,将情绪爆点钩映射到题材钩的风险徽章。",
+    "source_file": "three-second-hooks.md",
+    "source_section": "HOOK ↔ COMPLI mapping",
+    "tags": [
+      "hook_retention",
+      "hook_pattern",
+      "compli_mapping"
+    ],
+    "extra_data": {
+      "hook_type": "情绪爆点钩",
+      "compli_type": "(无直接匹配)",
+      "relation": "HOOK-only。COMPLI 最近的是\"题材钩\"(因为情绪爆点常依托特定题材的强情绪预设,如战神归来的男频慕强爆点),但 HOOK 强调\"单帧/单句直接击穿\"的设计技巧,而非\"题材本身的猎奇性\"。下游 agent 评估合规风险时,将情绪爆点钩映射到题材钩的风险徽章。"
+    },
+    "priority": 58
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "rung_1_钩子锚定_hook-pin",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "Rung 1 钩子锚定 (hook-pin): 触发 0-3s，强度 6/10，位置 opening",
+    "rationale": "对应 marker 钩子",
+    "source_file": "conflict-escalation.md",
+    "source_section": "阶梯式 Escalation Ladder",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "escalation_ladder"
+    ],
+    "extra_data": {
+      "rung": 1,
+      "name": "钩子锚定 (hook-pin)",
+      "trigger": "0-3s",
+      "intensity": "6/10",
+      "position": "opening",
+      "marker": "钩子"
+    },
+    "priority": 76
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "rung_2_第一次冲击_first_击中点",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "Rung 2 第一次冲击 (first 击中点): 触发 ~10-15s，强度 7/10，位置 first beat",
+    "rationale": "对应 marker 击中点 (软峰)",
+    "source_file": "conflict-escalation.md",
+    "source_section": "阶梯式 Escalation Ladder",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "escalation_ladder"
+    ],
+    "extra_data": {
+      "rung": 2,
+      "name": "第一次冲击 (first 击中点)",
+      "trigger": "~10-15s",
+      "intensity": "7/10",
+      "position": "first beat",
+      "marker": "击中点 (软峰)"
+    },
+    "priority": 76
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "rung_3_中段升级_mid-escalation",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "Rung 3 中段升级 (mid-escalation): 触发 ~30-45s，强度 8/10，位置 mid",
+    "rationale": "对应 marker 击中点 (硬峰)",
+    "source_file": "conflict-escalation.md",
+    "source_section": "阶梯式 Escalation Ladder",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "escalation_ladder"
+    ],
+    "extra_data": {
+      "rung": 3,
+      "name": "中段升级 (mid-escalation)",
+      "trigger": "~30-45s",
+      "intensity": "8/10",
+      "position": "mid",
+      "marker": "击中点 (硬峰)"
+    },
+    "priority": 76
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "rung_4_爽点_sharedglossarymd爽点-satisfaction-beat峰值_爽点_peak",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "Rung 4 [爽点](../../_shared/glossary.md#爽点-satisfaction-beat)峰值 (爽点 peak): 触发 ~70-80% of episode，强度 9-10/10，位置 pre-卡点",
+    "rationale": "对应 marker 爽点",
+    "source_file": "conflict-escalation.md",
+    "source_section": "阶梯式 Escalation Ladder",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "escalation_ladder"
+    ],
+    "extra_data": {
+      "rung": 4,
+      "name": "[爽点](../../_shared/glossary.md#爽点-satisfaction-beat)峰值 (爽点 peak)",
+      "trigger": "~70-80% of episode",
+      "intensity": "9-10/10",
+      "position": "pre-卡点",
+      "marker": "爽点"
+    },
+    "priority": 76
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "rung_5_卡点_sharedglossarymd卡点-paywall-cliffhanger-paywall-moment_cliffhanger",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "Rung 5 [卡点](../../_shared/glossary.md#卡点-paywall-cliffhanger-paywall-moment) cliffhanger: 触发 episode end，强度 unresolved (悬而未决)，位置 episode end",
+    "rationale": "对应 marker 卡点",
+    "source_file": "conflict-escalation.md",
+    "source_section": "阶梯式 Escalation Ladder",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "escalation_ladder"
+    ],
+    "extra_data": {
+      "rung": 5,
+      "name": "[卡点](../../_shared/glossary.md#卡点-paywall-cliffhanger-paywall-moment) cliffhanger",
+      "trigger": "episode end",
+      "intensity": "unresolved (悬而未决)",
+      "position": "episode end",
+      "marker": "卡点"
+    },
+    "priority": 76
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "impact_density_软峰",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "击中点 软峰 (情绪微冲击(一个表情 / 一句台词 / 一个反应镜头)): 每 10-15 秒 至少 1 个；90s 单集 5-7 个",
+    "rationale": "击中点 placement density (canonical source of truth)。",
+    "source_file": "conflict-escalation.md",
+    "source_section": "击中点 Placement Density",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "impact_density"
+    ],
+    "extra_data": {
+      "level": "软峰",
+      "impact_type": "情绪微冲击(一个表情 / 一句台词 / 一个反应镜头)",
+      "interval": "每 10-15 秒 至少 1 个",
+      "count_per_90s": "5-7 个"
+    },
+    "priority": 74
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "impact_density_硬峰",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "击中点 硬峰 (情绪大冲击(关键剧情转折 / 关系破裂 / 身份揭穿)): 每 30-45 秒 至少 1 个；90s 单集 1-2 个",
+    "rationale": "击中点 placement density (canonical source of truth)。",
+    "source_file": "conflict-escalation.md",
+    "source_section": "击中点 Placement Density",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "impact_density"
+    ],
+    "extra_data": {
+      "level": "硬峰",
+      "impact_type": "情绪大冲击(关键剧情转折 / 关系破裂 / 身份揭穿)",
+      "interval": "每 30-45 秒 至少 1 个",
+      "count_per_90s": "1-2 个"
+    },
+    "priority": 74
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "impact_density_总计",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "击中点 总计 (软峰 + 硬峰): —；90s 单集 6-9 个 击中点 总计",
+    "rationale": "击中点 placement density (canonical source of truth)。",
+    "source_file": "conflict-escalation.md",
+    "source_section": "击中点 Placement Density",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "impact_density"
+    ],
+    "extra_data": {
+      "level": "总计",
+      "impact_type": "软峰 + 硬峰",
+      "interval": "—",
+      "count_per_90s": "6-9 个 击中点 总计"
+    },
+    "priority": 74
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "satisfation_位置",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "爽点 位置: 70-80% of episode runtime",
+    "rationale": "爽点放在 70-80% 进度处(典型 90s 短剧 = 63-72s 处)",
+    "source_file": "conflict-escalation.md",
+    "source_section": "爽点 Placement Strategy",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "satisfation_placement"
+    ],
+    "extra_data": {
+      "rule": "位置",
+      "value": "70-80% of episode runtime",
+      "note": "爽点放在 70-80% 进度处(典型 90s 短剧 = 63-72s 处)"
+    },
+    "priority": 74
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "satisfation_前置铺垫",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "爽点 前置铺垫: ≥ 30s setup",
+    "rationale": "爽点必须有 ≥ 30s 前置铺垫(callback 到 钩子锚定 或 早先 击中点)",
+    "source_file": "conflict-escalation.md",
+    "source_section": "爽点 Placement Strategy",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "satisfation_placement"
+    ],
+    "extra_data": {
+      "rule": "前置铺垫",
+      "value": "≥ 30s setup",
+      "note": "爽点必须有 ≥ 30s 前置铺垫(callback 到 钩子锚定 或 早先 击中点)"
+    },
+    "priority": 74
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "satisfation_强度",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "爽点 强度: 9-10/10",
+    "rationale": "爽点必须是本集情绪强度最高点",
+    "source_file": "conflict-escalation.md",
+    "source_section": "爽点 Placement Strategy",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "satisfation_placement"
+    ],
+    "extra_data": {
+      "rule": "强度",
+      "value": "9-10/10",
+      "note": "爽点必须是本集情绪强度最高点"
+    },
+    "priority": 74
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "satisfation_tier_cathartic",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "🎯 cathartic (宣泄型): 爽点强度 10/10;观众生理反应明显(出声 / 拳头握紧 / 截图分享)。典型:复仇终于完成 / 真相揭穿 / 打脸反派。",
+    "rationale": "爽点 strength tier (借用 5 级符号)。",
+    "source_file": "conflict-escalation.md",
+    "source_section": "爽点 Strength Tiers",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "satisfation_tier"
+    ],
+    "extra_data": {
+      "tier": "cathartic",
+      "symbol": "🎯",
+      "name": "cathartic (宣泄型)",
+      "performance": "爽点强度 10/10;观众生理反应明显(出声 / 拳头握紧 / 截图分享)。典型:复仇终于完成 / 真相揭穿 / 打脸反派。"
+    },
+    "priority": 70
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "satisfation_tier_satisfying",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "✅ satisfying (满足型): 爽点强度 8-9/10;观众情绪得到明确回报,但未达到宣泄程度。典型:阶段性小胜 / 一次反击 / 一个揭穿。",
+    "rationale": "爽点 strength tier (借用 5 级符号)。",
+    "source_file": "conflict-escalation.md",
+    "source_section": "爽点 Strength Tiers",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "satisfation_tier"
+    ],
+    "extra_data": {
+      "tier": "satisfying",
+      "symbol": "✅",
+      "name": "satisfying (满足型)",
+      "performance": "爽点强度 8-9/10;观众情绪得到明确回报,但未达到宣泄程度。典型:阶段性小胜 / 一次反击 / 一个揭穿。"
+    },
+    "priority": 70
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "satisfation_tier_muted",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "⚠️ muted (弱化型): 爽点强度 5-7/10;爽点存在但被稀释(铺垫不足 / 兑现时机过早 / 兑现方式平淡)。",
+    "rationale": "爽点 strength tier (借用 5 级符号)。",
+    "source_file": "conflict-escalation.md",
+    "source_section": "爽点 Strength Tiers",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "satisfation_tier"
+    ],
+    "extra_data": {
+      "tier": "muted",
+      "symbol": "⚠️",
+      "name": "muted (弱化型)",
+      "performance": "爽点强度 5-7/10;爽点存在但被稀释(铺垫不足 / 兑现时机过早 / 兑现方式平淡)。"
+    },
+    "priority": 70
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "satisfation_tier_absent",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "❌ absent (缺失): 爽点强度 < 5/10;本集根本没有兑现承诺的爽点。几乎必然导致完播率崩塌 + 差评。",
+    "rationale": "爽点 strength tier (借用 5 级符号)。",
+    "source_file": "conflict-escalation.md",
+    "source_section": "爽点 Strength Tiers",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "satisfation_tier"
+    ],
+    "extra_data": {
+      "tier": "absent",
+      "symbol": "❌",
+      "name": "absent (缺失)",
+      "performance": "爽点强度 < 5/10;本集根本没有兑现承诺的爽点。几乎必然导致完播率崩塌 + 差评。"
+    },
+    "priority": 70
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "conflict_type_内心冲突_internal_conflict",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "内心冲突 (internal conflict): 主角在两种价值观 / 情感 / 选择之间的挣扎(如:复仇 vs 原谅 / 爱情 vs 亲情)。",
+    "rationale": "解锁爽点 情感宣泄型爽点 🎯 —— 主角最终做出选择瞬间。",
+    "source_file": "conflict-escalation.md",
+    "source_section": "Conflict Type Vocabulary",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "conflict_type"
+    ],
+    "extra_data": {
+      "conflict_type": "内心冲突 (internal conflict)",
+      "definition": "主角在两种价值观 / 情感 / 选择之间的挣扎(如:复仇 vs 原谅 / 爱情 vs 亲情)。",
+      "unlocks_satisfation": "情感宣泄型爽点 🎯 —— 主角最终做出选择瞬间。"
+    },
+    "priority": 68
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "conflict_type_人际冲突_interpersonal_conflict",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "人际冲突 (interpersonal conflict): 两个具体角色之间的对立(如:婆媳 / 闺蜜 / 兄弟 / 上下级)。",
+    "rationale": "解锁爽点 打脸型爽点 🎯 —— 一方被另一方公开碾压 / 揭穿。",
+    "source_file": "conflict-escalation.md",
+    "source_section": "Conflict Type Vocabulary",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "conflict_type"
+    ],
+    "extra_data": {
+      "conflict_type": "人际冲突 (interpersonal conflict)",
+      "definition": "两个具体角色之间的对立(如:婆媳 / 闺蜜 / 兄弟 / 上下级)。",
+      "unlocks_satisfation": "打脸型爽点 🎯 —— 一方被另一方公开碾压 / 揭穿。"
+    },
+    "priority": 68
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "conflict_type_阶级冲突_class_conflict",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "阶级冲突 (class conflict): 不同社会阶层之间的对立(如:豪门 vs 草根 / 富二代 vs 打工人)。",
+    "rationale": "解锁爽点 逆袭型爽点 🎯 —— 弱势一方反超强势一方。",
+    "source_file": "conflict-escalation.md",
+    "source_section": "Conflict Type Vocabulary",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "conflict_type"
+    ],
+    "extra_data": {
+      "conflict_type": "阶级冲突 (class conflict)",
+      "definition": "不同社会阶层之间的对立(如:豪门 vs 草根 / 富二代 vs 打工人)。",
+      "unlocks_satisfation": "逆袭型爽点 🎯 —— 弱势一方反超强势一方。"
+    },
+    "priority": 68
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "conflict_type_道德冲突_moral_conflict",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "道德冲突 (moral conflict): 主角在\"做正确的事\"与\"做有利的事\"之间的抉择。",
+    "rationale": "解锁爽点 救赎型爽点 ✅ —— 主角选择正确道路后获得意外回报。",
+    "source_file": "conflict-escalation.md",
+    "source_section": "Conflict Type Vocabulary",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "conflict_type"
+    ],
+    "extra_data": {
+      "conflict_type": "道德冲突 (moral conflict)",
+      "definition": "主角在\"做正确的事\"与\"做有利的事\"之间的抉择。",
+      "unlocks_satisfation": "救赎型爽点 ✅ —— 主角选择正确道路后获得意外回报。"
+    },
+    "priority": 68
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "conflict_type_命运冲突_fate_conflict",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "命运冲突 (fate conflict): 主角与不可抗力(疾病 / 命运 / 时代)之间的对抗。",
+    "rationale": "解锁爽点 抗争型爽点 ✅ —— 主角虽然未能改变结局,但赢得了尊严。",
+    "source_file": "conflict-escalation.md",
+    "source_section": "Conflict Type Vocabulary",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "conflict_type"
+    ],
+    "extra_data": {
+      "conflict_type": "命运冲突 (fate conflict)",
+      "definition": "主角与不可抗力(疾病 / 命运 / 时代)之间的对抗。",
+      "unlocks_satisfation": "抗争型爽点 ✅ —— 主角虽然未能改变结局,但赢得了尊严。"
+    },
+    "priority": 68
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "season_arc_前期",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "Season arc 前期 (集 1-30%): 击中点强度 6-7/10",
+    "rationale": "建立角色关系与冲突种子",
+    "source_file": "conflict-escalation.md",
+    "source_section": "Season-long Arc",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "season_arc"
+    ],
+    "extra_data": {
+      "stage": "前期",
+      "episode_span": "集 1-30%",
+      "intensity": "6-7/10",
+      "description": "建立角色关系与冲突种子"
+    },
+    "priority": 64
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "season_arc_中期",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "Season arc 中期 (集 30-70%): 击中点强度 7-8/10",
+    "rationale": "冲突逐步升级，小爽点兑现",
+    "source_file": "conflict-escalation.md",
+    "source_section": "Season-long Arc",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "season_arc"
+    ],
+    "extra_data": {
+      "stage": "中期",
+      "episode_span": "集 30-70%",
+      "intensity": "7-8/10",
+      "description": "冲突逐步升级，小爽点兑现"
+    },
+    "priority": 64
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "season_arc_后期",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "Season arc 后期 (集 70-90%): 击中点强度 8-9/10",
+    "rationale": "主冲突爆发，大爽点兑现",
+    "source_file": "conflict-escalation.md",
+    "source_section": "Season-long Arc",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "season_arc"
+    ],
+    "extra_data": {
+      "stage": "后期",
+      "episode_span": "集 70-90%",
+      "intensity": "8-9/10",
+      "description": "主冲突爆发，大爽点兑现"
+    },
+    "priority": 64
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "season_arc_终局",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "Season arc 终局 (集 90-100%): 击中点强度 9-10/10",
+    "rationale": "主线收束，终极爽点兑现",
+    "source_file": "conflict-escalation.md",
+    "source_section": "Season-long Arc",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "season_arc"
+    ],
+    "extra_data": {
+      "stage": "终局",
+      "episode_span": "集 90-100%",
+      "intensity": "9-10/10",
+      "description": "主线收束，终极爽点兑现"
+    },
+    "priority": 64
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "multi_episode_cliffhanger_combo",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "多集策略: 硬卡点 (集末, 🟢 must-watch-next) + 软卡点 (~40-50%, 🟡 curious-but-skippable)。",
+    "rationale": "Ep N 卡点 → Ep N+1 钩子锚定 (直接延续/时间跳跃/视角切换)。",
+    "source_file": "conflict-escalation.md",
+    "source_section": "Multi-Episode Escalation",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "multi_episode"
+    ],
+    "extra_data": {
+      "hard_cliffhanger": "episode end, 🟢 must-watch-next",
+      "soft_cliffhanger": "~40-50%, 🟡 curious-but-skippable"
+    },
+    "priority": 68
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "satisfation_example_romance_female_angst",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "爽点放置示例 女频虐恋",
+    "rationale": "钩子=发现替身→击中点=男主承认影子→中段=准备离开→爽点(70%)=转身丢下'我从来不是影子'坐进另一男人豪车→卡点=男主追出车已远",
+    "source_file": "conflict-escalation.md",
+    "source_section": "爽点放置题材差异示例",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "satisfation_example"
+    ],
+    "extra_data": {
+      "genre": "女频虐恋",
+      "ladder": "钩子=发现替身→击中点=男主承认影子→中段=准备离开→爽点(70%)=转身丢下'我从来不是影子'坐进另一男人豪车→卡点=男主追出车已远"
+    },
+    "priority": 62
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "satisfation_example_revenge_male_warrior",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "爽点放置示例 男频战神归来",
+    "rationale": "钩子=私人飞机下机→击中点=拒绝握手→中段=接管资金链→爽点(75%)=董事会让对方签转让协议当场下跪→卡点=更强对手出现",
+    "source_file": "conflict-escalation.md",
+    "source_section": "爽点放置题材差异示例",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "satisfation_example"
+    ],
+    "extra_data": {
+      "genre": "男频战神归来",
+      "ladder": "钩子=私人飞机下机→击中点=拒绝握手→中段=接管资金链→爽点(75%)=董事会让对方签转让协议当场下跪→卡点=更强对手出现"
+    },
+    "priority": 62
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "satisfation_example_comedy_workplace",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "爽点放置示例 职场逆袭",
+    "rationale": "钩子=新员工撞CEO→击中点=CEO不怒'像我故人'→中段=解决CEO没搞定的问题→爽点(72%)=CEO宣布项目归她→卡点=CEO单独留她说秘密",
+    "source_file": "conflict-escalation.md",
+    "source_section": "爽点放置题材差异示例",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "satisfation_example"
+    ],
+    "extra_data": {
+      "genre": "职场逆袭",
+      "ladder": "钩子=新员工撞CEO→击中点=CEO不怒'像我故人'→中段=解决CEO没搞定的问题→爽点(72%)=CEO宣布项目归她→卡点=CEO单独留她说秘密"
+    },
+    "priority": 62
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "ep_transition_direct_continuation",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "卡点→钩子 直接延续: Ep N 卡点'神秘电话' → Ep N+1 钩子'电话那头是谁'",
+    "rationale": "Multi-episode 连续追看核心机制。",
+    "source_file": "conflict-escalation.md",
+    "source_section": "卡点→钩子 transition types",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "ep_transition"
+    ],
+    "extra_data": {
+      "transition_type": "direct_continuation",
+      "description": "直接延续: Ep N 卡点'神秘电话' → Ep N+1 钩子'电话那头是谁'"
+    },
+    "priority": 60
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "ep_transition_time_jump",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "卡点→钩子 时间跳跃: Ep N 卡点'三年后归来' → Ep N+1 钩子'归来第一件事'",
+    "rationale": "Multi-episode 连续追看核心机制。",
+    "source_file": "conflict-escalation.md",
+    "source_section": "卡点→钩子 transition types",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "ep_transition"
+    ],
+    "extra_data": {
+      "transition_type": "time_jump",
+      "description": "时间跳跃: Ep N 卡点'三年后归来' → Ep N+1 钩子'归来第一件事'"
+    },
+    "priority": 60
+  },
+  {
+    "category": "escalation_rung",
+    "key_name": "ep_transition_pov_switch",
+    "key_type": "escalation_rung",
+    "primary_recommendation": "卡点→钩子 视角切换: Ep N 卡点'反派决定动手' → Ep N+1 钩子'动手对象是谁'",
+    "rationale": "Multi-episode 连续追看核心机制。",
+    "source_file": "conflict-escalation.md",
+    "source_section": "卡点→钩子 transition types",
+    "tags": [
+      "hook_retention",
+      "escalation_rung",
+      "ep_transition"
+    ],
+    "extra_data": {
+      "transition_type": "pov_switch",
+      "description": "视角切换: Ep N 卡点'反派决定动手' → Ep N+1 钩子'动手对象是谁'"
+    },
+    "priority": 60
+  },
+  {
+    "category": "paywall_strength_tier",
+    "key_name": "density_每_10_集_短剧_最少_卡点_数",
+    "key_type": "paywall_tier",
+    "primary_recommendation": "卡点密度 每 10 集 短剧 最少 卡点 数: 3-5 个",
+    "rationale": "10 集小程序剧行业最低标准。低于 3 个会让付费转化漏斗过窄;高于 5 个会让观众疲劳。",
+    "source_file": "paywall-design.md",
+    "source_section": "付费卡点 Density Rules",
+    "tags": [
+      "hook_retention",
+      "paywall_strength_tier",
+      "density"
+    ],
+    "extra_data": {
+      "rule": "每 10 集 短剧 最少 卡点 数",
+      "value": "3-5 个",
+      "note": "10 集小程序剧行业最低标准。低于 3 个会让付费转化漏斗过窄;高于 5 个会让观众疲劳。"
+    },
+    "priority": 72
+  },
+  {
+    "category": "paywall_strength_tier",
+    "key_name": "density_付费集_强制硬卡点",
+    "key_type": "paywall_tier",
+    "primary_recommendation": "卡点密度 付费集 强制硬卡点: ≥ 1 hard 卡点 at end of every paid episode",
+    "rationale": "每个需要付费解锁的集末,必须有强悬念卡点 —— 这是付费解锁的物理触发器。",
+    "source_file": "paywall-design.md",
+    "source_section": "付费卡点 Density Rules",
+    "tags": [
+      "hook_retention",
+      "paywall_strength_tier",
+      "density"
+    ],
+    "extra_data": {
+      "rule": "付费集 强制硬卡点",
+      "value": "≥ 1 hard 卡点 at end of every paid episode",
+      "note": "每个需要付费解锁的集末,必须有强悬念卡点 —— 这是付费解锁的物理触发器。"
+    },
+    "priority": 72
+  },
+  {
+    "category": "paywall_strength_tier",
+    "key_name": "density_集中段_软卡点_可选",
+    "key_type": "paywall_tier",
+    "primary_recommendation": "卡点密度 集中段 软卡点 (可选): 放置在 ~40-60% runtime",
+    "rationale": "软卡点放在集中段,提升中段追看粘性。软卡点 是可选的,不强制。",
+    "source_file": "paywall-design.md",
+    "source_section": "付费卡点 Density Rules",
+    "tags": [
+      "hook_retention",
+      "paywall_strength_tier",
+      "density"
+    ],
+    "extra_data": {
+      "rule": "集中段 软卡点 (可选)",
+      "value": "放置在 ~40-60% runtime",
+      "note": "软卡点放在集中段,提升中段追看粘性。软卡点 是可选的,不强制。"
+    },
+    "priority": 72
+  },
+  {
+    "category": "paywall_strength_tier",
+    "key_name": "density_卡点_间隔集数",
+    "key_type": "paywall_tier",
+    "primary_recommendation": "卡点密度 卡点 间隔(集数): 每 2-3 集至少 1 个 卡点",
+    "rationale": "避免连续 3+ 集无 卡点 —— 观众会\"忘记\"付费动机。",
+    "source_file": "paywall-design.md",
+    "source_section": "付费卡点 Density Rules",
+    "tags": [
+      "hook_retention",
+      "paywall_strength_tier",
+      "density"
+    ],
+    "extra_data": {
+      "rule": "卡点 间隔(集数)",
+      "value": "每 2-3 集至少 1 个 卡点",
+      "note": "避免连续 3+ 集无 卡点 —— 观众会\"忘记\"付费动机。"
+    },
+    "priority": 72
+  },
+  {
+    "category": "paywall_strength_tier",
+    "key_name": "position_硬_卡点_hard_cliffhanger",
+    "key_type": "paywall_tier",
+    "primary_recommendation": "硬 卡点 (hard cliffhanger): 位置 集末，强度 必须是 🟢 must-watch-next，行为 观众付费解锁下一集",
+    "rationale": "卡点位置规则 (集中段 vs 集末)。",
+    "source_file": "paywall-design.md",
+    "source_section": "卡点位置规则",
+    "tags": [
+      "hook_retention",
+      "paywall_strength_tier",
+      "position"
+    ],
+    "extra_data": {
+      "type": "硬 卡点 (hard cliffhanger)",
+      "position": "集末",
+      "strength": "必须是 🟢 must-watch-next",
+      "behavior": "观众付费解锁下一集"
+    },
+    "priority": 70
+  },
+  {
+    "category": "paywall_strength_tier",
+    "key_name": "position_软_卡点_soft_cliffhanger",
+    "key_type": "paywall_tier",
+    "primary_recommendation": "软 卡点 (soft cliffhanger): 位置 ~40-60% runtime，强度 可为 🟡 curious-but-skippable，行为 观众继续观看本集,提升完播率",
+    "rationale": "卡点位置规则 (集中段 vs 集末)。",
+    "source_file": "paywall-design.md",
+    "source_section": "卡点位置规则",
+    "tags": [
+      "hook_retention",
+      "paywall_strength_tier",
+      "position"
+    ],
+    "extra_data": {
+      "type": "软 卡点 (soft cliffhanger)",
+      "position": "~40-60% runtime",
+      "strength": "可为 🟡 curious-but-skippable",
+      "behavior": "观众继续观看本集,提升完播率"
+    },
+    "priority": 70
+  },
+  {
+    "category": "paywall_strength_tier",
+    "key_name": "strength_tier_must_watch_next",
+    "key_type": "paywall_tier",
+    "primary_recommendation": "🟢 must-watch-next: 观众无法停止;立即付费解锁",
+    "rationale": "设计特征 未解的悬念 + 角色切身利益(unresolved mystery + character stakes)",
+    "source_file": "paywall-design.md",
+    "source_section": "3-Tier 卡点 Strength Scoring",
+    "tags": [
+      "hook_retention",
+      "paywall_strength_tier",
+      "strength_tier",
+      "must_watch_next"
+    ],
+    "extra_data": {
+      "tier": "must_watch_next",
+      "symbol": "🟢",
+      "name": "must-watch-next",
+      "behavior": "观众无法停止;立即付费解锁",
+      "design": "未解的悬念 + 角色切身利益(unresolved mystery + character stakes)"
+    },
+    "priority": 76
+  },
+  {
+    "category": "paywall_strength_tier",
+    "key_name": "strength_tier_curious_but_skippable",
+    "key_type": "paywall_tier",
+    "primary_recommendation": "🟡 curious-but-skippable: 观众好奇但可能容忍等待",
+    "rationale": "设计特征 软揭示 + 未来爽点的承诺(soft reveal + promise of future payoff)",
+    "source_file": "paywall-design.md",
+    "source_section": "3-Tier 卡点 Strength Scoring",
+    "tags": [
+      "hook_retention",
+      "paywall_strength_tier",
+      "strength_tier",
+      "curious_but_skippable"
+    ],
+    "extra_data": {
+      "tier": "curious_but_skippable",
+      "symbol": "🟡",
+      "name": "curious-but-skippable",
+      "behavior": "观众好奇但可能容忍等待",
+      "design": "软揭示 + 未来爽点的承诺(soft reveal + promise of future payoff)"
+    },
+    "priority": 68
+  },
+  {
+    "category": "paywall_strength_tier",
+    "key_name": "strength_tier_weak_resolve",
+    "key_type": "paywall_tier",
+    "primary_recommendation": "🔴 weak-resolve: 观众\"满足到可以停下\"",
+    "rationale": "设计特征 卡点前过度解决剧情,观众觉得\"这集够了\"",
+    "source_file": "paywall-design.md",
+    "source_section": "3-Tier 卡点 Strength Scoring",
+    "tags": [
+      "hook_retention",
+      "paywall_strength_tier",
+      "strength_tier",
+      "weak_resolve"
+    ],
+    "extra_data": {
+      "tier": "weak_resolve",
+      "symbol": "🔴",
+      "name": "weak-resolve",
+      "behavior": "观众\"满足到可以停下\"",
+      "design": "卡点前过度解决剧情,观众觉得\"这集够了\""
+    },
+    "priority": 68
+  },
+  {
+    "category": "paywall_strength_tier",
+    "key_name": "green_element_unresolved_core_mystery",
+    "key_type": "paywall_tier",
+    "primary_recommendation": "🟢 must-watch-next 要素 未解的核心悬念: 必须留让观众'必须知道答案'的核心问题",
+    "rationale": "🟢 硬卡点必须同时具备 3 要素 (unresolved + stakes + payoff)。",
+    "source_file": "paywall-design.md",
+    "source_section": "🟢 must-watch-next 设计要素",
+    "tags": [
+      "hook_retention",
+      "paywall_strength_tier",
+      "green_element"
+    ],
+    "extra_data": {
+      "element": "unresolved_core_mystery",
+      "name": "未解的核心悬念",
+      "requirement": "必须留让观众'必须知道答案'的核心问题"
+    },
+    "priority": 70
+  },
+  {
+    "category": "paywall_strength_tier",
+    "key_name": "green_element_character_stakes",
+    "key_type": "paywall_tier",
+    "primary_recommendation": "🟢 must-watch-next 要素 角色切身利益: 悬念直接关系主角生死/身份/爱情/复仇/财富",
+    "rationale": "🟢 硬卡点必须同时具备 3 要素 (unresolved + stakes + payoff)。",
+    "source_file": "paywall-design.md",
+    "source_section": "🟢 must-watch-next 设计要素",
+    "tags": [
+      "hook_retention",
+      "paywall_strength_tier",
+      "green_element"
+    ],
+    "extra_data": {
+      "element": "character_stakes",
+      "name": "角色切身利益",
+      "requirement": "悬念直接关系主角生死/身份/爱情/复仇/财富"
+    },
+    "priority": 70
+  },
+  {
+    "category": "paywall_strength_tier",
+    "key_name": "green_element_promised_payoff",
+    "key_type": "paywall_tier",
+    "primary_recommendation": "🟢 must-watch-next 要素 下一集承诺的爽点: 暗示下集兑现爽点 (反派得意 → 主角反杀)",
+    "rationale": "🟢 硬卡点必须同时具备 3 要素 (unresolved + stakes + payoff)。",
+    "source_file": "paywall-design.md",
+    "source_section": "🟢 must-watch-next 设计要素",
+    "tags": [
+      "hook_retention",
+      "paywall_strength_tier",
+      "green_element"
+    ],
+    "extra_data": {
+      "element": "promised_payoff",
+      "name": "下一集承诺的爽点",
+      "requirement": "暗示下集兑现爽点 (反派得意 → 主角反杀)"
+    },
+    "priority": 70
+  },
+  {
+    "category": "paywall_strength_tier",
+    "key_name": "method_suspense",
+    "key_type": "paywall_tier",
+    "primary_recommendation": "查理6件套 悬念 (营造式): 位置 卡点之前，操作 未知+压迫感 (参与性/未知性/可能性/压迫感)",
+    "rationale": "层级 story_driven (主推荐)。",
+    "source_file": "paywall-design.md",
+    "source_section": "卡点 Method Library (查理 6 件套)",
+    "tags": [
+      "hook_retention",
+      "paywall_strength_tier",
+      "charlie_method",
+      "story_driven"
+    ],
+    "extra_data": {
+      "method": "suspense",
+      "name": "悬念 (营造式)",
+      "position": "卡点之前",
+      "operation": "未知+压迫感 (参与性/未知性/可能性/压迫感)",
+      "layer": "story_driven"
+    },
+    "priority": 66
+  },
+  {
+    "category": "paywall_strength_tier",
+    "key_name": "method_twist",
+    "key_type": "paywall_tier",
+    "primary_recommendation": "查理6件套 反转 (使完式): 位置 卡点之后，操作 信息差反转 (观众>决策 紧张 / 决策>观众 爽感)",
+    "rationale": "层级 story_driven (主推荐)。",
+    "source_file": "paywall-design.md",
+    "source_section": "卡点 Method Library (查理 6 件套)",
+    "tags": [
+      "hook_retention",
+      "paywall_strength_tier",
+      "charlie_method",
+      "story_driven"
+    ],
+    "extra_data": {
+      "method": "twist",
+      "name": "反转 (使完式)",
+      "position": "卡点之后",
+      "operation": "信息差反转 (观众>决策 紧张 / 决策>观众 爽感)",
+      "layer": "story_driven"
+    },
+    "priority": 66
+  },
+  {
+    "category": "paywall_strength_tier",
+    "key_name": "method_new_character",
+    "key_type": "paywall_tier",
+    "primary_recommendation": "查理6件套 新人物: 位置 中后段，操作 突然冒出目击者打破平衡",
+    "rationale": "层级 story_driven (主推荐)。",
+    "source_file": "paywall-design.md",
+    "source_section": "卡点 Method Library (查理 6 件套)",
+    "tags": [
+      "hook_retention",
+      "paywall_strength_tier",
+      "charlie_method",
+      "story_driven"
+    ],
+    "extra_data": {
+      "method": "new_character",
+      "name": "新人物",
+      "position": "中后段",
+      "operation": "突然冒出目击者打破平衡",
+      "layer": "story_driven"
+    },
+    "priority": 66
+  },
+  {
+    "category": "paywall_strength_tier",
+    "key_name": "method_new_clue",
+    "key_type": "paywall_tier",
+    "primary_recommendation": "查理6件套 新线索/新道具: 位置 全程可用，操作 带信息量物件 (身份证/旧照片/DNA报告)",
+    "rationale": "层级 story_driven (主推荐)。",
+    "source_file": "paywall-design.md",
+    "source_section": "卡点 Method Library (查理 6 件套)",
+    "tags": [
+      "hook_retention",
+      "paywall_strength_tier",
+      "charlie_method",
+      "story_driven"
+    ],
+    "extra_data": {
+      "method": "new_clue",
+      "name": "新线索/新道具",
+      "position": "全程可用",
+      "operation": "带信息量物件 (身份证/旧照片/DNA报告)",
+      "layer": "story_driven"
+    },
+    "priority": 66
+  },
+  {
+    "category": "paywall_strength_tier",
+    "key_name": "method_new_change",
+    "key_type": "paywall_tier",
+    "primary_recommendation": "查理6件套 新变化: 位置 转折点，操作 意外情况打乱原节奏 (晕倒/翻供)",
+    "rationale": "层级 story_driven (主推荐)。",
+    "source_file": "paywall-design.md",
+    "source_section": "卡点 Method Library (查理 6 件套)",
+    "tags": [
+      "hook_retention",
+      "paywall_strength_tier",
+      "charlie_method",
+      "story_driven"
+    ],
+    "extra_data": {
+      "method": "new_change",
+      "name": "新变化",
+      "position": "转折点",
+      "operation": "意外情况打乱原节奏 (晕倒/翻供)",
+      "layer": "story_driven"
+    },
+    "priority": 66
+  },
+  {
+    "category": "paywall_strength_tier",
+    "key_name": "method_fast_pace_info",
+    "key_type": "paywall_tier",
+    "primary_recommendation": "查理6件套 节奏快-信息节奏: 位置 兜底，操作 多线并进/快速切换/密集台词",
+    "rationale": "层级 rhythm_fallback (下下策)。",
+    "source_file": "paywall-design.md",
+    "source_section": "卡点 Method Library (查理 6 件套)",
+    "tags": [
+      "hook_retention",
+      "paywall_strength_tier",
+      "charlie_method",
+      "rhythm_fallback"
+    ],
+    "extra_data": {
+      "method": "fast_pace_info",
+      "name": "节奏快-信息节奏",
+      "position": "兜底",
+      "operation": "多线并进/快速切换/密集台词",
+      "layer": "rhythm_fallback"
+    },
+    "priority": 66
+  },
+  {
+    "category": "paywall_strength_tier",
+    "key_name": "method_fast_pace_emotion",
+    "key_type": "paywall_tier",
+    "primary_recommendation": "查理6件套 节奏快-情绪节奏: 位置 兜底，操作 情绪切换密集 (怒→怕→喜)",
+    "rationale": "层级 rhythm_fallback (下下策)。",
+    "source_file": "paywall-design.md",
+    "source_section": "卡点 Method Library (查理 6 件套)",
+    "tags": [
+      "hook_retention",
+      "paywall_strength_tier",
+      "charlie_method",
+      "rhythm_fallback"
+    ],
+    "extra_data": {
+      "method": "fast_pace_emotion",
+      "name": "节奏快-情绪节奏",
+      "position": "兜底",
+      "operation": "情绪切换密集 (怒→怕→喜)",
+      "layer": "rhythm_fallback"
+    },
+    "priority": 66
+  },
+  {
+    "category": "paywall_strength_tier",
+    "key_name": "scenario_romance_female",
+    "key_type": "paywall_tier",
+    "primary_recommendation": "卡点场景 女频豪门虐恋: Ep3末 Hard🟢(撞见亲密泪奔)+Ep5中 Soft🟡(生日惊喜)+Ep5末 Hard🟢(替身揭穿)",
+    "rationale": "Hard+Soft 组合设计 (每场景 ≥2 hard + 1 soft)。",
+    "source_file": "paywall-design.md",
+    "source_section": "Hard vs Soft 卡点 Examples",
+    "tags": [
+      "hook_retention",
+      "paywall_strength_tier",
+      "scenario"
+    ],
+    "extra_data": {
+      "genre": "女频豪门虐恋",
+      "design": "Ep3末 Hard🟢(撞见亲密泪奔)+Ep5中 Soft🟡(生日惊喜)+Ep5末 Hard🟢(替身揭穿)"
+    },
+    "priority": 62
+  },
+  {
+    "category": "paywall_strength_tier",
+    "key_name": "scenario_revenge_male",
+    "key_type": "paywall_tier",
+    "primary_recommendation": "卡点场景 男频战神归来: Ep3末 Hard🟢(反派陷阱绝境)+Ep4中 Soft🟡(隐藏能力觉醒)+Ep5末 Hard🟢(反杀跪地)",
+    "rationale": "Hard+Soft 组合设计 (每场景 ≥2 hard + 1 soft)。",
+    "source_file": "paywall-design.md",
+    "source_section": "Hard vs Soft 卡点 Examples",
+    "tags": [
+      "hook_retention",
+      "paywall_strength_tier",
+      "scenario"
+    ],
+    "extra_data": {
+      "genre": "男频战神归来",
+      "design": "Ep3末 Hard🟢(反派陷阱绝境)+Ep4中 Soft🟡(隐藏能力觉醒)+Ep5末 Hard🟢(反杀跪地)"
+    },
+    "priority": 62
+  },
+  {
+    "category": "paywall_strength_tier",
+    "key_name": "scenario_comedy_kuaishou",
+    "key_type": "paywall_tier",
+    "primary_recommendation": "卡点场景 快手草根职场喜剧: Ep3末 Hard🟢(客户是霸凌者)+Ep4中 Soft🟡(富豪身份线索)+Ep5末 Hard🟢(身份揭穿求饶)",
+    "rationale": "Hard+Soft 组合设计 (每场景 ≥2 hard + 1 soft)。",
+    "source_file": "paywall-design.md",
+    "source_section": "Hard vs Soft 卡点 Examples",
+    "tags": [
+      "hook_retention",
+      "paywall_strength_tier",
+      "scenario"
+    ],
+    "extra_data": {
+      "genre": "快手草根职场喜剧",
+      "design": "Ep3末 Hard🟢(客户是霸凌者)+Ep4中 Soft🟡(富豪身份线索)+Ep5末 Hard🟢(身份揭穿求饶)"
+    },
+    "priority": 62
+  },
+  {
+    "category": "completion_rate_rule",
+    "key_name": "pace_rule_1_5x",
+    "key_type": "completion_rule",
+    "primary_recommendation": "1.5x Pace Rule: 竖屏平均镜头时长 1.5s (横屏 2-3s)；90s 单集 ≥60 cuts。",
+    "rationale": "算法偏好高密度 + 移动端注意力衰减快。小程序剧长集可 2-2.5s。",
+    "source_file": "paywall-design.md",
+    "source_section": "1.5x Pace Rule",
+    "tags": [
+      "hook_retention",
+      "completion_rate_rule",
+      "1_5x_pace"
+    ],
+    "extra_data": {
+      "portrait_avg_shot_s": 1.5,
+      "landscape_avg_shot_s": [
+        2,
+        3
+      ],
+      "min_cuts_90s": 60,
+      "high_density_threshold": "≥60 cuts/90s"
+    },
+    "priority": 84
+  },
+  {
+    "category": "completion_rate_rule",
+    "key_name": "dead_air_3s_rule",
+    "key_type": "completion_rule",
+    "primary_recommendation": "3-Second Dead Air Rule: 不允许 >3s 死寂镜头 (无对白/动作/BGM 推进)。",
+    "rationale": "移动端退出成本低，3s 死寂触发上滑。纯静态镜头 >3s 永远违规无例外。",
+    "source_file": "paywall-design.md",
+    "source_section": "3-Second Dead Air Rule",
+    "tags": [
+      "hook_retention",
+      "completion_rate_rule",
+      "dead_air"
+    ],
+    "extra_data": {
+      "max_static_shot_s": 3,
+      "impact_pct": 15,
+      "bounce_per_extra_s": "~15%"
+    },
+    "priority": 84
+  },
+  {
+    "category": "completion_rate_rule",
+    "key_name": "dead_air_exception_情感特写_emotional_close-up",
+    "key_type": "completion_rule",
+    "primary_recommendation": "Dead-air 例外 情感特写 (emotional close-up): 最长 4-5s",
+    "rationale": "触发条件 (1) 可见的强烈情绪(流泪 / 颤抖 / 凝视);(2) BGM 同步推起(BGM swell);(3) 该特写是 [击中点](../../_shared/glossary.md#击中点-emotional-impact-point) 或 [爽点](../../_shared/glossary.md#爽点-satisfaction-beat) 的兑现瞬间",
+    "source_file": "paywall-design.md",
+    "source_section": "3-Second Dead Air Rule exceptions",
+    "tags": [
+      "hook_retention",
+      "completion_rate_rule",
+      "dead_air_exception"
+    ],
+    "extra_data": {
+      "scene": "情感特写 (emotional close-up)",
+      "max_duration": "4-5s",
+      "conditions": "(1) 可见的强烈情绪(流泪 / 颤抖 / 凝视);(2) BGM 同步推起(BGM swell);(3) 该特写是 [击中点](../../_shared/glossary.md#击中点-emotional-impact-point) 或 [爽点](../../_shared/glossary.md#爽点-satisfaction-beat) 的兑现瞬间"
+    },
+    "priority": 70
+  },
+  {
+    "category": "completion_rate_rule",
+    "key_name": "dead_air_exception_bgm_推起_bgm_swell",
+    "key_type": "completion_rule",
+    "primary_recommendation": "Dead-air 例外 BGM 推起 (BGM swell): 最长 4-5s",
+    "rationale": "触发条件 (1) BGM 进入音乐性高潮(鼓点 / 弦乐推起);(2) 镜头同步呈现视觉冲击(慢动作 / 关键画面);(3) 推起时长 ≤ 5s(超出会让观众感觉\"拖\")",
+    "source_file": "paywall-design.md",
+    "source_section": "3-Second Dead Air Rule exceptions",
+    "tags": [
+      "hook_retention",
+      "completion_rate_rule",
+      "dead_air_exception"
+    ],
+    "extra_data": {
+      "scene": "BGM 推起 (BGM swell)",
+      "max_duration": "4-5s",
+      "conditions": "(1) BGM 进入音乐性高潮(鼓点 / 弦乐推起);(2) 镜头同步呈现视觉冲击(慢动作 / 关键画面);(3) 推起时长 ≤ 5s(超出会让观众感觉\"拖\")"
+    },
+    "priority": 70
+  },
+  {
+    "category": "completion_rate_rule",
+    "key_name": "dead_air_exception_艺术停顿_artistic_pause",
+    "key_type": "completion_rule",
+    "primary_recommendation": "Dead-air 例外 艺术停顿 (artistic pause): 最长 3-4s",
+    "rationale": "触发条件 (1) 戏剧效果停顿(例如:主角得知真相后的沉默);(2) BGM 必须有\"呼吸感\"的轻伴奏(不是死寂);(3) 停顿后立即接入下一个 cut / 对白",
+    "source_file": "paywall-design.md",
+    "source_section": "3-Second Dead Air Rule exceptions",
+    "tags": [
+      "hook_retention",
+      "completion_rate_rule",
+      "dead_air_exception"
+    ],
+    "extra_data": {
+      "scene": "艺术停顿 (artistic pause)",
+      "max_duration": "3-4s",
+      "conditions": "(1) 戏剧效果停顿(例如:主角得知真相后的沉默);(2) BGM 必须有\"呼吸感\"的轻伴奏(不是死寂);(3) 停顿后立即接入下一个 cut / 对白"
+    },
+    "priority": 70
+  },
+  {
+    "category": "completion_rate_rule",
+    "key_name": "bgm_driven_sync",
+    "key_type": "completion_rule",
+    "primary_recommendation": "BGM-Driven Sync: 重大 cut (场景转换/爽点兑现) MUST land on beat；普通 cut ±100ms。",
+    "rationale": "composer 独占 coupled_beat 概念；HOOK 只声明同步需求。冲突以 composer 为准。",
+    "source_file": "paywall-design.md",
+    "source_section": "BGM-Driven Sync",
+    "tags": [
+      "hook_retention",
+      "completion_rate_rule",
+      "bgm_sync"
+    ],
+    "extra_data": {
+      "major_cut": "MUST land on beat (no tolerance)",
+      "normal_cut_tolerance_ms": 100
+    },
+    "priority": 76
+  },
+  {
+    "category": "completion_rate_rule",
+    "key_name": "bgm_swell_exception",
+    "key_type": "completion_rule",
+    "primary_recommendation": "BGM swell 可延长镜头到 4-5s: (1) BGM 音乐性高潮 (2) 镜头同步视觉冲击 (3) swell ≤5s。",
+    "rationale": "典型 swell 2-4s；swell 后立即接 cut/击中点。swell 与 击中点/爽点 共生放大情绪。",
+    "source_file": "paywall-design.md",
+    "source_section": "3-Second Dead Air Rule BGM swell exception",
+    "tags": [
+      "hook_retention",
+      "completion_rate_rule",
+      "bgm_swell"
+    ],
+    "extra_data": {
+      "max_duration_s": 5,
+      "typical_swell_s": [
+        2,
+        4
+      ]
+    },
+    "priority": 70
+  },
+  {
+    "category": "completion_rate_rule",
+    "key_name": "pace_portrait_shot_duration",
+    "key_type": "completion_rule",
+    "primary_recommendation": "1.5x Pace 竖屏平均镜头时长: 1.5s",
+    "rationale": "算法偏好高密度 + 移动端注意力衰减；小程序剧长集可 2-2.5s。",
+    "source_file": "paywall-design.md",
+    "source_section": "1.5x Pace Rule 详情",
+    "tags": [
+      "hook_retention",
+      "completion_rate_rule",
+      "1_5x_pace"
+    ],
+    "extra_data": {
+      "dimension": "竖屏平均镜头时长",
+      "value": "1.5s"
+    },
+    "priority": 72
+  },
+  {
+    "category": "completion_rate_rule",
+    "key_name": "pace_landscape_compare",
+    "key_type": "completion_rule",
+    "primary_recommendation": "1.5x Pace 横屏平均镜头时长(对比): 2-3s",
+    "rationale": "算法偏好高密度 + 移动端注意力衰减；小程序剧长集可 2-2.5s。",
+    "source_file": "paywall-design.md",
+    "source_section": "1.5x Pace Rule 详情",
+    "tags": [
+      "hook_retention",
+      "completion_rate_rule",
+      "1_5x_pace"
+    ],
+    "extra_data": {
+      "dimension": "横屏平均镜头时长(对比)",
+      "value": "2-3s"
+    },
+    "priority": 72
+  },
+  {
+    "category": "completion_rate_rule",
+    "key_name": "pace_min_cuts_90s",
+    "key_type": "completion_rule",
+    "primary_recommendation": "1.5x Pace 90s 单集最少切数: ~60 cuts (90÷1.5)",
+    "rationale": "算法偏好高密度 + 移动端注意力衰减；小程序剧长集可 2-2.5s。",
+    "source_file": "paywall-design.md",
+    "source_section": "1.5x Pace Rule 详情",
+    "tags": [
+      "hook_retention",
+      "completion_rate_rule",
+      "1_5x_pace"
+    ],
+    "extra_data": {
+      "dimension": "90s 单集最少切数",
+      "value": "~60 cuts (90÷1.5)"
+    },
+    "priority": 72
+  },
+  {
+    "category": "completion_rate_rule",
+    "key_name": "pace_high_density_threshold",
+    "key_type": "completion_rule",
+    "primary_recommendation": "1.5x Pace 1-3 分钟高密度门槛: ≥60 cuts/90s",
+    "rationale": "算法偏好高密度 + 移动端注意力衰减；小程序剧长集可 2-2.5s。",
+    "source_file": "paywall-design.md",
+    "source_section": "1.5x Pace Rule 详情",
+    "tags": [
+      "hook_retention",
+      "completion_rate_rule",
+      "1_5x_pace"
+    ],
+    "extra_data": {
+      "dimension": "1-3 分钟高密度门槛",
+      "value": "≥60 cuts/90s"
+    },
+    "priority": 72
+  },
+  {
+    "category": "share_trigger",
+    "key_name": "trigger_emotional_resonance",
+    "key_type": "share_trigger",
+    "primary_recommendation": "情感共鸣: 观众深深感受到情绪(共鸣 / 心痛 / 心动 / 心酸)",
+    "rationale": "设计 强情感场景 + 可代入的角色处境 | 转发率影响 *estimated* 高 for [女频](../../_shared/glossary.md#女频-female-oriented-channel)(豪门虐恋 / 亲情催泪)",
+    "source_file": "paywall-design.md",
+    "source_section": "5 转发 Trigger Categories",
+    "tags": [
+      "hook_retention",
+      "share_trigger",
+      "emotional_resonance"
+    ],
+    "extra_data": {
+      "trigger": "emotional_resonance",
+      "cn_name": "情感共鸣",
+      "definition": "观众深深感受到情绪(共鸣 / 心痛 / 心动 / 心酸)",
+      "design": "强情感场景 + 可代入的角色处境",
+      "share_impact": "*estimated* 高 for [女频](../../_shared/glossary.md#女频-female-oriented-channel)(豪门虐恋 / 亲情催泪)"
+    },
+    "priority": 72
+  },
+  {
+    "category": "share_trigger",
+    "key_name": "trigger_twist_shock",
+    "key_type": "share_trigger",
+    "primary_recommendation": "反转冲击: 观众被意外转折震惊",
+    "rationale": "设计 setup-payoff 结构 + 误导性线索 | 转发率影响 *estimated* 高 for both [男频](../../_shared/glossary.md#男频-male-oriented-channel) / [女频](../../_shared/glossary.md#女频-female-oriented-channel)",
+    "source_file": "paywall-design.md",
+    "source_section": "5 转发 Trigger Categories",
+    "tags": [
+      "hook_retention",
+      "share_trigger",
+      "twist_shock"
+    ],
+    "extra_data": {
+      "trigger": "twist_shock",
+      "cn_name": "反转冲击",
+      "definition": "观众被意外转折震惊",
+      "design": "setup-payoff 结构 + 误导性线索",
+      "share_impact": "*estimated* 高 for both [男频](../../_shared/glossary.md#男频-male-oriented-channel) / [女频](../../_shared/glossary.md#女频-female-oriented-channel)"
+    },
+    "priority": 72
+  },
+  {
+    "category": "share_trigger",
+    "key_name": "trigger_value_consensus",
+    "key_type": "share_trigger",
+    "primary_recommendation": "共识认同: 观众认同内容表达的立场 / 价值观",
+    "rationale": "设计 价值宣告 + 角色倡导 | 转发率影响 *estimated* 中(依赖话题热度)",
+    "source_file": "paywall-design.md",
+    "source_section": "5 转发 Trigger Categories",
+    "tags": [
+      "hook_retention",
+      "share_trigger",
+      "value_consensus"
+    ],
+    "extra_data": {
+      "trigger": "value_consensus",
+      "cn_name": "共识认同",
+      "definition": "观众认同内容表达的立场 / 价值观",
+      "design": "价值宣告 + 角色倡导",
+      "share_impact": "*estimated* 中(依赖话题热度)"
+    },
+    "priority": 72
+  },
+  {
+    "category": "share_trigger",
+    "key_name": "trigger_visual_spectacle",
+    "key_type": "share_trigger",
+    "primary_recommendation": "视觉震撼: 视觉瞬间值得反复看 / 分享",
+    "rationale": "设计 震撼镜头 / VFX 时刻 / 慢动作 | 转发率影响 *estimated* 高 for [抖音](../../compliance_marketing/references/platform-specs-douyin.md) 算法",
+    "source_file": "paywall-design.md",
+    "source_section": "5 转发 Trigger Categories",
+    "tags": [
+      "hook_retention",
+      "share_trigger",
+      "visual_spectacle"
+    ],
+    "extra_data": {
+      "trigger": "visual_spectacle",
+      "cn_name": "视觉震撼",
+      "definition": "视觉瞬间值得反复看 / 分享",
+      "design": "震撼镜头 / VFX 时刻 / 慢动作",
+      "share_impact": "*estimated* 高 for [抖音](../../compliance_marketing/references/platform-specs-douyin.md) 算法"
+    },
+    "priority": 72
+  },
+  {
+    "category": "share_trigger",
+    "key_name": "trigger_practical_utility",
+    "key_type": "share_trigger",
+    "primary_recommendation": "实用价值: 观众能用内容中的信息(how-to / 生活技巧 / 建议)",
+    "rationale": "设计 可操作内容 + 短剧叙事框架 | 转发率影响 *estimated* 高 for [快手](../../compliance_marketing/references/platform-specs-kuaishou.md) 草根观众",
+    "source_file": "paywall-design.md",
+    "source_section": "5 转发 Trigger Categories",
+    "tags": [
+      "hook_retention",
+      "share_trigger",
+      "practical_utility"
+    ],
+    "extra_data": {
+      "trigger": "practical_utility",
+      "cn_name": "实用价值",
+      "definition": "观众能用内容中的信息(how-to / 生活技巧 / 建议)",
+      "design": "可操作内容 + 短剧叙事框架",
+      "share_impact": "*estimated* 高 for [快手](../../compliance_marketing/references/platform-specs-kuaishou.md) 草根观众"
+    },
+    "priority": 72
+  },
+  {
+    "category": "share_trigger",
+    "key_name": "trigger_relation_emotional_resonance",
+    "key_type": "share_trigger",
+    "primary_recommendation": "情感共鸣 通常出现在 击中点 上",
+    "rationale": "Trigger 与 击中点/爽点 共生关系。",
+    "source_file": "paywall-design.md",
+    "source_section": "Trigger 与 击中点/爽点 关系",
+    "tags": [
+      "hook_retention",
+      "share_trigger",
+      "trigger_relation"
+    ],
+    "extra_data": {
+      "trigger": "emotional_resonance",
+      "cn_name": "情感共鸣",
+      "co_occurs_with": "击中点"
+    },
+    "priority": 60
+  },
+  {
+    "category": "share_trigger",
+    "key_name": "trigger_relation_twist_shock",
+    "key_type": "share_trigger",
+    "primary_recommendation": "反转冲击 通常出现在 爽点 上",
+    "rationale": "Trigger 与 击中点/爽点 共生关系。",
+    "source_file": "paywall-design.md",
+    "source_section": "Trigger 与 击中点/爽点 关系",
+    "tags": [
+      "hook_retention",
+      "share_trigger",
+      "trigger_relation"
+    ],
+    "extra_data": {
+      "trigger": "twist_shock",
+      "cn_name": "反转冲击",
+      "co_occurs_with": "爽点"
+    },
+    "priority": 60
+  },
+  {
+    "category": "share_trigger",
+    "key_name": "trigger_relation_visual_spectacle",
+    "key_type": "share_trigger",
+    "primary_recommendation": "视觉震撼 通常出现在 爽点或击中点 上",
+    "rationale": "Trigger 与 击中点/爽点 共生关系。",
+    "source_file": "paywall-design.md",
+    "source_section": "Trigger 与 击中点/爽点 关系",
+    "tags": [
+      "hook_retention",
+      "share_trigger",
+      "trigger_relation"
+    ],
+    "extra_data": {
+      "trigger": "visual_spectacle",
+      "cn_name": "视觉震撼",
+      "co_occurs_with": "爽点或击中点"
+    },
+    "priority": 60
+  },
+  {
+    "category": "share_trigger",
+    "key_name": "trigger_relation_value_consensus",
+    "key_type": "share_trigger",
+    "primary_recommendation": "共识认同 通常出现在 独立 (叙事层面) 上",
+    "rationale": "Trigger 与 击中点/爽点 共生关系。",
+    "source_file": "paywall-design.md",
+    "source_section": "Trigger 与 击中点/爽点 关系",
+    "tags": [
+      "hook_retention",
+      "share_trigger",
+      "trigger_relation"
+    ],
+    "extra_data": {
+      "trigger": "value_consensus",
+      "cn_name": "共识认同",
+      "co_occurs_with": "独立 (叙事层面)"
+    },
+    "priority": 60
+  },
+  {
+    "category": "share_trigger",
+    "key_name": "trigger_relation_practical_utility",
+    "key_type": "share_trigger",
+    "primary_recommendation": "实用价值 通常出现在 独立 (叙事层面) 上",
+    "rationale": "Trigger 与 击中点/爽点 共生关系。",
+    "source_file": "paywall-design.md",
+    "source_section": "Trigger 与 击中点/爽点 关系",
+    "tags": [
+      "hook_retention",
+      "share_trigger",
+      "trigger_relation"
+    ],
+    "extra_data": {
+      "trigger": "practical_utility",
+      "cn_name": "实用价值",
+      "co_occurs_with": "独立 (叙事层面)"
+    },
+    "priority": 60
+  },
+  {
+    "category": "share_trigger",
+    "key_name": "trigger_guide_emotional_resonance",
+    "key_type": "share_trigger",
+    "primary_recommendation": "情感共鸣 设计指南: 代入主角处境 + 真实情绪 + BGM swell；与击中点重叠。女频豪门虐恋核心。",
+    "rationale": "5 转发 trigger 各自设计要素。",
+    "source_file": "paywall-design.md",
+    "source_section": "各 Trigger 设计指南",
+    "tags": [
+      "hook_retention",
+      "share_trigger",
+      "trigger_guide"
+    ],
+    "extra_data": {
+      "trigger": "emotional_resonance",
+      "cn_name": "情感共鸣",
+      "design_guide": "代入主角处境 + 真实情绪 + BGM swell；与击中点重叠。女频豪门虐恋核心。"
+    },
+    "priority": 64
+  },
+  {
+    "category": "share_trigger",
+    "key_name": "trigger_guide_twist_shock",
+    "key_type": "share_trigger",
+    "primary_recommendation": "反转冲击 设计指南: setup-payoff + 误导线索合理 + 反转兑现爽点；与反差钩重叠。男女通吃。",
+    "rationale": "5 转发 trigger 各自设计要素。",
+    "source_file": "paywall-design.md",
+    "source_section": "各 Trigger 设计指南",
+    "tags": [
+      "hook_retention",
+      "share_trigger",
+      "trigger_guide"
+    ],
+    "extra_data": {
+      "trigger": "twist_shock",
+      "cn_name": "反转冲击",
+      "design_guide": "setup-payoff + 误导线索合理 + 反转兑现爽点；与反差钩重叠。男女通吃。"
+    },
+    "priority": 64
+  },
+  {
+    "category": "share_trigger",
+    "key_name": "trigger_guide_value_consensus",
+    "key_type": "share_trigger",
+    "primary_recommendation": "共识认同 设计指南: 主流共识价值观 + 角色之口表达 + 话题热度；偏激触发🟡标题党红线需联检。",
+    "rationale": "5 转发 trigger 各自设计要素。",
+    "source_file": "paywall-design.md",
+    "source_section": "各 Trigger 设计指南",
+    "tags": [
+      "hook_retention",
+      "share_trigger",
+      "trigger_guide"
+    ],
+    "extra_data": {
+      "trigger": "value_consensus",
+      "cn_name": "共识认同",
+      "design_guide": "主流共识价值观 + 角色之口表达 + 话题热度；偏激触发🟡标题党红线需联检。"
+    },
+    "priority": 64
+  },
+  {
+    "category": "share_trigger",
+    "key_name": "trigger_guide_visual_spectacle",
+    "key_type": "share_trigger",
+    "primary_recommendation": "视觉震撼 设计指南: 超越日常的视觉 + BGM beat sync + 1-2s；抖音算法权重最高。",
+    "rationale": "5 转发 trigger 各自设计要素。",
+    "source_file": "paywall-design.md",
+    "source_section": "各 Trigger 设计指南",
+    "tags": [
+      "hook_retention",
+      "share_trigger",
+      "trigger_guide"
+    ],
+    "extra_data": {
+      "trigger": "visual_spectacle",
+      "cn_name": "视觉震撼",
+      "design_guide": "超越日常的视觉 + BGM beat sync + 1-2s；抖音算法权重最高。"
+    },
+    "priority": 64
+  },
+  {
+    "category": "share_trigger",
+    "key_name": "trigger_guide_practical_utility",
+    "key_type": "share_trigger",
+    "primary_recommendation": "实用价值 设计指南: 可操作信息 + 短剧叙事包装；快手草根独有强项。",
+    "rationale": "5 转发 trigger 各自设计要素。",
+    "source_file": "paywall-design.md",
+    "source_section": "各 Trigger 设计指南",
+    "tags": [
+      "hook_retention",
+      "share_trigger",
+      "trigger_guide"
+    ],
+    "extra_data": {
+      "trigger": "practical_utility",
+      "cn_name": "实用价值",
+      "design_guide": "可操作信息 + 短剧叙事包装；快手草根独有强项。"
+    },
+    "priority": 64
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "dim_平均镜头时长",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "平均镜头时长: 横屏 2-3s vs 竖屏 1.5s(1.5x pace rule,详见 [`paywall-design.md`](./paywall-design.md#15x-pace-rule) §1.5x Pace Rule)",
+    "rationale": "竖屏 vs 横屏 pacing 本质差异 (9:16 vs 16:9)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "竖屏 vs 横屏 Pacing Difference",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "vertical_vs_landscape"
+    ],
+    "extra_data": {
+      "dimension": "平均镜头时长",
+      "landscape": "2-3s",
+      "portrait": "1.5s(1.5x pace rule,详见 [`paywall-design.md`](./paywall-design.md#15x-pace-rule) §1.5x Pace Rule)",
+      "portrait_range": null
+    },
+    "priority": 74
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "dim_字幕占比",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "字幕占比: 横屏 ~5% frame vs 竖屏 ~15-20% frame(竖屏字幕必须更大,因移动端外放场景多)",
+    "rationale": "竖屏 vs 横屏 pacing 本质差异 (9:16 vs 16:9)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "竖屏 vs 横屏 Pacing Difference",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "vertical_vs_landscape"
+    ],
+    "extra_data": {
+      "dimension": "字幕占比",
+      "landscape": "~5% frame",
+      "portrait": "~15-20% frame(竖屏字幕必须更大,因移动端外放场景多)",
+      "portrait_range": null
+    },
+    "priority": 74
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "dim_视觉重心",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "视觉重心: 横屏 中心 / 三分法(传统构图) vs 竖屏 上 1/3(避开顶部 UI overlays:摄像头 / 状态栏)+ 下 1/3(避开底部 UI:评论 / 互动区)",
+    "rationale": "竖屏 vs 横屏 pacing 本质差异 (9:16 vs 16:9)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "竖屏 vs 横屏 Pacing Difference",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "vertical_vs_landscape"
+    ],
+    "extra_data": {
+      "dimension": "视觉重心",
+      "landscape": "中心 / 三分法(传统构图)",
+      "portrait": "上 1/3(避开顶部 UI overlays:摄像头 / 状态栏)+ 下 1/3(避开底部 UI:评论 / 互动区)",
+      "portrait_range": null
+    },
+    "priority": 74
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "dim_bgm_节奏",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "BGM 节奏: 横屏 较慢,atmospheric(氛围性) vs 竖屏 更快,beat-driven(节拍驱动,与 cut 同步)",
+    "rationale": "竖屏 vs 横屏 pacing 本质差异 (9:16 vs 16:9)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "竖屏 vs 横屏 Pacing Difference",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "vertical_vs_landscape"
+    ],
+    "extra_data": {
+      "dimension": "BGM 节奏",
+      "landscape": "较慢,atmospheric(氛围性)",
+      "portrait": "更快,beat-driven(节拍驱动,与 cut 同步)",
+      "portrait_range": null
+    },
+    "priority": 74
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "dim_单集时长",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "单集时长: 横屏 3-5 min(横屏 IP 改编长剧) vs 竖屏 1-3 min(主流竖屏短剧);3-5 min([小程序剧](../../_shared/glossary.md#小程序剧-mini-program-drama) 长集)",
+    "rationale": "竖屏 vs 横屏 pacing 本质差异 (9:16 vs 16:9)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "竖屏 vs 横屏 Pacing Difference",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "vertical_vs_landscape"
+    ],
+    "extra_data": {
+      "dimension": "单集时长",
+      "landscape": "3-5 min(横屏 IP 改编长剧)",
+      "portrait": "1-3 min(主流竖屏短剧);3-5 min([小程序剧](../../_shared/glossary.md#小程序剧-mini-program-drama) 长集)",
+      "portrait_range": null
+    },
+    "priority": 74
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "dim_观看场景",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "观看场景: 横屏 PC / 影院 / 客厅 TV(沉浸式) vs 竖屏 移动端通勤 / 排队 / 碎片时间(易中断)",
+    "rationale": "竖屏 vs 横屏 pacing 本质差异 (9:16 vs 16:9)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "竖屏 vs 横屏 Pacing Difference",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "vertical_vs_landscape"
+    ],
+    "extra_data": {
+      "dimension": "观看场景",
+      "landscape": "PC / 影院 / 客厅 TV(沉浸式)",
+      "portrait": "移动端通勤 / 排队 / 碎片时间(易中断)",
+      "portrait_range": null
+    },
+    "priority": 74
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "pershot_特写_close-up",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "特写 (close-up): 推荐 1-2s，适用 情绪表达 / 关键细节 / 反应镜头",
+    "rationale": "Per-shot 类型推荐 (非硬限制，可按场景调整)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "Per-Shot 类型推荐",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "per_shot"
+    ],
+    "extra_data": {
+      "shot_size": "特写 (close-up)",
+      "recommended_duration": "1-2s",
+      "portrait_range": [
+        1.0,
+        2.0
+      ],
+      "use_case": "情绪表达 / 关键细节 / 反应镜头"
+    },
+    "priority": 70
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "pershot_中景_medium_shot",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "中景 (medium shot): 推荐 1.5-2.5s，适用 对话 / 日常动作 / 角色互动",
+    "rationale": "Per-shot 类型推荐 (非硬限制，可按场景调整)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "Per-Shot 类型推荐",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "per_shot"
+    ],
+    "extra_data": {
+      "shot_size": "中景 (medium shot)",
+      "recommended_duration": "1.5-2.5s",
+      "portrait_range": [
+        1.5,
+        2.5
+      ],
+      "use_case": "对话 / 日常动作 / 角色互动"
+    },
+    "priority": 70
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "pershot_全景_wide_shot",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "全景 (wide shot): 推荐 2-3s，适用 场景建立 / 空间关系 / 环境交代",
+    "rationale": "Per-shot 类型推荐 (非硬限制，可按场景调整)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "Per-Shot 类型推荐",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "per_shot"
+    ],
+    "extra_data": {
+      "shot_size": "全景 (wide shot)",
+      "recommended_duration": "2-3s",
+      "portrait_range": [
+        2.0,
+        3.0
+      ],
+      "use_case": "场景建立 / 空间关系 / 环境交代"
+    },
+    "priority": 70
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "platform_pacing_抖音-男频",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "抖音-男频: 极快，cut rate 1.2-1.5s/cut，BGM 强节奏 electronic(鼓点密集)",
+    "rationale": "单集时长 1-3 min",
+    "source_file": "vertical-pacing.md",
+    "source_section": "Multi-Platform Pacing Variation",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "platform_pacing"
+    ],
+    "extra_data": {
+      "platform": "抖音-男频",
+      "density": "极快",
+      "cut_rate": "1.2-1.5s/cut",
+      "bgm_style": "强节奏 electronic(鼓点密集)",
+      "ep_duration": "1-3 min"
+    },
+    "priority": 72
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "platform_pacing_抖音-女频",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "抖音-女频: 快，cut rate 1.5-2s/cut，BGM 情感 lyrical(钢琴 / 弦乐)",
+    "rationale": "单集时长 1-3 min",
+    "source_file": "vertical-pacing.md",
+    "source_section": "Multi-Platform Pacing Variation",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "platform_pacing"
+    ],
+    "extra_data": {
+      "platform": "抖音-女频",
+      "density": "快",
+      "cut_rate": "1.5-2s/cut",
+      "bgm_style": "情感 lyrical(钢琴 / 弦乐)",
+      "ep_duration": "1-3 min"
+    },
+    "priority": 72
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "platform_pacing_快手-草根",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "快手-草根: 中等，cut rate 2-2.5s/cut，BGM 民谣 / 流行(接地气)",
+    "rationale": "单集时长 1-3 min",
+    "source_file": "vertical-pacing.md",
+    "source_section": "Multi-Platform Pacing Variation",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "platform_pacing"
+    ],
+    "extra_data": {
+      "platform": "快手-草根",
+      "density": "中等",
+      "cut_rate": "2-2.5s/cut",
+      "bgm_style": "民谣 / 流行(接地气)",
+      "ep_duration": "1-3 min"
+    },
+    "priority": 72
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "platform_pacing_小程序剧-长集数",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "小程序剧-长集数: 较慢，cut rate 2-3s/cut，BGM 叙事 instrumental(氛围性)",
+    "rationale": "单集时长 3-5 min",
+    "source_file": "vertical-pacing.md",
+    "source_section": "Multi-Platform Pacing Variation",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "platform_pacing"
+    ],
+    "extra_data": {
+      "platform": "小程序剧-长集数",
+      "density": "较慢",
+      "cut_rate": "2-3s/cut",
+      "bgm_style": "叙事 instrumental(氛围性)",
+      "ep_duration": "3-5 min"
+    },
+    "priority": 72
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "subtitle_字体",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "字幕 字体: 黑体 / 思源黑体(Source Han Sans)",
+    "rationale": "无衬线,移动端可读性最佳。避免宋体 / 楷体(小字号下难辨)",
+    "source_file": "vertical-pacing.md",
+    "source_section": "字幕 Font & Size",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "subtitle"
+    ],
+    "extra_data": {
+      "item": "字体",
+      "value": "黑体 / 思源黑体(Source Han Sans)",
+      "note": "无衬线,移动端可读性最佳。避免宋体 / 楷体(小字号下难辨)"
+    },
+    "priority": 62
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "subtitle_字号",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "字幕 字号: ≥ 4% frame height",
+    "rationale": "例如 1920px 高的竖屏,字号 ≥ 77px。低于此值在移动端难辨",
+    "source_file": "vertical-pacing.md",
+    "source_section": "字幕 Font & Size",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "subtitle"
+    ],
+    "extra_data": {
+      "item": "字号",
+      "value": "≥ 4% frame height",
+      "note": "例如 1920px 高的竖屏,字号 ≥ 77px。低于此值在移动端难辨"
+    },
+    "priority": 62
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "subtitle_字重",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "字幕 字重: Medium / Bold",
+    "rationale": "增加可读性,尤其在复杂背景下",
+    "source_file": "vertical-pacing.md",
+    "source_section": "字幕 Font & Size",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "subtitle"
+    ],
+    "extra_data": {
+      "item": "字重",
+      "value": "Medium / Bold",
+      "note": "增加可读性,尤其在复杂背景下"
+    },
+    "priority": 62
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "subtitle_描边_阴影",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "字幕 描边 / 阴影: 必须(stroke / shadow)",
+    "rationale": "提供对比度,确保在任何背景下可读",
+    "source_file": "vertical-pacing.md",
+    "source_section": "字幕 Font & Size",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "subtitle"
+    ],
+    "extra_data": {
+      "item": "描边 / 阴影",
+      "value": "必须(stroke / shadow)",
+      "note": "提供对比度,确保在任何背景下可读"
+    },
+    "priority": 62
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "safe_zone_顶部",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "UI overlay 顶部: ~10-15% frame，内容 摄像头 notch(手机硬件)/ 状态栏 / 平台顶部 UI(返回按钮 / 标题)",
+    "rationale": "字幕安全区 = 中间 ~60%；字幕放下 1/3 (非屏幕底边)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "字幕 Placement & Safe Zones",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "safe_zone"
+    ],
+    "extra_data": {
+      "zone": "顶部",
+      "frame_share": "~10-15% frame",
+      "content": "摄像头 notch(手机硬件)/ 状态栏 / 平台顶部 UI(返回按钮 / 标题)"
+    },
+    "priority": 60
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "safe_zone_底部",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "UI overlay 底部: ~15-20% frame，内容 平台底部 UI(评论按钮 / 点赞 / 转发 / 互动区)/ 手机 home indicator",
+    "rationale": "字幕安全区 = 中间 ~60%；字幕放下 1/3 (非屏幕底边)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "字幕 Placement & Safe Zones",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "safe_zone"
+    ],
+    "extra_data": {
+      "zone": "底部",
+      "frame_share": "~15-20% frame",
+      "content": "平台底部 UI(评论按钮 / 点赞 / 转发 / 互动区)/ 手机 home indicator"
+    },
+    "priority": 60
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "subtitle_channel_female",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "字幕 女频: 细黑体/宋体 (优雅感)，字号 ~3.5-4%，精致排版。",
+    "rationale": "女频 vs 男频 字体差异。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "字幕 Font 女频vs男频",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "subtitle_channel"
+    ],
+    "extra_data": {
+      "channel": "female",
+      "design": "女频: 细黑体/宋体 (优雅感)，字号 ~3.5-4%，精致排版。"
+    },
+    "priority": 58
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "subtitle_channel_male",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "字幕 男频: 加粗黑体 (力量感)，字号 ~4-5%，对比色 (黄底黑字/红底白字)。",
+    "rationale": "女频 vs 男频 字体差异。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "字幕 Font 女频vs男频",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "subtitle_channel"
+    ],
+    "extra_data": {
+      "channel": "male",
+      "design": "男频: 加粗黑体 (力量感)，字号 ~4-5%，对比色 (黄底黑字/红底白字)。"
+    },
+    "priority": 58
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "subtitle_duration_短句_8_字",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "字幕时长 短句(≤ 8 字): 最短 1.5s / 最长 3s",
+    "rationale": "最短 1.5s(跨链 [`paywall-design.md`](./paywall-design.md#15x-pace-rule) §1.5x pace rule —— 字幕最短时长 = 最短镜头时长)",
+    "source_file": "vertical-pacing.md",
+    "source_section": "字幕 Duration",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "subtitle_duration"
+    ],
+    "extra_data": {
+      "type": "短句(≤ 8 字)",
+      "min": "1.5s",
+      "max": "3s",
+      "note": "最短 1.5s(跨链 [`paywall-design.md`](./paywall-design.md#15x-pace-rule) §1.5x pace rule —— 字幕最短时长 = 最短镜头时长)"
+    },
+    "priority": 62
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "subtitle_duration_长句_8_字",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "字幕时长 长句(> 8 字): 最短 2.5s / 最长 4s",
+    "rationale": "最长 4s(情感长台词例外,超过 4s 应拆分)",
+    "source_file": "vertical-pacing.md",
+    "source_section": "字幕 Duration",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "subtitle_duration"
+    ],
+    "extra_data": {
+      "type": "长句(> 8 字)",
+      "min": "2.5s",
+      "max": "4s",
+      "note": "最长 4s(情感长台词例外,超过 4s 应拆分)"
+    },
+    "priority": 62
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "emphasis_钩子_sharedglossarymd钩子-hook",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "[钩子](../../_shared/glossary.md#钩子-hook): 字幕样式 黄色高亮 (yellow highlight)",
+    "rationale": "标记钩子锚定句(0-3s),吸引注意力",
+    "source_file": "vertical-pacing.md",
+    "source_section": "字幕 Emphasis Styling",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "emphasis"
+    ],
+    "extra_data": {
+      "marker": "[钩子](../../_shared/glossary.md#钩子-hook)",
+      "style": "钩子_sharedglossarymd钩子-hook",
+      "style_desc": "黄色高亮 (yellow highlight)",
+      "note": "标记钩子锚定句(0-3s),吸引注意力"
+    },
+    "priority": 60
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "emphasis_爽点_sharedglossarymd爽点-satisfaction-beat",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "[爽点](../../_shared/glossary.md#爽点-satisfaction-beat): 字幕样式 红色加粗 (red bold)",
+    "rationale": "标记爽点兑现句,强化冲击",
+    "source_file": "vertical-pacing.md",
+    "source_section": "字幕 Emphasis Styling",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "emphasis"
+    ],
+    "extra_data": {
+      "marker": "[爽点](../../_shared/glossary.md#爽点-satisfaction-beat)",
+      "style": "爽点_sharedglossarymd爽点-satisfaction-beat",
+      "style_desc": "红色加粗 (red bold)",
+      "note": "标记爽点兑现句,强化冲击"
+    },
+    "priority": 60
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "emphasis_卡点_sharedglossarymd卡点-paywall-cliffhanger-paywall-moment",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "[卡点](../../_shared/glossary.md#卡点-paywall-cliffhanger-paywall-moment): 字幕样式 蓝色闪烁 (blue flash)",
+    "rationale": "标记卡点 cliffhanger 句,制造悬念感",
+    "source_file": "vertical-pacing.md",
+    "source_section": "字幕 Emphasis Styling",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "emphasis"
+    ],
+    "extra_data": {
+      "marker": "[卡点](../../_shared/glossary.md#卡点-paywall-cliffhanger-paywall-moment)",
+      "style": "卡点_sharedglossarymd卡点-paywall-cliffhanger-paywall-moment",
+      "style_desc": "蓝色闪烁 (blue flash)",
+      "note": "标记卡点 cliffhanger 句,制造悬念感"
+    },
+    "priority": 60
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "coldopen_cut_1",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "Cut 1 (0.0-1.0s, 1.0s, 特写): 女主泪眼特写(0-3s [钩子](../../_shared/glossary.md#钩子-hook) 锚定)",
+    "rationale": "90s 女频 romance cold-open 帧级 cut list 示例 (1.5s/cut)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "Cold-Open 帧级 Cut List",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "cold_open_example"
+    ],
+    "extra_data": {
+      "cut_num": "1",
+      "timestamp": "0.0-1.0s",
+      "duration": "1.0s",
+      "shot_size": "特写",
+      "content": "女主泪眼特写(0-3s [钩子](../../_shared/glossary.md#钩子-hook) 锚定)"
+    },
+    "priority": 56
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "coldopen_cut_2",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "Cut 2 (1.0-2.0s, 1.0s, 特写): 男主背影(悬念:他是谁?)",
+    "rationale": "90s 女频 romance cold-open 帧级 cut list 示例 (1.5s/cut)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "Cold-Open 帧级 Cut List",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "cold_open_example"
+    ],
+    "extra_data": {
+      "cut_num": "2",
+      "timestamp": "1.0-2.0s",
+      "duration": "1.0s",
+      "shot_size": "特写",
+      "content": "男主背影(悬念:他是谁?)"
+    },
+    "priority": 56
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "coldopen_cut_3",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "Cut 3 (2.0-3.5s, 1.5s, 中景): 女主追上去,拉住男主袖子",
+    "rationale": "90s 女频 romance cold-open 帧级 cut list 示例 (1.5s/cut)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "Cold-Open 帧级 Cut List",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "cold_open_example"
+    ],
+    "extra_data": {
+      "cut_num": "3",
+      "timestamp": "2.0-3.5s",
+      "duration": "1.5s",
+      "shot_size": "中景",
+      "content": "女主追上去,拉住男主袖子"
+    },
+    "priority": 56
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "coldopen_cut_4",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "Cut 4 (3.5-4.5s, 1.0s, 特写): 男主转身,表情冷漠",
+    "rationale": "90s 女频 romance cold-open 帧级 cut list 示例 (1.5s/cut)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "Cold-Open 帧级 Cut List",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "cold_open_example"
+    ],
+    "extra_data": {
+      "cut_num": "4",
+      "timestamp": "3.5-4.5s",
+      "duration": "1.0s",
+      "shot_size": "特写",
+      "content": "男主转身,表情冷漠"
+    },
+    "priority": 56
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "coldopen_cut_5",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "Cut 5 (4.5-6.0s, 1.5s, 中景): 男主甩开女主的手",
+    "rationale": "90s 女频 romance cold-open 帧级 cut list 示例 (1.5s/cut)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "Cold-Open 帧级 Cut List",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "cold_open_example"
+    ],
+    "extra_data": {
+      "cut_num": "5",
+      "timestamp": "4.5-6.0s",
+      "duration": "1.5s",
+      "shot_size": "中景",
+      "content": "男主甩开女主的手"
+    },
+    "priority": 56
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "coldopen_cut_6",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "Cut 6 (6.0-7.5s, 1.5s, 特写): 女主错愕表情",
+    "rationale": "90s 女频 romance cold-open 帧级 cut list 示例 (1.5s/cut)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "Cold-Open 帧级 Cut List",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "cold_open_example"
+    ],
+    "extra_data": {
+      "cut_num": "6",
+      "timestamp": "6.0-7.5s",
+      "duration": "1.5s",
+      "shot_size": "特写",
+      "content": "女主错愕表情"
+    },
+    "priority": 56
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "coldopen_cut_7",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "Cut 7 (7.5-9.0s, 1.5s, 全景): 场景建立:雨夜街道",
+    "rationale": "90s 女频 romance cold-open 帧级 cut list 示例 (1.5s/cut)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "Cold-Open 帧级 Cut List",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "cold_open_example"
+    ],
+    "extra_data": {
+      "cut_num": "7",
+      "timestamp": "7.5-9.0s",
+      "duration": "1.5s",
+      "shot_size": "全景",
+      "content": "场景建立:雨夜街道"
+    },
+    "priority": 56
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "coldopen_cut_8",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "Cut 8 (9.0-10.5s, 1.5s, 中景): 女主跪坐在地",
+    "rationale": "90s 女频 romance cold-open 帧级 cut list 示例 (1.5s/cut)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "Cold-Open 帧级 Cut List",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "cold_open_example"
+    ],
+    "extra_data": {
+      "cut_num": "8",
+      "timestamp": "9.0-10.5s",
+      "duration": "1.5s",
+      "shot_size": "中景",
+      "content": "女主跪坐在地"
+    },
+    "priority": 56
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "coldopen_cut_9",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "Cut 9 (10.5-12.0s, 1.5s, 特写): 女主抬头,眼神坚定(第一次 [击中点](../../_shared/glossary.md#击中点-emotional-impact-point) ~10-15s)",
+    "rationale": "90s 女频 romance cold-open 帧级 cut list 示例 (1.5s/cut)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "Cold-Open 帧级 Cut List",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "cold_open_example"
+    ],
+    "extra_data": {
+      "cut_num": "9",
+      "timestamp": "10.5-12.0s",
+      "duration": "1.5s",
+      "shot_size": "特写",
+      "content": "女主抬头,眼神坚定(第一次 [击中点](../../_shared/glossary.md#击中点-emotional-impact-point) ~10-15s)"
+    },
+    "priority": 56
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "coldopen_cut_10",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "Cut 10 (12.0-13.5s, 1.5s, 中景): 女主站起",
+    "rationale": "90s 女频 romance cold-open 帧级 cut list 示例 (1.5s/cut)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "Cold-Open 帧级 Cut List",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "cold_open_example"
+    ],
+    "extra_data": {
+      "cut_num": "10",
+      "timestamp": "12.0-13.5s",
+      "duration": "1.5s",
+      "shot_size": "中景",
+      "content": "女主站起"
+    },
+    "priority": 56
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "coldopen_cut_11",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "Cut 11 (13.5-15.0s, 1.5s, 特写): 女主擦干眼泪",
+    "rationale": "90s 女频 romance cold-open 帧级 cut list 示例 (1.5s/cut)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "Cold-Open 帧级 Cut List",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "cold_open_example"
+    ],
+    "extra_data": {
+      "cut_num": "11",
+      "timestamp": "13.5-15.0s",
+      "duration": "1.5s",
+      "shot_size": "特写",
+      "content": "女主擦干眼泪"
+    },
+    "priority": 56
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "coldopen_cut_12",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "Cut 12 (15.0-16.5s, 1.5s, 全景): 女主转身离开",
+    "rationale": "90s 女频 romance cold-open 帧级 cut list 示例 (1.5s/cut)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "Cold-Open 帧级 Cut List",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "cold_open_example"
+    ],
+    "extra_data": {
+      "cut_num": "12",
+      "timestamp": "15.0-16.5s",
+      "duration": "1.5s",
+      "shot_size": "全景",
+      "content": "女主转身离开"
+    },
+    "priority": 56
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "coldopen_cut_13",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "Cut 13 (16.5-18.0s, 1.5s, 中景): 男主在远处注视",
+    "rationale": "90s 女频 romance cold-open 帧级 cut list 示例 (1.5s/cut)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "Cold-Open 帧级 Cut List",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "cold_open_example"
+    ],
+    "extra_data": {
+      "cut_num": "13",
+      "timestamp": "16.5-18.0s",
+      "duration": "1.5s",
+      "shot_size": "中景",
+      "content": "男主在远处注视"
+    },
+    "priority": 56
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "coldopen_cut_14",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "Cut 14 (18.0-19.5s, 1.5s, 特写): 男主复杂表情",
+    "rationale": "90s 女频 romance cold-open 帧级 cut list 示例 (1.5s/cut)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "Cold-Open 帧级 Cut List",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "cold_open_example"
+    ],
+    "extra_data": {
+      "cut_num": "14",
+      "timestamp": "18.0-19.5s",
+      "duration": "1.5s",
+      "shot_size": "特写",
+      "content": "男主复杂表情"
+    },
+    "priority": 56
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "coldopen_cut_15",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "Cut 15 (19.5-21.0s, 1.5s, 中景): 男主掏出手机",
+    "rationale": "90s 女频 romance cold-open 帧级 cut list 示例 (1.5s/cut)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "Cold-Open 帧级 Cut List",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "cold_open_example"
+    ],
+    "extra_data": {
+      "cut_num": "15",
+      "timestamp": "19.5-21.0s",
+      "duration": "1.5s",
+      "shot_size": "中景",
+      "content": "男主掏出手机"
+    },
+    "priority": 56
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "coldopen_cut_16",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "Cut 16 (21.0-22.5s, 1.5s, 特写): 手机屏幕:\"监视她的一切\"",
+    "rationale": "90s 女频 romance cold-open 帧级 cut list 示例 (1.5s/cut)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "Cold-Open 帧级 Cut List",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "cold_open_example"
+    ],
+    "extra_data": {
+      "cut_num": "16",
+      "timestamp": "21.0-22.5s",
+      "duration": "1.5s",
+      "shot_size": "特写",
+      "content": "手机屏幕:\"监视她的一切\""
+    },
+    "priority": 56
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "coldopen_cut_17",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "Cut 17 (22.5-24.0s, 1.5s, 全景): 场景切换:第二天,女主公司",
+    "rationale": "90s 女频 romance cold-open 帧级 cut list 示例 (1.5s/cut)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "Cold-Open 帧级 Cut List",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "cold_open_example"
+    ],
+    "extra_data": {
+      "cut_num": "17",
+      "timestamp": "22.5-24.0s",
+      "duration": "1.5s",
+      "shot_size": "全景",
+      "content": "场景切换:第二天,女主公司"
+    },
+    "priority": 56
+  },
+  {
+    "category": "vertical_pacing_dimension",
+    "key_name": "coldopen_cut_18",
+    "key_type": "pacing_dimension",
+    "primary_recommendation": "Cut 18 (24.0-27.0s, 3.0s, 中景): 女主走进公司,众人窃窃私语(中段升级 setup)",
+    "rationale": "90s 女频 romance cold-open 帧级 cut list 示例 (1.5s/cut)。",
+    "source_file": "vertical-pacing.md",
+    "source_section": "Cold-Open 帧级 Cut List",
+    "tags": [
+      "hook_retention",
+      "vertical_pacing_dimension",
+      "cold_open_example"
+    ],
+    "extra_data": {
+      "cut_num": "18",
+      "timestamp": "24.0-27.0s",
+      "duration": "3.0s",
+      "shot_size": "中景",
+      "content": "女主走进公司,众人窃窃私语(中段升级 setup)"
+    },
+    "priority": 56
   }
 ]
