@@ -40747,5 +40747,1684 @@
       "backward_compatible"
     ],
     "priority": 62
+  },
+  {
+    "category": "strata_layer",
+    "key_name": "L1_institution",
+    "key_type": "strata",
+    "primary_recommendation": "制度地层 / Institutional stratum: 法律、政策、制度文本中的权力分配逻辑——谁被规训、谁被豁免、什么行为被赋予价值、什么行为被剥夺意义。",
+    "rationale": "理论根基为 Foucault 权力/知识理论、Bourdieu 场域理论与马克思主义上层建筑分析。核心分析维度:规训对象、豁免区域、话语控制、规训转移。典型不可言说性 7/10(讨论灵活就业时焦点常在平台责任而非制度设计)。",
+    "extra_data": {
+      "layer": 1,
+      "name": "制度地层 / Institutional",
+      "scope": "法律、政策、制度文本中的权力分配逻辑——谁被规训、谁被豁免、什么行为被赋予价值、什么行为被剥夺意义。",
+      "theoretical_basis": [
+        "Foucault 权力/知识理论 (institutions exercise power by defining normal)",
+        "Bourdieu 场域理论 (capital distribution determines actor positions)",
+        "Marxist superstructure analysis (law/policy reflect ruling class interests)"
+      ],
+      "core_analysis_dimensions": [
+        "规训对象",
+        "豁免区域",
+        "话语控制",
+        "规训转移"
+      ],
+      "data_sources": [
+        {
+          "source": "中国政府网政策文件",
+          "url": "https://www.gov.cn/zhengce/"
+        },
+        {
+          "source": "国务院公报",
+          "url": "https://www.gov.cn/gongbao/"
+        },
+        {
+          "source": "最高人民法院裁判文书",
+          "url": "https://wenshu.court.gov.cn/"
+        },
+        {
+          "source": "全国人大法律法规",
+          "url": "http://www.npc.gov.cn/npc/c2/c3082/"
+        }
+      ],
+      "canonical_story_kernel": "灵活就业政策将社保缴纳责任完全转移给个人,但平台经济的不稳定收入使得连续缴纳成为不可能,形成了有选择权但每个选项都通向脆弱的制度陷阱。",
+      "unspeakability_rating": "7/10",
+      "search_keywords": [
+        "政策调整 个人权益",
+        "灵活就业 社保",
+        "平台经济 监管",
+        "劳动法 判决",
+        "户籍 限制",
+        "行业整顿 从业人员"
+      ]
+    },
+    "source_file": "strata-guide.md",
+    "source_section": "Layer L1 — 制度地层 / Institutional stratum",
+    "tags": [
+      "strata",
+      "institution",
+      "l1",
+      "policy",
+      "power"
+    ],
+    "priority": 80
+  },
+  {
+    "category": "strata_layer",
+    "key_name": "L2_technology",
+    "key_type": "strata",
+    "primary_recommendation": "技术地层 / Technological stratum: 技术变革(AI、自动化、数字化)对人类劳动和生存位置的位移效应——谁被替代、谁被增强、谁被推向新的边缘。",
+    "rationale": "理论根基为 Braverman 劳动过程理论、Rifkin 第三次工业革命、Acemoglu & Restrepo 任务模型。核心分析维度:替代地图、增强不对等、技能贬值、新型剥削。典型不可言说性 6/10。",
+    "extra_data": {
+      "layer": 2,
+      "name": "技术地层 / Technological",
+      "scope": "技术变革(AI、自动化、数字化)对人类劳动和生存位置的位移效应——谁被替代、谁被增强、谁被推向新的边缘。",
+      "theoretical_basis": [
+        "Braverman 劳动过程理论 (tech transfers skills from workers to machines)",
+        "Rifkin 第三次工业革命 (structural technological unemployment)",
+        "Acemoglu & Restrepo 任务模型 (automation replaces tasks but creates new ones)"
+      ],
+      "core_analysis_dimensions": [
+        "替代地图",
+        "增强不对等",
+        "技能贬值",
+        "新型剥削"
+      ],
+      "data_sources": [
+        {
+          "source": "WEF Future of Jobs Report",
+          "url": "https://www.weforum.org/reports/the-future-of-jobs-report/"
+        },
+        {
+          "source": "McKinsey 自动化研究",
+          "url": "https://www.mckinsey.com/capabilities/mckinsey-global-institute/"
+        },
+        {
+          "source": "中国信通院数字经济白皮书",
+          "url": "https://www.caict.ac.cn/"
+        },
+        {
+          "source": "ILO 全球就业展望",
+          "url": "https://www.ilo.org/global/research/global-reports/"
+        }
+      ],
+      "canonical_story_kernel": "AI 写作工具替代了初级文案岗位,但擅长使用 AI 的人恰好是最不该被替代的创意工作者——技术制造了一个悖论:最善于训练自己替代品的人,获得了最多的生存空间。",
+      "unspeakability_rating": "6/10",
+      "search_keywords": [
+        "AI 替代 岗位",
+        "自动化 就业 冲击",
+        "大模型 职业影响",
+        "技术失业 再就业",
+        "AI 版权 原创"
+      ]
+    },
+    "source_file": "strata-guide.md",
+    "source_section": "Layer L2 — 技术地层 / Technological stratum",
+    "tags": [
+      "strata",
+      "technology",
+      "l2",
+      "ai",
+      "automation"
+    ],
+    "priority": 78
+  },
+  {
+    "category": "strata_layer",
+    "key_name": "L3_demographics",
+    "key_type": "strata",
+    "primary_recommendation": "人口地层 / Demographic stratum: 人口结构变化(老龄化、少子化、人口流动)如何重塑社会基本参数——谁在增长、谁在消失、这些变化如何重新分配社会资源。",
+    "rationale": "理论根基为人口转变理论、推拉理论、人口红利/负债。核心分析维度:消失的一代、抚养比逆转、流动的不对称、服务缺口。典型不可言说性 5/10。",
+    "extra_data": {
+      "layer": 3,
+      "name": "人口地层 / Demographic",
+      "scope": "人口结构变化(老龄化、少子化、人口流动)如何重塑社会基本参数——谁在增长、谁在消失、这些变化如何重新分配社会资源。",
+      "theoretical_basis": [
+        "人口转变理论 Demographic Transition",
+        "推拉理论 Push-Pull Theory",
+        "人口红利/负债 (age structure's structural impact on economy)"
+      ],
+      "core_analysis_dimensions": [
+        "消失的一代",
+        "抚养比逆转",
+        "流动的不对称",
+        "服务缺口"
+      ],
+      "data_sources": [
+        {
+          "source": "国家统计局人口普查",
+          "url": "https://www.stats.gov.cn/sj/pcsj/rkpc/"
+        },
+        {
+          "source": "UN Population Division",
+          "url": "https://population.un.org/"
+        },
+        {
+          "source": "各省统计年鉴",
+          "url": "https://www.stats.gov.cn/sj/tjgb/"
+        }
+      ],
+      "canonical_story_kernel": "农村劳动力向城市流动后,农村出现了空心化——留守老人独自承担农业生产和自我照护,而城市端他们建造的住房却因人才引进政策被优先分配给高学历年轻人。",
+      "unspeakability_rating": "5/10",
+      "search_keywords": [
+        "老龄化 养老 压力",
+        "生育率 下降",
+        "人口流动 城市",
+        "少子化 教育",
+        "养老金 缺口"
+      ]
+    },
+    "source_file": "strata-guide.md",
+    "source_section": "Layer L3 — 人口地层 / Demographic stratum",
+    "tags": [
+      "strata",
+      "demographics",
+      "l3",
+      "aging",
+      "population"
+    ],
+    "priority": 76
+  },
+  {
+    "category": "strata_layer",
+    "key_name": "L4_space",
+    "key_type": "strata",
+    "primary_recommendation": "空间地层 / Spatial stratum: 居住空间的商品化进程——谁拥有空间、谁被挤出、空间如何成为阶层再生产的工具。",
+    "rationale": "理论根基为 Lefebvre 空间生产理论、Harvey 空间修复理论、Bourdieu 住宅资本。核心分析维度:空间排斥、阶层固化、流动性陷阱、空间正义。典型不可言说性 6/10。",
+    "extra_data": {
+      "layer": 4,
+      "name": "空间地层 / Spatial",
+      "scope": "居住空间的商品化进程——谁拥有空间、谁被挤出、空间如何成为阶层再生产的工具。",
+      "theoretical_basis": [
+        "Lefebvre 空间生产理论 (space as product of social relations)",
+        "Harvey 空间修复理论 (capital crisis transfer via real estate)",
+        "Bourdieu 住宅资本 (housing as core class-reproduction tool)"
+      ],
+      "core_analysis_dimensions": [
+        "空间排斥",
+        "阶层固化",
+        "流动性陷阱",
+        "空间正义"
+      ],
+      "data_sources": [
+        {
+          "source": "贝壳研究院住房报告",
+          "url": "https://www.ke.com/about/research"
+        },
+        {
+          "source": "国家统计局房价",
+          "url": "https://www.stats.gov.cn/"
+        },
+        {
+          "source": "各城市人才政策",
+          "url": "municipal websites"
+        }
+      ],
+      "canonical_story_kernel": "一线城市的人才房政策将新建保障房优先分配给硕博学历者,而实际建造这些住房的建筑工人(大多来自农村)无法在城市获得居住权——他们建造了自己无法居住的空间。",
+      "unspeakability_rating": "6/10",
+      "search_keywords": [
+        "房价 城市",
+        "人才房 政策",
+        "住房 阶层",
+        "租房 压力",
+        "城镇化 边缘"
+      ]
+    },
+    "source_file": "strata-guide.md",
+    "source_section": "Layer L4 — 空间地层 / Spatial stratum",
+    "tags": [
+      "strata",
+      "space",
+      "l4",
+      "housing",
+      "urban"
+    ],
+    "priority": 76
+  },
+  {
+    "category": "strata_layer",
+    "key_name": "L5_generational_contract",
+    "key_type": "strata",
+    "primary_recommendation": "代际契约地层 / Intergenerational-contract stratum: 父辈的语法在子辈世界是否还成立——代际之间的隐性契约(努力→回报、储蓄→安全、学历→阶层)如何失效。",
+    "rationale": "理论根基为 Mannheim 代际社会学、Beck 风险社会、Bourdieu 文化资本代际传递。核心分析维度:失效的承诺、囤积 vs 断舍离、婚育契约、责任倒挂。典型不可言说性 4/10(相对主流)。",
+    "extra_data": {
+      "layer": 5,
+      "name": "代际契约地层 / Intergenerational-contract",
+      "scope": "父辈的语法在子辈世界是否还成立——代际之间的隐性契约(努力→回报、储蓄→安全、学历→阶层)如何失效。",
+      "theoretical_basis": [
+        "Mannheim 代际社会学 (generational units share historical consciousness)",
+        "Beck 风险社会 (risk distribution has generational asymmetry)",
+        "Bourdieu 文化资本代际传递 (transfer is not frictionless)"
+      ],
+      "core_analysis_dimensions": [
+        "失效的承诺",
+        "囤积 vs 断舍离",
+        "婚育契约",
+        "责任倒挂"
+      ],
+      "data_sources": [
+        {
+          "source": "小红书代际话题",
+          "url": "https://www.xiaohongshu.com"
+        },
+        {
+          "source": "知乎代际问题",
+          "url": "https://www.zhihu.com"
+        },
+        {
+          "source": "央视财经消费报告",
+          "url": "CCTV financial"
+        }
+      ],
+      "canonical_story_kernel": "父母囤积旧物的习惯源于匮乏时代的创伤记忆,但子辈在物质丰裕中长大,视囤积为心理负担——同一行为被两代人编码为完全相反的道德含义,但谁也不愿意承认对方的逻辑在自己世界里成立。",
+      "unspeakability_rating": "4/10",
+      "search_keywords": [
+        "代际消费",
+        "年轻人 父母",
+        "囤积 断舍离",
+        "婚育 焦虑",
+        "责任 父母"
+      ]
+    },
+    "source_file": "strata-guide.md",
+    "source_section": "Layer L5 — 代际契约地层 / Intergenerational-contract stratum",
+    "tags": [
+      "strata",
+      "generational",
+      "l5",
+      "intergenerational"
+    ],
+    "priority": 75
+  },
+  {
+    "category": "strata_layer",
+    "key_name": "L6_psyche",
+    "key_type": "strata",
+    "primary_recommendation": "心灵地层 / Psychosocial stratum: 人的内在世界正在发生什么结构性坍缩——外部 L1-L5 力量作用后的内心沉积。",
+    "rationale": "理论根基为 Fromm 自由逃避/健康社会、韩炳哲 疲倦社会、Lasch 自恋主义文化。核心分析维度:意义危机、孤独的几何学、身份焦虑、心理殖民。典型不可言说性 3/10(主流安全,但讨论结构性需谨慎)。",
+    "extra_data": {
+      "layer": 6,
+      "name": "心灵地层 / Psychosocial",
+      "scope": "人的内在世界正在发生什么结构性坍缩——外部 L1-L5 力量作用后的内心沉积。",
+      "theoretical_basis": [
+        "Fromm 自由逃避 (modern freedom drives escape into conformity)",
+        "Erich Fromm 健全社会 (mental health as societal indicator)",
+        "韩炳哲 疲倦社会 (achievement-subject self-exploitation)",
+        "Lasch 自恋主义文化 (therapeutic culture's side effects)"
+      ],
+      "core_analysis_dimensions": [
+        "意义危机",
+        "孤独的几何学",
+        "身份焦虑",
+        "心理殖民"
+      ],
+      "data_sources": [
+        {
+          "source": "中国心理健康白皮书",
+          "url": "中科院心理所"
+        },
+        {
+          "source": "社会心态蓝皮书",
+          "url": "社科院"
+        },
+        {
+          "source": "知乎心理话题",
+          "url": "https://www.zhihu.com"
+        },
+        {
+          "source": "微博情绪研究",
+          "url": "academic papers"
+        }
+      ],
+      "canonical_story_kernel": "年轻人普遍感到间歇性疲惫+持续性焦虑,但找不到具体原因——这种弥漫感不是个人心理问题,而是结构性的:就业不稳定(L2)、住房不可及(L4)、社保缺失(L1)、代际期望冲突(L5)在心灵层的合力沉积。",
+      "unspeakability_rating": "3/10",
+      "search_keywords": [
+        "心理健康 报告",
+        "孤独 调查",
+        "年轻人 意义感",
+        "焦虑 结构性",
+        "疲倦社会"
+      ]
+    },
+    "source_file": "strata-guide.md",
+    "source_section": "Layer L6 — 心灵地层 / Psychosocial stratum",
+    "tags": [
+      "strata",
+      "psyche",
+      "l6",
+      "mental",
+      "anxiety"
+    ],
+    "priority": 75
+  },
+  {
+    "category": "strata_overlay",
+    "key_name": "L1xL4",
+    "key_type": "overlay",
+    "primary_recommendation": "制度-空间双重锁定(resonance 1.8): 制度设计(L1)创造空间分配规则(L4),使不利处境复合叠加,主体被法律与物理双重锁定。这是 3 个典范高共振叠加之一。",
+    "rationale": "典范高共振叠加。Institutional design creates spatial 分配 rules that compound disadvantage; subjects are locked both legally and physically. 矩阵系数 1.8,为 2-layer 组合中最高。",
+    "extra_data": {
+      "layers": [
+        1,
+        4
+      ],
+      "coefficient": 1.8,
+      "canonical": true,
+      "example": "灵活就业政策(L1) + 人才房政策(L4) = 灵活就业者既无法获得社保(L1),也无法获得城市住房(L4),双重锁定。",
+      "why_it_works": "制度设计 + 空间分配 = 双重结构性锁定"
+    },
+    "source_file": "multi-strata-resonance.md",
+    "source_section": "The 3 canonical high-resonance overlays / 2-layer matrix",
+    "tags": [
+      "overlay",
+      "l1",
+      "l4",
+      "canonical",
+      "lock-in"
+    ],
+    "priority": 78
+  },
+  {
+    "category": "strata_overlay",
+    "key_name": "L2xL5",
+    "key_type": "overlay",
+    "primary_recommendation": "技术-代际时代断层(resonance 1.7): 技术(L2)使父辈技能过时,代际契约(L5)因父辈无法就其不认识的世界给子辈建议而断裂。典范高共振叠加之一。",
+    "rationale": "典范高共振叠加。Technology renders 父辈 skills obsolete; intergenerational contract breaks because 父辈 can't advise 子辈 on world they don't recognize. 矩阵系数 1.7。",
+    "extra_data": {
+      "layers": [
+        2,
+        5
+      ],
+      "coefficient": 1.7,
+      "canonical": true,
+      "example": "AI 替代文案岗位(L2) + 父母认为读书改变命运(L5) = 父辈无法理解子辈失业的真正原因,代际契约断裂。",
+      "why_it_works": "技术替代 + 代际期望冲突 = 时代断层"
+    },
+    "source_file": "multi-strata-resonance.md",
+    "source_section": "The 3 canonical high-resonance overlays / 2-layer matrix",
+    "tags": [
+      "overlay",
+      "l2",
+      "l5",
+      "canonical",
+      "generational-gap"
+    ],
+    "priority": 76
+  },
+  {
+    "category": "strata_overlay",
+    "key_name": "L3xL6",
+    "key_type": "overlay",
+    "primary_recommendation": "人口-心灵沉默创伤(resonance 1.6): 人口变迁(L3)沉默地重组社会关系,心灵层(L6)记录创伤但无法命名原因。典范高共振叠加之一。",
+    "rationale": "典范高共振叠加。Demographic shifts silently 重组 social relationships; the psychological layer records the 创伤 but cannot name the cause. 矩阵系数 1.6。",
+    "extra_data": {
+      "layers": [
+        3,
+        6
+      ],
+      "coefficient": 1.6,
+      "canonical": true,
+      "example": "老龄化+少子化(L3) + 年轻人弥漫性孤独感(L6) = 心灵层的沉默创伤找不到具体原因,因为根源是人口结构的不可见变化。",
+      "why_it_works": "人口变化 + 心灵沉积 = 沉默的代际创伤"
+    },
+    "source_file": "multi-strata-resonance.md",
+    "source_section": "The 3 canonical high-resonance overlays / 2-layer matrix",
+    "tags": [
+      "overlay",
+      "l3",
+      "l6",
+      "canonical",
+      "silent-trauma"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "strata_overlay",
+    "key_name": "L3xL4",
+    "key_type": "overlay",
+    "primary_recommendation": "人口-空间叠加(resonance 1.6): 人口流动产生空间位移压力,共同主体群体在被挤压的居住空间中承受复合效应。",
+    "rationale": "来自 2-layer 系数矩阵 L3×L4=1.6。人口变化与空间商品化共同作用于流动群体。",
+    "extra_data": {
+      "layers": [
+        3,
+        4
+      ],
+      "coefficient": 1.6,
+      "canonical": false
+    },
+    "source_file": "multi-strata-resonance.md",
+    "source_section": "Strata overlay coefficient matrix (2-layer combinations)",
+    "tags": [
+      "overlay",
+      "l3",
+      "l4",
+      "matrix"
+    ],
+    "priority": 62
+  },
+  {
+    "category": "strata_overlay",
+    "key_name": "L1xL2",
+    "key_type": "overlay",
+    "primary_recommendation": "制度-技术叠加(resonance 1.5): 制度政策(L1)促成技术采用(L2),制度决定了哪些技术替代被允许/被激励。",
+    "rationale": "来自 2-layer 系数矩阵 L1×L2=1.5。因果方向 L1→L2(institutional policy enables tech adoption)。",
+    "extra_data": {
+      "layers": [
+        1,
+        2
+      ],
+      "coefficient": 1.5,
+      "causal_direction": "L1 -> L2",
+      "canonical": false
+    },
+    "source_file": "multi-strata-resonance.md",
+    "source_section": "Strata overlay coefficient matrix (2-layer combinations)",
+    "tags": [
+      "overlay",
+      "l1",
+      "l2",
+      "matrix"
+    ],
+    "priority": 60
+  },
+  {
+    "category": "strata_overlay",
+    "key_name": "L1xL5",
+    "key_type": "overlay",
+    "primary_recommendation": "制度-代际叠加(resonance 1.5): 制度变迁(L1)打破代际契约(L5),父辈承诺的规则在新制度下失效。",
+    "rationale": "来自 2-layer 系数矩阵 L1×L5=1.5。因果方向 L1→L5(institutional change breaks intergenerational contract)。",
+    "extra_data": {
+      "layers": [
+        1,
+        5
+      ],
+      "coefficient": 1.5,
+      "causal_direction": "L1 -> L5",
+      "canonical": false
+    },
+    "source_file": "multi-strata-resonance.md",
+    "source_section": "Strata overlay coefficient matrix (2-layer combinations)",
+    "tags": [
+      "overlay",
+      "l1",
+      "l5",
+      "matrix"
+    ],
+    "priority": 60
+  },
+  {
+    "category": "strata_overlay",
+    "key_name": "L2xL4",
+    "key_type": "overlay",
+    "primary_recommendation": "技术-空间叠加(resonance 1.5): 技术位移(L2)驱动空间流动(L4),但二者属平行力(non-causal),用基础 2-layer 系数不额外放大。",
+    "rationale": "来自 2-layer 系数矩阵 L2×L4=1.5。文档标注为平行(非因果)组合:L2 与 L4 是平行力。",
+    "extra_data": {
+      "layers": [
+        2,
+        4
+      ],
+      "coefficient": 1.5,
+      "causal_direction": "parallel",
+      "canonical": false
+    },
+    "source_file": "multi-strata-resonance.md",
+    "source_section": "Strata overlay coefficient matrix / Causal chain detection",
+    "tags": [
+      "overlay",
+      "l2",
+      "l4",
+      "matrix",
+      "parallel"
+    ],
+    "priority": 58
+  },
+  {
+    "category": "strata_overlay",
+    "key_name": "L2xL6",
+    "key_type": "overlay",
+    "primary_recommendation": "技术-心灵叠加(resonance 1.5): 技术位移在心灵层沉积为身份焦虑与意义危机。",
+    "rationale": "来自 2-layer 系数矩阵 L2×L6=1.5。",
+    "extra_data": {
+      "layers": [
+        2,
+        6
+      ],
+      "coefficient": 1.5,
+      "canonical": false
+    },
+    "source_file": "multi-strata-resonance.md",
+    "source_section": "Strata overlay coefficient matrix (2-layer combinations)",
+    "tags": [
+      "overlay",
+      "l2",
+      "l6",
+      "matrix"
+    ],
+    "priority": 58
+  },
+  {
+    "category": "strata_overlay",
+    "key_name": "L4xL5",
+    "key_type": "overlay",
+    "primary_recommendation": "空间-代际叠加(resonance 1.5): 空间陷阱(L4)打破代际契约(L5),被空间锁定的父辈无法传递有效经验。",
+    "rationale": "来自 2-layer 系数矩阵 L4×L5=1.5。因果方向 L4→L5(spatial trap breaks intergenerational contract)。",
+    "extra_data": {
+      "layers": [
+        4,
+        5
+      ],
+      "coefficient": 1.5,
+      "causal_direction": "L4 -> L5",
+      "canonical": false
+    },
+    "source_file": "multi-strata-resonance.md",
+    "source_section": "Strata overlay coefficient matrix (2-layer combinations)",
+    "tags": [
+      "overlay",
+      "l4",
+      "l5",
+      "matrix"
+    ],
+    "priority": 58
+  },
+  {
+    "category": "strata_overlay",
+    "key_name": "L5xL6",
+    "key_type": "overlay",
+    "primary_recommendation": "代际-心灵叠加(resonance 1.5): 代际期望冲突在心灵层沉积为身份焦虑。",
+    "rationale": "来自 2-layer 系数矩阵 L5×L6=1.5。",
+    "extra_data": {
+      "layers": [
+        5,
+        6
+      ],
+      "coefficient": 1.5,
+      "canonical": false
+    },
+    "source_file": "multi-strata-resonance.md",
+    "source_section": "Strata overlay coefficient matrix (2-layer combinations)",
+    "tags": [
+      "overlay",
+      "l5",
+      "l6",
+      "matrix"
+    ],
+    "priority": 56
+  },
+  {
+    "category": "strata_overlay",
+    "key_name": "L1xL3",
+    "key_type": "overlay",
+    "primary_recommendation": "制度-人口叠加(resonance 1.4): 制度力与人口力属平行(non-causal),用基础系数不额外放大。",
+    "rationale": "来自 2-layer 系数矩阵 L1×L3=1.4。文档标注 L1+L3 为平行组合(institutional 与 demographic 是平行力)。",
+    "extra_data": {
+      "layers": [
+        1,
+        3
+      ],
+      "coefficient": 1.4,
+      "causal_direction": "parallel",
+      "canonical": false
+    },
+    "source_file": "multi-strata-resonance.md",
+    "source_section": "Strata overlay coefficient matrix / Causal chain detection",
+    "tags": [
+      "overlay",
+      "l1",
+      "l3",
+      "matrix",
+      "parallel"
+    ],
+    "priority": 55
+  },
+  {
+    "category": "strata_overlay",
+    "key_name": "L1xL6",
+    "key_type": "overlay",
+    "primary_recommendation": "制度-心灵叠加(resonance 1.4): 制度规训在心灵层沉积。",
+    "rationale": "来自 2-layer 系数矩阵 L1×L6=1.4。",
+    "extra_data": {
+      "layers": [
+        1,
+        6
+      ],
+      "coefficient": 1.4,
+      "canonical": false
+    },
+    "source_file": "multi-strata-resonance.md",
+    "source_section": "Strata overlay coefficient matrix (2-layer combinations)",
+    "tags": [
+      "overlay",
+      "l1",
+      "l6",
+      "matrix"
+    ],
+    "priority": 55
+  },
+  {
+    "category": "strata_overlay",
+    "key_name": "L3xL5",
+    "key_type": "overlay",
+    "primary_recommendation": "人口-代际叠加(resonance 1.4): 人口结构变化重塑代际契约的履行条件。",
+    "rationale": "来自 2-layer 系数矩阵 L3×L5=1.4。",
+    "extra_data": {
+      "layers": [
+        3,
+        5
+      ],
+      "coefficient": 1.4,
+      "canonical": false
+    },
+    "source_file": "multi-strata-resonance.md",
+    "source_section": "Strata overlay coefficient matrix (2-layer combinations)",
+    "tags": [
+      "overlay",
+      "l3",
+      "l5",
+      "matrix"
+    ],
+    "priority": 55
+  },
+  {
+    "category": "strata_overlay",
+    "key_name": "L4xL6",
+    "key_type": "overlay",
+    "primary_recommendation": "空间-心灵叠加(resonance 1.4): 空间排斥在心灵层沉积为身份焦虑。",
+    "rationale": "来自 2-layer 系数矩阵 L4×L6=1.4。",
+    "extra_data": {
+      "layers": [
+        4,
+        6
+      ],
+      "coefficient": 1.4,
+      "canonical": false
+    },
+    "source_file": "multi-strata-resonance.md",
+    "source_section": "Strata overlay coefficient matrix (2-layer combinations)",
+    "tags": [
+      "overlay",
+      "l4",
+      "l6",
+      "matrix"
+    ],
+    "priority": 55
+  },
+  {
+    "category": "strata_overlay",
+    "key_name": "L2xL3",
+    "key_type": "overlay",
+    "primary_recommendation": "技术-人口叠加(resonance 1.3): 技术位移改变人口流动(L2→L3),系数最低的 2-layer 组合之一。",
+    "rationale": "来自 2-layer 系数矩阵 L2×L3=1.3。因果方向 L2→L3(tech displacement changes demographic flow)。",
+    "extra_data": {
+      "layers": [
+        2,
+        3
+      ],
+      "coefficient": 1.3,
+      "causal_direction": "L2 -> L3",
+      "canonical": false
+    },
+    "source_file": "multi-strata-resonance.md",
+    "source_section": "Strata overlay coefficient matrix (2-layer combinations)",
+    "tags": [
+      "overlay",
+      "l2",
+      "l3",
+      "matrix"
+    ],
+    "priority": 54
+  },
+  {
+    "category": "strata_overlay",
+    "key_name": "L1xL2xL4",
+    "key_type": "overlay",
+    "primary_recommendation": "3-layer 因果链 制度→技术→空间(resonance 2.5): 最强故事核组合——制度政策促成技术替代,技术替代驱动空间排斥,形成三重锁定。极难找到真实案例。",
+    "rationale": "3-layer 组合,文档明确为最强 3-layer 故事核但极难找到真实案例。构成因果链 L1→L2→L4。",
+    "extra_data": {
+      "layers": [
+        1,
+        2,
+        4
+      ],
+      "coefficient": 2.5,
+      "causal_chain": "制度 → 技术 → 空间 (institutional policy enables tech replacement, which drives spatial exclusion)",
+      "tier": "3-layer causal chain"
+    },
+    "source_file": "multi-strata-resonance.md",
+    "source_section": "Strata overlay coefficient matrix (3-layer combinations)",
+    "tags": [
+      "overlay",
+      "3-layer",
+      "l1",
+      "l2",
+      "l4",
+      "causal-chain",
+      "lock-in"
+    ],
+    "priority": 76
+  },
+  {
+    "category": "strata_overlay",
+    "key_name": "L1xL4xL5",
+    "key_type": "overlay",
+    "primary_recommendation": "3-layer 因果链 制度→空间→代际(resonance 2.4): 制度设计在空间上锁定父辈,进而打破代际契约。",
+    "rationale": "3-layer 因果链组合。Institutional design spatially traps 父辈, breaking intergenerational contract.",
+    "extra_data": {
+      "layers": [
+        1,
+        4,
+        5
+      ],
+      "coefficient": 2.4,
+      "causal_chain": "制度 → 空间 → 代际 (institutional design spatially traps 父辈, breaking intergenerational contract)",
+      "tier": "3-layer causal chain"
+    },
+    "source_file": "multi-strata-resonance.md",
+    "source_section": "Strata overlay coefficient matrix (3-layer combinations)",
+    "tags": [
+      "overlay",
+      "3-layer",
+      "l1",
+      "l4",
+      "l5",
+      "causal-chain"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "strata_overlay",
+    "key_name": "L2xL3xL6",
+    "key_type": "overlay",
+    "primary_recommendation": "3-layer 因果链 技术→人口→心灵(resonance 2.3): 技术位移加速人口变迁,沉积为心理创伤。",
+    "rationale": "3-layer 因果链组合。Tech displacement accelerates demographic shift, deposits as psychological trauma.",
+    "extra_data": {
+      "layers": [
+        2,
+        3,
+        6
+      ],
+      "coefficient": 2.3,
+      "causal_chain": "技术 → 人口 → 心灵 (tech displacement accelerates demographic shift, deposits as psychological trauma)",
+      "tier": "3-layer causal chain"
+    },
+    "source_file": "multi-strata-resonance.md",
+    "source_section": "Strata overlay coefficient matrix (3-layer combinations)",
+    "tags": [
+      "overlay",
+      "3-layer",
+      "l2",
+      "l3",
+      "l6",
+      "causal-chain"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "strata_overlay",
+    "key_name": "L3xL4xL6",
+    "key_type": "overlay",
+    "primary_recommendation": "3-layer 因果链 人口→空间→心灵(resonance 2.2): 人口流动创造空间位移,沉积为心理创伤。",
+    "rationale": "3-layer 因果链组合。Demographic flow creates spatial displacement, deposits as psychological trauma.",
+    "extra_data": {
+      "layers": [
+        3,
+        4,
+        6
+      ],
+      "coefficient": 2.2,
+      "causal_chain": "人口 → 空间 → 心灵 (demographic flow creates spatial displacement, deposits as psychological trauma)",
+      "tier": "3-layer causal chain"
+    },
+    "source_file": "multi-strata-resonance.md",
+    "source_section": "Strata overlay coefficient matrix (3-layer combinations)",
+    "tags": [
+      "overlay",
+      "3-layer",
+      "l3",
+      "l4",
+      "l6",
+      "causal-chain"
+    ],
+    "priority": 68
+  },
+  {
+    "category": "strata_overlay",
+    "key_name": "rule_3layer_non_causal",
+    "key_type": "overlay",
+    "primary_recommendation": "无因果链的 3-layer 组合(如 L1+L3+L5 互不相关)resonance 跌至 1.5,比聚焦的 2-layer 更差;每个 StoryKernel 硬性上限 3 层,4+ 层 resonance 跌破 1.5。",
+    "rationale": "文档规则:平行(非因果)3-layer 组合不放大;4+ 层因叙事过载、认知共振违反(active-suspension concurrency ≤3)、戏剧化潜力下降而避免。Hard rule: maximum 3 layers per StoryKernel。",
+    "extra_data": {
+      "coefficient": 1.5,
+      "tier": "anti-pattern ceiling",
+      "applies_to": "non-causal 3-layer combos (e.g. L1+L3+L5) and all 4+ layer combos",
+      "hard_rule": "maximum 3 layers per StoryKernel",
+      "note": "3-layer with NO causal chain drops to 1.5; 4+ layers drop below 1.5"
+    },
+    "source_file": "multi-strata-resonance.md",
+    "source_section": "3-layer with NO causal chain / 4+ layer combinations: avoid",
+    "tags": [
+      "overlay",
+      "anti-pattern",
+      "ceiling",
+      "rule"
+    ],
+    "priority": 64
+  },
+  {
+    "category": "unspeakability_rubric",
+    "key_name": "dim_regulatory_redline",
+    "key_type": "unspeakability",
+    "primary_recommendation": "regulatory_redline(监管红线,权重 0.35,最高): 是否触及明文禁止(广电总局/网信办),1-10 分,是聚合分数中权重最高的硬性维度。",
+    "rationale": "权重 0.35——hard cutoff,监管否决不可协商。评分带:1-2 无监管顾虑;3-4 一般内容、备案标准;5-6 触及边缘话题需谨慎处理;7-8 逼近监管红线需预审;9-10 明确红线违反(涉政/涉黄/涉暴/涉恐)。",
+    "extra_data": {
+      "dimension": "regulatory_redline",
+      "weight": 0.35,
+      "range": "1-10",
+      "measures": "是否触及明文禁止(广电总局 / 网信办)"
+    },
+    "source_file": "unspeakability-protocol.md",
+    "source_section": "The 4 sub-dimensions / Scoring rubric per dimension",
+    "tags": [
+      "unspeakability",
+      "dimension",
+      "regulatory",
+      "hard-cutoff"
+    ],
+    "priority": 80
+  },
+  {
+    "category": "unspeakability_rubric",
+    "key_name": "dim_platform_algorithm_risk",
+    "key_type": "unspeakability",
+    "primary_recommendation": "platform_algorithm_risk(平台算法风险,权重 0.30): 是否会被推荐算法降权/标记,1-10 分,soft cutoff——算法降权重杀分发。",
+    "rationale": "权重 0.30——soft cutoff, algorithm 降权 kills distribution。评分带:1-2 算法友好(正向主流);3-4 中性;5-6 轻度风险(部分关键词被标记);7-8 中度风险(算法降权);9-10 硬风险(内容被隐藏/移除)。",
+    "extra_data": {
+      "dimension": "platform_algorithm_risk",
+      "weight": 0.3,
+      "range": "1-10",
+      "measures": "是否会被推荐算法降权 / 标记"
+    },
+    "source_file": "unspeakability-protocol.md",
+    "source_section": "The 4 sub-dimensions / Scoring rubric per dimension",
+    "tags": [
+      "unspeakability",
+      "dimension",
+      "platform",
+      "algorithm"
+    ],
+    "priority": 76
+  },
+  {
+    "category": "unspeakability_rubric",
+    "key_name": "dim_political_sensitivity",
+    "key_type": "unspeakability",
+    "primary_recommendation": "political_sensitivity(政治敏感度,权重 0.20): 是否触及核心政治议题(领导人/主权/历史),1-10 分,高但可通过重新框定缓解。",
+    "rationale": "权重 0.20——high 但 may be mitigated by reframing。评分带:1-2 无政治内容(纯爱情喜剧);3-4 一般社会议题(就业、住房,如灵活就业政策);5-6 点名机构的政策批评;7-8 敏感历史/地域话题;9-10 直接政治批评(avoid)。",
+    "extra_data": {
+      "dimension": "political_sensitivity",
+      "weight": 0.2,
+      "range": "1-10",
+      "measures": "是否触及核心政治议题(领导人 / 主权 / 历史)"
+    },
+    "source_file": "unspeakability-protocol.md",
+    "source_section": "The 4 sub-dimensions / Scoring rubric per dimension",
+    "tags": [
+      "unspeakability",
+      "dimension",
+      "political"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "unspeakability_rubric",
+    "key_name": "dim_audience_discomfort",
+    "key_type": "unspeakability",
+    "primary_recommendation": "audience_discomfort(观众不适度,权重 0.15,最低): 是否会引发大规模举报/差评,1-10 分,不适感可以是有益的(挑战性内容找到细分受众),故权重最低。",
+    "rationale": "权重 0.15——lowest weight, discomfort can be productive。评分带:1-2 普遍舒适;3-4 轻微不适易消化;5-6 中度不适、细分吸引力;7-8 强烈不适需警示标签;9-10 极端不适、大规模抵制。",
+    "extra_data": {
+      "dimension": "audience_discomfort",
+      "weight": 0.15,
+      "range": "1-10",
+      "measures": "是否会引发大规模举报 / 差评"
+    },
+    "source_file": "unspeakability-protocol.md",
+    "source_section": "The 4 sub-dimensions / Scoring rubric per dimension",
+    "tags": [
+      "unspeakability",
+      "dimension",
+      "audience"
+    ],
+    "priority": 68
+  },
+  {
+    "category": "unspeakability_rubric",
+    "key_name": "aggregate_formula",
+    "key_type": "unspeakability",
+    "primary_recommendation": "聚合公式: unspeakability_score = round(political_sensitivity*0.20 + platform_algorithm_risk*0.30 + audience_discomfort*0.15 + regulatory_redline*0.35),四维加权后四舍五入为 1-10 整数。",
+    "rationale": "四维权重依次为 0.20/0.30/0.15/0.35,权重之和=1.0。监管红线(0.35)与算法风险(0.30)合占 0.65,体现 CN 平台合规优先于观众不适。",
+    "extra_data": {
+      "formula": "round(political_sensitivity*0.20 + platform_algorithm_risk*0.30 + audience_discomfort*0.15 + regulatory_redline*0.35)",
+      "weights": {
+        "political_sensitivity": 0.2,
+        "platform_algorithm_risk": 0.3,
+        "audience_discomfort": 0.15,
+        "regulatory_redline": 0.35
+      },
+      "output_range": "1-10 integer"
+    },
+    "source_file": "unspeakability-protocol.md",
+    "source_section": "Aggregate score formula",
+    "tags": [
+      "unspeakability",
+      "formula",
+      "aggregate",
+      "weighted"
+    ],
+    "priority": 78
+  },
+  {
+    "category": "unspeakability_rubric",
+    "key_name": "verdict_mainstream_safe",
+    "key_type": "unspeakability",
+    "primary_recommendation": "1-2 分 主流安全: 可在任何平台原样制作。",
+    "rationale": "聚合分 1-2 对应 verdict 主流安全,action = Produce as-is on any platform。属 green 区。",
+    "extra_data": {
+      "verdict": "green",
+      "tier": "主流安全",
+      "score_range": "1-2",
+      "action": "Produce as-is on any platform"
+    },
+    "source_file": "unspeakability-protocol.md",
+    "source_section": "Aggregate score interpretation",
+    "tags": [
+      "unspeakability",
+      "verdict",
+      "green",
+      "safe"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "unspeakability_rubric",
+    "key_name": "verdict_cautious",
+    "key_type": "unspeakability",
+    "primary_recommendation": "3-4 分 谨慎处理: 小幅重新框定;标准发行。",
+    "rationale": "聚合分 3-4 对应 verdict 谨慎处理,action = Minor reframing; standard release。属 yellow 区(偏安全)。",
+    "extra_data": {
+      "verdict": "yellow",
+      "tier": "谨慎处理",
+      "score_range": "3-4",
+      "action": "Minor reframing; standard release"
+    },
+    "source_file": "unspeakability-protocol.md",
+    "source_section": "Aggregate score interpretation",
+    "tags": [
+      "unspeakability",
+      "verdict",
+      "yellow",
+      "cautious"
+    ],
+    "priority": 68
+  },
+  {
+    "category": "unspeakability_rubric",
+    "key_name": "verdict_platform_divergence",
+    "key_type": "unspeakability",
+    "primary_recommendation": "5-6 分 平台分化: 需要分平台策略(sweet spot: meaningful + producible,有意义且可制作)。",
+    "rationale": "聚合分 5-6 对应 verdict 平台分化,action = Per-platform strategy needed。日常扫描将 4-6 区间 highlight 为甜点区。",
+    "extra_data": {
+      "verdict": "yellow",
+      "tier": "平台分化",
+      "score_range": "5-6",
+      "action": "Per-platform strategy needed",
+      "daily_scan": "highlight (sweet spot 4-6)"
+    },
+    "source_file": "unspeakability-protocol.md",
+    "source_section": "Aggregate score interpretation / Daily scan filtering",
+    "tags": [
+      "unspeakability",
+      "verdict",
+      "yellow",
+      "platform",
+      "sweet-spot"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "unspeakability_rubric",
+    "key_name": "verdict_high_risk",
+    "key_type": "unspeakability",
+    "primary_recommendation": "7-8 分 高风险: 大幅重新框定,或仅在有限平台发行。日常扫描中 downrank。",
+    "rationale": "聚合分 7-8 对应 verdict 高风险,action = Major reframing OR limited platform release。日常扫描对 ≥7 的 kernel downrank。",
+    "extra_data": {
+      "verdict": "red",
+      "tier": "高风险",
+      "score_range": "7-8",
+      "action": "Major reframing OR limited platform release",
+      "daily_scan": "downrank (>=7)"
+    },
+    "source_file": "unspeakability-protocol.md",
+    "source_section": "Aggregate score interpretation / Daily scan filtering",
+    "tags": [
+      "unspeakability",
+      "verdict",
+      "red",
+      "high-risk"
+    ],
+    "priority": 68
+  },
+  {
+    "category": "unspeakability_rubric",
+    "key_name": "verdict_taboo_veto",
+    "key_type": "unspeakability",
+    "primary_recommendation": "9-10 分 禁忌: VETO——不能在任何 CN 平台制作;日常扫描 exclude(≥9)。硬性 VETO 触发条件:regulatory_redline=10,或 political_sensitivity≥9 且 regulatory_redline≥7,或 unspeakability_score=10。",
+    "rationale": "聚合分 9-10 对应 verdict 禁忌 = VETO。触发后标记 vetoed:true,不传递给下游 expert,输出 vetoed 报告。硬 VETO 条件独立于聚合分:regulatory_redline=10 / (political_sensitivity≥9 且 regulatory_redline≥7) / aggregate=10。",
+    "extra_data": {
+      "verdict": "red",
+      "tier": "禁忌",
+      "score_range": "9-10",
+      "action": "VETO — cannot be made on any CN platform",
+      "daily_scan": "exclude (>=9)",
+      "hard_veto_conditions": [
+        "regulatory_redline = 10",
+        "political_sensitivity >= 9 AND regulatory_redline >= 7",
+        "unspeakability_score = 10 (aggregate)"
+      ]
+    },
+    "source_file": "unspeakability-protocol.md",
+    "source_section": "Aggregate score interpretation / Hard VETO conditions",
+    "tags": [
+      "unspeakability",
+      "verdict",
+      "red",
+      "veto",
+      "taboo"
+    ],
+    "priority": 76
+  },
+  {
+    "category": "snowflake_step",
+    "key_name": "step_1_premise_sentence",
+    "key_type": "snowflake",
+    "primary_recommendation": "Step 1 Premise Sentence(一句话前提): 从 StoryKernel structural_formula(1-2 个最强冲突)转写为 ≤30 字一句话,必须包含主人公+冲突+目标+障碍四要素。",
+    "rationale": "雪花法第一步,把多层故事核压缩为四要素 premise。短剧强制必做,通常 ≤15 字(短剧 premise 比长片更尖锐)。质量阈值:char count ≤30。",
+    "extra_data": {
+      "step": 1,
+      "input": "StoryKernel structural_formula (1-2 个最强冲突)",
+      "output": "1 句话 ≤30 字(四要素:主人公/冲突/目标/障碍)",
+      "short_drama_scale": "强制必做;短剧通常 ≤15 字",
+      "quality_threshold": "char_count <= 30"
+    },
+    "source_file": "snowflake-method.md",
+    "source_section": "The 10 Ingermanson Steps / 短剧 Step Scaling",
+    "tags": [
+      "snowflake",
+      "step1",
+      "premise",
+      "mandatory"
+    ],
+    "priority": 78
+  },
+  {
+    "category": "snowflake_step",
+    "key_name": "step_2_paragraph_expansion",
+    "key_type": "snowflake",
+    "primary_recommendation": "Step 2 Paragraph Expansion(一段话扩展 / Story Spine): 用 Story Spine 把 Step 1 premise 扩展为正好 5 句话段落(开头 + 三幕灾难×3 + 结尾×1)。",
+    "rationale": "短剧强制必做:5 句话每句 ≤12 字(5 句≈60 字≈90s 单集开场 30s 信息密度)。Step 2 应隐含呼应 McMahon 6 弧线之一作为段落 polarity 模板。质量阈值:sentence count = exactly 5。注意:不要在 Step 2 段落里塞入 Snyder beat 术语(Snowflake 是展开层,Snyder 是验证层)。",
+    "extra_data": {
+      "step": 2,
+      "input": "Step 1 premise",
+      "output": "5 句话段落(灾难×3 + 结尾×1)",
+      "short_drama_scale": "强制必做;每句 ≤12 字",
+      "quality_threshold": "exactly 5 sentences",
+      "mcmahon_arc_coupling": "建议选 1 个 McMahon 弧线(rags-to-riches/tragedy/man-in-a-hole/Icarus/Cinderella/Oedipus)作为 polarity 模板"
+    },
+    "source_file": "snowflake-method.md",
+    "source_section": "The 10 Ingermanson Steps / 与 McMahon 6 弧线的隐含耦合",
+    "tags": [
+      "snowflake",
+      "step2",
+      "story-spine",
+      "mandatory",
+      "mcmahon"
+    ],
+    "priority": 78
+  },
+  {
+    "category": "snowflake_step",
+    "key_name": "step_3_character_synopsis",
+    "key_type": "snowflake",
+    "primary_recommendation": "Step 3 Character Synopsis(角色概要): 把段落层面冲突映射到具体主角,每主角 1 段(姓名/动机/目标/冲突/启示)。",
+    "rationale": "短剧强制必做:每主角 1 段(目标/动机/冲突/启示),4 项各 ≤10 字——短剧角色驱动需极简。输入为 Step 2 paragraph + StoryKernel strata。",
+    "extra_data": {
+      "step": 3,
+      "input": "Step 2 paragraph + StoryKernel strata",
+      "output": "每主角 1 段(姓名/动机/目标/冲突/启示)",
+      "short_drama_scale": "强制必做;4 项各 ≤10 字"
+    },
+    "source_file": "snowflake-method.md",
+    "source_section": "The 10 Ingermanson Steps / 短剧 Step Scaling",
+    "tags": [
+      "snowflake",
+      "step3",
+      "character",
+      "mandatory"
+    ],
+    "priority": 75
+  },
+  {
+    "category": "snowflake_step",
+    "key_name": "step_4_one_page_synopsis",
+    "key_type": "snowflake",
+    "primary_recommendation": "Step 4 One-Page Synopsis(一页大纲): 把 5 句话段落扩展为正好 4 段(开头/三幕灾难/结尾),每段对应一幕,是 screenplay 消费的核心 artifact。",
+    "rationale": "短剧强制必做:4 段 1 页每段 ≤30 字,4 段对应 Snyder 的 Set-Up+Catalyst / Midpoint / All Is Lost / Finale。此 artifact 是 screenplay Beat Planning 的 scaffold,再用 Snyder 15-beat 验证分布。质量阈值:exactly 4 paragraphs。",
+    "extra_data": {
+      "step": 4,
+      "input": "Step 2 paragraph",
+      "output": "4 段 1 页(开头/三幕灾难/结尾)",
+      "short_drama_scale": "强制必做;每段 ≤30 字",
+      "snyder_mapping": "段落1=Set-Up+Catalyst / 段落2=Midpoint / 段落3=All Is Lost / 段落4=Finale",
+      "quality_threshold": "exactly 4 paragraphs",
+      "anchor_alignment": "Catalyst ~10% / Midpoint ~50% / All Is Lost ~68% runtime, ±5% 容差"
+    },
+    "source_file": "snowflake-method.md",
+    "source_section": "The 10 Ingermanson Steps / Snowflake-4 → Snyder Field Mapping",
+    "tags": [
+      "snowflake",
+      "step4",
+      "one-page",
+      "mandatory",
+      "snyder-anchor"
+    ],
+    "priority": 78
+  },
+  {
+    "category": "snowflake_step",
+    "key_name": "step_5_character_biography",
+    "key_type": "snowflake",
+    "primary_recommendation": "Step 5 Character Biography(角色传记): 每主角 1 页(童年/当前/触发事件时),内化角色动机深度。",
+    "rationale": "短剧可选项:主角≥2 人(群像短剧)/ 题材为豪门虐恋/战神归来等需要角色背景层次时触发。输入为 Step 3 synopsis。",
+    "extra_data": {
+      "step": 5,
+      "input": "Step 3 synopsis",
+      "output": "每主角 1 页(童年/当前/触发事件时)",
+      "short_drama_scale": "可选;触发条件=主角≥2 / 豪门虐恋 / 战神归来"
+    },
+    "source_file": "snowflake-method.md",
+    "source_section": "The 10 Ingermanson Steps / 短剧 Step Scaling",
+    "tags": [
+      "snowflake",
+      "step5",
+      "character-bio",
+      "optional"
+    ],
+    "priority": 60
+  },
+  {
+    "category": "snowflake_step",
+    "key_name": "step_6_four_page_synopsis",
+    "key_type": "snowflake",
+    "primary_recommendation": "Step 6 Four-Page Synopsis(四页大纲): 把一页大纲展开为 4 页(每幕 1 页),引入支线。",
+    "rationale": "短剧可选项:单集 runtime≥120s 或集数≥20 集时触发(单集叙事容量够大)。输入为 Step 4 one-page。",
+    "extra_data": {
+      "step": 6,
+      "input": "Step 4 one-page",
+      "output": "4 页(每幕 1 页,引入支线)",
+      "short_drama_scale": "可选;触发条件=runtime≥120s / 集数≥20"
+    },
+    "source_file": "snowflake-method.md",
+    "source_section": "The 10 Ingermanson Steps / 短剧 Step Scaling",
+    "tags": [
+      "snowflake",
+      "step6",
+      "four-page",
+      "optional"
+    ],
+    "priority": 58
+  },
+  {
+    "category": "snowflake_step",
+    "key_name": "step_7_full_character_chart",
+    "key_type": "snowflake",
+    "primary_recommendation": "Step 7 Full Character Chart(完整角色表): 完整角色字段表(年龄/外貌/习惯/秘密/弱点),冻结角色细节。",
+    "rationale": "短剧延后到 screenplay 内部 Dialogue Draft 阶段按需展开(避免重复 character_designer 工作)。不在 creative_source 跑。输入为 Step 5 bio。",
+    "extra_data": {
+      "step": 7,
+      "input": "Step 5 bio",
+      "output": "完整角色字段表(年龄/外貌/习惯/秘密/弱点)",
+      "short_drama_scale": "延后到 screenplay Dialogue Draft"
+    },
+    "source_file": "snowflake-method.md",
+    "source_section": "The 10 Ingermanson Steps / 短剧 Step Scaling",
+    "tags": [
+      "snowflake",
+      "step7",
+      "character-chart",
+      "deferred"
+    ],
+    "priority": 54
+  },
+  {
+    "category": "snowflake_step",
+    "key_name": "step_8_scene_list",
+    "key_type": "snowflake",
+    "primary_recommendation": "Step 8 Scene List(场景列表): 场景表(每行 1 场景:视角/目标/冲突/灾难),从幕级展开到场景级。",
+    "rationale": "短剧延后到 screenplay Beat Planning 阶段产出——与 Snyder 15-beat 同构,合并,避免双重产出场景表。不在 creative_source 跑。输入为 Step 6 four-page。",
+    "extra_data": {
+      "step": 8,
+      "input": "Step 6 four-page",
+      "output": "场景表(每行 1 场景:视角/目标/冲突/灾难)",
+      "short_drama_scale": "延后到 screenplay Beat Planning(与 Snyder 同构合并)"
+    },
+    "source_file": "snowflake-method.md",
+    "source_section": "The 10 Ingermanson Steps / 短剧 Step Scaling",
+    "tags": [
+      "snowflake",
+      "step8",
+      "scene-list",
+      "deferred"
+    ],
+    "priority": 54
+  },
+  {
+    "category": "snowflake_step",
+    "key_name": "step_9_scene_description",
+    "key_type": "snowflake",
+    "primary_recommendation": "Step 9 Scene Description(场景描述): 每场景 1 段叙事性描述,场景级 narrative。",
+    "rationale": "短剧延后到 screenplay Dialogue Draft 阶段产出。不在 creative_source 跑。输入为 Step 8 scene list。",
+    "extra_data": {
+      "step": 9,
+      "input": "Step 8 scene list",
+      "output": "每场景 1 段叙事性描述",
+      "short_drama_scale": "延后到 screenplay Dialogue Draft"
+    },
+    "source_file": "snowflake-method.md",
+    "source_section": "The 10 Ingermanson Steps / 短剧 Step Scaling",
+    "tags": [
+      "snowflake",
+      "step9",
+      "scene-description",
+      "deferred"
+    ],
+    "priority": 52
+  },
+  {
+    "category": "snowflake_step",
+    "key_name": "step_10_first_draft",
+    "key_type": "snowflake",
+    "primary_recommendation": "Step 10 First Draft(初稿): 完整剧本,写作执行。",
+    "rationale": "screenplay 最终输出 script.json。不在 creative_source 跑。输入为 Step 9 descriptions。",
+    "extra_data": {
+      "step": 10,
+      "input": "Step 9 descriptions",
+      "output": "完整剧本",
+      "short_drama_scale": "screenplay 最终输出 script.json"
+    },
+    "source_file": "snowflake-method.md",
+    "source_section": "The 10 Ingermanson Steps / 短剧 Step Scaling",
+    "tags": [
+      "snowflake",
+      "step10",
+      "first-draft",
+      "deferred"
+    ],
+    "priority": 52
+  },
+  {
+    "category": "snowflake_step",
+    "key_name": "snyder_mapping_paragraph_1",
+    "key_type": "snowflake",
+    "primary_recommendation": "Snowflake-4 段落 1(开头)→ Snyder beats: Opening Image + Theme Stated + Set-Up + Catalyst + Debate;目标 runtime 0-20%。段落结尾(Catalyst)必须对齐 Snyder Catalyst(~10%)。",
+    "rationale": "Snowflake-4 → Snyder 15-Beat 字段映射。段落 1 介绍主人公世界+触发事件。强制对齐锚点之一:段落 1 结尾的 Catalyst 落在 p.10±3(~10% runtime,±5% 容差)。",
+    "extra_data": {
+      "step": 4,
+      "paragraph": 1,
+      "snyder_beats": [
+        "Opening Image",
+        "Theme Stated",
+        "Set-Up",
+        "Catalyst",
+        "Debate"
+      ],
+      "runtime_range": "0-20%",
+      "anchor": "Catalyst ~10% (p.10 ± 3), ±5% tolerance"
+    },
+    "source_file": "snowflake-method.md",
+    "source_section": "Snowflake-4 → Snyder 15-Beat Field Mapping",
+    "tags": [
+      "snowflake",
+      "snyder-mapping",
+      "paragraph-1",
+      "catalyst"
+    ],
+    "priority": 66
+  },
+  {
+    "category": "snowflake_step",
+    "key_name": "snyder_mapping_paragraph_2",
+    "key_type": "snowflake",
+    "primary_recommendation": "Snowflake-4 段落 2(三幕灾难 第 1 幕)→ Snyder beats: Break into Two + B-Story + Fun & Games + Midpoint;目标 runtime 20-50%。段落结尾(Midpoint)必须有极性反转,对齐 Snyder Midpoint(~50%)。",
+    "rationale": "段落 2 = 主角进入新世界+假胜利/假失败。强制对齐锚点:段落 2 结尾 Midpoint 落在 p.55±3(~50% runtime,且必须有极性反转,±5% 容差)。",
+    "extra_data": {
+      "step": 4,
+      "paragraph": 2,
+      "snyder_beats": [
+        "Break into Two",
+        "B-Story",
+        "Fun & Games",
+        "Midpoint"
+      ],
+      "runtime_range": "20-50%",
+      "anchor": "Midpoint ~50% (p.55 ± 3), must have polarity reversal, ±5% tolerance"
+    },
+    "source_file": "snowflake-method.md",
+    "source_section": "Snowflake-4 → Snyder 15-Beat Field Mapping",
+    "tags": [
+      "snowflake",
+      "snyder-mapping",
+      "paragraph-2",
+      "midpoint"
+    ],
+    "priority": 66
+  },
+  {
+    "category": "snowflake_step",
+    "key_name": "snyder_mapping_paragraph_3",
+    "key_type": "snowflake",
+    "primary_recommendation": "Snowflake-4 段落 3(三幕灾难 第 2 幕)→ Snyder beats: Bad Guys Close In + All Is Lost + Dark Night of the Soul;目标 runtime 50-77%。段落结尾(All Is Lost)对齐 Snyder All Is Lost(~68%)。",
+    "rationale": "段落 3 = 外部对手反扑+最低点。强制对齐锚点:段落 3 结尾 All Is Lost 落在 p.75±3(~68% runtime,±5% 容差)。",
+    "extra_data": {
+      "step": 4,
+      "paragraph": 3,
+      "snyder_beats": [
+        "Bad Guys Close In",
+        "All Is Lost",
+        "Dark Night of the Soul"
+      ],
+      "runtime_range": "50-77%",
+      "anchor": "All Is Lost ~68% (p.75 ± 3), ±5% tolerance"
+    },
+    "source_file": "snowflake-method.md",
+    "source_section": "Snowflake-4 → Snyder 15-Beat Field Mapping",
+    "tags": [
+      "snowflake",
+      "snyder-mapping",
+      "paragraph-3",
+      "all-is-lost"
+    ],
+    "priority": 66
+  },
+  {
+    "category": "snowflake_step",
+    "key_name": "snyder_mapping_paragraph_4",
+    "key_type": "snowflake",
+    "primary_recommendation": "Snowflake-4 段落 4(结尾)→ Snyder beats: Break into Three + Finale + Final Image;目标 runtime 77-100%。主角找到解决方案+执行+视觉对照。",
+    "rationale": "段落 4 = 主角找到解决方案+执行+视觉对照。无强制锚点(前三段已锁三锚点)。",
+    "extra_data": {
+      "step": 4,
+      "paragraph": 4,
+      "snyder_beats": [
+        "Break into Three",
+        "Finale",
+        "Final Image"
+      ],
+      "runtime_range": "77-100%"
+    },
+    "source_file": "snowflake-method.md",
+    "source_section": "Snowflake-4 → Snyder 15-Beat Field Mapping",
+    "tags": [
+      "snowflake",
+      "snyder-mapping",
+      "paragraph-4",
+      "finale"
+    ],
+    "priority": 64
+  },
+  {
+    "category": "snowflake_step",
+    "key_name": "trigger_conditions",
+    "key_type": "snowflake",
+    "primary_recommendation": "Snowflake 展开触发条件(三选一,默认不展开): unspeakability_score≥7,或 dramatic_potential.overall≥0.75,或 strata_overlay_coefficient≥1.7。满足任一即必须走雪花法展开;否则 snowflake_artifacts 字段为 null 直接交付 screenplay。",
+    "rationale": "决定一个 StoryKernel 是否值得走雪花法展开。高敏感 kernel 需更精细角色/场景设计承载合规降级;高潜力 kernel 值得展开为完整叙事 scaffold;多层叠加 kernel 需角色层面承接多冲突维度。trigger_reason 必须三选一。",
+    "extra_data": {
+      "triggers": [
+        {
+          "field": "unspeakability_score",
+          "threshold": ">= 7",
+          "reason": "高敏感 kernel 需更精细角色/场景设计以承载合规降级"
+        },
+        {
+          "field": "dramatic_potential.overall",
+          "threshold": ">= 0.75",
+          "reason": "高潜力 kernel 值得展开为完整叙事 scaffold"
+        },
+        {
+          "field": "strata_overlay_coefficient",
+          "threshold": ">= 1.7",
+          "reason": "多层叠加 kernel 需角色层面承接多冲突维度"
+        }
+      ],
+      "default": "null (不展开,直接交付 screenplay)"
+    },
+    "source_file": "snowflake-method.md",
+    "source_section": "StoryKernel → Snowflake Bridge Protocol / 触发条件",
+    "tags": [
+      "snowflake",
+      "trigger",
+      "bridge",
+      "gate"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "story_kernel",
+    "key_name": "kernel_id",
+    "key_type": "story_kernel",
+    "primary_recommendation": "kernel_id: string,格式 kernel_<8-char-hash>(由 structural_formula + created_at 确定性生成),创建时冻结,是所有下游消费者的 join key。",
+    "rationale": "StoryKernel 的唯一标识。Frozen at creation。所有下游 expert 通过 kernel_id 关联。",
+    "extra_data": {
+      "type": "string",
+      "format": "kernel_<8-char-hash>",
+      "constraint": "deterministic from structural_formula + created_at; frozen at creation; join key for all downstream consumers"
+    },
+    "source_file": "story-kernel-schema.md",
+    "source_section": "kernel_id",
+    "tags": [
+      "story-kernel",
+      "id",
+      "frozen"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "story_kernel",
+    "key_name": "strata_layers",
+    "key_type": "story_kernel",
+    "primary_recommendation": "strata_layers (array, REQUIRED): 1-3 个地层条目(4+ 不鼓励),每条含 layer(L1-L6)/layer_name/analysis/evidence_sources[]/structural_question/answer。每个条目必须有 ≥1 条 evidence_sources。",
+    "rationale": "StoryKernel 的结构力来源。每条 evidence_sources 含 source/url/accessed_date/evidence_strength(high|medium|low)。VETO 条件之一:strata_layers.length≥4 = 叙事过载。",
+    "extra_data": {
+      "type": "array of objects",
+      "constraint": "1-3 entries; each layer in L1-L6; each entry requires >=1 evidence_sources; required sub-fields: layer, layer_name, analysis, evidence_sources[], structural_question, answer",
+      "veto_if": "length >= 4 (narrative overload)"
+    },
+    "source_file": "story-kernel-schema.md",
+    "source_section": "strata_layers (array, REQUIRED)",
+    "tags": [
+      "story-kernel",
+      "strata",
+      "evidence",
+      "required"
+    ],
+    "priority": 78
+  },
+  {
+    "category": "story_kernel",
+    "key_name": "structural_formula",
+    "key_type": "story_kernel",
+    "primary_recommendation": "structural_formula (REQUIRED): 50-200 字单句,描述不可约的结构性冲突;一旦被下游消费即冻结。必须包含至少 1 个结构力(L1-L5)且至少 1 个人文后果。",
+    "rationale": "StoryKernel 的统一主题,被 screenplay/style_genome 消费。验证:单句 50-200 字,含结构力+人文后果。反例:现代社会让人很焦虑(太抽象)/灵活就业者的故事(无结构冲突)。",
+    "extra_data": {
+      "type": "string",
+      "constraint": "50-200 chars, single sentence; must contain >=1 structural force (L1-L5) AND >=1 human consequence; frozen once consumed downstream"
+    },
+    "source_file": "story-kernel-schema.md",
+    "source_section": "structural_formula (REQUIRED)",
+    "tags": [
+      "story-kernel",
+      "formula",
+      "required",
+      "frozen"
+    ],
+    "priority": 78
+  },
+  {
+    "category": "story_kernel",
+    "key_name": "strata_overlay_coefficient",
+    "key_type": "story_kernel",
+    "primary_recommendation": "strata_overlay_coefficient: float 1.0-3.0,默认 1.0(单层);由地层组合计算而来,不可直接编辑。来源见 multi-strata-resonance.md 矩阵。",
+    "rationale": "反映多层叠加共振强度。2-layer 最高 1.8(L1+L4),3-layer 因果链可达 2.5(L1+L2+L4)。校验:系数必须与 layer 组合匹配。",
+    "extra_data": {
+      "type": "float",
+      "constraint": "range 1.0-3.0; default 1.0 (single layer); computed from layer combination, not directly editable; must match layer combination per multi-strata-resonance.md"
+    },
+    "source_file": "story-kernel-schema.md",
+    "source_section": "strata_overlay_coefficient",
+    "tags": [
+      "story-kernel",
+      "overlay",
+      "coefficient",
+      "computed"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "story_kernel",
+    "key_name": "unspeakability_breakdown",
+    "key_type": "story_kernel",
+    "primary_recommendation": "unspeakability_breakdown: object,4 个必填子字段 political_sensitivity/platform_algorithm_risk/audience_discomfort/regulatory_redline(各 1-10);聚合 unspeakability_score = round(0.20*P + 0.30*A + 0.15*D + 0.35*R)。",
+    "rationale": "聚合分权重 0.20/0.30/0.15/0.35。compliance_marketing 下游消费以识别风险维度。VETO 条件之一:unspeakability_score≥9。",
+    "extra_data": {
+      "type": "object",
+      "constraint": "4 required sub-fields each 1-10; aggregate = round(0.20*political + 0.30*platform + 0.15*audience + 0.35*regulatory); veto if aggregate >= 9",
+      "weights": {
+        "political_sensitivity": 0.2,
+        "platform_algorithm_risk": 0.3,
+        "audience_discomfort": 0.15,
+        "regulatory_redline": 0.35
+      }
+    },
+    "source_file": "story-kernel-schema.md",
+    "source_section": "unspeakability_score / unspeakability_breakdown",
+    "tags": [
+      "story-kernel",
+      "unspeakability",
+      "breakdown",
+      "weighted"
+    ],
+    "priority": 76
+  },
+  {
+    "category": "story_kernel",
+    "key_name": "dramatic_potential",
+    "key_type": "story_kernel",
+    "primary_recommendation": "dramatic_potential: object,3 个 0.0-1.0 子字段 actionability/emotional_intensity/narrative_compression_fit,及 overall;overall = actionability*0.40 + emotional_intensity*0.35 + narrative_compression_fit*0.25。",
+    "rationale": "衡量戏剧化潜力。actionability=多容易转化为具体场景;emotional_intensity=观众情绪反应强度;narrative_compression_fit=多适合短剧 60-180s 格式。VETO 条件之一:overall<0.40(太弱无法戏剧化)。",
+    "extra_data": {
+      "type": "object",
+      "constraint": "actionability/emotional_intensity/narrative_compression_fit each 0.0-1.0; overall = 0.40*actionability + 0.35*emotional_intensity + 0.25*narrative_compression_fit; veto if overall < 0.40",
+      "weights": {
+        "actionability": 0.4,
+        "emotional_intensity": 0.35,
+        "narrative_compression_fit": 0.25
+      }
+    },
+    "source_file": "story-kernel-schema.md",
+    "source_section": "dramatic_potential",
+    "tags": [
+      "story-kernel",
+      "dramatic-potential",
+      "weighted"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "story_kernel",
+    "key_name": "target_audience_overlap",
+    "key_type": "story_kernel",
+    "primary_recommendation": "target_audience_overlap: object,6 个必填 0.0-1.0 人口分段 male_18_25/male_25_35/male_35_50/female_18_25/female_25_35/female_35_50。VETO 条件之一:max<0.50(无明确受众)。",
+    "rationale": "描述受众重叠度,被 style_genome 消费以决定 genre/mood。校验:6 个分段必须全填。VETO:最大分段<0.50 = 无清晰受众。",
+    "extra_data": {
+      "type": "object",
+      "constraint": "6 required segments each 0.0-1.0 (male_18_25, male_25_35, male_35_50, female_18_25, female_25_35, female_35_50); veto if max < 0.50"
+    },
+    "source_file": "story-kernel-schema.md",
+    "source_section": "target_audience_overlap",
+    "tags": [
+      "story-kernel",
+      "audience",
+      "overlap"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "story_kernel",
+    "key_name": "platform_compliance_paths",
+    "key_type": "story_kernel",
+    "primary_recommendation": "platform_compliance_paths: object,以平台名为键、合规策略描述为值;CN 必填键 douyin/kuaishou/xiaohongshu/wechat_mini;可选 bilibili/youtube_shorts/tiktok_us。",
+    "rationale": "compliance_marketing 下游消费以制定分发策略。每个 CN 平台有不同容忍度(抖音 1-5 谨慎 / 快手 1-6 / 小红书 1-6 / 微信小程序 1-7 tolerant / B站 1-6 / 视频号 1-5)。",
+    "extra_data": {
+      "type": "object keyed by platform name",
+      "constraint": "required CN keys: douyin, kuaishou, xiaohongshu, wechat_mini; optional: bilibili, youtube_shorts, tiktok_us",
+      "platform_tolerance": {
+        "douyin": "1-5 cautious",
+        "kuaishou": "1-6 moderate",
+        "xiaohongshu": "1-6 moderate",
+        "wechat_mini": "1-7 tolerant",
+        "bilibili": "1-6 moderate",
+        "shipin_hao": "1-5 cautious"
+      }
+    },
+    "source_file": "story-kernel-schema.md",
+    "source_section": "platform_compliance_paths",
+    "tags": [
+      "story-kernel",
+      "platform",
+      "compliance"
+    ],
+    "priority": 68
+  },
+  {
+    "category": "story_kernel",
+    "key_name": "evidence_strength_aggregate",
+    "key_type": "story_kernel",
+    "primary_recommendation": "evidence_strength_aggregate: enum high/medium-high/medium/low/none,由 strata_layers[].evidence_sources[].evidence_strength 聚合。VETO 条件之一:= none(无数据源、纯推测)。",
+    "rationale": "聚合规则:全 high→high;high+medium 混合→medium-high;全 medium→medium;任一 low→low;evidence_sources 为空→none(降级模式)。",
+    "extra_data": {
+      "type": "string enum",
+      "values": [
+        "high",
+        "medium-high",
+        "medium",
+        "low",
+        "none"
+      ],
+      "constraint": "aggregate of strata_layers[].evidence_sources[].evidence_strength; veto if none",
+      "computation": {
+        "all_high": "high",
+        "mix_high_medium": "medium-high",
+        "all_medium": "medium",
+        "any_low": "low",
+        "empty_evidence_sources": "none"
+      }
+    },
+    "source_file": "story-kernel-schema.md",
+    "source_section": "evidence_strength_aggregate",
+    "tags": [
+      "story-kernel",
+      "evidence",
+      "aggregate",
+      "enum"
+    ],
+    "priority": 66
   }
 ]
