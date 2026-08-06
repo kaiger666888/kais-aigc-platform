@@ -158,9 +158,9 @@ interface CanvasState {
   setFocusAssetNodeId: (id: string | null) => void
 
   // 资产管理子视图 + 选中资产（assets 视图内部状态；详情由 Library 卡片点击驱动）
-  // 4 Tab：library 资产库 · character 角色 · scene_shot 场景与分镜 · documents 创作文档(Notion)
-  assetView: 'library' | 'detail' | 'character' | 'scene_shot' | 'documents'
-  setAssetView: (view: 'library' | 'detail' | 'character' | 'scene_shot' | 'documents') => void
+  // 5 Tab：library 资产库 · character 角色 · scene_shot 场景与分镜 · dialogue 对白 · documents 创作文档(Notion)
+  assetView: 'library' | 'detail' | 'character' | 'scene_shot' | 'dialogue' | 'documents'
+  setAssetView: (view: 'library' | 'detail' | 'character' | 'scene_shot' | 'dialogue' | 'documents') => void
   selectedAssetUuid: string | null
   setSelectedAssetUuid: (uuid: string | null) => void
   /** 打开某资产的详情（同时设选中 + 切到 detail 子视图） */

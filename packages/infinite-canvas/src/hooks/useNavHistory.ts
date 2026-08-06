@@ -41,7 +41,7 @@ export interface NavViewport {
 
 export interface NavSnapshot {
   viewMode: ViewMode
-  assetView: 'library' | 'detail' | 'character' | 'scene_shot' | 'documents'
+  assetView: 'library' | 'detail' | 'character' | 'scene_shot' | 'dialogue' | 'documents'
   selectedNodeId: string | null
   detailNodeId: string | null
   selectedAssetUuid: string | null
