@@ -114,6 +114,55 @@ export function alignH3FrameCount(n: number): number {
 }
 
 // ============================================================
+// H3_TESPEED —— TESpeed 残差缓存加速配置
+// ============================================================
+// TESpeedMiniMaxH3 (ComfyUI-TE-Speed-MiniMaxH3-OSS) 在 SigmaShift 与 KSampler 之间
+// 注入 block-cache 加速：缓存尾部 75% transformer blocks 的残差，相邻步 sigma 差
+// 小时用缓存残差补偿，实测 50 步从 20m40s → 12m01s (-42%)。
+//
+// ⚠️ 前置条件（已在 comfyui-primary 容器完成）：
+//   1. custom_nodes/ComfyUI-TE-Speed-MiniMaxH3-OSS 已安装
+//   2. patch_model.py 已执行（model.py 注入 ("block_loop", 0) 钩子）
+//   未满足时节点静默返回未 patch 的 model（stock speed），不报错。
+export const H3_TESPEED = {
+  enabled: true,          // 总开关（false 时 workflow 不插入 TESpeed 节点）
+  classType: "TESpeedMiniMaxH3",
+  nodeId: "35",           // 插入节点 ID（SigmaShift=21 → TESpeed=35 → KSampler=30）
+  // 参数（与基准测试一致，参考插件 README 默认值）
+  processingControlValue: 0.12,  // sigma 差阈值：低于此值允许缓存步
+  processingPercent1: 0.1,       // 缓存窗口起点：前 10% 步始终完整计算
+  processingPercent2: 0.9,       // 缓存窗口终点：后 10% 步始终完整计算
+  mcs: 2,                        // 最多连续缓存步数，防误差累积
+  device: "auto",                // 缓存残差存放：auto/gpu 留设备，cpu 省显存
+  cacheDepth: 0.75,              // 缓存尾部块占比：0.75 ≈ 45% 提速，调低更稳
+} as const;
+
+// ============================================================
+// H3_PROFILES —— 质量/速度 profile 预设 (KMC 搭配方案, 2026-08-06)
+// ============================================================
+// 配合 KMC 管线 P11 的两种生成档位:
+//   preview    —— 最快速但保证质量: 15 步 (基准已验证画质清晰) + TESpeed,
+//                  跳过 Foley 环境音替换 (H3 原生音频直出), ~6 min/条
+//   production —— 最高质量前提下尽量快: 官方 lossless 步数 (t2v=50 / r2v=20)
+//                  + TESpeed + 完整 Foley 管线 (LTX+BGM检测+TTS混音), ~20 min/条
+// 调用方通过 generate 的 `profile` 入参选择; 显式传 steps 时以 steps 为准。
+export const H3_PROFILES = {
+  preview: {
+    label: "Preview (15-step, skip Foley)",
+    // 预览档统一 15 步 (t2v/i2v/ref2v 均 15 —— ref2va 官方 20 步, 预览无需等)
+    steps: 15,
+    skipFoley: true, // 跳过 Step 2 Foley / Step 3 合并, 直出 H3 原生视频
+  },
+  production: {
+    label: "Production (lossless steps, full Foley)",
+    steps: null, // null = 按模式官方默认 (t2v=50 / r2v=20)
+    skipFoley: false, // 完整 Foley 环境音替换 + BGM 检测重试 + TTS 混音
+  },
+} as const;
+
+export type H3ProfileName = keyof typeof H3_PROFILES;
+
+// ============================================================
 // H3_RESOLUTION_TABLE —— 分辨率预设表
 // ============================================================
 // 所有预设均满足 32 倍数约束,且面积 ≤ MAX_PIXELS。

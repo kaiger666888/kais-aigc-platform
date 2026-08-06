@@ -61,6 +61,8 @@ import {
   H3_CONFIG,
   H3_DEFAULTS,
   H3_CONSTANTS,
+  H3_TESPEED,
+  H3_PROFILES,
   alignH3FrameCount,
   H3_DEFAULT_NEGATIVE,
 } from "./config";
@@ -214,10 +216,25 @@ function buildH3Workflow(opts: H3GenOpts): Record<string, any> {
   };
 
   // === 采样 (latent_image = ["20", 1] —— ToVideo 条件生成器第二输出 = latent) ===
+  // TESpeed 加速: SigmaShift(21) → TESpeed(35) → KSampler(30)
+  if (H3_TESPEED.enabled) {
+    nodes[H3_TESPEED.nodeId] = {
+      class_type: H3_TESPEED.classType,
+      inputs: {
+        model: ["21", 0],
+        processing_control_value: H3_TESPEED.processingControlValue,
+        processing_percent_1: H3_TESPEED.processingPercent1,
+        processing_percent_2: H3_TESPEED.processingPercent2,
+        mcs: H3_TESPEED.mcs,
+        device: H3_TESPEED.device,
+        cache_depth: H3_TESPEED.cacheDepth,
+      },
+    };
+  }
   nodes["30"] = {
     class_type: "KSampler",
     inputs: {
-      model: ["21", 0],
+      model: H3_TESPEED.enabled ? [H3_TESPEED.nodeId, 0] : ["21", 0],
       positive: ["20", 0],
       negative: ["16", 0],
       latent_image: ["20", 1],
@@ -296,8 +313,18 @@ export default router.post(
     // H3 视频生成种子 (默认随机); Foley 种子用 LTX 默认 (42)
     const h3Seed = req.body.seed ? Number(req.body.seed) : Math.floor(Math.random() * 2147483647);
 
-    // 采样步数覆盖 (可被 API 入参覆盖, 默认 t2v=50 / r2v=20)
-    const h3StepsOverride = req.body.steps ? Number(req.body.steps) : null;
+    // 采样步数覆盖 (优先级: 显式 steps > profile.steps > 模式默认)
+    // profile: "preview" (15步+跳过Foley) | "production" (官方步数+完整Foley)
+    const rawProfile = ((req.body.profile as string) || "production").toLowerCase();
+    if (!["preview", "production"].includes(rawProfile)) {
+      return res
+        .status(400)
+        .send(error(`profile must be one of: preview | production (got "${rawProfile}")`));
+    }
+    const profile = H3_PROFILES[rawProfile as keyof typeof H3_PROFILES];
+    const h3StepsOverride = req.body.steps
+      ? Number(req.body.steps)
+      : profile.steps; // null → 按模式默认 (t2v=50 / r2v=20)
 
     // ── 文件入参 ──
     const files = req.files as Record<string, Express.Multer.File[]> | undefined;
@@ -415,6 +442,43 @@ export default router.post(
       return res.status(502).send(error(`H3 generation request failed: ${msg}`, {
         pipeline: { h3: { mode, promptId: h3PromptId } },
       }));
+    }
+
+    // ============================================================
+    // Preview profile 快速返回: H3 原生视频直出 (跳过 Foley / 合并)
+    // ============================================================
+    // H3 原生 mp4 已内嵌音频。预览档直接交付, 不跑 LTX 环境音替换
+    // (省 5-10min)。TTS 对白文件若有则清理 (预览档不做混音)。
+    if (profile.skipFoley) {
+      // H3 原生视频移到输出目录 (生产路径: outputDir/filenamePrefix_final.mp4;
+      // 预览路径: outputDir/filenamePrefix_h3.mp4)
+      const previewOutputPath = path.join(H3_CONFIG.outputDir, `${filenamePrefix}_h3.mp4`);
+      try {
+        fs.mkdirSync(path.dirname(previewOutputPath), { recursive: true });
+        fs.copyFileSync(localH3VideoPath!, previewOutputPath);
+      } catch (err: any) {
+        safeUnlink(localTtsAudio);
+        for (const p of tmpPaths) safeUnlink(p);
+        return res.status(502).send(error(`Preview output copy failed: ${err.message}`, {
+          pipeline: { h3: { mode, promptId: h3PromptId } },
+        }));
+      }
+      safeUnlink(localTtsAudio);
+      for (const p of tmpPaths) safeUnlink(p);
+      return res.status(200).send(
+        success({
+          status: "completed",
+          profile: rawProfile,
+          videoUrl: `/mnt/agents/output/${filenamePrefix}_h3.mp4`,
+          videoPath: previewOutputPath,
+          pipeline: {
+            h3: { mode, promptId: h3PromptId, videoPath: previewOutputPath },
+            foley: null, // 预览档跳过
+          },
+          hasTts: !!ttsAudioFile,
+          note: "preview profile: H3 native audio (Foley replaced) — 15-step fast preview",
+        }, "H3 preview completed (native audio, Foley skipped)"),
+      );
     }
 
     // ============================================================

@@ -33,6 +33,7 @@ import {
   H3_CONFIG,
   H3_CONSTANTS,
   H3_DEFAULTS,
+  H3_TESPEED,
   alignH3FrameCount,
   H3_DEFAULT_NEGATIVE,
 } from "./config";
@@ -248,10 +249,27 @@ export function buildH3Ref2vaWorkflow(opts: H3Ref2vaWorkflowOpts): Record<string
     },
 
     // === 采样 ===
+    // TESpeed 加速: SigmaShift(21) → TESpeed(35) → KSampler(30)
+    ...(H3_TESPEED.enabled
+      ? {
+          [H3_TESPEED.nodeId]: {
+            class_type: H3_TESPEED.classType,
+            inputs: {
+              model: ["21", 0],
+              processing_control_value: H3_TESPEED.processingControlValue,
+              processing_percent_1: H3_TESPEED.processingPercent1,
+              processing_percent_2: H3_TESPEED.processingPercent2,
+              mcs: H3_TESPEED.mcs,
+              device: H3_TESPEED.device,
+              cache_depth: H3_TESPEED.cacheDepth,
+            },
+          },
+        }
+      : {}),
     "30": {
       class_type: "KSampler",
       inputs: {
-        model: ["21", 0],
+        model: H3_TESPEED.enabled ? [H3_TESPEED.nodeId, 0] : ["21", 0],
         positive: ["20", 0],
         negative: ["16", 0],
         latent_image: ["20", 1],   // ref2va 第二输出 = latent

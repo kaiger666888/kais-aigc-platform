@@ -56,6 +56,12 @@ DEFAULT_FPS = 24
 #   5, 22, 39, 56, 73, 90, 107, 124, ...
 ALIGNED_LENGTHS = tuple(17 * k + 5 for k in range(0, 16))
 
+# ─── TESpeed 残差缓存加速 (ComfyUI-TE-Speed-MiniMaxH3-OSS) ───
+# 在 SigmaShift(14) 与 KSampler(30) 之间注入 block-cache 节点,
+# 50 步实测 20m40s → 12m01s (-42%)。需要容器内已执行 patch_model.py
+# (注入 ("block_loop", 0) 钩子); 未执行时节点静默返回未 patch 的 model。
+TESPEED_ENABLED = True
+
 
 def _resolve_seed(seed: int | None) -> int:
     """Return a concrete seed, drawing one at random when ``seed`` is None."""
@@ -210,10 +216,25 @@ def build_minimax_h3_workflow(
     }
 
     # ── Sampling ──
+    # TESpeed 加速: SigmaShift(14) → TESpeed(35) → KSampler(30)
+    # (ComfyUI-TE-Speed-MiniMaxH3-OSS, 需要 patch_model.py 已执行)
+    if TESPEED_ENABLED:
+        workflow["35"] = {
+            "class_type": "TESpeedMiniMaxH3",
+            "inputs": {
+                "model": ["14", 0],
+                "processing_control_value": 0.12,
+                "processing_percent_1": 0.1,
+                "processing_percent_2": 0.9,
+                "mcs": 2,
+                "device": "auto",
+                "cache_depth": 0.75,
+            },
+        }
     workflow["30"] = {
         "class_type": "KSampler",
         "inputs": {
-            "model": ["14", 0],
+            "model": ["35", 0] if TESPEED_ENABLED else ["14", 0],
             "positive": ["20", 0],
             "negative": ["21", 0],
             "latent_image": ["20", 1],
