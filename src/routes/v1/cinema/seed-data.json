@@ -47954,5 +47954,526 @@
         "repaint": "ACE 唯一"
       }
     }
+  },
+  {
+    "category": "physics_feasibility_check",
+    "key_name": "catalog_overview",
+    "key_type": "feasibility_rule",
+    "primary_recommendation": "physics_precheck 是只读规则级预检(不改 shot_intent),在 visual_executor 生成前对每 shot 跑 19 项检查,输出 physics_precheck_report.json。可行性分级:OK(通过)/WARNING(有风险,Director 决定)/NG(必须修改或 Debate)",
+    "rationale": "CineWeave Physics Validator 的不可替代性来自约束预判 + 能力边界对账;AI 视频场景下约束源变为'模型能力 + Mixamo + scene geometry'。规则级判定优先于 LLM 推理(30°/180°/LHD-RHD/Mixamo 覆盖是确定规则)。",
+    "source_file": "physics_precheck/SKILL.md",
+    "source_section": "§Check Catalog + §Feasibility Levels",
+    "tags": [
+      "physics_precheck",
+      "overview",
+      "doctrine"
+    ],
+    "priority": 70,
+    "extra_data": {
+      "check_count": 19,
+      "levels": {
+        "OK": "通过,进 visual_executor",
+        "WARNING": "有风险,Director 决定接受或 Debate",
+        "NG": "必须修改(回退 cinematographer)或触发 Debate"
+      },
+      "severity_routing": {
+        "NG_and_AI_dimension": "必须修改(违反硬约束,无 Debate 必要)",
+        "NG_and_motion_or_continuity": "触发 Debate",
+        "WARNING": "Director 决定接受或回 Debate"
+      },
+      "quality_thresholds": {
+        "physics_feasibility_rate": ">=0.85 (OK+WARNING 比例)",
+        "motion_continuity_match": ">=0.80 (screen direction + cut_on_action)",
+        "ai_model_capability_compliance": ">=0.95 (AI 能力硬约束零容忍)",
+        "geometry_constraint_adherence": ">=0.85 (运镜 vs geometry_bed 兼容)"
+      },
+      "pipeline_position": "cinematographer(shot_intent) → [physics_precheck] → visual_executor → continuity_auditor → editor"
+    }
+  },
+  {
+    "category": "physics_feasibility_check",
+    "key_name": "crane_vertical_clearance",
+    "key_type": "feasibility_rule",
+    "primary_recommendation": "crane_up/crane_down 需垂直空间 ≥ 3m;室内 scene_type=interior 默认 vertical_clearance=2.4m(住宅)/3.0m(商业)。不满足 → NG,fix='改为 dolly_in 或 tilt_up'",
+    "rationale": "摇臂运镜受场景几何天花板约束;室内净空不足时摇臂无空间抬升,必须降级为不需要垂直净空的运镜。",
+    "source_file": "physics_precheck/SKILL.md",
+    "source_section": "§Core Capability 1 运镜可行性",
+    "tags": [
+      "physics_precheck",
+      "camera_motion",
+      "NG",
+      "geometry"
+    ],
+    "priority": 80,
+    "extra_data": {
+      "dimension": "运镜",
+      "severity_on_fail": "NG",
+      "rule": "crane_up/down needs vertical_clearance >= 3m",
+      "expected": {
+        "min_clearance_m": 3.0
+      },
+      "interior_defaults_m": {
+        "residential": 2.4,
+        "commercial": 3.0
+      },
+      "fix_suggestion": "改为 dolly_in 或 tilt_up"
+    }
+  },
+  {
+    "category": "physics_feasibility_check",
+    "key_name": "tracking_path_clear",
+    "key_type": "feasibility_rule",
+    "primary_recommendation": "tracking/dolly 运镜的运动路径必须无遮挡(geometry_bed.obstacles[]);若 obstacles 与路径相交 → NG,fix='调整摄像机路径'",
+    "rationale": "跟拍/轨道运镜需要物理通畅的移动路径;路径上有障碍物则镜头无法执行,必须绕开或改运镜。",
+    "source_file": "physics_precheck/SKILL.md",
+    "source_section": "§Core Capability 1 运镜可行性",
+    "tags": [
+      "physics_precheck",
+      "camera_motion",
+      "NG",
+      "geometry"
+    ],
+    "priority": 80,
+    "extra_data": {
+      "dimension": "运镜",
+      "severity_on_fail": "NG",
+      "rule": "tracking/dolly path must not intersect obstacles",
+      "expected": {
+        "path_clear": true
+      },
+      "fix_suggestion": "调整摄像机路径绕开障碍"
+    }
+  },
+  {
+    "category": "physics_feasibility_check",
+    "key_name": "pan_range_90",
+    "key_type": "feasibility_rule",
+    "primary_recommendation": "pan_left/right 总角度 ≤ 90°(物理上限);> 90° → NG(防止'甩镜头'超出 AI 可生成范围)",
+    "rationale": "摇摄角度过大超出模型的稳定生成范围,易产生扭曲;90° 是可生成的安全上限。",
+    "source_file": "physics_precheck/SKILL.md",
+    "source_section": "§Core Capability 1 运镜可行性",
+    "tags": [
+      "physics_precheck",
+      "camera_motion",
+      "NG"
+    ],
+    "priority": 78,
+    "extra_data": {
+      "dimension": "运镜",
+      "severity_on_fail": "NG",
+      "rule": "pan angle <= 90 degrees total",
+      "expected": {
+        "max_pan_deg": 90
+      },
+      "fix_suggestion": "拆为多段摇摄或改 cut"
+    }
+  },
+  {
+    "category": "physics_feasibility_check",
+    "key_name": "handheld_duration_3s",
+    "key_type": "feasibility_rule",
+    "primary_recommendation": "handheld 单段 ≤ 3s;> 3s → WARNING(可生成但 AI 视频易出现 motion sickness),建议拆段",
+    "rationale": "长手持运镜累积抖动会让模型生成眩晕/失真;3s 内可保持稳定,超出建议拆为多段。",
+    "source_file": "physics_precheck/SKILL.md",
+    "source_section": "§Core Capability 1 运镜可行性",
+    "tags": [
+      "physics_precheck",
+      "camera_motion",
+      "WARNING"
+    ],
+    "priority": 60,
+    "extra_data": {
+      "dimension": "运镜",
+      "severity_on_fail": "WARNING",
+      "rule": "handheld single segment <= 3s",
+      "expected": {
+        "max_duration_s": 3.0
+      },
+      "fix_suggestion": "拆为多段短手持"
+    }
+  },
+  {
+    "category": "physics_feasibility_check",
+    "key_name": "mixamo_motion_coverage",
+    "key_type": "feasibility_rule",
+    "primary_recommendation": "按 physics_state(driving-straight/driving-turn/stationary/walking/running/other)检查 Mixamo 推荐动作在该 scene type 下是否被支持(对照 P04 character_bible.motion_vocabulary);不支持 → WARNING",
+    "rationale": "角色动作必须落在 Mixamo 动画库覆盖范围内;动作库无对应资产则无法绑定,需换动作或换 scene。",
+    "source_file": "physics_precheck/SKILL.md",
+    "source_section": "§Core Capability 2 角色动作可行性",
+    "tags": [
+      "physics_precheck",
+      "character_action",
+      "WARNING",
+      "mixamo"
+    ],
+    "priority": 60,
+    "extra_data": {
+      "dimension": "角色动作",
+      "severity_on_fail": "WARNING",
+      "rule": "physics_state must map to a Mixamo motion supported in this scene_type",
+      "physics_states": [
+        "driving-straight",
+        "driving-turn",
+        "stationary",
+        "walking",
+        "running",
+        "other"
+      ],
+      "upstream": "P04 character_bible.motion_vocabulary"
+    }
+  },
+  {
+    "category": "physics_feasibility_check",
+    "key_name": "multiperson_interaction_limit",
+    "key_type": "feasibility_rule",
+    "primary_recommendation": "LTX-2.3/即梦不支持复杂多人物交互(> 2 人物 + 接触动作);character_refs ≥ 3 且 physics_state 暗示交互(拥抱/握手) → WARNING,fix='拆为 OTS coverage(2 个 2-人物 shot)'",
+    "rationale": "当前 AI 视频模型对 3+ 人物接触式交互的生成质量差;拆为 2-人物 over-shoulder 覆盖可绕过限制。(与 multiperson_complex_interaction 同源,此项给 OTS 拆解方案)",
+    "source_file": "physics_precheck/SKILL.md",
+    "source_section": "§Core Capability 2 角色动作可行性",
+    "tags": [
+      "physics_precheck",
+      "character_action",
+      "WARNING",
+      "multiperson"
+    ],
+    "priority": 62,
+    "extra_data": {
+      "dimension": "角色动作",
+      "severity_on_fail": "WARNING",
+      "rule": ">=3 characters + contact interaction not supported",
+      "trigger": "character_refs>=3 AND interaction(hug/handshake)",
+      "fix_suggestion": "拆为 OTS coverage(2 个 2-人物 shot)",
+      "related_check": "multiperson_complex_interaction"
+    }
+  },
+  {
+    "category": "physics_feasibility_check",
+    "key_name": "lip_sync_deferral_flag",
+    "key_type": "feasibility_rule",
+    "primary_recommendation": "shot 含 dialogue_lines 时标记 lip_sync_deferral(唇同步在 P11 后处理);physics_precheck 仅记录'此 shot 需后处理唇同步',不做判定",
+    "rationale": "唇同步是生成后的独立工序;预检阶段只需标记需后处理的 shot,避免遗漏。判定树见 ltx-msr-lip-sync-deferral-decision-tree。",
+    "source_file": "physics_precheck/SKILL.md",
+    "source_section": "§Core Capability 2 角色动作可行性",
+    "tags": [
+      "physics_precheck",
+      "character_action",
+      "INFO",
+      "lip_sync"
+    ],
+    "priority": 45,
+    "extra_data": {
+      "dimension": "角色动作",
+      "severity_on_fail": "INFO",
+      "rule": "dialogue present → flag for P11 lip-sync post-process",
+      "trigger": "dialogue_lines non-empty",
+      "action": "记录标记,不阻塞"
+    }
+  },
+  {
+    "category": "physics_feasibility_check",
+    "key_name": "screen_direction_carry_over",
+    "key_type": "feasibility_rule",
+    "primary_recommendation": "跨 cut 时角色运动方向(L2R/R2L/Up/Down)必须延续;shot N 角色 L2R 则 shot N+1 必须延续 L2R(除非有 narrative motivation);违反 → NG,fix='反转 shot N+1 角度或加 insert shot 重置方向'",
+    "rationale": "动势方向不延续会破坏观众空间认知;180° 线之外的隐性'动势线'同样不能随意翻转。补充 continuity_auditor(它只查 face/wardrobe/color/object)。",
+    "source_file": "physics_precheck/SKILL.md",
+    "source_section": "§Core Capability 3 切换连续性",
+    "tags": [
+      "physics_precheck",
+      "continuity",
+      "NG",
+      "screen_direction"
+    ],
+    "priority": 78,
+    "extra_data": {
+      "dimension": "切换连续性",
+      "severity_on_fail": "NG",
+      "rule": "screen direction (L2R/R2L/Up/Down) must carry over across cut unless narratively motivated",
+      "directions": [
+        "L2R",
+        "R2L",
+        "Up",
+        "Down"
+      ],
+      "fix_suggestion": "反转 shot N+1 角度或加 insert shot 重置方向",
+      "complements": "continuity_auditor(4维)"
+    }
+  },
+  {
+    "category": "physics_feasibility_check",
+    "key_name": "motion_intensity_carry_over",
+    "key_type": "feasibility_rule",
+    "primary_recommendation": "shot N 与 shot N+1 的 camera_move motion_intensity 差距 > 0.5(0.0-1.0 标度) → WARNING(避免节奏跳跃)",
+    "rationale": "相邻镜头运动强度跳变过大会造成节奏断裂;0.5 是可接受的连续过渡阈值。供 editor 在 cut on action 时参考。",
+    "source_file": "physics_precheck/SKILL.md",
+    "source_section": "§Core Capability 3 切换连续性",
+    "tags": [
+      "physics_precheck",
+      "continuity",
+      "WARNING",
+      "motion_intensity"
+    ],
+    "priority": 60,
+    "extra_data": {
+      "dimension": "切换连续性",
+      "severity_on_fail": "WARNING",
+      "rule": "motion_intensity delta between adjacent shots <= 0.5",
+      "scale": [
+        0.0,
+        1.0
+      ],
+      "max_delta": 0.5,
+      "downstream": "editor"
+    }
+  },
+  {
+    "category": "physics_feasibility_check",
+    "key_name": "cut_on_action_match",
+    "key_type": "feasibility_rule",
+    "primary_recommendation": "shot N 的 action_beat(per E-Konte Layer 3)与 shot N+1 必须能在 cut 点匹配(同动作不同角度);不匹配 → NG",
+    "rationale": "动作剪辑(cut on action)要求两个镜头在切换瞬间动作连续可拼;action_beat 不对齐会让动作看起来断裂/重复。",
+    "source_file": "physics_precheck/SKILL.md",
+    "source_section": "§Core Capability 3 切换连续性",
+    "tags": [
+      "physics_precheck",
+      "continuity",
+      "NG",
+      "cut_on_action"
+    ],
+    "priority": 75,
+    "extra_data": {
+      "dimension": "切换连续性",
+      "severity_on_fail": "NG",
+      "rule": "action_beat must match at cut point (same action, different angle)",
+      "upstream": "E-Konte Layer 3 action_beat"
+    }
+  },
+  {
+    "category": "physics_feasibility_check",
+    "key_name": "lhd_rhd_declaration",
+    "key_type": "feasibility_rule",
+    "primary_recommendation": "scene_type=driving 时 ltx_prompt 必须显式声明 LHD('left-hand drive, steering wheel on the left side',大陆默认)或 RHD('right-hand drive, steering wheel on the right side',HK/海外);缺失 → NG",
+    "rationale": "Volvo V2 教训:不声明时模型默认 RHD,与大陆左舵车矛盾导致方向盘位置错误。必须显式声明。",
+    "source_file": "physics_precheck/SKILL.md",
+    "source_section": "§Core Capability 4 车辆轨迹",
+    "tags": [
+      "physics_precheck",
+      "vehicle",
+      "NG",
+      "lhd_rhd",
+      "volvo_lesson"
+    ],
+    "priority": 82,
+    "extra_data": {
+      "dimension": "车辆",
+      "severity_on_fail": "NG",
+      "rule": "driving shots must declare LHD or RHD",
+      "trigger": "scene_type=driving",
+      "lhd_phrase": "left-hand drive, steering wheel on the left side",
+      "rhd_phrase": "right-hand drive, steering wheel on the right side",
+      "default_model_behavior": "RHD(若未声明)",
+      "fix_suggestion": "Add 'left-hand drive, steering wheel on the left side' to ltx_prompt"
+    }
+  },
+  {
+    "category": "physics_feasibility_check",
+    "key_name": "vehicle_motion_consistency",
+    "key_type": "feasibility_rule",
+    "primary_recommendation": "ltx_prompt 中'车从 X→Y 运动'的方向必须与 LHD 声明一致(driver 在左 → 默认 L2R);不一致 → NG",
+    "rationale": "左舵车驾驶员在左侧,车辆行驶方向与座驾位置有约定关系;方向声明与 LHD 矛盾会产生空间错乱。",
+    "source_file": "physics_precheck/SKILL.md",
+    "source_section": "§Core Capability 4 车辆轨迹",
+    "tags": [
+      "physics_precheck",
+      "vehicle",
+      "NG",
+      "lhd_rhd"
+    ],
+    "priority": 78,
+    "extra_data": {
+      "dimension": "车辆",
+      "severity_on_fail": "NG",
+      "rule": "vehicle motion direction must agree with LHD/RHD declaration",
+      "convention": "LHD (driver left) → default L2R"
+    }
+  },
+  {
+    "category": "physics_feasibility_check",
+    "key_name": "speculative_car_parts",
+    "key_type": "feasibility_rule",
+    "primary_recommendation": "ltx_prompt 中出现 'glovebox' / 'rearview mirror' 等 speculative 部件名 → NG,fix='改用 lower dashboard area 等通用空间语言'",
+    "rationale": "Volvo S5-4 教训:speculative(臆测性)部件名会让模型生成不存在的部件;用通用空间描述代替精确部件名更安全。",
+    "source_file": "physics_precheck/SKILL.md",
+    "source_section": "§Core Capability 4 车辆轨迹",
+    "tags": [
+      "physics_precheck",
+      "vehicle",
+      "NG",
+      "volvo_lesson"
+    ],
+    "priority": 75,
+    "extra_data": {
+      "dimension": "车辆",
+      "severity_on_fail": "NG",
+      "rule": "no speculative car part names in prompt",
+      "forbidden_examples": [
+        "glovebox",
+        "rearview mirror"
+      ],
+      "fix_suggestion": "改用 'lower dashboard area' 等通用空间语言"
+    }
+  },
+  {
+    "category": "physics_feasibility_check",
+    "key_name": "orbit_360_ban",
+    "key_type": "feasibility_rule",
+    "primary_recommendation": "LTX/即梦均不支持 360° orbit;camera_move=orbit 且 motion_intensity ≥ 0.7 → 直接 NG",
+    "rationale": "360° 环绕超出当前 AI 视频模型的生成能力,强行生成会失败或严重扭曲;是硬约束。",
+    "source_file": "physics_precheck/SKILL.md",
+    "source_section": "§Core Capability 5 AI 能力边界",
+    "tags": [
+      "physics_precheck",
+      "ai_capability",
+      "NG",
+      "hard_constraint"
+    ],
+    "priority": 85,
+    "extra_data": {
+      "dimension": "AI能力",
+      "severity_on_fail": "NG",
+      "rule": "360° orbit not supported",
+      "trigger": "camera_move=orbit AND motion_intensity>=0.7",
+      "engines_affected": [
+        "LTX",
+        "即梦"
+      ]
+    }
+  },
+  {
+    "category": "physics_feasibility_check",
+    "key_name": "multiperson_complex_interaction",
+    "key_type": "feasibility_rule",
+    "primary_recommendation": "LTX/即梦不支持复杂多人物交互;多人物接触动作场景 → WARNING(能力边界警告)。",
+    "rationale": "AI 能力硬边界:模型对复杂多人物交互生成不可靠。此条是能力边界声明;具体拆解方案见 multiperson_interaction_limit。",
+    "source_file": "physics_precheck/SKILL.md",
+    "source_section": "§Core Capability 5 AI 能力边界",
+    "tags": [
+      "physics_precheck",
+      "ai_capability",
+      "WARNING",
+      "multiperson",
+      "hard_constraint"
+    ],
+    "priority": 62,
+    "extra_data": {
+      "dimension": "AI能力",
+      "severity_on_fail": "WARNING",
+      "rule": "complex multiperson interaction not supported",
+      "engines_affected": [
+        "LTX",
+        "即梦"
+      ],
+      "related_check": "multiperson_interaction_limit"
+    }
+  },
+  {
+    "category": "physics_feasibility_check",
+    "key_name": "shot_duration_ceiling_15s",
+    "key_type": "feasibility_rule",
+    "primary_recommendation": "单 shot duration_sec > 15s → 直接 NG(hard ceiling)",
+    "rationale": "AI 视频单镜头生成有硬性时长上限;超 15s 单镜头不可生成,必须拆段。",
+    "source_file": "physics_precheck/SKILL.md",
+    "source_section": "§Core Capability 5 AI 能力边界",
+    "tags": [
+      "physics_precheck",
+      "ai_capability",
+      "NG",
+      "duration",
+      "hard_constraint"
+    ],
+    "priority": 82,
+    "extra_data": {
+      "dimension": "AI能力",
+      "severity_on_fail": "NG",
+      "rule": "single shot duration <= 15s",
+      "hard_ceiling_s": 15
+    }
+  },
+  {
+    "category": "physics_feasibility_check",
+    "key_name": "shot_duration_8s_justification",
+    "key_type": "feasibility_rule",
+    "primary_recommendation": "单 shot duration_sec > 8s 必须有 narrative_justification;缺 → WARNING(可生成但有质量风险)",
+    "rationale": "8-15s 区间可生成但偏离最佳时长;必须有叙事理由(per duration-decision-framework),否则建议拆短。",
+    "source_file": "physics_precheck/SKILL.md",
+    "source_section": "§Core Capability 5 AI 能力边界",
+    "tags": [
+      "physics_precheck",
+      "ai_capability",
+      "WARNING",
+      "duration"
+    ],
+    "priority": 58,
+    "extra_data": {
+      "dimension": "AI能力",
+      "severity_on_fail": "WARNING",
+      "rule": "duration>8s requires narrative_justification",
+      "threshold_s": 8,
+      "ceiling_s": 15,
+      "upstream": "cinematographer/references/duration-decision-framework.md"
+    }
+  },
+  {
+    "category": "physics_feasibility_check",
+    "key_name": "starting_image_narrative_subject",
+    "key_type": "feasibility_rule",
+    "primary_recommendation": "shot 的 starting_image 必须包含或暗示叙事主体(角色/人物);若 screenplay.characters 为空且 shot 是 Hook/Opening → NG,fix='加入叙事主体或调整 shot 类型';其他情况 → WARNING",
+    "rationale": "Volvo S1-1 教训:空场景/无叙事主体的首帧会导致观众无落点,Hook 镜头尤其致命。首帧必须有主体。",
+    "source_file": "physics_precheck/SKILL.md",
+    "source_section": "§Core Capability 5 AI 能力边界",
+    "tags": [
+      "physics_precheck",
+      "ai_capability",
+      "NG",
+      "volvo_lesson",
+      "hook"
+    ],
+    "priority": 80,
+    "extra_data": {
+      "dimension": "AI能力",
+      "severity_on_fail": "NG for Hook/Opening, WARNING others",
+      "rule": "starting_image must contain/imply a narrative subject",
+      "trigger_ng": "characters empty AND shot is Hook/Opening",
+      "fix_suggestion": "加入叙事主体或调整 shot 类型"
+    }
+  },
+  {
+    "category": "physics_feasibility_check",
+    "key_name": "prompt_precision_6_dims",
+    "key_type": "feasibility_rule",
+    "primary_recommendation": "ltx_prompt 必须包含 6 维:motion state / character position / key props-wardrobe / camera role / spatial context / prop identity;缺任何一维 → WARNING(可生成但质量风险)",
+    "rationale": "LTX Prompt Precision 7 维 + R11 铁律:维度不全的 prompt 生成质量下降;6 维是最低覆盖要求。",
+    "source_file": "physics_precheck/SKILL.md",
+    "source_section": "§Core Capability 5 AI 能力边界",
+    "tags": [
+      "physics_precheck",
+      "ai_capability",
+      "WARNING",
+      "prompt_precision"
+    ],
+    "priority": 60,
+    "extra_data": {
+      "dimension": "AI能力",
+      "severity_on_fail": "WARNING",
+      "rule": "ltx_prompt must cover 6 precision dimensions",
+      "dimensions": [
+        "motion state",
+        "character position",
+        "key props-wardrobe",
+        "camera role",
+        "spatial context",
+        "prop identity"
+      ],
+      "ref": "ltx-video-workflows.md Prompt Precision 7 维 + R11"
+    }
   }
 ]

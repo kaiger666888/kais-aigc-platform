@@ -118,6 +118,8 @@ export type CinemaCategory =
   | "retake_verdict"
   | "negative_prompt_genre"
   | "cross_call_weight"
+  // physics_precheck (rule-level feasibility precheck: camera/character/continuity/vehicle/AI-cap)
+  | "physics_feasibility_check"
   // alias / mapping helpers (query-quality fix — maps free-form LLM emotion
   // labels, e.g. shot_list "shock/disorientation", to canonical KB names)
   | "emotion_alias";
@@ -225,6 +227,8 @@ export type CinemaKeyType =
   | "retake_verdict"
   | "negative_prompt"
   | "cross_call_weight"
+  // physics_precheck
+  | "feasibility_rule"
   // alias / mapping helpers
   | "alias";
 
@@ -681,6 +685,7 @@ const DOMAIN_CATEGORY_SETS: Record<string, string[]> = {
     "character_failure_mode",
     "growth_chain_step",
   ],
+  feasibility: ["physics_feasibility_check"],
 };
 
 /**
