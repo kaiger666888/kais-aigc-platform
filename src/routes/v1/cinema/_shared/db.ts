@@ -70,7 +70,16 @@ export type CinemaCategory =
   | "bgm_strategy"
   | "spatial_audio_pattern"
   | "sfx_prompt_pattern"
-  | "character_voice_protocol";
+  | "character_voice_protocol"
+  // screenplay (Wave 2)
+  | "beat_sheet"
+  | "time_budget_segment"
+  | "emotion_arc"
+  | "scene_value_pair"
+  | "dialogue_density"
+  | "platform_register"
+  | "comedy_formula"
+  | "cn_drama_structure";
 
 export type CinemaKeyType =
   // cinematography
@@ -130,7 +139,16 @@ export type CinemaKeyType =
   | "bgm"
   | "spatial"
   | "sfx_prompt"
-  | "voice_protocol";
+  | "voice_protocol"
+  // screenplay (Wave 2)
+  | "beat"
+  | "time_budget"
+  | "emotion_curve"
+  | "scene_value"
+  | "dialogue_metric"
+  | "platform_register"
+  | "comedy"
+  | "cn_drama";
 
 /** Loosely-typed seed/API entry (arrays + objects). Serialized to JSON columns. */
 export interface CinemaEntry {

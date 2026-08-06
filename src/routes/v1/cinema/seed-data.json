@@ -31474,5 +31474,2172 @@
     "source_section": "Cross-episode voice consistency hard rule",
     "tags": ["audio_pipeline", "character_voice_protocol", "cross_episode"],
     "priority": 64
+  },
+  {
+    "category": "beat_sheet",
+    "key_name": "opening_image",
+    "key_type": "beat",
+    "primary_recommendation": "Opening Image (p.1, runtime 0-1%): 视觉化呈现主角的起始状态(通常是缺陷态)。",
+    "rationale": "Snyder 15-beat 之 Opening Image。原始 110 页长片规范化。",
+    "extra_data": {
+      "snyder_beat": "Opening Image",
+      "page": "p.1",
+      "runtime_pct_range": "0-1%",
+      "function": "视觉化呈现主角的起始状态(通常是缺陷态)"
+    },
+    "source_file": "save-the-cat-beat-sheet.md",
+    "source_section": "The 15 Beats",
+    "tags": ["screenplay", "beat_sheet", "opening_image"],
+    "priority": 62
+  },
+  {
+    "category": "beat_sheet",
+    "key_name": "theme_stated",
+    "key_type": "beat",
+    "primary_recommendation": "Theme Stated (p.5, runtime ~5%): 某角色(常为次要角色)说出主题句 —— 主角此时尚未理解。",
+    "rationale": "Snyder 15-beat 之 Theme Stated。原始 110 页长片规范化。",
+    "extra_data": {
+      "snyder_beat": "Theme Stated",
+      "page": "p.5",
+      "runtime_pct_range": "~5%",
+      "function": "某角色(常为次要角色)说出主题句 —— 主角此时尚未理解"
+    },
+    "source_file": "save-the-cat-beat-sheet.md",
+    "source_section": "The 15 Beats",
+    "tags": ["screenplay", "beat_sheet", "theme_stated"],
+    "priority": 58
+  },
+  {
+    "category": "beat_sheet",
+    "key_name": "set_up",
+    "key_type": "beat",
+    "primary_recommendation": "Set-Up (p.1-10, runtime 1-10%): 介绍主角的世界、缺陷、机会。",
+    "rationale": "Snyder 15-beat 之 Set-Up。原始 110 页长片规范化。",
+    "extra_data": {
+      "snyder_beat": "Set-Up",
+      "page": "p.1-10",
+      "runtime_pct_range": "1-10%",
+      "function": "介绍主角的世界、缺陷、机会"
+    },
+    "source_file": "save-the-cat-beat-sheet.md",
+    "source_section": "The 15 Beats",
+    "tags": ["screenplay", "beat_sheet", "set_up"],
+    "priority": 60
+  },
+  {
+    "category": "beat_sheet",
+    "key_name": "catalyst",
+    "key_type": "beat",
+    "primary_recommendation": "Catalyst (p.10 (±3), runtime ~10%): 触发事件 —— 打破主角的现状,通常是外部强加的。",
+    "rationale": "Snyder 15-beat 之 Catalyst。原始 110 页长片规范化。",
+    "extra_data": {
+      "snyder_beat": "Catalyst",
+      "page": "p.10 (±3)",
+      "runtime_pct_range": "~10%",
+      "function": "触发事件 —— 打破主角的现状,通常是外部强加的"
+    },
+    "source_file": "save-the-cat-beat-sheet.md",
+    "source_section": "The 15 Beats",
+    "tags": ["screenplay", "beat_sheet", "catalyst"],
+    "priority": 72
+  },
+  {
+    "category": "beat_sheet",
+    "key_name": "debate",
+    "key_type": "beat",
+    "primary_recommendation": "Debate (p.10-20, runtime 10-20%): 主角对 Catalyst 的犹豫/恐惧/挣扎。",
+    "rationale": "Snyder 15-beat 之 Debate。原始 110 页长片规范化。",
+    "extra_data": {
+      "snyder_beat": "Debate",
+      "page": "p.10-20",
+      "runtime_pct_range": "10-20%",
+      "function": "主角对 Catalyst 的犹豫/恐惧/挣扎"
+    },
+    "source_file": "save-the-cat-beat-sheet.md",
+    "source_section": "The 15 Beats",
+    "tags": ["screenplay", "beat_sheet", "debate"],
+    "priority": 58
+  },
+  {
+    "category": "beat_sheet",
+    "key_name": "break_into_two",
+    "key_type": "beat",
+    "primary_recommendation": "Break into Two (p.20 (±3), runtime ~20%): 主角做出决定,进入第二幕(新世界)。",
+    "rationale": "Snyder 15-beat 之 Break into Two。原始 110 页长片规范化。",
+    "extra_data": {
+      "snyder_beat": "Break into Two",
+      "page": "p.20 (±3)",
+      "runtime_pct_range": "~20%",
+      "function": "主角做出决定,进入第二幕(新世界)"
+    },
+    "source_file": "save-the-cat-beat-sheet.md",
+    "source_section": "The 15 Beats",
+    "tags": ["screenplay", "beat_sheet", "break_into_two"],
+    "priority": 60
+  },
+  {
+    "category": "beat_sheet",
+    "key_name": "b_story",
+    "key_type": "beat",
+    "primary_recommendation": "B-Story (p.30 (±5), runtime ~30%): 次要故事线启动(通常是爱情线/友情线),承载 Theme Stated。",
+    "rationale": "Snyder 15-beat 之 B-Story。原始 110 页长片规范化。",
+    "extra_data": {
+      "snyder_beat": "B-Story",
+      "page": "p.30 (±5)",
+      "runtime_pct_range": "~30%",
+      "function": "次要故事线启动(通常是爱情线/友情线),承载 Theme Stated"
+    },
+    "source_file": "save-the-cat-beat-sheet.md",
+    "source_section": "The 15 Beats",
+    "tags": ["screenplay", "beat_sheet", "b_story"],
+    "priority": 60
+  },
+  {
+    "category": "beat_sheet",
+    "key_name": "fun_and_games",
+    "key_type": "beat",
+    "primary_recommendation": "Fun & Games (p.30-55, runtime 30-50%): 承诺的大前提兑现 —— 观众来看这部片就是为了这一段(留存核心段)。",
+    "rationale": "Snyder 15-beat 之 Fun & Games。原始 110 页长片规范化。",
+    "extra_data": {
+      "snyder_beat": "Fun & Games",
+      "page": "p.30-55",
+      "runtime_pct_range": "30-50%",
+      "function": "承诺的大前提兑现 —— 观众来看这部片就是为了这一段(留存核心段)"
+    },
+    "source_file": "save-the-cat-beat-sheet.md",
+    "source_section": "The 15 Beats",
+    "tags": ["screenplay", "beat_sheet", "fun_and_games"],
+    "priority": 66
+  },
+  {
+    "category": "beat_sheet",
+    "key_name": "midpoint",
+    "key_type": "beat",
+    "primary_recommendation": "Midpoint (p.55 (±3), runtime ~50%): 结构性转折 —— 假胜利(false victory)或假失败(false defeat),必须极性反转。",
+    "rationale": "Snyder 15-beat 之 Midpoint。原始 110 页长片规范化。",
+    "extra_data": {
+      "snyder_beat": "Midpoint",
+      "page": "p.55 (±3)",
+      "runtime_pct_range": "~50%",
+      "function": "结构性转折 —— 假胜利(false victory)或假失败(false defeat),必须极性反转"
+    },
+    "source_file": "save-the-cat-beat-sheet.md",
+    "source_section": "The 15 Beats",
+    "tags": ["screenplay", "beat_sheet", "midpoint"],
+    "priority": 72
+  },
+  {
+    "category": "beat_sheet",
+    "key_name": "bad_guys_close_in",
+    "key_type": "beat",
+    "primary_recommendation": "Bad Guys Close In (p.55-75, runtime 50-68%): 外部对手反扑 + 内部分裂 —— 局势恶化。",
+    "rationale": "Snyder 15-beat 之 Bad Guys Close In。原始 110 页长片规范化。",
+    "extra_data": {
+      "snyder_beat": "Bad Guys Close In",
+      "page": "p.55-75",
+      "runtime_pct_range": "50-68%",
+      "function": "外部对手反扑 + 内部分裂 —— 局势恶化"
+    },
+    "source_file": "save-the-cat-beat-sheet.md",
+    "source_section": "The 15 Beats",
+    "tags": ["screenplay", "beat_sheet", "bad_guys_close_in"],
+    "priority": 58
+  },
+  {
+    "category": "beat_sheet",
+    "key_name": "all_is_lost",
+    "key_type": "beat",
+    "primary_recommendation": "All Is Lost (p.75 (±3), runtime ~68%): 最低点 —— 主角失去关键资源/盟友/信念。",
+    "rationale": "Snyder 15-beat 之 All Is Lost。原始 110 页长片规范化。",
+    "extra_data": {
+      "snyder_beat": "All Is Lost",
+      "page": "p.75 (±3)",
+      "runtime_pct_range": "~68%",
+      "function": "最低点 —— 主角失去关键资源/盟友/信念"
+    },
+    "source_file": "save-the-cat-beat-sheet.md",
+    "source_section": "The 15 Beats",
+    "tags": ["screenplay", "beat_sheet", "all_is_lost"],
+    "priority": 70
+  },
+  {
+    "category": "beat_sheet",
+    "key_name": "dark_night_of_soul",
+    "key_type": "beat",
+    "primary_recommendation": "Dark Night of the Soul (p.75-85, runtime 68-77%): 主角的内省/绝望/觉醒前夜(与 All Is Lost 连续触发 double-bump)。",
+    "rationale": "Snyder 15-beat 之 Dark Night of the Soul。原始 110 页长片规范化。",
+    "extra_data": {
+      "snyder_beat": "Dark Night of the Soul",
+      "page": "p.75-85",
+      "runtime_pct_range": "68-77%",
+      "function": "主角的内省/绝望/觉醒前夜(与 All Is Lost 连续触发 double-bump)"
+    },
+    "source_file": "save-the-cat-beat-sheet.md",
+    "source_section": "The 15 Beats",
+    "tags": ["screenplay", "beat_sheet", "dark_night_of_soul"],
+    "priority": 60
+  },
+  {
+    "category": "beat_sheet",
+    "key_name": "break_into_three",
+    "key_type": "beat",
+    "primary_recommendation": "Break into Three (p.85 (±3), runtime ~77%): 主角找到解决方案(synthesis —— 融合 A 故事 + B 故事)。",
+    "rationale": "Snyder 15-beat 之 Break into Three。原始 110 页长片规范化。",
+    "extra_data": {
+      "snyder_beat": "Break into Three",
+      "page": "p.85 (±3)",
+      "runtime_pct_range": "~77%",
+      "function": "主角找到解决方案(synthesis —— 融合 A 故事 + B 故事)"
+    },
+    "source_file": "save-the-cat-beat-sheet.md",
+    "source_section": "The 15 Beats",
+    "tags": ["screenplay", "beat_sheet", "break_into_three"],
+    "priority": 62
+  },
+  {
+    "category": "beat_sheet",
+    "key_name": "finale",
+    "key_type": "beat",
+    "primary_recommendation": "Finale (p.85-110, runtime 77-95%): 主角执行新方案,击败对手/解决问题。",
+    "rationale": "Snyder 15-beat 之 Finale。原始 110 页长片规范化。",
+    "extra_data": {
+      "snyder_beat": "Finale",
+      "page": "p.85-110",
+      "runtime_pct_range": "77-95%",
+      "function": "主角执行新方案,击败对手/解决问题"
+    },
+    "source_file": "save-the-cat-beat-sheet.md",
+    "source_section": "The 15 Beats",
+    "tags": ["screenplay", "beat_sheet", "finale"],
+    "priority": 64
+  },
+  {
+    "category": "beat_sheet",
+    "key_name": "final_image",
+    "key_type": "beat",
+    "primary_recommendation": "Final Image (p.110, runtime 95-100%): 与 Opening Image 对照的视觉化呈现(主角的完成态)。",
+    "rationale": "Snyder 15-beat 之 Final Image。原始 110 页长片规范化。",
+    "extra_data": {
+      "snyder_beat": "Final Image",
+      "page": "p.110",
+      "runtime_pct_range": "95-100%",
+      "function": "与 Opening Image 对照的视觉化呈现(主角的完成态)"
+    },
+    "source_file": "save-the-cat-beat-sheet.md",
+    "source_section": "The 15 Beats",
+    "tags": ["screenplay", "beat_sheet", "final_image"],
+    "priority": 62
+  },
+  {
+    "category": "beat_sheet",
+    "key_name": "catalyst_timing_rule",
+    "key_type": "beat",
+    "primary_recommendation": "Catalyst 必须在 p.10 ± 3(runtime ~10%):90s ~9s(6-12s)/180s ~18s。晚于 p.15 判为前戏过长,完播率受直接冲击。",
+    "extra_data": {
+      "rule": "Catalyst at p.10±3",
+      "position_90s_sec": [6, 12],
+      "position_180s_sec": [12, 24]
+    },
+    "source_file": "save-the-cat-beat-sheet.md",
+    "source_section": "关键数字(heuristic 1)",
+    "tags": ["screenplay", "beat_sheet", "catalyst", "timing"],
+    "priority": 74
+  },
+  {
+    "category": "beat_sheet",
+    "key_name": "midpoint_polarity_rule",
+    "key_type": "beat",
+    "primary_recommendation": "Midpoint 必须在 p.55 ± 3(runtime ~50%)且必须发生极性反转(假胜利→崩/假失败→触底反弹)。无极性反转 = 无 Midpoint。",
+    "extra_data": {
+      "rule": "Midpoint at p.55±3, must have polarity reversal"
+    },
+    "source_file": "save-the-cat-beat-sheet.md",
+    "source_section": "关键数字(heuristic 2)",
+    "tags": ["screenplay", "beat_sheet", "midpoint", "polarity"],
+    "priority": 72
+  },
+  {
+    "category": "beat_sheet",
+    "key_name": "double_bump_rule",
+    "key_type": "beat",
+    "primary_recommendation": "All Is Lost + Dark Night of Soul 必须连续触发,中间不允许喘息或虚假希望;窗口内不允许插入 爽点(爽点必须在 Break into Three 之后兑现)。",
+    "extra_data": {
+      "rule": "All Is Lost + Dark Night consecutive, no 爽点 in window",
+      "window_90s_sec": [67, 77],
+      "window_180s_sec": [122, 138],
+      "window_60s_sec": [39, 45]
+    },
+    "source_file": "save-the-cat-beat-sheet.md",
+    "source_section": "Double-Bump Rule",
+    "tags": ["screenplay", "beat_sheet", "double_bump", "all_is_lost"],
+    "priority": 70
+  },
+  {
+    "category": "beat_sheet",
+    "key_name": "season_arc_beat_focus",
+    "key_type": "beat",
+    "primary_recommendation": "跨集 season arc:opener 集(钩子+Catalyst)/ escalation 集(Fun&Games+Midpoint+击中点)/ 卡点集(All Is Lost+Dark Night+卡点)/ finale 集(Break into Three+Finale+Final Image)。",
+    "extra_data": {
+      "episode_types": ["opener(ep1)", "escalation(ep2-6)", "卡点(付费门槛)", "finale(ep10)"]
+    },
+    "source_file": "save-the-cat-beat-sheet.md",
+    "source_section": "Beat Budget 跨集长形态",
+    "tags": ["screenplay", "beat_sheet", "season_arc"],
+    "priority": 62
+  },
+  {
+    "category": "time_budget_segment",
+    "key_name": "90s_hook",
+    "key_type": "time_budget",
+    "primary_recommendation": "90s 钩子: 0-3s(3%) → Opening Image + Save the Cat。",
+    "rationale": "对应 HOOK marker: 钩子(5-type taxonomy 任一)。",
+    "extra_data": {
+      "format": "90s",
+      "segment": "hook",
+      "segment_label": "钩子",
+      "duration_sec_range": [0, 3],
+      "duration_pct": 0.03,
+      "snyder_beat": "Opening Image + Save the Cat",
+      "hook_marker": "钩子(5-type taxonomy 任一)"
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "90s 短剧 Time Budget",
+    "tags": ["screenplay", "time_budget_segment", "90s", "hook"],
+    "priority": 70
+  },
+  {
+    "category": "time_budget_segment",
+    "key_name": "90s_setup",
+    "key_type": "time_budget",
+    "primary_recommendation": "90s setup: 3-15s(13%) → Set-Up + Catalyst。",
+    "rationale": "对应 HOOK marker: (无独立 marker)。",
+    "extra_data": {
+      "format": "90s",
+      "segment": "setup",
+      "segment_label": "setup",
+      "duration_sec_range": [3, 15],
+      "duration_pct": 0.13,
+      "snyder_beat": "Set-Up + Catalyst",
+      "hook_marker": "(无独立 marker)"
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "90s 短剧 Time Budget",
+    "tags": ["screenplay", "time_budget_segment", "90s", "setup"],
+    "priority": 60
+  },
+  {
+    "category": "time_budget_segment",
+    "key_name": "90s_escalation",
+    "key_type": "time_budget",
+    "primary_recommendation": "90s escalation: 15-40s(28%) → Debate + Fun & Games。",
+    "rationale": "对应 HOOK marker: 击中点(软峰~10-15s)。",
+    "extra_data": {
+      "format": "90s",
+      "segment": "escalation",
+      "segment_label": "escalation",
+      "duration_sec_range": [15, 40],
+      "duration_pct": 0.28,
+      "snyder_beat": "Debate + Fun & Games",
+      "hook_marker": "击中点(软峰~10-15s)"
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "90s 短剧 Time Budget",
+    "tags": ["screenplay", "time_budget_segment", "90s", "escalation"],
+    "priority": 64
+  },
+  {
+    "category": "time_budget_segment",
+    "key_name": "90s_satisfaction_setup",
+    "key_type": "time_budget",
+    "primary_recommendation": "90s 爽点 setup: 40-70s(33%) → Midpoint + Bad Guys Close In。",
+    "rationale": "对应 HOOK marker: 击中点(硬峰~30-45s)+value-shift。",
+    "extra_data": {
+      "format": "90s",
+      "segment": "satisfaction_setup",
+      "segment_label": "爽点 setup",
+      "duration_sec_range": [40, 70],
+      "duration_pct": 0.33,
+      "snyder_beat": "Midpoint + Bad Guys Close In",
+      "hook_marker": "击中点(硬峰~30-45s)+value-shift"
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "90s 短剧 Time Budget",
+    "tags": ["screenplay", "time_budget_segment", "90s", "satisfaction_setup"],
+    "priority": 62
+  },
+  {
+    "category": "time_budget_segment",
+    "key_name": "90s_satisfaction_payoff",
+    "key_type": "time_budget",
+    "primary_recommendation": "90s 爽点 payoff: 70-80s(11%) → All Is Lost + Break into Three + Finale。",
+    "rationale": "对应 HOOK marker: 爽点 peak(9-10/10)。",
+    "extra_data": {
+      "format": "90s",
+      "segment": "satisfaction_payoff",
+      "segment_label": "爽点 payoff",
+      "duration_sec_range": [70, 80],
+      "duration_pct": 0.11,
+      "snyder_beat": "All Is Lost + Break into Three + Finale",
+      "hook_marker": "爽点 peak(9-10/10)"
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "90s 短剧 Time Budget",
+    "tags": ["screenplay", "time_budget_segment", "90s", "satisfaction_payoff"],
+    "priority": 66
+  },
+  {
+    "category": "time_budget_segment",
+    "key_name": "90s_resolution",
+    "key_type": "time_budget",
+    "primary_recommendation": "90s resolution: 80-88s(9%) → Finale(收尾)。",
+    "rationale": "对应 HOOK marker: (情绪从峰值回落)。",
+    "extra_data": {
+      "format": "90s",
+      "segment": "resolution",
+      "segment_label": "resolution",
+      "duration_sec_range": [80, 88],
+      "duration_pct": 0.09,
+      "snyder_beat": "Finale(收尾)",
+      "hook_marker": "(情绪从峰值回落)"
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "90s 短剧 Time Budget",
+    "tags": ["screenplay", "time_budget_segment", "90s", "resolution"],
+    "priority": 56
+  },
+  {
+    "category": "time_budget_segment",
+    "key_name": "90s_cliffhanger",
+    "key_type": "time_budget",
+    "primary_recommendation": "90s 卡点 cliffhanger: 88-90s(2%) → Final Image。",
+    "rationale": "对应 HOOK marker: 卡点(硬卡点🟢)。",
+    "extra_data": {
+      "format": "90s",
+      "segment": "cliffhanger",
+      "segment_label": "卡点 cliffhanger",
+      "duration_sec_range": [88, 90],
+      "duration_pct": 0.02,
+      "snyder_beat": "Final Image",
+      "hook_marker": "卡点(硬卡点🟢)"
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "90s 短剧 Time Budget",
+    "tags": ["screenplay", "time_budget_segment", "90s", "cliffhanger"],
+    "priority": 64
+  },
+  {
+    "category": "time_budget_segment",
+    "key_name": "180s_hook",
+    "key_type": "time_budget",
+    "primary_recommendation": "180s 钩子: 0-3s(2%) → Opening Image + Save the Cat。",
+    "rationale": "对应 HOOK marker: 钩子。",
+    "extra_data": {
+      "format": "180s",
+      "segment": "hook",
+      "segment_label": "钩子",
+      "duration_sec_range": [0, 3],
+      "duration_pct": 0.02,
+      "snyder_beat": "Opening Image + Save the Cat",
+      "hook_marker": "钩子"
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "180s 短剧 Time Budget",
+    "tags": ["screenplay", "time_budget_segment", "180s", "hook"],
+    "priority": 70
+  },
+  {
+    "category": "time_budget_segment",
+    "key_name": "180s_setup",
+    "key_type": "time_budget",
+    "primary_recommendation": "180s setup: 3-18s(8%) → Set-Up + Catalyst。",
+    "rationale": "对应 HOOK marker: (无独立 marker)。",
+    "extra_data": {
+      "format": "180s",
+      "segment": "setup",
+      "segment_label": "setup",
+      "duration_sec_range": [3, 18],
+      "duration_pct": 0.08,
+      "snyder_beat": "Set-Up + Catalyst",
+      "hook_marker": "(无独立 marker)"
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "180s 短剧 Time Budget",
+    "tags": ["screenplay", "time_budget_segment", "180s", "setup"],
+    "priority": 60
+  },
+  {
+    "category": "time_budget_segment",
+    "key_name": "180s_escalation_first",
+    "key_type": "time_budget",
+    "primary_recommendation": "180s escalation (first half): 18-45s(15%) → Debate + Fun & Games (first)。",
+    "rationale": "对应 HOOK marker: 击中点(软峰~20-25s)。",
+    "extra_data": {
+      "format": "180s",
+      "segment": "escalation_first",
+      "segment_label": "escalation (first half)",
+      "duration_sec_range": [18, 45],
+      "duration_pct": 0.15,
+      "snyder_beat": "Debate + Fun & Games (first)",
+      "hook_marker": "击中点(软峰~20-25s)"
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "180s 短剧 Time Budget",
+    "tags": ["screenplay", "time_budget_segment", "180s", "escalation_first"],
+    "priority": 62
+  },
+  {
+    "category": "time_budget_segment",
+    "key_name": "180s_mid_escalation",
+    "key_type": "time_budget",
+    "primary_recommendation": "180s mid-escalation: 45-80s(19%) → Midpoint + Fun & Games (second)。",
+    "rationale": "对应 HOOK marker: 击中点(硬峰~45-55s)+value-shift。",
+    "extra_data": {
+      "format": "180s",
+      "segment": "mid_escalation",
+      "segment_label": "mid-escalation",
+      "duration_sec_range": [45, 80],
+      "duration_pct": 0.19,
+      "snyder_beat": "Midpoint + Fun & Games (second)",
+      "hook_marker": "击中点(硬峰~45-55s)+value-shift"
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "180s 短剧 Time Budget",
+    "tags": ["screenplay", "time_budget_segment", "180s", "mid_escalation"],
+    "priority": 62
+  },
+  {
+    "category": "time_budget_segment",
+    "key_name": "180s_mid_cliffhanger",
+    "key_type": "time_budget",
+    "primary_recommendation": "180s mid-episode 软卡点(可选): 80-90s(6%) → (Midpoint 之后的小低谷)。",
+    "rationale": "对应 HOOK marker: 软卡点🟡。",
+    "extra_data": {
+      "format": "180s",
+      "segment": "mid_cliffhanger",
+      "segment_label": "mid-episode 软卡点(可选)",
+      "duration_sec_range": [80, 90],
+      "duration_pct": 0.06,
+      "snyder_beat": "(Midpoint 之后的小低谷)",
+      "hook_marker": "软卡点🟡"
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "180s 短剧 Time Budget",
+    "tags": ["screenplay", "time_budget_segment", "180s", "mid_cliffhanger"],
+    "priority": 58
+  },
+  {
+    "category": "time_budget_segment",
+    "key_name": "180s_second_escalation",
+    "key_type": "time_budget",
+    "primary_recommendation": "180s second escalation + 爽点 setup: 90-140s(28%) → Bad Guys Close In + All Is Lost。",
+    "rationale": "对应 HOOK marker: 击中点(硬峰~120s)。",
+    "extra_data": {
+      "format": "180s",
+      "segment": "second_escalation",
+      "segment_label": "second escalation + 爽点 setup",
+      "duration_sec_range": [90, 140],
+      "duration_pct": 0.28,
+      "snyder_beat": "Bad Guys Close In + All Is Lost",
+      "hook_marker": "击中点(硬峰~120s)"
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "180s 短剧 Time Budget",
+    "tags": ["screenplay", "time_budget_segment", "180s", "second_escalation"],
+    "priority": 62
+  },
+  {
+    "category": "time_budget_segment",
+    "key_name": "180s_satisfaction_payoff",
+    "key_type": "time_budget",
+    "primary_recommendation": "180s 爽点 payoff (second): 140-160s(11%) → Break into Three + Finale。",
+    "rationale": "对应 HOOK marker: 爽点 peak(9-10/10)。",
+    "extra_data": {
+      "format": "180s",
+      "segment": "satisfaction_payoff",
+      "segment_label": "爽点 payoff (second)",
+      "duration_sec_range": [140, 160],
+      "duration_pct": 0.11,
+      "snyder_beat": "Break into Three + Finale",
+      "hook_marker": "爽点 peak(9-10/10)"
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "180s 短剧 Time Budget",
+    "tags": ["screenplay", "time_budget_segment", "180s", "satisfaction_payoff"],
+    "priority": 66
+  },
+  {
+    "category": "time_budget_segment",
+    "key_name": "180s_resolution",
+    "key_type": "time_budget",
+    "primary_recommendation": "180s resolution: 160-175s(8%) → Finale(收尾)。",
+    "rationale": "对应 HOOK marker: (情绪回落)。",
+    "extra_data": {
+      "format": "180s",
+      "segment": "resolution",
+      "segment_label": "resolution",
+      "duration_sec_range": [160, 175],
+      "duration_pct": 0.08,
+      "snyder_beat": "Finale(收尾)",
+      "hook_marker": "(情绪回落)"
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "180s 短剧 Time Budget",
+    "tags": ["screenplay", "time_budget_segment", "180s", "resolution"],
+    "priority": 56
+  },
+  {
+    "category": "time_budget_segment",
+    "key_name": "180s_cliffhanger",
+    "key_type": "time_budget",
+    "primary_recommendation": "180s 卡点 cliffhanger: 175-180s(3%) → Final Image。",
+    "rationale": "对应 HOOK marker: 卡点(硬卡点🟢)。",
+    "extra_data": {
+      "format": "180s",
+      "segment": "cliffhanger",
+      "segment_label": "卡点 cliffhanger",
+      "duration_sec_range": [175, 180],
+      "duration_pct": 0.03,
+      "snyder_beat": "Final Image",
+      "hook_marker": "卡点(硬卡点🟢)"
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "180s 短剧 Time Budget",
+    "tags": ["screenplay", "time_budget_segment", "180s", "cliffhanger"],
+    "priority": 64
+  },
+  {
+    "category": "time_budget_segment",
+    "key_name": "60s_opening_savecat_hook",
+    "key_type": "time_budget",
+    "primary_recommendation": "60s Opening Image + Save the Cat + 钩子: 0-3s(5%)。",
+    "rationale": "3 秒钩子规则不变。60s 短剧 Debate 只能 ≤6s,否则完播率在 12s 后崩。",
+    "extra_data": {
+      "format": "60s",
+      "segment": "opening_savecat_hook",
+      "segment_label": "Opening Image + Save the Cat + 钩子",
+      "duration_sec_range": [0, 3],
+      "duration_pct": 0.05,
+      "note": "3 秒钩子规则不变"
+    },
+    "source_file": "save-the-cat-beat-sheet.md",
+    "source_section": "60s 短剧 Beat Budget",
+    "tags": ["screenplay", "time_budget_segment", "60s", "opening_savecat_hook"],
+    "priority": 58
+  },
+  {
+    "category": "time_budget_segment",
+    "key_name": "60s_setup_catalyst",
+    "key_type": "time_budget",
+    "primary_recommendation": "60s Set-Up + Catalyst: 3-6s(5%)。",
+    "rationale": "3s 内完成 setup + 触发事件。60s 短剧 Debate 只能 ≤6s,否则完播率在 12s 后崩。",
+    "extra_data": {
+      "format": "60s",
+      "segment": "setup_catalyst",
+      "segment_label": "Set-Up + Catalyst",
+      "duration_sec_range": [3, 6],
+      "duration_pct": 0.05,
+      "note": "3s 内完成 setup + 触发事件"
+    },
+    "source_file": "save-the-cat-beat-sheet.md",
+    "source_section": "60s 短剧 Beat Budget",
+    "tags": ["screenplay", "time_budget_segment", "60s", "setup_catalyst"],
+    "priority": 58
+  },
+  {
+    "category": "time_budget_segment",
+    "key_name": "60s_debate_break",
+    "key_type": "time_budget",
+    "primary_recommendation": "60s Debate + Break into Two: 6-12s(10%)。",
+    "rationale": "主角犹豫 ≤6s。60s 短剧 Debate 只能 ≤6s,否则完播率在 12s 后崩。",
+    "extra_data": {
+      "format": "60s",
+      "segment": "debate_break",
+      "segment_label": "Debate + Break into Two",
+      "duration_sec_range": [6, 12],
+      "duration_pct": 0.1,
+      "note": "主角犹豫 ≤6s"
+    },
+    "source_file": "save-the-cat-beat-sheet.md",
+    "source_section": "60s 短剧 Beat Budget",
+    "tags": ["screenplay", "time_budget_segment", "60s", "debate_break"],
+    "priority": 58
+  },
+  {
+    "category": "time_budget_segment",
+    "key_name": "60s_fun_games",
+    "key_type": "time_budget",
+    "primary_recommendation": "60s Fun & Games: 12-30s(30%)。",
+    "rationale": "18s 承诺兑现(仅容纳 1 个击中点)。60s 短剧 Debate 只能 ≤6s,否则完播率在 12s 后崩。",
+    "extra_data": {
+      "format": "60s",
+      "segment": "fun_games",
+      "segment_label": "Fun & Games",
+      "duration_sec_range": [12, 30],
+      "duration_pct": 0.3,
+      "note": "18s 承诺兑现(仅容纳 1 个击中点)"
+    },
+    "source_file": "save-the-cat-beat-sheet.md",
+    "source_section": "60s 短剧 Beat Budget",
+    "tags": ["screenplay", "time_budget_segment", "60s", "fun_games"],
+    "priority": 58
+  },
+  {
+    "category": "time_budget_segment",
+    "key_name": "60s_midpoint",
+    "key_type": "time_budget",
+    "primary_recommendation": "60s Midpoint: 27-33s(10%)。",
+    "rationale": "极性反转~30s。60s 短剧 Debate 只能 ≤6s,否则完播率在 12s 后崩。",
+    "extra_data": {
+      "format": "60s",
+      "segment": "midpoint",
+      "segment_label": "Midpoint",
+      "duration_sec_range": [27, 33],
+      "duration_pct": 0.1,
+      "note": "极性反转~30s"
+    },
+    "source_file": "save-the-cat-beat-sheet.md",
+    "source_section": "60s 短剧 Beat Budget",
+    "tags": ["screenplay", "time_budget_segment", "60s", "midpoint"],
+    "priority": 58
+  },
+  {
+    "category": "time_budget_segment",
+    "key_name": "60s_badguys_alllost",
+    "key_type": "time_budget",
+    "primary_recommendation": "60s Bad Guys + All Is Lost + Dark Night: 30-45s(25%)。",
+    "rationale": "15s 连续恶化(double-bump)。60s 短剧 Debate 只能 ≤6s,否则完播率在 12s 后崩。",
+    "extra_data": {
+      "format": "60s",
+      "segment": "badguys_alllost",
+      "segment_label": "Bad Guys + All Is Lost + Dark Night",
+      "duration_sec_range": [30, 45],
+      "duration_pct": 0.25,
+      "note": "15s 连续恶化(double-bump)"
+    },
+    "source_file": "save-the-cat-beat-sheet.md",
+    "source_section": "60s 短剧 Beat Budget",
+    "tags": ["screenplay", "time_budget_segment", "60s", "badguys_alllost"],
+    "priority": 58
+  },
+  {
+    "category": "time_budget_segment",
+    "key_name": "60s_break_finale",
+    "key_type": "time_budget",
+    "primary_recommendation": "60s Break into Three + Finale: 45-54s(15%)。",
+    "rationale": "主角执行 9s。60s 短剧 Debate 只能 ≤6s,否则完播率在 12s 后崩。",
+    "extra_data": {
+      "format": "60s",
+      "segment": "break_finale",
+      "segment_label": "Break into Three + Finale",
+      "duration_sec_range": [45, 54],
+      "duration_pct": 0.15,
+      "note": "主角执行 9s"
+    },
+    "source_file": "save-the-cat-beat-sheet.md",
+    "source_section": "60s 短剧 Beat Budget",
+    "tags": ["screenplay", "time_budget_segment", "60s", "break_finale"],
+    "priority": 58
+  },
+  {
+    "category": "time_budget_segment",
+    "key_name": "60s_final_cliffhanger",
+    "key_type": "time_budget",
+    "primary_recommendation": "60s Final Image + 卡点: 54-60s(10%)。",
+    "rationale": "6s 收尾 + 卡点。60s 短剧 Debate 只能 ≤6s,否则完播率在 12s 后崩。",
+    "extra_data": {
+      "format": "60s",
+      "segment": "final_cliffhanger",
+      "segment_label": "Final Image + 卡点",
+      "duration_sec_range": [54, 60],
+      "duration_pct": 0.1,
+      "note": "6s 收尾 + 卡点"
+    },
+    "source_file": "save-the-cat-beat-sheet.md",
+    "source_section": "60s 短剧 Beat Budget",
+    "tags": ["screenplay", "time_budget_segment", "60s", "final_cliffhanger"],
+    "priority": 58
+  },
+  {
+    "category": "emotion_arc",
+    "key_name": "rags_to_riches",
+    "key_type": "emotion_curve",
+    "primary_recommendation": "Rags to Riches(持续上升): 低谷→上升→高峰。短剧典型应用: 男频逆袭/战神归来/装穷打脸。",
+    "rationale": "Reagan 等 2016 基于 Project Gutenberg ~1700 部英语小说 sentiment analysis 聚类;6 arc 覆盖 ~85% 故事。",
+    "extra_data": {
+      "arc": "Rags to Riches",
+      "shape": "持续上升",
+      "trajectory": "低谷→上升→高峰",
+      "shortdrama_use": "男频逆袭/战神归来/装穷打脸",
+      "recognition": {
+        "slope_pos_0_inflection": "Rags to Riches",
+        "slope_neg_0_inflection": "Riches to Rags",
+        "slope_pos_1_inflection": "Man in a Hole",
+        "slope_neg_1_inflection": "Icarus",
+        "slope_pos_2plus_inflection": "Cinderella",
+        "slope_neg_2plus_inflection": "Oedipus"
+      }
+    },
+    "source_file": "emotion-curve-academic.md",
+    "source_section": "6 Core Emotional Arcs (Reagan)",
+    "tags": ["screenplay", "emotion_arc", "rags_to_riches"],
+    "priority": 66
+  },
+  {
+    "category": "emotion_arc",
+    "key_name": "riches_to_rags",
+    "key_type": "emotion_curve",
+    "primary_recommendation": "Riches to Rags(持续下降): 高峰→下降→低谷。短剧典型应用: 悲剧/警示剧(短剧罕见)。",
+    "rationale": "Reagan 等 2016 基于 Project Gutenberg ~1700 部英语小说 sentiment analysis 聚类;6 arc 覆盖 ~85% 故事。",
+    "extra_data": {
+      "arc": "Riches to Rags",
+      "shape": "持续下降",
+      "trajectory": "高峰→下降→低谷",
+      "shortdrama_use": "悲剧/警示剧(短剧罕见)",
+      "recognition": {
+        "slope_pos_0_inflection": "Rags to Riches",
+        "slope_neg_0_inflection": "Riches to Rags",
+        "slope_pos_1_inflection": "Man in a Hole",
+        "slope_neg_1_inflection": "Icarus",
+        "slope_pos_2plus_inflection": "Cinderella",
+        "slope_neg_2plus_inflection": "Oedipus"
+      }
+    },
+    "source_file": "emotion-curve-academic.md",
+    "source_section": "6 Core Emotional Arcs (Reagan)",
+    "tags": ["screenplay", "emotion_arc", "riches_to_rags"],
+    "priority": 50
+  },
+  {
+    "category": "emotion_arc",
+    "key_name": "man_in_a_hole",
+    "key_type": "emotion_curve",
+    "primary_recommendation": "Man in a Hole(V型(先落后升)): 高峰→低谷→上升→高峰。短剧典型应用: 男频复仇/重生复仇。",
+    "rationale": "Reagan 等 2016 基于 Project Gutenberg ~1700 部英语小说 sentiment analysis 聚类;6 arc 覆盖 ~85% 故事。",
+    "extra_data": {
+      "arc": "Man in a Hole",
+      "shape": "V型(先落后升)",
+      "trajectory": "高峰→低谷→上升→高峰",
+      "shortdrama_use": "男频复仇/重生复仇",
+      "recognition": {
+        "slope_pos_0_inflection": "Rags to Riches",
+        "slope_neg_0_inflection": "Riches to Rags",
+        "slope_pos_1_inflection": "Man in a Hole",
+        "slope_neg_1_inflection": "Icarus",
+        "slope_pos_2plus_inflection": "Cinderella",
+        "slope_neg_2plus_inflection": "Oedipus"
+      }
+    },
+    "source_file": "emotion-curve-academic.md",
+    "source_section": "6 Core Emotional Arcs (Reagan)",
+    "tags": ["screenplay", "emotion_arc", "man_in_a_hole"],
+    "priority": 70
+  },
+  {
+    "category": "emotion_arc",
+    "key_name": "icarus",
+    "key_type": "emotion_curve",
+    "primary_recommendation": "Icarus(倒V型(先升后落)): 低谷→上升→高峰→下降。短剧典型应用: 悲剧性崛起(短剧罕见)。",
+    "rationale": "Reagan 等 2016 基于 Project Gutenberg ~1700 部英语小说 sentiment analysis 聚类;6 arc 覆盖 ~85% 故事。",
+    "extra_data": {
+      "arc": "Icarus",
+      "shape": "倒V型(先升后落)",
+      "trajectory": "低谷→上升→高峰→下降",
+      "shortdrama_use": "悲剧性崛起(短剧罕见)",
+      "recognition": {
+        "slope_pos_0_inflection": "Rags to Riches",
+        "slope_neg_0_inflection": "Riches to Rags",
+        "slope_pos_1_inflection": "Man in a Hole",
+        "slope_neg_1_inflection": "Icarus",
+        "slope_pos_2plus_inflection": "Cinderella",
+        "slope_neg_2plus_inflection": "Oedipus"
+      }
+    },
+    "source_file": "emotion-curve-academic.md",
+    "source_section": "6 Core Emotional Arcs (Reagan)",
+    "tags": ["screenplay", "emotion_arc", "icarus"],
+    "priority": 50
+  },
+  {
+    "category": "emotion_arc",
+    "key_name": "cinderella",
+    "key_type": "emotion_curve",
+    "primary_recommendation": "Cinderella(双升(波动上升)): 低谷→上升→小低谷→上升→高峰。短剧典型应用: 女频闪婚/豪门虐恋/萌宝。",
+    "rationale": "Reagan 等 2016 基于 Project Gutenberg ~1700 部英语小说 sentiment analysis 聚类;6 arc 覆盖 ~85% 故事。",
+    "extra_data": {
+      "arc": "Cinderella",
+      "shape": "双升(波动上升)",
+      "trajectory": "低谷→上升→小低谷→上升→高峰",
+      "shortdrama_use": "女频闪婚/豪门虐恋/萌宝",
+      "recognition": {
+        "slope_pos_0_inflection": "Rags to Riches",
+        "slope_neg_0_inflection": "Riches to Rags",
+        "slope_pos_1_inflection": "Man in a Hole",
+        "slope_neg_1_inflection": "Icarus",
+        "slope_pos_2plus_inflection": "Cinderella",
+        "slope_neg_2plus_inflection": "Oedipus"
+      }
+    },
+    "source_file": "emotion-curve-academic.md",
+    "source_section": "6 Core Emotional Arcs (Reagan)",
+    "tags": ["screenplay", "emotion_arc", "cinderella"],
+    "priority": 66
+  },
+  {
+    "category": "emotion_arc",
+    "key_name": "oedipus",
+    "key_type": "emotion_curve",
+    "primary_recommendation": "Oedipus(双落(波动下降)): 高峰→下降→小高峰→下降→低谷。短剧典型应用: 悲剧/命运无常(短剧罕见)。",
+    "rationale": "Reagan 等 2016 基于 Project Gutenberg ~1700 部英语小说 sentiment analysis 聚类;6 arc 覆盖 ~85% 故事。",
+    "extra_data": {
+      "arc": "Oedipus",
+      "shape": "双落(波动下降)",
+      "trajectory": "高峰→下降→小高峰→下降→低谷",
+      "shortdrama_use": "悲剧/命运无常(短剧罕见)",
+      "recognition": {
+        "slope_pos_0_inflection": "Rags to Riches",
+        "slope_neg_0_inflection": "Riches to Rags",
+        "slope_pos_1_inflection": "Man in a Hole",
+        "slope_neg_1_inflection": "Icarus",
+        "slope_pos_2plus_inflection": "Cinderella",
+        "slope_neg_2plus_inflection": "Oedipus"
+      }
+    },
+    "source_file": "emotion-curve-academic.md",
+    "source_section": "6 Core Emotional Arcs (Reagan)",
+    "tags": ["screenplay", "emotion_arc", "oedipus"],
+    "priority": 50
+  },
+  {
+    "category": "emotion_arc",
+    "key_name": "shortdrama_arc_preference",
+    "key_type": "emotion_curve",
+    "primary_recommendation": "短剧 arc 偏好高度集中:男频逆袭/复仇→Man in a Hole(V型);女频闪婚/萌宝/豪门虐恋→Cinderella(双升);小程序剧长集数→多峰复合 arc。下降型 arc(Riches to Rags/Icarus/Oedipus)在短剧罕见(<5%)。",
+    "extra_data": {
+      "male_revenge": "man_in_a_hole",
+      "female_romance": "cinderella",
+      "long_form": "multi-peak composite",
+      "declining_arcs_rare_pct": 5
+    },
+    "source_file": "emotion-curve-academic.md",
+    "source_section": "短剧 的 Arc 偏好",
+    "tags": ["screenplay", "emotion_arc", "preference"],
+    "priority": 66
+  },
+  {
+    "category": "emotion_arc",
+    "key_name": "tan_interest_formula",
+    "key_type": "emotion_curve",
+    "primary_recommendation": "Tan interest 公式:interest = concern × uncertainty × anticipation(乘法,任一为 0 则 interest=0)。每场景 interest ≥ 0.6(单因素下限)。",
+    "rationale": "可预测性是 interest 的杀手。三因素归一化 0.0-1.0,LLM-judged。诊断遵循最低分优先原则。",
+    "extra_data": {
+      "formula": "interest = concern * uncertainty * anticipation",
+      "factors": {
+        "concern": "观众对主角福祉的关心",
+        "uncertainty": "剧情走向的不确定",
+        "anticipation": "对即将兑现时刻的期待"
+      },
+      "per_factor_min": 0.6,
+      "operator": "multiplicative"
+    },
+    "source_file": "emotion-curve-academic.md",
+    "source_section": "Tan's Interest Structure",
+    "tags": ["screenplay", "emotion_arc", "tan_interest"],
+    "priority": 64
+  },
+  {
+    "category": "emotion_arc",
+    "key_name": "interest_fix_concern",
+    "key_type": "emotion_curve",
+    "primary_recommendation": "concern < 0.6 修复:插入 Save the Cat 时刻(前 3-5s 展示脆弱/善良/牺牲)+ 明确主角想要(外部)与需要(内在)。",
+    "extra_data": {
+      "factor": "concern",
+      "fix": ["Save the Cat 时刻", "明确动机"]
+    },
+    "source_file": "emotion-curve-academic.md",
+    "source_section": "Interest 三因素的 短剧 应用",
+    "tags": ["screenplay", "emotion_arc", "interest_fix", "concern"],
+    "priority": 58
+  },
+  {
+    "category": "emotion_arc",
+    "key_name": "interest_fix_uncertainty",
+    "key_type": "emotion_curve",
+    "primary_recommendation": "uncertainty < 0.6 修复:引入反转 gap(行动产生与期望相反结果)+ 变奏经典套路(装穷打脸→特工/修仙/重生变体)。",
+    "extra_data": {
+      "factor": "uncertainty",
+      "fix": ["反转 gap", "套路变奏"]
+    },
+    "source_file": "emotion-curve-academic.md",
+    "source_section": "Interest 三因素的 短剧 应用",
+    "tags": ["screenplay", "emotion_arc", "interest_fix", "uncertainty"],
+    "priority": 58
+  },
+  {
+    "category": "emotion_arc",
+    "key_name": "interest_fix_anticipation",
+    "key_type": "emotion_curve",
+    "primary_recommendation": "anticipation < 0.6 修复:植入 爽点 setup(All Is Lost 段铺垫)→ payoff 在 Finale 兑现;建立跨集 callback(setup_callback/payoff_callback)。",
+    "extra_data": {
+      "factor": "anticipation",
+      "fix": ["爽点 setup-payoff", "跨集 callback"]
+    },
+    "source_file": "emotion-curve-academic.md",
+    "source_section": "Interest 三因素的 短剧 应用",
+    "tags": ["screenplay", "emotion_arc", "interest_fix", "anticipation"],
+    "priority": 58
+  },
+  {
+    "category": "emotion_arc",
+    "key_name": "attention_decay_no_impact",
+    "key_type": "emotion_curve",
+    "primary_recommendation": "无 击中点:8-12s 内 attention drops ≥ 15%。击中点间隔应 ≤ 8-12s。",
+    "extra_data": {
+      "condition": "无击中点",
+      "drop_pct_min": 15,
+      "window_sec": [8, 12],
+      "lambda_per_sec": [0.13, 0.2]
+    },
+    "source_file": "emotion-curve-academic.md",
+    "source_section": "Attention Decay Curve",
+    "tags": ["screenplay", "emotion_arc", "attention_decay"],
+    "priority": 62
+  },
+  {
+    "category": "emotion_arc",
+    "key_name": "attention_decay_no_valueshift",
+    "key_type": "emotion_curve",
+    "primary_recommendation": "无 value-shift:30-40s 内 attention drops ≥ 30%。",
+    "extra_data": {
+      "condition": "无value-shift",
+      "drop_pct_min": 30,
+      "window_sec": [30, 40]
+    },
+    "source_file": "emotion-curve-academic.md",
+    "source_section": "Attention Decay Curve",
+    "tags": ["screenplay", "emotion_arc", "attention_decay"],
+    "priority": 60
+  },
+  {
+    "category": "emotion_arc",
+    "key_name": "attention_decay_no_hook",
+    "key_type": "emotion_curve",
+    "primary_recommendation": "无 钩子:开场 3-5s 内 attention drops ≥ 50%(抖音算法完播率 3s 拐点)。",
+    "extra_data": {
+      "condition": "无钩子",
+      "drop_pct_min": 50,
+      "window_sec": [3, 5]
+    },
+    "source_file": "emotion-curve-academic.md",
+    "source_section": "Attention Decay Curve",
+    "tags": ["screenplay", "emotion_arc", "attention_decay"],
+    "priority": 66
+  },
+  {
+    "category": "emotion_arc",
+    "key_name": "lambda_male_revenge",
+    "key_type": "emotion_curve",
+    "primary_recommendation": "男频复仇: λ ~0.2/秒(快衰减),击中点间隔阈值 ≤ 8-10s。男频观众追求即时刺激,容忍度低。",
+    "extra_data": {
+      "genre": "男频复仇",
+      "lambda_per_sec": 0.2,
+      "stimulus_interval_sec": [8, 10],
+      "note": "男频观众追求即时刺激,容忍度低"
+    },
+    "source_file": "emotion-curve-academic.md",
+    "source_section": "注意力衰减的题材差异",
+    "tags": ["screenplay", "emotion_arc", "lambda", "male_revenge"],
+    "priority": 60
+  },
+  {
+    "category": "emotion_arc",
+    "key_name": "lambda_female_romance",
+    "key_type": "emotion_curve",
+    "primary_recommendation": "女频闪婚: λ ~0.15/秒(快衰减),击中点间隔阈值 ≤ 12-15s。女频允许更长情感铺垫。",
+    "extra_data": {
+      "genre": "女频闪婚",
+      "lambda_per_sec": 0.15,
+      "stimulus_interval_sec": [12, 15],
+      "note": "女频允许更长情感铺垫"
+    },
+    "source_file": "emotion-curve-academic.md",
+    "source_section": "注意力衰减的题材差异",
+    "tags": ["screenplay", "emotion_arc", "lambda", "female_romance"],
+    "priority": 60
+  },
+  {
+    "category": "emotion_arc",
+    "key_name": "lambda_suspense",
+    "key_type": "emotion_curve",
+    "primary_recommendation": "小程序剧悬疑: λ ~0.12/秒(快衰减),击中点间隔阈值 ≤ 15-20s。悬疑观众愿意等待线索。",
+    "extra_data": {
+      "genre": "小程序剧悬疑",
+      "lambda_per_sec": 0.12,
+      "stimulus_interval_sec": [15, 20],
+      "note": "悬疑观众愿意等待线索"
+    },
+    "source_file": "emotion-curve-academic.md",
+    "source_section": "注意力衰减的题材差异",
+    "tags": ["screenplay", "emotion_arc", "lambda", "suspense"],
+    "priority": 60
+  },
+  {
+    "category": "emotion_arc",
+    "key_name": "lambda_war_god",
+    "key_type": "emotion_curve",
+    "primary_recommendation": "男频战神: λ ~0.18/秒(快衰减),击中点间隔阈值 ≤ 10-12s。战神观众期待频繁战力展示。",
+    "extra_data": {
+      "genre": "男频战神",
+      "lambda_per_sec": 0.18,
+      "stimulus_interval_sec": [10, 12],
+      "note": "战神观众期待频繁战力展示"
+    },
+    "source_file": "emotion-curve-academic.md",
+    "source_section": "注意力衰减的题材差异",
+    "tags": ["screenplay", "emotion_arc", "lambda", "war_god"],
+    "priority": 60
+  },
+  {
+    "category": "scene_value_pair",
+    "key_name": "life_death",
+    "key_type": "scene_value",
+    "primary_recommendation": "生/死: 正面=生存 ↔ 负面=死亡。短剧典型应用: 战神归来/复仇。",
+    "rationale": "McKee value-shift 硬规则:每个场景必须至少转换 1 个价值(+3↔-3);无 value-shift 的场景 = filler,应删除/合并。",
+    "extra_data": {
+      "value_pair": "生/死",
+      "positive_pole": "生存",
+      "negative_pole": "死亡",
+      "shortdrama_use": "战神归来/复仇"
+    },
+    "source_file": "mckee-scene-design.md",
+    "source_section": "Value-Shift Rule",
+    "tags": ["screenplay", "scene_value_pair", "life_death"],
+    "priority": 60
+  },
+  {
+    "category": "scene_value_pair",
+    "key_name": "love_hate",
+    "key_type": "scene_value",
+    "primary_recommendation": "爱/恨: 正面=相爱 ↔ 负面=相恨/冷漠。短剧典型应用: 女频豪门虐恋。",
+    "rationale": "McKee value-shift 硬规则:每个场景必须至少转换 1 个价值(+3↔-3);无 value-shift 的场景 = filler,应删除/合并。",
+    "extra_data": {
+      "value_pair": "爱/恨",
+      "positive_pole": "相爱",
+      "negative_pole": "相恨/冷漠",
+      "shortdrama_use": "女频豪门虐恋"
+    },
+    "source_file": "mckee-scene-design.md",
+    "source_section": "Value-Shift Rule",
+    "tags": ["screenplay", "scene_value_pair", "love_hate"],
+    "priority": 60
+  },
+  {
+    "category": "scene_value_pair",
+    "key_name": "freedom_captivity",
+    "key_type": "scene_value",
+    "primary_recommendation": "自由/囚禁: 正面=自由 ↔ 负面=囚禁(物理/心理)。短剧典型应用: 重生复仇/替身。",
+    "rationale": "McKee value-shift 硬规则:每个场景必须至少转换 1 个价值(+3↔-3);无 value-shift 的场景 = filler,应删除/合并。",
+    "extra_data": {
+      "value_pair": "自由/囚禁",
+      "positive_pole": "自由",
+      "negative_pole": "囚禁(物理/心理)",
+      "shortdrama_use": "重生复仇/替身"
+    },
+    "source_file": "mckee-scene-design.md",
+    "source_section": "Value-Shift Rule",
+    "tags": ["screenplay", "scene_value_pair", "freedom_captivity"],
+    "priority": 60
+  },
+  {
+    "category": "scene_value_pair",
+    "key_name": "hope_despair",
+    "key_type": "scene_value",
+    "primary_recommendation": "希望/绝望: 正面=充满希望 ↔ 负面=彻底绝望。短剧典型应用: 萌宝/逆袭。",
+    "rationale": "McKee value-shift 硬规则:每个场景必须至少转换 1 个价值(+3↔-3);无 value-shift 的场景 = filler,应删除/合并。",
+    "extra_data": {
+      "value_pair": "希望/绝望",
+      "positive_pole": "充满希望",
+      "negative_pole": "彻底绝望",
+      "shortdrama_use": "萌宝/逆袭"
+    },
+    "source_file": "mckee-scene-design.md",
+    "source_section": "Value-Shift Rule",
+    "tags": ["screenplay", "scene_value_pair", "hope_despair"],
+    "priority": 60
+  },
+  {
+    "category": "scene_value_pair",
+    "key_name": "truth_lies",
+    "key_type": "scene_value",
+    "primary_recommendation": "真相/谎言: 正面=真相揭露 ↔ 负面=谎言维持。短剧典型应用: 家族秘辛/悬疑。",
+    "rationale": "McKee value-shift 硬规则:每个场景必须至少转换 1 个价值(+3↔-3);无 value-shift 的场景 = filler,应删除/合并。",
+    "extra_data": {
+      "value_pair": "真相/谎言",
+      "positive_pole": "真相揭露",
+      "negative_pole": "谎言维持",
+      "shortdrama_use": "家族秘辛/悬疑"
+    },
+    "source_file": "mckee-scene-design.md",
+    "source_section": "Value-Shift Rule",
+    "tags": ["screenplay", "scene_value_pair", "truth_lies"],
+    "priority": 60
+  },
+  {
+    "category": "scene_value_pair",
+    "key_name": "rich_poor",
+    "key_type": "scene_value",
+    "primary_recommendation": "富/贫: 正面=富有 ↔ 负面=贫穷。短剧典型应用: 装穷打脸/赘婿。",
+    "rationale": "McKee value-shift 硬规则:每个场景必须至少转换 1 个价值(+3↔-3);无 value-shift 的场景 = filler,应删除/合并。",
+    "extra_data": {
+      "value_pair": "富/贫",
+      "positive_pole": "富有",
+      "negative_pole": "贫穷",
+      "shortdrama_use": "装穷打脸/赘婿"
+    },
+    "source_file": "mckee-scene-design.md",
+    "source_section": "Value-Shift Rule",
+    "tags": ["screenplay", "scene_value_pair", "rich_poor"],
+    "priority": 60
+  },
+  {
+    "category": "scene_value_pair",
+    "key_name": "strong_weak",
+    "key_type": "scene_value",
+    "primary_recommendation": "强/弱: 正面=强大(物理/社会地位) ↔ 负面=弱小。短剧典型应用: 战神/修仙。",
+    "rationale": "McKee value-shift 硬规则:每个场景必须至少转换 1 个价值(+3↔-3);无 value-shift 的场景 = filler,应删除/合并。",
+    "extra_data": {
+      "value_pair": "强/弱",
+      "positive_pole": "强大(物理/社会地位)",
+      "negative_pole": "弱小",
+      "shortdrama_use": "战神/修仙"
+    },
+    "source_file": "mckee-scene-design.md",
+    "source_section": "Value-Shift Rule",
+    "tags": ["screenplay", "scene_value_pair", "strong_weak"],
+    "priority": 60
+  },
+  {
+    "category": "scene_value_pair",
+    "key_name": "honor_shame",
+    "key_type": "scene_value",
+    "primary_recommendation": "荣誉/耻辱: 正面=荣誉 ↔ 负面=耻辱。短剧典型应用: 男频打脸。",
+    "rationale": "McKee value-shift 硬规则:每个场景必须至少转换 1 个价值(+3↔-3);无 value-shift 的场景 = filler,应删除/合并。",
+    "extra_data": {
+      "value_pair": "荣誉/耻辱",
+      "positive_pole": "荣誉",
+      "negative_pole": "耻辱",
+      "shortdrama_use": "男频打脸"
+    },
+    "source_file": "mckee-scene-design.md",
+    "source_section": "Value-Shift Rule",
+    "tags": ["screenplay", "scene_value_pair", "honor_shame"],
+    "priority": 60
+  },
+  {
+    "category": "scene_value_pair",
+    "key_name": "valueshift_rules",
+    "key_type": "scene_value",
+    "primary_recommendation": "value-shift 计量:每场景 ≥1 次硬规则;幅度(+3↔-3)比方向更重要;rate ≥1.0 健康(≥1.5 优秀);正→负制造痛苦(All Is Lost),负→正制造释放(Finale)。",
+    "extra_data": {
+      "min_per_scene": 1,
+      "amplitude_scale": [-3, 3],
+      "healthy_rate": 1.0,
+      "excellent_rate": 1.5,
+      "pos_to_neg": "痛苦/紧张(All Is Lost)",
+      "neg_to_pos": "释放/满足(Finale)"
+    },
+    "source_file": "mckee-scene-design.md",
+    "source_section": "Value-Shift 的计量规则",
+    "tags": ["screenplay", "scene_value_pair", "rules"],
+    "priority": 66
+  },
+  {
+    "category": "scene_value_pair",
+    "key_name": "gap_shallow",
+    "key_type": "scene_value",
+    "primary_recommendation": "浅 gap: 反应与期望有差异但方向一致(期待尊重,得到冷漠的尊重)。观众: 微妙的不对劲,情绪不强烈。适用: 小程序剧长集数内省场景。",
+    "rationale": "90s 短剧每个场景至少需要 1 个中 gap 或深 gap;只有浅 gap 的场景应合并。",
+    "extra_data": {
+      "gap_level": "浅 gap",
+      "description": "反应与期望有差异但方向一致(期待尊重,得到冷漠的尊重)",
+      "audience_reaction": "微妙的不对劲,情绪不强烈",
+      "shortdrama_use": "小程序剧长集数内省场景",
+      "gap_depth": 1
+    },
+    "source_file": "mckee-scene-design.md",
+    "source_section": "Gap 深度的 3 级标尺",
+    "tags": ["screenplay", "scene_value_pair", "gap", "shallow"],
+    "priority": 61
+  },
+  {
+    "category": "scene_value_pair",
+    "key_name": "gap_medium",
+    "key_type": "scene_value",
+    "primary_recommendation": "中 gap: 反应与期望方向相反(期待尊重,得到羞辱)。观众: 感受到冲突,情绪开始波动。适用: 90s/120s 短剧常规场景。",
+    "rationale": "90s 短剧每个场景至少需要 1 个中 gap 或深 gap;只有浅 gap 的场景应合并。",
+    "extra_data": {
+      "gap_level": "中 gap",
+      "description": "反应与期望方向相反(期待尊重,得到羞辱)",
+      "audience_reaction": "感受到冲突,情绪开始波动",
+      "shortdrama_use": "90s/120s 短剧常规场景",
+      "gap_depth": 2
+    },
+    "source_file": "mckee-scene-design.md",
+    "source_section": "Gap 深度的 3 级标尺",
+    "tags": ["screenplay", "scene_value_pair", "gap", "medium"],
+    "priority": 62
+  },
+  {
+    "category": "scene_value_pair",
+    "key_name": "gap_deep",
+    "key_type": "scene_value",
+    "primary_recommendation": "深 gap: 反应与期望方向相反 + 主角认知框架被颠覆(以为骗了对方,其实从一开始就被看穿)。观众: 震撼,情绪峰值。适用: 爽点/击中点场景。",
+    "rationale": "90s 短剧每个场景至少需要 1 个中 gap 或深 gap;只有浅 gap 的场景应合并。",
+    "extra_data": {
+      "gap_level": "深 gap",
+      "description": "反应与期望方向相反 + 主角认知框架被颠覆(以为骗了对方,其实从一开始就被看穿)",
+      "audience_reaction": "震撼,情绪峰值",
+      "shortdrama_use": "爽点/击中点场景",
+      "gap_depth": 3
+    },
+    "source_file": "mckee-scene-design.md",
+    "source_section": "Gap 深度的 3 级标尺",
+    "tags": ["screenplay", "scene_value_pair", "gap", "deep"],
+    "priority": 63
+  },
+  {
+    "category": "scene_value_pair",
+    "key_name": "beat_count_rule",
+    "key_type": "scene_value",
+    "primary_recommendation": "McKee beat 计量:典型 90s 短剧场景(5-15s)含 3-5 个 beat;beat 间情绪强度升级 ≥1 级(1-10 尺度);收尾 beat 降级(过渡)或保持高强度(卡点)。",
+    "extra_data": {
+      "beat_count_90s": [3, 5],
+      "beat_count_180s": [5, 8],
+      "escalation_min_steps": 1,
+      "scale": [1, 10]
+    },
+    "source_file": "mckee-scene-design.md",
+    "source_section": "Beat Decomposition",
+    "tags": ["screenplay", "scene_value_pair", "beat_count"],
+    "priority": 62
+  },
+  {
+    "category": "scene_value_pair",
+    "key_name": "plot_point_positions",
+    "key_type": "scene_value",
+    "primary_recommendation": "三幕结构 2 个核心 plot point:Plot Point I ~25% runtime(90s~22s/180s~45s/60s~15s);Plot Point II ~75% runtime(90s~67s/180s~135s/60s~45s)。合格 plot point 场景含 ≥1 个 turning point beat。",
+    "extra_data": {
+      "plot_point_1_pct": 0.25,
+      "plot_point_2_pct": 0.75,
+      "pp1_90s_sec": [20, 25],
+      "pp2_90s_sec": [64, 70],
+      "pp1_180s_sec": [40, 50],
+      "pp2_180s_sec": [130, 140]
+    },
+    "source_file": "mckee-scene-design.md",
+    "source_section": "Turning Point vs Plot Point",
+    "tags": ["screenplay", "scene_value_pair", "plot_point"],
+    "priority": 64
+  },
+  {
+    "category": "dialogue_density",
+    "key_name": "density_male_revenge",
+    "key_type": "dialogue_metric",
+    "primary_recommendation": "男频复仇/逆袭: 台词密度 0.4-0.6 lines/sec。男频偏好行动>语言;过密台词拖慢节奏削弱爽点即时感。",
+    "extra_data": {
+      "genre": "男频复仇/逆袭",
+      "density_lines_per_sec": "0.4-0.6",
+      "reason": "男频偏好行动>语言;过密台词拖慢节奏削弱爽点即时感",
+      "platform": "抖音/快手"
+    },
+    "source_file": "dialogue-craft.md",
+    "source_section": "Density Thresholds by Genre",
+    "tags": ["screenplay", "dialogue_density", "male_revenge"],
+    "priority": 64
+  },
+  {
+    "category": "dialogue_density",
+    "key_name": "density_female_romance",
+    "key_type": "dialogue_metric",
+    "primary_recommendation": "女频闪婚/豪门虐恋: 台词密度 0.5-0.7 lines/sec。女频偏好情感表达;台词是情绪传递主要载体;>0.7 显话痨。",
+    "extra_data": {
+      "genre": "女频闪婚/豪门虐恋",
+      "density_lines_per_sec": "0.5-0.7",
+      "reason": "女频偏好情感表达;台词是情绪传递主要载体;>0.7 显话痨",
+      "platform": "抖音/小程序剧"
+    },
+    "source_file": "dialogue-craft.md",
+    "source_section": "Density Thresholds by Genre",
+    "tags": ["screenplay", "dialogue_density", "female_romance"],
+    "priority": 64
+  },
+  {
+    "category": "dialogue_density",
+    "key_name": "density_female_baby",
+    "key_type": "dialogue_metric",
+    "primary_recommendation": "女频萌宝/家庭: 台词密度 0.4-0.6 lines/sec。需留出视觉萌点时间;过密台词淹没萌点。",
+    "extra_data": {
+      "genre": "女频萌宝/家庭",
+      "density_lines_per_sec": "0.4-0.6",
+      "reason": "需留出视觉萌点时间;过密台词淹没萌点",
+      "platform": "抖音/快手"
+    },
+    "source_file": "dialogue-craft.md",
+    "source_section": "Density Thresholds by Genre",
+    "tags": ["screenplay", "dialogue_density", "female_baby"],
+    "priority": 60
+  },
+  {
+    "category": "dialogue_density",
+    "key_name": "density_suspense",
+    "key_type": "dialogue_metric",
+    "primary_recommendation": "小程序剧悬疑/家族秘辛: 台词密度 0.3-0.5 lines/sec。需留白让观众推理;过密台词破坏悬念。",
+    "extra_data": {
+      "genre": "小程序剧悬疑/家族秘辛",
+      "density_lines_per_sec": "0.3-0.5",
+      "reason": "需留白让观众推理;过密台词破坏悬念",
+      "platform": "微信小程序剧"
+    },
+    "source_file": "dialogue-craft.md",
+    "source_section": "Density Thresholds by Genre",
+    "tags": ["screenplay", "dialogue_density", "suspense"],
+    "priority": 60
+  },
+  {
+    "category": "dialogue_density",
+    "key_name": "density_narration_overload",
+    "key_type": "dialogue_metric",
+    "primary_recommendation": "≥0.8(任何题材): 台词密度 ≥0.8 anti-pattern lines/sec。几乎每秒都有台词,无视觉叙事空间 —— 旁白过度 anti-pattern。",
+    "extra_data": {
+      "genre": "≥0.8(任何题材)",
+      "density_lines_per_sec": "≥0.8 anti-pattern",
+      "reason": "几乎每秒都有台词,无视觉叙事空间 —— 旁白过度 anti-pattern",
+      "platform": "所有平台"
+    },
+    "source_file": "dialogue-craft.md",
+    "source_section": "Density Thresholds by Genre",
+    "tags": ["screenplay", "dialogue_density", "narration_overload"],
+    "priority": 56
+  },
+  {
+    "category": "dialogue_density",
+    "key_name": "beatdensity_hook",
+    "key_type": "dialogue_metric",
+    "primary_recommendation": "Opening Image + 钩子(0-3s): 台词密度 0.3-0.5 lines/sec。钩子段以视觉为主;台词只是 1-2 句 hook-pin。",
+    "extra_data": {
+      "snyder_segment": "Opening Image + 钩子(0-3s)",
+      "density_lines_per_sec": "0.3-0.5",
+      "reason": "钩子段以视觉为主;台词只是 1-2 句 hook-pin"
+    },
+    "source_file": "dialogue-craft.md",
+    "source_section": "台词密度与 Snyder Beat 的关系",
+    "tags": ["screenplay", "dialogue_density", "beat_density", "hook"],
+    "priority": 58
+  },
+  {
+    "category": "dialogue_density",
+    "key_name": "beatdensity_setup_catalyst",
+    "key_type": "dialogue_metric",
+    "primary_recommendation": "Set-Up + Catalyst(3-15s): 台词密度 0.4-0.6 lines/sec。setup 需台词交代背景但不能话痨。",
+    "extra_data": {
+      "snyder_segment": "Set-Up + Catalyst(3-15s)",
+      "density_lines_per_sec": "0.4-0.6",
+      "reason": "setup 需台词交代背景但不能话痨"
+    },
+    "source_file": "dialogue-craft.md",
+    "source_section": "台词密度与 Snyder Beat 的关系",
+    "tags": ["screenplay", "dialogue_density", "beat_density", "setup_catalyst"],
+    "priority": 58
+  },
+  {
+    "category": "dialogue_density",
+    "key_name": "beatdensity_fun_games",
+    "key_type": "dialogue_metric",
+    "primary_recommendation": "Fun & Games(15-40s): 台词密度 0.5-0.7 lines/sec。兑现段允许更多台词(角色互动密集)。",
+    "extra_data": {
+      "snyder_segment": "Fun & Games(15-40s)",
+      "density_lines_per_sec": "0.5-0.7",
+      "reason": "兑现段允许更多台词(角色互动密集)"
+    },
+    "source_file": "dialogue-craft.md",
+    "source_section": "台词密度与 Snyder Beat 的关系",
+    "tags": ["screenplay", "dialogue_density", "beat_density", "fun_games"],
+    "priority": 58
+  },
+  {
+    "category": "dialogue_density",
+    "key_name": "beatdensity_midpoint_badguys",
+    "key_type": "dialogue_metric",
+    "primary_recommendation": "Midpoint + Bad Guys(40-70s): 台词密度 0.4-0.6 lines/sec。局势恶化段台词应稍降(视觉冲突为主)。",
+    "extra_data": {
+      "snyder_segment": "Midpoint + Bad Guys(40-70s)",
+      "density_lines_per_sec": "0.4-0.6",
+      "reason": "局势恶化段台词应稍降(视觉冲突为主)"
+    },
+    "source_file": "dialogue-craft.md",
+    "source_section": "台词密度与 Snyder Beat 的关系",
+    "tags": ["screenplay", "dialogue_density", "beat_density", "midpoint_badguys"],
+    "priority": 58
+  },
+  {
+    "category": "dialogue_density",
+    "key_name": "beatdensity_alllost_darknight",
+    "key_type": "dialogue_metric",
+    "primary_recommendation": "All Is Lost + Dark Night(67-77s): 台词密度 0.2-0.4 lines/sec。触底段台词最少(情绪靠视觉+音乐)。",
+    "extra_data": {
+      "snyder_segment": "All Is Lost + Dark Night(67-77s)",
+      "density_lines_per_sec": "0.2-0.4",
+      "reason": "触底段台词最少(情绪靠视觉+音乐)"
+    },
+    "source_file": "dialogue-craft.md",
+    "source_section": "台词密度与 Snyder Beat 的关系",
+    "tags": ["screenplay", "dialogue_density", "beat_density", "alllost_darknight"],
+    "priority": 58
+  },
+  {
+    "category": "dialogue_density",
+    "key_name": "beatdensity_finale",
+    "key_type": "dialogue_metric",
+    "primary_recommendation": "Finale(77-90s): 台词密度 0.3-0.5 lines/sec。Finale 台词回升但不话痨(主角行动为主)。",
+    "extra_data": {
+      "snyder_segment": "Finale(77-90s)",
+      "density_lines_per_sec": "0.3-0.5",
+      "reason": "Finale 台词回升但不话痨(主角行动为主)"
+    },
+    "source_file": "dialogue-craft.md",
+    "source_section": "台词密度与 Snyder Beat 的关系",
+    "tags": ["screenplay", "dialogue_density", "beat_density", "finale"],
+    "priority": 58
+  },
+  {
+    "category": "dialogue_density",
+    "key_name": "subtext_restrained",
+    "key_type": "dialogue_metric",
+    "primary_recommendation": "隐忍/克制型角色:日常场景高潜台词 70-80%;对峙/高潮场景高潜台词 75-85%。",
+    "extra_data": {
+      "language_profile": "隐忍/克制型",
+      "daily_scene_pct": [70, 80],
+      "climax_scene_pct": [75, 85]
+    },
+    "source_file": "dialogue-craft.md",
+    "source_section": "潜台词比例分级规则",
+    "tags": ["screenplay", "dialogue_density", "subtext", "restrained"],
+    "priority": 60
+  },
+  {
+    "category": "dialogue_density",
+    "key_name": "subtext_direct",
+    "key_type": "dialogue_metric",
+    "primary_recommendation": "直爽/爆发型角色:日常场景低潜台词 30-50%;对峙/高潮场景中潜台词 50-65%。",
+    "extra_data": {
+      "language_profile": "直爽/爆发型",
+      "daily_scene_pct": [30, 50],
+      "climax_scene_pct": [50, 65]
+    },
+    "source_file": "dialogue-craft.md",
+    "source_section": "潜台词比例分级规则",
+    "tags": ["screenplay", "dialogue_density", "subtext", "direct"],
+    "priority": 60
+  },
+  {
+    "category": "dialogue_density",
+    "key_name": "subtext_chatty",
+    "key_type": "dialogue_metric",
+    "primary_recommendation": "日常闲笔/絮叨:低潜台词 20-40%(直白鲜活,不藏)。",
+    "extra_data": {
+      "language_profile": "日常闲笔/絮叨",
+      "daily_scene_pct": [20, 40]
+    },
+    "source_file": "dialogue-craft.md",
+    "source_section": "潜台词比例分级规则",
+    "tags": ["screenplay", "dialogue_density", "subtext", "chatty"],
+    "priority": 58
+  },
+  {
+    "category": "dialogue_density",
+    "key_name": "subtext_hook_cliffhanger",
+    "key_type": "dialogue_metric",
+    "primary_recommendation": "钩子(0-3s)/卡点(88-90s)marker 台词潜台词比例应 ≥80%(高于日常档位)—— 悬念需要高潜台词。",
+    "extra_data": {
+      "marker": "钩子/卡点",
+      "subtext_min_pct": 80
+    },
+    "source_file": "dialogue-craft.md",
+    "source_section": "台词与 HOOK marker 的关系",
+    "tags": ["screenplay", "dialogue_density", "subtext", "hook", "cliffhanger"],
+    "priority": 60
+  },
+  {
+    "category": "dialogue_density",
+    "key_name": "as_you_know_3_strike",
+    "key_type": "dialogue_metric",
+    "primary_recommendation": "As You Know CN anti-pattern 3-strike:变体1(你应该知道...信息倾倒)/变体2(旁白过度)/变体3(自我宣告情绪)。≥3 strikes → 场景重写。",
+    "extra_data": {
+      "variants": ["你应该知道式 expository crutch", "旁白过度(每集≤2次)", "角色自我宣告情绪"],
+      "3_strike": "rewrite",
+      "2_strike": "warn",
+      "1_strike": "acceptable"
+    },
+    "source_file": "dialogue-craft.md",
+    "source_section": "\"As You Know\" CN Anti-Pattern",
+    "tags": ["screenplay", "dialogue_density", "anti_pattern", "3_strike"],
+    "priority": 62
+  },
+  {
+    "category": "platform_register",
+    "key_name": "douyin_register",
+    "key_type": "platform_register",
+    "primary_recommendation": "抖音 register:punchy 一句话 + 反转;短句 8-15 字;反转句式(你以为...其实...)。避免长句/书面语/文艺腔。",
+    "extra_data": {
+      "platform": "抖音",
+      "register": "punchy一句话+反转",
+      "typical_length_chars": [8, 15],
+      "avoid": ["长句", "书面语", "文艺腔"]
+    },
+    "source_file": "dialogue-craft.md",
+    "source_section": "Per-Platform Register Divergence",
+    "tags": ["screenplay", "platform_register", "douyin"],
+    "priority": 64
+  },
+  {
+    "category": "platform_register",
+    "key_name": "kuaishou_register",
+    "key_type": "platform_register",
+    "primary_recommendation": "快手 register:口语化长句;12-20 字;接地气,允许方言元素(东北话/四川话)。避免文艺腔/精英感。",
+    "extra_data": {
+      "platform": "快手",
+      "register": "口语化长句",
+      "typical_length_chars": [12, 20],
+      "allow": ["方言元素"],
+      "avoid": ["文艺腔", "精英感"]
+    },
+    "source_file": "dialogue-craft.md",
+    "source_section": "Per-Platform Register Divergence",
+    "tags": ["screenplay", "platform_register", "kuaishou"],
+    "priority": 62
+  },
+  {
+    "category": "platform_register",
+    "key_name": "miniprogram_register",
+    "key_type": "platform_register",
+    "primary_recommendation": "微信小程序剧 register:戏剧化 elevated register;15-30 字;书面语元素/文学性。避免过于口语/粗俗/草根。",
+    "extra_data": {
+      "platform": "微信小程序剧",
+      "register": "戏剧化 elevated",
+      "typical_length_chars": [15, 30],
+      "avoid": ["过于口语", "粗俗", "草根"]
+    },
+    "source_file": "dialogue-craft.md",
+    "source_section": "Per-Platform Register Divergence",
+    "tags": ["screenplay", "platform_register", "miniprogram"],
+    "priority": 62
+  },
+  {
+    "category": "platform_register",
+    "key_name": "economy_douyin_90s",
+    "key_type": "platform_register",
+    "primary_recommendation": "抖音 90s 平均台词长度 8-15 字/行。",
+    "extra_data": {
+      "format": "抖音90s",
+      "avg_line_length_chars": [8, 15]
+    },
+    "source_file": "dialogue-craft.md",
+    "source_section": "Dialogue Economy by Format",
+    "tags": ["screenplay", "platform_register", "economy", "90s"],
+    "priority": 58
+  },
+  {
+    "category": "platform_register",
+    "key_name": "economy_kuaishou",
+    "key_type": "platform_register",
+    "primary_recommendation": "快手 60-120s 平均台词长度 12-20 字/行。",
+    "extra_data": {
+      "format": "快手60-120s",
+      "avg_line_length_chars": [12, 20]
+    },
+    "source_file": "dialogue-craft.md",
+    "source_section": "Dialogue Economy by Format",
+    "tags": ["screenplay", "platform_register", "economy", "kuaishou"],
+    "priority": 58
+  },
+  {
+    "category": "platform_register",
+    "key_name": "economy_miniprogram",
+    "key_type": "platform_register",
+    "primary_recommendation": "小程序剧 120-180s 平均台词长度 15-30 字/行。",
+    "extra_data": {
+      "format": "小程序剧120-180s",
+      "avg_line_length_chars": [15, 30]
+    },
+    "source_file": "dialogue-craft.md",
+    "source_section": "Dialogue Economy by Format",
+    "tags": ["screenplay", "platform_register", "economy", "miniprogram"],
+    "priority": 58
+  },
+  {
+    "category": "comedy_formula",
+    "key_name": "formula_01_russian_doll",
+    "key_type": "comedy",
+    "primary_recommendation": "公式1 俄罗斯套娃: 真相像洋葱层层剥开,每层都是假的但每层都更合理;最终真相极小卑微荒诞,与宏大铺垫形成反差。",
+    "rationale": "最适合: 层层揭露型悬疑喜剧。反转节奏: 3 层递进(非 5-beat)。现实落点: 身份焦虑。",
+    "extra_data": {
+      "formula_num": 1,
+      "formula_name": "俄罗斯套娃",
+      "best_for": "层层揭露型悬疑喜剧",
+      "reversal_rhythm": "3 层递进(非 5-beat)",
+      "social_landing": "身份焦虑",
+      "mechanism": "真相像洋葱层层剥开,每层都是假的但每层都更合理;最终真相极小卑微荒诞,与宏大铺垫形成反差"
+    },
+    "source_file": "comedy-formulas.md",
+    "source_section": "Selection Quick-Reference",
+    "tags": ["screenplay", "comedy_formula", "russian_doll"],
+    "priority": 64
+  },
+  {
+    "category": "comedy_formula",
+    "key_name": "formula_02_macguffit_chase",
+    "key_type": "comedy",
+    "primary_recommendation": "公式2 麦格丰追逐: 角色拼命追逐一个目标,升级阻碍付出越来越大代价,最后发现目标本身不存在/毫无意义/免费/本来就有的。",
+    "rationale": "最适合: 追目标型荒诞。反转节奏: 升级→虚无。现实落点: 消费主义/内卷。",
+    "extra_data": {
+      "formula_num": 2,
+      "formula_name": "麦格丰追逐",
+      "best_for": "追目标型荒诞",
+      "reversal_rhythm": "升级→虚无",
+      "social_landing": "消费主义/内卷",
+      "mechanism": "角色拼命追逐一个目标,升级阻碍付出越来越大代价,最后发现目标本身不存在/毫无意义/免费/本来就有的"
+    },
+    "source_file": "comedy-formulas.md",
+    "source_section": "Selection Quick-Reference",
+    "tags": ["screenplay", "comedy_formula", "macguffit_chase"],
+    "priority": 60
+  },
+  {
+    "category": "comedy_formula",
+    "key_name": "formula_03_butterfly_effect",
+    "key_type": "comedy",
+    "primary_recommendation": "公式3 蝴蝶效应: 一个极小无意动作通过系统性荒诞逻辑引发不可控连锁崩溃;每个误解都必须有合理逻辑链。",
+    "rationale": "最适合: 连锁误会型。反转节奏: A→B→C 传播链。现实落点: 信息茧房。",
+    "extra_data": {
+      "formula_num": 3,
+      "formula_name": "蝴蝶效应",
+      "best_for": "连锁误会型",
+      "reversal_rhythm": "A→B→C 传播链",
+      "social_landing": "信息茧房",
+      "mechanism": "一个极小无意动作通过系统性荒诞逻辑引发不可控连锁崩溃;每个误解都必须有合理逻辑链"
+    },
+    "source_file": "comedy-formulas.md",
+    "source_section": "Selection Quick-Reference",
+    "tags": ["screenplay", "comedy_formula", "butterfly_effect"],
+    "priority": 62
+  },
+  {
+    "category": "comedy_formula",
+    "key_name": "formula_04_dimensional_strike",
+    "key_type": "comedy",
+    "primary_recommendation": "公式4 降维打击: 用极高级/复杂/专业的系统解决极低级/简单/私人的问题;最终被小学生都能想到的简单方法解决。",
+    "rationale": "最适合: 专业人设+琐事。反转节奏: 专业→失效。现实落点: 职业异化。",
+    "extra_data": {
+      "formula_num": 4,
+      "formula_name": "降维打击",
+      "best_for": "专业人设+琐事",
+      "reversal_rhythm": "专业→失效",
+      "social_landing": "职业异化",
+      "mechanism": "用极高级/复杂/专业的系统解决极低级/简单/私人的问题;最终被小学生都能想到的简单方法解决"
+    },
+    "source_file": "comedy-formulas.md",
+    "source_section": "Selection Quick-Reference",
+    "tags": ["screenplay", "comedy_formula", "dimensional_strike"],
+    "priority": 60
+  },
+  {
+    "category": "comedy_formula",
+    "key_name": "formula_05_truman_awakening",
+    "key_type": "comedy",
+    "primary_recommendation": "公式5 楚门式觉醒: 角色发现周围一切都是假的/表演/阴谋,但反应异常理性配合,开始优化自己表现;理性配合比虚假本身更荒诞。",
+    "rationale": "最适合: 世界虚假型。反转节奏: 发现→理性配合。现实落点: 社畜异化。",
+    "extra_data": {
+      "formula_num": 5,
+      "formula_name": "楚门式觉醒",
+      "best_for": "世界虚假型",
+      "reversal_rhythm": "发现→理性配合",
+      "social_landing": "社畜异化",
+      "mechanism": "角色发现周围一切都是假的/表演/阴谋,但反应异常理性配合,开始优化自己表现;理性配合比虚假本身更荒诞"
+    },
+    "source_file": "comedy-formulas.md",
+    "source_section": "Selection Quick-Reference",
+    "tags": ["screenplay", "comedy_formula", "truman_awakening"],
+    "priority": 62
+  },
+  {
+    "category": "comedy_formula",
+    "key_name": "formula_06_manual_invasion",
+    "key_type": "comedy",
+    "primary_recommendation": "公式6 说明书入侵: 用极度客观理性技术性语言描述最感性混乱私人的场景;技术语言反而比情感语言更准确戳中本质。",
+    "rationale": "最适合: 语言风格型。反转节奏: 术语错位→同化。现实落点: 情感异化。",
+    "extra_data": {
+      "formula_num": 6,
+      "formula_name": "说明书入侵",
+      "best_for": "语言风格型",
+      "reversal_rhythm": "术语错位→同化",
+      "social_landing": "情感异化",
+      "mechanism": "用极度客观理性技术性语言描述最感性混乱私人的场景;技术语言反而比情感语言更准确戳中本质"
+    },
+    "source_file": "comedy-formulas.md",
+    "source_section": "Selection Quick-Reference",
+    "tags": ["screenplay", "comedy_formula", "manual_invasion"],
+    "priority": 58
+  },
+  {
+    "category": "comedy_formula",
+    "key_name": "formula_07_emotion_mismatch",
+    "key_type": "comedy",
+    "primary_recommendation": "公式7 情绪错位: 场景情绪基调与内容完全错位,角色坚持错误情绪反应且配合越来越专业;错误情绪反而让所有人更舒服。",
+    "rationale": "最适合: 场景反差型。反转节奏: 错位→共识。现实落点: 情感压抑。",
+    "extra_data": {
+      "formula_num": 7,
+      "formula_name": "情绪错位",
+      "best_for": "场景反差型",
+      "reversal_rhythm": "错位→共识",
+      "social_landing": "情感压抑",
+      "mechanism": "场景情绪基调与内容完全错位,角色坚持错误情绪反应且配合越来越专业;错误情绪反而让所有人更舒服"
+    },
+    "source_file": "comedy-formulas.md",
+    "source_section": "Selection Quick-Reference",
+    "tags": ["screenplay", "comedy_formula", "emotion_mismatch"],
+    "priority": 58
+  },
+  {
+    "category": "comedy_formula",
+    "key_name": "formula_08_auction_bidding",
+    "key_type": "comedy",
+    "primary_recommendation": "公式8 拍卖竞价: 两角色对一件客观上毫无价值的事物进行越来越荒诞的竞价/争夺;竞价理由从实用→情感→身份→哲学。",
+    "rationale": "最适合: 争夺型。反转节奏: 升级→虚无。现实落点: 沉没成本。",
+    "extra_data": {
+      "formula_num": 8,
+      "formula_name": "拍卖竞价",
+      "best_for": "争夺型",
+      "reversal_rhythm": "升级→虚无",
+      "social_landing": "沉没成本",
+      "mechanism": "两角色对一件客观上毫无价值的事物进行越来越荒诞的竞价/争夺;竞价理由从实用→情感→身份→哲学"
+    },
+    "source_file": "comedy-formulas.md",
+    "source_section": "Selection Quick-Reference",
+    "tags": ["screenplay", "comedy_formula", "auction_bidding"],
+    "priority": 58
+  },
+  {
+    "category": "comedy_formula",
+    "key_name": "formula_09_over_preparation",
+    "key_type": "comedy",
+    "primary_recommendation": "公式9 过度准备: 角色为一件极简单的小事做荒谬级别准备,准备本身成为灾难来源;Plan B 为解决 Plan A 制造的问题且更复杂。",
+    "rationale": "最适合: 准备灾难型。反转节奏: Plan A→B→C 崩溃。现实落点: 分析瘫痪。",
+    "extra_data": {
+      "formula_num": 9,
+      "formula_name": "过度准备",
+      "best_for": "准备灾难型",
+      "reversal_rhythm": "Plan A→B→C 崩溃",
+      "social_landing": "分析瘫痪",
+      "mechanism": "角色为一件极简单的小事做荒谬级别准备,准备本身成为灾难来源;Plan B 为解决 Plan A 制造的问题且更复杂"
+    },
+    "source_file": "comedy-formulas.md",
+    "source_section": "Selection Quick-Reference",
+    "tags": ["screenplay", "comedy_formula", "over_preparation"],
+    "priority": 58
+  },
+  {
+    "category": "comedy_formula",
+    "key_name": "formula_10_time_loop",
+    "key_type": "comedy",
+    "primary_recommendation": "公式10 时间循环: 同一天不断重复,角色每次用更荒谬更优化的方式应对同一困境;极端系统化方式几乎成功但漏掉极小变量。",
+    "rationale": "最适合: 重复升级型。反转节奏: 同场景 3 次升级。现实落点: 内卷/路径依赖。",
+    "extra_data": {
+      "formula_num": 10,
+      "formula_name": "时间循环",
+      "best_for": "重复升级型",
+      "reversal_rhythm": "同场景 3 次升级",
+      "social_landing": "内卷/路径依赖",
+      "mechanism": "同一天不断重复,角色每次用更荒谬更优化的方式应对同一困境;极端系统化方式几乎成功但漏掉极小变量"
+    },
+    "source_file": "comedy-formulas.md",
+    "source_section": "Selection Quick-Reference",
+    "tags": ["screenplay", "comedy_formula", "time_loop"],
+    "priority": 60
+  },
+  {
+    "category": "comedy_formula",
+    "key_name": "formula_11_parallel_universe",
+    "key_type": "comedy",
+    "primary_recommendation": "公式11 平行宇宙: 同一场景先展示一种解读再展示完全相反的解读,两者都合理;两版本台词一字不差,只有语境和内心独白不同。",
+    "rationale": "最适合: 双解读型。反转节奏: 版本 1→版本 2。现实落点: 社交表演。",
+    "extra_data": {
+      "formula_num": 11,
+      "formula_name": "平行宇宙",
+      "best_for": "双解读型",
+      "reversal_rhythm": "版本 1→版本 2",
+      "social_landing": "社交表演",
+      "mechanism": "同一场景先展示一种解读再展示完全相反的解读,两者都合理;两版本台词一字不差,只有语境和内心独白不同"
+    },
+    "source_file": "comedy-formulas.md",
+    "source_section": "Selection Quick-Reference",
+    "tags": ["screenplay", "comedy_formula", "parallel_universe"],
+    "priority": 60
+  },
+  {
+    "category": "comedy_formula",
+    "key_name": "formula_12_absurd_rationalization",
+    "key_type": "comedy",
+    "primary_recommendation": "公式12 荒诞合理化: 先给荒谬前提再严格按逻辑推演,推演出更荒谬但合理的结论;结论触及神圣不可侵犯的社会共识,但比正常做法更诚实。",
+    "rationale": "最适合: 逻辑推演型。反转节奏: 前提→推演→触底线。现实落点: 系统性虚伪。",
+    "extra_data": {
+      "formula_num": 12,
+      "formula_name": "荒诞合理化",
+      "best_for": "逻辑推演型",
+      "reversal_rhythm": "前提→推演→触底线",
+      "social_landing": "系统性虚伪",
+      "mechanism": "先给荒谬前提再严格按逻辑推演,推演出更荒谬但合理的结论;结论触及神圣不可侵犯的社会共识,但比正常做法更诚实"
+    },
+    "source_file": "comedy-formulas.md",
+    "source_section": "Selection Quick-Reference",
+    "tags": ["screenplay", "comedy_formula", "absurd_rationalization"],
+    "priority": 62
+  },
+  {
+    "category": "comedy_formula",
+    "key_name": "subtype_formula_mapping",
+    "key_type": "comedy",
+    "primary_recommendation": "喜剧子类→公式映射:动物→animal_trait;社畜荒诞→公式5楚门式觉醒/公式4降维打击;荒诞现实→公式7情绪错位/公式8拍卖竞价/公式9过度准备;社会讽刺→公式12荒诞合理化/公式2麦格丰追逐。",
+    "rationale": "P02 comedy-engine 当前只实现 1/12 公式(animal_trait×human_role 固定 5-beat),对非动物题材方法错配。",
+    "extra_data": {
+      "animal": "animal_trait",
+      "社畜": ["公式5", "公式4"],
+      "现实": ["公式7", "公式8", "公式9"],
+      "讽刺": ["公式12", "公式2"]
+    },
+    "source_file": "comedy-formulas.md",
+    "source_section": "Pipeline Integration Notes",
+    "tags": ["screenplay", "comedy_formula", "subtype_mapping"],
+    "priority": 60
+  },
+  {
+    "category": "cn_drama_structure",
+    "key_name": "season_satisfaction_ep3",
+    "key_type": "cn_drama",
+    "primary_recommendation": "ep 3(season早段): 第一个大爽点(主角首次小胜) —— 给观众这部剧值得追的信号。",
+    "extra_data": {
+      "episode": "ep 3",
+      "season_phase": "season早段",
+      "satisfaction_type": "第一个大爽点(主角首次小胜)",
+      "function": "给观众这部剧值得追的信号"
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "10 集 season arc 的大 爽点 放置",
+    "tags": ["screenplay", "cn_drama_structure", "season_arc", "ep3"],
+    "priority": 64
+  },
+  {
+    "category": "cn_drama_structure",
+    "key_name": "season_satisfaction_ep7",
+    "key_type": "cn_drama",
+    "primary_recommendation": "ep 7(season中段): 中段大爽点(主角接近目标但有新障碍) —— 维持中段追看动力(疲劳区)。",
+    "extra_data": {
+      "episode": "ep 7",
+      "season_phase": "season中段",
+      "satisfaction_type": "中段大爽点(主角接近目标但有新障碍)",
+      "function": "维持中段追看动力(疲劳区)"
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "10 集 season arc 的大 爽点 放置",
+    "tags": ["screenplay", "cn_drama_structure", "season_arc", "ep7"],
+    "priority": 62
+  },
+  {
+    "category": "cn_drama_structure",
+    "key_name": "season_satisfaction_ep10",
+    "key_type": "cn_drama",
+    "primary_recommendation": "ep 10 (finale)(season末段): 终极爽点(主线完全兑现) —— 完结满足感+续季悬念。",
+    "extra_data": {
+      "episode": "ep 10 (finale)",
+      "season_phase": "season末段",
+      "satisfaction_type": "终极爽点(主线完全兑现)",
+      "function": "完结满足感+续季悬念"
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "10 集 season arc 的大 爽点 放置",
+    "tags": ["screenplay", "cn_drama_structure", "season_arc", "ep10"],
+    "priority": 64
+  },
+  {
+    "category": "cn_drama_structure",
+    "key_name": "paywall_ep3_hard",
+    "key_type": "cn_drama",
+    "primary_recommendation": "ep 3 硬卡点(强度green): 第一个付费门槛(观众已被 ep1-2 hook 钩住)。卡点密度 3-5/10 集,每 2-3 集至少 1 个卡点。",
+    "extra_data": {
+      "episode": "ep 3",
+      "paywall_type": "硬卡点",
+      "strength": "green",
+      "note": "第一个付费门槛(观众已被 ep1-2 hook 钩住)",
+      "density_per_10ep": [3, 5]
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "10 集 season arc 的 卡点 密度",
+    "tags": ["screenplay", "cn_drama_structure", "paywall", "ep3_hard"],
+    "priority": 60
+  },
+  {
+    "category": "cn_drama_structure",
+    "key_name": "paywall_ep5_6_hard",
+    "key_type": "cn_drama",
+    "primary_recommendation": "ep 5-6 硬卡点(强度green): 中段付费门槛。卡点密度 3-5/10 集,每 2-3 集至少 1 个卡点。",
+    "extra_data": {
+      "episode": "ep 5-6",
+      "paywall_type": "硬卡点",
+      "strength": "green",
+      "note": "中段付费门槛",
+      "density_per_10ep": [3, 5]
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "10 集 season arc 的 卡点 密度",
+    "tags": ["screenplay", "cn_drama_structure", "paywall", "ep5_6_hard"],
+    "priority": 60
+  },
+  {
+    "category": "cn_drama_structure",
+    "key_name": "paywall_ep7_8_soft",
+    "key_type": "cn_drama",
+    "primary_recommendation": "ep 7-8 软卡点(可选)(强度yellow): 中段粘性提升(不强制付费)。卡点密度 3-5/10 集,每 2-3 集至少 1 个卡点。",
+    "extra_data": {
+      "episode": "ep 7-8",
+      "paywall_type": "软卡点(可选)",
+      "strength": "yellow",
+      "note": "中段粘性提升(不强制付费)",
+      "density_per_10ep": [3, 5]
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "10 集 season arc 的 卡点 密度",
+    "tags": ["screenplay", "cn_drama_structure", "paywall", "ep7_8_soft"],
+    "priority": 60
+  },
+  {
+    "category": "cn_drama_structure",
+    "key_name": "paywall_ep9_10_hard",
+    "key_type": "cn_drama",
+    "primary_recommendation": "ep 9-10 硬卡点(强度green): season末悬念(驱动续季或完结满足)。卡点密度 3-5/10 集,每 2-3 集至少 1 个卡点。",
+    "extra_data": {
+      "episode": "ep 9-10",
+      "paywall_type": "硬卡点",
+      "strength": "green",
+      "note": "season末悬念(驱动续季或完结满足)",
+      "density_per_10ep": [3, 5]
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "10 集 season arc 的 卡点 密度",
+    "tags": ["screenplay", "cn_drama_structure", "paywall", "ep9_10_hard"],
+    "priority": 60
+  },
+  {
+    "category": "cn_drama_structure",
+    "key_name": "impact_point_density",
+    "key_type": "cn_drama",
+    "primary_recommendation": "90s 单集击中点密度 6-9 个(平均每 10-15s 一个);escalation 段(15-40s)最密集 2-3 个;10 集 season 总 60-90 个。",
+    "extra_data": {
+      "per_90s": [6, 9],
+      "interval_sec": [10, 15],
+      "escalation_segment_count": [2, 3],
+      "season_total": [60, 90]
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "击中点 密度",
+    "tags": ["screenplay", "cn_drama_structure", "impact_point"],
+    "priority": 64
+  },
+  {
+    "category": "cn_drama_structure",
+    "key_name": "cross_episode_callback",
+    "key_type": "cn_drama",
+    "primary_recommendation": "跨集 callback 4 步协议:setup(ep N 植入锚点)→ 遗忘(ep N+1~N+2 不提及)→ 提醒(ep N+3 subtle 线索)→ payoff(ep N+4~N+5 兑现)。",
+    "extra_data": {
+      "protocol": ["setup", "遗忘", "提醒", "payoff"],
+      "marker_fields": ["setup_callback", "payoff_callback"]
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "10 集 Season Arc 的 跨集 callback 设计",
+    "tags": ["screenplay", "cn_drama_structure", "callback"],
+    "priority": 60
+  },
+  {
+    "category": "cn_drama_structure",
+    "key_name": "double_satisfaction_180s",
+    "key_type": "cn_drama",
+    "primary_recommendation": "180s 双爽点:mid-爽点(~140s,小胜)→ All Is Lost(~120-140s 低谷)→ late-爽点(~150s,大胜)。两爽点间必须有 All Is Lost,否则情绪曲线平顶。",
+    "extra_data": {
+      "mid_satisfaction_sec": 140,
+      "all_is_lost_sec": [120, 140],
+      "late_satisfaction_sec": 150,
+      "rule": "两爽点间必须有 All Is Lost"
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "180s 短剧 的双 爽点 设计",
+    "tags": ["screenplay", "cn_drama_structure", "double_satisfaction"],
+    "priority": 62
+  },
+  {
+    "category": "cn_drama_structure",
+    "key_name": "platform_douyin",
+    "key_type": "cn_drama",
+    "primary_recommendation": "抖音: 集长 60-90s/ cut 密度 1.5s/ 付费门槛 ep 5-7/ 钩子 冲突钩/反差钩/ season 20-30集/ 受众 即时刺激。",
+    "extra_data": {
+      "platform": "抖音",
+      "episode_length": "60-90s",
+      "cut_density_avg_shot": "1.5s",
+      "paywall_position": "ep 5-7",
+      "paywall_density_per_10ep": "3-5",
+      "hook_type": "冲突钩/反差钩",
+      "season_length": "20-30",
+      "audience": "即时刺激"
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "Per-Platform Divergence",
+    "tags": ["screenplay", "cn_drama_structure", "platform", "douyin"],
+    "priority": 66
+  },
+  {
+    "category": "cn_drama_structure",
+    "key_name": "platform_kuaishou",
+    "key_type": "cn_drama",
+    "primary_recommendation": "快手: 集长 60-120s/ cut 密度 1.5-2.5s/ 付费门槛 ep 6-10/ 钩子 情感钩/ season 20-40集/ 受众 共鸣/真实感。",
+    "extra_data": {
+      "platform": "快手",
+      "episode_length": "60-120s",
+      "cut_density_avg_shot": "1.5-2.5s",
+      "paywall_position": "ep 6-10",
+      "paywall_density_per_10ep": "3-5(较柔)",
+      "hook_type": "情感钩",
+      "season_length": "20-40",
+      "audience": "共鸣/真实感"
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "Per-Platform Divergence",
+    "tags": ["screenplay", "cn_drama_structure", "platform", "kuaishou"],
+    "priority": 62
+  },
+  {
+    "category": "cn_drama_structure",
+    "key_name": "platform_miniprogram",
+    "key_type": "cn_drama",
+    "primary_recommendation": "微信小程序剧: 集长 120-180s/ cut 密度 2-3s/ 付费门槛 ep 3-5/ 钩子 悬念钩/情感钩/ season 30-80集/ 受众 悬念/深度叙事。",
+    "extra_data": {
+      "platform": "微信小程序剧",
+      "episode_length": "120-180s",
+      "cut_density_avg_shot": "2-3s",
+      "paywall_position": "ep 3-5",
+      "paywall_density_per_10ep": "5+(最高)",
+      "hook_type": "悬念钩/情感钩",
+      "season_length": "30-80",
+      "audience": "悬念/深度叙事"
+    },
+    "source_file": "cn-shortdrama-structure.md",
+    "source_section": "Per-Platform Divergence",
+    "tags": ["screenplay", "cn_drama_structure", "platform", "miniprogram"],
+    "priority": 62
   }
 ]
