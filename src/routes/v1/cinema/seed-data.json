@@ -49782,5 +49782,271 @@
       "mixer": "final levels/EQ/ducking",
       "composer_owns": "audio-vision mode 决策(music vs SFX vs silence 分配)"
     }
+  },
+  {
+    "category": "framing",
+    "key_name": "horizontal_power_points",
+    "key_type": "framing_rule",
+    "primary_recommendation": "16:9 横屏 power points(标准 rule of thirds):(1/3,1/3)/(2/3,1/3) 上线(站姿 eye-line);(1/3,2/3)/(2/3,2/3) 下线(body/prop);golden ratio 交点(~0.382,~0.618)供更动态平衡。与竖屏 9:16 (1/3,1/4) 显著不同——不可直接套用",
+    "rationale": "横屏 cinema/TV 观看距离 3-5m(vs 竖屏 mobile 25-30cm),标准 rule-of-thirds 提供足够视觉兴趣分布;16:9 水平宽度是视觉叙事主轴,主体沿水平线移动;(1/3,2/3) 线为 two-shot 提供自然主体分布。PITFALL F-1:16:9 ≠ 'resize 9:16'。",
+    "source_file": "cinematographer/references/horizontal-screen-framing.md",
+    "source_section": "§16:9 Power Points heuristic 1-2",
+    "tags": [
+      "framing",
+      "landscape",
+      "horizontal",
+      "power_points",
+      "rule_of_thirds"
+    ],
+    "priority": 78,
+    "extra_data": {
+      "form_factor": "landscape",
+      "aspect": "16:9",
+      "power_points": {
+        "upper": [
+          "(1/3,1/3)",
+          "(2/3,1/3)"
+        ],
+        "lower": [
+          "(1/3,2/3)",
+          "(2/3,2/3)"
+        ],
+        "golden_ratio": [
+          "(~0.382,~0.618)"
+        ]
+      },
+      "by_shot_scale": {
+        "EWS": "(1/2,1/2) or (1/3,1/3)",
+        "WS": "(1/3,1/3) or (2/3,1/3)",
+        "MS": "(1/3,1/3) or (2/3,1/3)",
+        "CU": "(1/2,1/3) center-upper",
+        "BCU": "(1/2,1/3)",
+        "INSERT": "(1/2,1/2) or (1/3,1/2)"
+      },
+      "distinct_from_vertical": "9:16 用 (1/3,1/4)"
+    }
+  },
+  {
+    "category": "framing",
+    "key_name": "horizontal_headroom_eyeline",
+    "key_type": "framing_rule",
+    "primary_recommendation": "横屏 headroom 普遍大于竖屏:EWS/WS 10-15%、MS/FS 8-12%、MCU 6-10%、CU 5-8%、BCU 3-5%。Eye-line 放画面 vertical 1/3 from top(upper rule-of-thirds 线),适用 WS→CU 所有景别",
+    "rationale": "横屏水平宽度充足+观看距离远+lead room 需求,故 headroom 大于竖屏(8-15% vs 5-10%)。Eye-line at 1/3 from top 是横屏 framing 的 foundational rule。",
+    "source_file": "cinematographer/references/horizontal-screen-framing.md",
+    "source_section": "§Headroom 标准 heuristic 3 + §Eye-line heuristic 5",
+    "tags": [
+      "framing",
+      "landscape",
+      "horizontal",
+      "headroom",
+      "eyeline"
+    ],
+    "priority": 72,
+    "extra_data": {
+      "form_factor": "landscape",
+      "headroom_pct": {
+        "EWS_WS": "10-15",
+        "MS_FS": "8-12",
+        "MCU": "6-10",
+        "CU": "5-8",
+        "BCU": "3-5 (extreme 可降到 2)"
+      },
+      "vs_vertical": "8-15% vs 竖屏 5-10%",
+      "eyeline_rule": "vertical 1/3 from top, 适用 WS→CU"
+    }
+  },
+  {
+    "category": "framing",
+    "key_name": "lead_room_nose_room",
+    "key_type": "framing_rule",
+    "primary_recommendation": "Lead room (nose room)——横屏独有:profile shot(侧面)须给主体面部朝向方向留 15-25% 空间。面朝右→右侧 15-25%;面朝左→左侧 15-25%。不足则'face pressed against edge' anti-pattern(观众 claustrophobic)",
+    "rationale": "横屏水平宽度支持主体朝向留白;profile shot 的视线前方留白是叙事承载(孤立/沉思)。竖屏无此概念因水平宽度受限。",
+    "source_file": "cinematographer/references/horizontal-screen-framing.md",
+    "source_section": "§Lead room heuristic 4",
+    "tags": [
+      "framing",
+      "landscape",
+      "horizontal",
+      "lead_room",
+      "profile"
+    ],
+    "priority": 70,
+    "extra_data": {
+      "form_factor": "landscape",
+      "rule": "profile shot 朝向方向留 15-25%",
+      "direction": {
+        "face_right": "右侧 15-25%",
+        "face_left": "左侧 15-25%"
+      },
+      "anti_pattern": "face pressed against edge (claustrophobic)",
+      "horizontal_only": true
+    }
+  },
+  {
+    "category": "framing",
+    "key_name": "horizontal_subtitle_safe_area",
+    "key_type": "framing_rule",
+    "primary_recommendation": "16:9 字幕 safe area 3 区:Top(0-10%,平台 logo/标题,禁字幕)/Center action(10-80%,主体 action,禁字幕除非 lower-third)/Bottom(80-100%,推荐字幕区)。横屏字幕优先 Bottom zone(80-95%)",
+    "rationale": "基于 broadcast safe area + platform UI 研究;Bottom zone 避开 action 与平台 UI。Lower-third(画面下方 1/3)是 broadcast 标准位置。",
+    "source_file": "cinematographer/references/horizontal-screen-framing.md",
+    "source_section": "§字幕 Safe Area heuristic 6",
+    "tags": [
+      "framing",
+      "landscape",
+      "horizontal",
+      "subtitle",
+      "safe_area"
+    ],
+    "priority": 68,
+    "extra_data": {
+      "form_factor": "landscape",
+      "zones": {
+        "top": "0-10% (logo/标题/通知,禁字幕)",
+        "center_action": "10-80% (主体 action,禁字幕)",
+        "bottom": "80-100% (推荐字幕区)"
+      },
+      "recommended": "Bottom zone 80-95%",
+      "broadcast_standard": "lower-third"
+    }
+  },
+  {
+    "category": "framing",
+    "key_name": "horizontal_subtitle_platform_divergence",
+    "key_type": "framing_rule",
+    "primary_recommendation": "横屏字幕 per-platform divergence(1920×1080):Cinema DCP 最大(36-48px,SMPTE)> Netflix 24-32(90%)> 抖音横屏 24-32(82%)≈ YouTube 22-30(85%)≈ B站 20-28(85%)。字体:Netflix Sans/思源黑体/Roboto;色:白+黑描边",
+    "rationale": "大银幕(Cinema)字幕须最大(SMPTE 36-48px);mobile 横屏(抖音)即使横屏也距离近故偏小。Netflix Timed Text Style Guide 规定 bottom 90% + 行长 ≤42 CPL + sans-serif。",
+    "source_file": "cinematographer/references/horizontal-screen-framing.md",
+    "source_section": "§Per-platform 字幕 divergence heuristic 7",
+    "tags": [
+      "framing",
+      "landscape",
+      "horizontal",
+      "subtitle",
+      "platform"
+    ],
+    "priority": 60,
+    "extra_data": {
+      "form_factor": "landscape",
+      "per_platform": {
+        "YouTube": {
+          "pos": "85%",
+          "px": "22-30",
+          "font": "Roboto"
+        },
+        "B站长视频": {
+          "pos": "85%",
+          "px": "20-28",
+          "font": "思源黑体"
+        },
+        "抖音横屏": {
+          "pos": "82%",
+          "px": "24-32",
+          "font": "思源黑体 Bold"
+        },
+        "Netflix": {
+          "pos": "90%",
+          "px": "24-32",
+          "font": "Netflix Sans"
+        },
+        "Cinema_DCP": {
+          "pos": "88%",
+          "px": "36-48",
+          "font": "Helvetica/Arial"
+        }
+      },
+      "color": "白+黑描边",
+      "netflix_spec": "bottom 90%, CPL<=42, sans-serif"
+    }
+  },
+  {
+    "category": "framing",
+    "key_type": "framing_rule",
+    "key_name": "horizontal_platform_framing_divergence",
+    "primary_recommendation": "横屏 platform framing 5 大 divergence:YouTube(cinematic+retention curve,前5-10s hook)/B站(容忍长 establishing)/抖音横屏(5-10s hook+快 ramp,mobile-first)/Netflix(full cinematic+production value)/Cinema DCP(full cinematic+大银幕,EWS/WS 占比高,CU≤20%)",
+    "rationale": "各平台受众与观看环境不同:付费流媒体期望 cinema-quality;大银幕放大 framing 缺陷故 EWS/WS 多、CU 少;mobile-first 平台需快 hook。YouTube retention curve 要求前 5-10s 有 hook 之后可 cinematic。",
+    "source_file": "cinematographer/references/horizontal-screen-framing.md",
+    "source_section": "§Per-Platform Framing Divergence heuristic 8-10",
+    "tags": [
+      "framing",
+      "landscape",
+      "horizontal",
+      "platform",
+      "divergence"
+    ],
+    "priority": 65,
+    "extra_data": {
+      "form_factor": "landscape",
+      "divergence": {
+        "YouTube": "cinematic+retention curve(前5-10s hook)",
+        "B站长视频": "容忍 5-8s establishing,偏好 narrative depth",
+        "抖音横屏": "5-10s hook+快 ramp(mobile-first scroll)",
+        "Netflix": "full cinematic+production value(付费订阅)",
+        "Cinema_DCP": "full cinematic+大银幕(EWS/WS 高占比,CU<=20%)"
+      },
+      "youtube_retention_rules": [
+        "前5-10s MCU/CU hook",
+        "retention dip(~30s/60s)插景别变化",
+        "hook 后可放宽 establishing"
+      ],
+      "cinema_dcp_rules": [
+        "EWS/WS 占比高",
+        "headroom 严格执行 8-15%",
+        "CU<=20%"
+      ]
+    }
+  },
+  {
+    "category": "framing",
+    "key_name": "horizontal_camera_move_priority",
+    "key_type": "framing_rule",
+    "primary_recommendation": "横屏 camera move 优先:pan(水平摇,✓✓优先)+ horizontal tracking(✓✓)+ Steadicam(✓✓)+ whip pan(transitions)。慎用 vertical tilt 作 primary move(横屏 vertical range 受限)。crane 用于 establishing",
+    "rationale": "16:9 水平宽度是主轴,水平向运镜(pan/tracking/steadicam)完美利用 horizontal frame;主体沿水平线移动,eye 跟随 horizontal motion vector。垂直向运镜在横屏 vertical range 受限。",
+    "source_file": "cinematographer/references/horizontal-screen-framing.md",
+    "source_section": "§Horizontal Camera Move 修正 heuristic 11",
+    "tags": [
+      "framing",
+      "landscape",
+      "horizontal",
+      "camera_move"
+    ],
+    "priority": 62,
+    "extra_data": {
+      "form_factor": "landscape",
+      "priority": [
+        "pan",
+        "horizontal_tracking",
+        "steadicam",
+        "whip_pan"
+      ],
+      "caution": "vertical tilt 作 primary move(横屏 vertical range 受限)",
+      "crane_use": "establishing"
+    }
+  },
+  {
+    "category": "framing",
+    "key_name": "horizontal_framing_anti_patterns",
+    "key_type": "framing_rule",
+    "primary_recommendation": "横屏 framing 6 大 anti-pattern:① 套竖屏 power points(1/3,1/4)→强制(1/3,1/3);② headroom<8%→WS/MS≥8%/EWS≥10%;③ profile shot 无 lead room→15-25%;④ vertical tilt 滥用作 primary→优先 pan/tracking/steadicam;⑤ Cinema/Netflix CU 过载(大银幕不适)→CU≤20%;⑥ YouTube/抖音开场 slow establishing→前5-10s MCU/CU hook",
+    "rationale": "这些是横屏 framing 最常见 silent regress(PITFALL F-1:把竖屏套到横屏)。每条有明确 mitigation。",
+    "source_file": "cinematographer/references/horizontal-screen-framing.md",
+    "source_section": "§Horizontal framing 6 大 anti-pattern heuristic 12",
+    "tags": [
+      "framing",
+      "landscape",
+      "horizontal",
+      "anti_pattern"
+    ],
+    "priority": 60,
+    "extra_data": {
+      "form_factor": "landscape",
+      "anti_patterns": {
+        "vertical_rule_of_thirds": "套 9:16 (1/3,1/4)→强制 (1/3,1/3)",
+        "insufficient_headroom": "<8%→WS/MS≥8%,EWS≥10%",
+        "no_lead_room": "profile 无 lead room→15-25%",
+        "vertical_tilt_overuse": "tilt 作 primary→优先 pan/tracking/steadicam",
+        "mobile_cu_overload": "Cinema/Netflix CU 过载→CU<=20%",
+        "no_retention_hook": "YouTube/抖音 slow establishing→前5-10s hook"
+      }
+    }
   }
 ]
