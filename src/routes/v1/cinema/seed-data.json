@@ -44487,5 +44487,2357 @@
       "audit"
     ],
     "priority": 60
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "abstract_prompt_structure_template",
+    "key_type": "prompt_template",
+    "primary_recommendation": "Provider-agnostic abstract prompt built from five sections — [identity], [composition], [motion], [lighting], [mood]. It captures the intent of the prompt without committing to any model's grammar, e.g. [identity] char_wuji, male, 30s, gaunt cheekbones, rain-soaked coat / [composition] medium close-up, eye-line left-of-frame, shallow DoF / [motion] static held beat, micro-tremor in jaw / [lighting] key: amber sodium-vapor practical from frame-left / [mood] oppressive humidity, moral rot barely concealed.",
+    "rationale": "Layer 1 of the provider-agnostic abstraction layer: this abstract structure is stable across model swaps. A thin per-model adapter maps it to model grammar (Layer 2), so swapping <image_primary>/<video_primary> requires only an adapter change, not an abstract-prompt rewrite.",
+    "extra_data": {
+      "model": "provider_agnostic",
+      "mode": "abstract",
+      "sections": [
+        "identity",
+        "composition",
+        "motion",
+        "lighting",
+        "mood"
+      ],
+      "adapter_examples": [
+        "dreamina adapter: [character: ...] [composition: ...] [lighting: ...] <mood>",
+        "Veo adapter: Camera: ... Subject: ... Lighting: ... Mood: ..."
+      ]
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§1 The Provider-Agnostic Abstraction Layer",
+    "tags": [
+      "abstract",
+      "provider_agnostic",
+      "prompt_structure",
+      "identity",
+      "composition",
+      "motion",
+      "lighting",
+      "mood"
+    ],
+    "priority": 78
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "dreamina_5.0_t2i_template",
+    "key_type": "prompt_template",
+    "primary_recommendation": "dreamina (即梦/jimeng-5.0) uses a natural-language dominant grammar with optional structured tags: [character: <identity description>] [composition: <framing description>] [lighting: <lighting setup>] followed by a <mood sentence in natural language>. Natural-language sentences carry most of the visual information; structured tags anchor specific concerns.",
+    "rationale": "dreamina is the mandated <image_primary> (FLUX 2 is PROHIBITED per 2026-07-28 directive). 9:16 vertical is supported natively for 短剧 format. Cross-ref visual_executor/drawer/dreamina-image-generation-execution.md for CLI deep-dive.",
+    "extra_data": {
+      "model": "dreamina_5.0",
+      "mode": "t2i",
+      "grammar": "[character: <identity>] [composition: <framing>] [lighting: <setup>] <mood sentence in natural language>",
+      "example": "[character: char_wuji, male, 30s, gaunt cheekbones, rain-soaked dark wool coat, five-o-clock shadow] [composition: medium close-up, eye-line left-of-frame, shallow depth of field, 9:16 vertical] [lighting: key: amber sodium-vapor practical from frame-left, fill: cool blue bounce from frame-right, low-key ratio 4:1] The air is thick with humidity and moral rot; char_wuji's jaw trembles almost imperceptibly as he holds the beat.",
+      "vertical_916_native": true
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§2 <image_primary> (dreamina / 即梦) Prompt Grammar",
+    "tags": [
+      "dreamina",
+      "jimeng",
+      "image",
+      "t2i",
+      "natural_language",
+      "image_primary"
+    ],
+    "priority": 76
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "flux2_t2i_template",
+    "key_type": "prompt_template",
+    "primary_recommendation": "FLUX 2 grammar (⚠️ DEPRECATED — PROHIBITED for image generation as of 2026-07-28; use dreamina CLI instead): structured-tag prompts with negative_prompt support, max_sequence_length 256-512 tokens, guidance_scale 3.5 default (lower than SDXL's 7.0), 9:16 vertical native. Retained for historical reference only — do NOT use it.",
+    "rationale": "FLUX 2 image generation is PROHIBITED by operator directive. These notes are kept for historical context; for inference parameters + character consistency stack see flux2-parameter-surface.md.",
+    "extra_data": {
+      "model": "flux2",
+      "mode": "t2i",
+      "max_sequence_length": [
+        256,
+        512
+      ],
+      "guidance_scale": 3.5,
+      "guidance_note": "lower than SDXL's 7.0 — FLUX 2 needs less guidance pressure",
+      "negative_prompt_example": "cartoon, anime, oversaturated, HDR, plastic skin",
+      "vertical_916_native": true,
+      "status": "deprecated_prohibited",
+      "prohibited_date": "2026-07-28"
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§2 FLUX 2-specific notes (DEPRECATED)",
+    "tags": [
+      "flux2",
+      "image",
+      "t2i",
+      "deprecated",
+      "prohibited",
+      "reference_only"
+    ],
+    "priority": 50
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "veo2_t2v_template",
+    "key_type": "prompt_template",
+    "primary_recommendation": "Veo 2 uses cinematographic descriptor prefixes. Each sentence begins with a category prefix followed by natural-language description: 'Camera: <camera move + speed + ease>. Subject: <identity + action>. Lighting: <lighting setup>. Mood: <emotional tone>.'",
+    "rationale": "verified_date 2026-06 (Google DeepMind Veo 2 technical report + prompt guide). Camera descriptors pan/tilt/dolly/tracking/crane/static/orbit each take speed (0.0-1.0) and ease (linear/ease_in/ease_out/ease_in_out). Duration 4-8s per clip (concatenate for longer). 9:16 supported. Veo 2 does NOT generate audio — pair with audio_pipeline.",
+    "extra_data": {
+      "model": "veo2",
+      "mode": "t2v",
+      "prefixes": [
+        "Camera",
+        "Subject",
+        "Lighting",
+        "Mood"
+      ],
+      "grammar": "Camera: <move + speed + ease>. Subject: <identity + action>. Lighting: <setup>. Mood: <tone>.",
+      "camera_descriptors": [
+        "pan",
+        "tilt",
+        "dolly",
+        "tracking",
+        "crane",
+        "static",
+        "orbit"
+      ],
+      "speed_range": "0.0-1.0",
+      "ease_options": [
+        "linear",
+        "ease_in",
+        "ease_out",
+        "ease_in_out"
+      ],
+      "duration_sec": [
+        4,
+        8
+      ],
+      "vertical_916_supported": true,
+      "audio_generation": false,
+      "example": "Camera: slow dolly-in, ease-in-out, held for 4 seconds. Subject: char_wuji, male, 30s, gaunt cheekbones, rain-soaked dark wool coat, standing still with micro-tremor in jaw, eye-line locked left-of-frame. Lighting: amber sodium-vapor practical key from frame-left, cool blue bounce fill from frame-right, low-key 4:1 ratio. Mood: oppressive humidity, moral rot barely concealed beneath the surface."
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§3 <video_primary> (Veo 2) Prompt Grammar",
+    "tags": [
+      "veo2",
+      "video",
+      "t2v",
+      "cinematographic",
+      "descriptor_prefix",
+      "video_primary"
+    ],
+    "priority": 76
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "kling1.6_t2v_en_template",
+    "key_type": "prompt_template",
+    "primary_recommendation": "Kling 1.6 English grammar: '<camera move> <subject identity> <subject action> <lighting> <mood>'. Kling responds well to strong action verbs. Duration 5-10s per clip; 9:16 vertical supported for 短剧.",
+    "rationale": "verified_date 2026-06 (Kling AI 1.6 prompt engineering guide). English variant; Chinese prompts get slightly better performance for CN-native content. Action verbs recommended for camera (推/拉/摇/移) and subject (站/坐/走/跑).",
+    "extra_data": {
+      "model": "kling1.6",
+      "mode": "t2v",
+      "language": "en",
+      "grammar": "<camera move> <subject identity> <subject action> <lighting> <mood>",
+      "duration_sec": [
+        5,
+        10
+      ],
+      "vertical_916_supported": true,
+      "example": "Slow dolly-in. Char_wuji, a gaunt man in his 30s wearing a rain-soaked dark wool coat, stands still with a micro-tremor in his jaw. Amber sodium-vapor key light from frame-left, cool blue bounce fill from frame-right. Oppressive humidity, moral rot beneath the surface."
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§4 <video_primary> (Kling 1.6) Prompt Grammar",
+    "tags": [
+      "kling",
+      "video",
+      "t2v",
+      "english",
+      "action_verbs"
+    ],
+    "priority": 73
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "kling1.6_t2v_cn_template",
+    "key_type": "prompt_template",
+    "primary_recommendation": "Kling 1.6 中文语法：'<镜头运动> <角色身份> <角色动作> <灯光> <情绪氛围>'。中文 prompt 对中文原生内容（成语、文化引用）有略好的语义保真度；推荐使用强动作动词（推/拉/摇/移 镜头；站/坐/走/跑 主体）。",
+    "rationale": "verified_date 2026-06。Chinese prompts get slightly better semantic fidelity for CN-native content (idioms, cultural references). Duration 5-10s per clip; 9:16 supported.",
+    "extra_data": {
+      "model": "kling1.6",
+      "mode": "t2v",
+      "language": "zh",
+      "grammar": "<镜头运动> <角色身份> <角色动作> <灯光> <情绪氛围>",
+      "duration_sec": [
+        5,
+        10
+      ],
+      "vertical_916_supported": true,
+      "cn_advantage": "slightly better semantic fidelity for CN-native content (idioms, cultural references)",
+      "example": "缓慢推镜头。吴季,三十多岁瘦削男子,身穿淋湿的深色羊毛大衣,静止站立,下巴微微颤抖。左侧钠蒸汽实用主光,右侧冷蓝反射补光。压抑的潮湿感,表面下隐藏的道德腐败。"
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§4 <video_primary> (Kling 1.6) Prompt Grammar",
+    "tags": [
+      "kling",
+      "video",
+      "t2v",
+      "chinese",
+      "action_verbs",
+      "中文"
+    ],
+    "priority": 73
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "seedance_director_formula_template",
+    "key_type": "prompt_template",
+    "primary_recommendation": "Seedance 2.0 Director Formula: 'Subject + Action + Scene + Camera + Lighting/Style + Audio + Constraints'. Each element serves one intention (the shot's felt_intent); the prompt reads as a coherent director's instruction, not a tag list. Prompts are compiled from project state (clip contract + observed state + continuity locks), not written from scratch each call.",
+    "rationale": "verified_date 2026-07 (Seedance 2.0 Skill OS v6.6.0). Closer to a shooting brief than structured tags — the key difference from FLUX/Veo/Kling. Prompt budget ~1000 chars (surface-specific; verify live). Duration 5-15s per clip. Native audio generation supported (ambience, SFX, dialogue).",
+    "extra_data": {
+      "model": "seedance_2.0",
+      "mode": "directorial",
+      "formula_elements": [
+        "Subject",
+        "Action",
+        "Scene",
+        "Camera",
+        "Lighting/Style",
+        "Audio",
+        "Constraints"
+      ],
+      "prompt_budget_chars": "~1000",
+      "duration_sec": [
+        5,
+        15
+      ],
+      "native_audio": true,
+      "example": "Medium close-up on char_wuji at eye-level, gentle compression; he lowers the letter and his hands go still on the table, eyes down; very slow push-in over the clip; soft warm window light behind him keeps his face plain while cool dusk fills the room outside; near-silence with a dripping tap and one chair scrape; preserve face identity and wardrobe from @Image1, do not alter letter or table geometry."
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 <video_primary> (Seedance 2.0) Prompt Grammar",
+    "tags": [
+      "seedance",
+      "director_formula",
+      "video",
+      "felt_intent",
+      "video_primary"
+    ],
+    "priority": 78
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "seedance_t2v_template",
+    "key_type": "prompt_template",
+    "primary_recommendation": "Seedance T2V mode: build the whole shot in compact layers. Key constraint — one visible beat, one endpoint.",
+    "rationale": "T2V (text-to-video) is for building the whole shot from text alone; the prompt must commit to a single visible beat and a single endpoint to keep the clip coherent.",
+    "extra_data": {
+      "model": "seedance_2.0",
+      "mode": "t2v",
+      "drafting_priority": "Build the whole shot in compact layers",
+      "key_constraint": "One visible beat, one endpoint",
+      "reference_tag_syntax": null
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 Seedance 2.0 Generation Modes",
+    "tags": [
+      "seedance",
+      "video",
+      "t2v",
+      "generation_mode"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "seedance_i2v_template",
+    "key_type": "prompt_template",
+    "primary_recommendation": "Seedance I2V mode: preserve @Image1 identity; add only motion. Say 'preserve @Image1 exactly'; do not re-describe the identity that the reference already defines.",
+    "rationale": "I2V (image-to-video) anchors identity to @Image1; re-describing identity in prose both wastes tokens and risks contradicting the reference. State the preserve instruction explicitly.",
+    "extra_data": {
+      "model": "seedance_2.0",
+      "mode": "i2v",
+      "drafting_priority": "Preserve @Image1 identity; add only motion",
+      "key_constraint": "Say 'preserve @Image1 exactly'; don't re-describe",
+      "reference_tag_syntax": "@Image1"
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 Seedance 2.0 Generation Modes",
+    "tags": [
+      "seedance",
+      "video",
+      "i2v",
+      "generation_mode",
+      "identity_preserve"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "seedance_v2v_template",
+    "key_type": "prompt_template",
+    "primary_recommendation": "Seedance V2V mode: transfer motion/camera/timing from @Video1. Restrict the transfer role explicitly so only the intended layer (motion, camera, or timing) is copied.",
+    "rationale": "V2V (video-to-video) pulls motion/camera/timing from a reference clip; without an explicit role restriction the model may copy unwanted elements (identity, logo, scene ownership).",
+    "extra_data": {
+      "model": "seedance_2.0",
+      "mode": "v2v",
+      "drafting_priority": "Transfer motion/camera/timing from @Video1",
+      "key_constraint": "Restrict transfer role explicitly",
+      "reference_tag_syntax": "@Video1"
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 Seedance 2.0 Generation Modes",
+    "tags": [
+      "seedance",
+      "video",
+      "v2v",
+      "generation_mode",
+      "motion_transfer"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "seedance_r2v_template",
+    "key_type": "prompt_template",
+    "primary_recommendation": "Seedance R2V mode: assign separate roles to each reference (e.g. @Image1 = identity, @Video1 = motion, @Audio1 = mood). One reference must not carry incompatible roles.",
+    "rationale": "R2V (reference-to-video, multi-reference) lets each uploaded asset serve a distinct role; assigning conflicting roles to a single reference confuses the model.",
+    "extra_data": {
+      "model": "seedance_2.0",
+      "mode": "r2v",
+      "drafting_priority": "Assign separate roles to each reference",
+      "key_constraint": "One reference ≠ incompatible roles",
+      "reference_tag_syntax": "@Image1 / @Video1 / @Audio1 (role-assigned)"
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 Seedance 2.0 Generation Modes",
+    "tags": [
+      "seedance",
+      "video",
+      "r2v",
+      "generation_mode",
+      "multi_reference"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "seedance_flf2v_template",
+    "key_type": "prompt_template",
+    "primary_recommendation": "Seedance FLF2V mode: @Image1 = first frame, @Image2 = last frame. State explicitly that @Image2 is the final visual target so the model interpolates toward it.",
+    "rationale": "FLF2V (first-last-frame-to-video) drives the clip from a defined start and end frame; without naming @Image2 as the final target the endpoint is ambiguous.",
+    "extra_data": {
+      "model": "seedance_2.0",
+      "mode": "flf2v",
+      "drafting_priority": "@Image1 = first frame, @Image2 = last frame",
+      "key_constraint": "State @Image2 is the final visual target",
+      "reference_tag_syntax": "@Image1 (first frame), @Image2 (last frame)"
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 Seedance 2.0 Generation Modes",
+    "tags": [
+      "seedance",
+      "video",
+      "flf2v",
+      "generation_mode",
+      "first_last_frame"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "seedance_edit_template",
+    "key_type": "prompt_template",
+    "primary_recommendation": "Seedance Edit mode: @Video1 is the source clip; change only one layer. Preserve composition and timing of the original.",
+    "rationale": "Edit mode alters a single layer of an existing clip; preserving composition and timing keeps the rest of the shot stable.",
+    "extra_data": {
+      "model": "seedance_2.0",
+      "mode": "edit",
+      "drafting_priority": "@Video1 is source clip; change one layer",
+      "key_constraint": "Preserve composition and timing",
+      "reference_tag_syntax": "@Video1 (source)"
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 Seedance 2.0 Generation Modes",
+    "tags": [
+      "seedance",
+      "video",
+      "edit",
+      "generation_mode"
+    ],
+    "priority": 68
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "seedance_extend_template",
+    "key_type": "prompt_template",
+    "primary_recommendation": "Seedance Extend mode: continue from accepted footage only. Route to the continuation protocol (source-gated continuation; observed end-state overrides planned state).",
+    "rationale": "Extend mode lengthens an accepted clip; the continuation protocol gates how many consecutive output-sourced generations are allowed before a canonical re-anchor is required.",
+    "extra_data": {
+      "model": "seedance_2.0",
+      "mode": "extend",
+      "drafting_priority": "Continue from accepted footage only",
+      "key_constraint": "Route to continuation protocol",
+      "reference_tag_syntax": "@Video1 (accepted footage)"
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 Seedance 2.0 Generation Modes",
+    "tags": [
+      "seedance",
+      "video",
+      "extend",
+      "generation_mode",
+      "continuation"
+    ],
+    "priority": 68
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "seedance_reference_tag_syntax",
+    "key_type": "prompt_template",
+    "primary_recommendation": "Seedance 2.0 binds uploaded assets with @-mentions typed directly in the prompt: @Image1–@Image9 (CN @图片1–@图片9, max 9), @Video1–@Video3 (CN @视频1–@视频3, max 3), @Audio1–@Audio3 (CN @音频1–@音频3, max 3). Tags must be written exactly — do not translate, renumber, or rewrite as [Image1]; the @-parser silently fails on bracket form.",
+    "rationale": "Reference tags are the binding mechanism between uploaded assets and prompt roles. The @-parser is literal; bracket form and renumbering break binding silently.",
+    "extra_data": {
+      "model": "seedance_2.0",
+      "tag_types": {
+        "image": {
+          "syntax": "@Image1-@Image9",
+          "cn_syntax": "@图片1-@图片9",
+          "max": 9
+        },
+        "video": {
+          "syntax": "@Video1-@Video3",
+          "cn_syntax": "@视频1-@视频3",
+          "max": 3
+        },
+        "audio": {
+          "syntax": "@Audio1-@Audio3",
+          "cn_syntax": "@音频1-@音频3",
+          "max": 3
+        }
+      },
+      "parser_warning": "silently fails on bracket form [Image1]; do not translate or renumber",
+      "cn_surface_note": "Jimeng/Dreamina use @图片1 / @视频1 tag syntax; Volcengine Ark uses model IDs like doubao-seedance-2-0-260128"
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 Reference Tag Syntax",
+    "tags": [
+      "seedance",
+      "reference_tag",
+      "image",
+      "video",
+      "audio",
+      "parser"
+    ],
+    "priority": 75
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "seedance_reference_role_map",
+    "key_type": "prompt_template",
+    "primary_recommendation": "Before writing prompt prose, assign each reference asset a role. Image good roles: identity, product, pose, costume, environment, first frame, last frame (avoid asking it to define unseen motion). Video good roles: motion, camera, pacing, blocking, timing, gesture rhythm (avoid copying protected identity/logo/scene ownership). Audio good roles: rhythm, tempo, mood, ambience, delivery tone, music texture (avoid assuming voice/song/likeness authorization).",
+    "rationale": "Explicit role assignment prevents the model from over-extending a reference (e.g. asking an image to define motion, or a video to copy protected identity).",
+    "extra_data": {
+      "image": {
+        "good_roles": [
+          "identity",
+          "product",
+          "pose",
+          "costume",
+          "environment",
+          "first_frame",
+          "last_frame"
+        ],
+        "avoid": "asking it to define unseen motion"
+      },
+      "video": {
+        "good_roles": [
+          "motion",
+          "camera",
+          "pacing",
+          "blocking",
+          "timing",
+          "gesture_rhythm"
+        ],
+        "avoid": "copying protected identity, logo, or scene ownership"
+      },
+      "audio": {
+        "good_roles": [
+          "rhythm",
+          "tempo",
+          "mood",
+          "ambience",
+          "delivery_tone",
+          "music_texture"
+        ],
+        "avoid": "assuming voice, song, or likeness authorization"
+      }
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 Reference Role Map",
+    "tags": [
+      "seedance",
+      "reference_role",
+      "identity",
+      "motion",
+      "audio"
+    ],
+    "priority": 73
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "seedance_continuation_protocol",
+    "key_type": "prompt_template",
+    "primary_recommendation": "Seedance 2.0 enforces a source-gated continuation model: (1) observed state overrides planned state — if a generated clip ends differently from plan, the next prompt starts from the actual ending; (2) extension depth — consecutive output-sourced generations since last canonical re-anchor, default ≤2, hard ceiling ≤3, at cap must re-anchor from canonical references; (3) clip contract — already_happened / this_clip_only / reserved_for_later arrays constrain prompt scope; (4) canon revision — increments on every accepted take/deviation/re-anchor; project-state JSON is the single source of truth.",
+    "rationale": "Critical for multi-shot sequences. Continuation gates prevent identity/geometry drift when generation deviates from plan, which is the norm for AI video.",
+    "extra_data": {
+      "rules": [
+        "observed state overrides planned state",
+        "extension depth: consecutive output-sourced generations since last canonical re-anchor (default ≤2, hard ceiling ≤3)",
+        "clip contract: already_happened / this_clip_only / reserved_for_later arrays constrain prompt scope",
+        "canon revision increments on every accepted take / deviation / re-anchor"
+      ],
+      "extension_depth_default_max": 2,
+      "extension_depth_hard_ceiling": 3,
+      "source_of_truth": "project-state JSON"
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 Continuation Protocol",
+    "tags": [
+      "seedance",
+      "continuation",
+      "multi_shot",
+      "canon",
+      "observed_state"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "seedance_clip_contract_template",
+    "key_type": "prompt_template",
+    "primary_recommendation": "Each Seedance clip carries a clip contract with three arrays that constrain prompt scope: already_happened (events established in prior clips), this_clip_only (what this single clip must show), reserved_for_later (events explicitly held back for future clips).",
+    "rationale": "The clip contract scopes the prompt so the model does not try to render future events or re-render past ones, keeping multi-shot continuity coherent. Schema: clip-contract.schema.json.",
+    "extra_data": {
+      "model": "seedance_2.0",
+      "arrays": [
+        "already_happened",
+        "this_clip_only",
+        "reserved_for_later"
+      ],
+      "schema_ref": "schemas/clip-contract.schema.json"
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 Continuation Protocol",
+    "tags": [
+      "seedance",
+      "clip_contract",
+      "continuity",
+      "schema"
+    ],
+    "priority": 65
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "seedance_shot_intent_template",
+    "key_type": "prompt_template",
+    "primary_recommendation": "Shot Intent JSON (engine-agnostic, produced by P09, consumed by P11): felt_intent + visible_behavior + camera_intent {shot_size, movement, axis, endpoint} + lighting_intent {key_source, ratio, temperature} + audio_intent + continuity {already_happened, this_clip_only, reserved_for_later, locks}. felt_intent and visible_behavior are MANDATORY; the directing engine refuses emotion words (sad/tense) and requires visible gestures.",
+    "rationale": "Layer 1 of the LTX→Seedance bridge (live since 2026-07-12). Survives engine swap — switching from LTX to Seedance = swapping only the Layer 2 adapter. P09ShotIntent + P09ShotItem Pydantic models validate it.",
+    "extra_data": {
+      "model": "seedance_2.0",
+      "layer": "Layer 1 — engine-agnostic",
+      "fields": [
+        "felt_intent",
+        "visible_behavior",
+        "camera_intent",
+        "lighting_intent",
+        "audio_intent",
+        "continuity"
+      ],
+      "mandatory": [
+        "felt_intent",
+        "visible_behavior"
+      ],
+      "validator": "P09ShotIntent / P09ShotItem",
+      "camera_intent_fields": [
+        "shot_size",
+        "movement",
+        "axis",
+        "endpoint"
+      ],
+      "example": {
+        "shot_intent": {
+          "felt_intent": "观众感受到她意识到真相",
+          "visible_behavior": "她放下信，双手静止不动",
+          "camera_intent": {
+            "shot_size": "MCU",
+            "movement": "slow_dolly_in",
+            "axis": "L2R",
+            "endpoint": "hands_still"
+          },
+          "lighting_intent": {
+            "key_source": "window_left",
+            "ratio": "low_key",
+            "temperature": "warm"
+          },
+          "audio_intent": "near_silence, one_chair_scrape",
+          "continuity": {
+            "already_happened": [
+              "她读完信"
+            ],
+            "this_clip_only": [
+              "放下信"
+            ],
+            "reserved_for_later": [
+              "起身离开"
+            ],
+            "locks": [
+              "face_identity",
+              "wardrobe"
+            ]
+          }
+        }
+      }
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 LTX → Seedance Development Bridge",
+    "tags": [
+      "seedance",
+      "shot_intent",
+      "engine_agnostic",
+      "schema",
+      "p09"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "seedance_take_log_template",
+    "key_type": "prompt_template",
+    "primary_recommendation": "P11 take_log entry (Seedance retake-protocol inspired): {take_n, shot_id, changed_variable, seed, verdict, evidence}. verdict ∈ keep / fix_in_post / edit / re_roll / rewrite. Rule: same flaw ≥2 takes → must rewrite prompt (not a third re-roll).",
+    "rationale": "Layer-2/3 structured iteration tracking. Replaces blind 抽卡 (change seed and resubmit) with a five-verdict triage and attempt budget, saving GPU budget when the prompt is the actual problem. P11TakeLogEntry + P11VideoClip Pydantic models validate it.",
+    "extra_data": {
+      "fields": [
+        "take_n",
+        "shot_id",
+        "changed_variable",
+        "seed",
+        "verdict",
+        "evidence"
+      ],
+      "verdicts": [
+        "keep",
+        "fix_in_post",
+        "edit",
+        "re_roll",
+        "rewrite"
+      ],
+      "rule": "same flaw ≥2 takes → must rewrite prompt (not third re-roll)",
+      "example": {
+        "take_n": 1,
+        "shot_id": "S03-02",
+        "changed_variable": "seed",
+        "seed": 12345,
+        "verdict": "keep",
+        "evidence": "Character identity stable, camera move matches intent"
+      }
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 Retake Protocol + LTX → Seedance Bridge",
+    "tags": [
+      "seedance",
+      "take_log",
+      "retake",
+      "p11",
+      "schema"
+    ],
+    "priority": 68
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "seedance_observed_end_state_template",
+    "key_type": "prompt_template",
+    "primary_recommendation": "P11 observed_end_state schema (Seedance canon rule — observed overrides planned): record {character_position, character_pose, camera_end_position, environment_state, open_motion_vectors} after generation acceptance. The next shot's prompt compilation reads observed_end_state of the parent, not the planned_end_state.",
+    "rationale": "Seedance's core innovation: the next clip's prompt is compiled from the actual ending state of the accepted footage, not the planned state. Without this, multi-shot continuity breaks when generation deviates from plan. P11ObservedEndState validates it.",
+    "extra_data": {
+      "fields": [
+        "character_position",
+        "character_pose",
+        "camera_end_position",
+        "environment_state",
+        "open_motion_vectors"
+      ],
+      "canon_rule": "observed overrides planned",
+      "example": {
+        "character_position": "seated at kitchen table",
+        "character_pose": "hands flat on table, head slightly bowed",
+        "camera_end_position": "medium close-up, eye-level",
+        "environment_state": "dusk light through window, lamp on",
+        "open_motion_vectors": [
+          "dripping tap",
+          "curtain sway"
+        ]
+      }
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 LTX → Seedance Development Bridge",
+    "tags": [
+      "seedance",
+      "observed_end_state",
+      "canon",
+      "continuity",
+      "schema"
+    ],
+    "priority": 68
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "cross_provider_adapter_pattern",
+    "key_type": "prompt_template",
+    "primary_recommendation": "Pattern 1 — define the abstract prompt once (provider-agnostic), then write a thin adapter per model that maps abstract sections → model grammar. Swapping models = swapping adapters, not rewriting prompts (e.g. flux2_adapter maps identity/composition/lighting/mood to tagged form; veo2_adapter maps motion/identity/lighting/mood to descriptor-prefix form).",
+    "rationale": "Decouples prompt intent from model grammar, so a model swap is an adapter-only change. This is the foundation that lets <image_primary>/<video_primary> placeholders stay abstract in SKILL.md.",
+    "extra_data": {
+      "pattern": "abstract section → model grammar adapter",
+      "adapter_signatures": [
+        "flux2_adapter(abstract_prompt) -> tagged form",
+        "veo2_adapter(abstract_prompt) -> descriptor-prefix form"
+      ]
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§6 Cross-Provider Abstraction Patterns",
+    "tags": [
+      "cross_provider",
+      "adapter",
+      "abstraction",
+      "model_swap"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "shared_consistency_context_pattern",
+    "key_type": "prompt_template",
+    "primary_recommendation": "Pattern 2 — all models in a pipeline share the same consistency_context.json (identity / style / composition carry). Only the per-call prompt grammar differs by model.",
+    "rationale": "A single carry artifact keeps identity/style/composition stable across image and video calls while letting each model receive grammar-appropriate prompts.",
+    "extra_data": {
+      "pattern": "shared consistency_context, per-model prompts",
+      "carry_fields": [
+        "identity",
+        "style",
+        "composition"
+      ]
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§6 Cross-Provider Abstraction Patterns",
+    "tags": [
+      "cross_provider",
+      "consistency_context",
+      "carry",
+      "identity"
+    ],
+    "priority": 68
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "fallback_chain_pattern",
+    "key_type": "prompt_template",
+    "primary_recommendation": "Pattern 3 — if <image_primary> fails (OOM, timeout, quality < threshold), fall back to <image_fallback>. The abstract prompt stays the same; only the adapter swaps. Same for <video_primary> → <video_fallback>.",
+    "rationale": "Fallback chains preserve the abstract prompt across primary/fallback model swaps, so a degraded model doesn't force a prompt rewrite.",
+    "extra_data": {
+      "pattern": "fallback chain",
+      "triggers": [
+        "OOM",
+        "timeout",
+        "quality < threshold"
+      ],
+      "chains": [
+        "<image_primary> → <image_fallback>",
+        "<video_primary> → <video_fallback>"
+      ]
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§6 Cross-Provider Abstraction Patterns",
+    "tags": [
+      "cross_provider",
+      "fallback",
+      "resilience",
+      "model_swap"
+    ],
+    "priority": 66
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "ltx_seedance_field_map",
+    "key_type": "prompt_template",
+    "primary_recommendation": "LTX → Seedance field migration map (from P09 current output → Seedance equivalent): intent≈felt_intent; camera_movement≈camera_intent.movement; shot_type≈camera_intent.shot_size; axis_line≈camera_intent.axis; emotion→Seedance requires visible behavior instead; ltx_prompt is engine-specific (NOT reusable for Seedance); character_refs[{name,turnaround_path,role}]≈@Image1 controls identity; scene_ref≈@Image2 controls environment; style_prefix≈Seedance directorial voice; color_guidance(CxSxZ)≈Seedance lighting intent.",
+    "rationale": "Migration map from ltx-seedance-migration-roadmap.md §1. Documents what changes when switching the dev/debug LTX engine to the production Seedance target, so dev and production converge. Note: this is a migration map, not a single model template.",
+    "extra_data": {
+      "model": "ltx_to_seedance",
+      "mode": "migration_map",
+      "mappings": [
+        {
+          "p09_field": "intent",
+          "type": "free-text",
+          "seedance_equivalent": "≈ felt_intent (but often writes emotion words, not visible behavior)"
+        },
+        {
+          "p09_field": "camera_movement",
+          "type": "Chinese enum",
+          "seedance_equivalent": "≈ camera_intent.movement"
+        },
+        {
+          "p09_field": "shot_type",
+          "type": "WS/MS/MCU/CU...",
+          "seedance_equivalent": "≈ camera_intent.shot_size"
+        },
+        {
+          "p09_field": "axis_line",
+          "type": "Chinese enum",
+          "seedance_equivalent": "≈ camera_intent.axis"
+        },
+        {
+          "p09_field": "emotion",
+          "type": "Chinese emotion words",
+          "seedance_equivalent": "Seedance requires visible behavior instead"
+        },
+        {
+          "p09_field": "ltx_prompt",
+          "type": "English natural-language prompt",
+          "seedance_equivalent": "Engine-specific; NOT reusable for Seedance"
+        },
+        {
+          "p09_field": "character_refs",
+          "type": "[{name, turnaround_path, role}]",
+          "seedance_equivalent": "≈ @Image1 controls identity"
+        },
+        {
+          "p09_field": "scene_ref",
+          "type": "{name, filename, role}",
+          "seedance_equivalent": "≈ @Image2 controls environment"
+        },
+        {
+          "p09_field": "style_prefix",
+          "type": "string",
+          "seedance_equivalent": "≈ Seedance directorial voice"
+        },
+        {
+          "p09_field": "color_guidance",
+          "type": "CxSxZ tokens",
+          "seedance_equivalent": "≈ Seedance lighting intent"
+        }
+      ],
+      "is_migration_map": true
+    },
+    "source_file": "ltx-seedance-migration-roadmap.md",
+    "source_section": "§1 What P09 already outputs (field-mapping table)",
+    "tags": [
+      "ltx",
+      "seedance",
+      "migration",
+      "field_map",
+      "p09"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "seedance_three_layer_architecture",
+    "key_type": "prompt_template",
+    "primary_recommendation": "Three-layer architecture (LTX→Seedance bridge, live 2026-07-12): Layer 1 Shot Intent (engine-agnostic, produced by P09 — felt_intent/visible_behavior/camera/lighting/audio/continuity); Layer 2 Engine Adapter (engine-specific — LTX adapter→ComfyUI workflow JSON, Seedance adapter→natural-language prompt + @Image/@Video role map); Layer 3 Surface Profile (platform-specific — LTX/ComfyUI resolution+sampler, Seedance API model_id+duration+reference upload slots).",
+    "rationale": "Switching from LTX to Seedance = swapping the Layer 2 adapter only; Layer 1 Shot Intent stays constant. This is the architectural principle that makes the engine swap cheap.",
+    "extra_data": {
+      "layers": [
+        {
+          "layer": 1,
+          "name": "Shot Intent",
+          "scope": "engine-agnostic, produced by P09",
+          "survives_engine_swap": true
+        },
+        {
+          "layer": 2,
+          "name": "Engine Adapter",
+          "scope": "engine-specific (LTX→ComfyUI workflow JSON; Seedance→NL prompt + role map)",
+          "swappable": true
+        },
+        {
+          "layer": 3,
+          "name": "Surface Profile",
+          "scope": "platform-specific (model_id, duration, upload slots)"
+        }
+      ],
+      "swap_principle": "Switching LTX→Seedance = swapping Layer 2 adapter only"
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 LTX → Seedance Development Bridge (three-layer architecture)",
+    "tags": [
+      "seedance",
+      "ltx",
+      "architecture",
+      "engine_swap",
+      "shot_intent"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "template_instantiation_workflow",
+    "key_type": "prompt_template",
+    "primary_recommendation": "Template instantiation workflow: (1) assemble abstract prompt from visual_intent + style_genome_5d + character_assets; (2) select model target (still→<image_primary>, motion→<video_primary>) by VRAM + latency budget; (3) apply model adapter (FLUX/Veo/Kling template); (4) load consistency_context (LoRA/IP-Adapter/InstantID + style vector + composition locks); (5) token budget check — if >4000 trigger prompt_overload fallback; (6) emit model_prompts.json.",
+    "rationale": "Canonical 6-step workflow that turns intent into a model-ready prompt while staying under the 4000-token ceiling and preserving cross-call consistency.",
+    "extra_data": {
+      "steps": [
+        "assemble abstract prompt (visual_intent + style_genome_5d + character_assets)",
+        "select model target (still→image_primary; motion→video_primary) by VRAM + latency",
+        "apply model adapter (FLUX/Veo/Kling)",
+        "load consistency_context (identity refs + style vector + composition locks)",
+        "token budget check (>4000 → prompt_overload fallback)",
+        "emit model_prompts.json"
+      ],
+      "overload_threshold_tokens": 4000
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§7 Template Instantiation Workflow",
+    "tags": [
+      "workflow",
+      "instantiation",
+      "token_budget",
+      "consistency"
+    ],
+    "priority": 68
+  },
+  {
+    "category": "prompt_template",
+    "key_name": "model_swap_protocol",
+    "key_type": "prompt_template",
+    "primary_recommendation": "Model swap protocol: (1) re-verify prompt grammar (structured tags vs natural language vs descriptor prefixes); (2) re-verify token counting (new tokenizer may count differently); (3) re-verify consistency refs (LoRA/IP-Adapter/InstantID may need re-training); (4) update verified_date stamp (stale templates must be re-verified quarterly); (5) update this ref with new model grammar + example.",
+    "rationale": "Quarterly re-verification is mandatory — model versions change quarterly and prompt-token mappings drift. The verified_date stamp is load-bearing.",
+    "extra_data": {
+      "steps": [
+        "re-verify prompt grammar",
+        "re-verify token counting",
+        "re-verify consistency refs (LoRA/IP-Adapter/InstantID)",
+        "update verified_date stamp (quarterly re-verification mandatory)",
+        "update ref with new grammar + example"
+      ],
+      "reverification_cadence": "quarterly"
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§8 Model Swap Protocol",
+    "tags": [
+      "model_swap",
+      "protocol",
+      "verification",
+      "quarterly"
+    ],
+    "priority": 64
+  },
+  {
+    "category": "token_budget_band",
+    "key_name": "optimal_band",
+    "key_type": "token_band",
+    "primary_recommendation": "<1000 tokens: tight focus; all constraints honored. Production suitability Excellent (atomic shots).",
+    "rationale": "Empirical attention degradation curve for stable_2026 horizons. Below 1000 tokens the model honors every constraint — ideal for atomic single-concern shots.",
+    "extra_data": {
+      "band": "optimal",
+      "token_range": [
+        0,
+        1000
+      ],
+      "attention_behavior": "Tight focus; all constraints honored",
+      "production_suitability": "Excellent (atomic shots)",
+      "degradation": "none"
+    },
+    "source_file": "token-budget-management.md",
+    "source_section": "§1 Attention degradation curve",
+    "tags": [
+      "token_budget",
+      "attention",
+      "atomic",
+      "optimal"
+    ],
+    "priority": 75
+  },
+  {
+    "category": "token_budget_band",
+    "key_name": "stable_band",
+    "key_type": "token_band",
+    "primary_recommendation": "1000-2500 tokens: stable focus; minor attention dispersal at the tail. Production suitability Good (standard shots).",
+    "rationale": "Standard shots live here. Minor tail dispersal is acceptable for typical identity+composition+lighting prompts.",
+    "extra_data": {
+      "band": "stable",
+      "token_range": [
+        1000,
+        2500
+      ],
+      "attention_behavior": "Stable focus; minor attention dispersal at the tail",
+      "production_suitability": "Good (standard shots)",
+      "degradation": "minor_tail_dispersal"
+    },
+    "source_file": "token-budget-management.md",
+    "source_section": "§1 Attention degradation curve",
+    "tags": [
+      "token_budget",
+      "attention",
+      "standard"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "token_budget_band",
+    "key_name": "acceptable_band",
+    "key_type": "token_band",
+    "primary_recommendation": "2500-4000 tokens: moderate dispersal; critical constraints still honored. Production suitability Acceptable (complex shots). This is the acceptability ceiling — above it prompt_overload fallback must trigger.",
+    "rationale": "Complex multi-concern shots can use up to the 4000 ceiling, but dispersal is moderate. 4000 is the canonical prompt_token_efficiency ≤ 4000 criterion from 02-NODE-SPECS.md §2.7.",
+    "extra_data": {
+      "band": "acceptable",
+      "token_range": [
+        2500,
+        4000
+      ],
+      "attention_behavior": "Moderate dispersal; critical constraints still honored",
+      "production_suitability": "Acceptable (complex shots)",
+      "degradation": "moderate_dispersal",
+      "is_ceiling": true
+    },
+    "source_file": "token-budget-management.md",
+    "source_section": "§1 Attention degradation curve",
+    "tags": [
+      "token_budget",
+      "attention",
+      "complex",
+      "ceiling"
+    ],
+    "priority": 76
+  },
+  {
+    "category": "token_budget_band",
+    "key_name": "risk_band",
+    "key_type": "token_band",
+    "primary_recommendation": "4000-6000 tokens: significant dispersal; some constraints dropped. prompt_overload risk zone — fallback should trigger.",
+    "rationale": "Above the 4000 acceptability ceiling, the model starts dropping constraints. This band is the risk zone; chunking is mandatory here.",
+    "extra_data": {
+      "band": "risk",
+      "token_range": [
+        4000,
+        6000
+      ],
+      "attention_behavior": "Significant dispersal; some constraints dropped",
+      "production_suitability": "prompt_overload risk zone",
+      "degradation": "significant_dispersal"
+    },
+    "source_file": "token-budget-management.md",
+    "source_section": "§1 Attention degradation curve",
+    "tags": [
+      "token_budget",
+      "attention",
+      "risk",
+      "overload"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "token_budget_band",
+    "key_name": "overload_band",
+    "key_type": "token_band",
+    "primary_recommendation": ">6000 tokens: severe dispersal; many constraints ignored. prompt_overload fail mode — must decompose or re-anchor.",
+    "rationale": "Hard fail territory. At this size the model ignores many constraints; escalate to intent-layer simplification (decompose into multiple calls with shared consistency_context).",
+    "extra_data": {
+      "band": "overload",
+      "token_range": [
+        6000,
+        null
+      ],
+      "attention_behavior": "Severe dispersal; many constraints ignored",
+      "production_suitability": "prompt_overload fail mode",
+      "degradation": "severe_dispersal"
+    },
+    "source_file": "token-budget-management.md",
+    "source_section": "§1 Attention degradation curve",
+    "tags": [
+      "token_budget",
+      "attention",
+      "fail_mode",
+      "overload"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "token_budget_band",
+    "key_name": "identity_section_chunk",
+    "key_type": "token_band",
+    "primary_recommendation": "Section 1 — Identity (character refs, wardrobe, posture): typical 80-200 tokens. Stability: stable (carry via system prompt).",
+    "rationale": "Standard 5-section chunk. Identity is stable across calls in a scene, so it belongs in the system prompt (cached) rather than repeated per call.",
+    "extra_data": {
+      "section": 1,
+      "concern": "Identity (character refs, wardrobe, posture)",
+      "token_range": [
+        80,
+        200
+      ],
+      "stability": "stable (carry via system prompt)"
+    },
+    "source_file": "token-budget-management.md",
+    "source_section": "§2 Standard 5-section chunk",
+    "tags": [
+      "token_budget",
+      "chunk",
+      "identity",
+      "system_prompt"
+    ],
+    "priority": 68
+  },
+  {
+    "category": "token_budget_band",
+    "key_name": "composition_section_chunk",
+    "key_type": "token_band",
+    "primary_recommendation": "Section 2 — Composition (framing, eye-line, DoF): typical 50-150 tokens. Stability: stable (carry via system prompt).",
+    "rationale": "Composition conventions (axis locks, screen direction) are stable across a scene and should be carried, not repeated.",
+    "extra_data": {
+      "section": 2,
+      "concern": "Composition (framing, eye-line, DoF)",
+      "token_range": [
+        50,
+        150
+      ],
+      "stability": "stable (carry via system prompt)"
+    },
+    "source_file": "token-budget-management.md",
+    "source_section": "§2 Standard 5-section chunk",
+    "tags": [
+      "token_budget",
+      "chunk",
+      "composition",
+      "system_prompt"
+    ],
+    "priority": 66
+  },
+  {
+    "category": "token_budget_band",
+    "key_name": "motion_section_chunk",
+    "key_type": "token_band",
+    "primary_recommendation": "Section 3 — Motion (camera move, subject motion): typical 30-80 tokens. Stability: per-call variance.",
+    "rationale": "Motion changes shot-to-shot, so it lives in the user prompt as per-call variance.",
+    "extra_data": {
+      "section": 3,
+      "concern": "Motion (camera move, subject motion)",
+      "token_range": [
+        30,
+        80
+      ],
+      "stability": "per-call variance"
+    },
+    "source_file": "token-budget-management.md",
+    "source_section": "§2 Standard 5-section chunk",
+    "tags": [
+      "token_budget",
+      "chunk",
+      "motion",
+      "variance"
+    ],
+    "priority": 62
+  },
+  {
+    "category": "token_budget_band",
+    "key_name": "lighting_section_chunk",
+    "key_type": "token_band",
+    "primary_recommendation": "Section 4 — Lighting (key, fill, practicals): typical 50-120 tokens. Stability: per-call variance.",
+    "rationale": "Lighting deltas (amber key vs blue key) change shot-to-shot; keep in the user prompt.",
+    "extra_data": {
+      "section": 4,
+      "concern": "Lighting (key, fill, practicals)",
+      "token_range": [
+        50,
+        120
+      ],
+      "stability": "per-call variance"
+    },
+    "source_file": "token-budget-management.md",
+    "source_section": "§2 Standard 5-section chunk",
+    "tags": [
+      "token_budget",
+      "chunk",
+      "lighting",
+      "variance"
+    ],
+    "priority": 62
+  },
+  {
+    "category": "token_budget_band",
+    "key_name": "mood_section_chunk",
+    "key_type": "token_band",
+    "primary_recommendation": "Section 5 — Mood (emotional tone, atmosphere): typical 30-80 tokens. Stability: per-call variance. Total standard 5-section chunk = 240-630 tokens, well under the 4000 ceiling.",
+    "rationale": "Mood deltas change per call. The full 5-section chunk totals 240-630 tokens — well under ceiling.",
+    "extra_data": {
+      "section": 5,
+      "concern": "Mood (emotional tone, atmosphere)",
+      "token_range": [
+        30,
+        80
+      ],
+      "stability": "per-call variance",
+      "five_section_total_range": [
+        240,
+        630
+      ]
+    },
+    "source_file": "token-budget-management.md",
+    "source_section": "§2 Standard 5-section chunk",
+    "tags": [
+      "token_budget",
+      "chunk",
+      "mood",
+      "variance"
+    ],
+    "priority": 62
+  },
+  {
+    "category": "token_budget_band",
+    "key_name": "image_primary_provider_window",
+    "key_type": "token_band",
+    "primary_recommendation": "<image_primary> (FLUX-class) provider context window ~512-1024 prompt tokens; effective prompt budget 512-1024. Tight — chunking mandatory for complex prompts.",
+    "rationale": "Image models have the tightest window; complex prompts must be chunked to fit.",
+    "extra_data": {
+      "provider_class": "<image_primary> (FLUX-class)",
+      "context_window": "~512-1024 prompt tokens",
+      "effective_prompt_budget": [
+        512,
+        1024
+      ],
+      "note": "Tight; chunking mandatory for complex prompts"
+    },
+    "source_file": "token-budget-management.md",
+    "source_section": "§4 Provider context window sizes",
+    "tags": [
+      "token_budget",
+      "provider_window",
+      "image_primary",
+      "flux"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "token_budget_band",
+    "key_name": "video_primary_provider_window",
+    "key_type": "token_band",
+    "primary_recommendation": "<video_primary> (Veo-class) provider context window ~1024-4096 prompt tokens; effective prompt budget 1024-4000. Moderate — hierarchical prompts recommended.",
+    "rationale": "Video models have a moderate window; hierarchical (system+user) prompts keep calls under the 4000 quality threshold.",
+    "extra_data": {
+      "provider_class": "<video_primary> (Veo-class)",
+      "context_window": "~1024-4096 prompt tokens",
+      "effective_prompt_budget": [
+        1024,
+        4000
+      ],
+      "note": "Moderate; hierarchical prompts recommended"
+    },
+    "source_file": "token-budget-management.md",
+    "source_section": "§4 Provider context window sizes",
+    "tags": [
+      "token_budget",
+      "provider_window",
+      "video_primary",
+      "veo"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "token_budget_band",
+    "key_name": "llm_orchestrator_provider_window",
+    "key_type": "token_band",
+    "primary_recommendation": "LLM orchestrator (GPT-class) context window 128k+; effective prompt budget 4000 ceiling (self-imposed). The 4000 ceiling is a quality threshold, NOT a hard context-window limit.",
+    "rationale": "Key insight: the 4000-token ceiling is NOT a context-window limit for most providers — it is an attention-quality threshold. Context window = max accepted length (hard provider limit); token budget = length at which output quality is still acceptable (soft quality threshold).",
+    "extra_data": {
+      "provider_class": "LLM orchestrator (GPT-class)",
+      "context_window": "128k+",
+      "effective_prompt_budget": 4000,
+      "ceiling_type": "self-imposed quality threshold (not hard context-window limit)",
+      "context_window_definition": "max prompt length the model accepts (hard provider limit)",
+      "token_budget_definition": "prompt length at which output quality is still acceptable (soft quality threshold)"
+    },
+    "source_file": "token-budget-management.md",
+    "source_section": "§4 Provider context window sizes",
+    "tags": [
+      "token_budget",
+      "provider_window",
+      "llm",
+      "orchestrator",
+      "quality_threshold"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "token_budget_band",
+    "key_name": "english_word_tokens",
+    "key_type": "token_band",
+    "primary_recommendation": "1 English word ≈ 1.3 tokens.",
+    "rationale": "Approximate unit→token conversion for token-count planning (tokenizer-dependent).",
+    "extra_data": {
+      "unit": "1 English word",
+      "tokens": 1.3
+    },
+    "source_file": "token-budget-management.md",
+    "source_section": "§5 Token Counting Methods — unit→token conversions",
+    "tags": [
+      "token_budget",
+      "conversion",
+      "english"
+    ],
+    "priority": 60
+  },
+  {
+    "category": "token_budget_band",
+    "key_name": "chinese_char_tokens",
+    "key_type": "token_band",
+    "primary_recommendation": "1 Chinese character ≈ 2-3 tokens.",
+    "rationale": "Chinese characters cost more tokens than English words; relevant for CN-first 短剧 prompts.",
+    "extra_data": {
+      "unit": "1 Chinese character",
+      "tokens_range": [
+        2,
+        3
+      ]
+    },
+    "source_file": "token-budget-management.md",
+    "source_section": "§5 Token Counting Methods — unit→token conversions",
+    "tags": [
+      "token_budget",
+      "conversion",
+      "chinese"
+    ],
+    "priority": 62
+  },
+  {
+    "category": "token_budget_band",
+    "key_name": "emoji_tokens",
+    "key_type": "token_band",
+    "primary_recommendation": "1 emoji ≈ 2-5 tokens.",
+    "rationale": "Emoji are token-expensive; avoid in production prompts.",
+    "extra_data": {
+      "unit": "1 emoji",
+      "tokens_range": [
+        2,
+        5
+      ]
+    },
+    "source_file": "token-budget-management.md",
+    "source_section": "§5 Token Counting Methods — unit→token conversions",
+    "tags": [
+      "token_budget",
+      "conversion",
+      "emoji"
+    ],
+    "priority": 50
+  },
+  {
+    "category": "token_budget_band",
+    "key_name": "newline_tokens",
+    "key_type": "token_band",
+    "primary_recommendation": "1 newline ≈ 1 token.",
+    "rationale": "Relevant when chunking prompts into sections (each section break costs a newline token).",
+    "extra_data": {
+      "unit": "1 newline",
+      "tokens": 1
+    },
+    "source_file": "token-budget-management.md",
+    "source_section": "§5 Token Counting Methods — unit→token conversions",
+    "tags": [
+      "token_budget",
+      "conversion",
+      "newline"
+    ],
+    "priority": 50
+  },
+  {
+    "category": "token_budget_band",
+    "key_name": "punctuation_tokens",
+    "key_type": "token_band",
+    "primary_recommendation": "1 punctuation mark ≈ 1 token.",
+    "rationale": "Punctuation adds up in tag-heavy grammars; relevant for FLUX-style structured prompts.",
+    "extra_data": {
+      "unit": "1 punctuation mark",
+      "tokens": 1
+    },
+    "source_file": "token-budget-management.md",
+    "source_section": "§5 Token Counting Methods — unit→token conversions",
+    "tags": [
+      "token_budget",
+      "conversion",
+      "punctuation"
+    ],
+    "priority": 50
+  },
+  {
+    "category": "token_budget_band",
+    "key_name": "flat_prompt_tokens",
+    "key_type": "token_band",
+    "primary_recommendation": "Flat prompt (everything in user prompt): typical user-prompt token count 800-2500, total call token count 800-2500.",
+    "rationale": "Baseline for comparison against hierarchical prompts. No system-prompt caching benefit.",
+    "extra_data": {
+      "pattern": "Flat prompt (everything in user prompt)",
+      "user_prompt_tokens": [
+        800,
+        2500
+      ],
+      "total_call_tokens": [
+        800,
+        2500
+      ]
+    },
+    "source_file": "token-budget-management.md",
+    "source_section": "§3 Token savings table",
+    "tags": [
+      "token_budget",
+      "flat_prompt",
+      "baseline"
+    ],
+    "priority": 60
+  },
+  {
+    "category": "token_budget_band",
+    "key_name": "hierarchical_prompt_tokens",
+    "key_type": "token_band",
+    "primary_recommendation": "Hierarchical prompt (stable constraints in system prompt, variance in user prompt): user-prompt tokens 150-400, total call tokens 600-1500 (system cached). Cuts user-prompt token count by 60-80%, keeping every call well under the 4000 ceiling.",
+    "rationale": "System prompt is cached by the provider (prefix-cache hit-rate optimization) and doesn't count against per-call variance budget. This is the most powerful token-budget strategy.",
+    "extra_data": {
+      "pattern": "Hierarchical (stable in system, variance in user)",
+      "user_prompt_tokens": [
+        150,
+        400
+      ],
+      "total_call_tokens": [
+        600,
+        1500
+      ],
+      "system_cached": true,
+      "user_prompt_reduction_pct": "60-80%"
+    },
+    "source_file": "token-budget-management.md",
+    "source_section": "§3 Token savings table",
+    "tags": [
+      "token_budget",
+      "hierarchical",
+      "system_prompt",
+      "caching"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "token_budget_band",
+    "key_name": "carry_vs_repeat_repeat_strategy",
+    "key_type": "token_band",
+    "primary_recommendation": "Repeat everything in user prompt: token cost 2500 per call, 25000 per 10-call sequence.",
+    "rationale": "Baseline anti-pattern. Repeating identity/style/composition every call wastes tokens and risks prompt_overload.",
+    "extra_data": {
+      "strategy": "Repeat everything in user prompt",
+      "token_cost_per_call": 2500,
+      "token_cost_per_10_call_sequence": 25000
+    },
+    "source_file": "token-budget-management.md",
+    "source_section": "§6 Redundancy Elimination — carry-don't-repeat table",
+    "tags": [
+      "token_budget",
+      "redundancy",
+      "anti_pattern",
+      "repeat"
+    ],
+    "priority": 60
+  },
+  {
+    "category": "token_budget_band",
+    "key_name": "carry_vs_repeat_carry_strategy",
+    "key_type": "token_band",
+    "primary_recommendation": "Carry via consistency_context, user prompt = variance only: token cost 400 per call, 4000 + 2000 (one-time context setup) per 10-call sequence. Carrying saves ~80% of token cost across a sequence.",
+    "rationale": "Carry-don't-repeat rule — the single biggest token-budget saving. Stable constraints live in consistency_context.json, not repeated in every user prompt.",
+    "extra_data": {
+      "strategy": "Carry via consistency_context, user prompt = variance only",
+      "token_cost_per_call": 400,
+      "token_cost_per_10_call_sequence": "4000 + 2000 (one-time context setup)",
+      "savings_pct": "~80%"
+    },
+    "source_file": "token-budget-management.md",
+    "source_section": "§6 Redundancy Elimination — carry-don't-repeat table",
+    "tags": [
+      "token_budget",
+      "redundancy",
+      "carry",
+      "consistency_context"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "token_budget_band",
+    "key_name": "prompt_overload_fallback_protocol",
+    "key_type": "token_band",
+    "primary_recommendation": "prompt_overload fallback when >4000 tokens: (1) move stable constraints to system prompt; (2) chunk user prompt by concern (each section <200 tokens); (3) reduce few-shot N (5-shot→3-shot or 1-shot); (4) trim negative prompt (negative >50 tokens degrade; keep 10-30); (5) re-count — if still >4000, escalate to intent-layer simplification (decompose into multiple calls with shared consistency_context).",
+    "rationale": "The canonical 5-step fallback when token count exceeds the 4000 ceiling, before escalating to intent-layer decomposition.",
+    "extra_data": {
+      "trigger": "token count > 4000",
+      "steps": [
+        "move stable constraints to system prompt",
+        "chunk user prompt by concern (each section <200 tokens)",
+        "reduce few-shot N (5-shot→3-shot/1-shot)",
+        "trim negative prompt (negative >50 tokens degrade; keep 10-30)",
+        "verify under ceiling; if still >4000 escalate to intent-layer simplification"
+      ],
+      "section_chunk_max_tokens": 200,
+      "negative_prompt_production_range": [
+        10,
+        30
+      ],
+      "negative_prompt_degrade_threshold": 50
+    },
+    "source_file": "token-budget-management.md",
+    "source_section": "§7 prompt_overload Fallback Protocol",
+    "tags": [
+      "token_budget",
+      "overload",
+      "fallback",
+      "chunking",
+      "protocol"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "generation_mode",
+    "key_name": "t2v",
+    "key_type": "gen_mode",
+    "primary_recommendation": "T2V (text-to-video): build the whole shot in compact layers from text alone. Key constraint — one visible beat, one endpoint.",
+    "rationale": "Seedance 2.0 generation mode enumeration. T2V has no reference asset; the prompt must commit to a single visible beat and a single endpoint.",
+    "extra_data": {
+      "description": "Build the whole shot in compact layers",
+      "required_inputs": [
+        "text"
+      ],
+      "key_constraint": "One visible beat, one endpoint",
+      "required_inputs_basis": "no @ reference tags named in mode description"
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 Seedance 2.0 Generation Modes",
+    "tags": [
+      "seedance",
+      "generation_mode",
+      "t2v",
+      "video"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "generation_mode",
+    "key_name": "i2v",
+    "key_type": "gen_mode",
+    "primary_recommendation": "I2V (image-to-video): preserve @Image1 identity; add only motion. Say 'preserve @Image1 exactly'; don't re-describe.",
+    "rationale": "Seedance mode. Identity comes from the @Image1 reference; the prompt only adds motion.",
+    "extra_data": {
+      "description": "Preserve @Image1 identity; add only motion",
+      "required_inputs": [
+        "text",
+        "image"
+      ],
+      "key_constraint": "Say 'preserve @Image1 exactly'; don't re-describe",
+      "required_inputs_basis": "@Image1 named in mode description"
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 Seedance 2.0 Generation Modes",
+    "tags": [
+      "seedance",
+      "generation_mode",
+      "i2v",
+      "video",
+      "identity"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "generation_mode",
+    "key_name": "v2v",
+    "key_type": "gen_mode",
+    "primary_recommendation": "V2V (video-to-video): transfer motion/camera/timing from @Video1. Restrict transfer role explicitly.",
+    "rationale": "Seedance mode. Motion/camera/timing are copied from a reference video; the transfer role must be explicitly scoped.",
+    "extra_data": {
+      "description": "Transfer motion/camera/timing from @Video1",
+      "required_inputs": [
+        "text",
+        "video"
+      ],
+      "key_constraint": "Restrict transfer role explicitly",
+      "required_inputs_basis": "@Video1 named in mode description"
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 Seedance 2.0 Generation Modes",
+    "tags": [
+      "seedance",
+      "generation_mode",
+      "v2v",
+      "video",
+      "motion_transfer"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "generation_mode",
+    "key_name": "r2v",
+    "key_type": "gen_mode",
+    "primary_recommendation": "R2V (reference-to-video, multi-reference): assign separate roles to each reference. One reference ≠ incompatible roles.",
+    "rationale": "Seedance mode. Multiple references (image/video/audio) each take a distinct role in the compiled prompt.",
+    "extra_data": {
+      "description": "Assign separate roles to each reference",
+      "required_inputs": [
+        "text",
+        "image",
+        "video"
+      ],
+      "key_constraint": "One reference ≠ incompatible roles",
+      "required_inputs_basis": "multiple reference roles implied by mode description"
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 Seedance 2.0 Generation Modes",
+    "tags": [
+      "seedance",
+      "generation_mode",
+      "r2v",
+      "video",
+      "multi_reference"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "generation_mode",
+    "key_name": "flf2v",
+    "key_type": "gen_mode",
+    "primary_recommendation": "FLF2V (first-last-frame-to-video): @Image1 = first frame, @Image2 = last frame. State @Image2 is the final visual target.",
+    "rationale": "Seedance mode. The clip interpolates from a defined first frame to a defined last frame.",
+    "extra_data": {
+      "description": "@Image1 = first frame, @Image2 = last frame",
+      "required_inputs": [
+        "text",
+        "image"
+      ],
+      "key_constraint": "State @Image2 is the final visual target",
+      "required_inputs_basis": "@Image1 and @Image2 named in mode description"
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 Seedance 2.0 Generation Modes",
+    "tags": [
+      "seedance",
+      "generation_mode",
+      "flf2v",
+      "video",
+      "first_last_frame"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "generation_mode",
+    "key_name": "edit",
+    "key_type": "gen_mode",
+    "primary_recommendation": "Edit: @Video1 is the source clip; change one layer. Preserve composition and timing.",
+    "rationale": "Seedance mode. A single layer of an existing clip is altered while composition and timing are preserved.",
+    "extra_data": {
+      "description": "@Video1 is source clip; change one layer",
+      "required_inputs": [
+        "text",
+        "video"
+      ],
+      "key_constraint": "Preserve composition and timing",
+      "required_inputs_basis": "@Video1 named in mode description"
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 Seedance 2.0 Generation Modes",
+    "tags": [
+      "seedance",
+      "generation_mode",
+      "edit",
+      "video"
+    ],
+    "priority": 68
+  },
+  {
+    "category": "generation_mode",
+    "key_name": "extend",
+    "key_type": "gen_mode",
+    "primary_recommendation": "Extend: continue from accepted footage only. Route to continuation protocol.",
+    "rationale": "Seedance mode. Lengthens an accepted clip via the source-gated continuation protocol.",
+    "extra_data": {
+      "description": "Continue from accepted footage only",
+      "required_inputs": [
+        "text",
+        "video"
+      ],
+      "key_constraint": "Route to continuation protocol",
+      "required_inputs_basis": "accepted footage (video) implied by mode description"
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 Seedance 2.0 Generation Modes",
+    "tags": [
+      "seedance",
+      "generation_mode",
+      "extend",
+      "video",
+      "continuation"
+    ],
+    "priority": 68
+  },
+  {
+    "category": "retake_verdict",
+    "key_name": "keep_verdict",
+    "key_type": "retake_verdict",
+    "primary_recommendation": "Keep — when the primary spend is delivered and nothing fatal is present: lock, log, move on.",
+    "rationale": "Five-verdict retake triage (Seedance). Keep is the accept verdict; do not iterate further on this take.",
+    "extra_data": {
+      "condition": "Primary spend delivered, nothing fatal",
+      "verdict": "keep",
+      "action": "Lock, log, move on",
+      "verdict_class": "accept"
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 Retake Protocol (five-verdict triage)",
+    "tags": [
+      "retake",
+      "verdict",
+      "keep",
+      "accept"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "retake_verdict",
+    "key_name": "fix_in_post_verdict",
+    "key_type": "retake_verdict",
+    "primary_recommendation": "Fix in post — when the flaw is in post's domain (color/text/audio): don't re-roll.",
+    "rationale": "Five-verdict retake triage. Re-rolling won't fix a post-domain flaw; route to the post pipeline instead.",
+    "extra_data": {
+      "condition": "Flaw in post's domain (color/text/audio)",
+      "verdict": "fix_in_post",
+      "action": "Don't re-roll",
+      "verdict_class": "accept"
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 Retake Protocol (five-verdict triage)",
+    "tags": [
+      "retake",
+      "verdict",
+      "fix_in_post",
+      "accept"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "retake_verdict",
+    "key_name": "edit_verdict",
+    "key_type": "retake_verdict",
+    "primary_recommendation": "Edit, don't regenerate — when one layer is wrong but the surface supports an edit: change only that layer.",
+    "rationale": "Five-verdict retake triage. Cheaper than regeneration; the rest of the shot is sound.",
+    "extra_data": {
+      "condition": "One layer wrong, surface supports edit",
+      "verdict": "edit",
+      "action": "Change only that layer",
+      "verdict_class": "accept"
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 Retake Protocol (five-verdict triage)",
+    "tags": [
+      "retake",
+      "verdict",
+      "edit",
+      "accept"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "retake_verdict",
+    "key_name": "re_roll_verdict",
+    "key_type": "retake_verdict",
+    "primary_recommendation": "Re-roll — when the prompt is right but the sample was unlucky: same prompt, new seed (max 2-3 re-rolls).",
+    "rationale": "Five-verdict retake triage. The prompt is correct; only sampling variance is at fault. Cap at 2-3 re-rolls before escalating to rewrite.",
+    "extra_data": {
+      "condition": "Prompt right, sample unlucky",
+      "verdict": "re_roll",
+      "action": "Same prompt, new seed (max 2-3)",
+      "max_re_rolls": "2-3",
+      "verdict_class": "retake"
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 Retake Protocol (five-verdict triage)",
+    "tags": [
+      "retake",
+      "verdict",
+      "re_roll",
+      "retake",
+      "seed"
+    ],
+    "priority": 71
+  },
+  {
+    "category": "retake_verdict",
+    "key_name": "rewrite_verdict",
+    "key_type": "retake_verdict",
+    "primary_recommendation": "Rewrite — when the same flaw appears ≥2 takes: diagnose, then change the prompt (not a third re-roll).",
+    "rationale": "Five-verdict retake triage. A recurring flaw across takes indicates the prompt is the problem, not sampling variance. Rule: same flaw ≥2 takes → must rewrite prompt.",
+    "extra_data": {
+      "condition": "Same flaw ≥2 takes",
+      "verdict": "rewrite",
+      "action": "Diagnose, change prompt",
+      "rule": "same flaw ≥2 takes → must rewrite prompt (not third re-roll)",
+      "verdict_class": "retake"
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 Retake Protocol (five-verdict triage)",
+    "tags": [
+      "retake",
+      "verdict",
+      "rewrite",
+      "retake",
+      "prompt_change"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "retake_verdict",
+    "key_name": "one_variable_rule",
+    "key_type": "retake_verdict",
+    "primary_recommendation": "One-variable rule: change exactly one thing per retake — one prompt clause OR seed OR mode OR one reference. Never change multiple variables at once.",
+    "rationale": "Governs all retake verdicts. Changing multiple variables per retake makes it impossible to isolate the cause of the flaw, defeating the triage.",
+    "extra_data": {
+      "condition": "applies to every retake iteration",
+      "verdict": "retake",
+      "rule": "change exactly one thing per retake",
+      "changeable_units": [
+        "one prompt clause",
+        "seed",
+        "mode",
+        "one reference"
+      ]
+    },
+    "source_file": "model-specific-prompt-templates.md",
+    "source_section": "§5 Retake Protocol (one-variable rule)",
+    "tags": [
+      "retake",
+      "one_variable_rule",
+      "triage",
+      "isolation"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "negative_prompt_genre",
+    "key_name": "base_standard_negative",
+    "key_type": "negative_prompt",
+    "primary_recommendation": "Standard cinematic 短剧/微电影 negative set: cartoon, anime, oversaturated, HDR, plastic skin, watermark, signature, low quality, blurry, deformed hands, extra fingers.",
+    "rationale": "Base negative prompt applied across all genres; specifies what the model should avoid. Keep negative prompts tight — >50 tokens risk degrading output quality; production-default 10-30 tokens.",
+    "extra_data": {
+      "genre": "base_standard",
+      "negative_terms": [
+        "cartoon",
+        "anime",
+        "oversaturated",
+        "HDR",
+        "plastic skin",
+        "watermark",
+        "signature",
+        "low quality",
+        "blurry",
+        "deformed hands",
+        "extra fingers"
+      ],
+      "production_token_range": [
+        10,
+        30
+      ],
+      "degrade_threshold_tokens": 50
+    },
+    "source_file": "prompt-engineering-patterns.md",
+    "source_section": "§5 Negative-Prompt Patterns",
+    "tags": [
+      "negative_prompt",
+      "base",
+      "standard",
+      "cinematic"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "negative_prompt_genre",
+    "key_name": "photorealistic_drama_negative",
+    "key_type": "negative_prompt",
+    "primary_recommendation": "Photorealistic drama — add to negative prompt: cartoon, anime, illustration, painting (to suppress stylization and force photorealism).",
+    "rationale": "Per-genre negative-prompt selection table. Photorealistic drama must suppress all illustrative/anime leanings.",
+    "extra_data": {
+      "genre": "photorealistic_drama",
+      "negative_terms": [
+        "cartoon",
+        "anime",
+        "illustration",
+        "painting"
+      ]
+    },
+    "source_file": "prompt-engineering-patterns.md",
+    "source_section": "§5 Negative-prompt selection by genre",
+    "tags": [
+      "negative_prompt",
+      "genre",
+      "photorealistic",
+      "drama"
+    ],
+    "priority": 68
+  },
+  {
+    "category": "negative_prompt_genre",
+    "key_name": "period_piece_negative",
+    "key_type": "negative_prompt",
+    "primary_recommendation": "Period piece — add to negative prompt: modern clothing, modern props, digital devices (to suppress anachronisms).",
+    "rationale": "Per-genre negative-prompt selection table. Period pieces must exclude modern-era elements that break historical immersion.",
+    "extra_data": {
+      "genre": "period_piece",
+      "negative_terms": [
+        "modern clothing",
+        "modern props",
+        "digital devices"
+      ]
+    },
+    "source_file": "prompt-engineering-patterns.md",
+    "source_section": "§5 Negative-prompt selection by genre",
+    "tags": [
+      "negative_prompt",
+      "genre",
+      "period",
+      "anachronism"
+    ],
+    "priority": 66
+  },
+  {
+    "category": "negative_prompt_genre",
+    "key_name": "neo_noir_negative",
+    "key_type": "negative_prompt",
+    "primary_recommendation": "Neo-noir — add to negative prompt: bright cheerful colors, flat lighting, oversaturated (to protect the low-key high-contrast noir aesthetic).",
+    "rationale": "Per-genre negative-prompt selection table. Neo-noir depends on low-key lighting and muted palette; cheerful color and flat lighting break the mood.",
+    "extra_data": {
+      "genre": "neo_noir",
+      "negative_terms": [
+        "bright cheerful colors",
+        "flat lighting",
+        "oversaturated"
+      ]
+    },
+    "source_file": "prompt-engineering-patterns.md",
+    "source_section": "§5 Negative-prompt selection by genre",
+    "tags": [
+      "negative_prompt",
+      "genre",
+      "neo_noir",
+      "low_key"
+    ],
+    "priority": 66
+  },
+  {
+    "category": "negative_prompt_genre",
+    "key_name": "period_chinese_duanju_negative",
+    "key_type": "negative_prompt",
+    "primary_recommendation": "Period Chinese 短剧 — add to negative prompt: western clothing, modern hairstyles, anachronistic props.",
+    "rationale": "Per-genre negative-prompt selection table. Period Chinese 短剧 must exclude western/modern elements that break the period setting.",
+    "extra_data": {
+      "genre": "period_chinese_duanju",
+      "negative_terms": [
+        "western clothing",
+        "modern hairstyles",
+        "anachronistic props"
+      ]
+    },
+    "source_file": "prompt-engineering-patterns.md",
+    "source_section": "§5 Negative-prompt selection by genre",
+    "tags": [
+      "negative_prompt",
+      "genre",
+      "chinese",
+      "period",
+      "短剧"
+    ],
+    "priority": 66
+  },
+  {
+    "category": "cross_call_weight",
+    "key_name": "lora_lead_weight",
+    "key_type": "cross_call_weight",
+    "primary_recommendation": "LoRA scale 0.75-0.90 for lead characters (100+ shots/episode): strong anchor; identity must be unmistakable.",
+    "rationale": "LoRA weight-tuning LUT. Leads appear in many shots, so the per-character LoRA is the primary identity anchor and needs strong scale.",
+    "extra_data": {
+      "method": "LoRA",
+      "weight_range": [
+        0.75,
+        0.9
+      ],
+      "scope": "lead_100_plus_shots",
+      "rationale": "Strong anchor; identity must be unmistakable"
+    },
+    "source_file": "cross-call-consistency.md",
+    "source_section": "§2 LoRA weight tuning",
+    "tags": [
+      "cross_call",
+      "lora",
+      "weight",
+      "lead",
+      "identity"
+    ],
+    "priority": 75
+  },
+  {
+    "category": "cross_call_weight",
+    "key_name": "lora_supporting_weight",
+    "key_type": "cross_call_weight",
+    "primary_recommendation": "LoRA scale 0.65-0.80 for supporting characters (20-100 shots): moderate anchor; allows some IP-Adapter contribution.",
+    "rationale": "LoRA weight-tuning LUT. Supporting characters need a moderate anchor that leaves room for IP-Adapter co-anchoring.",
+    "extra_data": {
+      "method": "LoRA",
+      "weight_range": [
+        0.65,
+        0.8
+      ],
+      "scope": "supporting_20_100_shots",
+      "rationale": "Moderate anchor; allows some IP-Adapter contribution"
+    },
+    "source_file": "cross-call-consistency.md",
+    "source_section": "§2 LoRA weight tuning",
+    "tags": [
+      "cross_call",
+      "lora",
+      "weight",
+      "supporting"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "cross_call_weight",
+    "key_name": "lora_background_weight",
+    "key_type": "cross_call_weight",
+    "primary_recommendation": "LoRA scale 0.50-0.65 for background characters (5-20 shots): light anchor; rely more on IP-Adapter for variety.",
+    "rationale": "LoRA weight-tuning LUT. Background characters need only a light anchor; IP-Adapter provides most of the identity for variety.",
+    "extra_data": {
+      "method": "LoRA",
+      "weight_range": [
+        0.5,
+        0.65
+      ],
+      "scope": "background_5_20_shots",
+      "rationale": "Light anchor; rely more on IP-Adapter for variety"
+    },
+    "source_file": "cross-call-consistency.md",
+    "source_section": "§2 LoRA weight tuning",
+    "tags": [
+      "cross_call",
+      "lora",
+      "weight",
+      "background"
+    ],
+    "priority": 68
+  },
+  {
+    "category": "cross_call_weight",
+    "key_name": "stack_strength_rule",
+    "key_type": "cross_call_weight",
+    "primary_recommendation": "Stack strength rule: total stack strength (LoRA + IP-Adapter + InstantID weights summed) should be 1.0-2.0. Above 2.5 = over-constrained; output becomes rigid and artifact-prone.",
+    "rationale": "Governs the combined weight budget across all three identity methods. Even well-tuned individual weights can over-constrain when summed too high.",
+    "extra_data": {
+      "method": "stack",
+      "weight_range": [
+        1.0,
+        2.0
+      ],
+      "over_constrained_above": 2.5,
+      "over_constrained_symptom": "output becomes rigid and artifact-prone",
+      "scope": "total_stack_LoRA_plus_IPAdapter_plus_InstantID"
+    },
+    "source_file": "cross-call-consistency.md",
+    "source_section": "§2 LoRA weight tuning (stack strength rule)",
+    "tags": [
+      "cross_call",
+      "stack_strength",
+      "weight",
+      "over_constrained"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "cross_call_weight",
+    "key_name": "ip_adapter_identity_lock_weight",
+    "key_type": "cross_call_weight",
+    "primary_recommendation": "IP-Adapter weight 0.50-0.65 for identity lock (primary): strong but not dominant; allows LoRA to co-anchor.",
+    "rationale": "IP-Adapter weight-tuning LUT. Primary identity lock needs strength but must leave room for the LoRA anchor.",
+    "extra_data": {
+      "method": "IP-Adapter",
+      "weight_range": [
+        0.5,
+        0.65
+      ],
+      "scope": "identity_lock_primary",
+      "rationale": "Strong but not dominant; allows LoRA to co-anchor"
+    },
+    "source_file": "cross-call-consistency.md",
+    "source_section": "§3 IP-Adapter weight tuning",
+    "tags": [
+      "cross_call",
+      "ip_adapter",
+      "weight",
+      "identity_lock"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "cross_call_weight",
+    "key_name": "ip_adapter_wardrobe_lighting_weight",
+    "key_type": "cross_call_weight",
+    "primary_recommendation": "IP-Adapter weight 0.40-0.55 for wardrobe/lighting variation: moderate; identity from LoRA, wardrobe from IP-Adapter reference.",
+    "rationale": "IP-Adapter weight-tuning LUT. When wardrobe/lighting varies, identity is anchored by LoRA and the IP-Adapter reference supplies the variant.",
+    "extra_data": {
+      "method": "IP-Adapter",
+      "weight_range": [
+        0.4,
+        0.55
+      ],
+      "scope": "wardrobe_lighting_variation",
+      "rationale": "Identity from LoRA, wardrobe from IP-Adapter ref"
+    },
+    "source_file": "cross-call-consistency.md",
+    "source_section": "§3 IP-Adapter weight tuning",
+    "tags": [
+      "cross_call",
+      "ip_adapter",
+      "weight",
+      "wardrobe",
+      "lighting"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "cross_call_weight",
+    "key_name": "ip_adapter_style_transfer_weight",
+    "key_type": "cross_call_weight",
+    "primary_recommendation": "IP-Adapter weight 0.30-0.45 for style transfer: light; style hint without dominating composition.",
+    "rationale": "IP-Adapter weight-tuning LUT. Style transfer needs only a light touch so the style reference doesn't overpower composition.",
+    "extra_data": {
+      "method": "IP-Adapter",
+      "weight_range": [
+        0.3,
+        0.45
+      ],
+      "scope": "style_transfer",
+      "rationale": "Light; style hint without dominating composition"
+    },
+    "source_file": "cross-call-consistency.md",
+    "source_section": "§3 IP-Adapter weight tuning",
+    "tags": [
+      "cross_call",
+      "ip_adapter",
+      "weight",
+      "style_transfer"
+    ],
+    "priority": 68
+  },
+  {
+    "category": "cross_call_weight",
+    "key_name": "instantid_closeup_weight",
+    "key_type": "cross_call_weight",
+    "primary_recommendation": "InstantID weight 0.55-0.70 for close-up (face dominant): strong face lock; close-up amplifies identity drift.",
+    "rationale": "InstantID weight-tuning LUT. Close-ups make identity drift most visible, so the face lock needs to be strongest here.",
+    "extra_data": {
+      "method": "InstantID",
+      "weight_range": [
+        0.55,
+        0.7
+      ],
+      "scope": "closeup_face_dominant",
+      "rationale": "Strong face lock; close-up amplifies identity drift"
+    },
+    "source_file": "cross-call-consistency.md",
+    "source_section": "§4 InstantID weight tuning",
+    "tags": [
+      "cross_call",
+      "instantid",
+      "weight",
+      "closeup",
+      "face"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "cross_call_weight",
+    "key_name": "instantid_medium_weight",
+    "key_type": "cross_call_weight",
+    "primary_recommendation": "InstantID weight 0.45-0.60 for medium shot: moderate; face visible but not dominant.",
+    "rationale": "InstantID weight-tuning LUT. In medium shots the face is visible but shares the frame, so a moderate lock suffices.",
+    "extra_data": {
+      "method": "InstantID",
+      "weight_range": [
+        0.45,
+        0.6
+      ],
+      "scope": "medium_shot",
+      "rationale": "Moderate; face visible but not dominant"
+    },
+    "source_file": "cross-call-consistency.md",
+    "source_section": "§4 InstantID weight tuning",
+    "tags": [
+      "cross_call",
+      "instantid",
+      "weight",
+      "medium_shot"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "cross_call_weight",
+    "key_name": "instantid_wide_weight",
+    "key_type": "cross_call_weight",
+    "primary_recommendation": "InstantID weight 0.30-0.45 for wide shot: light; face is small in frame, less critical.",
+    "rationale": "InstantID weight-tuning LUT. In wide shots the face is small, so identity drift is less visible and a light lock is enough.",
+    "extra_data": {
+      "method": "InstantID",
+      "weight_range": [
+        0.3,
+        0.45
+      ],
+      "scope": "wide_shot",
+      "rationale": "Light; face is small in frame, less critical"
+    },
+    "source_file": "cross-call-consistency.md",
+    "source_section": "§4 InstantID weight tuning",
+    "tags": [
+      "cross_call",
+      "instantid",
+      "weight",
+      "wide_shot"
+    ],
+    "priority": 68
+  },
+  {
+    "category": "cross_call_weight",
+    "key_name": "identity_drift_grade_a",
+    "key_type": "cross_call_weight",
+    "primary_recommendation": "Identity embedding cosine similarity ≥ 0.92: grade A (excellent) — ship.",
+    "rationale": "Identity drift detection LUT. Per-call identity embedding cosine similarity vs reference. The cross_call_consistency ≥ 0.85 criterion maps to grade B or above.",
+    "extra_data": {
+      "method": "identity_embedding_cosine",
+      "similarity_threshold": ">= 0.92",
+      "grade": "A (excellent)",
+      "action": "Ship",
+      "scope": "per_call_identity_vs_reference"
+    },
+    "source_file": "cross-call-consistency.md",
+    "source_section": "§7 Identity Drift Detection",
+    "tags": [
+      "cross_call",
+      "identity_drift",
+      "cosine",
+      "grade_a",
+      "ship"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "cross_call_weight",
+    "key_name": "identity_drift_grade_b",
+    "key_type": "cross_call_weight",
+    "primary_recommendation": "Identity embedding cosine similarity 0.85-0.92: grade B (acceptable) — ship; flag for review. This is the floor that satisfies cross_call_consistency ≥ 0.85.",
+    "rationale": "Identity drift detection LUT. The canonical ≥ 0.85 success criterion maps exactly to the B/A boundary.",
+    "extra_data": {
+      "method": "identity_embedding_cosine",
+      "similarity_range": [
+        0.85,
+        0.92
+      ],
+      "grade": "B (acceptable)",
+      "action": "Ship; flag for review",
+      "meets_consistency_criterion": true,
+      "scope": "per_call_identity_vs_reference"
+    },
+    "source_file": "cross-call-consistency.md",
+    "source_section": "§7 Identity Drift Detection",
+    "tags": [
+      "cross_call",
+      "identity_drift",
+      "cosine",
+      "grade_b",
+      "acceptable"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "cross_call_weight",
+    "key_name": "identity_drift_grade_c",
+    "key_type": "cross_call_weight",
+    "primary_recommendation": "Identity embedding cosine similarity 0.75-0.85: grade C (marginal) — retry with stronger InstantID weight.",
+    "rationale": "Identity drift detection LUT. Below the consistency criterion; strengthen identity lock and retry.",
+    "extra_data": {
+      "method": "identity_embedding_cosine",
+      "similarity_range": [
+        0.75,
+        0.85
+      ],
+      "grade": "C (marginal)",
+      "action": "Retry with stronger InstantID weight",
+      "scope": "per_call_identity_vs_reference"
+    },
+    "source_file": "cross-call-consistency.md",
+    "source_section": "§7 Identity Drift Detection",
+    "tags": [
+      "cross_call",
+      "identity_drift",
+      "cosine",
+      "grade_c",
+      "marginal"
+    ],
+    "priority": 66
+  },
+  {
+    "category": "cross_call_weight",
+    "key_name": "identity_drift_grade_d",
+    "key_type": "cross_call_weight",
+    "primary_recommendation": "Identity embedding cosine similarity < 0.75: grade D (failed) — consistency_drift triggered; re-carry context + repeat key constraints verbatim in every call's system prompt.",
+    "rationale": "Identity drift detection LUT. Hard fail; the consistency_context carry has been lost or mutated and must be explicitly re-carried.",
+    "extra_data": {
+      "method": "identity_embedding_cosine",
+      "similarity_threshold": "< 0.75",
+      "grade": "D (failed)",
+      "action": "consistency_drift triggered; re-carry context + repeat constraints",
+      "fail_mode": "consistency_drift",
+      "scope": "per_call_identity_vs_reference"
+    },
+    "source_file": "cross-call-consistency.md",
+    "source_section": "§7 Identity Drift Detection",
+    "tags": [
+      "cross_call",
+      "identity_drift",
+      "cosine",
+      "grade_d",
+      "failed",
+      "consistency_drift"
+    ],
+    "priority": 68
+  },
+  {
+    "category": "cross_call_weight",
+    "key_name": "cross_shot_drift_threshold",
+    "key_type": "cross_call_weight",
+    "primary_recommendation": "Cross-shot drift threshold: for shot sequences, compute pairwise identity embedding cosine similarity between consecutive shots. Drift = consecutive-shot similarity < 0.85; drift indicates consistency_context carry failure.",
+    "rationale": "Complements per-call grading by detecting drift ACROSS shots in a sequence, which signals a carry failure rather than a single-call identity problem.",
+    "extra_data": {
+      "method": "pairwise_consecutive_shot_cosine",
+      "similarity_threshold": 0.85,
+      "drift_condition": "consecutive-shot similarity < 0.85",
+      "indicates": "consistency_context carry failure",
+      "scope": "cross_shot_sequence"
+    },
+    "source_file": "cross-call-consistency.md",
+    "source_section": "§7 Cross-shot drift detection",
+    "tags": [
+      "cross_call",
+      "cross_shot",
+      "drift",
+      "threshold",
+      "carry_failure"
+    ],
+    "priority": 70
   }
 ]
