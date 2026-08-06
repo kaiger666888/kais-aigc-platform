@@ -2296,5 +2296,1937 @@
     "source_section": "Platform heuristic 7",
     "tags": ["framing", "portrait", "platform"],
     "priority": 48
+  },
+  {
+    "category": "engine_constant",
+    "key_name": "H3_DEFAULT_WIDTH",
+    "key_type": "engine_constant",
+    "primary_recommendation": "768",
+    "rationale": "H3 短边基准 = 768。9:16 竖屏下 width=768（§1.5）；16:9 横屏 width=1344。所有分辨率按短边=768 归一化。帧数侧的标志性约束是 n%17==5（见 H3_FRAME_GRID）。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "number",
+      "default": 768,
+      "constraint": "n%17==5",
+      "landscape_width": 1344,
+      "unit": "px"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.3 固化常量 (H3_CONSTANTS)",
+    "tags": ["h3", "resolution", "portrait"],
+    "priority": 70
+  },
+  {
+    "category": "engine_constant",
+    "key_name": "H3_CANVAS_MULTIPLE",
+    "key_type": "engine_constant",
+    "primary_recommendation": "32",
+    "rationale": "宽高必须为 32 的倍数（CANVAS_MULTIPLE）。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "number",
+      "unit": "multiple"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.3 固化常量 (H3_CONSTANTS)",
+    "tags": ["h3", "resolution"],
+    "priority": 60
+  },
+  {
+    "category": "engine_constant",
+    "key_name": "H3_BASE_SHORT_EDGE",
+    "key_type": "engine_constant",
+    "primary_recommendation": "768",
+    "rationale": "短边基准（BASE_SHORT_EDGE），adaptH3Canvas 按此归一化。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "number",
+      "unit": "px"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.3 固化常量 (H3_CONSTANTS)",
+    "tags": ["h3", "resolution"],
+    "priority": 60
+  },
+  {
+    "category": "engine_constant",
+    "key_name": "H3_MAX_PIXELS",
+    "key_type": "engine_constant",
+    "primary_recommendation": "1032192",
+    "rationale": "最大面积 = 768*1344（MAX_PIXELS）。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "number",
+      "unit": "px^2",
+      "formula": "768*1344"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.3 固化常量 (H3_CONSTANTS)",
+    "tags": ["h3", "resolution"],
+    "priority": 60
+  },
+  {
+    "category": "engine_constant",
+    "key_name": "H3_FPS",
+    "key_type": "engine_constant",
+    "primary_recommendation": "24",
+    "rationale": "帧率固定 24fps。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "number",
+      "unit": "fps"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.3 固化常量 (H3_CONSTANTS)",
+    "tags": ["h3", "video"],
+    "priority": 60
+  },
+  {
+    "category": "engine_constant",
+    "key_name": "H3_AUDIO_SAMPLE_RATE",
+    "key_type": "engine_constant",
+    "primary_recommendation": "32000",
+    "rationale": "音频采样率 32000Hz。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "number",
+      "unit": "Hz"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.3 固化常量 (H3_CONSTANTS)",
+    "tags": ["h3", "audio"],
+    "priority": 60
+  },
+  {
+    "category": "engine_constant",
+    "key_name": "H3_AUDIO_LATENT_FPS",
+    "key_type": "engine_constant",
+    "primary_recommendation": "40",
+    "rationale": "音频 latent 帧率 40。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "number",
+      "unit": "fps"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.3 固化常量 (H3_CONSTANTS)",
+    "tags": ["h3", "audio"],
+    "priority": 60
+  },
+  {
+    "category": "engine_constant",
+    "key_name": "H3_REF_IMAGE_SHORT_EDGE",
+    "key_type": "engine_constant",
+    "primary_recommendation": "2048",
+    "rationale": "ref_image_size=\"max\" 时参考图短边 2048。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "number",
+      "unit": "px"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.3 固化常量 (H3_CONSTANTS)",
+    "tags": ["h3", "ref2va"],
+    "priority": 60
+  },
+  {
+    "category": "engine_constant",
+    "key_name": "H3_FRAME_GRID",
+    "key_type": "engine_constant",
+    "primary_recommendation": "17",
+    "rationale": "帧数网格：帧数必须满足 n%17==5（FRAME_GRID=17, FRAME_OFFSET=5）。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "number",
+      "constraint": "n%17==5"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.3 固化常量 (H3_CONSTANTS)",
+    "tags": ["h3", "frames"],
+    "priority": 68
+  },
+  {
+    "category": "engine_constant",
+    "key_name": "H3_FRAME_OFFSET",
+    "key_type": "engine_constant",
+    "primary_recommendation": "5",
+    "rationale": "帧数对齐偏移（FRAME_OFFSET），配合 FRAME_GRID 实现 n%17==5。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "number"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.3 固化常量 (H3_CONSTANTS)",
+    "tags": ["h3", "frames"],
+    "priority": 60
+  },
+  {
+    "category": "engine_constant",
+    "key_name": "H3_MIN_FRAMES",
+    "key_type": "engine_constant",
+    "primary_recommendation": "5",
+    "rationale": "最小帧数 ~0.2s（MIN_FRAMES）。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "number",
+      "unit": "frames"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.3 固化常量 (H3_CONSTANTS)",
+    "tags": ["h3", "frames"],
+    "priority": 60
+  },
+  {
+    "category": "engine_constant",
+    "key_name": "H3_MAX_FRAMES",
+    "key_type": "engine_constant",
+    "primary_recommendation": "362",
+    "rationale": "最大帧数 ~15s（MAX_FRAMES，训练上限）。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "number",
+      "unit": "frames"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.3 固化常量 (H3_CONSTANTS)",
+    "tags": ["h3", "frames"],
+    "priority": 60
+  },
+  {
+    "category": "engine_constant",
+    "key_name": "H3_MIN_DURATION",
+    "key_type": "engine_constant",
+    "primary_recommendation": "4",
+    "rationale": "最小时长 4 秒（MIN_DURATION）。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "number",
+      "unit": "s"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.3 固化常量 (H3_CONSTANTS)",
+    "tags": ["h3", "duration"],
+    "priority": 60
+  },
+  {
+    "category": "engine_constant",
+    "key_name": "H3_MAX_DURATION",
+    "key_type": "engine_constant",
+    "primary_recommendation": "15",
+    "rationale": "最大时长 15 秒（MAX_DURATION）。超限 → 分镜或选云端。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "number",
+      "unit": "s"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.3 固化常量 (H3_CONSTANTS)",
+    "tags": ["h3", "duration"],
+    "priority": 60
+  },
+  {
+    "category": "engine_constant",
+    "key_name": "H3_MAX_REF_IMAGES",
+    "key_type": "engine_constant",
+    "primary_recommendation": "9",
+    "rationale": "ref2va 最大参考图数 9（MAX_REF_IMAGES）。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "number"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.3 固化常量 (H3_CONSTANTS)",
+    "tags": ["h3", "ref2va"],
+    "priority": 60
+  },
+  {
+    "category": "engine_constant",
+    "key_name": "H3_MAX_REF_VIDEOS",
+    "key_type": "engine_constant",
+    "primary_recommendation": "3",
+    "rationale": "最大参考视频数 3（MAX_REF_VIDEOS）。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "number"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.3 固化常量 (H3_CONSTANTS)",
+    "tags": ["h3", "ref2va"],
+    "priority": 60
+  },
+  {
+    "category": "engine_constant",
+    "key_name": "H3_MAX_REF_AUDIOS",
+    "key_type": "engine_constant",
+    "primary_recommendation": "3",
+    "rationale": "最大参考音频数 3（MAX_REF_AUDIOS）。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "number"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.3 固化常量 (H3_CONSTANTS)",
+    "tags": ["h3", "ref2va"],
+    "priority": 60
+  },
+  {
+    "category": "engine_constant",
+    "key_name": "H3_MAX_REF_FILES_TOTAL",
+    "key_type": "engine_constant",
+    "primary_recommendation": "12",
+    "rationale": "images+videos+audios 合计上限 12（MAX_REF_FILES_TOTAL）。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "number"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.3 固化常量 (H3_CONSTANTS)",
+    "tags": ["h3", "ref2va"],
+    "priority": 60
+  },
+  {
+    "category": "engine_constant",
+    "key_name": "H3_CFG",
+    "key_type": "engine_constant",
+    "primary_recommendation": "1.0",
+    "rationale": "CFG-distilled，必须 1.0。负面提示词在 cfg=1.0 下实际不生效，BGM ban 必须靠正面 diegetic 词。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "number",
+      "note": "negative prompt ineffective at cfg=1.0"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.3 固化常量 (H3_CONSTANTS)",
+    "tags": ["h3", "sampling"],
+    "priority": 60
+  },
+  {
+    "category": "duration_frame_lut",
+    "key_name": "4s",
+    "key_type": "duration_mapping",
+    "primary_recommendation": "107 frames",
+    "rationale": "H3 4s 预设。表值 101 (%17=16 ✗) → generate.ts snap 到 107。",
+    "extra_data": {
+      "engine": "h3",
+      "duration_sec": 4,
+      "frame_count": 107,
+      "table_value": 101,
+      "snap_rule": "n%17==5"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.4 帧数对齐 H3_DURATION_TABLE",
+    "tags": ["h3", "duration-frame-lut"],
+    "priority": 58
+  },
+  {
+    "category": "duration_frame_lut",
+    "key_name": "5s",
+    "key_type": "duration_mapping",
+    "primary_recommendation": "124 frames",
+    "rationale": "H3 5s 预设。表值 124 (%17=5 ✓)，默认 length，不再 snap。",
+    "extra_data": {
+      "engine": "h3",
+      "duration_sec": 5,
+      "frame_count": 124,
+      "table_value": 124,
+      "snap_rule": "n%17==5"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.4 帧数对齐 H3_DURATION_TABLE",
+    "tags": ["h3", "duration-frame-lut"],
+    "priority": 58
+  },
+  {
+    "category": "duration_frame_lut",
+    "key_name": "6s",
+    "key_type": "duration_mapping",
+    "primary_recommendation": "141 frames",
+    "rationale": "H3 6s 预设。表值 141 (%17=5 ✓)，不变。",
+    "extra_data": {
+      "engine": "h3",
+      "duration_sec": 6,
+      "frame_count": 141,
+      "table_value": 141,
+      "snap_rule": "n%17==5"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.4 帧数对齐 H3_DURATION_TABLE",
+    "tags": ["h3", "duration-frame-lut"],
+    "priority": 58
+  },
+  {
+    "category": "duration_frame_lut",
+    "key_name": "8s",
+    "key_type": "duration_mapping",
+    "primary_recommendation": "175 frames",
+    "rationale": "H3 8s 预设。表值 175 (%17=5 ✓)，不变。",
+    "extra_data": {
+      "engine": "h3",
+      "duration_sec": 8,
+      "frame_count": 175,
+      "table_value": 175,
+      "snap_rule": "n%17==5"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.4 帧数对齐 H3_DURATION_TABLE",
+    "tags": ["h3", "duration-frame-lut"],
+    "priority": 58
+  },
+  {
+    "category": "duration_frame_lut",
+    "key_name": "10s",
+    "key_type": "duration_mapping",
+    "primary_recommendation": "243 frames",
+    "rationale": "H3 10s 预设。表值 229 (%17=8 ✗) → snap 到 243。",
+    "extra_data": {
+      "engine": "h3",
+      "duration_sec": 10,
+      "frame_count": 243,
+      "table_value": 229,
+      "snap_rule": "n%17==5"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.4 帧数对齐 H3_DURATION_TABLE",
+    "tags": ["h3", "duration-frame-lut"],
+    "priority": 58
+  },
+  {
+    "category": "duration_frame_lut",
+    "key_name": "12s",
+    "key_type": "duration_mapping",
+    "primary_recommendation": "294 frames",
+    "rationale": "H3 12s 预设。表值 292 (%17=3 ✗) → snap 到 294。",
+    "extra_data": {
+      "engine": "h3",
+      "duration_sec": 12,
+      "frame_count": 294,
+      "table_value": 292,
+      "snap_rule": "n%17==5"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.4 帧数对齐 H3_DURATION_TABLE",
+    "tags": ["h3", "duration-frame-lut"],
+    "priority": 58
+  },
+  {
+    "category": "duration_frame_lut",
+    "key_name": "15s",
+    "key_type": "duration_mapping",
+    "primary_recommendation": "362 frames",
+    "rationale": "H3 15s 预设。表值 362 (%17=5 ✓)，训练上限，不变。",
+    "extra_data": {
+      "engine": "h3",
+      "duration_sec": 15,
+      "frame_count": 362,
+      "table_value": 362,
+      "snap_rule": "n%17==5"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.4 帧数对齐 H3_DURATION_TABLE",
+    "tags": ["h3", "duration-frame-lut"],
+    "priority": 58
+  },
+  {
+    "category": "duration_frame_lut",
+    "key_name": "ltx_trim_refs2",
+    "key_type": "duration_mapping",
+    "primary_recommendation": "30 frames (1.25s @24fps)",
+    "rationale": "LiconMSR 静态条件帧裁剪：2 张参考图 → trim 30 帧。交付时长 = (numFrames − trim) / fps。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "num_refs": 2,
+      "trim_frames": 30,
+      "trim_sec": 1.25,
+      "formula": "last_switch + 8"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.4 trim calcTrimFrames (LTX-MSR)",
+    "tags": ["ltx", "trim"],
+    "priority": 55
+  },
+  {
+    "category": "duration_frame_lut",
+    "key_name": "ltx_trim_refs3",
+    "key_type": "duration_mapping",
+    "primary_recommendation": "37 frames (1.5417s @24fps)",
+    "rationale": "LiconMSR 静态条件帧裁剪：3 张参考图 → trim 37 帧。交付时长 = (numFrames − trim) / fps。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "num_refs": 3,
+      "trim_frames": 37,
+      "trim_sec": 1.5417,
+      "formula": "last_switch + 8"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.4 trim calcTrimFrames (LTX-MSR)",
+    "tags": ["ltx", "trim"],
+    "priority": 55
+  },
+  {
+    "category": "duration_frame_lut",
+    "key_name": "ltx_trim_refs4",
+    "key_type": "duration_mapping",
+    "primary_recommendation": "41 frames (1.7083s @24fps)",
+    "rationale": "LiconMSR 静态条件帧裁剪：4 张参考图 → trim 41 帧。交付时长 = (numFrames − trim) / fps。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "num_refs": 4,
+      "trim_frames": 41,
+      "trim_sec": 1.7083,
+      "formula": "last_switch + 8"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.4 trim calcTrimFrames (LTX-MSR)",
+    "tags": ["ltx", "trim"],
+    "priority": 55
+  },
+  {
+    "category": "duration_frame_lut",
+    "key_name": "ltx_trim_refs5",
+    "key_type": "duration_mapping",
+    "primary_recommendation": "44 frames (1.8333s @24fps)",
+    "rationale": "LiconMSR 静态条件帧裁剪：5 张参考图 → trim 44 帧。交付时长 = (numFrames − trim) / fps。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "num_refs": 5,
+      "trim_frames": 44,
+      "trim_sec": 1.8333,
+      "formula": "last_switch + 8"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.4 trim calcTrimFrames (LTX-MSR)",
+    "tags": ["ltx", "trim"],
+    "priority": 55
+  },
+  {
+    "category": "duration_frame_lut",
+    "key_name": "ltx_msr_frame_counts",
+    "key_type": "duration_mapping",
+    "primary_recommendation": "[17, 25, 33, 41] → pickMSRFrameCount 永远返回 41",
+    "rationale": "LiconMSR 条件序列长度必须是 [17,25,33,41] 之一；fc=41 是默认且唯一选择（2026-07-01 A/B：fc=41 一致性优于 fc=17）。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "allowed": [17, 25, 33, 41],
+      "default": 41
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.3 帧数对齐",
+    "tags": ["ltx", "frames"],
+    "priority": 55
+  },
+  {
+    "category": "duration_frame_lut",
+    "key_name": "ltx_round_to_8n_plus_1",
+    "key_type": "duration_mapping",
+    "primary_recommendation": "numFrames = ceil((round(dur*fps)-1)/8)*8 + 1  (必须 8n+1)",
+    "rationale": "LTX 视频总帧数必须 8n+1。示例 duration=7,fps=24 → 169 帧。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "constraint": "8n+1",
+      "example": "dur7@24fps→169"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.3 帧数对齐",
+    "tags": ["ltx", "frames"],
+    "priority": 55
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "h3.generate.projectId",
+    "key_type": "api_field",
+    "primary_recommendation": "项目 ID",
+    "rationale": "H3 generate 入参字段 projectId。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "number",
+      "required": true,
+      "default": null,
+      "constraint": null
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.2 必填/可选字段 (H3 generate)",
+    "tags": ["h3", "api-field"],
+    "priority": 57
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "h3.generate.prompt",
+    "key_type": "api_field",
+    "primary_recommendation": "场景描述",
+    "rationale": "H3 generate 入参字段 prompt。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "string",
+      "required": true,
+      "default": null,
+      "constraint": null
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.2 必填/可选字段 (H3 generate)",
+    "tags": ["h3", "api-field"],
+    "priority": 57
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "h3.generate.mode",
+    "key_type": "api_field",
+    "primary_recommendation": "生成模式",
+    "rationale": "H3 generate 入参字段 mode。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "string",
+      "required": false,
+      "default": "t2va",
+      "constraint": "t2va|i2va|ref2va"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.2 必填/可选字段 (H3 generate)",
+    "tags": ["h3", "api-field"],
+    "priority": 57
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "h3.generate.image",
+    "key_type": "api_field",
+    "primary_recommendation": "i2va 首帧图",
+    "rationale": "H3 generate 入参字段 image。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "File",
+      "required": false,
+      "default": null,
+      "constraint": "i2va 必填"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.2 必填/可选字段 (H3 generate)",
+    "tags": ["h3", "api-field"],
+    "priority": 57
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "h3.generate.refImages[]",
+    "key_type": "api_field",
+    "primary_recommendation": "参考图数组",
+    "rationale": "H3 generate 入参字段 refImages[]。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "array",
+      "required": false,
+      "default": null,
+      "constraint": "ref2va 必填,1–9 张"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.2 必填/可选字段 (H3 generate)",
+    "tags": ["h3", "api-field"],
+    "priority": 57
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "h3.generate.width",
+    "key_type": "api_field",
+    "primary_recommendation": "画面宽",
+    "rationale": "H3 generate 入参字段 width。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "number",
+      "required": false,
+      "default": 1344,
+      "constraint": "必须 32 倍数"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.2 必填/可选字段 (H3 generate)",
+    "tags": ["h3", "api-field"],
+    "priority": 57
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "h3.generate.height",
+    "key_type": "api_field",
+    "primary_recommendation": "画面高",
+    "rationale": "H3 generate 入参字段 height。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "number",
+      "required": false,
+      "default": 768,
+      "constraint": "必须 32 倍数"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.2 必填/可选字段 (H3 generate)",
+    "tags": ["h3", "api-field"],
+    "priority": 57
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "h3.generate.length",
+    "key_type": "api_field",
+    "primary_recommendation": "帧数",
+    "rationale": "H3 generate 入参字段 length。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "number",
+      "required": false,
+      "default": 124,
+      "constraint": "自动对齐 n%17==5"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.2 必填/可选字段 (H3 generate)",
+    "tags": ["h3", "api-field"],
+    "priority": 57
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "h3.generate.seed",
+    "key_type": "api_field",
+    "primary_recommendation": "H3 视频种子",
+    "rationale": "H3 generate 入参字段 seed。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "number",
+      "required": false,
+      "default": "random",
+      "constraint": null
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.2 必填/可选字段 (H3 generate)",
+    "tags": ["h3", "api-field"],
+    "priority": 57
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "h3.generate.steps",
+    "key_type": "api_field",
+    "primary_recommendation": "采样步数覆盖",
+    "rationale": "H3 generate 入参字段 steps。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "number",
+      "required": false,
+      "default": "t2v=50/r2v=20",
+      "constraint": null
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.2 必填/可选字段 (H3 generate)",
+    "tags": ["h3", "api-field"],
+    "priority": 57
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "h3.generate.ttsAudio",
+    "key_type": "api_field",
+    "primary_recommendation": "TTS 对白音频(有则与环境音混音)",
+    "rationale": "H3 generate 入参字段 ttsAudio。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "File",
+      "required": false,
+      "default": null,
+      "constraint": null
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.2 必填/可选字段 (H3 generate)",
+    "tags": ["h3", "api-field"],
+    "priority": 57
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "h3.generate.negativePrompt",
+    "key_type": "api_field",
+    "primary_recommendation": "负面词(留给 Foley)",
+    "rationale": "H3 generate 入参字段 negativePrompt。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "string",
+      "required": false,
+      "default": "视觉负面词默认",
+      "constraint": "cfg=1.0 时实际不生效"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.2 必填/可选字段 (H3 generate)",
+    "tags": ["h3", "api-field"],
+    "priority": 57
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "h3.generate.filenamePrefix",
+    "key_type": "api_field",
+    "primary_recommendation": "输出文件名前缀",
+    "rationale": "H3 generate 入参字段 filenamePrefix。",
+    "extra_data": {
+      "engine": "h3",
+      "type": "string",
+      "required": false,
+      "default": "h3_generate_{projectId}_{ts}",
+      "constraint": null
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "1.2 必填/可选字段 (H3 generate)",
+    "tags": ["h3", "api-field"],
+    "priority": 57
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "ltx.msr.projectId",
+    "key_type": "api_field",
+    "primary_recommendation": "项目 ID",
+    "rationale": "LTX-MSR 入参字段 projectId。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "type": "number",
+      "required": true,
+      "default": null,
+      "constraint": null
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.2 必填/可选字段 (LTX msr)",
+    "tags": ["ltx", "api-field"],
+    "priority": 52
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "ltx.msr.prompt",
+    "key_type": "api_field",
+    "primary_recommendation": "action/场景 prompt",
+    "rationale": "LTX-MSR 入参字段 prompt。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "type": "string",
+      "required": true,
+      "default": null,
+      "constraint": null
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.2 必填/可选字段 (LTX msr)",
+    "tags": ["ltx", "api-field"],
+    "priority": 52
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "ltx.msr.ref1-ref5",
+    "key_type": "api_field",
+    "primary_recommendation": "参考图数组",
+    "rationale": "LTX-MSR 入参字段 ref1-ref5。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "type": "array",
+      "required": true,
+      "default": null,
+      "constraint": "2–5 张;ref1=背景,ref2-4=角色"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.2 必填/可选字段 (LTX msr)",
+    "tags": ["ltx", "api-field"],
+    "priority": 52
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "ltx.msr.duration",
+    "key_type": "api_field",
+    "primary_recommendation": "秒",
+    "rationale": "LTX-MSR 入参字段 duration。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "type": "number",
+      "required": false,
+      "default": 3,
+      "constraint": null
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.2 必填/可选字段 (LTX msr)",
+    "tags": ["ltx", "api-field"],
+    "priority": 52
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "ltx.msr.fps",
+    "key_type": "api_field",
+    "primary_recommendation": "帧率",
+    "rationale": "LTX-MSR 入参字段 fps。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "type": "number",
+      "required": false,
+      "default": 24,
+      "constraint": null
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.2 必填/可选字段 (LTX msr)",
+    "tags": ["ltx", "api-field"],
+    "priority": 52
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "ltx.msr.width",
+    "key_type": "api_field",
+    "primary_recommendation": "画面宽",
+    "rationale": "LTX-MSR 入参字段 width。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "type": "number",
+      "required": false,
+      "default": 1280,
+      "constraint": "8 倍数"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.2 必填/可选字段 (LTX msr)",
+    "tags": ["ltx", "api-field"],
+    "priority": 52
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "ltx.msr.height",
+    "key_type": "api_field",
+    "primary_recommendation": "画面高",
+    "rationale": "LTX-MSR 入参字段 height。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "type": "number",
+      "required": false,
+      "default": 704,
+      "constraint": "8 倍数"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.2 必填/可选字段 (LTX msr)",
+    "tags": ["ltx", "api-field"],
+    "priority": 52
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "ltx.msr.negativePrompt",
+    "key_type": "api_field",
+    "primary_recommendation": "负面词",
+    "rationale": "LTX-MSR 入参字段 negativePrompt。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "type": "string",
+      "required": false,
+      "default": "视觉+字幕负面词默认",
+      "constraint": "追加音频负面引导"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.2 必填/可选字段 (LTX msr)",
+    "tags": ["ltx", "api-field"],
+    "priority": 52
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "ltx.msr.seed",
+    "key_type": "api_field",
+    "primary_recommendation": "种子",
+    "rationale": "LTX-MSR 入参字段 seed。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "type": "number",
+      "required": false,
+      "default": "random",
+      "constraint": null
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.2 必填/可选字段 (LTX msr)",
+    "tags": ["ltx", "api-field"],
+    "priority": 52
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "ltx.msr.outputFilename",
+    "key_type": "api_field",
+    "primary_recommendation": "不含扩展名",
+    "rationale": "LTX-MSR 入参字段 outputFilename。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "type": "string",
+      "required": false,
+      "default": "ltx_msr_{projectId}_{ts}",
+      "constraint": null
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.2 必填/可选字段 (LTX msr)",
+    "tags": ["ltx", "api-field"],
+    "priority": 52
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "ltx.msr.useV2",
+    "key_type": "api_field",
+    "primary_recommendation": "启用 PromptRelay+NAG+LoRA V2",
+    "rationale": "LTX-MSR 入参字段 useV2。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "constraint": null
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.2 必填/可选字段 (LTX msr)",
+    "tags": ["ltx", "api-field"],
+    "priority": 52
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "ltx.msr.refDescription",
+    "key_type": "api_field",
+    "primary_recommendation": "角色身份描述(for PromptRelay global_prompt)",
+    "rationale": "LTX-MSR 入参字段 refDescription。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "constraint": null
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.2 必填/可选字段 (LTX msr)",
+    "tags": ["ltx", "api-field"],
+    "priority": 52
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "ltx.msr.nagWeight",
+    "key_type": "api_field",
+    "primary_recommendation": "NAG alpha",
+    "rationale": "LTX-MSR 入参字段 nagWeight。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "type": "number",
+      "required": false,
+      "default": 0.25,
+      "constraint": null
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.2 必填/可选字段 (LTX msr)",
+    "tags": ["ltx", "api-field"],
+    "priority": 52
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "ltx.msr.nagLayers",
+    "key_type": "api_field",
+    "primary_recommendation": "NAG scale(注意力层数)",
+    "rationale": "LTX-MSR 入参字段 nagLayers。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "type": "number",
+      "required": false,
+      "default": 11,
+      "constraint": null
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.2 必填/可选字段 (LTX msr)",
+    "tags": ["ltx", "api-field"],
+    "priority": 52
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "ltx.msr.nagSigmaStart",
+    "key_type": "api_field",
+    "primary_recommendation": "NAG tau",
+    "rationale": "LTX-MSR 入参字段 nagSigmaStart。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "type": "number",
+      "required": false,
+      "default": 2.5,
+      "constraint": null
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.2 必填/可选字段 (LTX msr)",
+    "tags": ["ltx", "api-field"],
+    "priority": 52
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "ltx.msr.relayWeight",
+    "key_type": "api_field",
+    "primary_recommendation": "PromptRelay weight",
+    "rationale": "LTX-MSR 入参字段 relayWeight。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "type": "number",
+      "required": false,
+      "default": 0.0022,
+      "constraint": null
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.2 必填/可选字段 (LTX msr)",
+    "tags": ["ltx", "api-field"],
+    "priority": 52
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "ltx.msr.msrLoraVersion",
+    "key_type": "api_field",
+    "primary_recommendation": "MSR LoRA 版本",
+    "rationale": "LTX-MSR 入参字段 msrLoraVersion。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "type": "string",
+      "required": false,
+      "default": "V2",
+      "constraint": "V2|V1|test"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.2 必填/可选字段 (LTX msr)",
+    "tags": ["ltx", "api-field"],
+    "priority": 52
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "ltx.msr.audioMode",
+    "key_type": "api_field",
+    "primary_recommendation": "音频模式",
+    "rationale": "LTX-MSR 入参字段 audioMode。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "type": "string",
+      "required": false,
+      "default": "智能默认",
+      "constraint": "见 §2.6"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.2 必填/可选字段 (LTX msr)",
+    "tags": ["ltx", "api-field"],
+    "priority": 52
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "ltx.msr.audio",
+    "key_type": "api_field",
+    "primary_recommendation": "自定义音频(wav/flac/mp3)",
+    "rationale": "LTX-MSR 入参字段 audio。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "type": "File",
+      "required": false,
+      "default": null,
+      "constraint": null
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.2 必填/可选字段 (LTX msr)",
+    "tags": ["ltx", "api-field"],
+    "priority": 52
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "ltx.msr.dialogueEndTime",
+    "key_type": "api_field",
+    "primary_recommendation": "对白结束秒",
+    "rationale": "LTX-MSR 入参字段 dialogueEndTime。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "type": "number",
+      "required": false,
+      "default": null,
+      "constraint": "dialogue+ambient_v2/5stage 必填"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.2 必填/可选字段 (LTX msr)",
+    "tags": ["ltx", "api-field"],
+    "priority": 52
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "ltx.msr.poseVideoFrames",
+    "key_type": "api_field",
+    "primary_recommendation": "姿态帧/视频路径数组",
+    "rationale": "LTX-MSR 入参字段 poseVideoFrames。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "type": "string",
+      "required": false,
+      "default": null,
+      "constraint": "JSON string"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.2 必填/可选字段 (LTX msr)",
+    "tags": ["ltx", "api-field"],
+    "priority": 52
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "ltx.msr.poseGuideStrength",
+    "key_type": "api_field",
+    "primary_recommendation": "姿态引导强度",
+    "rationale": "LTX-MSR 入参字段 poseGuideStrength。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "type": "number",
+      "required": false,
+      "default": 0.7,
+      "constraint": null
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.2 必填/可选字段 (LTX msr)",
+    "tags": ["ltx", "api-field"],
+    "priority": 52
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "jimeng.model",
+    "key_type": "api_field",
+    "primary_recommendation": "模型名(图)/jimeng-video-seedance-2.0-fast(异步视频)",
+    "rationale": "Jimeng 入参字段 model。",
+    "extra_data": {
+      "engine": "jimeng",
+      "type": "string",
+      "required": false,
+      "default": "jimeng-5.0",
+      "constraint": null
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "3.4 参数 (Jimeng)",
+    "tags": ["jimeng", "api-field"],
+    "priority": 50
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "jimeng.ratio",
+    "key_type": "api_field",
+    "primary_recommendation": "画幅比",
+    "rationale": "Jimeng 入参字段 ratio。",
+    "extra_data": {
+      "engine": "jimeng",
+      "type": "string",
+      "required": false,
+      "default": "16:9",
+      "constraint": "1:1|16:9|9:16|3:4|4:3"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "3.4 参数 (Jimeng)",
+    "tags": ["jimeng", "api-field"],
+    "priority": 50
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "jimeng.resolution",
+    "key_type": "api_field",
+    "primary_recommendation": "分辨率(图)",
+    "rationale": "Jimeng 入参字段 resolution。",
+    "extra_data": {
+      "engine": "jimeng",
+      "type": "string",
+      "required": false,
+      "default": "2k",
+      "constraint": "1k|2k|4k"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "3.4 参数 (Jimeng)",
+    "tags": ["jimeng", "api-field"],
+    "priority": 50
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "jimeng.duration",
+    "key_type": "api_field",
+    "primary_recommendation": "秒(普通视频默认5/Seedance默认4)",
+    "rationale": "Jimeng 入参字段 duration。",
+    "extra_data": {
+      "engine": "jimeng",
+      "type": "number",
+      "required": false,
+      "default": 5,
+      "constraint": null
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "3.4 参数 (Jimeng)",
+    "tags": ["jimeng", "api-field"],
+    "priority": 50
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "jimeng.file_paths",
+    "key_type": "api_field",
+    "primary_recommendation": "Seedance 必填素材",
+    "rationale": "Jimeng 入参字段 file_paths。",
+    "extra_data": {
+      "engine": "jimeng",
+      "type": "array",
+      "required": true,
+      "default": null,
+      "constraint": "素材 URL 数组;@1@2 引用"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "3.4 参数 (Jimeng)",
+    "tags": ["jimeng", "api-field"],
+    "priority": 50
+  },
+  {
+    "category": "engine_field_spec",
+    "key_name": "jimeng.sample_strength",
+    "key_type": "api_field",
+    "primary_recommendation": "图生图融合强度",
+    "rationale": "Jimeng 入参字段 sample_strength。",
+    "extra_data": {
+      "engine": "jimeng",
+      "type": "number",
+      "required": false,
+      "default": 0.5,
+      "constraint": "0–1"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "3.4 参数 (Jimeng)",
+    "tags": ["jimeng", "api-field"],
+    "priority": 50
+  },
+  {
+    "category": "engine_capability_matrix",
+    "key_name": "t2v",
+    "key_type": "capability",
+    "primary_recommendation": "✅ t2va (原生音频)",
+    "rationale": "纯文本生成视频",
+    "extra_data": {
+      "h3": "✅ t2va (原生音频)",
+      "jimeng": "✅ jimeng-video-3.5-pro",
+      "ltx_msr": "⚠️ 仅参考",
+      "condition": "纯文本生成视频"
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "能力矩阵 (H3 本地唯一 / Jimeng 云端辅助)",
+    "tags": ["capability-matrix"],
+    "priority": 58
+  },
+  {
+    "category": "engine_capability_matrix",
+    "key_name": "i2v",
+    "key_type": "capability",
+    "primary_recommendation": "✅ i2va (首帧)",
+    "rationale": "首帧/图生视频",
+    "extra_data": {
+      "h3": "✅ i2va (首帧)",
+      "jimeng": "✅ @1 首帧",
+      "ltx_msr": "✅",
+      "condition": "首帧/图生视频"
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "能力矩阵 (H3 本地唯一 / Jimeng 云端辅助)",
+    "tags": ["capability-matrix"],
+    "priority": 58
+  },
+  {
+    "category": "engine_capability_matrix",
+    "key_name": "ref2v",
+    "key_type": "capability",
+    "primary_recommendation": "✅ ref2va (≤9 张)",
+    "rationale": "参考图→视频",
+    "extra_data": {
+      "h3": "✅ ref2va (≤9 张)",
+      "jimeng": "⚠️ 多图融合",
+      "ltx_msr": "✅ msr (2-5 张)",
+      "condition": "参考图→视频"
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "能力矩阵 (H3 本地唯一 / Jimeng 云端辅助)",
+    "tags": ["capability-matrix"],
+    "priority": 58
+  },
+  {
+    "category": "engine_capability_matrix",
+    "key_name": "first_frame",
+    "key_type": "capability",
+    "primary_recommendation": "✅ i2va first_frame 槽",
+    "rationale": "首帧约束",
+    "extra_data": {
+      "h3": "✅ i2va first_frame 槽",
+      "jimeng": "✅ Seedance @1",
+      "ltx_msr": "✅ guide strength 0.8",
+      "condition": "首帧约束"
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "能力矩阵 (H3 本地唯一 / Jimeng 云端辅助)",
+    "tags": ["capability-matrix"],
+    "priority": 58
+  },
+  {
+    "category": "engine_capability_matrix",
+    "key_name": "last_frame",
+    "key_type": "capability",
+    "primary_recommendation": "❌ 不支持 (无 last-frame slot)",
+    "rationale": "尾帧约束→需 Jimeng",
+    "extra_data": {
+      "h3": "❌ 不支持 (无 last-frame slot)",
+      "jimeng": "✅ Seedance @2",
+      "ltx_msr": "✅ guide strength 0.6",
+      "condition": "尾帧约束→需 Jimeng"
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "能力矩阵 (H3 本地唯一 / Jimeng 云端辅助)",
+    "tags": ["capability-matrix"],
+    "priority": 58
+  },
+  {
+    "category": "engine_capability_matrix",
+    "key_name": "first_last_frame",
+    "key_type": "capability",
+    "primary_recommendation": "❌",
+    "rationale": "首尾帧动画",
+    "extra_data": {
+      "h3": "❌",
+      "jimeng": "✅ Seedance @1 @2 两图",
+      "ltx_msr": "⚠️",
+      "condition": "首尾帧动画"
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "能力矩阵 (H3 本地唯一 / Jimeng 云端辅助)",
+    "tags": ["capability-matrix"],
+    "priority": 58
+  },
+  {
+    "category": "engine_capability_matrix",
+    "key_name": "multi_character_consistency",
+    "key_type": "capability",
+    "primary_recommendation": "⚠️ ref2va 中等",
+    "rationale": "多角色一致性",
+    "extra_data": {
+      "h3": "⚠️ ref2va 中等",
+      "jimeng": "❌",
+      "ltx_msr": "✅ LiconMSR",
+      "condition": "多角色一致性"
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "能力矩阵 (H3 本地唯一 / Jimeng 云端辅助)",
+    "tags": ["capability-matrix"],
+    "priority": 58
+  },
+  {
+    "category": "engine_capability_matrix",
+    "key_name": "pose_guide",
+    "key_type": "capability",
+    "primary_recommendation": "❌ 忽略 (warning)",
+    "rationale": "姿态引导(管线已移除 LTX 路径)",
+    "extra_data": {
+      "h3": "❌ 忽略 (warning)",
+      "jimeng": "❌",
+      "ltx_msr": "✅ 双条件 IC-LoRA",
+      "condition": "姿态引导(管线已移除 LTX 路径)"
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "能力矩阵 (H3 本地唯一 / Jimeng 云端辅助)",
+    "tags": ["capability-matrix"],
+    "priority": 58
+  },
+  {
+    "category": "engine_capability_matrix",
+    "key_name": "native_audio_generation",
+    "key_type": "capability",
+    "primary_recommendation": "✅ diegetic 原生 audio VAE",
+    "rationale": "视频自带音频轨",
+    "extra_data": {
+      "h3": "✅ diegetic 原生 audio VAE",
+      "jimeng": "❌ 无内置音频",
+      "ltx_msr": "✅",
+      "condition": "视频自带音频轨"
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "能力矩阵 (H3 本地唯一 / Jimeng 云端辅助)",
+    "tags": ["capability-matrix"],
+    "priority": 58
+  },
+  {
+    "category": "engine_capability_matrix",
+    "key_name": "dialogue_audio",
+    "key_type": "capability",
+    "primary_recommendation": "✅ 原生对白",
+    "rationale": "原生对白音频",
+    "extra_data": {
+      "h3": "✅ 原生对白",
+      "jimeng": "❌ 需后期补",
+      "ltx_msr": "✅",
+      "condition": "原生对白音频"
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "能力矩阵 (H3 本地唯一 / Jimeng 云端辅助)",
+    "tags": ["capability-matrix"],
+    "priority": 58
+  },
+  {
+    "category": "engine_capability_matrix",
+    "key_name": "tts_dialogue_fidelity",
+    "key_type": "capability",
+    "primary_recommendation": "✅ ttsAudio 字段(×1.4 混音)",
+    "rationale": "TTS 对白保真",
+    "extra_data": {
+      "h3": "✅ ttsAudio 字段(×1.4 混音)",
+      "jimeng": "⚠️ 后期补",
+      "ltx_msr": "✅ 5stage",
+      "condition": "TTS 对白保真"
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "能力矩阵 (H3 本地唯一 / Jimeng 云端辅助)",
+    "tags": ["capability-matrix"],
+    "priority": 58
+  },
+  {
+    "category": "engine_capability_matrix",
+    "key_name": "bgm_ban",
+    "key_type": "capability",
+    "primary_recommendation": "✅ 正面 diegetic 词(cfg=1.0 负面无效)",
+    "rationale": "BGM 禁用",
+    "extra_data": {
+      "h3": "✅ 正面 diegetic 词(cfg=1.0 负面无效)",
+      "jimeng": "N/A",
+      "ltx_msr": "✅ 详尽 BGM 负面词",
+      "condition": "BGM 禁用"
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "能力矩阵 (H3 本地唯一 / Jimeng 云端辅助)",
+    "tags": ["capability-matrix"],
+    "priority": 58
+  },
+  {
+    "category": "engine_capability_matrix",
+    "key_name": "trim",
+    "key_type": "capability",
+    "primary_recommendation": "❌ 无需 trim",
+    "rationale": "条件帧裁剪",
+    "extra_data": {
+      "h3": "❌ 无需 trim",
+      "jimeng": "❌ 无需 trim",
+      "ltx_msr": "✅ calcTrimFrames",
+      "condition": "条件帧裁剪"
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "能力矩阵 (H3 本地唯一 / Jimeng 云端辅助)",
+    "tags": ["capability-matrix"],
+    "priority": 58
+  },
+  {
+    "category": "engine_capability_matrix",
+    "key_name": "no_local_gpu",
+    "key_type": "capability",
+    "primary_recommendation": "❌ 需 ComfyUI :8188",
+    "rationale": "不依赖本地 GPU",
+    "extra_data": {
+      "h3": "❌ 需 ComfyUI :8188",
+      "jimeng": "✅ 云端",
+      "ltx_msr": "❌ 需本地 GPU",
+      "condition": "不依赖本地 GPU"
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "能力矩阵 (H3 本地唯一 / Jimeng 云端辅助)",
+    "tags": ["capability-matrix"],
+    "priority": 58
+  },
+  {
+    "category": "engine_capability_matrix",
+    "key_name": "frame_alignment_constraint",
+    "key_type": "capability",
+    "primary_recommendation": "n%17==5",
+    "rationale": "帧数对齐规则",
+    "extra_data": {
+      "h3": "n%17==5",
+      "jimeng": "无约束(云端处理 duration)",
+      "ltx_msr": "8n+1",
+      "condition": "帧数对齐规则"
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "能力矩阵 (H3 本地唯一 / Jimeng 云端辅助)",
+    "tags": ["capability-matrix"],
+    "priority": 58
+  },
+  {
+    "category": "engine_capability_matrix",
+    "key_name": "max_duration",
+    "key_type": "capability",
+    "primary_recommendation": "15s / 362 帧",
+    "rationale": "单段最大时长",
+    "extra_data": {
+      "h3": "15s / 362 帧",
+      "jimeng": "灵活(云端 duration)",
+      "ltx_msr": "8n+1 有界",
+      "condition": "单段最大时长"
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "能力矩阵 (H3 本地唯一 / Jimeng 云端辅助)",
+    "tags": ["capability-matrix"],
+    "priority": 58
+  },
+  {
+    "category": "engine_capability_matrix",
+    "key_name": "max_ref_images",
+    "key_type": "capability",
+    "primary_recommendation": "9",
+    "rationale": "参考图上限",
+    "extra_data": {
+      "h3": "9",
+      "jimeng": "无硬上限",
+      "ltx_msr": "2–5",
+      "condition": "参考图上限"
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "能力矩阵 (H3 本地唯一 / Jimeng 云端辅助)",
+    "tags": ["capability-matrix"],
+    "priority": 58
+  },
+  {
+    "category": "engine_capability_matrix",
+    "key_name": "typical_latency",
+    "key_type": "capability",
+    "primary_recommendation": "10–15 min",
+    "rationale": "典型出片耗时",
+    "extra_data": {
+      "h3": "10–15 min",
+      "jimeng": "~2 min / 异步",
+      "ltx_msr": "—",
+      "condition": "典型出片耗时"
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "能力矩阵 (H3 本地唯一 / Jimeng 云端辅助)",
+    "tags": ["capability-matrix"],
+    "priority": 58
+  },
+  {
+    "category": "engine_selection_rule",
+    "key_name": "rule_1_local_gpu_unavailable",
+    "key_type": "selection_rule",
+    "primary_recommendation": "jimeng",
+    "rationale": "Q1: 本地 GPU 不可用 → 云端 Jimeng(不依赖本地 GPU)。",
+    "extra_data": {
+      "priority": 1,
+      "condition": "本地 GPU(KAP :10588 / ComfyUI :8188)不可用",
+      "fallback": null
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "决策树 (engine=auto, 按优先级 Q1→Q6)",
+    "tags": ["selection-rule"],
+    "priority": 70
+  },
+  {
+    "category": "engine_selection_rule",
+    "key_name": "rule_2_last_frame",
+    "key_type": "selection_rule",
+    "primary_recommendation": "jimeng-seedance",
+    "rationale": "Q2: 有尾帧 → Jimeng Seedance(file_paths 两图,@1 首 @2 尾)。H3 无尾帧能力。",
+    "extra_data": {
+      "priority": 2,
+      "condition": "输入含 last_frame(尾帧约束)",
+      "fallback": "h3 不支持尾帧"
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "决策树 (engine=auto, 按优先级 Q1→Q6)",
+    "tags": ["selection-rule"],
+    "priority": 70
+  },
+  {
+    "category": "engine_selection_rule",
+    "key_name": "rule_3_character_refs",
+    "key_type": "selection_rule",
+    "primary_recommendation": "h3-ref2va",
+    "rationale": "Q3: 有参考图 → H3 ref2va(refImages[] 角色turnaround+场景背景;有 tts → 上传 ttsAudio)。",
+    "extra_data": {
+      "priority": 3,
+      "condition": "有 character_refs(1–9 张)或 scene_background",
+      "fallback": null
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "决策树 (engine=auto, 按优先级 Q1→Q6)",
+    "tags": ["selection-rule"],
+    "priority": 70
+  },
+  {
+    "category": "engine_selection_rule",
+    "key_name": "rule_4_first_frame_no_chars",
+    "key_type": "selection_rule",
+    "primary_recommendation": "h3-i2va",
+    "rationale": "Q4: 首帧锁定义开画面 → H3 i2va。",
+    "extra_data": {
+      "priority": 4,
+      "condition": "有 first_frame 且无 character_refs",
+      "fallback": null
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "决策树 (engine=auto, 按优先级 Q1→Q6)",
+    "tags": ["selection-rule"],
+    "priority": 70
+  },
+  {
+    "category": "engine_selection_rule",
+    "key_name": "rule_5_pure_text",
+    "key_type": "selection_rule",
+    "primary_recommendation": "h3-t2va",
+    "rationale": "Q5: 纯文本 → H3 t2va(原生音频 + diegetic 环境音)。",
+    "extra_data": {
+      "priority": 5,
+      "condition": "纯文本生成(text-to-video)",
+      "fallback": null
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "决策树 (engine=auto, 按优先级 Q1→Q6)",
+    "tags": ["selection-rule"],
+    "priority": 70
+  },
+  {
+    "category": "engine_selection_rule",
+    "key_name": "rule_6_pose_guide",
+    "key_type": "selection_rule",
+    "primary_recommendation": "h3-ref2va",
+    "rationale": "Q6: H3 不支持 pose 双条件 → 走 ref2va 并忽略 pose(warnings 标注)。",
+    "extra_data": {
+      "priority": 6,
+      "condition": "有 pose_guide(姿态引导)",
+      "fallback": null
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "决策树 (engine=auto, 按优先级 Q1→Q6)",
+    "tags": ["selection-rule"],
+    "priority": 70
+  },
+  {
+    "category": "engine_selection_rule",
+    "key_name": "rule_default",
+    "key_type": "selection_rule",
+    "primary_recommendation": "h3-t2va",
+    "rationale": "默认最通用路径 → H3 t2va。",
+    "extra_data": {
+      "priority": 7,
+      "condition": "默认(无上述命中)",
+      "fallback": null
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "决策树 (engine=auto, 按优先级 Q1→Q6)",
+    "tags": ["selection-rule"],
+    "priority": 70
+  },
+  {
+    "category": "engine_selection_rule",
+    "key_name": "fallback_h3_no_last_frame",
+    "key_type": "selection_rule",
+    "primary_recommendation": "jimeng-seedance",
+    "rationale": "H3 无尾帧 → 唯一支持尾帧的可用引擎 Jimeng Seedance,在 warnings 记录。",
+    "extra_data": {
+      "priority": 1,
+      "condition": "输入含 last_frame 且 engine=auto",
+      "fallback": null
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "决策树 (engine=auto, 按优先级 Q1→Q6)",
+    "tags": ["selection-rule"],
+    "priority": 70
+  },
+  {
+    "category": "engine_selection_rule",
+    "key_name": "fallback_h3_silent_unavailable",
+    "key_type": "selection_rule",
+    "primary_recommendation": "h3+ffmpeg-an",
+    "rationale": "H3 总是出声 → 需后期 ffmpeg -an strip(记录 warning)。",
+    "extra_data": {
+      "priority": 2,
+      "condition": "audio_intent.type=silent 且选 H3",
+      "fallback": null
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "决策树 (engine=auto, 按优先级 Q1→Q6)",
+    "tags": ["selection-rule"],
+    "priority": 70
+  },
+  {
+    "category": "engine_selection_rule",
+    "key_name": "fallback_ref_images_over_9",
+    "key_type": "selection_rule",
+    "primary_recommendation": "trim-to-9-or-jimeng",
+    "rationale": "H3 ref2va 上限 9 → 裁剪到 9 张(选最关键 character refs)或选 Jimeng(无硬上限)。",
+    "extra_data": {
+      "priority": 3,
+      "condition": "参考图 > 9 张",
+      "fallback": null
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "决策树 (engine=auto, 按优先级 Q1→Q6)",
+    "tags": ["selection-rule"],
+    "priority": 70
+  },
+  {
+    "category": "engine_selection_rule",
+    "key_name": "fallback_duration_over_15s",
+    "key_type": "selection_rule",
+    "primary_recommendation": "split-or-jimeng",
+    "rationale": "H3 上限 15s(362 帧) → 分镜或选 Jimeng(云端 duration 灵活)。",
+    "extra_data": {
+      "priority": 4,
+      "condition": "时长超 15s",
+      "fallback": null
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "决策树 (engine=auto, 按优先级 Q1→Q6)",
+    "tags": ["selection-rule"],
+    "priority": 70
+  },
+  {
+    "category": "engine_selection_rule",
+    "key_name": "fallback_pose_ignored",
+    "key_type": "selection_rule",
+    "primary_recommendation": "h3-ref2va+warn",
+    "rationale": "H3 不支持 pose 双条件 → adapter 在 warnings 标注并继续走 H3 ref2va(忽略 pose)。",
+    "extra_data": {
+      "priority": 5,
+      "condition": "输入含 pose_guide",
+      "fallback": null
+    },
+    "source_file": "engine-selection-logic.md",
+    "source_section": "决策树 (engine=auto, 按优先级 Q1→Q6)",
+    "tags": ["selection-rule"],
+    "priority": 70
+  },
+  {
+    "category": "audio_mode_mapping",
+    "key_name": "tts",
+    "key_type": "audio_strategy",
+    "primary_recommendation": "5stage_pipeline | dialogue+ambient",
+    "rationale": "TTS 对白保真：有 dialogueEndTime → 5stage_pipeline;无 → dialogue+ambient",
+    "extra_data": {
+      "audio_mode": "5stage_pipeline | dialogue+ambient",
+      "engine": "h3",
+      "requires_audio": true,
+      "branches": {
+        "with_dialogue_end_time": "5stage_pipeline",
+        "without": "dialogue+ambient"
+      }
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.6 音频模式 audioMode 与 audioStrategy 映射",
+    "tags": ["audio-strategy"],
+    "priority": 56
+  },
+  {
+    "category": "audio_mode_mapping",
+    "key_name": "foley",
+    "key_type": "audio_strategy",
+    "primary_recommendation": "foley_v2a",
+    "rationale": "解耦音频：TTS 驱动口型 + Foley V2A 环境音",
+    "extra_data": {
+      "audio_mode": "foley_v2a",
+      "engine": "h3",
+      "requires_audio": true
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.6 音频模式 audioMode 与 audioStrategy 映射",
+    "tags": ["audio-strategy"],
+    "priority": 56
+  },
+  {
+    "category": "audio_mode_mapping",
+    "key_name": "ambient",
+    "key_type": "audio_strategy",
+    "primary_recommendation": "ambient_only",
+    "rationale": "纯环境音(无人声),禁 BGM 和人声",
+    "extra_data": {
+      "audio_mode": "ambient_only",
+      "engine": "h3",
+      "requires_audio": false
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.6 音频模式 audioMode 与 audioStrategy 映射",
+    "tags": ["audio-strategy"],
+    "priority": 56
+  },
+  {
+    "category": "audio_mode_mapping",
+    "key_name": "silent",
+    "key_type": "audio_strategy",
+    "primary_recommendation": "silent",
+    "rationale": "无音频轨",
+    "extra_data": {
+      "audio_mode": "silent",
+      "engine": "h3",
+      "requires_audio": false
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.6 音频模式 audioMode 与 audioStrategy 映射",
+    "tags": ["audio-strategy"],
+    "priority": 56
+  },
+  {
+    "category": "audio_mode_mapping",
+    "key_name": "audioMode:dialogue+ambient",
+    "key_type": "audio_strategy",
+    "primary_recommendation": "SolidMask=0 全段冻结,bit-exact 拷贝输入音频(默认 v1)",
+    "rationale": "audioMode 取值 dialogue+ambient。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "audio_mode": "dialogue+ambient",
+      "mask": "solid=0"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.6 音频模式 audioMode 与 audioStrategy 映射",
+    "tags": ["audio-mode"],
+    "priority": 54
+  },
+  {
+    "category": "audio_mode_mapping",
+    "key_name": "audioMode:dialogue+ambient_v2",
+    "key_type": "audio_strategy",
+    "primary_recommendation": "partial-mask:对话段冻结 + 环境段放开生成(需 dialogueEndTime)",
+    "rationale": "audioMode 取值 dialogue+ambient_v2。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "audio_mode": "dialogue+ambient_v2",
+      "requires": "dialogueEndTime"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.6 音频模式 audioMode 与 audioStrategy 映射",
+    "tags": ["audio-mode"],
+    "priority": 54
+  },
+  {
+    "category": "audio_mode_mapping",
+    "key_name": "audioMode:5stage_pipeline",
+    "key_type": "audio_strategy",
+    "primary_recommendation": "2 次 LTX pass + ffmpeg 混合(对话保真+丰富环境),需 audio+dialogueEndTime,~6.85min",
+    "rationale": "audioMode 取值 5stage_pipeline。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "audio_mode": "5stage_pipeline",
+      "requires": ["audio", "dialogueEndTime"],
+      "latency_min": 6.85
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.6 音频模式 audioMode 与 audioStrategy 映射",
+    "tags": ["audio-mode"],
+    "priority": 54
+  },
+  {
+    "category": "audio_mode_mapping",
+    "key_name": "audioMode:ambient_only",
+    "key_type": "audio_strategy",
+    "primary_recommendation": "纯环境音,禁 BGM 和人声",
+    "rationale": "audioMode 取值 ambient_only。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "audio_mode": "ambient_only"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.6 音频模式 audioMode 与 audioStrategy 映射",
+    "tags": ["audio-mode"],
+    "priority": 54
+  },
+  {
+    "category": "audio_mode_mapping",
+    "key_name": "audioMode:silent",
+    "key_type": "audio_strategy",
+    "primary_recommendation": "不输出音频",
+    "rationale": "audioMode 取值 silent。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "audio_mode": "silent"
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.6 音频模式 audioMode 与 audioStrategy 映射",
+    "tags": ["audio-mode"],
+    "priority": 54
+  },
+  {
+    "category": "audio_mode_mapping",
+    "key_name": "audioMode:foley_v2a",
+    "key_type": "audio_strategy",
+    "primary_recommendation": "解耦:画面冻结单 pass + Foley LoRA(strength=2.0)生成环境音",
+    "rationale": "audioMode 取值 foley_v2a。",
+    "extra_data": {
+      "engine": "ltx_msr",
+      "audio_mode": "foley_v2a",
+      "foley_lora_strength": 2.0
+    },
+    "source_file": "engine-specs.md",
+    "source_section": "2.6 音频模式 audioMode 与 audioStrategy 映射",
+    "tags": ["audio-mode"],
+    "priority": 54
   }
 ]
