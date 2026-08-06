@@ -39,6 +39,99 @@ function cssVars(vars: Record<string, string>): React.CSSProperties {
 /** 缩略图：优先 filePath 真图，加载失败/缺图回退类型 emoji。
  *  声纹卡片：左侧展示角色设定图 + 右侧音频播放器（左右分栏）。
  */
+// 声纹卡片底部紧凑播放条：圆形播放/暂停按钮 + 进度条 + 时长。
+// 自定义渲染（非原生 <audio controls>）以便完全控制尺寸：整体高 28px，
+// 确保声纹卡片 thumb 压到 ~220px，整张卡片 < 300px，始终在 .am-scroll 可视区内。
+function VoicePlayBar({ audioUrl }: { audioUrl: string }) {
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const [playing, setPlaying] = useState(false)
+  const [progress, setProgress] = useState(0)   // 0~1
+  const [duration, setDuration] = useState(0)
+  const [current, setCurrent] = useState(0)
+
+  const toggle = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    const el = audioRef.current
+    if (!el) return
+    if (playing) { el.pause() } else { void el.play().catch(() => {}) }
+  }, [playing])
+
+  const onSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation()
+    const el = audioRef.current
+    if (!el || !el.duration) return
+    const r = e.currentTarget.getBoundingClientRect()
+    const ratio = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width))
+    el.currentTime = ratio * el.duration
+    setProgress(ratio)
+  }, [])
+
+  const fmt = (s: number) => {
+    if (!s || !isFinite(s)) return '0:00'
+    const m = Math.floor(s / 60)
+    const ss = Math.floor(s % 60)
+    return `${m}:${ss.toString().padStart(2, '0')}`
+  }
+
+  return (
+    <div
+      style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 10,
+        pointerEvents: 'auto',
+        background: 'linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.45) 60%, transparent 100%)',
+        padding: '7px 8px 7px',
+        display: 'flex', alignItems: 'center', gap: '7px',
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* 隐藏的真实 audio 元素，仅作播放引擎 */}
+      <audio
+        ref={audioRef}
+        preload="none"
+        src={audioUrl}
+        style={{ display: 'none' }}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => { setPlaying(false); setProgress(0); setCurrent(0) }}
+        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 0)}
+        onTimeUpdate={(e) => {
+          const el = e.currentTarget
+          setCurrent(el.currentTime)
+          if (el.duration) setProgress(el.currentTime / el.duration)
+        }}
+      />
+      <button
+        onClick={toggle}
+        aria-label={playing ? '暂停' : '播放'}
+        style={{
+          flex: '0 0 auto', width: 26, height: 26, borderRadius: '50%',
+          border: 'none', cursor: 'pointer', padding: 0,
+          background: 'rgba(255,255,255,0.92)', color: '#111',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        {playing ? (
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
+        ) : (
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+        )}
+      </button>
+      <div
+        onClick={onSeek}
+        style={{
+          flex: '1 1 auto', height: 4, borderRadius: 2, cursor: 'pointer',
+          background: 'rgba(255,255,255,0.28)', minWidth: 0, position: 'relative',
+        }}
+      >
+        <div style={{ width: `${progress * 100}%`, height: '100%', borderRadius: 2, background: 'rgba(255,255,255,0.92)' }} />
+      </div>
+      <span style={{ flex: '0 0 auto', fontVariantNumeric: 'tabular-nums', fontSize: 9.5, color: 'rgba(255,255,255,0.85)', fontFamily: 'var(--cv-font-mono)' }}>
+        {fmt(current)}/{fmt(duration)}
+      </span>
+    </div>
+  )
+}
+
 function Thumb({ item, portraitUrl }: { item: AssetItem; portraitUrl?: string | null }) {
   const [broken, setBroken] = useState(false)
   const [portraitBroken, setPortraitBroken] = useState(false)
@@ -71,24 +164,11 @@ function Thumb({ item, portraitUrl }: { item: AssetItem; portraitUrl?: string | 
             />
           )}
           {/* 底部播放条 overlay：覆盖在角色照片底部，紧贴卡片底边（bottom:0）。
-              z-index:10 确保在图片/渐变遮罩之上；pointer-events:auto 确保可点击；
-              渐变背景保证白色播放控件在任意底图上都可见。 */}
-          <div style={{
-            position: 'absolute', bottom: 0, left: 0, right: 0,
-            zIndex: 10,
-            pointerEvents: 'auto',
-            background: 'linear-gradient(to top, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.5) 55%, transparent 100%)',
-            padding: '6px 6px 4px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <audio
-              controls
-              preload="none"
-              src={audioUrl}
-              style={{ width: '100%', height: '30px' }}
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
+              用自定义紧凑播放按钮 + 进度条替代原生 <audio controls>：
+              原生控件最小渲染高度 ~30px 且在窄卡（195px）里裁剪严重，
+              自定义按钮高 28px、宽仅 ~100px，声纹卡片整体高度可压到 ~256px，
+              确保播放条始终在 .am-scroll 可视区域内（不再被 overflow 裁剪 → elementFromPoint 不再返回 null）。 */}
+          <VoicePlayBar audioUrl={audioUrl} />
         </div>
       )
     }
@@ -769,7 +849,10 @@ export default function AssetLibrary() {
                       >↻ 恢复</button>
                     )}
 
-                    <div className="am-card__thumb"><Thumb item={a} portraitUrl={a.type === 'voice' || a.type === 'audio' ? (a.characterId ? charPortraitMap.get(a.characterId) : null) : null} /></div>
+                    <div
+                      className="am-card__thumb"
+                      style={(a.type === 'voice' || a.type === 'audio') ? { aspectRatio: 'auto', height: 200 } : undefined}
+                    ><Thumb item={a} portraitUrl={a.type === 'voice' || a.type === 'audio' ? (a.characterId ? charPortraitMap.get(a.characterId) : null) : null} /></div>
                     <div className="am-card__typebar" />
                     <div className="am-card__body">
                       <div className="am-card__name">{a.name}</div>
