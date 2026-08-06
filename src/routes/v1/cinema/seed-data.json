@@ -42426,5 +42426,2066 @@
       "enum"
     ],
     "priority": 66
+  },
+  {
+    "category": "lighting_setup",
+    "key_name": "three_point_key",
+    "key_type": "lighting",
+    "primary_recommendation": "主光 (Key light) 位于 camera 左/右 30-45°、高于主体 30-45°,强度为 100%(reference),作为主要光源塑造主体形态。",
+    "rationale": "经典 3-point lighting 标准的主光位置与强度,per Alton《Painting with Light》(1949)。是整个 lighting setup 的 reference 基准,fill 与 back 均以 key 强度为参照。",
+    "extra_data": {
+      "role": "key",
+      "position": "camera 左/右 30-45°, 高于主体 30-45°",
+      "intensity_pct": 100
+    },
+    "source_file": "lighting-intent-layer.md",
+    "source_section": "3-Point Lighting Standard / heuristic 1",
+    "tags": [
+      "three_point",
+      "key_light",
+      "standard"
+    ],
+    "priority": 78
+  },
+  {
+    "category": "lighting_setup",
+    "key_name": "three_point_fill",
+    "key_type": "lighting",
+    "primary_recommendation": "补光 (Fill light) 位于 camera 对侧、与 key 同高度,强度为 key 的 30-50%,用于填充 key 产生的 shadow。",
+    "rationale": "3-point lighting 的补光位与强度,per Alton(1949)。Key-to-fill ratio 即由此 30-50% 比例衍生,决定 dramatic intensity。",
+    "extra_data": {
+      "role": "fill",
+      "position": "camera 对侧, 与 key 同高度",
+      "intensity_pct_of_key": "30-50",
+      "fill_ratio": [
+        0.3,
+        0.5
+      ]
+    },
+    "source_file": "lighting-intent-layer.md",
+    "source_section": "3-Point Lighting Standard / heuristic 1",
+    "tags": [
+      "three_point",
+      "fill_light",
+      "standard"
+    ],
+    "priority": 76
+  },
+  {
+    "category": "lighting_setup",
+    "key_name": "three_point_back",
+    "key_type": "lighting",
+    "primary_recommendation": "背光 / 轮廓光 (Back / Rim light) 位于主体后方、高于主体 45-60°,强度为 key 的 50-100%,用于分离主体与 backdrop 并 highlight 主体轮廓。",
+    "rationale": "3-point lighting 的背光位与强度,per Alton(1949)。提供主体与背景的 depth 分离。",
+    "extra_data": {
+      "role": "back",
+      "position": "主体后方, 高于主体 45-60°",
+      "intensity_pct_of_key": "50-100"
+    },
+    "source_file": "lighting-intent-layer.md",
+    "source_section": "3-Point Lighting Standard / heuristic 1",
+    "tags": [
+      "three_point",
+      "back_light",
+      "rim",
+      "standard"
+    ],
+    "priority": 76
+  },
+  {
+    "category": "lighting_setup",
+    "key_name": "comedy_romance_lighting",
+    "key_type": "lighting",
+    "primary_recommendation": "Comedy / 女频 romance:key-to-fill ratio 2:1,主光 warm 3200K,back light 为 soft rim;短剧修正为高调 + 柔光。",
+    "rationale": "Per-genre lighting 协议表。高调低对比适配喜剧与女频 romance 的明亮基调;fill_ratio 0.5 由 2:1 ratio 衍生。",
+    "extra_data": {
+      "genre": "comedy_romance",
+      "key_light": "soft",
+      "key_to_fill_ratio": "2:1",
+      "fill_ratio": 0.5,
+      "temperature_k": 3200,
+      "back_light": "soft rim",
+      "short_drama_modifier": "高调 + 柔光"
+    },
+    "source_file": "lighting-intent-layer.md",
+    "source_section": "Per-genre lighting 协议 / heuristic 2",
+    "tags": [
+      "genre",
+      "comedy",
+      "romance",
+      "high_key"
+    ],
+    "priority": 75
+  },
+  {
+    "category": "lighting_setup",
+    "key_name": "drama_lighting",
+    "key_type": "lighting",
+    "primary_recommendation": "Drama / 文艺:key-to-fill ratio 4:1,主光 natural 5600K,back light 为 standard rim;短剧修正为中等 + 自然光。",
+    "rationale": "Per-genre lighting 协议表。中等对比为标准剧情的标准强度;fill_ratio 0.25 由 4:1 ratio 衍生。",
+    "extra_data": {
+      "genre": "drama",
+      "key_light": "natural",
+      "key_to_fill_ratio": "4:1",
+      "fill_ratio": 0.25,
+      "temperature_k": 5600,
+      "back_light": "standard rim",
+      "short_drama_modifier": "中等 + 自然光"
+    },
+    "source_file": "lighting-intent-layer.md",
+    "source_section": "Per-genre lighting 协议 / heuristic 2",
+    "tags": [
+      "genre",
+      "drama",
+      "natural"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "lighting_setup",
+    "key_name": "thriller_lighting",
+    "key_type": "lighting",
+    "primary_recommendation": "Thriller / 男频 revenge:key-to-fill ratio 8:1+,主光 cool 3200K + warm practical,back light 为 hard rim;短剧修正为低调 + 高对比。",
+    "rationale": "Per-genre lighting 协议表。高对比营造悬疑与复仇戏剧张力;fill_ratio 0.125 由 8:1 ratio 衍生。注意 doc 原文标注 'cool 3200K + warm practical'。",
+    "extra_data": {
+      "genre": "thriller",
+      "key_light": "hard",
+      "key_to_fill_ratio": "8:1+",
+      "fill_ratio": 0.125,
+      "temperature_k": 3200,
+      "practical_light": "warm",
+      "back_light": "hard rim",
+      "short_drama_modifier": "低调 + 高对比"
+    },
+    "source_file": "lighting-intent-layer.md",
+    "source_section": "Per-genre lighting 协议 / heuristic 2",
+    "tags": [
+      "genre",
+      "thriller",
+      "revenge",
+      "low_key"
+    ],
+    "priority": 75
+  },
+  {
+    "category": "lighting_setup",
+    "key_name": "horror_lighting",
+    "key_type": "lighting",
+    "primary_recommendation": "Horror:key-to-fill ratio 16:1+,主光 cool 4200K from below,back light 为 minimal;短剧修正为极低调 + 红色 wash。",
+    "rationale": "Per-genre lighting 协议表。极低调与自下而上的光源营造 horror 感;fill_ratio 0.0625 由 16:1 ratio 衍生。",
+    "extra_data": {
+      "genre": "horror",
+      "key_light": "hard_low_key",
+      "key_light_direction": "from below",
+      "key_to_fill_ratio": "16:1+",
+      "fill_ratio": 0.0625,
+      "temperature_k": 4200,
+      "back_light": "minimal",
+      "short_drama_modifier": "极低调 + 红色 wash"
+    },
+    "source_file": "lighting-intent-layer.md",
+    "source_section": "Per-genre lighting 协议 / heuristic 2",
+    "tags": [
+      "genre",
+      "horror",
+      "low_key",
+      "extreme"
+    ],
+    "priority": 75
+  },
+  {
+    "category": "lighting_setup",
+    "key_name": "documentary_lighting",
+    "key_type": "lighting",
+    "primary_recommendation": "Documentary / 现实主义:natural key-to-fill ratio,主光 natural 5600K,back light 为 ambient;短剧修正为自然光 + minimal setup。",
+    "rationale": "Per-genre lighting 协议表。现实主义倾向自然光与极简布置,故 ratio 标为 natural 不强制数值。",
+    "extra_data": {
+      "genre": "documentary",
+      "key_light": "natural",
+      "key_to_fill_ratio": "natural",
+      "temperature_k": 5600,
+      "back_light": "ambient",
+      "short_drama_modifier": "自然光 + minimal setup"
+    },
+    "source_file": "lighting-intent-layer.md",
+    "source_section": "Per-genre lighting 协议 / heuristic 2",
+    "tags": [
+      "genre",
+      "documentary",
+      "natural",
+      "minimal"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "lighting_setup",
+    "key_name": "music_video_lighting",
+    "key_type": "lighting",
+    "primary_recommendation": "Music video / 实验:variable key-to-fill ratio,colored 主光,colored back light;短剧修正为 stylized。",
+    "rationale": "Per-genre lighting 协议表。实验性内容采用可变 ratio 与彩色光,需注意 colored light over-saturation(见 anti-pattern 3)。",
+    "extra_data": {
+      "genre": "music_video",
+      "key_light": "stylized",
+      "key_to_fill_ratio": "variable",
+      "back_light": "colored",
+      "short_drama_modifier": "stylized"
+    },
+    "source_file": "lighting-intent-layer.md",
+    "source_section": "Per-genre lighting 协议 / heuristic 2",
+    "tags": [
+      "genre",
+      "music_video",
+      "experimental",
+      "stylized"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "lighting_setup",
+    "key_name": "ratio_low_2to1",
+    "key_type": "lighting",
+    "primary_recommendation": "Low ratio (2:1):高调 / 明亮 / 喜剧 / 女频 romance。",
+    "rationale": "Key-to-fill ratio 决定 dramatic intensity 的第一档;fill_ratio 0.5 由 2:1 衍生。",
+    "extra_data": {
+      "key_to_fill_ratio": "2:1",
+      "fill_ratio": 0.5,
+      "use_case": [
+        "高调",
+        "明亮",
+        "喜剧",
+        "女频 romance"
+      ]
+    },
+    "source_file": "lighting-intent-layer.md",
+    "source_section": "3-Point Lighting Standard / heuristic 1 ratio tiers",
+    "tags": [
+      "ratio",
+      "high_key",
+      "comedy",
+      "romance"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "lighting_setup",
+    "key_name": "ratio_medium_4to1",
+    "key_type": "lighting",
+    "primary_recommendation": "Medium ratio (4:1):中等 / 标准剧情。",
+    "rationale": "Key-to-fill ratio 第二档;fill_ratio 0.25 由 4:1 衍生。",
+    "extra_data": {
+      "key_to_fill_ratio": "4:1",
+      "fill_ratio": 0.25,
+      "use_case": [
+        "中等",
+        "标准剧情"
+      ]
+    },
+    "source_file": "lighting-intent-layer.md",
+    "source_section": "3-Point Lighting Standard / heuristic 1 ratio tiers",
+    "tags": [
+      "ratio",
+      "drama",
+      "standard"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "lighting_setup",
+    "key_name": "ratio_high_8to1",
+    "key_type": "lighting",
+    "primary_recommendation": "High ratio (8:1+):低调 / 戏剧 / 黑色 / 悬疑 / 男频 revenge。",
+    "rationale": "Key-to-fill ratio 第三档;fill_ratio 0.125 由 8:1 衍生。",
+    "extra_data": {
+      "key_to_fill_ratio": "8:1+",
+      "fill_ratio": 0.125,
+      "use_case": [
+        "低调",
+        "戏剧",
+        "黑色",
+        "悬疑",
+        "男频 revenge"
+      ]
+    },
+    "source_file": "lighting-intent-layer.md",
+    "source_section": "3-Point Lighting Standard / heuristic 1 ratio tiers",
+    "tags": [
+      "ratio",
+      "low_key",
+      "thriller",
+      "noir"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "lighting_setup",
+    "key_name": "ratio_very_high_16to1",
+    "key_type": "lighting",
+    "primary_recommendation": "Very high ratio (16:1+):极低调 / 黑色电影 / horror。",
+    "rationale": "Key-to-fill ratio 第四档;fill_ratio 0.0625 由 16:1 衍生。",
+    "extra_data": {
+      "key_to_fill_ratio": "16:1+",
+      "fill_ratio": 0.0625,
+      "use_case": [
+        "极低调",
+        "黑色电影",
+        "horror"
+      ]
+    },
+    "source_file": "lighting-intent-layer.md",
+    "source_section": "3-Point Lighting Standard / heuristic 1 ratio tiers",
+    "tags": [
+      "ratio",
+      "extreme_low_key",
+      "noir",
+      "horror"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "lighting_prompt_token",
+    "key_name": "high_key_token",
+    "key_type": "lighting_token",
+    "primary_recommendation": "高调意图使用 prompt token:\"high-key lighting, soft, bright, even illumination\"。",
+    "rationale": "AI lighting prompt token 推荐表(FLUX 2 / SD)。扩散模型对 high-key 等自然语言 token 响应良好。",
+    "extra_data": {
+      "intent": "高调",
+      "prompt": "high-key lighting, soft, bright, even illumination",
+      "effect": "high_key"
+    },
+    "source_file": "lighting-intent-layer.md",
+    "source_section": "AI lighting prompt token 推荐 / heuristic 4",
+    "tags": [
+      "prompt_token",
+      "high_key",
+      "flux2"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "lighting_prompt_token",
+    "key_name": "low_key_token",
+    "key_type": "lighting_token",
+    "primary_recommendation": "低调意图使用 prompt token:\"low-key lighting, dramatic, deep shadows\"。",
+    "rationale": "AI lighting prompt token 推荐表。",
+    "extra_data": {
+      "intent": "低调",
+      "prompt": "low-key lighting, dramatic, deep shadows",
+      "effect": "low_key"
+    },
+    "source_file": "lighting-intent-layer.md",
+    "source_section": "AI lighting prompt token 推荐 / heuristic 4",
+    "tags": [
+      "prompt_token",
+      "low_key",
+      "dramatic"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "lighting_prompt_token",
+    "key_name": "three_point_standard_token",
+    "key_type": "lighting_token",
+    "primary_recommendation": "3-point 标准意图使用 prompt token:\"3-point lighting setup, key + fill + back\"(FLUX 2 准确解析)。",
+    "rationale": "AI lighting prompt token 推荐表,备注 FLUX 2 能准确解析此 token。",
+    "extra_data": {
+      "intent": "3-point 标准",
+      "prompt": "3-point lighting setup, key + fill + back",
+      "effect": "three_point",
+      "note": "FLUX 2 准确解析"
+    },
+    "source_file": "lighting-intent-layer.md",
+    "source_section": "AI lighting prompt token 推荐 / heuristic 4",
+    "tags": [
+      "prompt_token",
+      "three_point",
+      "flux2"
+    ],
+    "priority": 75
+  },
+  {
+    "category": "lighting_prompt_token",
+    "key_name": "natural_window_token",
+    "key_type": "lighting_token",
+    "primary_recommendation": "Natural window 意图使用 prompt token:\"soft natural light from window, north-facing\"。",
+    "rationale": "AI lighting prompt token 推荐表。",
+    "extra_data": {
+      "intent": "Natural window",
+      "prompt": "soft natural light from window, north-facing",
+      "effect": "soft_natural"
+    },
+    "source_file": "lighting-intent-layer.md",
+    "source_section": "AI lighting prompt token 推荐 / heuristic 4",
+    "tags": [
+      "prompt_token",
+      "natural",
+      "window"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "lighting_prompt_token",
+    "key_name": "golden_hour_token",
+    "key_type": "lighting_token",
+    "primary_recommendation": "Golden hour 意图使用 prompt token:\"warm golden hour sunlight, long shadows\"。",
+    "rationale": "AI lighting prompt token 推荐表。扩散模型对 'golden hour' 等 time-of-day 词响应准确。",
+    "extra_data": {
+      "intent": "Golden hour",
+      "prompt": "warm golden hour sunlight, long shadows",
+      "effect": "golden_hour"
+    },
+    "source_file": "lighting-intent-layer.md",
+    "source_section": "AI lighting prompt token 推荐 / heuristic 4",
+    "tags": [
+      "prompt_token",
+      "golden_hour",
+      "time_of_day"
+    ],
+    "priority": 73
+  },
+  {
+    "category": "lighting_prompt_token",
+    "key_name": "blue_hour_token",
+    "key_type": "lighting_token",
+    "primary_recommendation": "Blue hour 意图使用 prompt token:\"cool blue hour twilight, ambient\"。",
+    "rationale": "AI lighting prompt token 推荐表。",
+    "extra_data": {
+      "intent": "Blue hour",
+      "prompt": "cool blue hour twilight, ambient",
+      "effect": "blue_hour"
+    },
+    "source_file": "lighting-intent-layer.md",
+    "source_section": "AI lighting prompt token 推荐 / heuristic 4",
+    "tags": [
+      "prompt_token",
+      "blue_hour",
+      "time_of_day"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "lighting_prompt_token",
+    "key_name": "tungsten_practical_token",
+    "key_type": "lighting_token",
+    "primary_recommendation": "Tungsten practical 意图使用 prompt token:\"warm tungsten practical light, lamp-lit interior\"。",
+    "rationale": "AI lighting prompt token 推荐表。",
+    "extra_data": {
+      "intent": "Tungsten practical",
+      "prompt": "warm tungsten practical light, lamp-lit interior",
+      "effect": "tungsten_practical"
+    },
+    "source_file": "lighting-intent-layer.md",
+    "source_section": "AI lighting prompt token 推荐 / heuristic 4",
+    "tags": [
+      "prompt_token",
+      "tungsten",
+      "practical"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "lighting_prompt_token",
+    "key_name": "neon_cyberpunk_token",
+    "key_type": "lighting_token",
+    "primary_recommendation": "Neon cyberpunk 意图使用 prompt token:\"neon cyberpunk lighting, magenta + cyan\"(注意 over-saturation)。",
+    "rationale": "AI lighting prompt token 推荐表,备注饱和色 light 易 over-saturate(per anti-pattern 3 应 desaturate 30%)。",
+    "extra_data": {
+      "intent": "Neon cyberpunk",
+      "prompt": "neon cyberpunk lighting, magenta + cyan",
+      "effect": "neon_cyberpunk",
+      "note": "注意 over-saturation"
+    },
+    "source_file": "lighting-intent-layer.md",
+    "source_section": "AI lighting prompt token 推荐 / heuristic 4",
+    "tags": [
+      "prompt_token",
+      "neon",
+      "cyberpunk",
+      "oversaturation_risk"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "lighting_prompt_token",
+    "key_name": "cinematic_chiaroscuro_token",
+    "key_type": "lighting_token",
+    "primary_recommendation": "Cinematic chiaroscuro 意图使用 prompt token:\"chiaroscuro lighting, Caravaggio-style, single-source\"。",
+    "rationale": "AI lighting prompt token 推荐表。Chiaroscuro = 强烈 light/dark 对比(意大利文艺复兴绘画风格)。",
+    "extra_data": {
+      "intent": "Cinematic chiaroscuro",
+      "prompt": "chiaroscuro lighting, Caravaggio-style, single-source",
+      "effect": "chiaroscuro"
+    },
+    "source_file": "lighting-intent-layer.md",
+    "source_section": "AI lighting prompt token 推荐 / heuristic 4",
+    "tags": [
+      "prompt_token",
+      "chiaroscuro",
+      "caravaggio",
+      "single_source"
+    ],
+    "priority": 73
+  },
+  {
+    "category": "lora_training_spec",
+    "key_name": "data_threshold_featured_spec",
+    "key_type": "lora_spec",
+    "primary_recommendation": "主角 (featured character):30-50 张训练图片,2000-3000 步,LoRA rank 32-64,alpha 16-32,学习率 1e-4,训练时长约 30-60 分钟(A100 80GB)。",
+    "rationale": "Per-character LoRA 训练数据量阈值表,per Hugging Face PEFT docs + Kohya_ss 社区最佳实践(2024-2026)。图片多样性 > 图片数量。",
+    "extra_data": {
+      "character_type": "featured",
+      "min_images": 30,
+      "max_images": 50,
+      "training_steps": "2000-3000",
+      "rank": "32-64",
+      "alpha": "16-32",
+      "learning_rate": "1e-4",
+      "training_minutes": "30-60",
+      "gpu": "A100 80GB"
+    },
+    "source_file": "casting-lora-spec.md",
+    "source_section": "Per-character LoRA 训练数据量阈值 / heuristic 1",
+    "tags": [
+      "lora",
+      "training_data",
+      "featured",
+      "threshold"
+    ],
+    "priority": 78
+  },
+  {
+    "category": "lora_training_spec",
+    "key_name": "data_threshold_supporting_spec",
+    "key_type": "lora_spec",
+    "primary_recommendation": "配角 (supporting character):15-25 张训练图片,1500-2000 步,LoRA rank 16-32,alpha 8-16,学习率 1e-4,训练时长约 15-30 分钟(A100 80GB)。",
+    "rationale": "Per-character LoRA 训练数据量阈值表。",
+    "extra_data": {
+      "character_type": "supporting",
+      "min_images": 15,
+      "max_images": 25,
+      "training_steps": "1500-2000",
+      "rank": "16-32",
+      "alpha": "8-16",
+      "learning_rate": "1e-4",
+      "training_minutes": "15-30",
+      "gpu": "A100 80GB"
+    },
+    "source_file": "casting-lora-spec.md",
+    "source_section": "Per-character LoRA 训练数据量阈值 / heuristic 1",
+    "tags": [
+      "lora",
+      "training_data",
+      "supporting",
+      "threshold"
+    ],
+    "priority": 76
+  },
+  {
+    "category": "lora_training_spec",
+    "key_name": "data_threshold_extra_spec",
+    "key_type": "lora_spec",
+    "primary_recommendation": "群演 (extra / one-shot):5-10 张训练图片,800-1200 步,LoRA rank 8-16,alpha 4-8,学习率 1e-4,训练时长约 5-15 分钟(A100 80GB)。",
+    "rationale": "Per-character LoRA 训练数据量阈值表。注意 anti-pattern: <10 张训练图片会导致 character ID 弱,mitigation 为 ≥15 张(spotted)or ≥30 张(featured)。",
+    "extra_data": {
+      "character_type": "extra",
+      "min_images": 5,
+      "max_images": 10,
+      "training_steps": "800-1200",
+      "rank": "8-16",
+      "alpha": "4-8",
+      "learning_rate": "1e-4",
+      "training_minutes": "5-15",
+      "gpu": "A100 80GB"
+    },
+    "source_file": "casting-lora-spec.md",
+    "source_section": "Per-character LoRA 训练数据量阈值 / heuristic 1",
+    "tags": [
+      "lora",
+      "training_data",
+      "extra",
+      "threshold"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "lora_training_spec",
+    "key_name": "data_threshold_prop_spec",
+    "key_type": "lora_spec",
+    "primary_recommendation": "物件 / 道具 prop:10-20 张训练图片,1000-1500 步,LoRA rank 16,alpha 8,学习率 1e-4,训练时长约 10-20 分钟(A100 80GB)。",
+    "rationale": "Per-character LoRA 训练数据量阈值表,道具类专用档。",
+    "extra_data": {
+      "character_type": "prop",
+      "min_images": 10,
+      "max_images": 20,
+      "training_steps": "1000-1500",
+      "rank": 16,
+      "alpha": 8,
+      "learning_rate": "1e-4",
+      "training_minutes": "10-20",
+      "gpu": "A100 80GB"
+    },
+    "source_file": "casting-lora-spec.md",
+    "source_section": "Per-character LoRA 训练数据量阈值 / heuristic 1",
+    "tags": [
+      "lora",
+      "training_data",
+      "prop",
+      "threshold"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "lora_training_spec",
+    "key_name": "rank_8_spec",
+    "key_type": "lora_spec",
+    "primary_recommendation": "LoRA rank 8:适用 extra / prop / one-shot;训练时间 5-10 分钟,推理 latency 最低,跨镜头稳定性弱(简单 character)。",
+    "rationale": "LoRA rank 与 character 复杂度关系表。rank 决定 character 的可识别特征数量。",
+    "extra_data": {
+      "rank": 8,
+      "character_type": "extra / prop / one-shot",
+      "training_minutes": "5-10",
+      "inference_latency": "最低",
+      "cross_shot_stability": "弱(简单 character)"
+    },
+    "source_file": "casting-lora-spec.md",
+    "source_section": "LoRA rank 与 character 复杂度 / heuristic 3",
+    "tags": [
+      "lora",
+      "rank",
+      "extra"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "lora_training_spec",
+    "key_name": "rank_16_spec",
+    "key_type": "lora_spec",
+    "primary_recommendation": "LoRA rank 16:适用 supporting character;训练时间 15-20 分钟,推理 latency 低,跨镜头稳定性中。",
+    "rationale": "LoRA rank 与 character 复杂度关系表。经验规则 rank ≈ 2 × √(训练图片数)。",
+    "extra_data": {
+      "rank": 16,
+      "character_type": "supporting character",
+      "training_minutes": "15-20",
+      "inference_latency": "低",
+      "cross_shot_stability": "中"
+    },
+    "source_file": "casting-lora-spec.md",
+    "source_section": "LoRA rank 与 character 复杂度 / heuristic 3",
+    "tags": [
+      "lora",
+      "rank",
+      "supporting"
+    ],
+    "priority": 75
+  },
+  {
+    "category": "lora_training_spec",
+    "key_name": "rank_32_spec",
+    "key_type": "lora_spec",
+    "primary_recommendation": "LoRA rank 32:适用 featured 主角 / 关键配角;训练时间 30-45 分钟,推理 latency 中,跨镜头稳定性强。",
+    "rationale": "LoRA rank 与 character 复杂度关系表。典型推荐档(16-32)。",
+    "extra_data": {
+      "rank": 32,
+      "character_type": "featured 主角 / 关键配角",
+      "training_minutes": "30-45",
+      "inference_latency": "中",
+      "cross_shot_stability": "强"
+    },
+    "source_file": "casting-lora-spec.md",
+    "source_section": "LoRA rank 与 character 复杂度 / heuristic 3",
+    "tags": [
+      "lora",
+      "rank",
+      "featured"
+    ],
+    "priority": 76
+  },
+  {
+    "category": "lora_training_spec",
+    "key_name": "rank_64_spec",
+    "key_type": "lora_spec",
+    "primary_recommendation": "LoRA rank 64:适用主角 / 多套服装 / 多场景;训练时间 60-90 分钟,推理 latency 高,跨镜头稳定性极强。",
+    "rationale": "LoRA rank 与 character 复杂度关系表。rank ≤ 64 的上限推荐档。",
+    "extra_data": {
+      "rank": 64,
+      "character_type": "主角 / 多套服装 / 多场景",
+      "training_minutes": "60-90",
+      "inference_latency": "高",
+      "cross_shot_stability": "极强"
+    },
+    "source_file": "casting-lora-spec.md",
+    "source_section": "LoRA rank 与 character 复杂度 / heuristic 3",
+    "tags": [
+      "lora",
+      "rank",
+      "protagonist",
+      "multi_wardrobe"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "lora_training_spec",
+    "key_name": "rank_128_not_recommended_spec",
+    "key_type": "lora_spec",
+    "primary_recommendation": "LoRA rank 128+:不推荐;训练时间 >2 小时,推理 latency 显著,过拟合风险(anti-pattern: rank > 64 导致 overfitting)。",
+    "rationale": "LoRA rank 与 character 复杂度关系表,明确标注 128+ 不推荐。mitigation:rank ≤ 64,典型 16-32。",
+    "extra_data": {
+      "rank": 128,
+      "character_type": "不推荐",
+      "training_minutes": ">120",
+      "inference_latency": "显著",
+      "cross_shot_stability": "过拟合风险",
+      "recommended": false
+    },
+    "source_file": "casting-lora-spec.md",
+    "source_section": "LoRA rank 与 character 复杂度 / heuristic 3",
+    "tags": [
+      "lora",
+      "rank",
+      "not_recommended",
+      "overfitting_risk"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "lora_training_spec",
+    "key_name": "character_id_clip_t",
+    "key_type": "lora_spec",
+    "primary_recommendation": "Character ID 验证第 1 层:CLIP-T (temporal CLIP) score ≥ 0.85(跨 shot 视觉一致性)。",
+    "rationale": "Character ID 一致性 4 层验证之一。任一层失败 → 重新生成 shot(或回退到更高 rank LoRA + 更严格 reference image 约束)。",
+    "extra_data": {
+      "character_id_threshold": {
+        "CLIP-T": 0.85
+      },
+      "layer": 1,
+      "metric": "CLIP-T (temporal CLIP) score",
+      "scope": "跨 shot 视觉一致性"
+    },
+    "source_file": "casting-lora-spec.md",
+    "source_section": "Character ID 一致性 4 层验证 / heuristic 4",
+    "tags": [
+      "character_id",
+      "verification",
+      "clip_t",
+      "consistency"
+    ],
+    "priority": 77
+  },
+  {
+    "category": "lora_training_spec",
+    "key_name": "character_id_face_embed",
+    "key_type": "lora_spec",
+    "primary_recommendation": "Character ID 验证第 2 层:Face embedding cosine similarity ≥ 0.80(跨 shot 面部特征一致性,基于 ArcFace / FaceNet)。",
+    "rationale": "Character ID 一致性 4 层验证之一。",
+    "extra_data": {
+      "character_id_threshold": {
+        "face_embed": 0.8
+      },
+      "layer": 2,
+      "metric": "Face embedding cosine similarity",
+      "basis": "ArcFace / FaceNet",
+      "scope": "跨 shot 面部特征一致性"
+    },
+    "source_file": "casting-lora-spec.md",
+    "source_section": "Character ID 一致性 4 层验证 / heuristic 4",
+    "tags": [
+      "character_id",
+      "verification",
+      "face_embedding",
+      "arcface",
+      "consistency"
+    ],
+    "priority": 77
+  },
+  {
+    "category": "lora_training_spec",
+    "key_name": "character_id_ip_adapter",
+    "key_type": "lora_spec",
+    "primary_recommendation": "Character ID 验证第 3 层:IP-Adapter identity drift ≤ 0.10(IP-Adapter 输入 reference image,输出与 reference 的 embedding 距离)。",
+    "rationale": "Character ID 一致性 4 层验证之一。",
+    "extra_data": {
+      "character_id_threshold": {
+        "IP-Adapter identity drift": 0.1
+      },
+      "layer": 3,
+      "metric": "IP-Adapter identity drift",
+      "scope": "输出与 reference 的 embedding 距离",
+      "direction": "<="
+    },
+    "source_file": "casting-lora-spec.md",
+    "source_section": "Character ID 一致性 4 层验证 / heuristic 4",
+    "tags": [
+      "character_id",
+      "verification",
+      "ip_adapter",
+      "identity_drift"
+    ],
+    "priority": 76
+  },
+  {
+    "category": "lora_training_spec",
+    "key_name": "character_id_human_review",
+    "key_type": "lora_spec",
+    "primary_recommendation": "Character ID 验证第 4 层:Human review sanity check — 每集 5-shot spot check。",
+    "rationale": "Character ID 一致性 4 层验证的人工兜底层。",
+    "extra_data": {
+      "layer": 4,
+      "metric": "Human review sanity check",
+      "scope": "每集 5-shot spot check"
+    },
+    "source_file": "casting-lora-spec.md",
+    "source_section": "Character ID 一致性 4 层验证 / heuristic 4",
+    "tags": [
+      "character_id",
+      "verification",
+      "human_review",
+      "sanity_check"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "wardrobe_emotion_color",
+    "key_name": "hope_wardrobe",
+    "key_type": "wardrobe_color",
+    "primary_recommendation": "Hope / 升起 情绪:wardrobe 颜色推荐 Yellow / warm orange(Bellantoni Yellow triplet)。",
+    "rationale": "Wardrobe color 与 screenplay emotion_curve 联动,per Bellantoni 'color as character' doctrine。Cross-expert handoff:wardrobe color → colorist 进一步细化为 CxSxZ combination。",
+    "extra_data": {
+      "emotion": "hope",
+      "color": "Yellow / warm orange",
+      "bellantoni_triplet": "Yellow"
+    },
+    "source_file": "wardrobe-per-scene.md",
+    "source_section": "Wardrobe color 与 emotion_curve 联动 / heuristic 2",
+    "tags": [
+      "wardrobe",
+      "emotion",
+      "color",
+      "bellantoni",
+      "hope"
+    ],
+    "priority": 76
+  },
+  {
+    "category": "wardrobe_emotion_color",
+    "key_name": "power_wardrobe",
+    "key_type": "wardrobe_color",
+    "primary_recommendation": "Power / 复仇 情绪:wardrobe 颜色推荐 Red / black(Bellantoni Red / Black triplet)。",
+    "rationale": "Bellantoni 'color as character' LUT。常见于男频 revenge arc 的复仇后 wardrobe。",
+    "extra_data": {
+      "emotion": "power",
+      "color": "Red / black",
+      "bellantoni_triplet": "Red / Black"
+    },
+    "source_file": "wardrobe-per-scene.md",
+    "source_section": "Wardrobe color 与 emotion_curve 联动 / heuristic 2",
+    "tags": [
+      "wardrobe",
+      "emotion",
+      "color",
+      "bellantoni",
+      "power",
+      "revenge"
+    ],
+    "priority": 77
+  },
+  {
+    "category": "wardrobe_emotion_color",
+    "key_name": "loss_wardrobe",
+    "key_type": "wardrobe_color",
+    "primary_recommendation": "Loss / 悲伤 情绪:wardrobe 颜色推荐 Blue / desaturated(Bellantoni Blue triplet)。",
+    "rationale": "Bellantoni 'color as character' LUT。",
+    "extra_data": {
+      "emotion": "loss",
+      "color": "Blue / desaturated",
+      "bellantoni_triplet": "Blue"
+    },
+    "source_file": "wardrobe-per-scene.md",
+    "source_section": "Wardrobe color 与 emotion_curve 联动 / heuristic 2",
+    "tags": [
+      "wardrobe",
+      "emotion",
+      "color",
+      "bellantoni",
+      "loss",
+      "sadness"
+    ],
+    "priority": 75
+  },
+  {
+    "category": "wardrobe_emotion_color",
+    "key_name": "mystery_wardrobe",
+    "key_type": "wardrobe_color",
+    "primary_recommendation": "Mystery / 暧昧 情绪:wardrobe 颜色推荐 Purple / dark green(Bellantoni Purple / Green triplet)。",
+    "rationale": "Bellantoni 'color as character' LUT。",
+    "extra_data": {
+      "emotion": "mystery",
+      "color": "Purple / dark green",
+      "bellantoni_triplet": "Purple / Green"
+    },
+    "source_file": "wardrobe-per-scene.md",
+    "source_section": "Wardrobe color 与 emotion_curve 联动 / heuristic 2",
+    "tags": [
+      "wardrobe",
+      "emotion",
+      "color",
+      "bellantoni",
+      "mystery"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "wardrobe_emotion_color",
+    "key_name": "purity_wardrobe",
+    "key_type": "wardrobe_color",
+    "primary_recommendation": "Purity / 新开始 情绪:wardrobe 颜色推荐 White / soft pastel(Bellantoni White triplet)。",
+    "rationale": "Bellantoni 'color as character' LUT。",
+    "extra_data": {
+      "emotion": "purity",
+      "color": "White / soft pastel",
+      "bellantoni_triplet": "White"
+    },
+    "source_file": "wardrobe-per-scene.md",
+    "source_section": "Wardrobe color 与 emotion_curve 联动 / heuristic 2",
+    "tags": [
+      "wardrobe",
+      "emotion",
+      "color",
+      "bellantoni",
+      "purity"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "wardrobe_emotion_color",
+    "key_name": "wardrobe_layer_baseline",
+    "key_type": "wardrobe_color",
+    "primary_recommendation": "Layer 1 — Baseline wardrobe:character 默认 / 常用服装,典型变化频率每 season 1-2 套。是 character LoRA 训练的一部分。",
+    "rationale": "Per-character wardrobe baseline 3 层架构。Layer 1 进入 LoRA 训练;Layer 2/3 是 production 在 LoRA 基础上的 prompt delta。",
+    "extra_data": {
+      "layer": 1,
+      "name": "Baseline wardrobe",
+      "change_frequency": "每 season 1-2 套",
+      "in_lora_training": true
+    },
+    "source_file": "wardrobe-per-scene.md",
+    "source_section": "Per-character wardrobe baseline 3 层架构 / heuristic 1",
+    "tags": [
+      "wardrobe",
+      "layer",
+      "baseline",
+      "lora"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "wardrobe_emotion_color",
+    "key_name": "wardrobe_layer_scene_specific",
+    "key_type": "wardrobe_color",
+    "primary_recommendation": "Layer 2 — Scene-specific wardrobe:特定场景服装(正式场合 / 运动 / 睡眠等),典型变化频率每 episode 0-2 次。",
+    "rationale": "Per-character wardrobe baseline 3 层架构。production 在 LoRA baseline 上的 prompt delta。",
+    "extra_data": {
+      "layer": 2,
+      "name": "Scene-specific wardrobe",
+      "change_frequency": "每 episode 0-2 次变化",
+      "in_lora_training": false
+    },
+    "source_file": "wardrobe-per-scene.md",
+    "source_section": "Per-character wardrobe baseline 3 层架构 / heuristic 1",
+    "tags": [
+      "wardrobe",
+      "layer",
+      "scene_specific"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "wardrobe_emotion_color",
+    "key_name": "wardrobe_layer_arc",
+    "key_type": "wardrobe_color",
+    "primary_recommendation": "Layer 3 — Mood / arc wardrobe:情绪 / 故事 arc 反映(如复仇前 vs 复仇后),典型变化频率每 season 1-3 次大变化。",
+    "rationale": "Per-character wardrobe baseline 3 层架构。跨 episode 的 wardrobe arc。",
+    "extra_data": {
+      "layer": 3,
+      "name": "Mood / arc wardrobe",
+      "change_frequency": "每 season 1-3 次大变化",
+      "in_lora_training": false
+    },
+    "source_file": "wardrobe-per-scene.md",
+    "source_section": "Per-character wardrobe baseline 3 层架构 / heuristic 1",
+    "tags": [
+      "wardrobe",
+      "layer",
+      "arc",
+      "mood"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "wardrobe_emotion_color",
+    "key_name": "trigger_color_shift",
+    "key_type": "wardrobe_color",
+    "primary_recommendation": "Costume-change trigger — Color shift:如复仇前(blue / gray)→ 复仇后(red / black)。",
+    "rationale": "跨场景 wardrobe 变化允许,但必须有 narrative motivation(per screenplay emotion_curve beat)。",
+    "extra_data": {
+      "trigger": "Color shift",
+      "narrative_beat_example": "复仇前(blue/gray)→ 复仇后(red/black)"
+    },
+    "source_file": "wardrobe-per-scene.md",
+    "source_section": "跨场景 wardrobe arc / heuristic 4",
+    "tags": [
+      "wardrobe",
+      "trigger",
+      "color_shift",
+      "arc"
+    ],
+    "priority": 64
+  },
+  {
+    "category": "wardrobe_emotion_color",
+    "key_name": "trigger_formality_shift",
+    "key_type": "wardrobe_color",
+    "primary_recommendation": "Costume-change trigger — Formality shift:如工作场景(suit)→ 居家场景(casual)。",
+    "rationale": "跨场景 wardrobe 变化须有 narrative motivation。",
+    "extra_data": {
+      "trigger": "Formality shift",
+      "narrative_beat_example": "工作场景(suit)→ 居家场景(casual)"
+    },
+    "source_file": "wardrobe-per-scene.md",
+    "source_section": "跨场景 wardrobe arc / heuristic 4",
+    "tags": [
+      "wardrobe",
+      "trigger",
+      "formality_shift"
+    ],
+    "priority": 62
+  },
+  {
+    "category": "wardrobe_emotion_color",
+    "key_name": "trigger_damage_wear",
+    "key_type": "wardrobe_color",
+    "primary_recommendation": "Costume-change trigger — Damage / wear:如战斗后(破损衣物)→ 治愈后(整洁衣物)。",
+    "rationale": "跨场景 wardrobe 变化须有 narrative motivation。",
+    "extra_data": {
+      "trigger": "Damage / wear",
+      "narrative_beat_example": "战斗后(破损衣物)→ 治愈后(整洁衣物)"
+    },
+    "source_file": "wardrobe-per-scene.md",
+    "source_section": "跨场景 wardrobe arc / heuristic 4",
+    "tags": [
+      "wardrobe",
+      "trigger",
+      "damage",
+      "wear"
+    ],
+    "priority": 60
+  },
+  {
+    "category": "wardrobe_emotion_color",
+    "key_name": "trigger_symbolic_accessory",
+    "key_type": "wardrobe_color",
+    "primary_recommendation": "Costume-change trigger — Symbolic accessory:关键 prop(项链 / 戒指 / 手表)在 arc 中的揭示 / 隐藏。",
+    "rationale": "跨场景 wardrobe 变化须有 narrative motivation。对应成本优化策略 accessory over garment。",
+    "extra_data": {
+      "trigger": "Symbolic accessory",
+      "narrative_beat_example": "关键 prop(项链/戒指/手表)在 arc 中的揭示/隐藏"
+    },
+    "source_file": "wardrobe-per-scene.md",
+    "source_section": "跨场景 wardrobe arc / heuristic 4",
+    "tags": [
+      "wardrobe",
+      "trigger",
+      "symbolic",
+      "accessory"
+    ],
+    "priority": 62
+  },
+  {
+    "category": "render_cost_model",
+    "key_name": "h100_rate",
+    "key_type": "cost",
+    "primary_recommendation": "H100 80GB GPU 速率(2026-06):AWS $4.50-6.00/hr、RunPod $2.50-3.50/hr、Modal $3.20-4.50/hr;用于 Heavy training(MusicGen-large / video LoRA)。",
+    "rationale": "pricing drifts — re-verify before budget lock (ref verified_date: 2026-06)",
+    "extra_data": {
+      "gpu": "H100 80GB",
+      "vram_gb": 80,
+      "use_case": "Heavy training (MusicGen-large / video LoRA)",
+      "hourly_rate_usd": "2.50-6.00 (provider-dependent)",
+      "aws_usd_per_hr": [
+        4.5,
+        6.0
+      ],
+      "runpod_usd_per_hr": [
+        2.5,
+        3.5
+      ],
+      "modal_usd_per_hr": [
+        3.2,
+        4.5
+      ],
+      "verified_date": "2026-06"
+    },
+    "source_file": "gpu-render-budget.md",
+    "source_section": "主流 GPU 速率参考 / heuristic 1",
+    "tags": [
+      "cost",
+      "gpu",
+      "h100",
+      "training"
+    ],
+    "priority": 76
+  },
+  {
+    "category": "render_cost_model",
+    "key_name": "a100_80gb_rate",
+    "key_type": "cost",
+    "primary_recommendation": "A100 80GB GPU 速率(2026-06):AWS $3.00-4.00/hr、RunPod $2.00-3.00/hr、Modal $2.50-3.50/hr;用于 Standard training(FLUX LoRA, character LoRA)。",
+    "rationale": "pricing drifts — re-verify before budget lock (ref verified_date: 2026-06)",
+    "extra_data": {
+      "gpu": "A100 80GB",
+      "vram_gb": 80,
+      "use_case": "Standard training (FLUX LoRA, character LoRA)",
+      "hourly_rate_usd": "2.00-4.00 (provider-dependent)",
+      "aws_usd_per_hr": [
+        3.0,
+        4.0
+      ],
+      "runpod_usd_per_hr": [
+        2.0,
+        3.0
+      ],
+      "modal_usd_per_hr": [
+        2.5,
+        3.5
+      ],
+      "verified_date": "2026-06"
+    },
+    "source_file": "gpu-render-budget.md",
+    "source_section": "主流 GPU 速率参考 / heuristic 1",
+    "tags": [
+      "cost",
+      "gpu",
+      "a100",
+      "training"
+    ],
+    "priority": 76
+  },
+  {
+    "category": "render_cost_model",
+    "key_name": "a100_40gb_rate",
+    "key_type": "cost",
+    "primary_recommendation": "A100 40GB GPU 速率(2026-06):AWS $2.50-3.00/hr、RunPod $1.50-2.00/hr、Modal $2.00-2.50/hr;用于 Mid training。",
+    "rationale": "pricing drifts — re-verify before budget lock (ref verified_date: 2026-06)",
+    "extra_data": {
+      "gpu": "A100 40GB",
+      "vram_gb": 40,
+      "use_case": "Mid training",
+      "hourly_rate_usd": "1.50-3.00 (provider-dependent)",
+      "aws_usd_per_hr": [
+        2.5,
+        3.0
+      ],
+      "runpod_usd_per_hr": [
+        1.5,
+        2.0
+      ],
+      "modal_usd_per_hr": [
+        2.0,
+        2.5
+      ],
+      "verified_date": "2026-06"
+    },
+    "source_file": "gpu-render-budget.md",
+    "source_section": "主流 GPU 速率参考 / heuristic 1",
+    "tags": [
+      "cost",
+      "gpu",
+      "a100",
+      "training"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "render_cost_model",
+    "key_name": "a10g_rate",
+    "key_type": "cost",
+    "primary_recommendation": "A10G 24GB GPU 速率(2026-06):AWS $1.00-1.50/hr、RunPod $0.50-0.80/hr、Modal $0.80-1.10/hr;用于 Inference(image gen, audio gen)。",
+    "rationale": "pricing drifts — re-verify before budget lock (ref verified_date: 2026-06)",
+    "extra_data": {
+      "gpu": "A10G 24GB",
+      "vram_gb": 24,
+      "use_case": "Inference (image gen, audio gen)",
+      "hourly_rate_usd": "0.50-1.50 (provider-dependent)",
+      "aws_usd_per_hr": [
+        1.0,
+        1.5
+      ],
+      "runpod_usd_per_hr": [
+        0.5,
+        0.8
+      ],
+      "modal_usd_per_hr": [
+        0.8,
+        1.1
+      ],
+      "verified_date": "2026-06"
+    },
+    "source_file": "gpu-render-budget.md",
+    "source_section": "主流 GPU 速率参考 / heuristic 1",
+    "tags": [
+      "cost",
+      "gpu",
+      "a10g",
+      "inference"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "render_cost_model",
+    "key_name": "l4_rate",
+    "key_type": "cost",
+    "primary_recommendation": "L4 24GB GPU 速率(2026-06):AWS $0.80-1.00/hr、RunPod $0.40-0.60/hr、Modal $0.60-0.80/hr;用于 Light inference。",
+    "rationale": "pricing drifts — re-verify before budget lock (ref verified_date: 2026-06)",
+    "extra_data": {
+      "gpu": "L4 24GB",
+      "vram_gb": 24,
+      "use_case": "Light inference",
+      "hourly_rate_usd": "0.40-1.00 (provider-dependent)",
+      "aws_usd_per_hr": [
+        0.8,
+        1.0
+      ],
+      "runpod_usd_per_hr": [
+        0.4,
+        0.6
+      ],
+      "modal_usd_per_hr": [
+        0.6,
+        0.8
+      ],
+      "verified_date": "2026-06"
+    },
+    "source_file": "gpu-render-budget.md",
+    "source_section": "主流 GPU 速率参考 / heuristic 1",
+    "tags": [
+      "cost",
+      "gpu",
+      "l4",
+      "inference"
+    ],
+    "priority": 73
+  },
+  {
+    "category": "render_cost_model",
+    "key_name": "t4_rate",
+    "key_type": "cost",
+    "primary_recommendation": "T4 16GB GPU 速率(2026-06):AWS $0.50-0.80/hr、RunPod $0.30-0.40/hr、Modal $0.40-0.50/hr;用于 Audio inference / TTS。",
+    "rationale": "pricing drifts — re-verify before budget lock (ref verified_date: 2026-06)",
+    "extra_data": {
+      "gpu": "T4 16GB",
+      "vram_gb": 16,
+      "use_case": "Audio inference / TTS",
+      "hourly_rate_usd": "0.30-0.80 (provider-dependent)",
+      "aws_usd_per_hr": [
+        0.5,
+        0.8
+      ],
+      "runpod_usd_per_hr": [
+        0.3,
+        0.4
+      ],
+      "modal_usd_per_hr": [
+        0.4,
+        0.5
+      ],
+      "verified_date": "2026-06"
+    },
+    "source_file": "gpu-render-budget.md",
+    "source_section": "主流 GPU 速率参考 / heuristic 1",
+    "tags": [
+      "cost",
+      "gpu",
+      "t4",
+      "audio",
+      "tts"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "render_cost_model",
+    "key_name": "lora_cost_featured_spec",
+    "key_type": "cost",
+    "primary_recommendation": "主角 (featured) LoRA 成本(A100 80GB @ $2.50/hr):rank 32,training $2.44,推理 $0.0005/shot、$0.25/30-ep 短剧,total $2.69。",
+    "rationale": "pricing drifts — re-verify before budget lock (ref verified_date: 2026-06)。成本含 1.3× re-take buffer(per heuristic 7)。",
+    "extra_data": {
+      "character_type": "featured",
+      "rank": 32,
+      "training_cost_usd": 2.44,
+      "inference_cost_per_shot_usd": 0.0005,
+      "inference_cost_per_30ep_usd": 0.25,
+      "total_usd": 2.69,
+      "verified_date": "2026-06"
+    },
+    "source_file": "gpu-render-budget.md",
+    "source_section": "Per-character cost decision matrix / heuristic 3",
+    "tags": [
+      "cost",
+      "lora",
+      "featured",
+      "character"
+    ],
+    "priority": 75
+  },
+  {
+    "category": "render_cost_model",
+    "key_name": "lora_cost_antagonist_spec",
+    "key_type": "cost",
+    "primary_recommendation": "反派 (antagonist) LoRA 成本:rank 32,training $2.44,推理 $0.0005/shot、$0.25/30-ep 短剧,total $2.69。",
+    "rationale": "pricing drifts — re-verify before budget lock (ref verified_date: 2026-06)。与 featured 同档。",
+    "extra_data": {
+      "character_type": "antagonist",
+      "rank": 32,
+      "training_cost_usd": 2.44,
+      "inference_cost_per_shot_usd": 0.0005,
+      "inference_cost_per_30ep_usd": 0.25,
+      "total_usd": 2.69,
+      "verified_date": "2026-06"
+    },
+    "source_file": "gpu-render-budget.md",
+    "source_section": "Per-character cost decision matrix / heuristic 3",
+    "tags": [
+      "cost",
+      "lora",
+      "antagonist",
+      "character"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "render_cost_model",
+    "key_name": "lora_cost_supporting_spec",
+    "key_type": "cost",
+    "primary_recommendation": "配角 (supporting) LoRA 成本:rank 16,training $1.63,推理 $0.0003/shot、$0.15/30-ep 短剧,total $1.78。",
+    "rationale": "pricing drifts — re-verify before budget lock (ref verified_date: 2026-06)",
+    "extra_data": {
+      "character_type": "supporting",
+      "rank": 16,
+      "training_cost_usd": 1.63,
+      "inference_cost_per_shot_usd": 0.0003,
+      "inference_cost_per_30ep_usd": 0.15,
+      "total_usd": 1.78,
+      "verified_date": "2026-06"
+    },
+    "source_file": "gpu-render-budget.md",
+    "source_section": "Per-character cost decision matrix / heuristic 3",
+    "tags": [
+      "cost",
+      "lora",
+      "supporting",
+      "character"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "render_cost_model",
+    "key_name": "lora_cost_extra_spec",
+    "key_type": "cost",
+    "primary_recommendation": "群演 (extra) LoRA 成本:rank 8,training $0.81,推理 $0.0002/shot、$0.10/30-ep 短剧,total $0.91。",
+    "rationale": "pricing drifts — re-verify before budget lock (ref verified_date: 2026-06)",
+    "extra_data": {
+      "character_type": "extra",
+      "rank": 8,
+      "training_cost_usd": 0.81,
+      "inference_cost_per_shot_usd": 0.0002,
+      "inference_cost_per_30ep_usd": 0.1,
+      "total_usd": 0.91,
+      "verified_date": "2026-06"
+    },
+    "source_file": "gpu-render-budget.md",
+    "source_section": "Per-character cost decision matrix / heuristic 3",
+    "tags": [
+      "cost",
+      "lora",
+      "extra",
+      "character"
+    ],
+    "priority": 73
+  },
+  {
+    "category": "render_cost_model",
+    "key_name": "flux2_klein_price",
+    "key_type": "cost",
+    "primary_recommendation": "FLUX 2 Klein 9B(fal-ai):$0.025-0.040 / image(1024×1024);Hermes 默认 image gen。",
+    "rationale": "pricing drifts — re-verify before budget lock (ref verified_date: 2026-06)",
+    "extra_data": {
+      "model": "FLUX 2 Klein 9B",
+      "provider": "fal-ai",
+      "cost_per_image_usd": [
+        0.025,
+        0.04
+      ],
+      "resolution": "1024x1024",
+      "note": "Hermes 默认 image gen",
+      "verified_date": "2026-06"
+    },
+    "source_file": "gpu-render-budget.md",
+    "source_section": "FLUX 2 / Stable Diffusion 推理成本 / heuristic 4",
+    "tags": [
+      "cost",
+      "image",
+      "flux2",
+      "fal_ai"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "render_cost_model",
+    "key_name": "flux11_pro_price",
+    "key_type": "cost",
+    "primary_recommendation": "FLUX 1.1 Pro(fal-ai):$0.040 / image(1024×1024);老 model,便宜但 quality 略低。",
+    "rationale": "pricing drifts — re-verify before budget lock (ref verified_date: 2026-06)",
+    "extra_data": {
+      "model": "FLUX 1.1 Pro",
+      "provider": "fal-ai",
+      "cost_per_image_usd": 0.04,
+      "resolution": "1024x1024",
+      "note": "老 model, 便宜但 quality 略低",
+      "verified_date": "2026-06"
+    },
+    "source_file": "gpu-render-budget.md",
+    "source_section": "FLUX 2 / Stable Diffusion 推理成本 / heuristic 4",
+    "tags": [
+      "cost",
+      "image",
+      "flux",
+      "fal_ai"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "render_cost_model",
+    "key_name": "sd35_price",
+    "key_type": "cost",
+    "primary_recommendation": "Stable Diffusion 3.5(self-hosted):$0.005-0.010 / image(1024×1024,GPU amortized);适合批量。",
+    "rationale": "pricing drifts — re-verify before budget lock (ref verified_date: 2026-06)",
+    "extra_data": {
+      "model": "Stable Diffusion 3.5",
+      "provider": "self-hosted",
+      "cost_per_image_usd": [
+        0.005,
+        0.01
+      ],
+      "resolution": "1024x1024",
+      "note": "GPU amortized, 适合批量",
+      "verified_date": "2026-06"
+    },
+    "source_file": "gpu-render-budget.md",
+    "source_section": "FLUX 2 / Stable Diffusion 推理成本 / heuristic 4",
+    "tags": [
+      "cost",
+      "image",
+      "sd35",
+      "self_hosted",
+      "batch"
+    ],
+    "priority": 71
+  },
+  {
+    "category": "render_cost_model",
+    "key_name": "dalle3_price",
+    "key_type": "cost",
+    "primary_recommendation": "DALL-E 3(OpenAI):$0.040 / image(1024×1024);不推荐(无 LoRA 支持)。",
+    "rationale": "pricing drifts — re-verify before budget lock (ref verified_date: 2026-06)",
+    "extra_data": {
+      "model": "DALL-E 3",
+      "provider": "OpenAI",
+      "cost_per_image_usd": 0.04,
+      "resolution": "1024x1024",
+      "note": "不推荐(无 LoRA 支持)",
+      "verified_date": "2026-06"
+    },
+    "source_file": "gpu-render-budget.md",
+    "source_section": "FLUX 2 / Stable Diffusion 推理成本 / heuristic 4",
+    "tags": [
+      "cost",
+      "image",
+      "dalle3",
+      "openai",
+      "not_recommended"
+    ],
+    "priority": 66
+  },
+  {
+    "category": "render_cost_model",
+    "key_name": "runway_gen3_turbo_price",
+    "key_type": "cost",
+    "primary_recommendation": "Runway Gen-3 Alpha Turbo(runwayml.com):$0.50 / 5s clip(720p)、$1.00 / 10s clip;速度快,quality 好。",
+    "rationale": "pricing drifts — re-verify before budget lock (ref verified_date: 2026-06)",
+    "extra_data": {
+      "model": "Runway Gen-3 Alpha Turbo",
+      "provider": "runwayml.com",
+      "resolution": "720p",
+      "cost_per_5s_usd": 0.5,
+      "cost_per_10s_usd": 1.0,
+      "note": "速度快, quality 好",
+      "verified_date": "2026-06"
+    },
+    "source_file": "gpu-render-budget.md",
+    "source_section": "Video gen model API pricing / heuristic 5",
+    "tags": [
+      "cost",
+      "video",
+      "runway",
+      "gen3",
+      "turbo"
+    ],
+    "priority": 75
+  },
+  {
+    "category": "render_cost_model",
+    "key_name": "runway_gen3_lite_price",
+    "key_type": "cost",
+    "primary_recommendation": "Runway Gen-3 Alpha Lite(runwayml.com):$0.30 / 5s clip、$0.60 / 10s clip;便宜 30%,速度慢。",
+    "rationale": "pricing drifts — re-verify before budget lock (ref verified_date: 2026-06)",
+    "extra_data": {
+      "model": "Runway Gen-3 Alpha Lite",
+      "provider": "runwayml.com",
+      "resolution": "720p",
+      "cost_per_5s_usd": 0.3,
+      "cost_per_10s_usd": 0.6,
+      "note": "便宜 30%, 速度慢",
+      "verified_date": "2026-06"
+    },
+    "source_file": "gpu-render-budget.md",
+    "source_section": "Video gen model API pricing / heuristic 5",
+    "tags": [
+      "cost",
+      "video",
+      "runway",
+      "gen3",
+      "lite"
+    ],
+    "priority": 73
+  },
+  {
+    "category": "render_cost_model",
+    "key_name": "kling_16_pro_price",
+    "key_type": "cost",
+    "primary_recommendation": "Kling 1.6 Pro(klingai.com):$0.70 / 5s clip、$1.40 / 10s clip;CN 内容偏好。",
+    "rationale": "pricing drifts — re-verify before budget lock (ref verified_date: 2026-06)",
+    "extra_data": {
+      "model": "Kling 1.6 Pro",
+      "provider": "klingai.com",
+      "resolution": "720p",
+      "cost_per_5s_usd": 0.7,
+      "cost_per_10s_usd": 1.4,
+      "note": "CN 内容偏好",
+      "verified_date": "2026-06"
+    },
+    "source_file": "gpu-render-budget.md",
+    "source_section": "Video gen model API pricing / heuristic 5",
+    "tags": [
+      "cost",
+      "video",
+      "kling",
+      "pro"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "render_cost_model",
+    "key_name": "kling_16_standard_price",
+    "key_type": "cost",
+    "primary_recommendation": "Kling 1.6 Standard(klingai.com):$0.35 / 5s clip、$0.70 / 10s clip;便宜,quality 略低。",
+    "rationale": "pricing drifts — re-verify before budget lock (ref verified_date: 2026-06)。Switch Runway Turbo → Kling Standard 节省 50% video cost(per heuristic 6 关键洞察)。",
+    "extra_data": {
+      "model": "Kling 1.6 Standard",
+      "provider": "klingai.com",
+      "resolution": "720p",
+      "cost_per_5s_usd": 0.35,
+      "cost_per_10s_usd": 0.7,
+      "note": "便宜, quality 略低",
+      "verified_date": "2026-06"
+    },
+    "source_file": "gpu-render-budget.md",
+    "source_section": "Video gen model API pricing / heuristic 5",
+    "tags": [
+      "cost",
+      "video",
+      "kling",
+      "standard",
+      "budget_opt"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "render_cost_model",
+    "key_name": "veo2_price",
+    "key_type": "cost",
+    "primary_recommendation": "Veo 2(Google AI Studio):$0.40 / 5s clip、$0.80 / 10s clip;cinematic 理解强。",
+    "rationale": "pricing drifts — re-verify before budget lock (ref verified_date: 2026-06)",
+    "extra_data": {
+      "model": "Veo 2",
+      "provider": "Google AI Studio",
+      "resolution": "720p",
+      "cost_per_5s_usd": 0.4,
+      "cost_per_10s_usd": 0.8,
+      "note": "cinematic 理解强",
+      "verified_date": "2026-06"
+    },
+    "source_file": "gpu-render-budget.md",
+    "source_section": "Video gen model API pricing / heuristic 5",
+    "tags": [
+      "cost",
+      "video",
+      "veo",
+      "google"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "render_cost_model",
+    "key_name": "sora2_price",
+    "key_type": "cost",
+    "primary_recommendation": "Sora 2(OpenAI):$0.80-1.20 / 5s clip、$1.60-2.40 / 10s clip;60s 长 clip,multi-shot 支持。",
+    "rationale": "pricing drifts — re-verify before budget lock (ref verified_date: 2026-06)",
+    "extra_data": {
+      "model": "Sora 2",
+      "provider": "OpenAI",
+      "resolution": "720p",
+      "cost_per_5s_usd": [
+        0.8,
+        1.2
+      ],
+      "cost_per_10s_usd": [
+        1.6,
+        2.4
+      ],
+      "note": "60s 长 clip, multi-shot 支持",
+      "verified_date": "2026-06"
+    },
+    "source_file": "gpu-render-budget.md",
+    "source_section": "Video gen model API pricing / heuristic 5",
+    "tags": [
+      "cost",
+      "video",
+      "sora",
+      "openai",
+      "long_clip"
+    ],
+    "priority": 73
+  },
+  {
+    "category": "render_cost_model",
+    "key_name": "budget_character_lora",
+    "key_type": "cost",
+    "primary_recommendation": "Budget allocation — Character LoRA training(10 characters):$15.27,占比 6%。",
+    "rationale": "pricing drifts — re-verify before budget lock (ref verified_date: 2026-06)。基于典型 30-ep 抖音-男频-revenge 短剧 allocation。",
+    "extra_data": {
+      "budget_category": "character_lora",
+      "cost_usd": 15.27,
+      "allocation_pct": 6,
+      "scope": "10 characters, 30-ep 短剧",
+      "verified_date": "2026-06"
+    },
+    "source_file": "gpu-render-budget.md",
+    "source_section": "短剧 总 budget 公式 / heuristic 6",
+    "tags": [
+      "cost",
+      "budget",
+      "allocation",
+      "lora"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "render_cost_model",
+    "key_name": "budget_image_generation",
+    "key_type": "cost",
+    "primary_recommendation": "Budget allocation — Image generation(1350 FLUX 2 images):$40.50,占比 17%。",
+    "rationale": "pricing drifts — re-verify before budget lock (ref verified_date: 2026-06)",
+    "extra_data": {
+      "budget_category": "image_generation",
+      "cost_usd": 40.5,
+      "allocation_pct": 17,
+      "scope": "1350 FLUX 2 images (30ep × 15 shots × 3)",
+      "verified_date": "2026-06"
+    },
+    "source_file": "gpu-render-budget.md",
+    "source_section": "短剧 总 budget 公式 / heuristic 6",
+    "tags": [
+      "cost",
+      "budget",
+      "allocation",
+      "image"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "render_cost_model",
+    "key_name": "budget_video_generation",
+    "key_type": "cost",
+    "primary_recommendation": "Budget allocation — Video generation(Runway Gen-3 Alpha Turbo,240 × 5s):$120.00,占比 49%。",
+    "rationale": "pricing drifts — re-verify before budget lock (ref verified_date: 2026-06)。关键洞察:video generation 占 49% budget,Video model selection 是 budget 优化的最大杠杆。",
+    "extra_data": {
+      "budget_category": "video_generation",
+      "cost_usd": 120.0,
+      "allocation_pct": 49,
+      "scope": "Runway Gen-3 Alpha Turbo, 240 × 5s",
+      "verified_date": "2026-06"
+    },
+    "source_file": "gpu-render-budget.md",
+    "source_section": "短剧 总 budget 公式 / heuristic 6",
+    "tags": [
+      "cost",
+      "budget",
+      "allocation",
+      "video",
+      "largest_lever"
+    ],
+    "priority": 76
+  },
+  {
+    "category": "render_cost_model",
+    "key_name": "budget_audio_generation",
+    "key_type": "cost",
+    "primary_recommendation": "Budget allocation — Audio generation(foley + composer + voicer):$25.00,占比 10%。",
+    "rationale": "pricing drifts — re-verify before budget lock (ref verified_date: 2026-06)",
+    "extra_data": {
+      "budget_category": "audio_generation",
+      "cost_usd": 25.0,
+      "allocation_pct": 10,
+      "scope": "foley + composer + voicer",
+      "verified_date": "2026-06"
+    },
+    "source_file": "gpu-render-budget.md",
+    "source_section": "短剧 总 budget 公式 / heuristic 6",
+    "tags": [
+      "cost",
+      "budget",
+      "allocation",
+      "audio"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "render_cost_model",
+    "key_name": "budget_retake_buffer",
+    "key_type": "cost",
+    "primary_recommendation": "Budget allocation — Re-take buffer(30%):$60.23,占比 25%(为 re-take 预留的 30% overhead)。",
+    "rationale": "pricing drifts — re-verify before budget lock (ref verified_date: 2026-06)。每个 character LoRA 训练预期 1.3 次 re-take;不留 buffer 是 budget anti-pattern 1。",
+    "extra_data": {
+      "budget_category": "retake_buffer",
+      "cost_usd": 60.23,
+      "allocation_pct": 25,
+      "retake_buffer_pct": 30,
+      "verified_date": "2026-06"
+    },
+    "source_file": "gpu-render-budget.md",
+    "source_section": "短剧 总 budget 公式 / heuristic 6",
+    "tags": [
+      "cost",
+      "budget",
+      "allocation",
+      "retake",
+      "buffer"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "render_cost_model",
+    "key_name": "budget_ops_overhead",
+    "key_type": "cost",
+    "primary_recommendation": "Budget allocation — Ops overhead(storage / transfer):$5.00,占比 2%。典型 30-ep 短剧 TOTAL $265.00。",
+    "rationale": "pricing drifts — re-verify before budget lock (ref verified_date: 2026-06)。TOTAL $265.00 = 6% + 17% + 49% + 10% + 25%(retake) + 2%。",
+    "extra_data": {
+      "budget_category": "ops_overhead",
+      "cost_usd": 5.0,
+      "allocation_pct": 2,
+      "scope": "storage / transfer",
+      "total_budget_usd": 265.0,
+      "verified_date": "2026-06"
+    },
+    "source_file": "gpu-render-budget.md",
+    "source_section": "短剧 总 budget 公式 / heuristic 6",
+    "tags": [
+      "cost",
+      "budget",
+      "allocation",
+      "ops",
+      "total"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "asset_reuse_rule",
+    "key_name": "iframe_reuse_rule",
+    "key_type": "reuse_rule",
+    "primary_recommendation": "I-frame (character stills) 复用:复用率目标 60-80%,通过 LoRA 保证 character ID 一致 → 同 character 跨 shot 共享 I-frame 模板,cost 节省 50-70%。",
+    "rationale": "5 类 asset 复用协议之一。典型 30-ep 短剧 195 shots × 70% reuse = ~58 unique I-frames。",
+    "extra_data": {
+      "asset_type": "I-frame (character stills)",
+      "reuse_rate_target": "60-80%",
+      "savings_pct": "50-70",
+      "pattern": "LoRA 保证 character ID 一致 → 同 character 跨 shot 共享 I-frame 模板"
+    },
+    "source_file": "asset-reuse-plan.md",
+    "source_section": "5 类 asset + 各自复用协议 / heuristic 1",
+    "tags": [
+      "reuse",
+      "iframe",
+      "character",
+      "lora"
+    ],
+    "priority": 77
+  },
+  {
+    "category": "asset_reuse_rule",
+    "key_name": "background_reuse_rule",
+    "key_type": "reuse_rule",
+    "primary_recommendation": "Background / environment 复用:复用率目标 70-90%,同场景所有 shots 共享 background(diffusion model + subject mask),cost 节省 70-85%。",
+    "rationale": "5 类 asset 复用协议之一。",
+    "extra_data": {
+      "asset_type": "Background / environment",
+      "reuse_rate_target": "70-90%",
+      "savings_pct": "70-85",
+      "pattern": "同场景所有 shots 共享 background (diffusion model + subject mask)"
+    },
+    "source_file": "asset-reuse-plan.md",
+    "source_section": "5 类 asset + 各自复用协议 / heuristic 1",
+    "tags": [
+      "reuse",
+      "background",
+      "environment"
+    ],
+    "priority": 76
+  },
+  {
+    "category": "asset_reuse_rule",
+    "key_name": "wardrobe_reuse_rule",
+    "key_type": "reuse_rule",
+    "primary_recommendation": "Wardrobe 复用:复用率目标 80-90% per baseline,Layer 1 baseline wardrobe 在 60-80% shots 复用,cost 节省 60-75%。",
+    "rationale": "5 类 asset 复用协议之一。per wardrobe-per-scene.md §Baseline wardrobe reuse。",
+    "extra_data": {
+      "asset_type": "Wardrobe",
+      "reuse_rate_target": "80-90% per baseline",
+      "savings_pct": "60-75",
+      "pattern": "Layer 1 baseline wardrobe 在 60-80% shots 复用"
+    },
+    "source_file": "asset-reuse-plan.md",
+    "source_section": "5 类 asset + 各自复用协议 / heuristic 1",
+    "tags": [
+      "reuse",
+      "wardrobe",
+      "baseline"
+    ],
+    "priority": 75
+  },
+  {
+    "category": "asset_reuse_rule",
+    "key_name": "lighting_reuse_rule",
+    "key_type": "reuse_rule",
+    "primary_recommendation": "Lighting setup 复用:复用率目标 90%+ within scene,同场景 lighting_intent 复用,cost 节省 80-90%。",
+    "rationale": "5 类 asset 复用协议之一。per lighting-intent-layer.md。",
+    "extra_data": {
+      "asset_type": "Lighting setup",
+      "reuse_rate_target": "90%+ within scene",
+      "savings_pct": "80-90",
+      "pattern": "同场景 lighting_intent 复用"
+    },
+    "source_file": "asset-reuse-plan.md",
+    "source_section": "5 类 asset + 各自复用协议 / heuristic 1",
+    "tags": [
+      "reuse",
+      "lighting",
+      "scene"
+    ],
+    "priority": 75
+  },
+  {
+    "category": "asset_reuse_rule",
+    "key_name": "music_sfx_reuse_rule",
+    "key_type": "reuse_rule",
+    "primary_recommendation": "Music / SFX theme 复用:复用率目标 95%+ per episode,Episode-level theme + SFX library 复用,cost 节省 90%+。",
+    "rationale": "5 类 asset 复用协议之一(composer / foley expert)。",
+    "extra_data": {
+      "asset_type": "Music / SFX theme",
+      "reuse_rate_target": "95%+ per episode",
+      "savings_pct": "90+",
+      "pattern": "Episode-level theme + SFX library 复用"
+    },
+    "source_file": "asset-reuse-plan.md",
+    "source_section": "5 类 asset + 各自复用协议 / heuristic 1",
+    "tags": [
+      "reuse",
+      "music",
+      "sfx",
+      "theme"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "asset_reuse_rule",
+    "key_name": "cross_episode_arc_reuse",
+    "key_type": "reuse_rule",
+    "primary_recommendation": "跨 episode arc 复用:wardrobe arc / character relationship arc / music theme arc / lighting arc 在多 episode 间复用。",
+    "rationale": "Cross-episode asset batching。例:主角 '复仇前' wardrobe 在 ep 1-14 复用,'复仇后' 在 ep 15-30 复用;整 season lighting 从明亮(ep 1)渐变到暗(ep 30 反派失败)。",
+    "extra_data": {
+      "pattern": "跨 episode arc 复用",
+      "arc_types": [
+        "wardrobe arc",
+        "character relationship arc",
+        "music theme arc",
+        "lighting arc"
+      ],
+      "savings_pct": null
+    },
+    "source_file": "asset-reuse-plan.md",
+    "source_section": "跨 episode arc 复用 / heuristic 7",
+    "tags": [
+      "reuse",
+      "arc",
+      "cross_episode"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "asset_reuse_rule",
+    "key_name": "batch_a_preproduction",
+    "key_type": "reuse_rule",
+    "primary_recommendation": "Batch A — Pre-production:训练所有 character LoRA + 为每个 character × 每个 baseline wardrobe 生成 baseline I-frame;典型 10-character 短剧预计耗时 1-2 周。",
+    "rationale": "Batch generation 协议,为最大化 asset reuse + 最小化 cost。",
+    "extra_data": {
+      "batch": "A",
+      "phase": "Pre-production",
+      "scope": "character LoRA + baseline I-frames",
+      "typical_duration": "1-2 周 (10-character 短剧)",
+      "savings_pct": null
+    },
+    "source_file": "asset-reuse-plan.md",
+    "source_section": "Batch generation 协议 / heuristic 5",
+    "tags": [
+      "batch",
+      "preproduction",
+      "lora",
+      "iframe"
+    ],
+    "priority": 68
+  },
+  {
+    "category": "asset_reuse_rule",
+    "key_name": "batch_b_scene_preproduction",
+    "key_type": "reuse_rule",
+    "primary_recommendation": "Batch B — Scene pre-production:为每个 unique scene 生成 background(无 character)+ 为每个 scene × lighting setup 生成 lighting preset;典型 20-scene 短剧预计耗时 3-5 天。",
+    "rationale": "Batch generation 协议。",
+    "extra_data": {
+      "batch": "B",
+      "phase": "Scene pre-production",
+      "scope": "backgrounds + lighting presets",
+      "typical_duration": "3-5 天 (20-scene 短剧)",
+      "savings_pct": null
+    },
+    "source_file": "asset-reuse-plan.md",
+    "source_section": "Batch generation 协议 / heuristic 5",
+    "tags": [
+      "batch",
+      "scene",
+      "background",
+      "lighting"
+    ],
+    "priority": 67
+  },
+  {
+    "category": "asset_reuse_rule",
+    "key_name": "batch_c_episode_production",
+    "key_type": "reuse_rule",
+    "primary_recommendation": "Batch C — Episode production:per episode 组合 character LoRA + background + lighting preset → 生成 episode 的 shots;典型每 episode 1-2 小时(30-ep 短剧 = 30-60 小时)。",
+    "rationale": "Batch generation 协议。每个 shot 的 image gen 调用包含 character LoRA + background reference + lighting prompt。",
+    "extra_data": {
+      "batch": "C",
+      "phase": "Episode production",
+      "scope": "character × scene combinations",
+      "typical_duration": "1-2 小时/episode (30-ep 短剧 = 30-60 小时)",
+      "savings_pct": null
+    },
+    "source_file": "asset-reuse-plan.md",
+    "source_section": "Batch generation 协议 / heuristic 5",
+    "tags": [
+      "batch",
+      "episode",
+      "production"
+    ],
+    "priority": 67
+  },
+  {
+    "category": "asset_reuse_rule",
+    "key_name": "batch_d_post_production",
+    "key_type": "reuse_rule",
+    "primary_recommendation": "Batch D — Post-production:per episode 组合 I-frames → 生成 video clips(animator)+ 生成 audio tracks(composer / foley / voicer);典型每 episode 1-2 小时。",
+    "rationale": "Batch generation 协议。",
+    "extra_data": {
+      "batch": "D",
+      "phase": "Post-production",
+      "scope": "video + audio",
+      "typical_duration": "1-2 小时/episode",
+      "savings_pct": null
+    },
+    "source_file": "asset-reuse-plan.md",
+    "source_section": "Batch generation 协议 / heuristic 5",
+    "tags": [
+      "batch",
+      "postproduction",
+      "video",
+      "audio"
+    ],
+    "priority": 66
+  },
+  {
+    "category": "asset_reuse_rule",
+    "key_name": "asset_id_naming_convention",
+    "key_type": "reuse_rule",
+    "primary_recommendation": "Asset ID naming convention:asset_id = <project_id>_<asset_type>_<scene_or_episode_id>_<variant>;每个 asset 必须有 unique ID + version suffix(_v1, _v2)。",
+    "rationale": "强制 asset_library/ 目录 + naming convention 可避免 asset ID collision anti-pattern。",
+    "extra_data": {
+      "pattern": "asset_id = <project_id>_<asset_type>_<scene_or_episode_id>_<variant>",
+      "examples": [
+        "S01_char_protagonist_main_baseline_formal_v3",
+        "S01_bg_scene_001_office_v1",
+        "S01_light_high_key_office_v2"
+      ]
+    },
+    "source_file": "asset-reuse-plan.md",
+    "source_section": "Asset ID naming convention / heuristic 4",
+    "tags": [
+      "naming",
+      "convention",
+      "asset_id",
+      "versioning"
+    ],
+    "priority": 58
+  },
+  {
+    "category": "asset_reuse_rule",
+    "key_name": "reuse_rate_formula",
+    "key_type": "reuse_rule",
+    "primary_recommendation": "Reuse rate 度量公式:reuse_rate = (total_shots - unique_assets_generated) / total_shots。Target:I-frame ≥70%、Background ≥80%、Wardrobe ≥60%、Lighting ≥90%、Music/SFX ≥95%。",
+    "rationale": "低于 target 触发 audit — 通常表明 LoRA 训练不足或 scene 设计过于碎片化。",
+    "extra_data": {
+      "formula": "reuse_rate = (total_shots - unique_assets_generated) / total_shots",
+      "targets": {
+        "iframe": ">=70%",
+        "background": ">=80%",
+        "wardrobe": ">=60%",
+        "lighting": ">=90%",
+        "music_sfx": ">=95%"
+      }
+    },
+    "source_file": "asset-reuse-plan.md",
+    "source_section": "Reuse rate 度量公式 / heuristic 6",
+    "tags": [
+      "reuse_rate",
+      "formula",
+      "measurement",
+      "audit"
+    ],
+    "priority": 60
   }
 ]
