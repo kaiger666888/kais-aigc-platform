@@ -20,6 +20,7 @@ export type CinemaCategory =
   | "shot_grammar"
   | "duration"
   | "framing"
+  | "transition_method"
   // video-engine-adapter
   | "engine_constant"
   | "duration_frame_lut"
@@ -135,6 +136,7 @@ export type CinemaKeyType =
   | "shot_scale"
   | "duration_category"
   | "framing_rule"
+  | "transition"
   // video-engine-adapter
   | "engine_constant"
   | "duration_mapping"
@@ -610,7 +612,7 @@ export interface CinemaQueryResult {
  * enumerating categories. Keys are matched case-insensitively at query time.
  */
 const DOMAIN_CATEGORY_SETS: Record<string, string[]> = {
-  cinematography: ["emotion_camera", "camera_motion", "shot_grammar", "duration", "framing"],
+  cinematography: ["emotion_camera", "camera_motion", "shot_grammar", "duration", "framing", "transition_method"],
   color: [
     "emotion_color",
     "platform_color_ceiling",

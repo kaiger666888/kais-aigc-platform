@@ -49073,5 +49073,274 @@
         "Post_Reveal": "0.90-0.93"
       }
     }
+  },
+  {
+    "category": "transition_method",
+    "key_name": "hard_cut",
+    "key_type": "transition",
+    "primary_recommendation": "hard_cut(硬切)= 两 shot 直接拼接无转场效果。默认转场:动作驱动剪辑(cut on action)/节奏需要/压缩时空不示意转换时用。叙事片 >80% 的 cut 是硬切",
+    "rationale": "零成本零 GPU:后期 ffmpeg concat,无生成开销。最透明不分散注意力,适合动作/节奏驱动的切换。",
+    "source_file": "cinematographer/references/transition-design.md",
+    "source_section": "§1 hard_cut",
+    "tags": [
+      "transition",
+      "transition_method",
+      "post_production"
+    ],
+    "priority": 80,
+    "extra_data": {
+      "type": "hard_cut",
+      "execution_path": "post-production",
+      "engine_routing": "ffmpeg concat(P12),无 GLM 成本无 GPU",
+      "when": "默认转场/cut on action/节奏驱动/压缩时空"
+    }
+  },
+  {
+    "category": "transition_method",
+    "key_name": "dissolve",
+    "key_type": "transition",
+    "primary_recommendation": "dissolve(叠化)= 出镜渐隐+入镜渐显同步重叠。示意时间流逝/地点转换;暗示情感或主题关联;柔化突兀 cut;闪回/梦境转场",
+    "rationale": "后期 ffmpeg xfade=fade(12-24帧@24fps),无生成成本。叠化是'时间/空间已变'的经典信号,比硬切更柔和。",
+    "source_file": "cinematographer/references/transition-design.md",
+    "source_section": "§2 dissolve",
+    "tags": [
+      "transition",
+      "transition_method",
+      "post_production"
+    ],
+    "priority": 72,
+    "extra_data": {
+      "type": "dissolve",
+      "execution_path": "post-production",
+      "engine_routing": "ffmpeg xfade=fade(12-24 frames @24fps)",
+      "when": "时间流逝/地点转换/情感主题关联/闪回梦境"
+    }
+  },
+  {
+    "category": "transition_method",
+    "key_name": "wipe",
+    "key_type": "transition",
+    "primary_recommendation": "wipe(擦除)= 几何边界扫过画面替换出镜。变体:left/right/iris(圆形)/clock/diagonal。风格化或喜剧转场;强场景/段落切换;致敬古典好莱坞(1930s-50s)",
+    "rationale": "后期 ffmpeg xfade=wipeleft/wiperight(24-36帧)。风格化强,适合明确的段落边界或喜剧 smash-cut 效果。",
+    "source_file": "cinematographer/references/transition-design.md",
+    "source_section": "§3 wipe",
+    "tags": [
+      "transition",
+      "transition_method",
+      "post_production",
+      "stylized"
+    ],
+    "priority": 60,
+    "extra_data": {
+      "type": "wipe",
+      "execution_path": "post-production",
+      "engine_routing": "ffmpeg xfade=wipeleft/wiperight(24-36 frames)",
+      "variants": [
+        "left-wipe",
+        "right-wipe",
+        "iris",
+        "clock-wipe",
+        "diagonal"
+      ],
+      "when": "风格化/喜剧/强段落切换/古典致敬"
+    }
+  },
+  {
+    "category": "transition_method",
+    "key_name": "fade",
+    "key_type": "transition",
+    "primary_recommendation": "fade(淡入淡出)= 与纯色(通常黑)过渡。fade-in(黑→像)/fade-out(像→黑)/fade-through-black。用于重大场景/幕边界、影片首尾、重大时空或叙事转换、情感标点(死亡/揭示)",
+    "rationale": "后期 ffmpeg xfade=fade(24-48帧,带黑板)。fade 是最强的'段落终结'信号,用于 act break / 影片首尾。",
+    "source_file": "cinematographer/references/transition-design.md",
+    "source_section": "§4 fade",
+    "tags": [
+      "transition",
+      "transition_method",
+      "post_production"
+    ],
+    "priority": 68,
+    "extra_data": {
+      "type": "fade",
+      "execution_path": "post-production",
+      "engine_routing": "ffmpeg xfade=fade(24-48 frames,black plates)",
+      "when": "act break/影片首尾/重大转换/情感标点"
+    }
+  },
+  {
+    "category": "transition_method",
+    "key_name": "match_cut_shared_object",
+    "key_type": "transition",
+    "primary_recommendation": "match_cut_shared_object(共有物匹配)= 出镜中某物件/形状匹配入镜中对应物,视觉韵律跨 cut。跨场景/地点视觉连续;暗示主题或象征关联;创造流动感",
+    "rationale": "混合路径:生成时 Wan2.2 14B FLF2V(本地 ~21GB VRAM)做跨 shot 共有物;后期 ffmpeg cut on action 兜底。最著名的 match cut(《2001 太空漫游》骨头→卫星)即此类。与 axis_compliance.matchcut_type 区别:此处是创意意图转场,matchcut_type 是连续性匹配审计。",
+    "source_file": "cinematographer/references/transition-design.md",
+    "source_section": "§5 match_cut_shared_object",
+    "tags": [
+      "transition",
+      "transition_method",
+      "hybrid",
+      "match_cut"
+    ],
+    "priority": 70,
+    "extra_data": {
+      "type": "match_cut_shared_object",
+      "execution_path": "hybrid",
+      "engine_routing": "Wan2.2 14B FLF2V(local ~21GB VRAM) primary;ffmpeg manual cut on action fallback",
+      "when": "跨场景视觉连续/主题象征关联/流动感",
+      "distinct_from": "axis_compliance.matchcut_type_(连续性审计)"
+    }
+  },
+  {
+    "category": "transition_method",
+    "key_name": "match_cut_shared_landscape",
+    "key_type": "transition",
+    "primary_recommendation": "match_cut_shared_landscape(共有景观匹配)= 出入镜的整体景观/构图/取景匹配(即使具体物件不同)。构图韵律跨 cut 桥接地理/时间遥远场景;主题平行;梦境诗意转场",
+    "rationale": "混合路径:生成时 Hailuo 02 i2v Pro 或 Vidu keyframe-to-video(云引擎,中文内容);ffmpeg 兜底。构图(而非物件)的匹配更诗意。",
+    "source_file": "cinematographer/references/transition-design.md",
+    "source_section": "§6 match_cut_shared_landscape",
+    "tags": [
+      "transition",
+      "transition_method",
+      "hybrid",
+      "match_cut"
+    ],
+    "priority": 65,
+    "extra_data": {
+      "type": "match_cut_shared_landscape",
+      "execution_path": "hybrid",
+      "engine_routing": "Hailuo 02 i2v Pro(cloud,MINIMAX_API_KEY) primary;Vidu keyframe-to-video(cloud,VIDU_API_KEY) secondary;ffmpeg fallback",
+      "when": "构图韵律桥接遥远场景/主题平行/梦境诗意"
+    }
+  },
+  {
+    "category": "transition_method",
+    "key_name": "motion_vector_match",
+    "key_type": "transition",
+    "primary_recommendation": "motion_vector_match(运动矢量匹配)= 出镜运动方向/速度被入镜运动匹配,营造跨 cut 连续运动错觉(如 shot A 的摇摄接 shot B 的延续摇摄)。维持动作序列动能;碎片 shot 连续运动;伪装 cut(invisible cut)",
+    "rationale": "混合路径:生成时 Hailuo/Vidu 云引擎(运动矢量生成是云原生强项);ffmpeg motion-based cut 兜底。动作戏维持动感动能的关键手法。",
+    "source_file": "cinematographer/references/transition-design.md",
+    "source_section": "§7 motion_vector_match",
+    "tags": [
+      "transition",
+      "transition_method",
+      "hybrid",
+      "motion"
+    ],
+    "priority": 68,
+    "extra_data": {
+      "type": "motion_vector_match",
+      "execution_path": "hybrid",
+      "engine_routing": "Hailuo/Vidu(cloud,motion-vector native strength) primary;ffmpeg motion-based cut fallback",
+      "when": "动作序列动能维持/invisible cut/连续运动错觉"
+    }
+  },
+  {
+    "category": "transition_method",
+    "key_name": "color_match",
+    "key_type": "transition",
+    "primary_recommendation": "color_match(色彩匹配)= 出镜主色/色温匹配入镜,色彩韵律柔化 cut 或示意主题色彩弧线(如 act 间冷→暖)。桥接共享主色 shot;色彩弧线转场;色彩并置而非题材",
+    "rationale": "后期 ffmpeg 调色(primary LUT + grade match)。色彩(而非物件/运动)的匹配,适合诗意色彩弧线。",
+    "source_file": "cinematographer/references/transition-design.md",
+    "source_section": "§8 color_match",
+    "tags": [
+      "transition",
+      "transition_method",
+      "post_production",
+      "color"
+    ],
+    "priority": 60,
+    "extra_data": {
+      "type": "color_match",
+      "execution_path": "post-production",
+      "engine_routing": "ffmpeg color adjustment(primary LUT + grade match)",
+      "when": "共享主色桥接/色彩弧线(冷→暖)/色彩并置"
+    }
+  },
+  {
+    "category": "transition_method",
+    "key_name": "j_cut",
+    "key_type": "transition",
+    "primary_recommendation": "j_cut(J 剪)= 音频主导转场:入镜音频在视觉 cut 前 0.3-0.8s 开始。观众先听到下一场景再看到,制造预期。建预期/张力;音频自然领先场景桥接(先听敲门再切到门);暗示角色心理(先听到再反应)",
+    "rationale": "后期 ffmpeg audio lead。J 形(音频/视频轨排列)得名。声音先行制造悬念与预期,是对白/惊悚片常用手法。",
+    "source_file": "cinematographer/references/transition-design.md",
+    "source_section": "§9 j_cut",
+    "tags": [
+      "transition",
+      "transition_method",
+      "post_production",
+      "audio_led"
+    ],
+    "priority": 75,
+    "extra_data": {
+      "type": "j_cut",
+      "execution_path": "post-production",
+      "engine_routing": "ffmpeg audio lead(0.3-0.8s before visual cut)",
+      "when": "预期/张力/音频领先桥接/角色心理暗示"
+    }
+  },
+  {
+    "category": "transition_method",
+    "key_name": "l_cut",
+    "key_type": "transition",
+    "primary_recommendation": "l_cut(L 剪)= 视频主导转场:视觉 cut 在音频 cut 前 0.2-0.5s。观众看到下一 shot 时仍听到出镜音频,营造重叠连续感。对话场景平滑过渡;情感重量延续(reaction shot);时间重叠感",
+    "rationale": "后期 ffmpeg visual lead。L 形得名。对白驱动剧情的标准剪辑实践,音频余韵延续情感。",
+    "source_file": "cinematographer/references/transition-design.md",
+    "source_section": "§10 l_cut",
+    "tags": [
+      "transition",
+      "transition_method",
+      "post_production",
+      "video_led"
+    ],
+    "priority": 75,
+    "extra_data": {
+      "type": "l_cut",
+      "execution_path": "post-production",
+      "engine_routing": "ffmpeg visual lead(0.2-0.5s before audio cut)",
+      "when": "对话平滑过渡/情感延续/reaction shot/时间重叠"
+    }
+  },
+  {
+    "category": "transition_method",
+    "key_name": "whip_pan",
+    "key_type": "transition",
+    "primary_recommendation": "whip_pan(甩摇)= 极快摇摄制造运动模糊作转场:shot A 末尾模糊遮 cut 到 shot B(从半程甩摇开始并稳定)。营造单镜头连续运动错觉桥接两场景。能量转场(动作/喜剧);伪装 cut(long-take 错觉);Edgar Wright 标志风",
+    "rationale": "混合路径:ffmpeg whippan 模拟兜底——AI 生成当前不可靠(per TRANS-08 延期至 v15+)。运动模糊遮 cut 是隐藏剪辑的经典手法。",
+    "source_file": "cinematographer/references/transition-design.md",
+    "source_section": "§11 whip_pan",
+    "tags": [
+      "transition",
+      "transition_method",
+      "hybrid",
+      "energy"
+    ],
+    "priority": 62,
+    "extra_data": {
+      "type": "whip_pan",
+      "execution_path": "hybrid",
+      "engine_routing": "ffmpeg whippan simulation + operator manual override(AI 不可靠 per TRANS-08 deferred;v15+ candidate)",
+      "when": "能量转场/隐藏 cut/long-take 错觉/Edgar Wright 风"
+    }
+  },
+  {
+    "category": "transition_method",
+    "key_name": "none",
+    "key_type": "transition",
+    "primary_recommendation": "none(无转场)= 显式标记 shot 无到下一 shot 的转场——直接拼接,连 hard_cut 标记也无。用于 next_shot_link 为 null(序列末 shot)或开发期占位",
+    "rationale": "后期 ffmpeg 直接 concat,无转场处理。用于显式声明'此处无转场逻辑'(末 shot 或占位),区别于 hard_cut(有意的拼接)。",
+    "source_file": "cinematographer/references/transition-design.md",
+    "source_section": "§12 none",
+    "tags": [
+      "transition",
+      "transition_method",
+      "post_production",
+      "sentinel"
+    ],
+    "priority": 45,
+    "extra_data": {
+      "type": "none",
+      "execution_path": "post-production",
+      "engine_routing": "ffmpeg direct concat(no transition)",
+      "when": "序列末 shot/next_shot_link=null/开发占位"
+    }
   }
 ]
