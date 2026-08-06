@@ -77,7 +77,7 @@ function stageToModality(stage: string | undefined): LaneModality | undefined {
 /**
  * 节点 → (模态, 功能子类)。纯函数、确定性、可单测。
  *  - 文字：assetType topic/hook→钩子；outline/script_phase→剧本；其余→描述。
- *  - 图片：stage=storyboard→分镜；assetType scene→场景；character 按 costume 字段/id→服装，
+ *  - 图片：stage=storyboard→分镜；assetType scene/scene_image→场景；character 按 costume 字段/id→服装，
  *    prop id→道具，否则→角色。
  *  - 视频：phase13/delivery/master id→总视频；否则→分镜视频。
  *  - 音频：bgm→背景音乐；mix→混音；否则→对白。
@@ -99,7 +99,8 @@ export function classifyNode(input: NodeClassInput): NodeClass | null {
   }
   if (mod === 'image') {
     if (stage === 'storyboard') return { modality: 'image', subClass: 'storyboard' }
-    if (assetType === 'scene') return { modality: 'image', subClass: 'scene' }
+    // scene / scene_image（场景图 raw assetType='scene_image'）→ 场景
+    if (assetType === 'scene' || assetType === 'scene_image') return { modality: 'image', subClass: 'scene' }
     if (assetType === 'character') {
       if (r.costume != null || /costume/i.test(id)) return { modality: 'image', subClass: 'costume' }
       if (/l4_prop|\/props\b|\bprops\b/i.test(id)) return { modality: 'image', subClass: 'prop' }

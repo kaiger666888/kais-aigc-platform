@@ -251,6 +251,10 @@ function buildMeta(v2: FlowNodeV2, stage: Stage, ctx: Ctx): AssetStageMeta {
     case 'global': {
       // P04 角色 / P07 风格 → assetType；data.assetType 优先，phaseName 线索兜底。
       let assetType = d.assetType;
+      // scene_image 节点（V2 type:'scene_image'，raw assetType='scene_image'）→ 'scene'：
+      // 场景图是 scene 类全局资产，'scene_image' 不在 GLOBAL_ASSET_TYPES 枚举，归一避免
+      // 「assetType 无法判定，默认 role」误报（44 节点）与 detail 面板类型错标。
+      if (assetType === 'scene_image') assetType = 'scene';
       if (assetType == null && v2.phaseName) {
         if (/P04|角色|role/i.test(v2.phaseName)) assetType = 'role';
         else if (/P07|风格|lora/i.test(v2.phaseName)) assetType = 'lora';
@@ -360,6 +364,18 @@ function planNode(v2: FlowNodeV2, warnings: string[]): NodePlan {
         op: 'import',
         executor: 'human',
         orphanEligible: false, // import 本来就是种子事件
+      };
+    case 'scene_image':
+      // 场景图（V2 type:'scene_image'，a-scene_refs-*，落 phaseIndex=0 全局哨兵列）
+      // → global stage, image modality；与 asset 同走 import/human 种子路径。
+      // assetType 由 buildMeta 归一为 'scene'（raw 'scene_image' 不在枚举）。
+      return {
+        stage: 'global',
+        modality: 'image',
+        scope: 'global',
+        op: 'import',
+        executor: 'human',
+        orphanEligible: false,
       };
     case 'upscale':
     case 'face_restore': {

@@ -43,9 +43,10 @@ export const EVENT_CHIP_SIZE = 26
 export const RF_TYPE_EVENT_CHIP = 'eventChip'
 export const RF_TYPE_STRUCTURE = 'structure'
 
-/** migrate 支持的 V2 节点类型（§14 左列）。 */
+/** migrate 支持的 V2 节点类型（§14 左列 + scene_image：场景图，phaseIndex=0 全局哨兵列）。 */
 const MIGRATE_SUPPORTED_TYPES = new Set([
   'script', 'storyboard', 'video', 'audio', 'asset',
+  'scene_image', // V2 type:'scene_image'（场景图 a-scene_refs-*）→ migrate global/image
   'upscale', 'face_restore', 'variant', 'reference',
 ])
 

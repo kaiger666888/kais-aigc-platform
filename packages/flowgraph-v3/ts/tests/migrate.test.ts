@@ -93,6 +93,35 @@ describe('§14 映射表逐行', () => {
     expect(event(graph, 'evt_n_asset_role').op).toBe('import');
   });
 
+  it("type:'scene_image' → global/image，assetType 归一为 'scene'（不丢弃、不误报、不 throw）", () => {
+    // 真实后端形状：canvas_nodes.type='scene_image'，phase_index=0，data.assetType='scene_image'
+    const v2si: FlowGraphV2Export = {
+      meta: { projectId: 1, episodesId: 1, createdAt: 0, updatedAt: 0 },
+      nodes: [
+        {
+          id: 'a-scene_refs-S01',
+          type: 'scene_image',
+          branchId: 'br_main',
+          phaseIndex: 0,
+          phaseName: 'P07 场景图',
+          state: 'success',
+          data: { assetType: 'scene_image', filePath: '/oss/proj/p07/scene_S01.png' },
+        },
+      ],
+      links: [],
+    };
+    const { graph: g, report: rep } = migrateV2toV3(v2si);
+    const a = asset(g, 'a-scene_refs-S01');
+    expect(a.stage).toBe('global');
+    expect(a.modality).toBe('image');
+    expect(a.scope).toBe('global');
+    expect(a.meta).toMatchObject({ stage: 'global', assetType: 'scene' }); // 'scene_image' 归一为 'scene'
+    expect(a.media.original).toBe('/oss/proj/p07/scene_S01.png');
+    expect(event(g, 'evt_a-scene_refs-S01').op).toBe('import');
+    // buildMeta 归一为 'scene' → 不应产生 assetType 无法判定的告警
+    expect(rep.warnings.some((w) => w.includes('assetType 无法判定'))).toBe(false);
+  });
+
   it("type:'upscale'/'face_restore' → 事件 op，原节点改为普通资产 + output 边", () => {
     const up = asset(graph, 'n_upscale_01');
     expect(up.kind).toBe('asset');

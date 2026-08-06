@@ -33,6 +33,9 @@ describe('classifyNode（模态 × 功能子类）', () => {
     // scene → 场景
     expect(classifyNode({ id: 'a-scene_images-0', stage: 'global', modality: 'image', raw: { assetType: 'scene' } }))
       .toEqual({ modality: 'image', subClass: 'scene' })
+    // scene_image（场景图 raw assetType='scene_image'）→ 场景（不落入 character 兜底）
+    expect(classifyNode({ id: 'a-scene_refs-S01', stage: 'global', modality: 'image', raw: { assetType: 'scene_image' } }))
+      .toEqual({ modality: 'image', subClass: 'scene' })
   })
 
   it('图片：storyboard stage → 分镜（Eコンテ）', () => {

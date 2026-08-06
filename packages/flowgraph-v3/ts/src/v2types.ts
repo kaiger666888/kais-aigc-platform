@@ -9,6 +9,7 @@
  * §14 左列覆盖清单：
  *   type: 'script' | 'storyboard' | 'video' | 'audio' | 'asset'
  *       | 'upscale' | 'face_restore' | 'variant' | 'reference'
+ *   （+ 'scene_image'：后端 canvas_nodes.type='scene_image' 场景图，落 phaseIndex=0 全局列）
  *   data.filePath / data.thumbnailUrl / data.prompt / data.seed / data.engine
  *   data.audioType（audio 拆 voice/foley/bgm 的依据）
  *   isWinner / reviewStatus / aiScore（节点级）
@@ -16,13 +17,14 @@
  */
 import type { FlowBranchV2, NodeState, ReviewStatus, AIScore } from './types.js';
 
-/** V2 节点类型枚举（§14 左列全覆盖）。 */
+/** V2 节点类型枚举（§14 左列全覆盖 + scene_image 场景图）。 */
 export type FlowNodeV2Type =
   | 'script'
   | 'storyboard'
   | 'video'
   | 'audio'
   | 'asset'
+  | 'scene_image'
   | 'upscale'
   | 'face_restore'
   | 'variant'
