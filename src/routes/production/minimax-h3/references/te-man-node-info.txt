@@ -1,0 +1,23 @@
+必须的节点
+
+TE MAN H3提示词增强
+https://github.com/tl2012tl/TE_MAN
+
+TE-llama   提示词工程反推
+https://pan.quark.cn/s/a583ec9a441c 
+(需安装llama-cpp-python轮子,不会的可用TE启动器cofmyui维护里的llamacpp安装功能一键安装)
+
+TE-Speed  H3加速节点
+https://pan.quark.cn/s/9c37b6c9a778
+
+只支持python3.12及以上的包,老版本尽量快升级
+
+-------------------------------------------------------------------------------------
+可使用TE启动器便捷安装 github上的节点 和轮子
+ComfyUI TE模式启动器 v7
+链接：https://pan.quark.cn/s/228999e7c788
+
+
+如果遇到各种报错,可直接安装高兼容性的TE整合包
+ComfyUI TE整合包 v260619 torch2.12. cuda132 python3.13
+链接：https://pan.quark.cn/s/63ed157ef549

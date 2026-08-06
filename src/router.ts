@@ -157,6 +157,7 @@ import route153 from "./routes/v1/trellis2/preview";
 import route154 from "./routes/v1/trellis2/status";
 import route155 from "./routes/v1/tts/speak";
 import route156 from "./routes/v1/tts/status";
+import route157 from "./routes/production/minimax-h3/enhance-prompt";
 
 export default async (app: Express) => {
   app.use("/api/assets/addAssets", route1);
@@ -315,4 +316,5 @@ export default async (app: Express) => {
   app.use("/api/v1/trellis2/status", route154);
   app.use("/api/v1/tts/speak", route155);
   app.use("/api/v1/tts/status", route156);
+  app.use("/api/production/minimax-h3/enhance-prompt", route157);
 }
