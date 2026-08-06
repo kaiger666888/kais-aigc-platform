@@ -24,6 +24,7 @@ router.post("/", async (req: any, res) => {
       category: body.category ?? null,
       key_name: body.key_name ?? null,
       key_type: body.key_type ?? null,
+      extra_data: body.extra_data ?? null,
       limit: typeof body.limit === "number" ? body.limit : 5,
     };
     const result = await queryCinema(q);

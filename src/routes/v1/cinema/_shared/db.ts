@@ -14,18 +14,44 @@ import seedEntries from "../seed-data.json";
  */
 
 export type CinemaCategory =
+  // cinematography (original 5)
   | "emotion_camera"
   | "camera_motion"
   | "shot_grammar"
   | "duration"
-  | "framing";
+  | "framing"
+  // video-engine-adapter
+  | "engine_constant"
+  | "duration_frame_lut"
+  | "engine_field_spec"
+  | "engine_capability_matrix"
+  | "engine_selection_rule"
+  | "audio_mode_mapping"
+  // compliance_gate
+  | "viral_hook"
+  | "platform_rule"
+  | "content_taboo"
+  | "aigc_label_spec";
 
 export type CinemaKeyType =
+  // cinematography
   | "emotion"
   | "camera_move"
   | "shot_scale"
   | "duration_category"
-  | "framing_rule";
+  | "framing_rule"
+  // video-engine-adapter
+  | "engine_constant"
+  | "duration_mapping"
+  | "api_field"
+  | "capability"
+  | "selection_rule"
+  | "audio_strategy"
+  // compliance_gate
+  | "viral_element"
+  | "platform_policy"
+  | "taboo"
+  | "label_spec";
 
 /** Loosely-typed seed/API entry (arrays + objects). Serialized to JSON columns. */
 export interface CinemaEntry {
@@ -44,6 +70,10 @@ export interface CinemaEntry {
   rationale?: string;
   speed_words?: string[];
   prompt_tokens?: Record<string, string>;
+  /** Domain-specific structured fields, stored as JSON text. Each expert can stash
+   * a different shape (colorist hues, engine field constraints, compliance risk…)
+   * without adding a column every time. */
+  extra_data?: Record<string, any>;
   source_file?: string;
   source_section?: string;
   tags?: string[];
@@ -59,6 +89,9 @@ export interface CinemaQueryInput {
   category?: string | null;
   key_name?: string | null;
   key_type?: string | null;
+  /** Case-insensitive substring search over the extra_data JSON blob. Lets agents
+   * filter by domain-specific fields (e.g. {"engine":"h3"}, {"platform":"douyin"}). */
+  extra_data?: string | null;
   limit?: number;
 }
 
@@ -101,6 +134,7 @@ export function ensureCinemaTables(): Promise<void> {
           t.text("rationale");
           t.text("speed_words");
           t.text("prompt_tokens");
+          t.text("extra_data");
           t.text("source_file");
           t.text("source_section");
           t.text("tags");
@@ -122,6 +156,10 @@ export function ensureCinemaTables(): Promise<void> {
           t.text("selected_at");
         });
       }
+      // Lightweight additive migration: older DBs created before Wave 1a lack
+      // the extra_data column. Add it idempotently (ALTER TABLE … ADD COLUMN
+      // fails if the column already exists, so check first).
+      await migrateExtraDataColumn();
       await seedDefaultsIfEmpty();
     })().catch((err) => {
       // allow a retry on next request if bootstrap failed
@@ -130,6 +168,16 @@ export function ensureCinemaTables(): Promise<void> {
     });
   }
   return _ready;
+}
+
+/**
+ * Adds the extra_data column to a cinema_knowledge table that predates Wave 1a.
+ * A no-op once the column already exists (knex.schema.hasColumn returns true).
+ */
+async function migrateExtraDataColumn(): Promise<void> {
+  if (await db.schema.hasColumn("cinema_knowledge", "extra_data")) return;
+  await db.raw("ALTER TABLE cinema_knowledge ADD COLUMN extra_data TEXT");
+  console.log("[cinema] migrated cinema_knowledge: added extra_data column");
 }
 
 /** Auto-loads seed-data.json the first time the knowledge table is empty. */
@@ -183,6 +231,20 @@ function fromJsonObject(v: unknown): Record<string, string> | null {
   }
 }
 
+/** Like fromJsonObject but allows non-string values (extra_data holds numbers,
+ * booleans, nested objects — e.g. {"default": 768, "required": true}). */
+function fromJsonObjectAny(v: unknown): Record<string, any> | null {
+  if (!v) return null;
+  try {
+    const parsed = typeof v === "string" ? JSON.parse(v) : v;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, any>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 function serializeEntry(entry: CinemaEntry): Record<string, unknown> {
   return {
     category: entry.category,
@@ -200,6 +262,7 @@ function serializeEntry(entry: CinemaEntry): Record<string, unknown> {
     rationale: entry.rationale ?? null,
     speed_words: toJson(entry.speed_words),
     prompt_tokens: toJson(entry.prompt_tokens),
+    extra_data: toJson(entry.extra_data),
     source_file: entry.source_file ?? null,
     source_section: entry.source_section ?? null,
     tags: toJson(entry.tags),
@@ -229,6 +292,7 @@ export function deserializeRow(row: any): any {
     out[f] = fromJsonArray(row[f]) ?? [];
   }
   out.prompt_tokens = fromJsonObject(row.prompt_tokens) ?? {};
+  out.extra_data = fromJsonObjectAny(row.extra_data) ?? {};
   return out;
 }
 
@@ -278,6 +342,12 @@ function rowMatches(row: any, q: CinemaQueryInput): boolean {
   if (q.key_name && !ciEq(row.key_name, q.key_name) && !ciContains(row.key_name, q.key_name)) {
     return false;
   }
+  // extra_data LIKE: case-insensitive substring match over the JSON blob, so an
+  // agent can filter by domain-specific fields, e.g. extra_data="engine:h3" hits
+  // {"engine":"h3",…} and extra_data="platform":"douyin" hits that platform's rules.
+  if (q.extra_data && !ciContains(JSON.stringify(row.extra_data ?? {}), q.extra_data)) {
+    return false;
+  }
   if (q.emotion && !emotionMatches(row, q.emotion)) return false;
 
   if (q.shot_scale) {
@@ -300,7 +370,8 @@ function rowMatches(row: any, q: CinemaQueryInput): boolean {
       arrayContainsToken(row.tags, token) ||
       arrayContainsToken(row.related_emotions, token) ||
       ciContains(row.rationale, token) ||
-      ciContains(row.primary_recommendation, token);
+      ciContains(row.primary_recommendation, token) ||
+      ciContains(JSON.stringify(row.extra_data ?? {}), token);
     if (!hit) return false;
   }
 
