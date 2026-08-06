@@ -114,7 +114,10 @@ export type CinemaCategory =
   | "generation_mode"
   | "retake_verdict"
   | "negative_prompt_genre"
-  | "cross_call_weight";
+  | "cross_call_weight"
+  // alias / mapping helpers (query-quality fix — maps free-form LLM emotion
+  // labels, e.g. shot_list "shock/disorientation", to canonical KB names)
+  | "emotion_alias";
 
 export type CinemaKeyType =
   // cinematography
@@ -218,7 +221,9 @@ export type CinemaKeyType =
   | "gen_mode"
   | "retake_verdict"
   | "negative_prompt"
-  | "cross_call_weight";
+  | "cross_call_weight"
+  // alias / mapping helpers
+  | "alias";
 
 /** Loosely-typed seed/API entry (arrays + objects). Serialized to JSON columns. */
 export interface CinemaEntry {
@@ -259,6 +264,15 @@ export interface CinemaQueryInput {
   /** Case-insensitive substring search over the extra_data JSON blob. Lets agents
    * filter by domain-specific fields (e.g. {"engine":"h3"}, {"platform":"douyin"}). */
   extra_data?: string | null;
+  /** Restrict the query to a named expert domain (a curated bundle of related
+   * categories), e.g. {"domain":"cinematography"} → emotion_camera + camera_motion
+   * + shot_grammar + duration + framing. See DOMAIN_CATEGORY_SETS. */
+  domain?: string | null;
+  /** When true and an `emotion`/`key_name` is supplied, first consult the
+   * emotion_alias table; if a canonical KB emotion is found, re-run the query
+   * against emotion_camera with that canonical name. Saves the caller a round
+   * trip (one call resolves the alias AND fetches the recommendation). */
+  resolve_alias?: boolean | null;
   limit?: number;
 }
 
@@ -560,14 +574,145 @@ function rowMatches(row: any, q: CinemaQueryInput): boolean {
   return true;
 }
 
-export async function queryCinema(
+export interface CinemaQueryResult {
+  results: any[];
+  total: number;
+  query_applied: Record<string, unknown>;
+  /** Present on every response: true only when resolve_alias found a mapping and
+   * the results were produced from the canonical emotion. */
+  resolved_from_alias?: boolean;
+  /** The free-form emotion label the caller supplied (only set on alias hits). */
+  alias_input?: string;
+  /** The canonical KB emotion the alias resolved to (only set on alias hits). */
+  canonical_emotion?: string;
+  /** Other canonical emotions the alias may map to (only set on alias hits). */
+  alias_alternatives?: string[];
+}
+
+/**
+ * Named expert domains → their constituent categories. Lets an agent scope a
+ * query to a whole knowledge area with {"domain":"cinematography"} instead of
+ * enumerating categories. Keys are matched case-insensitively at query time.
+ */
+const DOMAIN_CATEGORY_SETS: Record<string, string[]> = {
+  cinematography: ["emotion_camera", "camera_motion", "shot_grammar", "duration", "framing"],
+  color: [
+    "emotion_color",
+    "platform_color_ceiling",
+    "culture_color",
+    "color_pipeline_param",
+    "color_space_primaries",
+    "genre_color_temp",
+  ],
+  editing: [
+    "editing_rhythm",
+    "murch_dimension",
+    "cut_density_window",
+    "montage_method",
+    "axis_compliance",
+    "editing_failure_mode",
+  ],
+  style_genome: [
+    "director_dna",
+    "genre_dna",
+    "scamper_recipe",
+    "auteur_tier_rule",
+    "cross_cultural_transform",
+    "cn_director_supplement",
+  ],
+  hook_retention: [
+    "hook_pattern",
+    "paywall_strength_tier",
+    "escalation_rung",
+    "vertical_pacing_dimension",
+    "completion_rate_rule",
+    "share_trigger",
+  ],
+  audio: [
+    "tts_provider",
+    "tts_emotion_signature",
+    "foley_sfx_category",
+    "lufs_standard",
+    "frequency_band_owner",
+    "lip_sync_benchmark",
+    "bgm_strategy",
+    "spatial_audio_pattern",
+    "sfx_prompt_pattern",
+    "character_voice_protocol",
+  ],
+  screenwriting: [
+    "beat_sheet",
+    "time_budget_segment",
+    "emotion_arc",
+    "scene_value_pair",
+    "dialogue_density",
+    "platform_register",
+    "comedy_formula",
+    "cn_drama_structure",
+  ],
+  script_audit: [
+    "emotion_valence_lut",
+    "beat_role_intensity",
+    "reversal_pattern",
+    "audit_metric",
+    "character_function",
+    "completion_rate_factor",
+  ],
+  compliance: ["viral_hook", "platform_rule", "content_taboo", "aigc_label_spec"],
+  engine: [
+    "engine_constant",
+    "duration_frame_lut",
+    "engine_field_spec",
+    "engine_capability_matrix",
+    "engine_selection_rule",
+    "audio_mode_mapping",
+  ],
+  character: [
+    "character_bible_field",
+    "character_anchor",
+    "consistency_threshold",
+    "style_layer",
+    "turnaround_tier",
+    "character_failure_mode",
+    "growth_chain_step",
+  ],
+};
+
+/**
+ * Derives the effective category scope for a query.
+ *
+ * Returns null when no extra scope is needed (the caller's own `category`, if
+ * any, is already enforced inside rowMatches). Otherwise returns the allow-list
+ * of categories the result may draw from:
+ *   - {"domain":"..."} → that domain's category bundle
+ *   - {"emotion":"..."} with no category/domain → camera-move categories only,
+ *     to stop cross-category pollution (the A/B bug: a bare emotion query used
+ *     to surface emotion_color / wardrobe_emotion_color rows alongside the
+ *     intended emotion_camera camera-move recommendation).
+ */
+function resolveCategoryScope(q: CinemaQueryInput): string[] | null {
+  // An explicit single category is enforced by rowMatches already.
+  if (q.category) return null;
+  if (q.domain) {
+    const set = DOMAIN_CATEGORY_SETS[q.domain.toLowerCase()];
+    if (set && set.length) return set;
+  }
+  if (q.emotion) return ["emotion_camera", "camera_motion"];
+  return null;
+}
+
+/** Core filter+slice+query_applied pipeline, shared by the direct and
+ * alias-resolved paths. */
+async function runCoreQuery(
   q: CinemaQueryInput,
 ): Promise<{ results: any[]; total: number; query_applied: Record<string, unknown> }> {
-  await ensureCinemaTables();
-
   const rows = await db("cinema_knowledge").orderBy("priority", "desc").select("*");
   let items = rows.map(deserializeRow);
-  items = items.filter((r) => rowMatches(r, q));
+  const scope = resolveCategoryScope(q);
+  items = items.filter((r) => {
+    if (scope && !scope.includes(r.category)) return false;
+    return rowMatches(r, q);
+  });
 
   const total = items.length;
   const limit = q.limit && q.limit > 0 ? Math.min(q.limit, 200) : 5;
@@ -579,6 +724,82 @@ export async function queryCinema(
   }
 
   return { results, total, query_applied };
+}
+
+/**
+ * Looks up a free-form emotion label in the emotion_alias table and returns the
+ * canonical KB emotion it maps to. Tries an exact (case-insensitive) key_name
+ * match first, then falls back to a token-substring match so bare words like
+ * "shock" still resolve.
+ */
+async function lookupEmotionAlias(
+  seed: string,
+): Promise<{
+  canonical_kb_key: string | null;
+  primary_recommendation: string | null;
+  alternative_recommendations: string[];
+  key_name: string;
+} | null> {
+  const rows = await db("cinema_knowledge")
+    .where({ category: "emotion_alias" })
+    .orderBy("priority", "desc")
+    .select("*");
+  const items = rows.map(deserializeRow);
+  if (!items.length) return null;
+  const needle = seed.toLowerCase().trim();
+  // 1. exact key_name match
+  let hit = items.find((r) => (r.key_name ?? "").toLowerCase() === needle);
+  // 2. token-substring fallback (either direction)
+  if (!hit) {
+    hit = items.find((r) => {
+      const kn = (r.key_name ?? "").toLowerCase();
+      return kn && (kn.includes(needle) || needle.includes(kn));
+    });
+  }
+  if (!hit) return null;
+  const ed = (hit.extra_data ?? {}) as Record<string, any>;
+  return {
+    canonical_kb_key: (ed.canonical_kb_key as string) ?? null,
+    primary_recommendation: hit.primary_recommendation ?? null,
+    alternative_recommendations: hit.alternative_recommendations ?? [],
+    key_name: hit.key_name,
+  };
+}
+
+export async function queryCinema(q: CinemaQueryInput): Promise<CinemaQueryResult> {
+  await ensureCinemaTables();
+
+  // resolve_alias: one-shot alias resolution + canonical recommendation fetch.
+  if (q.resolve_alias === true) {
+    const seed = q.emotion || q.key_name;
+    if (seed) {
+      const aliasHit = await lookupEmotionAlias(seed);
+      if (aliasHit) {
+        const canonical =
+          aliasHit.canonical_kb_key ?? aliasHit.primary_recommendation ?? null;
+        if (canonical) {
+          const resolved = await runCoreQuery({
+            ...q,
+            emotion: canonical,
+            key_name: null, // drop the alias key_name so it doesn't over-constrain
+            category: "emotion_camera",
+            domain: null,
+            resolve_alias: false,
+          });
+          return {
+            ...resolved,
+            resolved_from_alias: true,
+            alias_input: seed,
+            canonical_emotion: canonical,
+            alias_alternatives: aliasHit.alternative_recommendations,
+          };
+        }
+      }
+    }
+  }
+
+  const result = await runCoreQuery(q);
+  return { ...result, resolved_from_alias: false };
 }
 
 // ---------------------------------------------------------------------------
