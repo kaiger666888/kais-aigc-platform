@@ -31,7 +31,7 @@
  * 既驱动按钮 disabled 重渲染，又不致 FlowCanvas 的 useCallback 每次渲染失效。
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useCanvasStore } from '../store/canvasStore'
+import { useCanvasStore, type ViewMode } from '../store/canvasStore'
 
 export interface NavViewport {
   x: number
@@ -40,7 +40,7 @@ export interface NavViewport {
 }
 
 export interface NavSnapshot {
-  viewMode: 'canvas' | 'timeline' | 'assets'
+  viewMode: ViewMode
   assetView: 'library' | 'detail' | 'character' | 'scene_shot' | 'documents'
   selectedNodeId: string | null
   detailNodeId: string | null
