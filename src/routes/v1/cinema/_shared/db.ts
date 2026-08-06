@@ -86,7 +86,35 @@ export type CinemaCategory =
   | "reversal_pattern"
   | "audit_metric"
   | "character_function"
-  | "completion_rate_factor";
+  | "completion_rate_factor"
+  // character_designer (Wave 3 / P1)
+  | "character_bible_field"
+  | "character_anchor"
+  | "consistency_threshold"
+  | "style_layer"
+  | "turnaround_tier"
+  | "character_failure_mode"
+  | "growth_chain_step"
+  // creative_source (Wave 3 / P1)
+  | "strata_layer"
+  | "strata_overlay"
+  | "unspeakability_rubric"
+  | "snowflake_step"
+  | "story_kernel"
+  // production (Wave 3 / P1)
+  | "lighting_setup"
+  | "lighting_prompt_token"
+  | "lora_training_spec"
+  | "wardrobe_emotion_color"
+  | "render_cost_model"
+  | "asset_reuse_rule"
+  // prompt_injector (Wave 3 / P1)
+  | "prompt_template"
+  | "token_budget_band"
+  | "generation_mode"
+  | "retake_verdict"
+  | "negative_prompt_genre"
+  | "cross_call_weight";
 
 export type CinemaKeyType =
   // cinematography
@@ -162,7 +190,35 @@ export type CinemaKeyType =
   | "reversal"
   | "audit_dimension"
   | "propp_function"
-  | "completion_factor";
+  | "completion_factor"
+  // character_designer (Wave 3 / P1)
+  | "bible_field"
+  | "anchor_type"
+  | "consistency_metric"
+  | "style_layer"
+  | "turnaround_tier"
+  | "character_failure"
+  | "growth_chain"
+  // creative_source (Wave 3 / P1)
+  | "strata"
+  | "overlay"
+  | "unspeakability"
+  | "snowflake"
+  | "story_kernel"
+  // production (Wave 3 / P1)
+  | "lighting"
+  | "lighting_token"
+  | "lora_spec"
+  | "wardrobe_color"
+  | "cost"
+  | "reuse_rule"
+  // prompt_injector (Wave 3 / P1)
+  | "prompt_template"
+  | "token_band"
+  | "gen_mode"
+  | "retake_verdict"
+  | "negative_prompt"
+  | "cross_call_weight";
 
 /** Loosely-typed seed/API entry (arrays + objects). Serialized to JSON columns. */
 export interface CinemaEntry {
