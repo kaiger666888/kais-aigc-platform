@@ -42,7 +42,7 @@ import route38 from "./routes/production/ltx/singularityFFLF";
 import route39 from "./routes/production/ltx/trim";
 import route40 from "./routes/production/ltx/twoStageAudioI2V";
 import route41 from "./routes/production/mage/index";
-import route42 from "./routes/production/minimax-h3/enhance-prompt";
+// route42 (enhance-prompt) removed — H3 提示词增强已迁移到 video-engine-adapter skill (Python)
 import route43 from "./routes/production/minimax-h3/generate";
 import route44 from "./routes/production/minimax-h3/i2va";
 import route45 from "./routes/production/minimax-h3/ref2va";
@@ -201,7 +201,7 @@ export default async (app: Express) => {
   app.use("/api/production/ltx/trim", route39);
   app.use("/api/production/ltx/twoStageAudioI2V", route40);
   app.use("/api/production/mage", route41);
-  app.use("/api/production/minimax-h3/enhance-prompt", route42);
+  // enhance-prompt route removed — migrated to video-engine-adapter skill
   app.use("/api/production/minimax-h3/generate", route43);
   app.use("/api/production/minimax-h3/i2va", route44);
   app.use("/api/production/minimax-h3/ref2va", route45);
