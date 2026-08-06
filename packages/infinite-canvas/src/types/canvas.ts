@@ -374,6 +374,23 @@ export interface FlowGraph {
   viewport?: { x: number; y: number; zoom: number }
 }
 
+/**
+ * 画布节点（前端 UI 模型）。
+ *
+ * 持久化模型见 flowgraph-v2.ts FlowNodeV2 + canvas_nodes 列。本接口的顶层字段
+ * 分两类：
+ *  - 有 canvas_nodes 独立列（经 store 往返不丢）：reviewStatus / aiScore /
+ *    isWinner / variantGroupId / branchId / phaseIndex / phaseName / suggestion /
+ *    variantOf（对应 FlowNodeV2 同名字段）。
+ *  - 仅存在于 node.data（JSON bag，由 data 列整体持久化）：progress /
+ *    routingDecision / variantIndex 等。flowgraph-v2 不为它们开独立列——它们随
+ *    data JSON 一起往返，无需也不能走顶层列映射。
+ *
+ * W5：移除原顶层的 groupId / routingDecision / variantIndex——它们既无独立列，
+ * 也无任何顶层读取者（真实用法在 node.data，见各 *NodeData 接口）。progress
+ * 保留：flowDataMapper 桥接（canvasToFlowGraph 提升 / flowGraphToCanvas 回写）
+ * 仍在使用它。
+ */
 export interface FlowGraphNode {
   id: string
   type: CanvasNodeType
@@ -381,14 +398,12 @@ export interface FlowGraphNode {
   size: { width: number; height: number }
   data: Record<string, unknown>
   state: NodeState
+  /** 生成进度 0~1；桥接字段，持久化于 node.data（JSON），无独立列 */
   progress?: number
-  groupId?: string
   reviewStatus?: ReviewStatus
   aiScore?: AIScore | null
   isWinner?: boolean
-  routingDecision?: RoutingDecision
   variantGroupId?: string
-  variantIndex?: number
   branchId?: string
   phaseIndex?: number
   phaseName?: string
