@@ -27,6 +27,9 @@ export type CinemaCategory =
   | "engine_capability_matrix"
   | "engine_selection_rule"
   | "audio_mode_mapping"
+  // audio-engine-adapter (audio generation engines: ACE-Step / Stable Audio 3)
+  | "audio_engine_spec"
+  | "audio_engine_selection"
   // compliance_gate
   | "viral_hook"
   | "platform_rule"
@@ -666,6 +669,8 @@ const DOMAIN_CATEGORY_SETS: Record<string, string[]> = {
     "engine_capability_matrix",
     "engine_selection_rule",
     "audio_mode_mapping",
+    "audio_engine_spec",
+    "audio_engine_selection",
   ],
   character: [
     "character_bible_field",

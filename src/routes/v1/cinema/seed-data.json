@@ -47343,5 +47343,616 @@
     ],
     "source_file": "emotion-camera-mapping.md",
     "source_section": "canonical_emotion_key"
+  },
+  {
+    "category": "audio_engine_spec",
+    "key_name": "ace_step.identity",
+    "key_type": "api_field",
+    "primary_recommendation": "ACE-Step 1.5 = 唯一支持人声歌词演唱(23 种语言)+ 长结构器乐配乐 + 风格重绘(Repainting)的引擎;模型 acestep_v1.5_xl_sft.safetensors(SFT 50步)/acestep_v1.5_turbo(8步),内置 Qwen 文本编码器(无需额外加载)",
+    "rationale": "KAP 双引擎分工硬边界定稿(2026-08-06):人声/歌词/长配乐/Repainting 只有 ACE-Step 能做;纯 SFX/短氛围/内容 Inpainting 交给 SA3。文本编码器 Qwen 内置于模型,不像 SA3 需单独加载。",
+    "source_file": "audio-engine-adapter/SKILL.md",
+    "source_section": "§双引擎速查表",
+    "tags": [
+      "audio_engine",
+      "ace_step",
+      "engine_spec"
+    ],
+    "priority": 70,
+    "extra_data": {
+      "engine": "ace_step",
+      "models": [
+        "acestep_v1.5_xl_sft.safetensors",
+        "acestep_v1.5_turbo.safetensors"
+      ],
+      "text_encoder": "Qwen(内置)",
+      "capabilities": {
+        "vocal": true,
+        "lyrics": true,
+        "sfx": "partial",
+        "long_bgm": true,
+        "repaint": true,
+        "inpaint": false
+      },
+      "duration_range_sec": "10-600",
+      "api": [
+        "/api/v1/ace/generate",
+        "/api/v1/ace/comfyui/generate"
+      ]
+    }
+  },
+  {
+    "category": "audio_engine_spec",
+    "key_name": "ace_step.text2music_fields",
+    "key_type": "api_field",
+    "primary_recommendation": "caption(音乐风格描述 max 4000)+ lyrics([Section] 标签 max 8000,默认 [Instrumental])+ instrumental(纯器乐)+ language(23 种)+ keyscale(35 种调性)+ timesignature(2/3/4/6/auto)+ bpm(0-300,0=自动)",
+    "rationale": "ACE-Step 的核心音乐控制参数。[Section](Verse/Chorus/Bridge)标签是结构化长配乐的关键;keyscale 给出精确调性控制(SA3 无此能力)。",
+    "source_file": "audio-engine-adapter/references/engine-specs.md",
+    "source_section": "§ACE-Step 关键参数",
+    "tags": [
+      "audio_engine",
+      "ace_step",
+      "engine_spec",
+      "field_spec"
+    ],
+    "priority": 65,
+    "extra_data": {
+      "engine": "ace_step",
+      "fields": {
+        "caption": {
+          "max": 4000
+        },
+        "lyrics": {
+          "max": 8000,
+          "default": "[Instrumental]",
+          "section_tags": true
+        },
+        "instrumental": {
+          "default": false
+        },
+        "language": {
+          "count": 23
+        },
+        "keyscale": {
+          "count": 35,
+          "example": "C major / A minor"
+        },
+        "timesignature": [
+          "2",
+          "3",
+          "4",
+          "6",
+          "auto"
+        ],
+        "bpm": {
+          "range": "0-300",
+          "default": 0
+        }
+      }
+    }
+  },
+  {
+    "category": "audio_engine_spec",
+    "key_name": "ace_step.sampling_params",
+    "key_type": "api_field",
+    "primary_recommendation": "steps(1-200;SFT默认50/Turbo默认8)+ cfg(1-20,默认7.0)+ sampler_name(25种:euler/dpmpp_2m/lcm...)+ scheduler(normal/karras/sgm_uniform/simple...)+ infer_method(ode/sde)+ guidance_mode(apg/adg/standard_cfg)",
+    "rationale": "Turbo 8 步用于快速预览(~1min),SFT 50 步用于高质量(~5-10min)。采样器/调度器与 ComfyUI 通用集对齐。",
+    "source_file": "audio-engine-adapter/references/engine-specs.md",
+    "source_section": "§ACE-Step 采样",
+    "tags": [
+      "audio_engine",
+      "ace_step",
+      "engine_spec",
+      "sampling"
+    ],
+    "priority": 55,
+    "extra_data": {
+      "engine": "ace_step",
+      "steps": {
+        "range": [
+          1,
+          200
+        ],
+        "sft": 50,
+        "turbo": 8
+      },
+      "cfg": {
+        "range": [
+          1,
+          20
+        ],
+        "default": 7.0
+      },
+      "sampler_count": 25,
+      "infer_method": [
+        "ode",
+        "sde"
+      ],
+      "guidance_mode": [
+        "apg",
+        "adg",
+        "standard_cfg"
+      ]
+    }
+  },
+  {
+    "category": "audio_engine_spec",
+    "key_name": "ace_step.repainting",
+    "key_type": "api_field",
+    "primary_recommendation": "风格重绘:repaint_enabled=true + repaint_mode=conservative/balanced/aggressive;基于源音频换风格保留结构。POST /api/v1/ace/comfyui/generate",
+    "rationale": "ACE-Step 是唯一支持 Repainting(风格重绘)的引擎——改配器/情绪但保留旋律结构。SA3 无此能力。",
+    "source_file": "audio-engine-adapter/SKILL.md",
+    "source_section": "§双引擎职责边界",
+    "tags": [
+      "audio_engine",
+      "ace_step",
+      "engine_spec",
+      "repaint"
+    ],
+    "priority": 60,
+    "extra_data": {
+      "engine": "ace_step",
+      "modes": [
+        "conservative",
+        "balanced",
+        "aggressive"
+      ],
+      "repaint_enabled_default": false,
+      "api": "/api/v1/ace/comfyui/generate"
+    }
+  },
+  {
+    "category": "audio_engine_spec",
+    "key_name": "ace_step.output_format",
+    "key_type": "api_field",
+    "primary_recommendation": "format: mp3/wav/flac/opus/aac/wav32 + quality_preset: V0/64k/96k/128k/192k/320k",
+    "rationale": "输出格式比 SA3 多 opus/aac/wav32 三种;quality_preset 控制码率档。",
+    "source_file": "audio-engine-adapter/references/engine-specs.md",
+    "source_section": "§ACE-Step 输出格式",
+    "tags": [
+      "audio_engine",
+      "ace_step",
+      "engine_spec",
+      "output_format"
+    ],
+    "priority": 50,
+    "extra_data": {
+      "engine": "ace_step",
+      "formats": [
+        "mp3",
+        "wav",
+        "flac",
+        "opus",
+        "aac",
+        "wav32"
+      ],
+      "quality_presets": [
+        "V0",
+        "64k",
+        "96k",
+        "128k",
+        "192k",
+        "320k"
+      ]
+    }
+  },
+  {
+    "category": "audio_engine_spec",
+    "key_name": "ace_step.api_endpoints",
+    "key_type": "api_field",
+    "primary_recommendation": "POST /api/v1/ace/generate(异步 submit+poll,快速 text2music)+ POST /api/v1/ace/comfyui/generate(同步≤10min,全参数 repaint/cover/lego/complete/remix)+ GET /ace/status/:id(轮询)+ cancel/models/analyze",
+    "rationale": "两套 API:generate 异步适合批量任务,comfyui 同步全参数适合 Repainting 等复杂任务。ComfyUI 后端 :8188 用 AceStepSFTGenerate 节点。",
+    "source_file": "audio-engine-adapter/references/engine-specs.md",
+    "source_section": "§ACE-Step API 端点",
+    "tags": [
+      "audio_engine",
+      "ace_step",
+      "engine_spec",
+      "api"
+    ],
+    "priority": 60,
+    "extra_data": {
+      "engine": "ace_step",
+      "endpoints": {
+        "/api/v1/ace/generate": "异步 submit+poll text2music",
+        "/api/v1/ace/comfyui/generate": "同步≤10min 全参数",
+        "GET /api/v1/ace/status/:promptId": "异步轮询",
+        "POST /api/v1/ace/cancel/:promptId": "取消任务",
+        "/api/v1/ace/comfyui/analyze": "音乐分析(caption/lyrics/BPM)"
+      },
+      "comfyui_node": "AceStepSFTGenerate",
+      "port": 8188
+    }
+  },
+  {
+    "category": "audio_engine_spec",
+    "key_name": "stable_audio.identity",
+    "key_type": "api_field",
+    "primary_recommendation": "Stable Audio 3 medium = 唯一支持 SFX 音效 + 内容 Inpainting + 短氛围 BGM(<60s LCM快)的引擎;模型 stable_audio_3_medium.safetensors(LCM 8步),文本编码器 T5Gemma(t5gemma_b_b_ul2.safetensors,独立加载)",
+    "rationale": "SA3 的精确 SFX 控制 + Inpainting 是 ACE-Step 没有的;反过来 SA3 无人声/无歌词/无段落结构。⚠️ checkpoint 不含 CLIP,必须单独加载 T5Gemma;⚠️ 与 SageAttention 不兼容。",
+    "source_file": "audio-engine-adapter/references/engine-specs.md",
+    "source_section": "§Stable Audio 3 medium",
+    "tags": [
+      "audio_engine",
+      "stable_audio",
+      "engine_spec"
+    ],
+    "priority": 70,
+    "extra_data": {
+      "engine": "stable_audio",
+      "models": [
+        "stable_audio_3_medium.safetensors",
+        "stable_audio_3_medium_base.safetensors"
+      ],
+      "text_encoder": "t5gemma_b_b_ul2.safetensors",
+      "clip_in_checkpoint": false,
+      "capabilities": {
+        "vocal": false,
+        "lyrics": false,
+        "sfx": true,
+        "long_bgm": false,
+        "repaint": false,
+        "inpaint": true
+      },
+      "duration_range_sec": "1-380",
+      "sageattention_compatible": false
+    }
+  },
+  {
+    "category": "audio_engine_spec",
+    "key_name": "stable_audio.prompt_fields",
+    "key_type": "api_field",
+    "primary_recommendation": "prompt(音频描述 max 4000)+ negative_prompt(默认 'low quality, distorted, noise')+ model(默认 stable_audio_3_medium.safetensors)+ text_encoder(默认 t5gemma_b_b_ul2.safetensors)",
+    "rationale": "SA3 用 prompt 描述(无歌词概念),negative_prompt 默认排除低质量。无 keyscale/bpm 精确控制(仅靠 prompt 文本)。注意与 Stable Audio Open(旧开源版,foley sfx_prompt_pattern 来源)是不同型号。",
+    "source_file": "audio-engine-adapter/references/engine-specs.md",
+    "source_section": "§Stable Audio 关键参数",
+    "tags": [
+      "audio_engine",
+      "stable_audio",
+      "engine_spec",
+      "field_spec"
+    ],
+    "priority": 60,
+    "extra_data": {
+      "engine": "stable_audio",
+      "prompt": {
+        "max": 4000
+      },
+      "negative_prompt": {
+        "default": "low quality, distorted, noise"
+      },
+      "model_default": "stable_audio_3_medium.safetensors",
+      "text_encoder_default": "t5gemma_b_b_ul2.safetensors"
+    }
+  },
+  {
+    "category": "audio_engine_spec",
+    "key_name": "stable_audio.duration_timing",
+    "key_type": "api_field",
+    "primary_recommendation": "seconds_total(1-380s,默认30)+ seconds_start(0-380,默认0,conditioning 起点)",
+    "rationale": "时长上限 380s;超过需分段生成 + 后期拼接。seconds_start 控制 conditioning 起点。注意 SA3 用 seconds_total 而 ACE-Step 用 duration。",
+    "source_file": "audio-engine-adapter/references/engine-specs.md",
+    "source_section": "§Stable Audio 关键参数",
+    "tags": [
+      "audio_engine",
+      "stable_audio",
+      "engine_spec",
+      "duration"
+    ],
+    "priority": 55,
+    "extra_data": {
+      "engine": "stable_audio",
+      "seconds_total": {
+        "range": [
+          1,
+          380
+        ],
+        "default": 30
+      },
+      "seconds_start": {
+        "range": [
+          0,
+          380
+        ],
+        "default": 0
+      }
+    }
+  },
+  {
+    "category": "audio_engine_spec",
+    "key_name": "stable_audio.reprompt_categories",
+    "key_type": "api_field",
+    "primary_recommendation": "SA3 prompt 分 4 类:Music(音乐片段)/Instrument(乐器独奏)/SFX(音效)/One-shot(单次音效如 gunshot)",
+    "rationale": "4 类 reprompt 是 SA3 SFX 提示词的规范格式;选错类别影响生成质量。这是 ACE-Step 没有的 SFX 精细分型。",
+    "source_file": "audio-engine-adapter/references/engine-specs.md",
+    "source_section": "§Reprompt 类别",
+    "tags": [
+      "audio_engine",
+      "stable_audio",
+      "engine_spec",
+      "sfx"
+    ],
+    "priority": 60,
+    "extra_data": {
+      "engine": "stable_audio",
+      "categories": [
+        "Music",
+        "Instrument",
+        "SFX",
+        "One-shot"
+      ],
+      "examples": {
+        "Music": "upbeat electronic dance track",
+        "Instrument": "solo violin, legato, expressive",
+        "SFX": "glass breaking on hard floor",
+        "One-shot": "gunshot, single shot, reverb"
+      }
+    }
+  },
+  {
+    "category": "audio_engine_spec",
+    "key_name": "stable_audio.sampling_inpaint",
+    "key_type": "api_field",
+    "primary_recommendation": "steps(Medium LCM默认8/Base默认50,1-200)+ cfg(Medium LCM默认1/Base默认7,1-20)+ sampler(lcm/euler/dpmpp_2m/dpmpp_3m_sde)+ scheduler(simple默认)+ denoise(0-1.0,默认1.0;<1.0 启用 Inpainting)+ batch_size(1-16)",
+    "rationale": "LCM 8 步 ~30s 出片(求快);denoise<1.0 + 加载源音频 = 局部内容重绘(Inpainting),保留未改区域。",
+    "source_file": "audio-engine-adapter/references/engine-specs.md",
+    "source_section": "§Stable Audio 采样 + §Inpainting",
+    "tags": [
+      "audio_engine",
+      "stable_audio",
+      "engine_spec",
+      "sampling",
+      "inpaint"
+    ],
+    "priority": 55,
+    "extra_data": {
+      "engine": "stable_audio",
+      "steps": {
+        "medium_lcm": 8,
+        "base": 50,
+        "range": [
+          1,
+          200
+        ]
+      },
+      "cfg": {
+        "medium_lcm": 1,
+        "base": 7,
+        "range": [
+          1,
+          20
+        ]
+      },
+      "sampler": [
+        "lcm",
+        "euler",
+        "dpmpp_2m",
+        "dpmpp_3m_sde"
+      ],
+      "scheduler_default": "simple",
+      "denoise": {
+        "range": [
+          0,
+          1
+        ],
+        "default": 1.0,
+        "inpaint_below": 1.0
+      },
+      "batch_size": [
+        1,
+        16
+      ]
+    }
+  },
+  {
+    "category": "audio_engine_spec",
+    "key_name": "stable_audio.api_constraints",
+    "key_type": "api_field",
+    "primary_recommendation": "POST /api/v1/stableaudio/generate(同步≤10min)+ GET /stableaudio/audio/:filename + models。⚠️ ComfyUI 拓扑必须含 ConditioningStableAudio 节点(修 EmptyLatentAudio latent rate bug);⚠️ SA3 与 SageAttention 不兼容",
+    "rationale": "两个硬约束:ConditioningStableAudio 节点缺失会算错 latent rate(Issue #14825/PR #14858);SageAttention 不兼容会导致推理异常。",
+    "source_file": "audio-engine-adapter/references/engine-specs.md",
+    "source_section": "§Stable Audio ComfyUI 节点拓扑/约束",
+    "tags": [
+      "audio_engine",
+      "stable_audio",
+      "engine_spec",
+      "api",
+      "constraint"
+    ],
+    "priority": 65,
+    "extra_data": {
+      "engine": "stable_audio",
+      "endpoints": {
+        "/api/v1/stableaudio/generate": "同步≤10min",
+        "GET /api/v1/stableaudio/audio/:filename": "下载音频"
+      },
+      "required_node": "ConditioningStableAudio",
+      "latent_rate_bug": "Issue #14825 / PR #14858",
+      "sageattention_compatible": false,
+      "port": 8188
+    }
+  },
+  {
+    "category": "audio_engine_selection",
+    "key_name": "rule.song_vocal_lyrics",
+    "key_type": "selection_rule",
+    "primary_recommendation": "需要人声演唱歌词 → ACE-Step 1.5(唯一)。POST /api/v1/ace/generate,lyrics 带 [Section] 标签,vocal_language 指定语言",
+    "rationale": "ACE-Step 是唯一支持 vocal + lyrics(23 种语言)的引擎。Stable Audio 无歌词/人声能力,严禁跨界使用。",
+    "source_file": "audio-engine-adapter/references/engine-selection-logic.md",
+    "source_section": "§决策树 Q1",
+    "tags": [
+      "audio_engine_selection",
+      "ace_step",
+      "hard_boundary"
+    ],
+    "priority": 85,
+    "extra_data": {
+      "decision": "Q1",
+      "task_type": "song",
+      "engine": "ace_step",
+      "api": "/api/v1/ace/generate",
+      "condition": "task_type=song OR lyrics 非空",
+      "boundary": "唯一引擎,不可跨界"
+    }
+  },
+  {
+    "category": "audio_engine_selection",
+    "key_name": "rule.sfx",
+    "key_type": "selection_rule",
+    "primary_recommendation": "SFX 音效 → Stable Audio 3 medium(唯一)。POST /api/v1/stableaudio/generate,prompt 用 4 类 reprompt 格式(Music/Instrument/SFX/One-shot)",
+    "rationale": "SA3 精确 SFX 控制 + Inpainting 能力;ACE-Step 不适合短促音效,严禁跨界。",
+    "source_file": "audio-engine-adapter/references/engine-selection-logic.md",
+    "source_section": "§决策树 Q2",
+    "tags": [
+      "audio_engine_selection",
+      "stable_audio",
+      "hard_boundary"
+    ],
+    "priority": 85,
+    "extra_data": {
+      "decision": "Q2",
+      "task_type": "sfx",
+      "engine": "stable_audio",
+      "api": "/api/v1/stableaudio/generate",
+      "reprompt_format": true,
+      "boundary": "唯一引擎"
+    }
+  },
+  {
+    "category": "audio_engine_selection",
+    "key_name": "rule.bgm_short",
+    "key_type": "selection_rule",
+    "primary_recommendation": "纯器乐 BGM 且 < 60s → Stable Audio 3 medium(LCM 快速出片)。steps=8, cfg=1, sampler=lcm",
+    "rationale": "SA3 LCM 8 步 ~30s 出片,适合短氛围段;ACE-Step 慢(~1-5min),短段不经济。",
+    "source_file": "audio-engine-adapter/references/engine-selection-logic.md",
+    "source_section": "§决策树 Q3/Q3a",
+    "tags": [
+      "audio_engine_selection",
+      "stable_audio",
+      "bgm"
+    ],
+    "priority": 75,
+    "extra_data": {
+      "decision": "Q3a",
+      "task_type": "bgm",
+      "engine": "stable_audio",
+      "condition": "instrumental=true AND duration<60s",
+      "params": {
+        "steps": 8,
+        "cfg": 1,
+        "sampler": "lcm"
+      },
+      "reason": "speed"
+    }
+  },
+  {
+    "category": "audio_engine_selection",
+    "key_name": "rule.bgm_long",
+    "key_type": "selection_rule",
+    "primary_recommendation": "纯器乐 BGM 且 > 60s → ACE-Step 1.5(instrumental=true,结构化长配乐)。POST /api/v1/ace/generate",
+    "rationale": "ACE-Step 有结构化段落(Verse/Chorus/Bridge),长配乐连贯;SA3 无段落结构,长段松散。",
+    "source_file": "audio-engine-adapter/references/engine-selection-logic.md",
+    "source_section": "§决策树 Q3/Q3a",
+    "tags": [
+      "audio_engine_selection",
+      "ace_step",
+      "bgm"
+    ],
+    "priority": 75,
+    "extra_data": {
+      "decision": "Q3a",
+      "task_type": "bgm",
+      "engine": "ace_step",
+      "condition": "instrumental=true AND duration>60s",
+      "params": {
+        "instrumental": true
+      },
+      "reason": "structure_coherence"
+    }
+  },
+  {
+    "category": "audio_engine_selection",
+    "key_name": "rule.inpaint_content",
+    "key_type": "selection_rule",
+    "primary_recommendation": "改内容(替换/续写某段) → Stable Audio 3 Inpainting。POST /api/v1/stableaudio/generate,denoise<1.0 + source_audio + inpaint_region 条件",
+    "rationale": "SA3 通过 denoise<1.0 + 源音频实现局部重绘,保留未改区域;ACE-Step 无内容 Inpainting。",
+    "source_file": "audio-engine-adapter/references/engine-selection-logic.md",
+    "source_section": "§决策树 Q4/Q4a",
+    "tags": [
+      "audio_engine_selection",
+      "stable_audio",
+      "inpaint"
+    ],
+    "priority": 75,
+    "extra_data": {
+      "decision": "Q4a",
+      "task_type": "inpaint",
+      "engine": "stable_audio",
+      "condition": "inpaint_region 有值",
+      "params": {
+        "denoise": "<1.0",
+        "source_audio": "required"
+      },
+      "boundary": "唯一引擎"
+    }
+  },
+  {
+    "category": "audio_engine_selection",
+    "key_name": "rule.repaint_style",
+    "key_type": "selection_rule",
+    "primary_recommendation": "改风格(换配器/情绪,保留结构) → ACE-Step 1.5 Repainting。POST /api/v1/ace/comfyui/generate,repaint_enabled=true,mode=conservative/balanced/aggressive",
+    "rationale": "ACE-Step Repainting 基于源音频重绘风格保留结构;SA3 不支持风格重绘。",
+    "source_file": "audio-engine-adapter/references/engine-selection-logic.md",
+    "source_section": "§决策树 Q4/Q4a",
+    "tags": [
+      "audio_engine_selection",
+      "ace_step",
+      "repaint"
+    ],
+    "priority": 75,
+    "extra_data": {
+      "decision": "Q4a-no",
+      "task_type": "repaint",
+      "engine": "ace_step",
+      "condition": "改风格非改内容",
+      "params": {
+        "repaint_enabled": true,
+        "repaint_mode": [
+          "conservative",
+          "balanced",
+          "aggressive"
+        ]
+      },
+      "boundary": "唯一引擎"
+    }
+  },
+  {
+    "category": "audio_engine_selection",
+    "key_name": "boundary_matrix_default",
+    "key_type": "selection_rule",
+    "primary_recommendation": "默认:无明确匹配 → ACE-Step 1.5(最通用的音乐路径)。边界 case:歌曲改歌词段→ACE Repainting 两步;音效>380s→SA3 分段+拼接;60s 边界→优先 SA3(快);人声+音效→分轨(ACE 人声 + SA3 音效)+ mixer 混音",
+    "rationale": "ACE-Step 是最通用的默认音乐生成路径。边界 case 处理避免单引擎力不能及时的死结;人声+音效必须分轨生成再混音。",
+    "source_file": "audio-engine-adapter/references/engine-selection-logic.md",
+    "source_section": "§边界 Case + §职责边界矩阵",
+    "tags": [
+      "audio_engine_selection",
+      "fallback",
+      "boundary_matrix"
+    ],
+    "priority": 70,
+    "extra_data": {
+      "default_engine": "ace_step",
+      "edge_cases": {
+        "歌曲改歌词段": "ACE-Step Repainting 两步重生成",
+        "音效>380s": "SA3 最大 380s,分段生成 + 后期拼接",
+        "60s边界": "优先 SA3 求快;需段落结构则 ACE",
+        "人声+音效": "分轨:ACE 人声 + SA3 音效,mixer 混音"
+      },
+      "boundaries": {
+        "vocal": "ACE 唯一",
+        "sfx": "SA3 唯一",
+        "inpaint": "SA3 唯一",
+        "repaint": "ACE 唯一"
+      }
+    }
   }
 ]
