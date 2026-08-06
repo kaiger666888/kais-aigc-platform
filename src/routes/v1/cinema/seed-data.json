@@ -18164,5 +18164,3607 @@
       "note": "短剧-男频 hybrid reference"
     },
     "priority": 70
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "fear",
+    "key_type": "emotion",
+    "primary_recommendation": "fear → black (hue —(luminance))",
+    "rationale": "恐惧——Bellantoni tension/danger palette; Hupka cross-cultural Fear=Black (universal). Cool low-key or red-danger accent.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "black",
+      "negative"
+    ],
+    "related_emotions": [
+      "fear"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "—(luminance)",
+      "named_color": "black",
+      "valence": "negative",
+      "prevalence_pct": null,
+      "supporting_triplets": [
+        {
+          "director": "Kubrick",
+          "film": "奇爱博士",
+          "year": "1964",
+          "load_name": "权威黑",
+          "desc": "Ripper 将军的黑色军装 = 权威、克制、潜在的暴力。"
+        },
+        {
+          "raw": "《蝙蝠侠》系列 — 神秘黑",
+          "desc": "哥谭市的黑色雨夜 = 神秘、未知的犯罪世界。"
+        },
+        {
+          "raw": "《七武士》(1954)— 死亡黑",
+          "desc": "强盗的黑色剪影 = 死亡的不可阻挡。"
+        }
+      ]
+    },
+    "priority": 64
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "anger",
+    "key_type": "emotion",
+    "primary_recommendation": "anger → red (hue 0-15° / 345-360°)",
+    "rationale": "愤怒——Red universal (Hupka 64-78% across 4 cultures). Avoid violence gore per CN §2.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "red",
+      "negative"
+    ],
+    "related_emotions": [
+      "anger"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "0-15° / 345-360°",
+      "named_color": "red",
+      "valence": "negative",
+      "prevalence_pct": null,
+      "supporting_triplets": [
+        {
+          "director": "Almodóvar",
+          "film": "关于我母亲的一切",
+          "year": "1999",
+          "load_name": "激情红",
+          "desc": "Almodóvar 用饱和的猩红色描绘 Manuela 的服装与巴塞罗那街道,Red = 失去与重生的激情循环。"
+        },
+        {
+          "director": "Coen",
+          "film": "Blood Simple",
+          "year": "1984",
+          "load_name": "危险红",
+          "desc": "Marty 酒吧的血红色霓虹灯 + 红色 blood stains 承担 Marty 的\"未被抑制暴力\"视觉化身;Red 不是装饰,而是反派的延伸。"
+        },
+        {
+          "director": "Spielberg",
+          "film": "辛德勒名单",
+          "year": "1993",
+          "load_name": "象征红",
+          "desc": "全片黑白,唯一彩色是穿红衣的小女孩;Red = 无辜的生命 + 必然的死亡,是电影史上最强的\"color as character\"案例之一。"
+        }
+      ]
+    },
+    "priority": 64
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "rage",
+    "key_type": "emotion",
+    "primary_recommendation": "rage → red (hue 0-15° / 345-360°)",
+    "rationale": "暴怒——Red danger palette (Bellantoni Tension Red ~55%); high saturation.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "red",
+      "negative"
+    ],
+    "related_emotions": [
+      "rage"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "0-15° / 345-360°",
+      "named_color": "red",
+      "valence": "negative",
+      "prevalence_pct": 55,
+      "supporting_triplets": [
+        {
+          "director": "Almodóvar",
+          "film": "关于我母亲的一切",
+          "year": "1999",
+          "load_name": "激情红",
+          "desc": "Almodóvar 用饱和的猩红色描绘 Manuela 的服装与巴塞罗那街道,Red = 失去与重生的激情循环。"
+        },
+        {
+          "director": "Coen",
+          "film": "Blood Simple",
+          "year": "1984",
+          "load_name": "危险红",
+          "desc": "Marty 酒吧的血红色霓虹灯 + 红色 blood stains 承担 Marty 的\"未被抑制暴力\"视觉化身;Red 不是装饰,而是反派的延伸。"
+        },
+        {
+          "director": "Spielberg",
+          "film": "辛德勒名单",
+          "year": "1993",
+          "load_name": "象征红",
+          "desc": "全片黑白,唯一彩色是穿红衣的小女孩;Red = 无辜的生命 + 必然的死亡,是电影史上最强的\"color as character\"案例之一。"
+        }
+      ]
+    },
+    "priority": 72
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "passion",
+    "key_type": "emotion",
+    "primary_recommendation": "passion → red (hue 0-15° / 345-360°)",
+    "rationale": "激情——Red dominant (Bellantoni Passion ~78%). CN: 喜庆/吉利 positive duality.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "red",
+      "positive"
+    ],
+    "related_emotions": [
+      "passion"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "0-15° / 345-360°",
+      "named_color": "red",
+      "valence": "positive",
+      "prevalence_pct": 78,
+      "supporting_triplets": [
+        {
+          "director": "Almodóvar",
+          "film": "关于我母亲的一切",
+          "year": "1999",
+          "load_name": "激情红",
+          "desc": "Almodóvar 用饱和的猩红色描绘 Manuela 的服装与巴塞罗那街道,Red = 失去与重生的激情循环。"
+        },
+        {
+          "director": "Coen",
+          "film": "Blood Simple",
+          "year": "1984",
+          "load_name": "危险红",
+          "desc": "Marty 酒吧的血红色霓虹灯 + 红色 blood stains 承担 Marty 的\"未被抑制暴力\"视觉化身;Red 不是装饰,而是反派的延伸。"
+        },
+        {
+          "director": "Spielberg",
+          "film": "辛德勒名单",
+          "year": "1993",
+          "load_name": "象征红",
+          "desc": "全片黑白,唯一彩色是穿红衣的小女孩;Red = 无辜的生命 + 必然的死亡,是电影史上最强的\"color as character\"案例之一。"
+        }
+      ]
+    },
+    "priority": 72
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "love",
+    "key_type": "emotion",
+    "primary_recommendation": "love → red (hue 0-15° / 345-360°)",
+    "rationale": "爱——Red (Madden US love=Red 73%); Bellantoni passion Red 78%.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "red",
+      "positive"
+    ],
+    "related_emotions": [
+      "love"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "0-15° / 345-360°",
+      "named_color": "red",
+      "valence": "positive",
+      "prevalence_pct": 78,
+      "supporting_triplets": [
+        {
+          "director": "Almodóvar",
+          "film": "关于我母亲的一切",
+          "year": "1999",
+          "load_name": "激情红",
+          "desc": "Almodóvar 用饱和的猩红色描绘 Manuela 的服装与巴塞罗那街道,Red = 失去与重生的激情循环。"
+        },
+        {
+          "director": "Coen",
+          "film": "Blood Simple",
+          "year": "1984",
+          "load_name": "危险红",
+          "desc": "Marty 酒吧的血红色霓虹灯 + 红色 blood stains 承担 Marty 的\"未被抑制暴力\"视觉化身;Red 不是装饰,而是反派的延伸。"
+        },
+        {
+          "director": "Spielberg",
+          "film": "辛德勒名单",
+          "year": "1993",
+          "load_name": "象征红",
+          "desc": "全片黑白,唯一彩色是穿红衣的小女孩;Red = 无辜的生命 + 必然的死亡,是电影史上最强的\"color as character\"案例之一。"
+        }
+      ]
+    },
+    "priority": 72
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "lust",
+    "key_type": "emotion",
+    "primary_recommendation": "lust → red (hue 0-15° / 345-360°)",
+    "rationale": "情欲——Red passion palette; high saturation warm.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "red",
+      "positive"
+    ],
+    "related_emotions": [
+      "lust"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "0-15° / 345-360°",
+      "named_color": "red",
+      "valence": "positive",
+      "prevalence_pct": 78,
+      "supporting_triplets": [
+        {
+          "director": "Almodóvar",
+          "film": "关于我母亲的一切",
+          "year": "1999",
+          "load_name": "激情红",
+          "desc": "Almodóvar 用饱和的猩红色描绘 Manuela 的服装与巴塞罗那街道,Red = 失去与重生的激情循环。"
+        },
+        {
+          "director": "Coen",
+          "film": "Blood Simple",
+          "year": "1984",
+          "load_name": "危险红",
+          "desc": "Marty 酒吧的血红色霓虹灯 + 红色 blood stains 承担 Marty 的\"未被抑制暴力\"视觉化身;Red 不是装饰,而是反派的延伸。"
+        },
+        {
+          "director": "Spielberg",
+          "film": "辛德勒名单",
+          "year": "1993",
+          "load_name": "象征红",
+          "desc": "全片黑白,唯一彩色是穿红衣的小女孩;Red = 无辜的生命 + 必然的死亡,是电影史上最强的\"color as character\"案例之一。"
+        }
+      ]
+    },
+    "priority": 72
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "tenderness",
+    "key_type": "emotion",
+    "primary_recommendation": "tenderness → orange (hue 15-45°)",
+    "rationale": "温柔——Orange intimacy (Bellantoni Intimacy Orange ~62%); soft warm.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "orange",
+      "positive"
+    ],
+    "related_emotions": [
+      "tenderness"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "15-45°",
+      "named_color": "orange",
+      "valence": "positive",
+      "prevalence_pct": 62,
+      "supporting_triplets": [
+        {
+          "director": "Makhmalbaf",
+          "film": "午后时光",
+          "year": "1996",
+          "load_name": "怀旧橙",
+          "desc": "老妇人在午后阳光中的黄色暖色调,Orange = 怀旧、岁月沉淀的温暖。"
+        },
+        {
+          "raw": "《疯狂的麦克斯:狂暴之路》(2015)— 危险橙",
+          "desc": "沙漠的橘色色调 = 末日废土的危险预热,Orange = 资源匮乏世界中的暴力预告。"
+        },
+        {
+          "director": "Tarkovsky",
+          "film": "飞向太空",
+          "year": "1972",
+          "load_name": "温暖怀旧橙",
+          "desc": "Solaris 站内 Earth-memory 段落的暖色调,Orange = 对地球家乡的温暖记忆。"
+        }
+      ]
+    },
+    "priority": 72
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "intimacy",
+    "key_type": "emotion",
+    "primary_recommendation": "intimacy → orange (hue 15-45°)",
+    "rationale": "亲密——Orange dominant (Bellantoni Intimacy ~62%); CN 'lit from within' warm skin tone.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "orange",
+      "positive"
+    ],
+    "related_emotions": [
+      "intimacy"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "15-45°",
+      "named_color": "orange",
+      "valence": "positive",
+      "prevalence_pct": 62,
+      "supporting_triplets": [
+        {
+          "director": "Makhmalbaf",
+          "film": "午后时光",
+          "year": "1996",
+          "load_name": "怀旧橙",
+          "desc": "老妇人在午后阳光中的黄色暖色调,Orange = 怀旧、岁月沉淀的温暖。"
+        },
+        {
+          "raw": "《疯狂的麦克斯:狂暴之路》(2015)— 危险橙",
+          "desc": "沙漠的橘色色调 = 末日废土的危险预热,Orange = 资源匮乏世界中的暴力预告。"
+        },
+        {
+          "director": "Tarkovsky",
+          "film": "飞向太空",
+          "year": "1972",
+          "load_name": "温暖怀旧橙",
+          "desc": "Solaris 站内 Earth-memory 段落的暖色调,Orange = 对地球家乡的温暖记忆。"
+        }
+      ]
+    },
+    "priority": 72
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "warmth",
+    "key_type": "emotion",
+    "primary_recommendation": "warmth → orange (hue 15-45°)",
+    "rationale": "温暖——Orange nostalgia/intimacy; tungsten 2700-3200K.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "orange",
+      "positive"
+    ],
+    "related_emotions": [
+      "warmth"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "15-45°",
+      "named_color": "orange",
+      "valence": "positive",
+      "prevalence_pct": 62,
+      "supporting_triplets": [
+        {
+          "director": "Makhmalbaf",
+          "film": "午后时光",
+          "year": "1996",
+          "load_name": "怀旧橙",
+          "desc": "老妇人在午后阳光中的黄色暖色调,Orange = 怀旧、岁月沉淀的温暖。"
+        },
+        {
+          "raw": "《疯狂的麦克斯:狂暴之路》(2015)— 危险橙",
+          "desc": "沙漠的橘色色调 = 末日废土的危险预热,Orange = 资源匮乏世界中的暴力预告。"
+        },
+        {
+          "director": "Tarkovsky",
+          "film": "飞向太空",
+          "year": "1972",
+          "load_name": "温暖怀旧橙",
+          "desc": "Solaris 站内 Earth-memory 段落的暖色调,Orange = 对地球家乡的温暖记忆。"
+        }
+      ]
+    },
+    "priority": 72
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "nostalgia",
+    "key_type": "emotion",
+    "primary_recommendation": "nostalgia → orange (hue 15-45°)",
+    "rationale": "怀旧——Orange/Yellow vintage; Warm Vintage LUT (lift warm/gamma 0.95).",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "orange",
+      "positive"
+    ],
+    "related_emotions": [
+      "nostalgia"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "15-45°",
+      "named_color": "orange",
+      "valence": "positive",
+      "prevalence_pct": 25,
+      "supporting_triplets": [
+        {
+          "director": "Makhmalbaf",
+          "film": "午后时光",
+          "year": "1996",
+          "load_name": "怀旧橙",
+          "desc": "老妇人在午后阳光中的黄色暖色调,Orange = 怀旧、岁月沉淀的温暖。"
+        },
+        {
+          "raw": "《疯狂的麦克斯:狂暴之路》(2015)— 危险橙",
+          "desc": "沙漠的橘色色调 = 末日废土的危险预热,Orange = 资源匮乏世界中的暴力预告。"
+        },
+        {
+          "director": "Tarkovsky",
+          "film": "飞向太空",
+          "year": "1972",
+          "load_name": "温暖怀旧橙",
+          "desc": "Solaris 站内 Earth-memory 段落的暖色调,Orange = 对地球家乡的温暖记忆。"
+        }
+      ]
+    },
+    "priority": 72
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "hope",
+    "key_type": "emotion",
+    "primary_recommendation": "hope → yellow (hue 45-65°)",
+    "rationale": "希望——Yellow dominant (Bellantoni Hope ~58%); high saturation + high brightness.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "yellow",
+      "positive"
+    ],
+    "related_emotions": [
+      "hope"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "45-65°",
+      "named_color": "yellow",
+      "valence": "positive",
+      "prevalence_pct": 58,
+      "supporting_triplets": [
+        {
+          "director": "Herzog",
+          "film": "Stroszek",
+          "year": "1977",
+          "load_name": "衰败黄",
+          "desc": "Herzog 用昏黄的灯光描绘柏林边缘的移民公寓,Yellow = 病态、衰败、社会边缘的无力感。"
+        },
+        {
+          "raw": "《爆裂鼓手》(2014)— 警示黄",
+          "desc": "Fletcher 教练在排练室中,黄色荧光灯的过度曝光传递高压训练的危险预热。"
+        },
+        {
+          "director": "Jeunet",
+          "film": "天使爱美丽",
+          "year": "2001",
+          "load_name": "温暖黄",
+          "desc": "Amélie 的巴黎公寓被 hyper-saturated 黄绿色笼罩,Yellow = 温暖、怀旧、童话感的安全。"
+        }
+      ]
+    },
+    "priority": 72
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "joy",
+    "key_type": "emotion",
+    "primary_recommendation": "joy → yellow (hue 45-65°)",
+    "rationale": "喜悦——Yellow warmth/safety; high brightness.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "yellow",
+      "positive"
+    ],
+    "related_emotions": [
+      "joy"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "45-65°",
+      "named_color": "yellow",
+      "valence": "positive",
+      "prevalence_pct": 58,
+      "supporting_triplets": [
+        {
+          "director": "Herzog",
+          "film": "Stroszek",
+          "year": "1977",
+          "load_name": "衰败黄",
+          "desc": "Herzog 用昏黄的灯光描绘柏林边缘的移民公寓,Yellow = 病态、衰败、社会边缘的无力感。"
+        },
+        {
+          "raw": "《爆裂鼓手》(2014)— 警示黄",
+          "desc": "Fletcher 教练在排练室中,黄色荧光灯的过度曝光传递高压训练的危险预热。"
+        },
+        {
+          "director": "Jeunet",
+          "film": "天使爱美丽",
+          "year": "2001",
+          "load_name": "温暖黄",
+          "desc": "Amélie 的巴黎公寓被 hyper-saturated 黄绿色笼罩,Yellow = 温暖、怀旧、童话感的安全。"
+        }
+      ]
+    },
+    "priority": 72
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "spirituality",
+    "key_type": "emotion",
+    "primary_recommendation": "spirituality → purple (hue 270-290°)",
+    "rationale": "灵性——Purple positive facet; deep purple 270-290°.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "purple",
+      "positive"
+    ],
+    "related_emotions": [
+      "spirituality"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "270-290°",
+      "named_color": "purple",
+      "valence": "positive",
+      "prevalence_pct": null,
+      "supporting_triplets": [
+        {
+          "director": "Kurosawa",
+          "film": "乱",
+          "year": "1985",
+          "load_name": "王权紫",
+          "desc": "Kurosawa 用深紫色描绘战国霸主一文字秀虎的王权崩溃;紫色从最初的王权象征,在剧情发展中逐渐褪去,反映权力的虚妄。"
+        },
+        {
+          "director": "Villeneuve",
+          "film": "Blade Runner 2049",
+          "year": "2017",
+          "load_name": "腐败权威紫",
+          "desc": "Wallace 公司总部的紫色光柱代表资本主义的腐败权威;Purple 是反派 Niander Wallace 的标志性环境色,代表超越人类道德的科技权力。"
+        },
+        {
+          "director": "Argento",
+          "film": "Suspiria",
+          "year": "1977",
+          "load_name": "神秘紫",
+          "desc": "Argento 用饱和的品紫色描绘舞蹈学院,传递神秘与超自然威胁;Purple 是 giallo 流派的标志性色,代表观众无法理性解释的诡异。"
+        }
+      ]
+    },
+    "priority": 64
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "mystery",
+    "key_type": "emotion",
+    "primary_recommendation": "mystery → purple (hue 270-290°)",
+    "rationale": "神秘——Purple/Black; giallo saturated magenta-purple.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "purple",
+      "neutral"
+    ],
+    "related_emotions": [
+      "mystery"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "270-290°",
+      "named_color": "purple",
+      "valence": "neutral",
+      "prevalence_pct": null,
+      "supporting_triplets": [
+        {
+          "director": "Kurosawa",
+          "film": "乱",
+          "year": "1985",
+          "load_name": "王权紫",
+          "desc": "Kurosawa 用深紫色描绘战国霸主一文字秀虎的王权崩溃;紫色从最初的王权象征,在剧情发展中逐渐褪去,反映权力的虚妄。"
+        },
+        {
+          "director": "Villeneuve",
+          "film": "Blade Runner 2049",
+          "year": "2017",
+          "load_name": "腐败权威紫",
+          "desc": "Wallace 公司总部的紫色光柱代表资本主义的腐败权威;Purple 是反派 Niander Wallace 的标志性环境色,代表超越人类道德的科技权力。"
+        },
+        {
+          "director": "Argento",
+          "film": "Suspiria",
+          "year": "1977",
+          "load_name": "神秘紫",
+          "desc": "Argento 用饱和的品紫色描绘舞蹈学院,传递神秘与超自然威胁;Purple 是 giallo 流派的标志性色,代表观众无法理性解释的诡异。"
+        }
+      ]
+    },
+    "priority": 64
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "villainy",
+    "key_type": "emotion",
+    "primary_recommendation": "villainy → purple (hue 270-290°)",
+    "rationale": "反派——Purple dominant (Bellantoni Villain ~60%); the book's namesake observation.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "purple",
+      "negative"
+    ],
+    "related_emotions": [
+      "villainy"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "270-290°",
+      "named_color": "purple",
+      "valence": "negative",
+      "prevalence_pct": 60,
+      "supporting_triplets": [
+        {
+          "director": "Kurosawa",
+          "film": "乱",
+          "year": "1985",
+          "load_name": "王权紫",
+          "desc": "Kurosawa 用深紫色描绘战国霸主一文字秀虎的王权崩溃;紫色从最初的王权象征,在剧情发展中逐渐褪去,反映权力的虚妄。"
+        },
+        {
+          "director": "Villeneuve",
+          "film": "Blade Runner 2049",
+          "year": "2017",
+          "load_name": "腐败权威紫",
+          "desc": "Wallace 公司总部的紫色光柱代表资本主义的腐败权威;Purple 是反派 Niander Wallace 的标志性环境色,代表超越人类道德的科技权力。"
+        },
+        {
+          "director": "Argento",
+          "film": "Suspiria",
+          "year": "1977",
+          "load_name": "神秘紫",
+          "desc": "Argento 用饱和的品紫色描绘舞蹈学院,传递神秘与超自然威胁;Purple 是 giallo 流派的标志性色,代表观众无法理性解释的诡异。"
+        }
+      ]
+    },
+    "priority": 72
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "corrupt_authority",
+    "key_type": "emotion",
+    "primary_recommendation": "corrupt_authority → purple (hue 270-290°)",
+    "rationale": "腐败权威——Purple (Wallace/Blade Runner 2049); tech-power beyond human morality.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "purple",
+      "negative"
+    ],
+    "related_emotions": [
+      "corrupt_authority"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "270-290°",
+      "named_color": "purple",
+      "valence": "negative",
+      "prevalence_pct": 60,
+      "supporting_triplets": [
+        {
+          "director": "Kurosawa",
+          "film": "乱",
+          "year": "1985",
+          "load_name": "王权紫",
+          "desc": "Kurosawa 用深紫色描绘战国霸主一文字秀虎的王权崩溃;紫色从最初的王权象征,在剧情发展中逐渐褪去,反映权力的虚妄。"
+        },
+        {
+          "director": "Villeneuve",
+          "film": "Blade Runner 2049",
+          "year": "2017",
+          "load_name": "腐败权威紫",
+          "desc": "Wallace 公司总部的紫色光柱代表资本主义的腐败权威;Purple 是反派 Niander Wallace 的标志性环境色,代表超越人类道德的科技权力。"
+        },
+        {
+          "director": "Argento",
+          "film": "Suspiria",
+          "year": "1977",
+          "load_name": "神秘紫",
+          "desc": "Argento 用饱和的品紫色描绘舞蹈学院,传递神秘与超自然威胁;Purple 是 giallo 流派的标志性色,代表观众无法理性解释的诡异。"
+        }
+      ]
+    },
+    "priority": 72
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "moral_gray",
+    "key_type": "emotion",
+    "primary_recommendation": "moral_gray → purple (hue 270-290°)",
+    "rationale": "道德灰区——Purple villain/moral-gray zone.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "purple",
+      "negative"
+    ],
+    "related_emotions": [
+      "moral_gray"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "270-290°",
+      "named_color": "purple",
+      "valence": "negative",
+      "prevalence_pct": 60,
+      "supporting_triplets": [
+        {
+          "director": "Kurosawa",
+          "film": "乱",
+          "year": "1985",
+          "load_name": "王权紫",
+          "desc": "Kurosawa 用深紫色描绘战国霸主一文字秀虎的王权崩溃;紫色从最初的王权象征,在剧情发展中逐渐褪去,反映权力的虚妄。"
+        },
+        {
+          "director": "Villeneuve",
+          "film": "Blade Runner 2049",
+          "year": "2017",
+          "load_name": "腐败权威紫",
+          "desc": "Wallace 公司总部的紫色光柱代表资本主义的腐败权威;Purple 是反派 Niander Wallace 的标志性环境色,代表超越人类道德的科技权力。"
+        },
+        {
+          "director": "Argento",
+          "film": "Suspiria",
+          "year": "1977",
+          "load_name": "神秘紫",
+          "desc": "Argento 用饱和的品紫色描绘舞蹈学院,传递神秘与超自然威胁;Purple 是 giallo 流派的标志性色,代表观众无法理性解释的诡异。"
+        }
+      ]
+    },
+    "priority": 72
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "danger",
+    "key_type": "emotion",
+    "primary_recommendation": "danger → red (hue 0-15° / 345-360°)",
+    "rationale": "危险——Red + Purple 'danger palette' (Bellantoni Tension Red 55% + Purple 22%).",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "red",
+      "negative"
+    ],
+    "related_emotions": [
+      "danger"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "0-15° / 345-360°",
+      "named_color": "red",
+      "valence": "negative",
+      "prevalence_pct": 55,
+      "supporting_triplets": [
+        {
+          "director": "Almodóvar",
+          "film": "关于我母亲的一切",
+          "year": "1999",
+          "load_name": "激情红",
+          "desc": "Almodóvar 用饱和的猩红色描绘 Manuela 的服装与巴塞罗那街道,Red = 失去与重生的激情循环。"
+        },
+        {
+          "director": "Coen",
+          "film": "Blood Simple",
+          "year": "1984",
+          "load_name": "危险红",
+          "desc": "Marty 酒吧的血红色霓虹灯 + 红色 blood stains 承担 Marty 的\"未被抑制暴力\"视觉化身;Red 不是装饰,而是反派的延伸。"
+        },
+        {
+          "director": "Spielberg",
+          "film": "辛德勒名单",
+          "year": "1993",
+          "load_name": "象征红",
+          "desc": "全片黑白,唯一彩色是穿红衣的小女孩;Red = 无辜的生命 + 必然的死亡,是电影史上最强的\"color as character\"案例之一。"
+        }
+      ]
+    },
+    "priority": 72
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "tension",
+    "key_type": "emotion",
+    "primary_recommendation": "tension → red (hue 0-15° / 345-360°)",
+    "rationale": "紧张——Red+Purple danger palette; high contrast.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "red",
+      "negative"
+    ],
+    "related_emotions": [
+      "tension"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "0-15° / 345-360°",
+      "named_color": "red",
+      "valence": "negative",
+      "prevalence_pct": 55,
+      "supporting_triplets": [
+        {
+          "director": "Almodóvar",
+          "film": "关于我母亲的一切",
+          "year": "1999",
+          "load_name": "激情红",
+          "desc": "Almodóvar 用饱和的猩红色描绘 Manuela 的服装与巴塞罗那街道,Red = 失去与重生的激情循环。"
+        },
+        {
+          "director": "Coen",
+          "film": "Blood Simple",
+          "year": "1984",
+          "load_name": "危险红",
+          "desc": "Marty 酒吧的血红色霓虹灯 + 红色 blood stains 承担 Marty 的\"未被抑制暴力\"视觉化身;Red 不是装饰,而是反派的延伸。"
+        },
+        {
+          "director": "Spielberg",
+          "film": "辛德勒名单",
+          "year": "1993",
+          "load_name": "象征红",
+          "desc": "全片黑白,唯一彩色是穿红衣的小女孩;Red = 无辜的生命 + 必然的死亡,是电影史上最强的\"color as character\"案例之一。"
+        }
+      ]
+    },
+    "priority": 72
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "suspense",
+    "key_type": "emotion",
+    "primary_recommendation": "suspense → purple (hue 270-290°)",
+    "rationale": "悬疑——Purple/Blue; low-key chiaroscuro.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "purple",
+      "negative"
+    ],
+    "related_emotions": [
+      "suspense"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "270-290°",
+      "named_color": "purple",
+      "valence": "negative",
+      "prevalence_pct": null,
+      "supporting_triplets": [
+        {
+          "director": "Kurosawa",
+          "film": "乱",
+          "year": "1985",
+          "load_name": "王权紫",
+          "desc": "Kurosawa 用深紫色描绘战国霸主一文字秀虎的王权崩溃;紫色从最初的王权象征,在剧情发展中逐渐褪去,反映权力的虚妄。"
+        },
+        {
+          "director": "Villeneuve",
+          "film": "Blade Runner 2049",
+          "year": "2017",
+          "load_name": "腐败权威紫",
+          "desc": "Wallace 公司总部的紫色光柱代表资本主义的腐败权威;Purple 是反派 Niander Wallace 的标志性环境色,代表超越人类道德的科技权力。"
+        },
+        {
+          "director": "Argento",
+          "film": "Suspiria",
+          "year": "1977",
+          "load_name": "神秘紫",
+          "desc": "Argento 用饱和的品紫色描绘舞蹈学院,传递神秘与超自然威胁;Purple 是 giallo 流派的标志性色,代表观众无法理性解释的诡异。"
+        }
+      ]
+    },
+    "priority": 64
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "grief",
+    "key_type": "emotion",
+    "primary_recommendation": "grief → blue (hue 200-240°)",
+    "rationale": "哀悼——Blue active agent (Kieslowski Three Colors: Blue; Bellantoni Loss ~67%).",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "blue",
+      "negative"
+    ],
+    "related_emotions": [
+      "grief"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "200-240°",
+      "named_color": "blue",
+      "valence": "negative",
+      "prevalence_pct": 67,
+      "supporting_triplets": [
+        {
+          "director": "Kieslowski",
+          "film": "蓝",
+          "year": "1993",
+          "load_name": "失去蓝",
+          "desc": "主角 Julie 的悲伤通过游泳池的蓝色水光、糖块的蓝色包装反复出现;Blue 不是被动反映,而是 grief 的 active agent。"
+        },
+        {
+          "director": "Cameron",
+          "film": "阿凡达",
+          "year": "2009",
+          "load_name": "神性蓝",
+          "desc": "Pandora 星球的纳威人肌肤为蓝色,Blue = 神性、自然、超越人类的存在。"
+        },
+        {
+          "director": "Mann",
+          "film": "盗火线",
+          "year": "1995",
+          "load_name": "冷静蓝",
+          "desc": "洛杉矶夜景的城市灯光偏冷蓝,Blue = 专业、冷静、犯罪世界的距离感。"
+        }
+      ]
+    },
+    "priority": 72
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "sadness",
+    "key_type": "emotion",
+    "primary_recommendation": "sadness → blue (hue 200-240°)",
+    "rationale": "悲伤——Blue melancholy (Madden JP sadness=Blue 51%); universal-leaning.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "blue",
+      "negative"
+    ],
+    "related_emotions": [
+      "sadness"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "200-240°",
+      "named_color": "blue",
+      "valence": "negative",
+      "prevalence_pct": 67,
+      "supporting_triplets": [
+        {
+          "director": "Kieslowski",
+          "film": "蓝",
+          "year": "1993",
+          "load_name": "失去蓝",
+          "desc": "主角 Julie 的悲伤通过游泳池的蓝色水光、糖块的蓝色包装反复出现;Blue 不是被动反映,而是 grief 的 active agent。"
+        },
+        {
+          "director": "Cameron",
+          "film": "阿凡达",
+          "year": "2009",
+          "load_name": "神性蓝",
+          "desc": "Pandora 星球的纳威人肌肤为蓝色,Blue = 神性、自然、超越人类的存在。"
+        },
+        {
+          "director": "Mann",
+          "film": "盗火线",
+          "year": "1995",
+          "load_name": "冷静蓝",
+          "desc": "洛杉矶夜景的城市灯光偏冷蓝,Blue = 专业、冷静、犯罪世界的距离感。"
+        }
+      ]
+    },
+    "priority": 72
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "loss",
+    "key_type": "emotion",
+    "primary_recommendation": "loss → blue (hue 200-240°)",
+    "rationale": "失去——Blue dominant (Bellantoni Loss ~67%); grief active agent.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "blue",
+      "negative"
+    ],
+    "related_emotions": [
+      "loss"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "200-240°",
+      "named_color": "blue",
+      "valence": "negative",
+      "prevalence_pct": 67,
+      "supporting_triplets": [
+        {
+          "director": "Kieslowski",
+          "film": "蓝",
+          "year": "1993",
+          "load_name": "失去蓝",
+          "desc": "主角 Julie 的悲伤通过游泳池的蓝色水光、糖块的蓝色包装反复出现;Blue 不是被动反映,而是 grief 的 active agent。"
+        },
+        {
+          "director": "Cameron",
+          "film": "阿凡达",
+          "year": "2009",
+          "load_name": "神性蓝",
+          "desc": "Pandora 星球的纳威人肌肤为蓝色,Blue = 神性、自然、超越人类的存在。"
+        },
+        {
+          "director": "Mann",
+          "film": "盗火线",
+          "year": "1995",
+          "load_name": "冷静蓝",
+          "desc": "洛杉矶夜景的城市灯光偏冷蓝,Blue = 专业、冷静、犯罪世界的距离感。"
+        }
+      ]
+    },
+    "priority": 72
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "melancholy",
+    "key_type": "emotion",
+    "primary_recommendation": "melancholy → blue (hue 200-240°)",
+    "rationale": "忧郁——Blue; desaturated cool.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "blue",
+      "negative"
+    ],
+    "related_emotions": [
+      "melancholy"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "200-240°",
+      "named_color": "blue",
+      "valence": "negative",
+      "prevalence_pct": 67,
+      "supporting_triplets": [
+        {
+          "director": "Kieslowski",
+          "film": "蓝",
+          "year": "1993",
+          "load_name": "失去蓝",
+          "desc": "主角 Julie 的悲伤通过游泳池的蓝色水光、糖块的蓝色包装反复出现;Blue 不是被动反映,而是 grief 的 active agent。"
+        },
+        {
+          "director": "Cameron",
+          "film": "阿凡达",
+          "year": "2009",
+          "load_name": "神性蓝",
+          "desc": "Pandora 星球的纳威人肌肤为蓝色,Blue = 神性、自然、超越人类的存在。"
+        },
+        {
+          "director": "Mann",
+          "film": "盗火线",
+          "year": "1995",
+          "load_name": "冷静蓝",
+          "desc": "洛杉矶夜景的城市灯光偏冷蓝,Blue = 专业、冷静、犯罪世界的距离感。"
+        }
+      ]
+    },
+    "priority": 72
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "calm",
+    "key_type": "emotion",
+    "primary_recommendation": "calm → blue (hue 200-240°)",
+    "rationale": "冷静——Blue calm/reason facet; Mann Heat LA night cool blue.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "blue",
+      "positive"
+    ],
+    "related_emotions": [
+      "calm"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "200-240°",
+      "named_color": "blue",
+      "valence": "positive",
+      "prevalence_pct": null,
+      "supporting_triplets": [
+        {
+          "director": "Kieslowski",
+          "film": "蓝",
+          "year": "1993",
+          "load_name": "失去蓝",
+          "desc": "主角 Julie 的悲伤通过游泳池的蓝色水光、糖块的蓝色包装反复出现;Blue 不是被动反映,而是 grief 的 active agent。"
+        },
+        {
+          "director": "Cameron",
+          "film": "阿凡达",
+          "year": "2009",
+          "load_name": "神性蓝",
+          "desc": "Pandora 星球的纳威人肌肤为蓝色,Blue = 神性、自然、超越人类的存在。"
+        },
+        {
+          "director": "Mann",
+          "film": "盗火线",
+          "year": "1995",
+          "load_name": "冷静蓝",
+          "desc": "洛杉矶夜景的城市灯光偏冷蓝,Blue = 专业、冷静、犯罪世界的距离感。"
+        }
+      ]
+    },
+    "priority": 64
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "divinity",
+    "key_type": "emotion",
+    "primary_recommendation": "divinity → blue (hue 200-240°)",
+    "rationale": "神性——Blue transcendence (Cameron Avatar Pandora blue).",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "blue",
+      "positive"
+    ],
+    "related_emotions": [
+      "divinity"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "200-240°",
+      "named_color": "blue",
+      "valence": "positive",
+      "prevalence_pct": null,
+      "supporting_triplets": [
+        {
+          "director": "Kieslowski",
+          "film": "蓝",
+          "year": "1993",
+          "load_name": "失去蓝",
+          "desc": "主角 Julie 的悲伤通过游泳池的蓝色水光、糖块的蓝色包装反复出现;Blue 不是被动反映,而是 grief 的 active agent。"
+        },
+        {
+          "director": "Cameron",
+          "film": "阿凡达",
+          "year": "2009",
+          "load_name": "神性蓝",
+          "desc": "Pandora 星球的纳威人肌肤为蓝色,Blue = 神性、自然、超越人类的存在。"
+        },
+        {
+          "director": "Mann",
+          "film": "盗火线",
+          "year": "1995",
+          "load_name": "冷静蓝",
+          "desc": "洛杉矶夜景的城市灯光偏冷蓝,Blue = 专业、冷静、犯罪世界的距离感。"
+        }
+      ]
+    },
+    "priority": 64
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "jealousy",
+    "key_type": "emotion",
+    "primary_recommendation": "jealousy → green (hue 90-150°)",
+    "rationale": "嫉妒(romantic)——Green (Wright Atonement green dress); cross-cultural divergent (Hupka).",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "green",
+      "negative"
+    ],
+    "related_emotions": [
+      "jealousy"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "90-150°",
+      "named_color": "green",
+      "valence": "negative",
+      "prevalence_pct": null,
+      "supporting_triplets": [
+        {
+          "raw": "Lynne Ramsay《You Were Never Really Here》(2017)— 不安绿",
+          "desc": "主角 Joe 的酒店环境使用病态的荧光绿,Green = 创伤后的精神不安、道德边界的模糊。"
+        },
+        {
+          "raw": "《黑客帝国》(1999)— 数字绿",
+          "desc": "Matrix 内部的代码瀑布为绿色,Green = 数字化、非真实、需要被破解的虚拟。"
+        },
+        {
+          "director": "Wright",
+          "film": "赎罪",
+          "year": "2007",
+          "load_name": "嫉妒绿",
+          "desc": "Cecilia 的绿色长裙 = Briony 嫉妒的物质化象征,Green = 阶级与情感嫉妒的具身。"
+        }
+      ]
+    },
+    "priority": 64
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "envy",
+    "key_type": "emotion",
+    "primary_recommendation": "envy → green (hue 90-150°)",
+    "rationale": " envy——Green (US) / Yellow (DE/MX) / Black (RU); highly cross-cultural.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "green",
+      "negative"
+    ],
+    "related_emotions": [
+      "envy"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "90-150°",
+      "named_color": "green",
+      "valence": "negative",
+      "prevalence_pct": null,
+      "supporting_triplets": [
+        {
+          "raw": "Lynne Ramsay《You Were Never Really Here》(2017)— 不安绿",
+          "desc": "主角 Joe 的酒店环境使用病态的荧光绿,Green = 创伤后的精神不安、道德边界的模糊。"
+        },
+        {
+          "raw": "《黑客帝国》(1999)— 数字绿",
+          "desc": "Matrix 内部的代码瀑布为绿色,Green = 数字化、非真实、需要被破解的虚拟。"
+        },
+        {
+          "director": "Wright",
+          "film": "赎罪",
+          "year": "2007",
+          "load_name": "嫉妒绿",
+          "desc": "Cecilia 的绿色长裙 = Briony 嫉妒的物质化象征,Green = 阶级与情感嫉妒的具身。"
+        }
+      ]
+    },
+    "priority": 64
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "nature",
+    "key_type": "emotion",
+    "primary_recommendation": "nature → green (hue 90-150°)",
+    "rationale": "自然——Green life/rebirth; naturalistic.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "green",
+      "positive"
+    ],
+    "related_emotions": [
+      "nature"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "90-150°",
+      "named_color": "green",
+      "valence": "positive",
+      "prevalence_pct": null,
+      "supporting_triplets": [
+        {
+          "raw": "Lynne Ramsay《You Were Never Really Here》(2017)— 不安绿",
+          "desc": "主角 Joe 的酒店环境使用病态的荧光绿,Green = 创伤后的精神不安、道德边界的模糊。"
+        },
+        {
+          "raw": "《黑客帝国》(1999)— 数字绿",
+          "desc": "Matrix 内部的代码瀑布为绿色,Green = 数字化、非真实、需要被破解的虚拟。"
+        },
+        {
+          "director": "Wright",
+          "film": "赎罪",
+          "year": "2007",
+          "load_name": "嫉妒绿",
+          "desc": "Cecilia 的绿色长裙 = Briony 嫉妒的物质化象征,Green = 阶级与情感嫉妒的具身。"
+        }
+      ]
+    },
+    "priority": 64
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "rebirth",
+    "key_type": "emotion",
+    "primary_recommendation": "rebirth → green (hue 90-150°)",
+    "rationale": "重生——Green rebirth facet; fresh high-sat green.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "green",
+      "positive"
+    ],
+    "related_emotions": [
+      "rebirth"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "90-150°",
+      "named_color": "green",
+      "valence": "positive",
+      "prevalence_pct": null,
+      "supporting_triplets": [
+        {
+          "raw": "Lynne Ramsay《You Were Never Really Here》(2017)— 不安绿",
+          "desc": "主角 Joe 的酒店环境使用病态的荧光绿,Green = 创伤后的精神不安、道德边界的模糊。"
+        },
+        {
+          "raw": "《黑客帝国》(1999)— 数字绿",
+          "desc": "Matrix 内部的代码瀑布为绿色,Green = 数字化、非真实、需要被破解的虚拟。"
+        },
+        {
+          "director": "Wright",
+          "film": "赎罪",
+          "year": "2007",
+          "load_name": "嫉妒绿",
+          "desc": "Cecilia 的绿色长裙 = Briony 嫉妒的物质化象征,Green = 阶级与情感嫉妒的具身。"
+        }
+      ]
+    },
+    "priority": 64
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "uncanny",
+    "key_type": "emotion",
+    "primary_recommendation": "uncanny → green (hue 90-150°)",
+    "rationale": "不安——Green uncanny/sickly fluorescent (Lynne Ramsay; Matrix digital green).",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "green",
+      "negative"
+    ],
+    "related_emotions": [
+      "uncanny"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "90-150°",
+      "named_color": "green",
+      "valence": "negative",
+      "prevalence_pct": null,
+      "supporting_triplets": [
+        {
+          "raw": "Lynne Ramsay《You Were Never Really Here》(2017)— 不安绿",
+          "desc": "主角 Joe 的酒店环境使用病态的荧光绿,Green = 创伤后的精神不安、道德边界的模糊。"
+        },
+        {
+          "raw": "《黑客帝国》(1999)— 数字绿",
+          "desc": "Matrix 内部的代码瀑布为绿色,Green = 数字化、非真实、需要被破解的虚拟。"
+        },
+        {
+          "director": "Wright",
+          "film": "赎罪",
+          "year": "2007",
+          "load_name": "嫉妒绿",
+          "desc": "Cecilia 的绿色长裙 = Briony 嫉妒的物质化象征,Green = 阶级与情感嫉妒的具身。"
+        }
+      ]
+    },
+    "priority": 64
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "purity",
+    "key_type": "emotion",
+    "primary_recommendation": "purity → white (hue —(luminance))",
+    "rationale": "纯洁——White sacred (Madden US purity=White 76%; JP only 18%=death).",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "white",
+      "positive"
+    ],
+    "related_emotions": [
+      "purity"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "—(luminance)",
+      "named_color": "white",
+      "valence": "positive",
+      "prevalence_pct": null,
+      "supporting_triplets": [
+        {
+          "director": "Bergman",
+          "film": "第七封印",
+          "year": "1957",
+          "load_name": "死亡白",
+          "desc": "Death 角色的苍白脸庞 + 白雪背景,White = 死亡的不可逃避。"
+        },
+        {
+          "director": "Kubrick",
+          "film": "2001 太空漫游",
+          "year": "1968",
+          "load_name": "临床白",
+          "desc": "spacecraft 内部的过度白色,White = 临床、无菌、去人格化的科技理性。"
+        },
+        {
+          "raw": "《大都会》(1927)— 神圣白",
+          "desc": "上层城市的白色花园 = 神圣、纯净、阶级优越的物质化。"
+        }
+      ]
+    },
+    "priority": 64
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "innocence",
+    "key_type": "emotion",
+    "primary_recommendation": "innocence → white (hue —(luminance))",
+    "rationale": "无辜——White (Schindler's List red-girl contrast); pure/sacred.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "white",
+      "positive"
+    ],
+    "related_emotions": [
+      "innocence"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "—(luminance)",
+      "named_color": "white",
+      "valence": "positive",
+      "prevalence_pct": null,
+      "supporting_triplets": [
+        {
+          "director": "Bergman",
+          "film": "第七封印",
+          "year": "1957",
+          "load_name": "死亡白",
+          "desc": "Death 角色的苍白脸庞 + 白雪背景,White = 死亡的不可逃避。"
+        },
+        {
+          "director": "Kubrick",
+          "film": "2001 太空漫游",
+          "year": "1968",
+          "load_name": "临床白",
+          "desc": "spacecraft 内部的过度白色,White = 临床、无菌、去人格化的科技理性。"
+        },
+        {
+          "raw": "《大都会》(1927)— 神圣白",
+          "desc": "上层城市的白色花园 = 神圣、纯净、阶级优越的物质化。"
+        }
+      ]
+    },
+    "priority": 64
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "death",
+    "key_type": "emotion",
+    "primary_recommendation": "death → black (hue —(luminance))",
+    "rationale": "死亡——Black/White; Bergman Seventh Seal death white; universal.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "black",
+      "negative"
+    ],
+    "related_emotions": [
+      "death"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "—(luminance)",
+      "named_color": "black",
+      "valence": "negative",
+      "prevalence_pct": null,
+      "supporting_triplets": [
+        {
+          "director": "Kubrick",
+          "film": "奇爱博士",
+          "year": "1964",
+          "load_name": "权威黑",
+          "desc": "Ripper 将军的黑色军装 = 权威、克制、潜在的暴力。"
+        },
+        {
+          "raw": "《蝙蝠侠》系列 — 神秘黑",
+          "desc": "哥谭市的黑色雨夜 = 神秘、未知的犯罪世界。"
+        },
+        {
+          "raw": "《七武士》(1954)— 死亡黑",
+          "desc": "强盗的黑色剪影 = 死亡的不可阻挡。"
+        }
+      ]
+    },
+    "priority": 64
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "authority",
+    "key_type": "emotion",
+    "primary_recommendation": "authority → black (hue —(luminance))",
+    "rationale": "权威——Black authority (Kubrick Dr. Strangelove); elegant/power.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "black",
+      "neutral"
+    ],
+    "related_emotions": [
+      "authority"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "—(luminance)",
+      "named_color": "black",
+      "valence": "neutral",
+      "prevalence_pct": null,
+      "supporting_triplets": [
+        {
+          "director": "Kubrick",
+          "film": "奇爱博士",
+          "year": "1964",
+          "load_name": "权威黑",
+          "desc": "Ripper 将军的黑色军装 = 权威、克制、潜在的暴力。"
+        },
+        {
+          "raw": "《蝙蝠侠》系列 — 神秘黑",
+          "desc": "哥谭市的黑色雨夜 = 神秘、未知的犯罪世界。"
+        },
+        {
+          "raw": "《七武士》(1954)— 死亡黑",
+          "desc": "强盗的黑色剪影 = 死亡的不可阻挡。"
+        }
+      ]
+    },
+    "priority": 64
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "sickness",
+    "key_type": "emotion",
+    "primary_recommendation": "sickness → yellow (hue 45-65°)",
+    "rationale": "病态——Yellow decay facet; low saturation + medium brightness.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "yellow",
+      "negative"
+    ],
+    "related_emotions": [
+      "sickness"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "45-65°",
+      "named_color": "yellow",
+      "valence": "negative",
+      "prevalence_pct": null,
+      "supporting_triplets": [
+        {
+          "director": "Herzog",
+          "film": "Stroszek",
+          "year": "1977",
+          "load_name": "衰败黄",
+          "desc": "Herzog 用昏黄的灯光描绘柏林边缘的移民公寓,Yellow = 病态、衰败、社会边缘的无力感。"
+        },
+        {
+          "raw": "《爆裂鼓手》(2014)— 警示黄",
+          "desc": "Fletcher 教练在排练室中,黄色荧光灯的过度曝光传递高压训练的危险预热。"
+        },
+        {
+          "director": "Jeunet",
+          "film": "天使爱美丽",
+          "year": "2001",
+          "load_name": "温暖黄",
+          "desc": "Amélie 的巴黎公寓被 hyper-saturated 黄绿色笼罩,Yellow = 温暖、怀旧、童话感的安全。"
+        }
+      ]
+    },
+    "priority": 64
+  },
+  {
+    "category": "emotion_color",
+    "key_name": "decay",
+    "key_type": "emotion",
+    "primary_recommendation": "decay → yellow (hue 45-65°)",
+    "rationale": "衰败——Yellow decay (Herzog Stroszek); low-sat sickly yellow.",
+    "source_file": "bellantoni-color-psychology.md",
+    "source_section": "8-Color Vocabulary + Prevalence Data",
+    "tags": [
+      "colorist",
+      "emotion_color",
+      "yellow",
+      "negative"
+    ],
+    "related_emotions": [
+      "decay"
+    ],
+    "extra_data": {
+      "color_encoding": "hue_degree",
+      "hue_range": "45-65°",
+      "named_color": "yellow",
+      "valence": "negative",
+      "prevalence_pct": null,
+      "supporting_triplets": [
+        {
+          "director": "Herzog",
+          "film": "Stroszek",
+          "year": "1977",
+          "load_name": "衰败黄",
+          "desc": "Herzog 用昏黄的灯光描绘柏林边缘的移民公寓,Yellow = 病态、衰败、社会边缘的无力感。"
+        },
+        {
+          "raw": "《爆裂鼓手》(2014)— 警示黄",
+          "desc": "Fletcher 教练在排练室中,黄色荧光灯的过度曝光传递高压训练的危险预热。"
+        },
+        {
+          "director": "Jeunet",
+          "film": "天使爱美丽",
+          "year": "2001",
+          "load_name": "温暖黄",
+          "desc": "Amélie 的巴黎公寓被 hyper-saturated 黄绿色笼罩,Yellow = 温暖、怀旧、童话感的安全。"
+        }
+      ]
+    },
+    "priority": 64
+  },
+  {
+    "category": "platform_color_ceiling",
+    "key_name": "douyin_saturation",
+    "key_type": "color_ceiling",
+    "primary_recommendation": "抖音(主): production S ≤ 0.75",
+    "rationale": "Server-side re-encode saturation loss: S > 0.85 上传后损失 ~ 15-20%(实测 0.85 → 0.68-0.72). 抖音 推荐 baseline S = 0.65-0.75",
+    "source_file": "cn-audience-color.md",
+    "source_section": "Douyin Saturation Ceiling",
+    "tags": [
+      "colorist",
+      "platform_ceiling",
+      "douyin"
+    ],
+    "extra_data": {
+      "platform": "抖音(主)",
+      "platform_id": "douyin",
+      "saturation_loss": "S > 0.85 上传后损失 ~ 15-20%(实测 0.85 → 0.68-0.72)",
+      "saturation_ceiling": 0.75,
+      "warm_bias": null,
+      "note": "抖音 推荐 baseline S = 0.65-0.75"
+    },
+    "priority": 70
+  },
+  {
+    "category": "platform_color_ceiling",
+    "key_name": "douyin_lite_saturation",
+    "key_type": "color_ceiling",
+    "primary_recommendation": "抖音(极速版 / 海外 TikTok): production S ≤ 0.75",
+    "rationale": "Server-side re-encode saturation loss: 同上 ~ 15-20% 损失. TikTok 海外版 baseline 同 抖音 主版",
+    "source_file": "cn-audience-color.md",
+    "source_section": "Douyin Saturation Ceiling",
+    "tags": [
+      "colorist",
+      "platform_ceiling",
+      "douyin_lite"
+    ],
+    "extra_data": {
+      "platform": "抖音(极速版 / 海外 TikTok)",
+      "platform_id": "douyin_lite",
+      "saturation_loss": "同上 ~ 15-20% 损失",
+      "saturation_ceiling": 0.75,
+      "warm_bias": null,
+      "note": "TikTok 海外版 baseline 同 抖音 主版"
+    },
+    "priority": 70
+  },
+  {
+    "category": "platform_color_ceiling",
+    "key_name": "kuaishou_saturation",
+    "key_type": "color_ceiling",
+    "primary_recommendation": "快手(主): production S ≤ 0.78",
+    "rationale": "Server-side re-encode saturation loss: S > 0.85 损失 ~ 10-15%. 快手 二次压缩略宽,但仍在 0.78 ceiling",
+    "source_file": "cn-audience-color.md",
+    "source_section": "Douyin Saturation Ceiling",
+    "tags": [
+      "colorist",
+      "platform_ceiling",
+      "kuaishou"
+    ],
+    "extra_data": {
+      "platform": "快手(主)",
+      "platform_id": "kuaishou",
+      "saturation_loss": "S > 0.85 损失 ~ 10-15%",
+      "saturation_ceiling": 0.78,
+      "warm_bias": null,
+      "note": "快手 二次压缩略宽,但仍在 0.78 ceiling"
+    },
+    "priority": 70
+  },
+  {
+    "category": "platform_color_ceiling",
+    "key_name": "kuaishou_lite_saturation",
+    "key_type": "color_ceiling",
+    "primary_recommendation": "快手(极速版): production S ≤ 0.78",
+    "rationale": "Server-side re-encode saturation loss: 同上. 同上",
+    "source_file": "cn-audience-color.md",
+    "source_section": "Douyin Saturation Ceiling",
+    "tags": [
+      "colorist",
+      "platform_ceiling",
+      "kuaishou_lite"
+    ],
+    "extra_data": {
+      "platform": "快手(极速版)",
+      "platform_id": "kuaishou_lite",
+      "saturation_loss": "同上",
+      "saturation_ceiling": 0.78,
+      "warm_bias": null,
+      "note": "同上"
+    },
+    "priority": 70
+  },
+  {
+    "category": "platform_color_ceiling",
+    "key_name": "wechat_channels_saturation",
+    "key_type": "color_ceiling",
+    "primary_recommendation": "视频号(微信): production S ≤ 0.8",
+    "rationale": "Server-side re-encode saturation loss: S > 0.85 损失 ~ 5-10%(微信生态带宽友好). 视频号 是饱和度最宽的 CN 平台",
+    "source_file": "cn-audience-color.md",
+    "source_section": "Douyin Saturation Ceiling",
+    "tags": [
+      "colorist",
+      "platform_ceiling",
+      "wechat_channels"
+    ],
+    "extra_data": {
+      "platform": "视频号(微信)",
+      "platform_id": "wechat_channels",
+      "saturation_loss": "S > 0.85 损失 ~ 5-10%(微信生态带宽友好)",
+      "saturation_ceiling": 0.8,
+      "warm_bias": null,
+      "note": "视频号 是饱和度最宽的 CN 平台"
+    },
+    "priority": 70
+  },
+  {
+    "category": "platform_color_ceiling",
+    "key_name": "bilibili_saturation",
+    "key_type": "color_ceiling",
+    "primary_recommendation": "B站: production S ≤ 0.85",
+    "rationale": "Server-side re-encode saturation loss: S > 0.90 损失 ~ 5%(B站高码率+高质量). B站 无明显 saturation ceiling,基本无 compensating",
+    "source_file": "cn-audience-color.md",
+    "source_section": "Douyin Saturation Ceiling",
+    "tags": [
+      "colorist",
+      "platform_ceiling",
+      "bilibili"
+    ],
+    "extra_data": {
+      "platform": "B站",
+      "platform_id": "bilibili",
+      "saturation_loss": "S > 0.90 损失 ~ 5%(B站高码率+高质量)",
+      "saturation_ceiling": 0.85,
+      "warm_bias": null,
+      "note": "B站 无明显 saturation ceiling,基本无 compensating"
+    },
+    "priority": 70
+  },
+  {
+    "category": "platform_color_ceiling",
+    "key_name": "wechat_miniprogram_saturation",
+    "key_type": "color_ceiling",
+    "primary_recommendation": "微信小程序剧: production S ≤ 无 ceiling",
+    "rationale": "Server-side re-encode saturation loss: 无 server-side saturation 压缩(小程序 webview 内 playback). 小程序剧 是 full-bandwidth distribution,无 S 上限",
+    "source_file": "cn-audience-color.md",
+    "source_section": "Douyin Saturation Ceiling",
+    "tags": [
+      "colorist",
+      "platform_ceiling",
+      "wechat_miniprogram"
+    ],
+    "extra_data": {
+      "platform": "微信小程序剧",
+      "platform_id": "wechat_miniprogram",
+      "saturation_loss": "无 server-side saturation 压缩(小程序 webview 内 playback)",
+      "saturation_ceiling": null,
+      "warm_bias": null,
+      "note": "小程序剧 是 full-bandwidth distribution,无 S 上限"
+    },
+    "priority": 70
+  },
+  {
+    "category": "platform_color_ceiling",
+    "key_name": "red_duality_cn",
+    "key_type": "color_ceiling",
+    "primary_recommendation": "CN Red defaults to positive (喜庆/吉利 55%) not Western danger; 男频 climax Red → 激情/革命 positive (high sat + high brightness), avoid blood/gore (§2 downgrade).",
+    "rationale": "US Red-danger 64% vs CN Red-danger ~20% (44pp gap). CN female 婚恋 Red = 婚姻正向 S 0.6-0.8.",
+    "source_file": "cn-audience-color.md",
+    "source_section": "Red Duality in CN",
+    "tags": [
+      "colorist",
+      "platform_ceiling",
+      "red_duality",
+      "cn"
+    ],
+    "extra_data": {
+      "positive_prevalence": 0.55,
+      "neutral_prevalence": 0.25,
+      "negative_prevalence": 0.2
+    },
+    "priority": 78
+  },
+  {
+    "category": "culture_color",
+    "key_name": "madden_love_passion_爱情_激情_red",
+    "key_type": "culture_color",
+    "primary_recommendation": "Madden: Love / Passion / 爱情 / 激情 → red; US 73% / JP 22% / KR 35% / NL 47%",
+    "rationale": "Cross-cultural significant: ✅ p < 0.01;美 vs 日差距 51pp",
+    "source_file": "color-cross-cultural.md",
+    "source_section": "Madden Country × Emotion Table",
+    "tags": [
+      "colorist",
+      "culture_color",
+      "madden",
+      "love_passion_爱情_激情",
+      "red"
+    ],
+    "extra_data": {
+      "culture": "multi",
+      "emotion": "Love / Passion / 爱情 / 激情",
+      "color": "red",
+      "prevalence": {
+        "US": 73.0,
+        "JP": 22.0,
+        "KR": 35.0,
+        "NL": 47.0
+      },
+      "significant": "✅ p < 0.01;美 vs 日差距 51pp"
+    },
+    "priority": 72
+  },
+  {
+    "category": "culture_color",
+    "key_name": "madden_danger_warning_危险_red",
+    "key_type": "culture_color",
+    "primary_recommendation": "Madden: Danger / Warning / 危险 → red; US 64% / JP 91% / KR 78% / NL 71%",
+    "rationale": "Cross-cultural significant: ✅ p < 0.05;日 > 美 27pp",
+    "source_file": "color-cross-cultural.md",
+    "source_section": "Madden Country × Emotion Table",
+    "tags": [
+      "colorist",
+      "culture_color",
+      "madden",
+      "danger_warning_危险",
+      "red"
+    ],
+    "extra_data": {
+      "culture": "multi",
+      "emotion": "Danger / Warning / 危险",
+      "color": "red",
+      "prevalence": {
+        "US": 64.0,
+        "JP": 91.0,
+        "KR": 78.0,
+        "NL": 71.0
+      },
+      "significant": "✅ p < 0.05;日 > 美 27pp"
+    },
+    "priority": 72
+  },
+  {
+    "category": "culture_color",
+    "key_name": "madden_excitement_兴奋_yellow",
+    "key_type": "culture_color",
+    "primary_recommendation": "Madden: Excitement / 兴奋 → yellow; US 38% / JP 12% / KR 18% / NL 24%",
+    "rationale": "Cross-cultural significant: ✅ p < 0.05",
+    "source_file": "color-cross-cultural.md",
+    "source_section": "Madden Country × Emotion Table",
+    "tags": [
+      "colorist",
+      "culture_color",
+      "madden",
+      "excitement_兴奋",
+      "yellow"
+    ],
+    "extra_data": {
+      "culture": "multi",
+      "emotion": "Excitement / 兴奋",
+      "color": "yellow",
+      "prevalence": {
+        "US": 38.0,
+        "JP": 12.0,
+        "KR": 18.0,
+        "NL": 24.0
+      },
+      "significant": "✅ p < 0.05"
+    },
+    "priority": 72
+  },
+  {
+    "category": "culture_color",
+    "key_name": "madden_sadness_失去_black",
+    "key_type": "culture_color",
+    "primary_recommendation": "Madden: Sadness / 失去 → black; US 60% / JP 47% / KR 38% / NL 67%",
+    "rationale": "Cross-cultural significant: ✅ p < 0.05",
+    "source_file": "color-cross-cultural.md",
+    "source_section": "Madden Country × Emotion Table",
+    "tags": [
+      "colorist",
+      "culture_color",
+      "madden",
+      "sadness_失去",
+      "black"
+    ],
+    "extra_data": {
+      "culture": "multi",
+      "emotion": "Sadness / 失去",
+      "color": "black",
+      "prevalence": {
+        "US": 60.0,
+        "JP": 47.0,
+        "KR": 38.0,
+        "NL": 67.0
+      },
+      "significant": "✅ p < 0.05"
+    },
+    "priority": 72
+  },
+  {
+    "category": "culture_color",
+    "key_name": "madden_sadness_失去_blue",
+    "key_type": "culture_color",
+    "primary_recommendation": "Madden: Sadness / 失去 → blue; US 28% / JP 51% / KR 42% / NL 24%",
+    "rationale": "Cross-cultural significant: ✅ p < 0.01;日 > 美 23pp",
+    "source_file": "color-cross-cultural.md",
+    "source_section": "Madden Country × Emotion Table",
+    "tags": [
+      "colorist",
+      "culture_color",
+      "madden",
+      "sadness_失去",
+      "blue"
+    ],
+    "extra_data": {
+      "culture": "multi",
+      "emotion": "Sadness / 失去",
+      "color": "blue",
+      "prevalence": {
+        "US": 28.0,
+        "JP": 51.0,
+        "KR": 42.0,
+        "NL": 24.0
+      },
+      "significant": "✅ p < 0.01;日 > 美 23pp"
+    },
+    "priority": 72
+  },
+  {
+    "category": "culture_color",
+    "key_name": "madden_purity_纯洁_white",
+    "key_type": "culture_color",
+    "primary_recommendation": "Madden: Purity / 纯洁 → white; US 76% / JP 18% / KR 35% / NL 82%",
+    "rationale": "Cross-cultural significant: ✅ p < 0.001;日仅 18%(白在日 = 死亡)",
+    "source_file": "color-cross-cultural.md",
+    "source_section": "Madden Country × Emotion Table",
+    "tags": [
+      "colorist",
+      "culture_color",
+      "madden",
+      "purity_纯洁",
+      "white"
+    ],
+    "extra_data": {
+      "culture": "multi",
+      "emotion": "Purity / 纯洁",
+      "color": "white",
+      "prevalence": {
+        "US": 76.0,
+        "JP": 18.0,
+        "KR": 35.0,
+        "NL": 82.0
+      },
+      "significant": "✅ p < 0.001;日仅 18%(白在日 = 死亡)"
+    },
+    "priority": 72
+  },
+  {
+    "category": "culture_color",
+    "key_name": "hupka_anger_愤怒",
+    "key_type": "culture_color",
+    "primary_recommendation": "Hupka Anger / 愤怒: US Red(78%) / DE Red(68%) / MX Red(72%) / RU Red(64%)",
+    "rationale": "Cross-cultural significant: ❌(4 文化共主)",
+    "source_file": "color-cross-cultural.md",
+    "source_section": "Hupka Cross-Cultural Matrix",
+    "tags": [
+      "colorist",
+      "culture_color",
+      "hupka",
+      "anger_愤怒"
+    ],
+    "extra_data": {
+      "culture": "multi",
+      "emotion": "Anger / 愤怒",
+      "dominant_color": {
+        "US": "Red(78%)",
+        "DE": "Red(68%)",
+        "MX": "Red(72%)",
+        "RU": "Red(64%)"
+      },
+      "significant": "❌(4 文化共主)"
+    },
+    "priority": 70
+  },
+  {
+    "category": "culture_color",
+    "key_name": "hupka_envy_嫉妒",
+    "key_type": "culture_color",
+    "primary_recommendation": "Hupka Envy / 嫉妒: US Green(60%) / DE Yellow(45%) / MX Yellow(50%) / RU Black(45%)",
+    "rationale": "Cross-cultural significant: ✅ p < 0.001",
+    "source_file": "color-cross-cultural.md",
+    "source_section": "Hupka Cross-Cultural Matrix",
+    "tags": [
+      "colorist",
+      "culture_color",
+      "hupka",
+      "envy_嫉妒"
+    ],
+    "extra_data": {
+      "culture": "multi",
+      "emotion": "Envy / 嫉妒",
+      "dominant_color": {
+        "US": "Green(60%)",
+        "DE": "Yellow(45%)",
+        "MX": "Yellow(50%)",
+        "RU": "Black(45%)"
+      },
+      "significant": "✅ p < 0.001"
+    },
+    "priority": 70
+  },
+  {
+    "category": "culture_color",
+    "key_name": "hupka_jealousy_嫉妒romantic",
+    "key_type": "culture_color",
+    "primary_recommendation": "Hupka Jealousy / 嫉妒(romantic): US Red(48%) / DE Purple(52%) / MX Green(40%) / RU Black(58%)",
+    "rationale": "Cross-cultural significant: ✅ p < 0.01",
+    "source_file": "color-cross-cultural.md",
+    "source_section": "Hupka Cross-Cultural Matrix",
+    "tags": [
+      "colorist",
+      "culture_color",
+      "hupka",
+      "jealousy_嫉妒romantic"
+    ],
+    "extra_data": {
+      "culture": "multi",
+      "emotion": "Jealousy / 嫉妒(romantic)",
+      "dominant_color": {
+        "US": "Red(48%)",
+        "DE": "Purple(52%)",
+        "MX": "Green(40%)",
+        "RU": "Black(58%)"
+      },
+      "significant": "✅ p < 0.01"
+    },
+    "priority": 70
+  },
+  {
+    "category": "culture_color",
+    "key_name": "hupka_fear_恐惧",
+    "key_type": "culture_color",
+    "primary_recommendation": "Hupka Fear / 恐惧: US Black(72%) / DE Black(68%) / MX Black(75%) / RU Black(80%)",
+    "rationale": "Cross-cultural significant: ❌(4 文化共主)",
+    "source_file": "color-cross-cultural.md",
+    "source_section": "Hupka Cross-Cultural Matrix",
+    "tags": [
+      "colorist",
+      "culture_color",
+      "hupka",
+      "fear_恐惧"
+    ],
+    "extra_data": {
+      "culture": "multi",
+      "emotion": "Fear / 恐惧",
+      "dominant_color": {
+        "US": "Black(72%)",
+        "DE": "Black(68%)",
+        "MX": "Black(75%)",
+        "RU": "Black(80%)"
+      },
+      "significant": "❌(4 文化共主)"
+    },
+    "priority": 70
+  },
+  {
+    "category": "culture_color",
+    "key_name": "hupka_sadness_悲伤",
+    "key_type": "culture_color",
+    "primary_recommendation": "Hupka Sadness / 悲伤: US Black(60%) / DE Black(55%) / MX Black(58%) / RU Black(72%)",
+    "rationale": "Cross-cultural significant: ❌(4 文化共主)",
+    "source_file": "color-cross-cultural.md",
+    "source_section": "Hupka Cross-Cultural Matrix",
+    "tags": [
+      "colorist",
+      "culture_color",
+      "hupka",
+      "sadness_悲伤"
+    ],
+    "extra_data": {
+      "culture": "multi",
+      "emotion": "Sadness / 悲伤",
+      "dominant_color": {
+        "US": "Black(60%)",
+        "DE": "Black(55%)",
+        "MX": "Black(58%)",
+        "RU": "Black(72%)"
+      },
+      "significant": "❌(4 文化共主)"
+    },
+    "priority": 70
+  },
+  {
+    "category": "culture_color",
+    "key_name": "hupka_jealousy_vs_envy_区分",
+    "key_type": "culture_color",
+    "primary_recommendation": "Hupka Jealousy vs Envy 区分: US 区分(Envy=Green vs Jealousy=Red) / DE 区分(Envy=Yellow vs Jealousy=Purple) / MX 区分(Envy=Yellow vs Jealousy=Green) / RU 合并(均=Black)",
+    "rationale": "Cross-cultural significant: ✅ 概念跨文化差异",
+    "source_file": "color-cross-cultural.md",
+    "source_section": "Hupka Cross-Cultural Matrix",
+    "tags": [
+      "colorist",
+      "culture_color",
+      "hupka",
+      "jealousy_vs_envy_区分"
+    ],
+    "extra_data": {
+      "culture": "multi",
+      "emotion": "Jealousy vs Envy 区分",
+      "dominant_color": {
+        "US": "区分(Envy=Green vs Jealousy=Red)",
+        "DE": "区分(Envy=Yellow vs Jealousy=Purple)",
+        "MX": "区分(Envy=Yellow vs Jealousy=Green)",
+        "RU": "合并(均=Black)"
+      },
+      "significant": "✅ 概念跨文化差异"
+    },
+    "priority": 70
+  },
+  {
+    "category": "culture_color",
+    "key_name": "mehta_zhu_detail-oriented校对记忆细节",
+    "key_type": "culture_color",
+    "primary_recommendation": "Mehta&Zhu Detail-oriented(校对、记忆细节): Red +15-20% vs Gray;Blue 无显著效应; effect d ≈ 0.4-0.5(中)",
+    "rationale": "Mechanism: Red 触发 avoidance motivation(警觉、规避风险的注意力聚焦). Design: 1-3 实验,N=42-69 per condition",
+    "source_file": "color-cross-cultural.md",
+    "source_section": "Mehta & Zhu Performance Effects",
+    "tags": [
+      "colorist",
+      "culture_color",
+      "mehta_zhu",
+      "detail-oriented校对记忆细节"
+    ],
+    "extra_data": {
+      "task": "Detail-oriented(校对、记忆细节)",
+      "result": "Red +15-20% vs Gray;Blue 无显著效应",
+      "effect_size": "d ≈ 0.4-0.5(中)",
+      "design": "1-3 实验,N=42-69 per condition",
+      "mechanism": "Red 触发 avoidance motivation(警觉、规避风险的注意力聚焦)"
+    },
+    "priority": 66
+  },
+  {
+    "category": "culture_color",
+    "key_name": "mehta_zhu_creative发散性思维idea_generation",
+    "key_type": "culture_color",
+    "primary_recommendation": "Mehta&Zhu Creative(发散性思维、idea generation): Blue +20% vs Gray;Red 无显著效应; effect d ≈ 0.3-0.4(小-中)",
+    "rationale": "Mechanism: Blue 触发 approach motivation(开放、探索性思维). Design: 4-5 实验,N=65-91 per condition",
+    "source_file": "color-cross-cultural.md",
+    "source_section": "Mehta & Zhu Performance Effects",
+    "tags": [
+      "colorist",
+      "culture_color",
+      "mehta_zhu",
+      "creative发散性思维idea_generation"
+    ],
+    "extra_data": {
+      "task": "Creative(发散性思维、idea generation)",
+      "result": "Blue +20% vs Gray;Red 无显著效应",
+      "effect_size": "d ≈ 0.3-0.4(小-中)",
+      "design": "4-5 实验,N=65-91 per condition",
+      "mechanism": "Blue 触发 approach motivation(开放、探索性思维)"
+    },
+    "priority": 66
+  },
+  {
+    "category": "culture_color",
+    "key_name": "mehta_zhu_avoidance_tasks避错规避",
+    "key_type": "culture_color",
+    "primary_recommendation": "Mehta&Zhu Avoidance tasks(避错、规避): Red 增强; effect d ≈ 0.3-0.5",
+    "rationale": "Mechanism: 同上. Design: 1-3 实验",
+    "source_file": "color-cross-cultural.md",
+    "source_section": "Mehta & Zhu Performance Effects",
+    "tags": [
+      "colorist",
+      "culture_color",
+      "mehta_zhu",
+      "avoidance_tasks避错规避"
+    ],
+    "extra_data": {
+      "task": "Avoidance tasks(避错、规避)",
+      "result": "Red 增强",
+      "effect_size": "d ≈ 0.3-0.5",
+      "design": "1-3 实验",
+      "mechanism": "同上"
+    },
+    "priority": 66
+  },
+  {
+    "category": "culture_color",
+    "key_name": "mehta_zhu_approach_tasks亲近合作",
+    "key_type": "culture_color",
+    "primary_recommendation": "Mehta&Zhu Approach tasks(亲近、合作): Blue 增强; effect d ≈ 0.3-0.4",
+    "rationale": "Mechanism: 同上. Design: 4-5 实验",
+    "source_file": "color-cross-cultural.md",
+    "source_section": "Mehta & Zhu Performance Effects",
+    "tags": [
+      "colorist",
+      "culture_color",
+      "mehta_zhu",
+      "approach_tasks亲近合作"
+    ],
+    "extra_data": {
+      "task": "Approach tasks(亲近、合作)",
+      "result": "Blue 增强",
+      "effect_size": "d ≈ 0.3-0.4",
+      "design": "4-5 实验",
+      "mechanism": "同上"
+    },
+    "priority": 66
+  },
+  {
+    "category": "culture_color",
+    "key_name": "effect_size_caveat",
+    "key_type": "culture_color",
+    "primary_recommendation": "Academic color-psychology effects are small-medium (Cohen's d 0.3-0.5); large effects (d>0.8) rare. Don't over-claim.",
+    "rationale": "Use 'color theory suggests', never 'proves'; real-world completion-rate effect confounded by many factors.",
+    "source_file": "color-cross-cultural.md",
+    "source_section": "Effect-Size Caveat",
+    "tags": [
+      "colorist",
+      "culture_color",
+      "effect_size"
+    ],
+    "extra_data": {
+      "typical_cohen_d": "0.3-0.5",
+      "large_effect_d": ">0.8 (rare)"
+    },
+    "priority": 74
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "lut_signature_bleach_bypass",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "Bleach Bypass: lift +0.02 / gain +0.05 / saturation -0.20",
+    "rationale": "视觉: 高对比 + 低饱和. 适用: action / thriller / 男频 复仇(冷硬克制)",
+    "source_file": "hurkman-color-pipeline.md",
+    "source_section": "5 LUT signature shapes",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "lut_signature",
+      "bleach_bypass"
+    ],
+    "extra_data": {
+      "lut_signature": "Bleach Bypass",
+      "lut_values": "lift +0.02 / gain +0.05 / saturation -0.20",
+      "visual": "高对比 + 低饱和",
+      "use_case": "action / thriller / 男频 复仇(冷硬克制)"
+    },
+    "priority": 70
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "lut_signature_warm_vintage",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "Warm Vintage: lift +0.03 warm / gamma 0.95 / saturation +0.10",
+    "rationale": "视觉: 怀旧橙 + 整体偏暖. 适用: romance / drama / 怀旧题材;女频回忆段",
+    "source_file": "hurkman-color-pipeline.md",
+    "source_section": "5 LUT signature shapes",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "lut_signature",
+      "warm_vintage"
+    ],
+    "extra_data": {
+      "lut_signature": "Warm Vintage",
+      "lut_values": "lift +0.03 warm / gamma 0.95 / saturation +0.10",
+      "visual": "怀旧橙 + 整体偏暖",
+      "use_case": "romance / drama / 怀旧题材;女频回忆段"
+    },
+    "priority": 70
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "lut_signature_cool_tech",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "Cool Tech: lift +0.02 cool / gamma 1.05 / saturation -0.05",
+    "rationale": "视觉: 蓝绿冷调 + 略 midtone 提升. 适用: sci-fi / corporate / 都市修仙都市段",
+    "source_file": "hurkman-color-pipeline.md",
+    "source_section": "5 LUT signature shapes",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "lut_signature",
+      "cool_tech"
+    ],
+    "extra_data": {
+      "lut_signature": "Cool Tech",
+      "lut_values": "lift +0.02 cool / gamma 1.05 / saturation -0.05",
+      "visual": "蓝绿冷调 + 略 midtone 提升",
+      "use_case": "sci-fi / corporate / 都市修仙都市段"
+    },
+    "priority": 70
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "lut_signature_sunset_glow",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "Sunset Glow: lift +0.04 warm / gain +0.08 warm / saturation +0.15",
+    "rationale": "视觉: 落日金色 + 高 saturation warm. 适用: 男频 爽点 climax 默认 signature(超 Douyin 0.75 ceiling 需预补偿)",
+    "source_file": "hurkman-color-pipeline.md",
+    "source_section": "5 LUT signature shapes",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "lut_signature",
+      "sunset_glow"
+    ],
+    "extra_data": {
+      "lut_signature": "Sunset Glow",
+      "lut_values": "lift +0.04 warm / gain +0.08 warm / saturation +0.15",
+      "visual": "落日金色 + 高 saturation warm",
+      "use_case": "男频 爽点 climax 默认 signature(超 Douyin 0.75 ceiling 需预补偿)"
+    },
+    "priority": 78
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "lut_signature_noir_contrast",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "Noir Contrast: lift -0.03 / gain +0.10 / saturation -0.30",
+    "rationale": "视觉: 黑白对比 + 极低 saturation. 适用: noir / 复仇蓝调 / 黑色电影;男频冷开场",
+    "source_file": "hurkman-color-pipeline.md",
+    "source_section": "5 LUT signature shapes",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "lut_signature",
+      "noir_contrast"
+    ],
+    "extra_data": {
+      "lut_signature": "Noir Contrast",
+      "lut_values": "lift -0.03 / gain +0.10 / saturation -0.30",
+      "visual": "黑白对比 + 极低 saturation",
+      "use_case": "noir / 复仇蓝调 / 黑色电影;男频冷开场"
+    },
+    "priority": 70
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "lift_gamma_gain_lift",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "Lift: SDR ±0.05(per channel); HDR ±0.04(per channel,HDR 不易察觉 lift 变化)",
+    "rationale": "Affects Shadows(Z < 0.2); per-channel offset >±0.05 → color cast risk (tolerance 5%).",
+    "source_file": "hurkman-color-pipeline.md",
+    "source_section": "Lift/Gamma/Gain Ranges",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "lift_gamma_gain",
+      "lift"
+    ],
+    "extra_data": {
+      "channel": "Lift",
+      "luminance_region": "Shadows(Z < 0.2)",
+      "sdr_window": "±0.05(per channel)",
+      "hdr_window": "±0.04(per channel,HDR 不易察觉 lift 变化)",
+      "tolerance": "5%"
+    },
+    "priority": 72
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "lift_gamma_gain_gamma",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "Gamma: SDR 0.8-1.2(整体),per-channel 偏移 ≤ ±0.05; HDR 0.85-1.15(HDR gamma 不易察觉)",
+    "rationale": "Affects Midtones(0.2 ≤ Z ≤ 0.7); per-channel offset >±0.05 → color cast risk (tolerance 3%).",
+    "source_file": "hurkman-color-pipeline.md",
+    "source_section": "Lift/Gamma/Gain Ranges",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "lift_gamma_gain",
+      "gamma"
+    ],
+    "extra_data": {
+      "channel": "Gamma",
+      "luminance_region": "Midtones(0.2 ≤ Z ≤ 0.7)",
+      "sdr_window": "0.8-1.2(整体),per-channel 偏移 ≤ ±0.05",
+      "hdr_window": "0.85-1.15(HDR gamma 不易察觉)",
+      "tolerance": "3%"
+    },
+    "priority": 72
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "lift_gamma_gain_gain",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "Gain: SDR 0.8-1.2(per channel); HDR 0.75-1.25(HDR highlights headroom 更多)",
+    "rationale": "Affects Highlights(Z > 0.7); per-channel offset >±0.05 → color cast risk (tolerance 5%).",
+    "source_file": "hurkman-color-pipeline.md",
+    "source_section": "Lift/Gamma/Gain Ranges",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "lift_gamma_gain",
+      "gain"
+    ],
+    "extra_data": {
+      "channel": "Gain",
+      "luminance_region": "Highlights(Z > 0.7)",
+      "sdr_window": "0.8-1.2(per channel)",
+      "hdr_window": "0.75-1.25(HDR highlights headroom 更多)",
+      "tolerance": "5%"
+    },
+    "priority": 72
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "aces_transform_acescgworking",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "ACEScg(working): Linear ACEScg; EOTF Linear(scene-referred); peak n/a(working space)",
+    "rationale": "Deliverable: 调色阶段使用",
+    "source_file": "hurkman-color-pipeline.md",
+    "source_section": "ACES Pipeline",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "aces"
+    ],
+    "extra_data": {
+      "transform": "ACEScg(working)",
+      "color_space": "Linear ACEScg",
+      "eotf": "Linear(scene-referred)",
+      "peak_luminance": "n/a(working space)",
+      "deliverable": "调色阶段使用"
+    },
+    "priority": 66
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "aces_transform_idtinput_device_transform",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "IDT(Input Device Transform): Camera RAW → ACES2065-1; EOTF Camera-specific(Alexa LogC / Sony S-Log / RED Log3G10); peak n/a",
+    "rationale": "Deliverable: 拍摄素材 ingest",
+    "source_file": "hurkman-color-pipeline.md",
+    "source_section": "ACES Pipeline",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "aces"
+    ],
+    "extra_data": {
+      "transform": "IDT(Input Device Transform)",
+      "color_space": "Camera RAW → ACES2065-1",
+      "eotf": "Camera-specific(Alexa LogC / Sony S-Log / RED Log3G10)",
+      "peak_luminance": "n/a",
+      "deliverable": "拍摄素材 ingest"
+    },
+    "priority": 66
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "aces_transform_odt_rec709output",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "ODT Rec.709(Output): ACES2065-1 → Rec.709; EOTF Rec.709 gamma(≈ 2.4); peak 100 cd/m²(nit)",
+    "rationale": "Deliverable: SDR 视频 / 抖音/快手 默认",
+    "source_file": "hurkman-color-pipeline.md",
+    "source_section": "ACES Pipeline",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "aces"
+    ],
+    "extra_data": {
+      "transform": "ODT Rec.709(Output)",
+      "color_space": "ACES2065-1 → Rec.709",
+      "eotf": "Rec.709 gamma(≈ 2.4)",
+      "peak_luminance": "100 cd/m²(nit)",
+      "deliverable": "SDR 视频 / 抖音/快手 默认"
+    },
+    "priority": 66
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "aces_transform_odt_rec2020_sdroutput",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "ODT Rec.2020 SDR(Output): ACES2065-1 → Rec.2020; EOTF Rec.709 gamma; peak 100 cd/m²",
+    "rationale": "Deliverable: 高质量 SDR / B站 高码率",
+    "source_file": "hurkman-color-pipeline.md",
+    "source_section": "ACES Pipeline",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "aces"
+    ],
+    "extra_data": {
+      "transform": "ODT Rec.2020 SDR(Output)",
+      "color_space": "ACES2065-1 → Rec.2020",
+      "eotf": "Rec.709 gamma",
+      "peak_luminance": "100 cd/m²",
+      "deliverable": "高质量 SDR / B站 高码率"
+    },
+    "priority": 66
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "aces_transform_odt_rec2020_hlgoutput",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "ODT Rec.2020 HLG(Output): ACES2065-1 → Rec.2020; EOTF HLG(Hybrid Log-Gamma,BT.2100); peak 1000 cd/m²(peak)",
+    "rationale": "Deliverable: 抖音 HDR / Apple devices",
+    "source_file": "hurkman-color-pipeline.md",
+    "source_section": "ACES Pipeline",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "aces"
+    ],
+    "extra_data": {
+      "transform": "ODT Rec.2020 HLG(Output)",
+      "color_space": "ACES2065-1 → Rec.2020",
+      "eotf": "HLG(Hybrid Log-Gamma,BT.2100)",
+      "peak_luminance": "1000 cd/m²(peak)",
+      "deliverable": "抖音 HDR / Apple devices"
+    },
+    "priority": 66
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "aces_transform_odt_rec2020_pqoutput",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "ODT Rec.2020 PQ(Output): ACES2065-1 → Rec.2020; EOTF SMPTE ST 2084 PQ; peak 10000 cd/m²(theoretical)/ 1000-4000 cd/m²(实际 master)",
+    "rationale": "Deliverable: HDR 影院 / 高端 HDR 流媒体",
+    "source_file": "hurkman-color-pipeline.md",
+    "source_section": "ACES Pipeline",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "aces"
+    ],
+    "extra_data": {
+      "transform": "ODT Rec.2020 PQ(Output)",
+      "color_space": "ACES2065-1 → Rec.2020",
+      "eotf": "SMPTE ST 2084 PQ",
+      "peak_luminance": "10000 cd/m²(theoretical)/ 1000-4000 cd/m²(实际 master)",
+      "deliverable": "HDR 影院 / 高端 HDR 流媒体"
+    },
+    "priority": 66
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "aces_transform_odt_p3_d65output",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "ODT P3 D65(Output): ACES2065-1 → DCI-P3 D65; EOTF Gamma 2.6; peak 48 cd/m²",
+    "rationale": "Deliverable: 影院 DCP / 苹果设备",
+    "source_file": "hurkman-color-pipeline.md",
+    "source_section": "ACES Pipeline",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "aces"
+    ],
+    "extra_data": {
+      "transform": "ODT P3 D65(Output)",
+      "color_space": "ACES2065-1 → DCI-P3 D65",
+      "eotf": "Gamma 2.6",
+      "peak_luminance": "48 cd/m²",
+      "deliverable": "影院 DCP / 苹果设备"
+    },
+    "priority": 66
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "lut_format_cubeiridas_resolve",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "`.cube`(Iridas / Resolve): 32-bit float(典型)/ 16-bit, grid 17³ / 33³ / 65³(默认 33³), Trilinear(默认)/ Tetrahedral(Resolve 16+) interp",
+    "rationale": "Use case: Resolve / Premiere / FCPX / 大多数 NLE",
+    "source_file": "hurkman-color-pipeline.md",
+    "source_section": "LUT Formats Compared",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "lut_format",
+      "cubeiridas_resolve"
+    ],
+    "extra_data": {
+      "format": "`.cube`(Iridas / Resolve)",
+      "origin": "Iridas(2007),被 Resolve 继承",
+      "bit_depth": "32-bit float(典型)/ 16-bit",
+      "grid_size": "17³ / 33³ / 65³(默认 33³)",
+      "interpolation": "Trilinear(默认)/ Tetrahedral(Resolve 16+)",
+      "file_size": "~ 1-30 MB(随 grid size)",
+      "use_case": "Resolve / Premiere / FCPX / 大多数 NLE"
+    },
+    "priority": 64
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "lut_format_3dllustre_autodesk",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "`.3dl`(Lustre / Autodesk): 12-bit / 16-bit integer, grid 17³ / 33³, Trilinear interp",
+    "rationale": "Use case: Lustre / Flame / 工业级 DI",
+    "source_file": "hurkman-color-pipeline.md",
+    "source_section": "LUT Formats Compared",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "lut_format",
+      "3dllustre_autodesk"
+    ],
+    "extra_data": {
+      "format": "`.3dl`(Lustre / Autodesk)",
+      "origin": "Autodesk Lustre",
+      "bit_depth": "12-bit / 16-bit integer",
+      "grid_size": "17³ / 33³",
+      "interpolation": "Trilinear",
+      "file_size": "~ 1-10 MB",
+      "use_case": "Lustre / Flame / 工业级 DI"
+    },
+    "priority": 64
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "lut_format_cccasc-cdl",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "`.ccc`(ASC-CDL): 10-bit(典型), grid n/a(仅 slope/offset/power,9 个值), n/a(数学函数,不需 LUT) interp",
+    "rationale": "Use case: on-set look dev / 跨工具基础调色",
+    "source_file": "hurkman-color-pipeline.md",
+    "source_section": "LUT Formats Compared",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "lut_format",
+      "cccasc-cdl"
+    ],
+    "extra_data": {
+      "format": "`.ccc`(ASC-CDL)",
+      "origin": "ASC(American Society of Cinematographers)",
+      "bit_depth": "10-bit(典型)",
+      "grid_size": "n/a(仅 slope/offset/power,9 个值)",
+      "interpolation": "n/a(数学函数,不需 LUT)",
+      "file_size": "< 1 KB",
+      "use_case": "on-set look dev / 跨工具基础调色"
+    },
+    "priority": 64
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "shot_match_1_exposure_match",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "1. Exposure match: 调整 lift/gamma/gain 使两 shot 的 waveform monitor 一致; tolerance Y midpoint 差 ≤ 5 IRE(SDR) / ≤ 50 nits(HDR)",
+    "rationale": "Tool: Resolve Waveform / Parade. On fail: 调 lift/gain;失败则 mark 为 re-shoot 候选(或 AI re-gen)",
+    "source_file": "hurkman-color-pipeline.md",
+    "source_section": "Shot-Matching Protocol",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "shot_matching"
+    ],
+    "extra_data": {
+      "step": "1. Exposure match",
+      "check": "调整 lift/gamma/gain 使两 shot 的 waveform monitor 一致",
+      "tool": "Resolve Waveform / Parade",
+      "tolerance": "Y midpoint 差 ≤ 5 IRE(SDR) / ≤ 50 nits(HDR)",
+      "on_fail": "调 lift/gain;失败则 mark 为 re-shoot 候选(或 AI re-gen)"
+    },
+    "priority": 70
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "shot_match_2_white_balance_match",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "2. White balance match: 调整 RGB gain 使两 shot 的灰点(neutral patch)位于 RGB 重合; tolerance color temperature 差 ≤ ±150K(production,per [`cn-audience-color.md`](./cn-audience-color.md) §CN Warmth Preference)",
+    "rationale": "Tool: Vectorscope / RGB Parade. On fail: 调 RGB gain;若 scene 内 color temp shift > 200K 需 narrative motivation",
+    "source_file": "hurkman-color-pipeline.md",
+    "source_section": "Shot-Matching Protocol",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "shot_matching"
+    ],
+    "extra_data": {
+      "step": "2. White balance match",
+      "check": "调整 RGB gain 使两 shot 的灰点(neutral patch)位于 RGB 重合",
+      "tool": "Vectorscope / RGB Parade",
+      "tolerance": "color temperature 差 ≤ ±150K(production,per [`cn-audience-color.md`](./cn-audience-color.md) §CN Warmth Preference)",
+      "on_fail": "调 RGB gain;若 scene 内 color temp shift > 200K 需 narrative motivation"
+    },
+    "priority": 70
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "shot_match_3_contrast_match",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "3. Contrast match: 调整 gamma 使两 shot 的 contrast ratio(white-black)一致; tolerance contrast ratio 差 ≤ 10%",
+    "rationale": "Tool: Waveform Monitor. On fail: 调 gamma;失败则 selective curve(曲线)调整",
+    "source_file": "hurkman-color-pipeline.md",
+    "source_section": "Shot-Matching Protocol",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "shot_matching"
+    ],
+    "extra_data": {
+      "step": "3. Contrast match",
+      "check": "调整 gamma 使两 shot 的 contrast ratio(white-black)一致",
+      "tool": "Waveform Monitor",
+      "tolerance": "contrast ratio 差 ≤ 10%",
+      "on_fail": "调 gamma;失败则 selective curve(曲线)调整"
+    },
+    "priority": 70
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "shot_match_4_creative_grade_match",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "4. Creative grade match: 应用 creative LUT 后,验证两 shot 的 color intent 一致; tolerance adjacent shots ΔE ≤ 2.0;whole-scene ΔE ≤ 3.0",
+    "rationale": "Tool: 视觉 + ΔE 测量(见 [`digital-color-science.md`](./digital-color-science.md) §CIELAB ΔE Tolerance). On fail: 若 ΔE > 2.0, selective HSL qualifier 调整;若失败, trigger continuity report(见 [`SKILL.md`](../SKILL.md) Collaboration `-> continuity`)",
+    "source_file": "hurkman-color-pipeline.md",
+    "source_section": "Shot-Matching Protocol",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "shot_matching"
+    ],
+    "extra_data": {
+      "step": "4. Creative grade match",
+      "check": "应用 creative LUT 后,验证两 shot 的 color intent 一致",
+      "tool": "视觉 + ΔE 测量(见 [`digital-color-science.md`](./digital-color-science.md) §CIELAB ΔE Tolerance)",
+      "tolerance": "adjacent shots ΔE ≤ 2.0;whole-scene ΔE ≤ 3.0",
+      "on_fail": "若 ΔE > 2.0, selective HSL qualifier 调整;若失败, trigger continuity report(见 [`SKILL.md`](../SKILL.md) Collaboration `-> continuity`)"
+    },
+    "priority": 70
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "delta_e_δe_10",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "ΔE ΔE ≤ 1.0: 同 shot 内 master-grade 一致性",
+    "rationale": "Perception: 几乎不可察觉(imperceptible). 短剧: 同 shot 内 AI frame 间一致性(`<video_gen_primary>` / `<image_gen_primary>` 输出)",
+    "source_file": "digital-color-science.md",
+    "source_section": "CIELAB ΔE Tolerance",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "delta_e"
+    ],
+    "extra_data": {
+      "delta_e_range": "ΔE ≤ 1.0",
+      "perception": "几乎不可察觉(imperceptible)",
+      "application": "同 shot 内 master-grade 一致性",
+      "short_drama": "同 shot 内 AI frame 间一致性(`<video_gen_primary>` / `<image_gen_primary>` 输出)"
+    },
+    "priority": 74
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "delta_e_10_δe_20",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "ΔE 1.0 < ΔE ≤ 2.0: adjacent shots cross-shot consistency",
+    "rationale": "Perception: 可察觉但可接受(acceptable match). 短剧: 邻接 shots 一致性(production minimum,见 [`SKILL.md`](../SKILL.md) §Quality Thresholds)",
+    "source_file": "digital-color-science.md",
+    "source_section": "CIELAB ΔE Tolerance",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "delta_e"
+    ],
+    "extra_data": {
+      "delta_e_range": "1.0 < ΔE ≤ 2.0",
+      "perception": "可察觉但可接受(acceptable match)",
+      "application": "adjacent shots cross-shot consistency",
+      "short_drama": "邻接 shots 一致性(production minimum,见 [`SKILL.md`](../SKILL.md) §Quality Thresholds)"
+    },
+    "priority": 74
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "delta_e_20_δe_30",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "ΔE 2.0 < ΔE ≤ 3.0: whole-scene 容忍上限",
+    "rationale": "Perception: 明显可见差异(visible mismatch). 短剧: 同场景内 shots 间一致性(whole-scene ceiling)",
+    "source_file": "digital-color-science.md",
+    "source_section": "CIELAB ΔE Tolerance",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "delta_e"
+    ],
+    "extra_data": {
+      "delta_e_range": "2.0 < ΔE ≤ 3.0",
+      "perception": "明显可见差异(visible mismatch)",
+      "application": "whole-scene 容忍上限",
+      "short_drama": "同场景内 shots 间一致性(whole-scene ceiling)"
+    },
+    "priority": 74
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "delta_e_30_δe_60",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "ΔE 3.0 < ΔE ≤ 6.0: 不可接受(除非 narrative motivation)",
+    "rationale": "Perception: 显著不同. 短剧: scene-to-scene color shift(若 value-shift 驱动)",
+    "source_file": "digital-color-science.md",
+    "source_section": "CIELAB ΔE Tolerance",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "delta_e"
+    ],
+    "extra_data": {
+      "delta_e_range": "3.0 < ΔE ≤ 6.0",
+      "perception": "显著不同",
+      "application": "不可接受(除非 narrative motivation)",
+      "short_drama": "scene-to-scene color shift(若 value-shift 驱动)"
+    },
+    "priority": 74
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "delta_e_δe_60",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "ΔE ΔE > 6.0: 完全 unacceptable",
+    "rationale": "Perception: 完全不同颜色. 短剧: trigger continuity report 与 re-grade",
+    "source_file": "digital-color-science.md",
+    "source_section": "CIELAB ΔE Tolerance",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "delta_e"
+    ],
+    "extra_data": {
+      "delta_e_range": "ΔE > 6.0",
+      "perception": "完全不同颜色",
+      "application": "完全 unacceptable",
+      "short_drama": "trigger continuity report 与 re-grade"
+    },
+    "priority": 74
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "hdr_pq_peak_luminancel_max",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "PQ Peak luminance(L_max): 10000 cd/m²(nit)",
+    "rationale": "PQ 设计的理论上限(实际显示设备远未达到)",
+    "source_file": "digital-color-science.md",
+    "source_section": "HDR PQ EOTF",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "hdr_pq"
+    ],
+    "extra_data": {
+      "param": "Peak luminance(L_max)",
+      "value": "10000 cd/m²(nit)",
+      "meaning": "PQ 设计的理论上限(实际显示设备远未达到)"
+    },
+    "priority": 62
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "hdr_pq_reference_white",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "PQ Reference white: 203 cd/m²",
+    "rationale": "BT.2408-4 定义的 reference white(SDR equivalent ~ 100 nits 的 HDR 等效值)",
+    "source_file": "digital-color-science.md",
+    "source_section": "HDR PQ EOTF",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "hdr_pq"
+    ],
+    "extra_data": {
+      "param": "Reference white",
+      "value": "203 cd/m²",
+      "meaning": "BT.2408-4 定义的 reference white(SDR equivalent ~ 100 nits 的 HDR 等效值)"
+    },
+    "priority": 62
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "hdr_pq_50_signal_luminance",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "PQ 50% signal luminance: ~ 92 cd/m²",
+    "rationale": "PQ 设计:50% signal ≈ 92 nits(perceptually midpoint)",
+    "source_file": "digital-color-science.md",
+    "source_section": "HDR PQ EOTF",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "hdr_pq"
+    ],
+    "extra_data": {
+      "param": "50% signal luminance",
+      "value": "~ 92 cd/m²",
+      "meaning": "PQ 设计:50% signal ≈ 92 nits(perceptually midpoint)"
+    },
+    "priority": 62
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "hdr_pq_reference_black",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "PQ Reference black: 0.001 cd/m²(典型)",
+    "rationale": "BT.2408-4 minimum;OLED 可达 0.0001",
+    "source_file": "digital-color-science.md",
+    "source_section": "HDR PQ EOTF",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "hdr_pq"
+    ],
+    "extra_data": {
+      "param": "Reference black",
+      "value": "0.001 cd/m²(典型)",
+      "meaning": "BT.2408-4 minimum;OLED 可达 0.0001"
+    },
+    "priority": 62
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "hdr_pq_scene-cut_threshold",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "PQ Scene-cut threshold: 1000 cd/m²",
+    "rationale": "高于此值,人眼不适;cinema master 通常 capping 在 1000-4000 nits",
+    "source_file": "digital-color-science.md",
+    "source_section": "HDR PQ EOTF",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "hdr_pq"
+    ],
+    "extra_data": {
+      "param": "Scene-cut threshold",
+      "value": "1000 cd/m²",
+      "meaning": "高于此值,人眼不适;cinema master 通常 capping 在 1000-4000 nits"
+    },
+    "priority": 62
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "hdr_pq_master_typical_peak",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "PQ Master typical peak: 1000-4000 cd/m²",
+    "rationale": "Dolby Vision master / HDR10 master",
+    "source_file": "digital-color-science.md",
+    "source_section": "HDR PQ EOTF",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "hdr_pq"
+    ],
+    "extra_data": {
+      "param": "Master typical peak",
+      "value": "1000-4000 cd/m²",
+      "meaning": "Dolby Vision master / HDR10 master"
+    },
+    "priority": 62
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "douyin_trend_赛博朋克霓虹",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "赛博朋克霓虹: Saturation +0.30, Contrast +0.20, Shadows Hue → Blue (+0.15)",
+    "rationale": "特征: cyan+magenta 高对比. 适用: 都市/穿越/修仙",
+    "source_file": "cn-audience-color.md",
+    "source_section": "2024-2026 短视频原生色彩趋势",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "douyin_trend",
+      "赛博朋克霓虹"
+    ],
+    "extra_data": {
+      "style": "赛博朋克霓虹",
+      "color_feature": "cyan+magenta 高对比",
+      "lut_params": "Saturation +0.30, Contrast +0.20, Shadows Hue → Blue (+0.15)",
+      "genre": "都市/穿越/修仙"
+    },
+    "priority": 72
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "douyin_trend_胶片质感",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "胶片质感: Lift +0.02 (warm), Gamma -0.10, Gain -0.05",
+    "rationale": "特征: warm tint + grain + faded blacks. 适用: 甜宠/怀旧/重生",
+    "source_file": "cn-audience-color.md",
+    "source_section": "2024-2026 短视频原生色彩趋势",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "douyin_trend",
+      "胶片质感"
+    ],
+    "extra_data": {
+      "style": "胶片质感",
+      "color_feature": "warm tint + grain + faded blacks",
+      "lut_params": "Lift +0.02 (warm), Gamma -0.10, Gain -0.05",
+      "genre": "甜宠/怀旧/重生"
+    },
+    "priority": 72
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "douyin_trend_y2k_电光蓝",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "Y2K 电光蓝: Saturation +0.25, Blue Channel Gain +0.15",
+    "rationale": "特征: electric blue + chrome + high saturation. 适用: 霸总/职场",
+    "source_file": "cn-audience-color.md",
+    "source_section": "2024-2026 短视频原生色彩趋势",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "douyin_trend",
+      "y2k_电光蓝"
+    ],
+    "extra_data": {
+      "style": "Y2K 电光蓝",
+      "color_feature": "electric blue + chrome + high saturation",
+      "lut_params": "Saturation +0.25, Blue Channel Gain +0.15",
+      "genre": "霸总/职场"
+    },
+    "priority": 72
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "douyin_trend_ai_滤镜高饱和",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "AI 滤镜高饱和: Saturation +0.35, Temperature +300K (warm shift)",
+    "rationale": "特征: overall saturation boost + warm highlights. 适用: 甜宠/日常",
+    "source_file": "cn-audience-color.md",
+    "source_section": "2024-2026 短视频原生色彩趋势",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "douyin_trend",
+      "ai_滤镜高饱和"
+    ],
+    "extra_data": {
+      "style": "AI 滤镜高饱和",
+      "color_feature": "overall saturation boost + warm highlights",
+      "lut_params": "Saturation +0.35, Temperature +300K (warm shift)",
+      "genre": "甜宠/日常"
+    },
+    "priority": 72
+  },
+  {
+    "category": "color_pipeline_param",
+    "key_name": "douyin_trend_暗黑系",
+    "key_type": "pipeline_param",
+    "primary_recommendation": "暗黑系: Shadows Hue → Teal (+0.20), Highlights Hue → Orange (+0.10), Blacks -0.20",
+    "rationale": "特征: deep teal+orange + crushed blacks. 适用: 悬疑/宫斗/复仇",
+    "source_file": "cn-audience-color.md",
+    "source_section": "2024-2026 短视频原生色彩趋势",
+    "tags": [
+      "colorist",
+      "pipeline_param",
+      "douyin_trend",
+      "暗黑系"
+    ],
+    "extra_data": {
+      "style": "暗黑系",
+      "color_feature": "deep teal+orange + crushed blacks",
+      "lut_params": "Shadows Hue → Teal (+0.20), Highlights Hue → Orange (+0.10), Blacks -0.20",
+      "genre": "悬疑/宫斗/复仇"
+    },
+    "priority": 72
+  },
+  {
+    "category": "color_space_primaries",
+    "key_name": "colorspace_rec709",
+    "key_type": "color_space",
+    "primary_recommendation": "Rec.709: CIE xy R(0.640, 0.330) G(0.300, 0.600) B(0.150, 0.060); white (0.3127, 0.3290)",
+    "rationale": "CIE 1931 coverage ~ 35.9%",
+    "source_file": "digital-color-science.md",
+    "source_section": "Rec.709 vs Rec.2020 Gamut",
+    "tags": [
+      "colorist",
+      "color_space",
+      "rec709"
+    ],
+    "extra_data": {
+      "cie_xy_r": [
+        0.64,
+        0.33
+      ],
+      "cie_xy_g": [
+        0.3,
+        0.6
+      ],
+      "cie_xy_b": [
+        0.15,
+        0.06
+      ],
+      "white_point": "(0.3127, 0.3290)",
+      "cie_1931_coverage": "~ 35.9%"
+    },
+    "priority": 74
+  },
+  {
+    "category": "color_space_primaries",
+    "key_name": "colorspace_rec2020",
+    "key_type": "color_space",
+    "primary_recommendation": "Rec.2020: CIE xy R(0.708, 0.292) G(0.170, 0.797) B(0.131, 0.046); white (0.3127, 0.3290)",
+    "rationale": "CIE 1931 coverage ~ 75.8%",
+    "source_file": "digital-color-science.md",
+    "source_section": "Rec.709 vs Rec.2020 Gamut",
+    "tags": [
+      "colorist",
+      "color_space",
+      "rec2020"
+    ],
+    "extra_data": {
+      "cie_xy_r": [
+        0.708,
+        0.292
+      ],
+      "cie_xy_g": [
+        0.17,
+        0.797
+      ],
+      "cie_xy_b": [
+        0.131,
+        0.046
+      ],
+      "white_point": "(0.3127, 0.3290)",
+      "cie_1931_coverage": "~ 75.8%"
+    },
+    "priority": 74
+  },
+  {
+    "category": "color_space_primaries",
+    "key_name": "colorspace_dci-p3",
+    "key_type": "color_space",
+    "primary_recommendation": "DCI-P3: CIE xy R(0.680, 0.320) G(0.265, 0.690) B(0.150, 0.060); white (0.314, 0.351)(DCI)/ (0.3127, 0.3290)(D65)",
+    "rationale": "CIE 1931 coverage ~ 45.5%",
+    "source_file": "digital-color-science.md",
+    "source_section": "Rec.709 vs Rec.2020 Gamut",
+    "tags": [
+      "colorist",
+      "color_space",
+      "dci-p3"
+    ],
+    "extra_data": {
+      "cie_xy_r": [
+        0.68,
+        0.32
+      ],
+      "cie_xy_g": [
+        0.265,
+        0.69
+      ],
+      "cie_xy_b": [
+        0.15,
+        0.06
+      ],
+      "white_point": "(0.314, 0.351)(DCI)/ (0.3127, 0.3290)(D65)",
+      "cie_1931_coverage": "~ 45.5%"
+    },
+    "priority": 74
+  },
+  {
+    "category": "color_space_primaries",
+    "key_name": "colorspace_aces_ap0",
+    "key_type": "color_space",
+    "primary_recommendation": "ACES AP0: CIE xy R(0.7347, 0.2653) G(0.1424, 0.8576) B(0.0991, -0.0308); white (0.32168, 0.33767)",
+    "rationale": "CIE 1931 coverage ~ 100%(过度宽)",
+    "source_file": "digital-color-science.md",
+    "source_section": "Rec.709 vs Rec.2020 Gamut",
+    "tags": [
+      "colorist",
+      "color_space",
+      "aces_ap0"
+    ],
+    "extra_data": {
+      "cie_xy_r": [
+        0.7347,
+        0.2653
+      ],
+      "cie_xy_g": [
+        0.1424,
+        0.8576
+      ],
+      "cie_xy_b": [
+        0.0991,
+        0.0308
+      ],
+      "white_point": "(0.32168, 0.33767)",
+      "cie_1931_coverage": "~ 100%(过度宽)"
+    },
+    "priority": 74
+  },
+  {
+    "category": "color_space_primaries",
+    "key_name": "delta_e_formula",
+    "key_type": "color_space",
+    "primary_recommendation": "ΔE (CIE1976) = sqrt((ΔL*)² + (Δa*)² + (Δb*)²); ΔE2000 preferred (perceptual weighting).",
+    "rationale": "Adjacent-shot cross-shot consistency = ΔE ≤ 2.0; whole-scene ceiling ΔE ≤ 3.0.",
+    "source_file": "digital-color-science.md",
+    "source_section": "CIELAB ΔE Tolerance",
+    "tags": [
+      "colorist",
+      "color_space",
+      "delta_e"
+    ],
+    "extra_data": {
+      "lab76_threshold": 2.0,
+      "whole_scene_ceiling": 3.0,
+      "lab76_to_lab00": "ΔE1976=2.0 ≈ ΔE2000=1.4"
+    },
+    "priority": 76
+  },
+  {
+    "category": "color_space_primaries",
+    "key_name": "mccamy_cct_formula",
+    "key_type": "color_space",
+    "primary_recommendation": "CCT ≈ 449n³ + 3525n² + 6823.3n + 5520.33, n=(x-0.3320)/(0.1858-y); valid 3000-9000K (±50K).",
+    "rationale": "LLM-as-judge unsuitable for CCT (no spectral analysis) — must use instrumented tools.",
+    "source_file": "digital-color-science.md",
+    "source_section": "Color Temperature & CCT",
+    "tags": [
+      "colorist",
+      "color_space",
+      "cct"
+    ],
+    "extra_data": {
+      "formula": "Mccamy",
+      "valid_range_k": "3000-9000",
+      "error_k": 50
+    },
+    "priority": 64
+  },
+  {
+    "category": "genre_color_temp",
+    "key_name": "cn_warmth_男频_sharedglossarymd男频-male-oriented-channel_revenge_战神归来_重生复仇",
+    "key_type": "color_temp",
+    "primary_recommendation": "[男频](../../_shared/glossary.md#男频-male-oriented-channel) / revenge / 战神归来 / 重生复仇: 5500-6500K(warm)",
+    "rationale": "完播率: warm tones 完播率比 cool tones 高 ~ 8-12%(同题材同剧本 N=200+ 对照). Strategy: 男频 调色偏 warm:tungsten practicals(2700-3200K)+ sunset glow LUT(见 [`hurkman-color-pipeline.md`](./hurkman-color-pipeline.md) §Lift/Gamma/Gain Ranges 的 \"Sunset Glow\" signature)",
+    "source_file": "cn-audience-color.md",
+    "source_section": "CN Warmth Preference Data",
+    "tags": [
+      "colorist",
+      "genre_color_temp",
+      "男频_sharedglossarymd男频-male-oriented-channel",
+      "revenge_战神归来_重生复仇"
+    ],
+    "extra_data": {
+      "channel": "[男频](../../_shared/glossary.md#男频-male-oriented-channel)",
+      "genre": "revenge / 战神归来 / 重生复仇",
+      "color_temp_k": 5500.0,
+      "completion_rate_note": "warm tones 完播率比 cool tones 高 ~ 8-12%(同题材同剧本 N=200+ 对照)",
+      "strategy": "男频 调色偏 warm:tungsten practicals(2700-3200K)+ sunset glow LUT(见 [`hurkman-color-pipeline.md`](./hurkman-color-pipeline.md) §Lift/Gamma/Gain Ranges 的 \"Sunset Glow\" signature)",
+      "warm_cool_axis": "warm"
+    },
+    "priority": 74
+  },
+  {
+    "category": "genre_color_temp",
+    "key_name": "cn_warmth_女频_sharedglossarymd女频-female-oriented-channel_豪门虐恋_闺蜜背叛_宫斗",
+    "key_type": "color_temp",
+    "primary_recommendation": "[女频](../../_shared/glossary.md#女频-female-oriented-channel) / 豪门虐恋 / 闺蜜背叛 / 宫斗: 4500-5500K(cool)",
+    "rationale": "完播率: cool mid-tones 完播率比 warm tones 高 ~ 5-8%(同题材同剧本). Strategy: 女频 调色偏 cool mid:daylight 5500K baseline + selective cool tint 在情感冲突段",
+    "source_file": "cn-audience-color.md",
+    "source_section": "CN Warmth Preference Data",
+    "tags": [
+      "colorist",
+      "genre_color_temp",
+      "女频_sharedglossarymd女频-female-oriented-channel",
+      "豪门虐恋_闺蜜背叛_宫斗"
+    ],
+    "extra_data": {
+      "channel": "[女频](../../_shared/glossary.md#女频-female-oriented-channel)",
+      "genre": "豪门虐恋 / 闺蜜背叛 / 宫斗",
+      "color_temp_k": 4500.0,
+      "completion_rate_note": "cool mid-tones 完播率比 warm tones 高 ~ 5-8%(同题材同剧本)",
+      "strategy": "女频 调色偏 cool mid:daylight 5500K baseline + selective cool tint 在情感冲突段",
+      "warm_cool_axis": "cool"
+    },
+    "priority": 74
+  },
+  {
+    "category": "genre_color_temp",
+    "key_name": "cn_warmth_男频_sharedglossarymd男频-male-oriented-channel_都市修仙_玄幻",
+    "key_type": "color_temp",
+    "primary_recommendation": "[男频](../../_shared/glossary.md#男频-male-oriented-channel) / 都市修仙 / 玄幻: 6000-7000K(neutral-warm)",
+    "rationale": "完播率: warm + 高 saturation 男频 玄幻 略胜(差异 3-5%,显著性较弱). Strategy: 男频 玄幻 用 saturation +0.1-0.2 + warm tint 6000K",
+    "source_file": "cn-audience-color.md",
+    "source_section": "CN Warmth Preference Data",
+    "tags": [
+      "colorist",
+      "genre_color_temp",
+      "男频_sharedglossarymd男频-male-oriented-channel",
+      "都市修仙_玄幻"
+    ],
+    "extra_data": {
+      "channel": "[男频](../../_shared/glossary.md#男频-male-oriented-channel)",
+      "genre": "都市修仙 / 玄幻",
+      "color_temp_k": 6000.0,
+      "completion_rate_note": "warm + 高 saturation 男频 玄幻 略胜(差异 3-5%,显著性较弱)",
+      "strategy": "男频 玄幻 用 saturation +0.1-0.2 + warm tint 6000K",
+      "warm_cool_axis": "warm"
+    },
+    "priority": 74
+  },
+  {
+    "category": "genre_color_temp",
+    "key_name": "cn_warmth_草根_slice-of-life快手_真实生活题材",
+    "key_type": "color_temp",
+    "primary_recommendation": "草根 slice-of-life(快手) / 真实生活题材: 5500K daylight(neutral)",
+    "rationale": "完播率: neutral baseline;warm 与 cool 无显著差异. Strategy: 草根 调色追求\"真实感\",避免过度 grading,保持 daylight 中性",
+    "source_file": "cn-audience-color.md",
+    "source_section": "CN Warmth Preference Data",
+    "tags": [
+      "colorist",
+      "genre_color_temp",
+      "草根_slice-of-life快手",
+      "真实生活题材"
+    ],
+    "extra_data": {
+      "channel": "草根 slice-of-life(快手)",
+      "genre": "真实生活题材",
+      "color_temp_k": 5500.0,
+      "completion_rate_note": "neutral baseline;warm 与 cool 无显著差异",
+      "strategy": "草根 调色追求\"真实感\",避免过度 grading,保持 daylight 中性",
+      "warm_cool_axis": "warm"
+    },
+    "priority": 74
+  },
+  {
+    "category": "genre_color_temp",
+    "key_name": "cct_standard_2700-3200k",
+    "key_type": "color_temp",
+    "primary_recommendation": "2700-3200K (Tungsten(钨丝灯 / 实用光)): warm yellow-orange",
+    "rationale": "短剧 部署: 情感亲密场景\"lit from within\"(见 [`cn-audience-color.md`](./cn-audience-color.md) §\"Lit from Within\" Trend)",
+    "source_file": "digital-color-science.md",
+    "source_section": "Color Temperature & CCT",
+    "tags": [
+      "colorist",
+      "genre_color_temp",
+      "cct_standard"
+    ],
+    "extra_data": {
+      "color_temp": "2700-3200K",
+      "source_type": "Tungsten(钨丝灯 / 实用光)",
+      "visual": "warm yellow-orange",
+      "short_drama_use": "情感亲密场景\"lit from within\"(见 [`cn-audience-color.md`](./cn-audience-color.md) §\"Lit from Within\" Trend)"
+    },
+    "priority": 66
+  },
+  {
+    "category": "genre_color_temp",
+    "key_name": "cct_standard_3200k",
+    "key_type": "color_temp",
+    "primary_recommendation": "3200K (Tungsten cinema standard): warm",
+    "rationale": "短剧 部署: 男频 爽点 climax 主角 warm radiance",
+    "source_file": "digital-color-science.md",
+    "source_section": "Color Temperature & CCT",
+    "tags": [
+      "colorist",
+      "genre_color_temp",
+      "cct_standard"
+    ],
+    "extra_data": {
+      "color_temp": "3200K",
+      "source_type": "Tungsten cinema standard",
+      "visual": "warm",
+      "short_drama_use": "男频 爽点 climax 主角 warm radiance"
+    },
+    "priority": 66
+  },
+  {
+    "category": "genre_color_temp",
+    "key_name": "cct_standard_4500-5500k",
+    "key_type": "color_temp",
+    "primary_recommendation": "4500-5500K (Cool daylight): neutral-cool",
+    "rationale": "短剧 部署: 女频 豪门虐恋 baseline",
+    "source_file": "digital-color-science.md",
+    "source_section": "Color Temperature & CCT",
+    "tags": [
+      "colorist",
+      "genre_color_temp",
+      "cct_standard"
+    ],
+    "extra_data": {
+      "color_temp": "4500-5500K",
+      "source_type": "Cool daylight",
+      "visual": "neutral-cool",
+      "short_drama_use": "女频 豪门虐恋 baseline"
+    },
+    "priority": 66
+  },
+  {
+    "category": "genre_color_temp",
+    "key_name": "cct_standard_5500k",
+    "key_type": "color_temp",
+    "primary_recommendation": "5500K (Daylight(D55)): neutral",
+    "rationale": "短剧 部署: 标准中性 baseline",
+    "source_file": "digital-color-science.md",
+    "source_section": "Color Temperature & CCT",
+    "tags": [
+      "colorist",
+      "genre_color_temp",
+      "cct_standard"
+    ],
+    "extra_data": {
+      "color_temp": "5500K",
+      "source_type": "Daylight(D55)",
+      "visual": "neutral",
+      "short_drama_use": "标准中性 baseline"
+    },
+    "priority": 66
+  },
+  {
+    "category": "genre_color_temp",
+    "key_name": "cct_standard_6500k",
+    "key_type": "color_temp",
+    "primary_recommendation": "6500K (D65(standard daylight)): neutral-cool",
+    "rationale": "短剧 部署: Reference white(Rec.709 / Rec.2020 / sRGB 都以 D65 为 reference white)",
+    "source_file": "digital-color-science.md",
+    "source_section": "Color Temperature & CCT",
+    "tags": [
+      "colorist",
+      "genre_color_temp",
+      "cct_standard"
+    ],
+    "extra_data": {
+      "color_temp": "6500K",
+      "source_type": "D65(standard daylight)",
+      "visual": "neutral-cool",
+      "short_drama_use": "Reference white(Rec.709 / Rec.2020 / sRGB 都以 D65 为 reference white)"
+    },
+    "priority": 66
+  },
+  {
+    "category": "genre_color_temp",
+    "key_name": "cct_standard_7000-8500k",
+    "key_type": "color_temp",
+    "primary_recommendation": "7000-8500K (Cool overcast): cool blue",
+    "rationale": "短剧 部署: 悬疑 / 恐惧场景",
+    "source_file": "digital-color-science.md",
+    "source_section": "Color Temperature & CCT",
+    "tags": [
+      "colorist",
+      "genre_color_temp",
+      "cct_standard"
+    ],
+    "extra_data": {
+      "color_temp": "7000-8500K",
+      "source_type": "Cool overcast",
+      "visual": "cool blue",
+      "short_drama_use": "悬疑 / 恐惧场景"
+    },
+    "priority": 66
+  },
+  {
+    "category": "genre_color_temp",
+    "key_name": "cct_standard_9300k",
+    "key_type": "color_temp",
+    "primary_recommendation": "9300K (Asian CRT legacy white point): very cool blue",
+    "rationale": "短剧 部署: 历史遗留 —— 旧 CRT 显示器参考点;现代设备不使用",
+    "source_file": "digital-color-science.md",
+    "source_section": "Color Temperature & CCT",
+    "tags": [
+      "colorist",
+      "genre_color_temp",
+      "cct_standard"
+    ],
+    "extra_data": {
+      "color_temp": "9300K",
+      "source_type": "Asian CRT legacy white point",
+      "visual": "very cool blue",
+      "short_drama_use": "历史遗留 —— 旧 CRT 显示器参考点;现代设备不使用"
+    },
+    "priority": 66
   }
 ]
