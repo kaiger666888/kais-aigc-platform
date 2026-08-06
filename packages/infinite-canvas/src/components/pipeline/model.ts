@@ -506,8 +506,11 @@ export const DAG_NODES: readonly DagNodeDef[] = [
   { id: 'spatio-temporal-script', label: '时空剧本', phaseCode: 'P06', phaseIndex: 6, group: 'production',
     match: { phaseIndex: 6 }, expectedCount: 1 },
   // ── P07 场景图生成（production） ──
+  // 场景图节点（a-scene_refs-*）落在 phaseIndex=0 全局哨兵列（非 P07），raw assetType='scene_image'。
+  // 用 phaseIndex=0 + idPrefix 精确匹配，避免误伤同列的 keyframe 节点；def.phaseIndex 仍标 7
+  // 用于依赖链/分组定位（PI=7 无 n-* 报错，不会被 phase-error 检测误判失败）。
   { id: 'scene-images', label: '场景图', phaseCode: 'P07', phaseIndex: 7, group: 'production',
-    match: { phaseIndex: 7, stage: 'global', assetType: 'scene' }, expectedCount: 'dynamic' },
+    match: { phaseIndex: 0, idPrefix: 'a-scene_refs-' }, expectedCount: 'dynamic' },
   { id: 'style-vector', label: '风格向量', phaseCode: 'P07', phaseIndex: 7, group: 'production',
     match: { phaseIndex: 7, idIncludes: 'style_vector' }, expectedCount: 1 },
   { id: 'color-intent', label: '色彩意图', phaseCode: 'P07', phaseIndex: 7, group: 'production',
@@ -785,6 +788,22 @@ export function deriveDagModels(
     return { def, state, total, completed, selected, candidates, expected, progress, assets, present: total > 0 }
   })
 
+  // 后处理：派生完成。match 命中 0 且仍 pending 的步骤，若其下游已有成功产物（见
+  // deriveImplicitCompletion），则反推为 completed。仅提升 pending→completed，绝不覆盖 failed
+  //（phase 报错时尊重失败态）。total/completed 置 1 以与「完成」展示态自洽——卡计数 1/1、
+  // 详情统计「完成 1」、头部「完成 +1」均一致；assets 维持空（这些步骤无独立画布产物，
+  // 点击详情见「尚无产物」属预期，非 bug）。
+  const modelMap = new Map(models.map((m) => [m.def.id, m]))
+  for (const m of models) {
+    if (m.total === 0 && m.state === 'pending' && deriveImplicitCompletion(m.def.id, modelMap)) {
+      m.state = 'completed'
+      m.present = true
+      m.total = 1
+      m.completed = 1
+      m.progress = 1
+    }
+  }
+
   return models
 }
 
@@ -814,6 +833,27 @@ function deriveDagState(args: {
     return needsDecision ? 'has-candidates' : 'completed'
   }
   return 'running' // 部分完成
+}
+
+/**
+ * 派生完成：某些上游步骤的产物未同步为独立画布节点（存在于 o_assets 但无对应 canvas node），
+ * 故 match 命中 0 → 默认 pending。但其**下游步骤**有成功产物即反证上游已完成——
+ *   character-bible：灰底Turnaround（turnaround-sheets）有成功节点 → 角色设定必然已完成
+ *   voice-design：P10 语音片段（voice-clips）有成功节点 → 声纹设计必然已完成
+ * 用下游 completed>0 反推上游，避免这些步骤永远显示 pending。
+ */
+function deriveImplicitCompletion(
+  defId: string,
+  modelMap: ReadonlyMap<string, DagNodeModel>,
+): boolean {
+  switch (defId) {
+    case 'character-bible':
+      return (modelMap.get('turnaround-sheets')?.completed ?? 0) > 0
+    case 'voice-design':
+      return (modelMap.get('voice-clips')?.completed ?? 0) > 0
+    default:
+      return false
+  }
 }
 
 /** 直连父节点 id 列表（DAG_EDGES 中 to === nodeId 的 from）。 */
