@@ -75,6 +75,10 @@ export default async (knex: Knex): Promise<void> => {
   await addColumn("o_assets", "skill_id", "string");
   await addColumn("o_assets", "workflow_phase", "string");
   await addColumn("kv_pipelineRun", "skill_id", "string");
+  // C2: persist link semantic/ref type on canvas_links for existing DBs
+  // (the DDL in initDB.ts only adds these to freshly-created tables).
+  await addColumn("canvas_links", "link_type", "string");
+  await addColumn("canvas_links", "ref_type", "string");
   // One-time backfill: set skill_id='movie-v1' for every NULL row.
   // Unconditional on projectId — orphaned assets are covered automatically.
   // workflow_phase is intentionally NOT backfilled (Phase 31 owns the writer).

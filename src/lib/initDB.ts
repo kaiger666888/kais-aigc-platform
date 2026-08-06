@@ -1296,6 +1296,10 @@ export default async (knex: Knex, forceInit: boolean = false): Promise<void> => 
         table.string("target_id", 128).notNullable();
         table.string("branch_id", 64).notNullable().defaultTo("main");
         table.string("data_type", 32).defaultTo("text");
+        // C2: link semantic/ref type — KMC's 11 ref_types lived only inside the
+        // link id string; without columns they were dropped on save.
+        table.string("link_type", 32).nullable();
+        table.string("ref_type", 32).nullable();
         table.boolean("is_explore").defaultTo(false);
         table.boolean("is_inactive").defaultTo(false);
         table.bigInteger("created_at").notNullable();

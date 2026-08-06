@@ -50,6 +50,10 @@ export interface FlowLinkV2 {
   dataType: string;
   isExplore?: boolean;
   isInactive?: boolean;
+  /** 连线语义类型：data_flow | sequence | parallel | reference (LinkSemanticType) */
+  linkType?: string;
+  /** 引用类型：KMC 11 种 ref_type (input / character_ref / scene_ref / ...) */
+  refType?: string;
 }
 
 // ─── 分支 ──────────────────────────────────────

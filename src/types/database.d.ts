@@ -29,7 +29,9 @@ export interface canvas_links {
   'id'?: string;
   'is_explore'?: boolean | null;
   'is_inactive'?: boolean | null;
+  'link_type'?: string | null;
   'project_id'?: number;
+  'ref_type'?: string | null;
   'source_id': string;
   'target_id': string;
   'updated_at': number;

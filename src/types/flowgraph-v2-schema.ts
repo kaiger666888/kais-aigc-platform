@@ -58,6 +58,8 @@ export const FlowLinkV2Schema = z.object({
   dataType: z.string(),
   isExplore: z.boolean().optional(),
   isInactive: z.boolean().optional(),
+  linkType: z.string().optional(),
+  refType: z.string().optional(),
 });
 
 // ─── 分支 schema ───────────────────────────────

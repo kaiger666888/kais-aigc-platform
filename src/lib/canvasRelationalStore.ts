@@ -188,13 +188,16 @@ export async function upsertLink(scope: Scope, link: FlowLinkV2): Promise<void> 
   await db.raw(
     `INSERT INTO canvas_links
        (id, project_id, episodes_id, source_id, target_id,
-        branch_id, data_type, is_explore, is_inactive, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        branch_id, data_type, link_type, ref_type, is_explore, is_inactive,
+        created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id, project_id, episodes_id) DO UPDATE SET
        source_id=excluded.source_id,
        target_id=excluded.target_id,
        branch_id=excluded.branch_id,
        data_type=excluded.data_type,
+       link_type=excluded.link_type,
+       ref_type=excluded.ref_type,
        is_explore=excluded.is_explore,
        is_inactive=excluded.is_inactive,
        updated_at=excluded.updated_at`,
@@ -206,6 +209,8 @@ export async function upsertLink(scope: Scope, link: FlowLinkV2): Promise<void> 
       link.target,
       link.branchId ?? "main",
       link.dataType ?? "text",
+      link.linkType ?? null,
+      link.refType ?? null,
       link.isExplore ? 1 : 0,
       link.isInactive ? 1 : 0,
       ts,
@@ -238,6 +243,8 @@ export async function listLinks(scope: Scope): Promise<FlowLinkV2[]> {
     target: r.target_id,
     branchId: r.branch_id,
     dataType: r.data_type,
+    ...(r.link_type && { linkType: r.link_type }),
+    ...(r.ref_type && { refType: r.ref_type }),
     ...(r.is_explore && { isExplore: true }),
     ...(r.is_inactive && { isInactive: true }),
   }));
@@ -526,6 +533,8 @@ export async function saveFullGraph(scope: Scope, graph: FlowGraphV2): Promise<v
         target_id: l.target,
         branch_id: l.branchId ?? "main",
         data_type: l.dataType ?? "text",
+        link_type: l.linkType ?? null,
+        ref_type: l.refType ?? null,
         is_explore: l.isExplore ? 1 : 0,
         is_inactive: l.isInactive ? 1 : 0,
         created_at: ts,
@@ -541,6 +550,8 @@ export async function saveFullGraph(scope: Scope, graph: FlowGraphV2): Promise<v
           "target_id",
           "branch_id",
           "data_type",
+          "link_type",
+          "ref_type",
           "is_explore",
           "is_inactive",
           "updated_at",
