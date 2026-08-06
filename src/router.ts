@@ -152,6 +152,11 @@ import route148 from "./routes/v1/stableaudio/transform";
 import route149 from "./routes/v1/stableaudio/inpaint";
 import route150 from "./routes/v1/tts/speak";
 import route151 from "./routes/v1/tts/status";
+import route152 from "./routes/v1/cinema/categories";
+import route153 from "./routes/v1/cinema/list";
+import route154 from "./routes/v1/cinema/query";
+import route155 from "./routes/v1/cinema/seed";
+import route156 from "./routes/v1/cinema/usage";
 
 export default async (app: Express) => {
   app.use("/api/assets/addAssets", route1);
@@ -305,4 +310,9 @@ export default async (app: Express) => {
   app.use("/api/v1/stableaudio/inpaint", route149);
   app.use("/api/v1/tts/speak", route150);
   app.use("/api/v1/tts/status", route151);
+  app.use("/api/v1/cinema/categories", route152);
+  app.use("/api/v1/cinema/list", route153);
+  app.use("/api/v1/cinema/query", route154);
+  app.use("/api/v1/cinema/seed", route155);
+  app.use("/api/v1/cinema/usage", route156);
 }
