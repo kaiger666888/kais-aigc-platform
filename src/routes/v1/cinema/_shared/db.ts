@@ -125,6 +125,8 @@ export type CinemaCategory =
   | "prop_taxonomy"
   | "environment_constraint"
   | "spatial_reveal_method"
+  // continuity_auditor (cross-shot consistency audit: face/wardrobe/color/object)
+  | "cross_shot_audit"
   // alias / mapping helpers (query-quality fix — maps free-form LLM emotion
   // labels, e.g. shot_list "shock/disorientation", to canonical KB names)
   | "emotion_alias";
@@ -697,6 +699,7 @@ const DOMAIN_CATEGORY_SETS: Record<string, string[]> = {
   ],
   feasibility: ["physics_feasibility_check"],
   production_design: ["prop_taxonomy", "environment_constraint", "spatial_reveal_method"],
+  continuity: ["cross_shot_audit"],
 };
 
 /**

@@ -49342,5 +49342,204 @@
       "engine_routing": "ffmpeg direct concat(no transition)",
       "when": "序列末 shot/next_shot_link=null/开发占位"
     }
+  },
+  {
+    "category": "cross_shot_audit",
+    "key_name": "face_consistency_audit",
+    "key_type": "audit_dimension",
+    "primary_recommendation": "Face 维度:ArcFace/FaceNet cosine similarity ≥ 0.80 跨 shot 同角色一致;失败 → re-generate shot(within-scene zero tolerance,必须 1:1 一致)",
+    "rationale": "跨 shot 角色脸不一致是 AI 视频最显眼的穿帮;ArcFace/FaceNet 余弦相似度是身份一致性的标准度量。Within-scene 零容忍(同场景同 character 必须 1:1),cross-scene 允许 lighting/angle 变化但 face ID 须一致,cross-episode 允许 wardrobe arc 变化但 face ID 仍一致。",
+    "source_file": "continuity_auditor/references/cross-shot-auditing.md",
+    "source_section": "§4-Dimension Audit Matrix heuristic 1",
+    "tags": [
+      "cross_shot_audit",
+      "continuity",
+      "face",
+      "arcface"
+    ],
+    "priority": 80,
+    "extra_data": {
+      "dimension": "face",
+      "metric": "ArcFace/FaceNet cosine similarity",
+      "threshold": ">=0.80",
+      "on_fail": "re-generate shot",
+      "scope_tolerance": {
+        "within_scene": "zero tolerance, 1:1",
+        "cross_scene": "face ID 一致,允许 lighting/angle",
+        "cross_episode": "face ID 一致,允许 wardrobe arc"
+      }
+    }
+  },
+  {
+    "category": "cross_shot_audit",
+    "key_name": "wardrobe_consistency_audit",
+    "key_type": "audit_dimension",
+    "primary_recommendation": "Wardrobe 维度:CLIP image embedding cosine ≥ 0.95 且 color histogram Bhattacharyya ≤ 0.10;失败 → re-generate shot(within-scene zero tolerance)",
+    "rationale": "服装穿帮(同场景服装变化)破坏连续性;CLIP 语义嵌入 + 色彩直方图双重度量兼顾款式与颜色。Bhattacharyya 距离衡量色彩直方图相似度(越小越似)。",
+    "source_file": "continuity_auditor/references/cross-shot-auditing.md",
+    "source_section": "§4-Dimension Audit Matrix heuristic 1",
+    "tags": [
+      "cross_shot_audit",
+      "continuity",
+      "wardrobe",
+      "clip"
+    ],
+    "priority": 75,
+    "extra_data": {
+      "dimension": "wardrobe",
+      "metric": "CLIP image embedding cosine + color histogram Bhattacharyya",
+      "threshold": "clip_cosine>=0.95 AND bhattacharyya<=0.10",
+      "on_fail": "re-generate shot",
+      "handoff": "drawer + production (re-generate with wardrobe baseline reference)"
+    }
+  },
+  {
+    "category": "cross_shot_audit",
+    "key_name": "color_consistency_audit",
+    "key_type": "audit_dimension",
+    "primary_recommendation": "Color 维度:ΔE2000 / CIELAB 距离 ≤ 5.0(production)/ ≤ 8.0(preview);失败 → colorist re-grade",
+    "rationale": "跨 shot 色彩漂移破坏场景统一;ΔE2000 是 CIELAB 色差标准度量。Production 容差更严(5.0)因大银幕/付费观众敏感,preview 放宽(8.0)。失败交给 colorist 重调而非重生(色彩是后期可修)。",
+    "source_file": "continuity_auditor/references/cross-shot-auditing.md",
+    "source_section": "§4-Dimension Audit Matrix heuristic 1",
+    "tags": [
+      "cross_shot_audit",
+      "continuity",
+      "color",
+      "delta_e2000"
+    ],
+    "priority": 72,
+    "extra_data": {
+      "dimension": "color",
+      "metric": "ΔE2000 / CIELAB distance",
+      "threshold": {
+        "production": "<=5.0",
+        "preview": "<=8.0"
+      },
+      "on_fail": "colorist re-grade",
+      "handoff": "colorist"
+    }
+  },
+  {
+    "category": "cross_shot_audit",
+    "key_name": "object_consistency_audit",
+    "key_type": "audit_dimension",
+    "primary_recommendation": "Object 维度:Object detection IoU ≥ 0.70 且 CLIP object embedding cosine ≥ 0.90;失败 → re-generate 或 prop swap(within-scene zero tolerance)",
+    "rationale": "关键道具跨 shot 不一致(如某道具突然消失/变形)是穿帮;IoU 衡量物体定位一致性,CLIP 衡量物体语义一致。失败可重生或换道具。",
+    "source_file": "continuity_auditor/references/cross-shot-auditing.md",
+    "source_section": "§4-Dimension Audit Matrix heuristic 1",
+    "tags": [
+      "cross_shot_audit",
+      "continuity",
+      "object",
+      "iou"
+    ],
+    "priority": 72,
+    "extra_data": {
+      "dimension": "object",
+      "metric": "Object detection IoU + CLIP object embedding",
+      "threshold": "iou>=0.70 AND clip_cosine>=0.90",
+      "on_fail": "re-generate or prop swap",
+      "handoff": "drawer + scene_builder"
+    }
+  },
+  {
+    "category": "cross_shot_audit",
+    "key_name": "audit_scope_strictness",
+    "key_type": "audit_dimension",
+    "primary_recommendation": "审计范围严格度:Within-scene(极严格,face/wardrobe/object 零容忍,同 character 1:1)> Cross-scene 同 episode(严格,face ID + wardrobe baseline 一致,允许 lighting/angle 变化)> Cross-episode(中等,face ID 一致,允许 wardrobe arc 变化)",
+    "rationale": "严格度随范围递减:同一场景内任何不一致都是硬伤;跨场景允许合理的光线角度变化;跨集允许角色成长导致的服装弧线变化(per wardrobe-per-scene §Arc wardrobe)。",
+    "source_file": "continuity_auditor/references/cross-shot-auditing.md",
+    "source_section": "§Within-scene vs Cross-scene audit heuristic 2",
+    "tags": [
+      "cross_shot_audit",
+      "continuity",
+      "scope"
+    ],
+    "priority": 70,
+    "extra_data": {
+      "heuristic": "scope_strictness",
+      "levels": {
+        "within_scene": "极严格,zero tolerance for face/wardrobe/object",
+        "cross_scene": "严格,face ID + wardrobe baseline 一致",
+        "cross_episode": "中等,face ID 一致,允许 wardrobe arc"
+      }
+    }
+  },
+  {
+    "category": "cross_shot_audit",
+    "key_name": "audit_timing_protocol",
+    "key_type": "audit_dimension",
+    "primary_recommendation": "审计时序:Per-shot(生成后立即 4 维 audit)→ Per-scene 完成(within-scene 一致性)→ Per-episode 完成(cross-scene + cross-episode)→ Pre-distribution(全量最终 audit + compliance_review)。不可只在 final distribution audit",
+    "rationale": "穿帮越早发现修复成本越低;逐级审计(per-shot→scene→episode→distribution)形成闭环。仅在 final distribution audit 是 anti-pattern(发现时已无法低成本修)。",
+    "source_file": "continuity_auditor/references/cross-shot-auditing.md",
+    "source_section": "§Audit timing heuristic 3",
+    "tags": [
+      "cross_shot_audit",
+      "continuity",
+      "timing",
+      "protocol"
+    ],
+    "priority": 68,
+    "extra_data": {
+      "heuristic": "audit_timing",
+      "stages": [
+        "per-shot post-generation(4 维立即)",
+        "per-scene completion(within-scene)",
+        "per-episode completion(cross-scene+episode)",
+        "pre-distribution(full+compliance)"
+      ],
+      "anti_pattern": "仅在 final distribution audit"
+    }
+  },
+  {
+    "category": "cross_shot_audit",
+    "key_name": "failure_handoff_protocol",
+    "key_type": "audit_dimension",
+    "primary_recommendation": "失败 handoff:Face→drawer+production(re-train LoRA 或调 IP-Adapter weight);Wardrobe→drawer+production(wardrobe baseline reference 重生);Color→colorist(re-grade);Object→drawer+scene_builder(重生或 prop swap)",
+    "rationale": "不同维度失败需不同专家修复:身份(脸)问题改 LoRA/IP-Adapter,服装问题用 baseline reference 重生,色彩问题后期重调,物件问题重生或换道具。标准化 handoff 避免误派。",
+    "source_file": "continuity_auditor/references/cross-shot-auditing.md",
+    "source_section": "§失败 handoff 协议 heuristic 5",
+    "tags": [
+      "cross_shot_audit",
+      "continuity",
+      "handoff",
+      "protocol"
+    ],
+    "priority": 66,
+    "extra_data": {
+      "heuristic": "failure_handoff",
+      "routing": {
+        "face": "drawer + production → re-train LoRA / 调 IP-Adapter weight",
+        "wardrobe": "drawer + production → wardrobe baseline reference 重生",
+        "color": "colorist → re-grade",
+        "object": "drawer + scene_builder → 重生或 prop swap"
+      }
+    }
+  },
+  {
+    "category": "cross_shot_audit",
+    "key_name": "continuity_anti_patterns",
+    "key_type": "audit_dimension",
+    "primary_recommendation": "5 大 anti-pattern 规避:① 凭肉眼无自动化 audit→4-metric 自动化;② within-scene 允许 face ID drift→zero tolerance;③ cross-episode face ID drift 未处理→cross-episode audit;④ 无 audit_report 文件→audit_report.json per scene;⑤ 仅 final distribution audit→per-shot+per-scene+per-episode",
+    "rationale": "这些是连续性审计最常见失败模式;每条都有明确 mitigation。audit_report.json 是可追溯的审计工件(per scene 必出)。",
+    "source_file": "continuity_auditor/references/cross-shot-auditing.md",
+    "source_section": "§Continuity 5 大 anti-pattern heuristic 6",
+    "tags": [
+      "cross_shot_audit",
+      "continuity",
+      "anti_pattern"
+    ],
+    "priority": 60,
+    "extra_data": {
+      "heuristic": "anti_patterns",
+      "patterns": {
+        "no_automated_audit": "凭肉眼→4-metric 自动化",
+        "within_scene_tolerance": "允许 face ID drift→zero tolerance",
+        "cross_episode_drift_ignored": "跨 episode drift 未处理→cross-episode audit",
+        "no_audit_report": "无报告→audit_report.json per scene",
+        "audit_timing_wrong": "仅 final→per-shot+scene+episode"
+      },
+      "report_artifact": "audit_report.json"
+    }
   }
 ]
