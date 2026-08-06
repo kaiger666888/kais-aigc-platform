@@ -79,7 +79,14 @@ export type CinemaCategory =
   | "dialogue_density"
   | "platform_register"
   | "comedy_formula"
-  | "cn_drama_structure";
+  | "cn_drama_structure"
+  // script_auditor (Wave 2)
+  | "emotion_valence_lut"
+  | "beat_role_intensity"
+  | "reversal_pattern"
+  | "audit_metric"
+  | "character_function"
+  | "completion_rate_factor";
 
 export type CinemaKeyType =
   // cinematography
@@ -148,7 +155,14 @@ export type CinemaKeyType =
   | "dialogue_metric"
   | "platform_register"
   | "comedy"
-  | "cn_drama";
+  | "cn_drama"
+  // script_auditor (Wave 2)
+  | "valence"
+  | "beat_role"
+  | "reversal"
+  | "audit_dimension"
+  | "propp_function"
+  | "completion_factor";
 
 /** Loosely-typed seed/API entry (arrays + objects). Serialized to JSON columns. */
 export interface CinemaEntry {

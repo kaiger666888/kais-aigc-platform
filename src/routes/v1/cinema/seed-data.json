@@ -33641,5 +33641,1929 @@
     "source_section": "Per-Platform Divergence",
     "tags": ["screenplay", "cn_drama_structure", "platform", "miniprogram"],
     "priority": 62
+  },
+  {
+    "category": "emotion_valence_lut",
+    "key_name": "fear_dread",
+    "key_type": "valence",
+    "primary_recommendation": "-0.3 (valence midpoint)",
+    "rationale": "L1 情绪标签 clinical_dread, temporal_dread, quiet_tension, grim_focus → Plutchik Fear → valence 范围 -0.5~-0.1。",
+    "extra_data": {
+      "l1_emotion_labels": ["clinical_dread", "temporal_dread", "quiet_tension", "grim_focus"],
+      "plutchik_atom": "Fear",
+      "valence_range": [-0.5, -0.1],
+      "valence_midpoint": -0.3
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "plutchik_valence from L1 emotion label",
+    "tags": ["script_auditor", "emotion_valence_lut", "fear"],
+    "priority": 60
+  },
+  {
+    "category": "emotion_valence_lut",
+    "key_name": "anticipation_positive",
+    "key_type": "valence",
+    "primary_recommendation": "0.2 (valence midpoint)",
+    "rationale": "L1 情绪标签 composed_authority, serene_confidence → Plutchik Anticipation (positive) → valence 范围 0.1~0.3。",
+    "extra_data": {
+      "l1_emotion_labels": ["composed_authority", "serene_confidence"],
+      "plutchik_atom": "Anticipation (positive)",
+      "valence_range": [0.1, 0.3],
+      "valence_midpoint": 0.2
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "plutchik_valence from L1 emotion label",
+    "tags": ["script_auditor", "emotion_valence_lut", "anticipation"],
+    "priority": 60
+  },
+  {
+    "category": "emotion_valence_lut",
+    "key_name": "surprise_mild_negative",
+    "key_type": "valence",
+    "primary_recommendation": "-0.15 (valence midpoint)",
+    "rationale": "L1 情绪标签 subtle_wrongness, uncanny_displacement → Plutchik Surprise (mild negative) → valence 范围 -0.2~-0.1。",
+    "extra_data": {
+      "l1_emotion_labels": ["subtle_wrongness", "uncanny_displacement"],
+      "plutchik_atom": "Surprise (mild negative)",
+      "valence_range": [-0.2, -0.1],
+      "valence_midpoint": -0.15
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "plutchik_valence from L1 emotion label",
+    "tags": ["script_auditor", "emotion_valence_lut", "surprise"],
+    "priority": 60
+  },
+  {
+    "category": "emotion_valence_lut",
+    "key_name": "uncanny_tenderness",
+    "key_type": "valence",
+    "primary_recommendation": "0.1 (valence midpoint)",
+    "rationale": "L1 情绪标签 uncanny_tenderness → Plutchik Surprise → valence 范围 0.0~0.2。",
+    "extra_data": {
+      "l1_emotion_labels": ["uncanny_tenderness"],
+      "plutchik_atom": "Surprise",
+      "valence_range": [0.0, 0.2],
+      "valence_midpoint": 0.1
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "plutchik_valence from L1 emotion label",
+    "tags": ["script_auditor", "emotion_valence_lut", "surprise"],
+    "priority": 60
+  },
+  {
+    "category": "emotion_valence_lut",
+    "key_name": "external_shock",
+    "key_type": "valence",
+    "primary_recommendation": "-0.55 (valence midpoint)",
+    "rationale": "L1 情绪标签 external_shock, visceral_shock, acoustic_shock → Plutchik Surprise (negative) → valence 范围 -0.6~-0.5。",
+    "extra_data": {
+      "l1_emotion_labels": ["external_shock", "visceral_shock", "acoustic_shock"],
+      "plutchik_atom": "Surprise (negative)",
+      "valence_range": [-0.6, -0.5],
+      "valence_midpoint": -0.55
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "plutchik_valence from L1 emotion label",
+    "tags": ["script_auditor", "emotion_valence_lut", "surprise"],
+    "priority": 60
+  },
+  {
+    "category": "emotion_valence_lut",
+    "key_name": "fear_escalating",
+    "key_type": "valence",
+    "primary_recommendation": "-0.4 (valence midpoint)",
+    "rationale": "L1 情绪标签 structural_failure, irreversible_drift, mechanical_automation → Plutchik Fear (escalating) → valence 范围 -0.5~-0.3。",
+    "extra_data": {
+      "l1_emotion_labels": ["structural_failure", "irreversible_drift", "mechanical_automation"],
+      "plutchik_atom": "Fear (escalating)",
+      "valence_range": [-0.5, -0.3],
+      "valence_midpoint": -0.4
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "plutchik_valence from L1 emotion label",
+    "tags": ["script_auditor", "emotion_valence_lut", "fear"],
+    "priority": 60
+  },
+  {
+    "category": "emotion_valence_lut",
+    "key_name": "disgust_fear",
+    "key_type": "valence",
+    "primary_recommendation": "-0.25 (valence midpoint)",
+    "rationale": "L1 情绪标签 compulsive_repetition → Plutchik Disgust + Fear → valence 范围 -0.3~-0.2。",
+    "extra_data": {
+      "l1_emotion_labels": ["compulsive_repetition"],
+      "plutchik_atom": "Disgust + Fear",
+      "valence_range": [-0.3, -0.2],
+      "valence_midpoint": -0.25
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "plutchik_valence from L1 emotion label",
+    "tags": ["script_auditor", "emotion_valence_lut", "disgust"],
+    "priority": 60
+  },
+  {
+    "category": "emotion_valence_lut",
+    "key_name": "fear_irreversible",
+    "key_type": "valence",
+    "primary_recommendation": "-0.55 (valence midpoint)",
+    "rationale": "L1 情绪标签 mechanical_lock, dual_stall, simultaneous_collapse → Plutchik Fear (irreversible) → valence 范围 -0.6~-0.5。",
+    "extra_data": {
+      "l1_emotion_labels": ["mechanical_lock", "dual_stall", "simultaneous_collapse"],
+      "plutchik_atom": "Fear (irreversible)",
+      "valence_range": [-0.6, -0.5],
+      "valence_midpoint": -0.55
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "plutchik_valence from L1 emotion label",
+    "tags": ["script_auditor", "emotion_valence_lut", "fear"],
+    "priority": 60
+  },
+  {
+    "category": "emotion_valence_lut",
+    "key_name": "fear_suspense",
+    "key_type": "valence",
+    "primary_recommendation": "-0.4 (valence midpoint)",
+    "rationale": "L1 情绪标签 eerie_silence, false_calm → Plutchik Fear (suspense) → valence 范围 -0.4~-0.3。",
+    "extra_data": {
+      "l1_emotion_labels": ["eerie_silence", "false_calm"],
+      "plutchik_atom": "Fear (suspense)",
+      "valence_range": [-0.4, -0.3],
+      "valence_midpoint": -0.4
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "plutchik_valence from L1 emotion label",
+    "tags": ["script_auditor", "emotion_valence_lut", "fear"],
+    "priority": 60
+  },
+  {
+    "category": "emotion_valence_lut",
+    "key_name": "surprise_fear",
+    "key_type": "valence",
+    "primary_recommendation": "-0.45 (valence midpoint)",
+    "rationale": "L1 情绪标签 slow_realization, detached_determination → Plutchik Surprise + Fear → valence 范围 -0.5~-0.4。",
+    "extra_data": {
+      "l1_emotion_labels": ["slow_realization", "detached_determination"],
+      "plutchik_atom": "Surprise + Fear",
+      "valence_range": [-0.5, -0.4],
+      "valence_midpoint": -0.45
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "plutchik_valence from L1 emotion label",
+    "tags": ["script_auditor", "emotion_valence_lut", "surprise"],
+    "priority": 60
+  },
+  {
+    "category": "emotion_valence_lut",
+    "key_name": "fear_extreme",
+    "key_type": "valence",
+    "primary_recommendation": "-0.8 (valence midpoint)",
+    "rationale": "L1 情绪标签 horror_recognition, frozen_recognition, cognitive_collapse → Plutchik Fear (extreme) → valence 范围 -0.9~-0.7。",
+    "extra_data": {
+      "l1_emotion_labels": ["horror_recognition", "frozen_recognition", "cognitive_collapse"],
+      "plutchik_atom": "Fear (extreme)",
+      "valence_range": [-0.9, -0.7],
+      "valence_midpoint": -0.8
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "plutchik_valence from L1 emotion label",
+    "tags": ["script_auditor", "emotion_valence_lut", "fear"],
+    "priority": 60
+  },
+  {
+    "category": "emotion_valence_lut",
+    "key_name": "fear_dread_terminal",
+    "key_type": "valence",
+    "primary_recommendation": "-0.75 (valence midpoint)",
+    "rationale": "L1 情绪标签 terminal_hook, terminal_action → Plutchik Fear + Dread → valence 范围 -0.8~-0.7。",
+    "extra_data": {
+      "l1_emotion_labels": ["terminal_hook", "terminal_action"],
+      "plutchik_atom": "Fear + Dread",
+      "valence_range": [-0.8, -0.7],
+      "valence_midpoint": -0.75
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "plutchik_valence from L1 emotion label",
+    "tags": ["script_auditor", "emotion_valence_lut", "fear"],
+    "priority": 60
+  },
+  {
+    "category": "emotion_valence_lut",
+    "key_name": "fear_sustained",
+    "key_type": "valence",
+    "primary_recommendation": "-0.65 (valence midpoint)",
+    "rationale": "L1 情绪标签 frozen_afterimage → Plutchik Fear (sustained) → valence 范围 -0.7~-0.6。",
+    "extra_data": {
+      "l1_emotion_labels": ["frozen_afterimage"],
+      "plutchik_atom": "Fear (sustained)",
+      "valence_range": [-0.7, -0.6],
+      "valence_midpoint": -0.65
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "plutchik_valence from L1 emotion label",
+    "tags": ["script_auditor", "emotion_valence_lut", "fear"],
+    "priority": 60
+  },
+  {
+    "category": "emotion_valence_lut",
+    "key_name": "disgust_mild",
+    "key_type": "valence",
+    "primary_recommendation": "-0.3 (valence midpoint)",
+    "rationale": "L1 情绪标签 absurdist_recognition → Plutchik Disgust (mild) → valence 范围 -0.3~-0.3。",
+    "extra_data": {
+      "l1_emotion_labels": ["absurdist_recognition"],
+      "plutchik_atom": "Disgust (mild)",
+      "valence_range": [-0.3, -0.3],
+      "valence_midpoint": -0.3
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "plutchik_valence from L1 emotion label",
+    "tags": ["script_auditor", "emotion_valence_lut", "disgust"],
+    "priority": 60
+  },
+  {
+    "category": "emotion_valence_lut",
+    "key_name": "joy_uncanny",
+    "key_type": "valence",
+    "primary_recommendation": "0.3 (valence midpoint)",
+    "rationale": "L1 情绪标签 surreal_peace → Plutchik Joy (uncanny) → valence 范围 0.3~0.3。",
+    "extra_data": {
+      "l1_emotion_labels": ["surreal_peace"],
+      "plutchik_atom": "Joy (uncanny)",
+      "valence_range": [0.3, 0.3],
+      "valence_midpoint": 0.3
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "plutchik_valence from L1 emotion label",
+    "tags": ["script_auditor", "emotion_valence_lut", "joy"],
+    "priority": 60
+  },
+  {
+    "category": "emotion_valence_lut",
+    "key_name": "fear_surprise_complicit",
+    "key_type": "valence",
+    "primary_recommendation": "-0.2 (valence midpoint)",
+    "rationale": "L1 情绪标签 complicit_gaze → Plutchik Fear + Surprise → valence 范围 -0.2~-0.2。",
+    "extra_data": {
+      "l1_emotion_labels": ["complicit_gaze"],
+      "plutchik_atom": "Fear + Surprise",
+      "valence_range": [-0.2, -0.2],
+      "valence_midpoint": -0.2
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "plutchik_valence from L1 emotion label",
+    "tags": ["script_auditor", "emotion_valence_lut", "fear"],
+    "priority": 60
+  },
+  {
+    "category": "emotion_valence_lut",
+    "key_name": "anger_fear",
+    "key_type": "valence",
+    "primary_recommendation": "-0.8 (valence midpoint)",
+    "rationale": "L1 情绪标签 tool_fracture_snap → Plutchik Anger + Fear → valence 范围 -0.8~-0.8。",
+    "extra_data": {
+      "l1_emotion_labels": ["tool_fracture_snap"],
+      "plutchik_atom": "Anger + Fear",
+      "valence_range": [-0.8, -0.8],
+      "valence_midpoint": -0.8
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "plutchik_valence from L1 emotion label",
+    "tags": ["script_auditor", "emotion_valence_lut", "anger"],
+    "priority": 60
+  },
+  {
+    "category": "emotion_valence_lut",
+    "key_name": "fear_dissociative",
+    "key_type": "valence",
+    "primary_recommendation": "-0.55 (valence midpoint)",
+    "rationale": "L1 情绪标签 involuntary_precision → Plutchik Fear (dissociative) → valence 范围 -0.65~-0.5。",
+    "extra_data": {
+      "l1_emotion_labels": ["involuntary_precision"],
+      "plutchik_atom": "Fear (dissociative)",
+      "valence_range": [-0.65, -0.5],
+      "valence_midpoint": -0.55
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "plutchik_valence from L1 emotion label",
+    "tags": ["script_auditor", "emotion_valence_lut", "fear"],
+    "priority": 60
+  },
+  {
+    "category": "emotion_valence_lut",
+    "key_name": "plutchik_anger",
+    "key_type": "valence",
+    "primary_recommendation": "愤怒/Anger: valence -1, arousal High。",
+    "rationale": "Plutchik 8 基本情绪;复合情绪(如爱慕=Joy+Trust,绝望=Sadness+Fear)由 primary 分量平均计算。",
+    "extra_data": {
+      "emotion_cn": "愤怒",
+      "emotion_en": "Anger",
+      "valence": -1,
+      "arousal": "High"
+    },
+    "source_file": "emotion-arc-audit.md",
+    "source_section": "Plutchik 8-dimensional emotion model",
+    "tags": ["script_auditor", "emotion_valence_lut", "plutchik", "anger"],
+    "priority": 62
+  },
+  {
+    "category": "emotion_valence_lut",
+    "key_name": "plutchik_fear",
+    "key_type": "valence",
+    "primary_recommendation": "恐惧/Fear: valence -1, arousal High。",
+    "rationale": "Plutchik 8 基本情绪;复合情绪(如爱慕=Joy+Trust,绝望=Sadness+Fear)由 primary 分量平均计算。",
+    "extra_data": {
+      "emotion_cn": "恐惧",
+      "emotion_en": "Fear",
+      "valence": -1,
+      "arousal": "High"
+    },
+    "source_file": "emotion-arc-audit.md",
+    "source_section": "Plutchik 8-dimensional emotion model",
+    "tags": ["script_auditor", "emotion_valence_lut", "plutchik", "fear"],
+    "priority": 62
+  },
+  {
+    "category": "emotion_valence_lut",
+    "key_name": "plutchik_sadness",
+    "key_type": "valence",
+    "primary_recommendation": "悲伤/Sadness: valence -1, arousal Low。",
+    "rationale": "Plutchik 8 基本情绪;复合情绪(如爱慕=Joy+Trust,绝望=Sadness+Fear)由 primary 分量平均计算。",
+    "extra_data": {
+      "emotion_cn": "悲伤",
+      "emotion_en": "Sadness",
+      "valence": -1,
+      "arousal": "Low"
+    },
+    "source_file": "emotion-arc-audit.md",
+    "source_section": "Plutchik 8-dimensional emotion model",
+    "tags": ["script_auditor", "emotion_valence_lut", "plutchik", "sadness"],
+    "priority": 62
+  },
+  {
+    "category": "emotion_valence_lut",
+    "key_name": "plutchik_disgust",
+    "key_type": "valence",
+    "primary_recommendation": "厌恶/Disgust: valence -1, arousal Low。",
+    "rationale": "Plutchik 8 基本情绪;复合情绪(如爱慕=Joy+Trust,绝望=Sadness+Fear)由 primary 分量平均计算。",
+    "extra_data": {
+      "emotion_cn": "厌恶",
+      "emotion_en": "Disgust",
+      "valence": -1,
+      "arousal": "Low"
+    },
+    "source_file": "emotion-arc-audit.md",
+    "source_section": "Plutchik 8-dimensional emotion model",
+    "tags": ["script_auditor", "emotion_valence_lut", "plutchik", "disgust"],
+    "priority": 62
+  },
+  {
+    "category": "emotion_valence_lut",
+    "key_name": "plutchik_surprise",
+    "key_type": "valence",
+    "primary_recommendation": "惊讶/Surprise: valence +0, arousal High。",
+    "rationale": "Plutchik 8 基本情绪;复合情绪(如爱慕=Joy+Trust,绝望=Sadness+Fear)由 primary 分量平均计算。",
+    "extra_data": {
+      "emotion_cn": "惊讶",
+      "emotion_en": "Surprise",
+      "valence": 0,
+      "arousal": "High"
+    },
+    "source_file": "emotion-arc-audit.md",
+    "source_section": "Plutchik 8-dimensional emotion model",
+    "tags": ["script_auditor", "emotion_valence_lut", "plutchik", "surprise"],
+    "priority": 62
+  },
+  {
+    "category": "emotion_valence_lut",
+    "key_name": "plutchik_anticipation",
+    "key_type": "valence",
+    "primary_recommendation": "期待/Anticipation: valence +1, arousal Low。",
+    "rationale": "Plutchik 8 基本情绪;复合情绪(如爱慕=Joy+Trust,绝望=Sadness+Fear)由 primary 分量平均计算。",
+    "extra_data": {
+      "emotion_cn": "期待",
+      "emotion_en": "Anticipation",
+      "valence": 1,
+      "arousal": "Low"
+    },
+    "source_file": "emotion-arc-audit.md",
+    "source_section": "Plutchik 8-dimensional emotion model",
+    "tags": ["script_auditor", "emotion_valence_lut", "plutchik", "anticipation"],
+    "priority": 62
+  },
+  {
+    "category": "emotion_valence_lut",
+    "key_name": "plutchik_trust",
+    "key_type": "valence",
+    "primary_recommendation": "信任/Trust: valence +1, arousal Low。",
+    "rationale": "Plutchik 8 基本情绪;复合情绪(如爱慕=Joy+Trust,绝望=Sadness+Fear)由 primary 分量平均计算。",
+    "extra_data": {
+      "emotion_cn": "信任",
+      "emotion_en": "Trust",
+      "valence": 1,
+      "arousal": "Low"
+    },
+    "source_file": "emotion-arc-audit.md",
+    "source_section": "Plutchik 8-dimensional emotion model",
+    "tags": ["script_auditor", "emotion_valence_lut", "plutchik", "trust"],
+    "priority": 62
+  },
+  {
+    "category": "emotion_valence_lut",
+    "key_name": "plutchik_joy",
+    "key_type": "valence",
+    "primary_recommendation": "喜悦/Joy: valence +1, arousal High。",
+    "rationale": "Plutchik 8 基本情绪;复合情绪(如爱慕=Joy+Trust,绝望=Sadness+Fear)由 primary 分量平均计算。",
+    "extra_data": {
+      "emotion_cn": "喜悦",
+      "emotion_en": "Joy",
+      "valence": 1,
+      "arousal": "High"
+    },
+    "source_file": "emotion-arc-audit.md",
+    "source_section": "Plutchik 8-dimensional emotion model",
+    "tags": ["script_auditor", "emotion_valence_lut", "plutchik", "joy"],
+    "priority": 62
+  },
+  {
+    "category": "emotion_valence_lut",
+    "key_name": "valence_computation_rule",
+    "key_type": "valence",
+    "primary_recommendation": "plutchik_valence 取 valence 范围中点作为计算值。emotion_transition_delta=|valence(t)-valence(t-1)|;delta≥0.4=显著转场(好);delta<0.2 连续2+镜头=平台期风险。",
+    "extra_data": {
+      "midpoint_rule": "pick range midpoint",
+      "sawtooth_threshold_delta": 0.4,
+      "plateau_delta": 0.2
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "emotion_transition_delta",
+    "tags": ["script_auditor", "emotion_valence_lut", "rule"],
+    "priority": 64
+  },
+  {
+    "category": "beat_role_intensity",
+    "key_name": "opening_image",
+    "key_type": "beat_role",
+    "primary_recommendation": "conflict_intensity 1-3/10",
+    "rationale": "Beat role 'opening_image / hook-pin': Deliberate low intensity for 蓄能。调整:physical violence +1-2 / identity destruction +1-2 / existential dread +0-1。",
+    "extra_data": {
+      "beat_role": "opening_image / hook-pin",
+      "conflict_range": [1, 3],
+      "notes": "Deliberate low intensity for 蓄能",
+      "adjustments": {
+        "physical_violence": "+1-2",
+        "identity_destruction": "+1-2",
+        "existential_dread": "+0-1"
+      }
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "conflict_intensity_1_10",
+    "tags": ["script_auditor", "beat_role_intensity", "opening_image"],
+    "priority": 60
+  },
+  {
+    "category": "beat_role_intensity",
+    "key_name": "complication_early",
+    "key_type": "beat_role",
+    "primary_recommendation": "conflict_intensity 2-4/10",
+    "rationale": "Beat role 'complication / beat_transition (early)': Rising but below threshold。调整:physical violence +1-2 / identity destruction +1-2 / existential dread +0-1。",
+    "extra_data": {
+      "beat_role": "complication / beat_transition (early)",
+      "conflict_range": [2, 4],
+      "notes": "Rising but below threshold",
+      "adjustments": {
+        "physical_violence": "+1-2",
+        "identity_destruction": "+1-2",
+        "existential_dread": "+0-1"
+      }
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "conflict_intensity_1_10",
+    "tags": ["script_auditor", "beat_role_intensity", "complication_early"],
+    "priority": 60
+  },
+  {
+    "category": "beat_role_intensity",
+    "key_name": "rising_tension_early",
+    "key_type": "beat_role",
+    "primary_recommendation": "conflict_intensity 3-5/10",
+    "rationale": "Beat role 'rising_tension / value_shift (early)': Approaching inciting incident。调整:physical violence +1-2 / identity destruction +1-2 / existential dread +0-1。",
+    "extra_data": {
+      "beat_role": "rising_tension / value_shift (early)",
+      "conflict_range": [3, 5],
+      "notes": "Approaching inciting incident",
+      "adjustments": {
+        "physical_violence": "+1-2",
+        "identity_destruction": "+1-2",
+        "existential_dread": "+0-1"
+      }
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "conflict_intensity_1_10",
+    "tags": ["script_auditor", "beat_role_intensity", "rising_tension_early"],
+    "priority": 60
+  },
+  {
+    "category": "beat_role_intensity",
+    "key_name": "catalyst",
+    "key_type": "beat_role",
+    "primary_recommendation": "conflict_intensity 3-5/10",
+    "rationale": "Beat role 'catalyst / inciting_incident': External disruption enters。调整:physical violence +1-2 / identity destruction +1-2 / existential dread +0-1。",
+    "extra_data": {
+      "beat_role": "catalyst / inciting_incident",
+      "conflict_range": [3, 5],
+      "notes": "External disruption enters",
+      "adjustments": {
+        "physical_violence": "+1-2",
+        "identity_destruction": "+1-2",
+        "existential_dread": "+0-1"
+      }
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "conflict_intensity_1_10",
+    "tags": ["script_auditor", "beat_role_intensity", "catalyst"],
+    "priority": 60
+  },
+  {
+    "category": "beat_role_intensity",
+    "key_name": "escalation",
+    "key_type": "beat_role",
+    "primary_recommendation": "conflict_intensity 5-7/10",
+    "rationale": "Beat role 'escalation': Stakes raised, McKee gap widens。调整:physical violence +1-2 / identity destruction +1-2 / existential dread +0-1。",
+    "extra_data": {
+      "beat_role": "escalation",
+      "conflict_range": [5, 7],
+      "notes": "Stakes raised, McKee gap widens",
+      "adjustments": {
+        "physical_violence": "+1-2",
+        "identity_destruction": "+1-2",
+        "existential_dread": "+0-1"
+      }
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "conflict_intensity_1_10",
+    "tags": ["script_auditor", "beat_role_intensity", "escalation"],
+    "priority": 60
+  },
+  {
+    "category": "beat_role_intensity",
+    "key_name": "partial_resolution",
+    "key_type": "beat_role",
+    "primary_recommendation": "conflict_intensity 4-6/10",
+    "rationale": "Beat role 'partial_resolution_into_new_problem': Brief breath before next escalation。调整:physical violence +1-2 / identity destruction +1-2 / existential dread +0-1。",
+    "extra_data": {
+      "beat_role": "partial_resolution_into_new_problem",
+      "conflict_range": [4, 6],
+      "notes": "Brief breath before next escalation",
+      "adjustments": {
+        "physical_violence": "+1-2",
+        "identity_destruction": "+1-2",
+        "existential_dread": "+0-1"
+      }
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "conflict_intensity_1_10",
+    "tags": ["script_auditor", "beat_role_intensity", "partial_resolution"],
+    "priority": 60
+  },
+  {
+    "category": "beat_role_intensity",
+    "key_name": "rising_action",
+    "key_type": "beat_role",
+    "primary_recommendation": "conflict_intensity 5-7/10",
+    "rationale": "Beat role 'rising_action': Sustained escalation。调整:physical violence +1-2 / identity destruction +1-2 / existential dread +0-1。",
+    "extra_data": {
+      "beat_role": "rising_action",
+      "conflict_range": [5, 7],
+      "notes": "Sustained escalation",
+      "adjustments": {
+        "physical_violence": "+1-2",
+        "identity_destruction": "+1-2",
+        "existential_dread": "+0-1"
+      }
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "conflict_intensity_1_10",
+    "tags": ["script_auditor", "beat_role_intensity", "rising_action"],
+    "priority": 60
+  },
+  {
+    "category": "beat_role_intensity",
+    "key_name": "midpoint_setup",
+    "key_type": "beat_role",
+    "primary_recommendation": "conflict_intensity 6-8/10",
+    "rationale": "Beat role 'midpoint_setup': Dual-track launch, narrative density peak。调整:physical violence +1-2 / identity destruction +1-2 / existential dread +0-1。",
+    "extra_data": {
+      "beat_role": "midpoint_setup",
+      "conflict_range": [6, 8],
+      "notes": "Dual-track launch, narrative density peak",
+      "adjustments": {
+        "physical_violence": "+1-2",
+        "identity_destruction": "+1-2",
+        "existential_dread": "+0-1"
+      }
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "conflict_intensity_1_10",
+    "tags": ["script_auditor", "beat_role_intensity", "midpoint_setup"],
+    "priority": 60
+  },
+  {
+    "category": "beat_role_intensity",
+    "key_name": "midpoint_reversal",
+    "key_type": "beat_role",
+    "primary_recommendation": "conflict_intensity 7-9/10",
+    "rationale": "Beat role 'midpoint_polarity_reversal / payoff': Irreversible turn + payoff anchor。调整:physical violence +1-2 / identity destruction +1-2 / existential dread +0-1。",
+    "extra_data": {
+      "beat_role": "midpoint_polarity_reversal / payoff",
+      "conflict_range": [7, 9],
+      "notes": "Irreversible turn + payoff anchor",
+      "adjustments": {
+        "physical_violence": "+1-2",
+        "identity_destruction": "+1-2",
+        "existential_dread": "+0-1"
+      }
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "conflict_intensity_1_10",
+    "tags": ["script_auditor", "beat_role_intensity", "midpoint_reversal"],
+    "priority": 60
+  },
+  {
+    "category": "beat_role_intensity",
+    "key_name": "simultaneous_collapse",
+    "key_type": "beat_role",
+    "primary_recommendation": "conflict_intensity 6-8/10",
+    "rationale": "Beat role 'simultaneous_collapse': Parallel track convergence。调整:physical violence +1-2 / identity destruction +1-2 / existential dread +0-1。",
+    "extra_data": {
+      "beat_role": "simultaneous_collapse",
+      "conflict_range": [6, 8],
+      "notes": "Parallel track convergence",
+      "adjustments": {
+        "physical_violence": "+1-2",
+        "identity_destruction": "+1-2",
+        "existential_dread": "+0-1"
+      }
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "conflict_intensity_1_10",
+    "tags": ["script_auditor", "beat_role_intensity", "simultaneous_collapse"],
+    "priority": 60
+  },
+  {
+    "category": "beat_role_intensity",
+    "key_name": "identity_collapse",
+    "key_type": "beat_role",
+    "primary_recommendation": "conflict_intensity 7-9/10",
+    "rationale": "Beat role 'identity_collapse': Identity destruction visible。调整:physical violence +1-2 / identity destruction +1-2 / existential dread +0-1。",
+    "extra_data": {
+      "beat_role": "identity_collapse",
+      "conflict_range": [7, 9],
+      "notes": "Identity destruction visible",
+      "adjustments": {
+        "physical_violence": "+1-2",
+        "identity_destruction": "+1-2",
+        "existential_dread": "+0-1"
+      }
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "conflict_intensity_1_10",
+    "tags": ["script_auditor", "beat_role_intensity", "identity_collapse"],
+    "priority": 60
+  },
+  {
+    "category": "beat_role_intensity",
+    "key_name": "false_calm",
+    "key_type": "beat_role",
+    "primary_recommendation": "conflict_intensity 2-4/10",
+    "rationale": "Beat role 'false_calm': Intentional decompression (silence device)。调整:physical violence +1-2 / identity destruction +1-2 / existential dread +0-1。",
+    "extra_data": {
+      "beat_role": "false_calm",
+      "conflict_range": [2, 4],
+      "notes": "Intentional decompression (silence device)",
+      "adjustments": {
+        "physical_violence": "+1-2",
+        "identity_destruction": "+1-2",
+        "existential_dread": "+0-1"
+      }
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "conflict_intensity_1_10",
+    "tags": ["script_auditor", "beat_role_intensity", "false_calm"],
+    "priority": 60
+  },
+  {
+    "category": "beat_role_intensity",
+    "key_name": "discovery",
+    "key_type": "beat_role",
+    "primary_recommendation": "conflict_intensity 3-5/10",
+    "rationale": "Beat role 'discovery': Cognitive, not physical conflict。调整:physical violence +1-2 / identity destruction +1-2 / existential dread +0-1。",
+    "extra_data": {
+      "beat_role": "discovery",
+      "conflict_range": [3, 5],
+      "notes": "Cognitive, not physical conflict",
+      "adjustments": {
+        "physical_violence": "+1-2",
+        "identity_destruction": "+1-2",
+        "existential_dread": "+0-1"
+      }
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "conflict_intensity_1_10",
+    "tags": ["script_auditor", "beat_role_intensity", "discovery"],
+    "priority": 60
+  },
+  {
+    "category": "beat_role_intensity",
+    "key_name": "recognition_horror",
+    "key_type": "beat_role",
+    "primary_recommendation": "conflict_intensity 8-10/10",
+    "rationale": "Beat role 'recognition_horror / value_shift (climax)': Existential dread, climax frame。调整:physical violence +1-2 / identity destruction +1-2 / existential dread +0-1。",
+    "extra_data": {
+      "beat_role": "recognition_horror / value_shift (climax)",
+      "conflict_range": [8, 10],
+      "notes": "Existential dread, climax frame",
+      "adjustments": {
+        "physical_violence": "+1-2",
+        "identity_destruction": "+1-2",
+        "existential_dread": "+0-1"
+      }
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "conflict_intensity_1_10",
+    "tags": ["script_auditor", "beat_role_intensity", "recognition_horror"],
+    "priority": 60
+  },
+  {
+    "category": "beat_role_intensity",
+    "key_name": "all_is_lost_collapse",
+    "key_type": "beat_role",
+    "primary_recommendation": "conflict_intensity 9-10/10",
+    "rationale": "Beat role 'all_is_lost_collapse': Maximum conflict。调整:physical violence +1-2 / identity destruction +1-2 / existential dread +0-1。",
+    "extra_data": {
+      "beat_role": "all_is_lost_collapse",
+      "conflict_range": [9, 10],
+      "notes": "Maximum conflict",
+      "adjustments": {
+        "physical_violence": "+1-2",
+        "identity_destruction": "+1-2",
+        "existential_dread": "+0-1"
+      }
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "conflict_intensity_1_10",
+    "tags": ["script_auditor", "beat_role_intensity", "all_is_lost_collapse"],
+    "priority": 60
+  },
+  {
+    "category": "beat_role_intensity",
+    "key_name": "break_into_three",
+    "key_type": "beat_role",
+    "primary_recommendation": "conflict_intensity 1-3/10",
+    "rationale": "Beat role 'break_into_three': New act begins。调整:physical violence +1-2 / identity destruction +1-2 / existential dread +0-1。",
+    "extra_data": {
+      "beat_role": "break_into_three",
+      "conflict_range": [1, 3],
+      "notes": "New act begins",
+      "adjustments": {
+        "physical_violence": "+1-2",
+        "identity_destruction": "+1-2",
+        "existential_dread": "+0-1"
+      }
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "conflict_intensity_1_10",
+    "tags": ["script_auditor", "beat_role_intensity", "break_into_three"],
+    "priority": 60
+  },
+  {
+    "category": "beat_role_intensity",
+    "key_name": "terminal_action",
+    "key_type": "beat_role",
+    "primary_recommendation": "conflict_intensity 5-7/10",
+    "rationale": "Beat role 'terminal_action_initiation': Final action begins。调整:physical violence +1-2 / identity destruction +1-2 / existential dread +0-1。",
+    "extra_data": {
+      "beat_role": "terminal_action_initiation",
+      "conflict_range": [5, 7],
+      "notes": "Final action begins",
+      "adjustments": {
+        "physical_violence": "+1-2",
+        "identity_destruction": "+1-2",
+        "existential_dread": "+0-1"
+      }
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "conflict_intensity_1_10",
+    "tags": ["script_auditor", "beat_role_intensity", "terminal_action"],
+    "priority": 60
+  },
+  {
+    "category": "beat_role_intensity",
+    "key_name": "involuntary_precision",
+    "key_type": "beat_role",
+    "primary_recommendation": "conflict_intensity 6-8/10",
+    "rationale": "Beat role 'involuntary_precision_demonstration': Uncanny competence as horror。调整:physical violence +1-2 / identity destruction +1-2 / existential dread +0-1。",
+    "extra_data": {
+      "beat_role": "involuntary_precision_demonstration",
+      "conflict_range": [6, 8],
+      "notes": "Uncanny competence as horror",
+      "adjustments": {
+        "physical_violence": "+1-2",
+        "identity_destruction": "+1-2",
+        "existential_dread": "+0-1"
+      }
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "conflict_intensity_1_10",
+    "tags": ["script_auditor", "beat_role_intensity", "involuntary_precision"],
+    "priority": 60
+  },
+  {
+    "category": "beat_role_intensity",
+    "key_name": "cliffhanger",
+    "key_type": "beat_role",
+    "primary_recommendation": "conflict_intensity 8-10/10",
+    "rationale": "Beat role 'cliffhanger / cliffhanger_hook': Maximum stakes for must-watch-next。调整:physical violence +1-2 / identity destruction +1-2 / existential dread +0-1。",
+    "extra_data": {
+      "beat_role": "cliffhanger / cliffhanger_hook",
+      "conflict_range": [8, 10],
+      "notes": "Maximum stakes for must-watch-next",
+      "adjustments": {
+        "physical_violence": "+1-2",
+        "identity_destruction": "+1-2",
+        "existential_dread": "+0-1"
+      }
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "conflict_intensity_1_10",
+    "tags": ["script_auditor", "beat_role_intensity", "cliffhanger"],
+    "priority": 60
+  },
+  {
+    "category": "beat_role_intensity",
+    "key_name": "final_image",
+    "key_type": "beat_role",
+    "primary_recommendation": "conflict_intensity 5-8/10",
+    "rationale": "Beat role 'final_image / payoff (ending)': Resonance > raw conflict。调整:physical violence +1-2 / identity destruction +1-2 / existential dread +0-1。",
+    "extra_data": {
+      "beat_role": "final_image / payoff (ending)",
+      "conflict_range": [5, 8],
+      "notes": "Resonance > raw conflict",
+      "adjustments": {
+        "physical_violence": "+1-2",
+        "identity_destruction": "+1-2",
+        "existential_dread": "+0-1"
+      }
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "conflict_intensity_1_10",
+    "tags": ["script_auditor", "beat_role_intensity", "final_image"],
+    "priority": 60
+  },
+  {
+    "category": "beat_role_intensity",
+    "key_name": "beat_transition_general",
+    "key_type": "beat_role",
+    "primary_recommendation": "conflict_intensity 4-6/10",
+    "rationale": "Beat role 'beat_transition (general)': Context-dependent; use surrounding shots。调整:physical violence +1-2 / identity destruction +1-2 / existential dread +0-1。",
+    "extra_data": {
+      "beat_role": "beat_transition (general)",
+      "conflict_range": [4, 6],
+      "notes": "Context-dependent; use surrounding shots",
+      "adjustments": {
+        "physical_violence": "+1-2",
+        "identity_destruction": "+1-2",
+        "existential_dread": "+0-1"
+      }
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "conflict_intensity_1_10",
+    "tags": ["script_auditor", "beat_role_intensity", "beat_transition_general"],
+    "priority": 60
+  },
+  {
+    "category": "beat_role_intensity",
+    "key_name": "plateau_risk_rule",
+    "key_type": "beat_role",
+    "primary_recommendation": "plateau_risk=1 当 conflict(t)<5 AND conflict(t-1)<5 AND sign(valence(t))==sign(valence(t-1))。Plutchik class 变化则缓解(仍标记)。",
+    "rationale": "场景边界 edge case:conflict 从≥6 骤降到<4 且 delta≥0.10 → 标 soft_plateau_warning(虽然 plateau_risk=0)。",
+    "extra_data": {
+      "rule": "conflict<5 consecutive AND same valence sign",
+      "mitigation": "Plutchik class change",
+      "soft_warning": "drop from>=6 to<4 with delta>=0.10"
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "plateau_risk",
+    "tags": ["script_auditor", "beat_role_intensity", "plateau_risk"],
+    "priority": 62
+  },
+  {
+    "category": "beat_role_intensity",
+    "key_name": "shot_audit_score_weighting",
+    "key_type": "beat_role",
+    "primary_recommendation": "shot_audit_score 0-20:beat_compliance×5 + conflict_appropriateness×3 + transition_delta×3 + info_density×2 + hook/plateau×3 + char_function×2 + retention×2。",
+    "extra_data": {
+      "total_max": 20,
+      "weights": {
+        "beat_compliance": 5,
+        "conflict_appropriateness": 3,
+        "emotion_transition_delta": 3,
+        "info_density": 2,
+        "hook_or_plateau": 3,
+        "character_function_clarity": 2,
+        "completion_retention": 2
+      }
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "shot_audit_score_1_20",
+    "tags": ["script_auditor", "beat_role_intensity", "score"],
+    "priority": 60
+  },
+  {
+    "category": "beat_role_intensity",
+    "key_name": "retention_contribution_model",
+    "key_type": "beat_role",
+    "primary_recommendation": "completion_retention [-0.5,+0.5]:conflict≥7 +0.3;delta≥0.4 +0.2;conflict≤3且duration≥3s -0.2;plateau -0.1;payoff(intensity≥4)+0.2;cliffhanger +0.2。",
+    "extra_data": {
+      "high_conflict_boost": 0.3,
+      "transition_boost": 0.2,
+      "low_conflict_long_penalty": -0.2,
+      "plateau_penalty": -0.1,
+      "payoff_boost": 0.2,
+      "cliffhanger_boost": 0.2,
+      "clamp": [-0.5, 0.5]
+    },
+    "source_file": "per-shot-blackboard-audit.md",
+    "source_section": "completion_retention_contribution",
+    "tags": ["script_auditor", "beat_role_intensity", "retention"],
+    "priority": 62
+  },
+  {
+    "category": "reversal_pattern",
+    "key_name": "pattern_lrc",
+    "key_type": "reversal",
+    "primary_recommendation": "Layered Reality Collapse: [S]Normal→[F]False high-stakes trigger→[R]Cathartic action under false permission→[C]Reality reveal→[P]Trivial irreversible consequence。",
+    "rationale": "Layers 3 / 喜剧引擎 Retroactive catharsis absurdification / pre-investment High / persistent consequence Yes / difficulty 4/5。",
+    "extra_data": {
+      "pattern": "Layered Reality Collapse",
+      "layers": 3,
+      "comedy_engine": "Retroactive catharsis absurdification",
+      "pre_investment": "High",
+      "persistent_consequence": "Yes",
+      "difficulty": "4/5",
+      "template": "[S]Normal→[F]False high-stakes trigger→[R]Cathartic action under false permission→[C]Reality reveal→[P]Trivial irreversible consequence"
+    },
+    "source_file": "reversal-structure-taxonomy.md",
+    "source_section": "5 Reversal Structure Patterns",
+    "tags": ["script_auditor", "reversal_pattern", "lrc"],
+    "priority": 66
+  },
+  {
+    "category": "reversal_pattern",
+    "key_name": "pattern_rpp",
+    "key_type": "reversal",
+    "primary_recommendation": "Recursive Perspective Pivot: [S]Story A→[P1]A watched by B→[P2]B watched by C→[P]Meaning inverted twice。",
+    "rationale": "Layers 3 / 喜剧引擎 Interpretive gullibility exposure / pre-investment Medium / persistent consequence Low / difficulty 5/5。",
+    "extra_data": {
+      "pattern": "Recursive Perspective Pivot",
+      "layers": 3,
+      "comedy_engine": "Interpretive gullibility exposure",
+      "pre_investment": "Medium",
+      "persistent_consequence": "Low",
+      "difficulty": "5/5",
+      "template": "[S]Story A→[P1]A watched by B→[P2]B watched by C→[P]Meaning inverted twice"
+    },
+    "source_file": "reversal-structure-taxonomy.md",
+    "source_section": "5 Reversal Structure Patterns",
+    "tags": ["script_auditor", "reversal_pattern", "rpp"],
+    "priority": 60
+  },
+  {
+    "category": "reversal_pattern",
+    "key_name": "pattern_cce",
+    "key_type": "reversal",
+    "primary_recommendation": "Consequence Cascade Erosion: [S]Catastrophic perception→[E1-E3]Consequences shrink→[P]Panic-reaction is the embarrassment。",
+    "rationale": "Layers 3+ / 喜剧引擎 Self-inflicted overreaction damage / pre-investment Medium / persistent consequence Yes / difficulty 3/5。",
+    "extra_data": {
+      "pattern": "Consequence Cascade Erosion",
+      "layers": "3+",
+      "comedy_engine": "Self-inflicted overreaction damage",
+      "pre_investment": "Medium",
+      "persistent_consequence": "Yes",
+      "difficulty": "3/5",
+      "template": "[S]Catastrophic perception→[E1-E3]Consequences shrink→[P]Panic-reaction is the embarrassment"
+    },
+    "source_file": "reversal-structure-taxonomy.md",
+    "source_section": "5 Reversal Structure Patterns",
+    "tags": ["script_auditor", "reversal_pattern", "cce"],
+    "priority": 60
+  },
+  {
+    "category": "reversal_pattern",
+    "key_name": "pattern_mms",
+    "key_type": "reversal",
+    "primary_recommendation": "Misattributed Motivation Stack: [S]Action X motivation M1→[T1]actually M2→[T2]actually M3(trivial)→[P]X has third moral valence。",
+    "rationale": "Layers 3 / 喜剧引擎 Moral-judgment failure / pre-investment Medium / persistent consequence Low / difficulty 4/5。",
+    "extra_data": {
+      "pattern": "Misattributed Motivation Stack",
+      "layers": 3,
+      "comedy_engine": "Moral-judgment failure",
+      "pre_investment": "Medium",
+      "persistent_consequence": "Low",
+      "difficulty": "4/5",
+      "template": "[S]Action X motivation M1→[T1]actually M2→[T2]actually M3(trivial)→[P]X has third moral valence"
+    },
+    "source_file": "reversal-structure-taxonomy.md",
+    "source_section": "5 Reversal Structure Patterns",
+    "tags": ["script_auditor", "reversal_pattern", "mms"],
+    "priority": 60
+  },
+  {
+    "category": "reversal_pattern",
+    "key_name": "pattern_cci",
+    "key_type": "reversal",
+    "primary_recommendation": "Causality Chain Inversion: [S]A appears to cause B→[T]B caused A→[P]A→B reactions retroactively absurd。",
+    "rationale": "Layers 2 / 喜剧引擎 Causal-heuristic subversion / pre-investment High / persistent consequence Yes / difficulty 5/5。",
+    "extra_data": {
+      "pattern": "Causality Chain Inversion",
+      "layers": 2,
+      "comedy_engine": "Causal-heuristic subversion",
+      "pre_investment": "High",
+      "persistent_consequence": "Yes",
+      "difficulty": "5/5",
+      "template": "[S]A appears to cause B→[T]B caused A→[P]A→B reactions retroactively absurd"
+    },
+    "source_file": "reversal-structure-taxonomy.md",
+    "source_section": "5 Reversal Structure Patterns",
+    "tags": ["script_auditor", "reversal_pattern", "cci"],
+    "priority": 60
+  },
+  {
+    "category": "reversal_pattern",
+    "key_name": "component_C1",
+    "key_type": "reversal",
+    "primary_recommendation": "C1 False-Stakes Inflation Trigger: 事件表层暗示存在/极端赌注,电影化呈现为真实。",
+    "rationale": "Gold-standard 示例: Nuclear explosion=apocalypse。关键:假前提层是 informationally fake but emotionally real。",
+    "extra_data": {
+      "component_id": "C1",
+      "name": "False-Stakes Inflation Trigger",
+      "role": "事件表层暗示存在/极端赌注,电影化呈现为真实",
+      "example": "Nuclear explosion=apocalypse"
+    },
+    "source_file": "reversal-structure-taxonomy.md",
+    "source_section": "6 Structural Components",
+    "tags": ["script_auditor", "reversal_pattern", "component", "C1"],
+    "priority": 62
+  },
+  {
+    "category": "reversal_pattern",
+    "key_name": "component_C2",
+    "key_type": "reversal",
+    "primary_recommendation": "C2 Permission-Grant Emotional Release: 膨胀的假赌注=道德许可,社会规则悬置,角色做出平时绝不会做的事,真正满足。",
+    "rationale": "Gold-standard 示例: Cat bashes boss。关键:假前提层是 informationally fake but emotionally real。",
+    "extra_data": {
+      "component_id": "C2",
+      "name": "Permission-Grant Emotional Release",
+      "role": "膨胀的假赌注=道德许可,社会规则悬置,角色做出平时绝不会做的事,真正满足",
+      "example": "Cat bashes boss"
+    },
+    "source_file": "reversal-structure-taxonomy.md",
+    "source_section": "6 Structural Components",
+    "tags": ["script_auditor", "reversal_pattern", "component", "C2"],
+    "priority": 62
+  },
+  {
+    "category": "reversal_pattern",
+    "key_name": "component_C3",
+    "key_type": "reversal",
+    "primary_recommendation": "C3 Ontological Collapse (The Pivot): 单一信息揭露证明此前情绪序列建立在假前提上,廉价但彻底。",
+    "rationale": "Gold-standard 示例: It was a TV screen。关键:假前提层是 informationally fake but emotionally real。",
+    "extra_data": {
+      "component_id": "C3",
+      "name": "Ontological Collapse (The Pivot)",
+      "role": "单一信息揭露证明此前情绪序列建立在假前提上,廉价但彻底",
+      "example": "It was a TV screen"
+    },
+    "source_file": "reversal-structure-taxonomy.md",
+    "source_section": "6 Structural Components",
+    "tags": ["script_auditor", "reversal_pattern", "component", "C3"],
+    "priority": 62
+  },
+  {
+    "category": "reversal_pattern",
+    "key_name": "component_C4",
+    "key_type": "reversal",
+    "primary_recommendation": "C4 Consequence Asymmetry: 投入情绪(存在生存)与实际赌注(尴尬晚餐)的鸿沟巨大,喜剧在此。",
+    "rationale": "Gold-standard 示例: Invested: apocalypse; Actual: embarrassment。关键:假前提层是 informationally fake but emotionally real。",
+    "extra_data": {
+      "component_id": "C4",
+      "name": "Consequence Asymmetry",
+      "role": "投入情绪(存在生存)与实际赌注(尴尬晚餐)的鸿沟巨大,喜剧在此",
+      "example": "Invested: apocalypse; Actual: embarrassment"
+    },
+    "source_file": "reversal-structure-taxonomy.md",
+    "source_section": "6 Structural Components",
+    "tags": ["script_auditor", "reversal_pattern", "component", "C4"],
+    "priority": 62
+  },
+  {
+    "category": "reversal_pattern",
+    "key_name": "component_C5",
+    "key_type": "reversal",
+    "primary_recommendation": "C5 Irreversible Real Consequence: 宣泄行为有真实不可坍缩的后果,假前提蒸发但行为留存。",
+    "rationale": "Gold-standard 示例: Boss IS actually concussed。关键:假前提层是 informationally fake but emotionally real。",
+    "extra_data": {
+      "component_id": "C5",
+      "name": "Irreversible Real Consequence",
+      "role": "宣泄行为有真实不可坍缩的后果,假前提蒸发但行为留存",
+      "example": "Boss IS actually concussed"
+    },
+    "source_file": "reversal-structure-taxonomy.md",
+    "source_section": "6 Structural Components",
+    "tags": ["script_auditor", "reversal_pattern", "component", "C5"],
+    "priority": 62
+  },
+  {
+    "category": "reversal_pattern",
+    "key_name": "component_C6",
+    "key_type": "reversal",
+    "primary_recommendation": "C6 Tone Discontinuity: 揭露后世界有完全不同的调性寄存器,epic→mundane/cringe,调性错位即笑声触发。",
+    "rationale": "Gold-standard 示例: Epic survival→cringe office disaster。关键:假前提层是 informationally fake but emotionally real。",
+    "extra_data": {
+      "component_id": "C6",
+      "name": "Tone Discontinuity",
+      "role": "揭露后世界有完全不同的调性寄存器,epic→mundane/cringe,调性错位即笑声触发",
+      "example": "Epic survival→cringe office disaster"
+    },
+    "source_file": "reversal-structure-taxonomy.md",
+    "source_section": "6 Structural Components",
+    "tags": ["script_auditor", "reversal_pattern", "component", "C6"],
+    "priority": 62
+  },
+  {
+    "category": "reversal_pattern",
+    "key_name": "antipattern_identity_twist",
+    "key_type": "reversal",
+    "primary_recommendation": "Anti-pattern — Identity Twist(其实他是房东): 无行为释放/无赌注鸿沟/无持久后果,纯惊喜2秒衰减。",
+    "extra_data": {
+      "anti_pattern": "Identity Twist(其实他是房东)",
+      "why_it_fails": "无行为释放/无赌注鸿沟/无持久后果,纯惊喜2秒衰减"
+    },
+    "source_file": "reversal-structure-taxonomy.md",
+    "source_section": "Anti-Pattern Catalog",
+    "tags": ["script_auditor", "reversal_pattern", "anti_pattern", "identity_twist"],
+    "priority": 58
+  },
+  {
+    "category": "reversal_pattern",
+    "key_name": "antipattern_dream_collapse",
+    "key_type": "reversal",
+    "primary_recommendation": "Anti-pattern — Dream Collapse(原来是一场梦): 无持久后果,什么都没真正发生,无 cringe。",
+    "extra_data": {
+      "anti_pattern": "Dream Collapse(原来是一场梦)",
+      "why_it_fails": "无持久后果,什么都没真正发生,无 cringe"
+    },
+    "source_file": "reversal-structure-taxonomy.md",
+    "source_section": "Anti-Pattern Catalog",
+    "tags": ["script_auditor", "reversal_pattern", "anti_pattern", "dream_collapse"],
+    "priority": 58
+  },
+  {
+    "category": "reversal_pattern",
+    "key_name": "antipattern_winking_setup",
+    "key_type": "reversal",
+    "primary_recommendation": "Anti-pattern — Winking Setup(假前提段已用喜剧框架): setup 已搞笑,collapse 无可重新语境化的内容。",
+    "extra_data": {
+      "anti_pattern": "Winking Setup(假前提段已用喜剧框架)",
+      "why_it_fails": "setup 已搞笑,collapse 无可重新语境化的内容"
+    },
+    "source_file": "reversal-structure-taxonomy.md",
+    "source_section": "Anti-Pattern Catalog",
+    "tags": ["script_auditor", "reversal_pattern", "anti_pattern", "winking_setup"],
+    "priority": 58
+  },
+  {
+    "category": "reversal_pattern",
+    "key_name": "antipattern_gradual_collapse",
+    "key_type": "reversal",
+    "primary_recommendation": "Anti-pattern — Gradual Collapse(缓慢觉醒): 存在论坍缩必须瞬时,缓慢觉醒泄掉调性错位。",
+    "extra_data": {
+      "anti_pattern": "Gradual Collapse(缓慢觉醒)",
+      "why_it_fails": "存在论坍缩必须瞬时,缓慢觉醒泄掉调性错位"
+    },
+    "source_file": "reversal-structure-taxonomy.md",
+    "source_section": "Anti-Pattern Catalog",
+    "tags": ["script_auditor", "reversal_pattern", "anti_pattern", "gradual_collapse"],
+    "priority": 58
+  },
+  {
+    "category": "reversal_pattern",
+    "key_name": "antipattern_equal_stakes_reversal",
+    "key_type": "reversal",
+    "primary_recommendation": "Anti-pattern — Equal-Stakes Reversal(后赌注=前赌注): 无调性断裂,无喜剧鸿沟。",
+    "extra_data": {
+      "anti_pattern": "Equal-Stakes Reversal(后赌注=前赌注)",
+      "why_it_fails": "无调性断裂,无喜剧鸿沟"
+    },
+    "source_file": "reversal-structure-taxonomy.md",
+    "source_section": "Anti-Pattern Catalog",
+    "tags": ["script_auditor", "reversal_pattern", "anti_pattern", "equal_stakes_reversal"],
+    "priority": 58
+  },
+  {
+    "category": "reversal_pattern",
+    "key_name": "antipattern_retractable_action",
+    "key_type": "reversal",
+    "primary_recommendation": "Anti-pattern — Retractable Action(释放可撤销): 无持久后果/无 cringe/无不可逆。",
+    "extra_data": {
+      "anti_pattern": "Retractable Action(释放可撤销)",
+      "why_it_fails": "无持久后果/无 cringe/无不可逆"
+    },
+    "source_file": "reversal-structure-taxonomy.md",
+    "source_section": "Anti-Pattern Catalog",
+    "tags": ["script_auditor", "reversal_pattern", "anti_pattern", "retractable_action"],
+    "priority": 58
+  },
+  {
+    "category": "reversal_pattern",
+    "key_name": "antipattern_exposition_collapse",
+    "key_type": "reversal",
+    "primary_recommendation": "Anti-pattern — Exposition Collapse(揭露需解释): 坍缩必须视觉/瞬时,说明杀死节奏。",
+    "extra_data": {
+      "anti_pattern": "Exposition Collapse(揭露需解释)",
+      "why_it_fails": "坍缩必须视觉/瞬时,说明杀死节奏"
+    },
+    "source_file": "reversal-structure-taxonomy.md",
+    "source_section": "Anti-Pattern Catalog",
+    "tags": ["script_auditor", "reversal_pattern", "anti_pattern", "exposition_collapse"],
+    "priority": 58
+  },
+  {
+    "category": "reversal_pattern",
+    "key_name": "reversal_dim6_grade_scale",
+    "key_type": "reversal",
+    "primary_recommendation": "Dimension 6 反转深度(20pts,仅荒诞喜剧):6A层级(5)+6B行为释放(5)+6C赌注鸿沟比(4)+6C坍缩经济(3)+6E持久后果cringe(3)。pass ≥11。6B≤1 自动 ❌。",
+    "extra_data": {
+      "total_points": 20,
+      "sub_metrics": {
+        "6A_layer_count": 5,
+        "6B_behavioral_release": 5,
+        "6C_stakes_gap_ratio": 4,
+        "6D_collapse_economy": 3,
+        "6E_persistent_consequence": 3
+      },
+      "pass_threshold": 11,
+      "special_rule": "6B<=1 auto-fail",
+      "grades": {
+        "16-20": "S",
+        "11-15": "A",
+        "6-10": "B",
+        "0-5": "D"
+      }
+    },
+    "source_file": "reversal-structure-taxonomy.md",
+    "source_section": "Proposed Dimension 6",
+    "tags": ["script_auditor", "reversal_pattern", "dim6", "grade"],
+    "priority": 64
+  },
+  {
+    "category": "audit_metric",
+    "key_name": "dim1_plot_point_density",
+    "key_type": "audit_dimension",
+    "primary_recommendation": "Dim1 情节点密度(8pts):plot_point_density=key_plot_points/total_scenes。Hit≥0.40,miss<0.20;≥0.45→8分。",
+    "extra_data": {
+      "dimension": 1,
+      "sub_metric": "plot_point_density",
+      "points": 8,
+      "formula": "key_plot_points / total_scenes",
+      "key_points": ["inciting_incident", "midpoint", "climax", "resolution"],
+      "hit_min": 0.4,
+      "miss_max": 0.2,
+      "scoring": {
+        "0.45+": 8,
+        "0.40-0.44": 7,
+        "0.30-0.39": 5,
+        "0.20-0.29": 3,
+        "<0.20": 1
+      }
+    },
+    "source_file": "narrative-structure-audit.md",
+    "source_section": "Sub-metric 1: Plot-point density",
+    "tags": ["script_auditor", "audit_metric", "dim1", "plot_density"],
+    "priority": 62
+  },
+  {
+    "category": "audit_metric",
+    "key_name": "dim1_three_act_fit",
+    "key_type": "audit_dimension",
+    "primary_recommendation": "Dim1 三幕适配(6pts):理想 Setup25%/Confrontation50%/Resolution25%。偏差≤5%→6分;>20%偏差→-3/act。Setup>35%=长前导 anti-pattern。",
+    "extra_data": {
+      "dimension": 1,
+      "sub_metric": "three_act_fit",
+      "points": 6,
+      "ideal": {
+        "setup": 0.25,
+        "confrontation": 0.5,
+        "resolution": 0.25
+      },
+      "penalty": {
+        "<=5%": 0,
+        "5-10%": -1,
+        "10-20%": -2,
+        ">20%": -3
+      },
+      "violations": ["setup>35% long preamble", "resolution>35% dragging ending", "confrontation<40% low-stakes middle"]
+    },
+    "source_file": "narrative-structure-audit.md",
+    "source_section": "Sub-metric 2: Three-act fit",
+    "tags": ["script_auditor", "audit_metric", "dim1", "three_act"],
+    "priority": 60
+  },
+  {
+    "category": "audit_metric",
+    "key_name": "dim1_rhythm_variation",
+    "key_type": "audit_dimension",
+    "primary_recommendation": "Dim1 节奏变化(6pts):rhythm_stddev=相邻场景冲突强度标准差(1-10尺度)。Hit≥2.0,miss<1.0;≥2.5→6分。",
+    "extra_data": {
+      "dimension": 1,
+      "sub_metric": "rhythm_variation",
+      "points": 6,
+      "formula": "stddev(scene_conflict_intensities)",
+      "scale": [1, 10],
+      "hit_min": 2.0,
+      "miss_max": 1.0,
+      "scoring": {
+        "2.5+": 6,
+        "2.0-2.4": 5,
+        "1.5-1.9": 4,
+        "1.0-1.4": 2,
+        "<1.0": 1
+      }
+    },
+    "source_file": "narrative-structure-audit.md",
+    "source_section": "Sub-metric 3: Rhythm variation",
+    "tags": ["script_auditor", "audit_metric", "dim1", "rhythm"],
+    "priority": 60
+  },
+  {
+    "category": "audit_metric",
+    "key_name": "dim2_polarity_range",
+    "key_type": "audit_dimension",
+    "primary_recommendation": "Dim2 极性跨度(7pts):range=max(valence)-min(valence)。Hit≥1.4,miss<0.6;≥1.6→7分。",
+    "extra_data": {
+      "dimension": 2,
+      "sub_metric": "polarity_range",
+      "points": 7,
+      "formula": "max(valence_t)-min(valence_t)",
+      "scale": [-1, 1],
+      "hit_min": 1.4,
+      "miss_max": 0.6,
+      "scoring": {
+        "1.6+": 7,
+        "1.4-1.59": 6,
+        "1.0-1.39": 4,
+        "0.6-0.99": 2,
+        "<0.6": 1
+      }
+    },
+    "source_file": "emotion-arc-audit.md",
+    "source_section": "Sub-metric 1: Emotion polarity range",
+    "tags": ["script_auditor", "audit_metric", "dim2", "polarity"],
+    "priority": 62
+  },
+  {
+    "category": "audit_metric",
+    "key_name": "dim2_transition_frequency",
+    "key_type": "audit_dimension",
+    "primary_recommendation": "Dim2 转场频率(7pts):|Δvalence|≥0.3 或 primary class 变化的转场/分钟。短剧比微电影高1.5-2×。Hit≥5.0/min,miss<2.0;≥6.0→7分。",
+    "extra_data": {
+      "dimension": 2,
+      "sub_metric": "transition_frequency",
+      "points": 7,
+      "definition": "|Δvalence|>=0.3 AND/OR primary-emotion class change",
+      "shortdrama_multiplier": "1.5-2x micro-film",
+      "hit_min_per_min": 5.0,
+      "miss_max_per_min": 2.0,
+      "scoring": {
+        "6.0+": 7,
+        "5.0-5.9": 6,
+        "3.5-4.9": 4,
+        "2.0-3.4": 2,
+        "<2.0": 1
+      }
+    },
+    "source_file": "emotion-arc-audit.md",
+    "source_section": "Sub-metric 2: Transition frequency",
+    "tags": ["script_auditor", "audit_metric", "dim2", "transition"],
+    "priority": 62
+  },
+  {
+    "category": "audit_metric",
+    "key_name": "dim2_sawtooth_doctrine",
+    "key_type": "audit_dimension",
+    "primary_recommendation": "Sawtooth 硬要求:peak-to-trough delta≥0.4/周期;无 plateau>15s;每个 peak 必须超过前 peak(锯齿递增)。",
+    "extra_data": {
+      "doctrine": "cognitive-resonance Scale 2",
+      "peak_to_trough_min": 0.4,
+      "max_plateau_sec": 15,
+      "rule": "each peak exceeds prior peak"
+    },
+    "source_file": "emotion-arc-audit.md",
+    "source_section": "Sawtooth amplitude doctrine",
+    "tags": ["script_auditor", "audit_metric", "dim2", "sawtooth"],
+    "priority": 60
+  },
+  {
+    "category": "audit_metric",
+    "key_name": "dim3_opening_3s_hook",
+    "key_type": "audit_dimension",
+    "primary_recommendation": "Dim3 开场3秒钩子(10pts):72%观众3秒内决定去留。开场即冲突/明确钩子类型/匹配内容→10分;无钩子→1-3分。必须触发「然后呢?」。",
+    "extra_data": {
+      "dimension": 3,
+      "sub_metric": "opening_3s_hook",
+      "points": 10,
+      "industry_basis": "72% decide within 3s",
+      "scoring": {
+        "10": "开场即冲突+明确类型+匹配",
+        "8-9": "强烈情绪张力+然后呢",
+        "6-7": "钩子一般",
+        "4-5": "平铺有悬念暗示",
+        "1-3": "无钩子"
+      },
+      "golden_rule": "must trigger 然后呢"
+    },
+    "source_file": "hook-strength-audit.md",
+    "source_section": "Sub-metric 1: Opening 3-second hook",
+    "tags": ["script_auditor", "audit_metric", "dim3", "hook"],
+    "priority": 64
+  },
+  {
+    "category": "audit_metric",
+    "key_name": "dim3_chapter_hook",
+    "key_type": "audit_dimension",
+    "primary_recommendation": "Dim3 章节钩子(5pts):每幕结尾明确悬念/张力 +1/幕(max5);无钩子0;「感谢观看」-1。",
+    "extra_data": {
+      "dimension": 3,
+      "sub_metric": "chapter_hook",
+      "points": 5,
+      "scoring": "+1 per act with suspense",
+      "penalty": {
+        "no_hook": 0,
+        "thanks_for_watching": -1
+      }
+    },
+    "source_file": "hook-strength-audit.md",
+    "source_section": "Sub-metric 2: Chapter hook",
+    "tags": ["script_auditor", "audit_metric", "dim3", "chapter_hook"],
+    "priority": 58
+  },
+  {
+    "category": "audit_metric",
+    "key_name": "dim3_first_info_impact",
+    "key_type": "audit_dimension",
+    "primary_recommendation": "Dim3 首个信息冲击(5pts):前10s明确抛出核心矛盾/反转→5分;仅背景→2分;无信号→1分。",
+    "extra_data": {
+      "dimension": 3,
+      "sub_metric": "first_info_impact",
+      "points": 5,
+      "scoring": {
+        "explicit_conflict": 5,
+        "hinted_conflict": 3,
+        "background_only": 2,
+        "no_signal": 1
+      }
+    },
+    "source_file": "hook-strength-audit.md",
+    "source_section": "Sub-metric 3: First information impact",
+    "tags": ["script_auditor", "audit_metric", "dim3", "first_info"],
+    "priority": 58
+  },
+  {
+    "category": "audit_metric",
+    "key_name": "hook_content_match_matrix",
+    "key_type": "audit_dimension",
+    "primary_recommendation": "钩子×内容匹配:悬念钩→知识/故事⭐5;痛点钩→教程/评测⭐5;反差钩→观点/对比⭐4;情绪钩→故事/短剧⭐5;价值钩→教程⭐4。错配扣分(悬念钩带货-3~-4)。",
+    "extra_data": {
+      "matrix": {
+        "suspense": {
+          "best": ["knowledge", "story"],
+          "stars": 5
+        },
+        "pain_point": {
+          "best": ["tutorial", "review"],
+          "stars": 5
+        },
+        "contrast": {
+          "best": ["opinion", "comparison"],
+          "stars": 4
+        },
+        "emotional": {
+          "best": ["story", "短剧"],
+          "stars": 5
+        },
+        "value": {
+          "best": ["tutorial", "dry_goods"],
+          "stars": 4
+        }
+      },
+      "mismatch_penalty": {
+        "emotional_for_knowledge": "-1~-2",
+        "value_for_story": "-2~-3",
+        "suspense_for_ad": "-3~-4"
+      }
+    },
+    "source_file": "hook-strength-audit.md",
+    "source_section": "Hook taxonomy and content-type match matrix",
+    "tags": ["script_auditor", "audit_metric", "hook_match"],
+    "priority": 60
+  },
+  {
+    "category": "audit_metric",
+    "key_name": "audit_hit_miss_reference",
+    "key_type": "audit_dimension",
+    "primary_recommendation": "Hit(Top10%)/Miss(Bot30%)基准:情节点密度 0.48/0.17;节奏stddev 2.7/0.8;极性跨度 1.65/0.45;转场频率 6.2/1.3 per min;3s钩子 8.7/3.2;结局valence +0.45/-0.10。",
+    "extra_data": {
+      "hit_top10": {
+        "plot_point_density": 0.48,
+        "rhythm_stddev": 2.7,
+        "polarity_range": 1.65,
+        "transition_per_min": 6.2,
+        "hook_3s": 8.7,
+        "ending_valence": 0.45,
+        "completion_rate": 0.78
+      },
+      "miss_bot30": {
+        "plot_point_density": 0.17,
+        "rhythm_stddev": 0.8,
+        "polarity_range": 0.45,
+        "transition_per_min": 1.3,
+        "hook_3s": 3.2,
+        "ending_valence": -0.1,
+        "completion_rate": 0.24
+      }
+    },
+    "source_file": "narrative-structure-audit.md",
+    "source_section": "Hit-pattern reference",
+    "tags": ["script_auditor", "audit_metric", "hit_miss"],
+    "priority": 58
+  },
+  {
+    "category": "character_function",
+    "key_name": "propp_hero",
+    "key_type": "propp_function",
+    "primary_recommendation": "Hero / 主角: Drives plot, audience identification point。",
+    "extra_data": {
+      "function": "Hero / 主角",
+      "description": "Drives plot, audience identification point"
+    },
+    "source_file": "character-network-audit.md",
+    "source_section": "Propp character-function typology",
+    "tags": ["script_auditor", "character_function", "propp", "hero"],
+    "priority": 60
+  },
+  {
+    "category": "character_function",
+    "key_name": "propp_villain",
+    "key_type": "propp_function",
+    "primary_recommendation": "Villain / 反派: Opposes hero, creates central conflict。",
+    "extra_data": {
+      "function": "Villain / 反派",
+      "description": "Opposes hero, creates central conflict"
+    },
+    "source_file": "character-network-audit.md",
+    "source_section": "Propp character-function typology",
+    "tags": ["script_auditor", "character_function", "propp", "villain"],
+    "priority": 60
+  },
+  {
+    "category": "character_function",
+    "key_name": "propp_donor",
+    "key_type": "propp_function",
+    "primary_recommendation": "Donor / 援助者: Provides resource/info to hero。",
+    "extra_data": {
+      "function": "Donor / 援助者",
+      "description": "Provides resource/info to hero"
+    },
+    "source_file": "character-network-audit.md",
+    "source_section": "Propp character-function typology",
+    "tags": ["script_auditor", "character_function", "propp", "donor"],
+    "priority": 60
+  },
+  {
+    "category": "character_function",
+    "key_name": "propp_helper",
+    "key_type": "propp_function",
+    "primary_recommendation": "Helper / 帮手: Assists hero throughout。",
+    "extra_data": {
+      "function": "Helper / 帮手",
+      "description": "Assists hero throughout"
+    },
+    "source_file": "character-network-audit.md",
+    "source_section": "Propp character-function typology",
+    "tags": ["script_auditor", "character_function", "propp", "helper"],
+    "priority": 60
+  },
+  {
+    "category": "character_function",
+    "key_name": "propp_princess",
+    "key_type": "propp_function",
+    "primary_recommendation": "Princess / 目标: Hero's goal object (person, status, truth)。",
+    "extra_data": {
+      "function": "Princess / 目标",
+      "description": "Hero's goal object (person, status, truth)"
+    },
+    "source_file": "character-network-audit.md",
+    "source_section": "Propp character-function typology",
+    "tags": ["script_auditor", "character_function", "propp", "princess"],
+    "priority": 60
+  },
+  {
+    "category": "character_function",
+    "key_name": "propp_dispatcher",
+    "key_type": "propp_function",
+    "primary_recommendation": "Dispatcher / 任务发起者: Sends hero on quest。",
+    "extra_data": {
+      "function": "Dispatcher / 任务发起者",
+      "description": "Sends hero on quest"
+    },
+    "source_file": "character-network-audit.md",
+    "source_section": "Propp character-function typology",
+    "tags": ["script_auditor", "character_function", "propp", "dispatcher"],
+    "priority": 60
+  },
+  {
+    "category": "character_function",
+    "key_name": "propp_false_hero",
+    "key_type": "propp_function",
+    "primary_recommendation": "False Hero / 伪英雄: Impersonates hero, creates mistrust。",
+    "extra_data": {
+      "function": "False Hero / 伪英雄",
+      "description": "Impersonates hero, creates mistrust"
+    },
+    "source_file": "character-network-audit.md",
+    "source_section": "Propp character-function typology",
+    "tags": ["script_auditor", "character_function", "propp", "false_hero"],
+    "priority": 60
+  },
+  {
+    "category": "character_function",
+    "key_name": "propp_narrator",
+    "key_type": "propp_function",
+    "primary_recommendation": "Narrator / 旁白: Provides exposition。",
+    "extra_data": {
+      "function": "Narrator / 旁白",
+      "description": "Provides exposition"
+    },
+    "source_file": "character-network-audit.md",
+    "source_section": "Propp character-function typology",
+    "tags": ["script_auditor", "character_function", "propp", "narrator"],
+    "priority": 60
+  },
+  {
+    "category": "character_function",
+    "key_name": "protagonist_health_zone",
+    "key_type": "propp_function",
+    "primary_recommendation": "主角可识别性(7pts):出场频率 0.6-0.85 健康(<0.6 缺席感/>0.85 独白剧);对话占比 0.40-0.60 健康(<0.40 失声/>0.60 抢戏)。",
+    "extra_data": {
+      "sub_metric": "protagonist_identifiability",
+      "points": 7,
+      "appearance_frequency_zone": [0.6, 0.85],
+      "dialogue_share_zone": [0.4, 0.6],
+      "male_dialogue_lean": [0.5, 0.6],
+      "female_dialogue_lean": [0.45, 0.55]
+    },
+    "source_file": "character-network-audit.md",
+    "source_section": "Sub-metric 1: Protagonist identifiability",
+    "tags": ["script_auditor", "character_function", "protagonist"],
+    "priority": 62
+  },
+  {
+    "category": "character_function",
+    "key_name": "antagonist_relationship",
+    "key_type": "propp_function",
+    "primary_recommendation": "对手关系(7pts):需明确对手 + ≥1次直接对抗 + ≥1目标冲突场景 + ≥1升级。无明确对手 -5;仅climax出现 -3;动机未交待 -2。",
+    "extra_data": {
+      "sub_metric": "antagonist_relationship",
+      "points": 7,
+      "requirements": ["≥1 direct confrontation", "≥1 goal conflict scene", "≥1 escalation"],
+      "penalties": {
+        "no_antagonist": -5,
+        "climax_only": -3,
+        "motivation_unexplained": -2
+      }
+    },
+    "source_file": "character-network-audit.md",
+    "source_section": "Sub-metric 2: Antagonist relationship",
+    "tags": ["script_auditor", "character_function", "antagonist"],
+    "priority": 62
+  },
+  {
+    "category": "character_function",
+    "key_name": "character_function_clarity",
+    "key_type": "propp_function",
+    "primary_recommendation": "角色功能清晰度(6pts):每角色明确功能→6分;1-2模糊→4;3+模糊→2。≥5角色模糊 -3;≥8角色总数 -2。",
+    "extra_data": {
+      "sub_metric": "character_functional_clarity",
+      "points": 6,
+      "scoring": {
+        "all_clear": 6,
+        "1-2_unclear": 4,
+        "3+_unclear": 2,
+        "5+unclear_and_3+unclear": 1
+      },
+      "hard_rules": {
+        "5+_blurry_function": -3,
+        "8+_total": -2
+      }
+    },
+    "source_file": "character-network-audit.md",
+    "source_section": "Sub-metric 3: Character functional clarity",
+    "tags": ["script_auditor", "character_function", "clarity"],
+    "priority": 60
+  },
+  {
+    "category": "completion_rate_factor",
+    "key_name": "fatigue_curve_model",
+    "key_type": "completion_factor",
+    "primary_recommendation": "疲劳曲线(8pts):attention(t)=baseline×e^(-decay_rate×t)×conflict_boost(t)。连续低冲突(<5)场景+0.02 decay;高冲突(≥5)reset decay 50%。Hit decay≤15%,miss≥35%。",
+    "extra_data": {
+      "sub_metric": "fatigue_curve",
+      "points": 8,
+      "formula": "attention(t)=baseline*e^(-decay_rate*t)*conflict_boost(t)",
+      "decay_increment_per_low_conflict_scene": 0.02,
+      "high_conflict_reset": 0.5,
+      "hit_decay_max": 0.15,
+      "miss_decay_min": 0.35,
+      "scoring": {
+        "<=10%": 8,
+        "10-15%": 7,
+        "15-25%": 5,
+        "25-35%": 3,
+        ">35%": 1
+      }
+    },
+    "source_file": "completion-rate-forecast.md",
+    "source_section": "Sub-metric 1: Fatigue curve",
+    "tags": ["script_auditor", "completion_rate_factor", "fatigue"],
+    "priority": 66
+  },
+  {
+    "category": "completion_rate_factor",
+    "key_name": "info_density_male",
+    "key_type": "completion_factor",
+    "primary_recommendation": "男频短剧 信息密度最佳 3.5-4.5/min(<2.5 无聊/>5.5 认知过载)。",
+    "extra_data": {
+      "sub_metric": "information_density",
+      "genre": "男频短剧",
+      "optimal_per_min": [3.5, 4.5],
+      "too_low_max": 2.5,
+      "too_high_min": 5.5
+    },
+    "source_file": "completion-rate-forecast.md",
+    "source_section": "Sub-metric 2: Information density",
+    "tags": ["script_auditor", "completion_rate_factor", "info_density", "male"],
+    "priority": 60
+  },
+  {
+    "category": "completion_rate_factor",
+    "key_name": "info_density_female",
+    "key_type": "completion_factor",
+    "primary_recommendation": "女频短剧 信息密度最佳 3.0-4.0/min(<2.0 无聊/>5.0 认知过载)。",
+    "extra_data": {
+      "sub_metric": "information_density",
+      "genre": "女频短剧",
+      "optimal_per_min": [3.0, 4.0],
+      "too_low_max": 2.0,
+      "too_high_min": 5.0
+    },
+    "source_file": "completion-rate-forecast.md",
+    "source_section": "Sub-metric 2: Information density",
+    "tags": ["script_auditor", "completion_rate_factor", "info_density", "female"],
+    "priority": 60
+  },
+  {
+    "category": "completion_rate_factor",
+    "key_name": "info_density_knowledge",
+    "key_type": "completion_factor",
+    "primary_recommendation": "知识/教程 信息密度最佳 4.0-5.5/min(<3.0 无聊/>6.5 认知过载)。",
+    "extra_data": {
+      "sub_metric": "information_density",
+      "genre": "知识/教程",
+      "optimal_per_min": [4.0, 5.5],
+      "too_low_max": 3.0,
+      "too_high_min": 6.5
+    },
+    "source_file": "completion-rate-forecast.md",
+    "source_section": "Sub-metric 2: Information density",
+    "tags": ["script_auditor", "completion_rate_factor", "info_density", "knowledge"],
+    "priority": 60
+  },
+  {
+    "category": "completion_rate_factor",
+    "key_name": "info_density_entertainment",
+    "key_type": "completion_factor",
+    "primary_recommendation": "娱乐/搞笑 信息密度最佳 5.0-7.0/min(<4.0 无聊/>8.0 认知过载)。",
+    "extra_data": {
+      "sub_metric": "information_density",
+      "genre": "娱乐/搞笑",
+      "optimal_per_min": [5.0, 7.0],
+      "too_low_max": 4.0,
+      "too_high_min": 8.0
+    },
+    "source_file": "completion-rate-forecast.md",
+    "source_section": "Sub-metric 2: Information density",
+    "tags": ["script_auditor", "completion_rate_factor", "info_density", "entertainment"],
+    "priority": 60
+  },
+  {
+    "category": "completion_rate_factor",
+    "key_name": "ending_resonance",
+    "key_type": "completion_factor",
+    "primary_recommendation": "结局余韵(6pts):续集悬念→6;强情感余韵→5;干净闭合 value gap→4;中性→2;感谢观看/突切→1。",
+    "extra_data": {
+      "sub_metric": "ending_resonance",
+      "points": 6,
+      "scoring": {
+        "sequel_suspense": 6,
+        "strong_emotional_aftertaste": 5,
+        "clean_value_gap_close": 4,
+        "neutral": 2,
+        "thanks_or_abrupt": 1
+      }
+    },
+    "source_file": "completion-rate-forecast.md",
+    "source_section": "Sub-metric 3: Ending resonance",
+    "tags": ["script_auditor", "completion_rate_factor", "ending"],
+    "priority": 60
+  },
+  {
+    "category": "completion_rate_factor",
+    "key_name": "forecast_4_level",
+    "key_type": "completion_factor",
+    "primary_recommendation": "4级完播率预测:A(≥80%,≥17/20)直接制作;B(60-80%,13-16)小修后制作;C(40-60%,9-12)结构性修改;D(<40%,<9)重写。",
+    "extra_data": {
+      "bands": {
+        "A": {
+          "completion": ">=80%",
+          "score": ">=17",
+          "action": "直接制作"
+        },
+        "B": {
+          "completion": "60-80%",
+          "score": "13-16",
+          "action": "小修后制作"
+        },
+        "C": {
+          "completion": "40-60%",
+          "score": "9-12",
+          "action": "结构性修改"
+        },
+        "D": {
+          "completion": "<40%",
+          "score": "<9",
+          "action": "重写"
+        }
+      }
+    },
+    "source_file": "completion-rate-forecast.md",
+    "source_section": "4-level completion-rate forecast",
+    "tags": ["script_auditor", "completion_rate_factor", "forecast"],
+    "priority": 64
+  },
+  {
+    "category": "completion_rate_factor",
+    "key_name": "forecast_confidence_calibration",
+    "key_type": "completion_factor",
+    "primary_recommendation": "预测置信度经验校准:≥100标注对 confidence=1.0;50对=0.75;0对(冷启动)=0.5 标 uncalibrated。",
+    "extra_data": {
+      "formula": "confidence=max(0,1-(100-corpus_size)/200 if corpus<100 else 0)",
+      "calibration": {
+        "100+_pairs": 1.0,
+        "50_pairs": 0.75,
+        "0_pairs_cold_start": 0.5
+      }
+    },
+    "source_file": "completion-rate-forecast.md",
+    "source_section": "Confidence calibration",
+    "tags": ["script_auditor", "completion_rate_factor", "confidence"],
+    "priority": 58
+  },
+  {
+    "category": "completion_rate_factor",
+    "key_name": "pearson_validation_target",
+    "key_type": "completion_factor",
+    "primary_recommendation": "独立验证 Pearson r:≥0.75 优秀直接上线;0.65-0.74 可接受;0.50-0.64 边缘;<0.50 失败回滚。LLM-judge 基线仅0.35-0.50。",
+    "extra_data": {
+      "targets": {
+        "0.75+": "excellent",
+        "0.65-0.74": "acceptable",
+        "0.50-0.64": "marginal",
+        "<0.50": "failed"
+      },
+      "llm_judge_baseline": [0.35, 0.5]
+    },
+    "source_file": "completion-rate-forecast.md",
+    "source_section": "Pearson correlation target",
+    "tags": ["script_auditor", "completion_rate_factor", "pearson"],
+    "priority": 58
   }
 ]
