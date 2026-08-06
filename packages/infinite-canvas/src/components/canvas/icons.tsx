@@ -190,7 +190,7 @@ export function EventOpIcon({
 
 // ─── UI 操作图标（工具栏；stroke = currentColor，跟随按钮文字色） ─────────────
 
-export type UiIconKind = 'save' | 'layout' | 'fit' | 'rocket' | 'iterate' | 'search' | 'graph' | 'film' | 'image' | 'assets'
+export type UiIconKind = 'save' | 'layout' | 'fit' | 'rocket' | 'iterate' | 'search' | 'graph' | 'film' | 'image' | 'assets' | 'pipeline'
 
 /** UI 操作图标：线性几何，stroke=currentColor，size 默认 14 匹配 12px 按钮。 */
 export function UiIcon({
@@ -301,6 +301,16 @@ export function UiIcon({
           <rect x="13.5" y="3" width="7.5" height="7.5" rx="1.4" />
           <rect x="3" y="13.5" width="7.5" height="7.5" rx="1.4" />
           <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.4" />
+        </svg>
+      )
+    case 'pipeline':
+      // 管线状态机：阶段节点串联流水线（左→右三段，中间有进展）
+      return (
+        <svg {...common}>
+          <rect x="2.5" y="8" width="5" height="8" rx="1.2" />
+          <rect x="9.5" y="5" width="5" height="11" rx="1.2" />
+          <rect x="16.5" y="9" width="5" height="7" rx="1.2" />
+          <path d="M7.5 12h2M14.5 12h2" />
         </svg>
       )
   }

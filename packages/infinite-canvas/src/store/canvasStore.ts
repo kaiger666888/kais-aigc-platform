@@ -30,6 +30,9 @@ export interface ToastItem {
   type: 'success' | 'error' | 'info' | 'warning'
 }
 
+/** 视图模式（画布 / 时间轴 / 资产 / 管线状态机）。 */
+export type ViewMode = 'canvas' | 'timeline' | 'assets' | 'pipeline'
+
 interface CanvasState {
   // ─── V3 canonical（SPEC-step5 A.4：canonical = FlowGraphV3） ───
   /** 唯一数据源。RF nodes/edges 是它的 memo 化派生（getViewModel），不是独立真相。 */
@@ -143,9 +146,10 @@ interface CanvasState {
   finishOrchestration: (result: { completed: number; total: number; failed: number; failedNodes: string[]; mode: 'full' | 'batch' }) => void
   resetOrchestration: () => void
 
-  // 视图模式 — 'canvas' = ReactFlow 画布, 'timeline' = 分镜时间轴, 'assets' = 全局资产管理中心
-  viewMode: 'canvas' | 'timeline' | 'assets'
-  setViewMode: (mode: 'canvas' | 'timeline' | 'assets') => void
+  // 视图模式 — 'canvas' = ReactFlow 画布, 'timeline' = 分镜时间轴,
+  // 'assets' = 全局资产管理中心, 'pipeline' = 管线状态机 (BlueOcean 风格)
+  viewMode: ViewMode
+  setViewMode: (mode: ViewMode) => void
 
   // 【资产↔画布交叉联动】需在画布中定位 + 高亮的节点 ID（由资产库卡片「定位」按钮设置）。
   // FlowCanvas useEffect 监听：非 null 时 fitView + setSelectedNode + traceState 高亮闪烁，
@@ -154,9 +158,9 @@ interface CanvasState {
   setFocusAssetNodeId: (id: string | null) => void
 
   // 资产管理子视图 + 选中资产（assets 视图内部状态；详情由 Library 卡片点击驱动）
-  // 4 Tab：library 资产库 · character 角色 · scene_shot 场景与分镜 · documents 创作文档(Notion)
-  assetView: 'library' | 'detail' | 'character' | 'scene_shot' | 'documents'
-  setAssetView: (view: 'library' | 'detail' | 'character' | 'scene_shot' | 'documents') => void
+  // 5 Tab：library 资产库 · character 角色 · scene_shot 场景与分镜 · dialogue 对白 · documents 创作文档(Notion)
+  assetView: 'library' | 'detail' | 'character' | 'scene_shot' | 'dialogue' | 'documents'
+  setAssetView: (view: 'library' | 'detail' | 'character' | 'scene_shot' | 'dialogue' | 'documents') => void
   selectedAssetUuid: string | null
   setSelectedAssetUuid: (uuid: string | null) => void
   /** 打开某资产的详情（同时设选中 + 切到 detail 子视图） */

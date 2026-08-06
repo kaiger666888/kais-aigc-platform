@@ -47,6 +47,7 @@ import { loadCanvasGraph, saveCanvasGraph, convertProjectData, fetchSkillNodeTyp
 import { useCanvasSocket } from '../hooks/useCanvasSocket'
 import StoryboardTimeline from './StoryboardTimeline'
 import AssetManager from './assetManager/AssetManager'
+import PipelineStateMachine from './PipelineStateMachine'
 import { useLayout } from '../hooks/useLayout'
 import { canvasStateKey, loadCanvasState, useCanvasPersistence } from '../hooks/useCanvasPersistence'
 import { useNavHistory, type NavSnapshot } from '../hooks/useNavHistory'
@@ -473,11 +474,21 @@ function CanvasInner() {
   }, [navHistory, setSelectedNode, setDetailNode])
 
   // 视图模式切换：先拍当前状态进历史（记录切之前的视图），再切。
-  const handleSetViewMode = useCallback((mode: 'canvas' | 'timeline' | 'assets') => {
+  const handleSetViewMode = useCallback((mode: 'canvas' | 'timeline' | 'assets' | 'pipeline') => {
     if (navSkipRef.current) { setViewMode(mode); return }
     navHistory.push()
     setViewMode(mode)
   }, [navHistory, setViewMode])
+
+  // 管线视图 → 画布定位：切到 canvas 并选中/打开该节点（资产缩略图点击）。
+  const handleLocateNode = useCallback((nodeId: string) => {
+    handleSetViewMode('canvas')
+    const target = useCanvasStore.getState().nodes.find((n) => n.id === nodeId) ?? null
+    setSelectedNode(target)
+    setDetailNode(target)
+    // 延迟触发画布聚焦高亮（等 ReactFlow 挂载测量；未命中由画布侧 toast 提示）
+    window.setTimeout(() => setFocusAssetNodeId(nodeId), 140)
+  }, [handleSetViewMode, setSelectedNode, setDetailNode, setFocusAssetNodeId])
 
   const handleSave = useCallback(async () => {
     if (!projectId || !episodesId) return
@@ -725,6 +736,9 @@ function CanvasInner() {
             <ViewModeButton active={viewMode === 'assets'} onClick={() => handleSetViewMode('assets')}>
               <UiIcon kind="assets" size={13} />资产
             </ViewModeButton>
+            <ViewModeButton active={viewMode === 'pipeline'} onClick={() => handleSetViewMode('pipeline')}>
+              <UiIcon kind="pipeline" size={13} />管线
+            </ViewModeButton>
           </div>
 
           {/* 应用级历史导航：后退 / 前进（全局功能，恢复完整应用状态） */}
@@ -781,6 +795,11 @@ function CanvasInner() {
           </>
         ) : viewMode === 'assets' ? (
           <AssetManager />
+        ) : viewMode === 'pipeline' ? (
+          <PipelineStateMachine
+            onRefresh={projectId && episodesId != null ? () => loadCanvas(projectId, episodesId) : undefined}
+            onLocateNode={handleLocateNode}
+          />
         ) : (
         <>
         <EventChipClickContext.Provider value={handleEventChipClick}>

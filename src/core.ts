@@ -23,6 +23,8 @@ const SKIP_PATTERNS: RegExp[] = [
   /(^|\/)_helpers\//i,             // helper module dirs
   /(^|\/)[^/]+-helpers\.ts$/i,     // helper module files (e.g. graph-helpers.ts) — no default export
   /(^|\/)_[^/]+\.ts$/i,            // underscore-prefixed files (e.g. _engine.ts, _simulate.ts) — internal modules
+  /(^|\/)shared\.ts$/i,            // shared util modules (e.g. stableaudio/shared.ts) — no default export
+  /(^|\/)prompt-guide\.ts$/i,      // doc/guide modules (e.g. stableaudio/prompt-guide.ts) — no default export
 ];
 
 function shouldSkip(routeKey: string): boolean {

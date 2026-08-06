@@ -17,7 +17,7 @@
  * 无需额外 API 调用。Socket 实时同步、审核操作全部复用现有 store 逻辑。
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react'
 import { useCanvasStore } from '../store/canvasStore'
 import { theme, v3theme } from '../theme/catppuccin'
 import { METADATA_LABELS } from '../constants'
@@ -1205,9 +1205,11 @@ function ShotRow({
  * 内嵌播放器：选中带 P11 视频的分镜后滑出。src 变更经 key 重挂载触发 autoPlay；
  * 无视频数据的项目不渲染（graceful degradation）。
  *
- * mode='landscape'：宽度由父级 flex 控制（0 0 38%），高度填满列，置于列表左侧。
- * mode='portrait' ：宽度满、高度固定（portraitHeight 计算值），置于列表顶部。
- * 两种模式下 <video> 均 width/height 100% + objectFit: contain（保持视频比例）。
+ * 播放器恒在左侧：
+ *   - landscape（fixedWidth=undefined）：宽度由父级 flex 控制（0 0 38%），高度填满列。
+ *   - portrait（fixedWidth=N）：固定宽度 N、高度填满列（竖版播放器左置改造）。
+ *   - 旧 portrait 顶部全宽模式（mode='portrait' 且无 fixedWidth）保留为兜底，不再使用。
+ * <video> 均 width/height 100% + objectFit: contain（保持视频比例）。
  */
 function VideoPlayer({
   shotId,
@@ -1215,6 +1217,7 @@ function VideoPlayer({
   durationLabel,
   mode,
   portraitHeight,
+  fixedWidth,
   onClose,
 }: {
   shotId: string
@@ -1222,18 +1225,23 @@ function VideoPlayer({
   durationLabel: string
   mode: LayoutMode
   portraitHeight: number
+  /** portrait 左置时的固定列宽（px）；undefined → landscape flex 列。 */
+  fixedWidth?: number
   onClose: () => void
 }) {
   // <video> 元素的真实时长优先于 storyboard durationS（后者常因 duration_sec 未映射为 0）
   const [realDur, setRealDur] = useState<number | null>(null)
   const isLandscape = mode === 'landscape'
+  // 尺寸：portrait 左置（fixedWidth）优先；其次 landscape flex；最后兜底 portrait 顶部全宽。
+  const selfStyle: CSSProperties = fixedWidth != null
+    ? { width: fixedWidth, flexShrink: 0, height: '100%', borderRight: `1px solid ${theme.border.default}` }
+    : isLandscape
+      ? { flex: '0 0 38%', minWidth: 360, maxWidth: 520, height: '100%', borderRight: `1px solid ${theme.border.default}` }
+      : { width: '100%', flexShrink: 0, height: portraitHeight, borderTop: `1px solid ${theme.border.default}`, borderBottom: `1px solid ${theme.border.default}` }
   return (
     <div style={{
       display: 'flex', flexDirection: 'column',
-      // landscape：宽度由父级 flex 控制（0 0 38%）、高度填满；portrait：宽度满、高度固定（计算值）
-      ...(isLandscape
-        ? { flex: '0 0 38%', minWidth: 360, maxWidth: 520, height: '100%', borderRight: `1px solid ${theme.border.default}` }
-        : { width: '100%', flexShrink: 0, height: portraitHeight, borderTop: `1px solid ${theme.border.default}`, borderBottom: `1px solid ${theme.border.default}` }),
+      ...selfStyle,
       background: theme.bg.panel,
     }}>
       {/* header：shotId + 时长 + ✕（两种模式均在顶部） */}
@@ -1292,13 +1300,17 @@ function VideoPlayer({
 }
 
 /**
- * 横版占位框：未选中带视频的分镜时，播放器列（flex 0 0 38%）保留同尺寸占位，
- * 提示「点击分镜播放视频」。竖版无视频时直接不渲染播放器（节省空间）。
+ * 播放器列占位框：未选中带视频的分镜时保留同尺寸占位（横/竖版均常驻），保持布局稳定。
+ * - portrait（fixedWidth=N）：固定宽 N、高度填满。
+ * - landscape（fixedWidth=undefined）：flex 0 0 38%。
  */
-function PlayerPlaceholder() {
+function PlayerPlaceholder({ fixedWidth }: { fixedWidth?: number }) {
+  const selfStyle: CSSProperties = fixedWidth != null
+    ? { width: fixedWidth, flexShrink: 0, height: '100%' }
+    : { flex: '0 0 38%', minWidth: 360, maxWidth: 520, height: '100%' }
   return (
     <div style={{
-      flex: '0 0 38%', minWidth: 360, maxWidth: 520, height: '100%',
+      ...selfStyle,
       display: 'flex', flexDirection: 'column',
       background: theme.bg.panel,
       borderRight: `1px solid ${theme.border.default}`,
@@ -1318,12 +1330,24 @@ function PlayerPlaceholder() {
 
 // ─── 竖幅时间轴（VerticalTimeline） ──────────────────────
 
+/** 左侧分镜列表某行的实测几何（offsetTop/offsetHeight，相对列表内容原点）。 */
+export interface RowMetric {
+  top: number
+  height: number
+}
+
 interface VerticalTimelineProps {
   shots: TimedShot[] // 复用父组件已计算的 shots（含 startSec/endSec/layoutDur）
   selectedNodeId: string | null // 当前 detailNode?.id
   onSelectShot: (shot: StoryboardShot) => void // 复用父组件 selectShot
   onAudioPlay: (track: AudioTrack) => void // 复用父组件 setActiveAudio
   activeAudioPath: string | null // 当前 activeAudio?.filePath
+  /** 左侧分镜列表滚动容器 ref —— 用于测量行高 + 双向滚动同步。 */
+  shotListRef: RefObject<HTMLDivElement | null>
+  /** 各分镜行实测几何（与 shots 同序、同长）；未就绪时回退时间比例布局。 */
+  rowMetrics: RowMetric[]
+  /** 左侧列表内容总高（scrollHeight）—— 让时间轴滚动范围与列表一致。 */
+  listContentHeight: number | null
 }
 
 /** 竖幅时间轴：每秒高度（px）。值小 → 长分镜不至撑爆屏幕，便于纵观全局节奏。 */
@@ -1370,19 +1394,21 @@ function formatTotalDuration(sec: number): string {
 }
 
 /**
- * 单条音轨矩形（对白/环境/BGM 共用）。绝对定位到所属 shot 的 startSec，高度 ∝ durationS。
+ * 单条音轨矩形（对白/环境/BGM 共用）。绝对定位到所属 shot 行的实测几何（baseTop/spanHeight），
+ * 在行内向下堆叠（每条偏移 16px），高度 ∝ durationS 但夹在本行剩余空间内。
  * 点击 → onAudioPlay（不做音频文件加载验证：磁盘 wav 可能 404，父组件 mini 播放器自然失败不崩）。
- * 同 shot 多条同类轨按 idx 向下偏移 16px 错开，避免完全重叠。
  */
 function AudioTrackRect({
-  shot,
+  baseTop,
+  spanHeight,
   track,
   type,
   index,
   activeAudioPath,
   onAudioPlay,
 }: {
-  shot: TimedShot
+  baseTop: number // 所属 shot 行的实测 top（与左侧 ShotRow 对齐）
+  spanHeight: number // 所属 shot 行的实测 height
   track: AudioTrack
   type: 'dialogue' | 'ambient' | 'bgm'
   index: number
@@ -1391,9 +1417,10 @@ function AudioTrackRect({
 }) {
   const meta = TRACK_META[type]
   const width = VT_COL[type]
-  const top = shot.startSec * PX_PER_SEC + index * 16
-  const dur = track.durationS > 0 ? track.durationS : MIN_LAYOUT_DUR
-  const height = Math.max(18, dur * PX_PER_SEC)
+  const top = baseTop + 2 + index * 16
+  const remaining = Math.max(18, spanHeight - index * 16 - 4)
+  const durH = Math.max(18, (track.durationS > 0 ? track.durationS : MIN_LAYOUT_DUR) * PX_PER_SEC)
+  const height = Math.min(remaining, durH)
   const isActive = activeAudioPath === track.filePath
   const label = track.speaker ?? track.audioType ?? track.clipType ?? ''
   const title = [
@@ -1454,15 +1481,18 @@ function AudioTrackRect({
   )
 }
 
-/** 单条音轨列（对白/环境/BGM）。bgm 列 flex 吸收面板右侧余量。 */
+/** 单条音轨列（对白/环境/BGM）。bgm 列 flex 吸收面板右侧余量。
+ *  每条音轨的几何由 metricByNodeId（左侧 ShotRow 实测）提供，保证与分镜行对齐。 */
 function TrackLane({
   type,
   items,
+  metricByNodeId,
   activeAudioPath,
   onAudioPlay,
 }: {
   type: 'dialogue' | 'ambient' | 'bgm'
   items: Array<{ shot: TimedShot; track: AudioTrack }>
+  metricByNodeId: Map<string, { top: number; height: number }>
   activeAudioPath: string | null
   onAudioPlay: (track: AudioTrack) => void
 }) {
@@ -1471,29 +1501,35 @@ function TrackLane({
     : { width: VT_COL[type], position: 'relative', flexShrink: 0, zIndex: 1, borderRight: `1px solid ${theme.border.dim}` }
   return (
     <div style={containerStyle}>
-      {items.map(({ shot, track }, i) => (
-        <AudioTrackRect
-          key={`${shot.node.id}-${i}`}
-          shot={shot}
-          track={track}
-          type={type}
-          index={i}
-          activeAudioPath={activeAudioPath}
-          onAudioPlay={onAudioPlay}
-        />
-      ))}
+      {items.map(({ shot, track }, i) => {
+        const g = metricByNodeId.get(shot.node.id) ?? {
+          top: shot.startSec * PX_PER_SEC,
+          height: Math.max(28, shot.layoutDur * PX_PER_SEC),
+        }
+        return (
+          <AudioTrackRect
+            key={`${shot.node.id}-${i}`}
+            baseTop={g.top}
+            spanHeight={g.height}
+            track={track}
+            type={type}
+            index={i}
+            activeAudioPath={activeAudioPath}
+            onAudioPlay={onAudioPlay}
+          />
+        )
+      })}
     </div>
   )
 }
 
 /**
- * 竖幅时间轴面板（页面右侧固定）。分镜 + 三类音轨按累计时间纵向铺开：
- *   - 时间刻度（每 5s 一标签 + 全宽水平网格线）
- *   - 分镜矩形（高度 ∝ 时长，最小 28px；按场景号循环 4 模态色；首帧缩略图作背景）
- *   - 对白 / 环境 / BGM 三轨（按 clipType/audioType 分类，高度 ∝ durationS）
+ * 竖幅时间轴面板（页面右侧固定）。**行高与左侧 ShotRow 实测对齐**：
+ *   - 父组件测量每个 ShotRow 的 offsetTop/offsetHeight（rowMetrics）传入；未就绪时回退时间比例。
+ *   - 分镜矩形 / 音轨矩形 / 分隔线 / 时间标签 全部以 rowMetrics[i] 定位 → 与左侧逐行齐平。
+ *   - 双向滚动同步：左侧列表滚动 ↔ 本面板滚动（补偿 VT 标题栏+列头高度 headerH）。
  *
  * 可折叠：展开 360px（默认），折叠 44px 仅留标题栏 + 竖向「时间轴」文字。
- * 矩形/音轨均绝对定位对齐到 shot.startSec（父组件累计时间几何），整个内容区纵向滚动。
  */
 function VerticalTimeline({
   shots,
@@ -1501,10 +1537,14 @@ function VerticalTimeline({
   onSelectShot,
   onAudioPlay,
   activeAudioPath,
+  shotListRef,
+  rowMetrics,
+  listContentHeight,
 }: VerticalTimelineProps) {
   const [collapsed, setCollapsed] = useState(false)
+  const vtScrollRef = useRef<HTMLDivElement>(null)
 
-  // 音轨按类别分桶（保留所属 shot，供定位 top = shot.startSec * PX_PER_SEC）
+  // 音轨按类别分桶（保留所属 shot）
   const buckets = useMemo(() => {
     const dialogue: Array<{ shot: TimedShot; track: AudioTrack }> = []
     const ambient: Array<{ shot: TimedShot; track: AudioTrack }> = []
@@ -1522,24 +1562,59 @@ function VerticalTimeline({
 
   const totalSec = shots.length ? shots[shots.length - 1].endSec : 0
 
-  // 内容区高度：以 totalSec 为基线，短分镜最小高度可能让尾部超出，取两者 max
+  // ── 行几何：优先实测（rowMetrics），未就绪回退时间比例 ──
+  const hasMetrics = rowMetrics.length > 0 && rowMetrics.length === shots.length
+  const rowTopOf = (i: number) => hasMetrics ? rowMetrics[i]!.top : shots[i]!.startSec * PX_PER_SEC
+  const rowHeightOf = (i: number) => hasMetrics ? rowMetrics[i]!.height : Math.max(28, shots[i]!.layoutDur * PX_PER_SEC)
+  const metricByNodeId = useMemo(() => {
+    const m = new Map<string, { top: number; height: number }>()
+    shots.forEach((s, i) => m.set(s.node.id, { top: rowTopOf(i), height: rowHeightOf(i) }))
+    return m
+    // rowTopOf/rowHeightOf 依赖 hasMetrics/rowMetrics，列入 deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shots, hasMetrics, rowMetrics])
+
+  // 内容区高度：有实测时取左侧列表 scrollHeight（滚动范围与列表一致）；否则时间比例兜底
   const contentHeight = useMemo(() => {
+    if (hasMetrics && listContentHeight && listContentHeight > 0) return Math.max(listContentHeight, 60)
     let h = totalSec * PX_PER_SEC
     for (const s of shots) {
       const bottom = s.startSec * PX_PER_SEC + Math.max(28, s.layoutDur * PX_PER_SEC)
       if (bottom > h) h = bottom
     }
     return Math.max(h, 60)
-  }, [shots, totalSec])
+  }, [hasMetrics, listContentHeight, totalSec, shots])
 
-  // 时间刻度：每 5s 一个标签
-  const ticks = useMemo(() => {
-    if (totalSec <= 0) return [0]
-    const arr: number[] = []
-    const max = Math.ceil(totalSec / 5) * 5
-    for (let t = 0; t <= max; t += 5) arr.push(t)
-    return arr
-  }, [totalSec])
+  // ── 双向滚动同步（VT 内部滚动区 ↔ 左侧 shotList）──
+  // 几何推导：shotList 视口顶 = R（无表头）；VT 视口顶 = R + headerH（被标题栏+列头压下）。
+  // 要让「列表内容偏移 T」与「VT 内容偏移 T」同屏 Y 对齐 ⇒ vt.scrollTop = list.scrollTop + headerH。
+  // headerH = vtScrollRef.offsetTop（VT 根 position:relative 为其 offsetParent）。
+  useLayoutEffect(() => {
+    const list = shotListRef.current
+    const vt = vtScrollRef.current
+    if (!list || !vt) return
+    const headerH = vt.offsetTop
+    let syncing = false
+    const syncToVt = () => {
+      if (syncing) return
+      syncing = true
+      vt.scrollTop = Math.max(0, Math.min(vt.scrollHeight - vt.clientHeight, list.scrollTop + headerH))
+      requestAnimationFrame(() => { syncing = false })
+    }
+    const syncToList = () => {
+      if (syncing) return
+      syncing = true
+      list.scrollTop = Math.max(0, Math.min(list.scrollHeight - list.clientHeight, vt.scrollTop - headerH))
+      requestAnimationFrame(() => { syncing = false })
+    }
+    list.addEventListener('scroll', syncToVt, { passive: true })
+    vt.addEventListener('scroll', syncToList, { passive: true })
+    syncToVt() // 初始对齐
+    return () => {
+      list.removeEventListener('scroll', syncToVt)
+      vt.removeEventListener('scroll', syncToList)
+    }
+  }, [shotListRef, shots, hasMetrics, listContentHeight])
 
   // 折叠态：44px 窄轨，仅标题栏（▶ 展开）+ 竖向「时间轴」文字
   if (collapsed) {
@@ -1597,6 +1672,7 @@ function VerticalTimeline({
     <div
       data-testid="vertical-timeline"
       style={{
+        position: 'relative', // 作为内部 vtScrollRef 的 offsetParent，使 offsetTop = 表头高度
         width: VT_PANEL_W, height: '100%', flexShrink: 0,
         display: 'flex', flexDirection: 'column',
         background: theme.bg.panel,
@@ -1635,33 +1711,33 @@ function VerticalTimeline({
         <div style={{ ...headerCellStyle, flex: '1 1 auto', minWidth: VT_COL.bgm }}>🎵 BGM</div>
       </div>
 
-      {/* 滚动内容区 */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
+      {/* 滚动内容区 —— ref 供滚动同步；position:relative 让行内绝对定位以本区为原点 */}
+      <div ref={vtScrollRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
         <div style={{ position: 'relative', height: contentHeight, display: 'flex' }}>
-          {/* 水平网格线层（全宽，每 5s 一条） */}
-          {ticks.map((t) => (
-            <div key={`grid-${t}`} style={{
-              position: 'absolute', top: t * PX_PER_SEC, left: 0, right: 0, height: 0,
+          {/* 分镜行分隔线层（全宽，每行顶部一条 —— 与 ShotRow 行高对齐） */}
+          {shots.map((shot, i) => (
+            <div key={`grid-${shot.node.id}`} style={{
+              position: 'absolute', top: rowTopOf(i), left: 0, right: 0, height: 0,
               borderTop: `1px solid ${theme.border.dim}`, pointerEvents: 'none', zIndex: 0,
             }} />
           ))}
 
-          {/* 时间刻度列（36px） */}
+          {/* 时间刻度列（36px）—— 每行顶部标累计起始秒 */}
           <div style={{ width: VT_COL.time, position: 'relative', flexShrink: 0, ...colBorder, zIndex: 1 }}>
-            {ticks.map((t) => (
-              <span key={`tick-${t}`} style={{
-                position: 'absolute', top: t * PX_PER_SEC - 5, left: 3,
+            {shots.map((shot, i) => (
+              <span key={`tick-${shot.node.id}`} style={{
+                position: 'absolute', top: rowTopOf(i) + 2, left: 3,
                 fontSize: 9, fontFamily: 'var(--cv-font-mono, monospace)',
                 color: theme.text.tertiary, lineHeight: 1,
-              }}>{t}s</span>
+              }}>{formatTime(shot.startSec)}</span>
             ))}
           </div>
 
-          {/* 分镜矩形轨（80px） */}
+          {/* 分镜矩形轨（80px）—— top/height 取实测，与左侧 ShotRow 对齐 */}
           <div style={{ width: VT_COL.shot, position: 'relative', flexShrink: 0, ...colBorder, zIndex: 1 }}>
-            {shots.map((shot) => {
-              const top = shot.startSec * PX_PER_SEC
-              const height = Math.max(28, shot.layoutDur * PX_PER_SEC)
+            {shots.map((shot, i) => {
+              const top = rowTopOf(i)
+              const height = Math.max(20, rowHeightOf(i))
               const sceneIdx = Math.max(0, sceneNumOf(shot.shotId) - 1) % VT_SCENE_COLORS.length
               const color = VT_SCENE_COLORS[sceneIdx]
               const selected = shot.node.id === selectedNodeId
@@ -1718,9 +1794,9 @@ function VerticalTimeline({
           </div>
 
           {/* 三类音轨列（对白 88 / 环境 60 / BGM 60→flex） */}
-          <TrackLane type="dialogue" items={buckets.dialogue} activeAudioPath={activeAudioPath} onAudioPlay={onAudioPlay} />
-          <TrackLane type="ambient" items={buckets.ambient} activeAudioPath={activeAudioPath} onAudioPlay={onAudioPlay} />
-          <TrackLane type="bgm" items={buckets.bgm} activeAudioPath={activeAudioPath} onAudioPlay={onAudioPlay} />
+          <TrackLane type="dialogue" items={buckets.dialogue} metricByNodeId={metricByNodeId} activeAudioPath={activeAudioPath} onAudioPlay={onAudioPlay} />
+          <TrackLane type="ambient" items={buckets.ambient} metricByNodeId={metricByNodeId} activeAudioPath={activeAudioPath} onAudioPlay={onAudioPlay} />
+          <TrackLane type="bgm" items={buckets.bgm} metricByNodeId={metricByNodeId} activeAudioPath={activeAudioPath} onAudioPlay={onAudioPlay} />
         </div>
       </div>
     </div>
@@ -2036,6 +2112,28 @@ export default function StoryboardTimeline() {
   // 竖版分镜行紧凑：首尾帧 88px、chips 9px
   const compactRows = layoutMode === 'portrait'
 
+  // ── 竖幅时间轴行对齐：实测左侧 ShotRow 每行的 offsetTop/offsetHeight ──
+  // 传给 VerticalTimeline 做定位，使其分镜行与左侧逐行齐平（而非各自按不同高度公式）。
+  const shotListRef = useRef<HTMLDivElement>(null)
+  const [rowMetrics, setRowMetrics] = useState<RowMetric[]>([])
+  const [listContentHeight, setListContentHeight] = useState<number | null>(null)
+  useLayoutEffect(() => {
+    const root = shotListRef.current
+    if (!root) return
+    const measure = () => {
+      const rows = root.querySelectorAll<HTMLElement>('[data-testid="shot-row"]')
+      const metrics: RowMetric[] = []
+      rows.forEach((r) => metrics.push({ top: r.offsetTop, height: r.offsetHeight }))
+      setRowMetrics(metrics)
+      setListContentHeight(root.scrollHeight)
+    }
+    measure()
+    // ResizeObserver 捕获行高变化（文字换行 / 首尾帧展开收起 / 窗口缩放），重测以保持对齐
+    const ro = new ResizeObserver(measure)
+    ro.observe(root)
+    return () => ro.disconnect()
+  }, [shots, compactRows])
+
   // ─── 空状态 ──────────────────────────────────────────
   if (shots.length === 0) {
     return (
@@ -2058,7 +2156,10 @@ export default function StoryboardTimeline() {
     )
   }
 
-  // ─── 播放器 + 分镜列表（横/竖版复用同一份 JSX） ──────────
+  // ─── 播放器 + 分镜列表（播放器恒在左侧） ──────────────
+  // 竖版播放器左置固定宽度（窗口宽 35%，上限 360）；横版由 VideoPlayer flex 自适应。
+  const portraitPlayerW = Math.min(winSize.w * 0.35, 360)
+  const playerFixedWidth = isLandscape ? undefined : portraitPlayerW
   const player = activeVideo ? (
     <VideoPlayer
       shotId={activeVideo.shotId}
@@ -2066,12 +2167,17 @@ export default function StoryboardTimeline() {
       durationLabel={formatDuration(activeVideo.durationS)}
       mode={layoutMode}
       portraitHeight={portraitPlayerH}
+      fixedWidth={playerFixedWidth}
       onClose={() => setActiveVideo(null)}
     />
   ) : null
 
   const shotList = (
-    <div style={{ flex: '1 1 auto', minWidth: 320, overflowY: 'auto' }}>
+    <div
+      ref={shotListRef}
+      data-testid="shot-list"
+      style={{ flex: '1 1 auto', minWidth: 320, overflowY: 'auto', position: 'relative' }}
+    >
       {shots.map((shot, i) => (
         <ShotRow
           key={shot.node.id}
@@ -2173,24 +2279,14 @@ export default function StoryboardTimeline() {
         )}
       </div>
 
-      {/* 主体：左=播放器+分镜列表（占满剩余宽度），右=竖幅时间轴（固定宽度，可折叠） */}
+      {/* 主体：左=播放器（恒在左）+分镜列表，右=竖幅时间轴（固定宽度，可折叠）。
+          横/竖版均 flexDirection:row；竖版播放器固定宽 portraitPlayerW，无视频时常驻占位。 */}
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-        <div style={{ flex: 1, display: 'flex', flexDirection: isLandscape ? 'row' : 'column', minWidth: 0 }}>
-          {isLandscape ? (
-            <>
-              {/* 左：播放器列（无视频时同尺寸占位） */}
-              {activeVideo ? player : <PlayerPlaceholder />}
-              {/* 右：分镜列表（占满剩余宽度） */}
-              {shotList}
-            </>
-          ) : (
-            <>
-              {/* 竖版：播放器在顶部（无视频不渲染，节省空间） */}
-              {activeVideo && player}
-              {/* 分镜列表（占满宽度） */}
-              {shotList}
-            </>
-          )}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'row', minWidth: 0 }}>
+          {/* 左：播放器列（无视频时常驻占位，保持布局稳定） */}
+          {activeVideo ? player : <PlayerPlaceholder fixedWidth={playerFixedWidth} />}
+          {/* 右：分镜列表（占满剩余宽度） */}
+          {shotList}
         </div>
         {/* 竖幅时间轴（右侧固定面板） */}
         <VerticalTimeline
@@ -2199,6 +2295,9 @@ export default function StoryboardTimeline() {
           onSelectShot={selectShot}
           onAudioPlay={(track) => setActiveAudio(track)}
           activeAudioPath={activeAudio?.filePath ?? null}
+          shotListRef={shotListRef}
+          rowMetrics={rowMetrics}
+          listContentHeight={listContentHeight}
         />
       </div>
 
