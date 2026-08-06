@@ -21766,5 +21766,3168 @@
       "short_drama_use": "历史遗留 —— 旧 CRT 显示器参考点;现代设备不使用"
     },
     "priority": 66
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "drama_rhythm",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "Drama(剧情片): 8-12 cuts/min cuts/min (横屏 16:9)",
+    "rationale": "典型 ASL 5-7.5s. 来源 Reisz-Millar 2nd ed + 后续行业观察",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Cut-Density Windows by Genre",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "drama"
+    ],
+    "extra_data": {
+      "genre": "Drama(剧情片)",
+      "cuts_per_min": "8-12 cuts/min",
+      "avg_shot_length": "5-7.5s",
+      "source": "Reisz-Millar 2nd ed + 后续行业观察",
+      "platform_modifier": "duyin_x1.5"
+    },
+    "priority": 74
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "action_rhythm",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "Action(动作片): 20-40 cuts/min cuts/min (横屏 16:9)",
+    "rationale": "典型 ASL 1.5-3s. 来源 Reisz-Millar 2nd ed + 现代 action 片观察(如 Bourne 系列)",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Cut-Density Windows by Genre",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "action"
+    ],
+    "extra_data": {
+      "genre": "Action(动作片)",
+      "cuts_per_min": "20-40 cuts/min",
+      "avg_shot_length": "1.5-3s",
+      "source": "Reisz-Millar 2nd ed + 现代 action 片观察(如 Bourne 系列)",
+      "platform_modifier": "duyin_x1.5"
+    },
+    "priority": 74
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "comedy_rhythm",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "Comedy(喜剧片): 12-20 cuts/min cuts/min (横屏 16:9)",
+    "rationale": "典型 ASL 3-5s. 来源 Reisz-Millar 2nd ed",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Cut-Density Windows by Genre",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "comedy"
+    ],
+    "extra_data": {
+      "genre": "Comedy(喜剧片)",
+      "cuts_per_min": "12-20 cuts/min",
+      "avg_shot_length": "3-5s",
+      "source": "Reisz-Millar 2nd ed",
+      "platform_modifier": "duyin_x1.5"
+    },
+    "priority": 74
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "documentary_rhythm",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "Documentary(纪录片): 4-10 cuts/min cuts/min (横屏 16:9)",
+    "rationale": "典型 ASL 6-15s. 来源 Reisz-Millar 2nd ed",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Cut-Density Windows by Genre",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "documentary"
+    ],
+    "extra_data": {
+      "genre": "Documentary(纪录片)",
+      "cuts_per_min": "4-10 cuts/min",
+      "avg_shot_length": "6-15s",
+      "source": "Reisz-Millar 2nd ed",
+      "platform_modifier": "duyin_x1.5"
+    },
+    "priority": 74
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "thriller_rhythm",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "Thriller / Suspense(悬疑惊悚): 10-15 cuts/min(慢推)+ 30-50 cuts/min(高潮爆发) cuts/min (横屏 16:9)",
+    "rationale": "典型 ASL 变化大. 来源 行业观察",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Cut-Density Windows by Genre",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "thriller"
+    ],
+    "extra_data": {
+      "genre": "Thriller / Suspense(悬疑惊悚)",
+      "cuts_per_min": "10-15 cuts/min(慢推)+ 30-50 cuts/min(高潮爆发)",
+      "avg_shot_length": "变化大",
+      "source": "行业观察",
+      "platform_modifier": "duyin_x1.5"
+    },
+    "priority": 74
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "romance_rhythm",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "Romance(爱情片): 6-10 cuts/min cuts/min (横屏 16:9)",
+    "rationale": "典型 ASL 6-10s. 来源 行业观察",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Cut-Density Windows by Genre",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "romance"
+    ],
+    "extra_data": {
+      "genre": "Romance(爱情片)",
+      "cuts_per_min": "6-10 cuts/min",
+      "avg_shot_length": "6-10s",
+      "source": "行业观察",
+      "platform_modifier": "duyin_x1.5"
+    },
+    "priority": 74
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "horror_rhythm",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "Horror(恐怖片): 8-15 cuts/min(铺垫)+ 40-60 cuts/min(jump scare) cuts/min (横屏 16:9)",
+    "rationale": "典型 ASL 变化大. 来源 行业观察",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Cut-Density Windows by Genre",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "horror"
+    ],
+    "extra_data": {
+      "genre": "Horror(恐怖片)",
+      "cuts_per_min": "8-15 cuts/min(铺垫)+ 40-60 cuts/min(jump scare)",
+      "avg_shot_length": "变化大",
+      "source": "行业观察",
+      "platform_modifier": "duyin_x1.5"
+    },
+    "priority": 74
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "drama_vertical_1_5x",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "Drama(剧情) 竖屏: 横屏 8-12 ×1.5 = 12-18 cuts/min",
+    "rationale": "竖屏 ASL 3.3-5s",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "1.5x pace conversion",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "drama",
+      "vertical"
+    ],
+    "extra_data": {
+      "genre": "Drama(剧情)",
+      "landscape_cuts_per_min": "8-12",
+      "portrait_cuts_per_min": "12-18",
+      "portrait_asl": "3.3-5s",
+      "pace_multiplier": 1.5
+    },
+    "priority": 72
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "action_vertical_1_5x",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "Action(动作) 竖屏: 横屏 20-40 ×1.5 = 30-60 cuts/min",
+    "rationale": "竖屏 ASL 1-2s",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "1.5x pace conversion",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "action",
+      "vertical"
+    ],
+    "extra_data": {
+      "genre": "Action(动作)",
+      "landscape_cuts_per_min": "20-40",
+      "portrait_cuts_per_min": "30-60",
+      "portrait_asl": "1-2s",
+      "pace_multiplier": 1.5
+    },
+    "priority": 72
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "comedy_vertical_1_5x",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "Comedy(喜剧) 竖屏: 横屏 12-20 ×1.5 = 18-30 cuts/min",
+    "rationale": "竖屏 ASL 2-3.3s",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "1.5x pace conversion",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "comedy",
+      "vertical"
+    ],
+    "extra_data": {
+      "genre": "Comedy(喜剧)",
+      "landscape_cuts_per_min": "12-20",
+      "portrait_cuts_per_min": "18-30",
+      "portrait_asl": "2-3.3s",
+      "pace_multiplier": 1.5
+    },
+    "priority": 72
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "documentary_vertical_1_5x",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "Documentary(纪录片) 竖屏: 横屏 4-10 ×1.5 = 6-15 cuts/min",
+    "rationale": "竖屏 ASL 4-10s",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "1.5x pace conversion",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "documentary",
+      "vertical"
+    ],
+    "extra_data": {
+      "genre": "Documentary(纪录片)",
+      "landscape_cuts_per_min": "4-10",
+      "portrait_cuts_per_min": "6-15",
+      "portrait_asl": "4-10s",
+      "pace_multiplier": 1.5
+    },
+    "priority": 72
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "segment_action_segment",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "Action segment: 横屏 20-40 / 竖屏×1.5 30-60",
+    "rationale": "应用场景 打斗 / 追逐 / 爽点 碾压",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Genre Hybrid segment cut-density",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "segment"
+    ],
+    "extra_data": {
+      "segment_type": "Action segment",
+      "landscape_cuts_per_min": "20-40",
+      "portrait_cuts_per_min": "30-60",
+      "use_case": "打斗 / 追逐 / 爽点 碾压"
+    },
+    "priority": 70
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "segment_drama_segment",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "Drama segment: 横屏 8-12 / 竖屏×1.5 12-18",
+    "rationale": "应用场景 对话 / 情感交流 / 回忆",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Genre Hybrid segment cut-density",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "segment"
+    ],
+    "extra_data": {
+      "segment_type": "Drama segment",
+      "landscape_cuts_per_min": "8-12",
+      "portrait_cuts_per_min": "12-18",
+      "use_case": "对话 / 情感交流 / 回忆"
+    },
+    "priority": 70
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "segment_comedy_segment",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "Comedy segment: 横屏 12-20 / 竖屏×1.5 18-30",
+    "rationale": "应用场景 搞笑桥段 / 反差萌",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Genre Hybrid segment cut-density",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "segment"
+    ],
+    "extra_data": {
+      "segment_type": "Comedy segment",
+      "landscape_cuts_per_min": "12-20",
+      "portrait_cuts_per_min": "18-30",
+      "use_case": "搞笑桥段 / 反差萌"
+    },
+    "priority": 70
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "segment_suspense_segment慢推",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "Suspense segment(慢推): 横屏 6-10 / 竖屏×1.5 9-15",
+    "rationale": "应用场景 铺垫悬念 / 揭露前夜",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Genre Hybrid segment cut-density",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "segment"
+    ],
+    "extra_data": {
+      "segment_type": "Suspense segment(慢推)",
+      "landscape_cuts_per_min": "6-10",
+      "portrait_cuts_per_min": "9-15",
+      "use_case": "铺垫悬念 / 揭露前夜"
+    },
+    "priority": 70
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "segment_climax_burst",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "Climax burst: 横屏 40-60 / 竖屏×1.5 60-90",
+    "rationale": "应用场景 高潮爆发(允许超出 action 上限)",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Genre Hybrid segment cut-density",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "segment"
+    ],
+    "extra_data": {
+      "segment_type": "Climax burst",
+      "landscape_cuts_per_min": "40-60",
+      "portrait_cuts_per_min": "60-90",
+      "use_case": "高潮爆发(允许超出 action 上限)"
+    },
+    "priority": 70
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "build_to_climax_rule",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "最后 25% runtime cut 密度 = baseline ×1.5-2.0；最后 10% 允许 ×2.0-2.5。",
+    "rationale": "Climax density 是 emotion_curve 峰值段自然反映；emotion≥0.7 处加密。",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Build-to-Climax Rule",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "build_to_climax"
+    ],
+    "extra_data": {
+      "climax_25pct_multiplier": [
+        1.5,
+        2.0
+      ],
+      "climax_10pct_multiplier": [
+        2.0,
+        2.5
+      ]
+    },
+    "priority": 78
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "breath_frame_design",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "喘息帧 2-3s (比 baseline 长 1.5-2x)，每 15-20s 一个，emotion v≥0.4。",
+    "rationale": "高密度段间防 viewer-fatigue；情绪特写/环境/反应镜头，非空镜头。",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "喘息帧设计",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "breath_frame"
+    ],
+    "extra_data": {
+      "breath_frame_length_s": [
+        2,
+        3
+      ],
+      "interval_s": [
+        15,
+        20
+      ],
+      "min_emotion_v": 0.4
+    },
+    "priority": 76
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "cut_on_action_rule",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "Cut on action 察觉率 ~10-15%，比 cut on static (~40-50%) 降 ~70%。",
+    "rationale": "动作吸引注意力，cut 时大脑无资源察觉。短剧必备。",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Cut on Action",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "cut_on_action"
+    ],
+    "extra_data": {
+      "action_detect_rate": "10-15%",
+      "static_detect_rate": "40-50%",
+      "reduction": "~70%"
+    },
+    "priority": 78
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "cut_on_action_门打开",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "门打开: 理想 cut point 门打开到 50-70% 时",
+    "rationale": "示例 viewer 看到门缝,下一 shot 是门内的视角",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Cut on Action 动作类型",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "cut_on_action"
+    ],
+    "extra_data": {
+      "action": "门打开",
+      "ideal_cut_point": "门打开到 50-70% 时",
+      "example": "viewer 看到门缝,下一 shot 是门内的视角"
+    },
+    "priority": 64
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "cut_on_action_角色转身",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "角色转身: 理想 cut point 转身到 90-135° 时",
+    "rationale": "示例 viewer 看到角色侧脸,下一 shot 是角色正面",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Cut on Action 动作类型",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "cut_on_action"
+    ],
+    "extra_data": {
+      "action": "角色转身",
+      "ideal_cut_point": "转身到 90-135° 时",
+      "example": "viewer 看到角色侧脸,下一 shot 是角色正面"
+    },
+    "priority": 64
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "cut_on_action_物体落下",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "物体落下: 理想 cut point 物体下落到 50% 距离时",
+    "rationale": "示例 viewer 看到物体下落,下一 shot 是物体落地",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Cut on Action 动作类型",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "cut_on_action"
+    ],
+    "extra_data": {
+      "action": "物体落下",
+      "ideal_cut_point": "物体下落到 50% 距离时",
+      "example": "viewer 看到物体下落,下一 shot 是物体落地"
+    },
+    "priority": 64
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "cut_on_action_手部动作拿_放_推",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "手部动作(拿 / 放 / 推): 理想 cut point 手接触到物体的瞬间",
+    "rationale": "示例 viewer 看到手伸过来,下一 shot 是手握住物体",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Cut on Action 动作类型",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "cut_on_action"
+    ],
+    "extra_data": {
+      "action": "手部动作(拿 / 放 / 推)",
+      "ideal_cut_point": "手接触到物体的瞬间",
+      "example": "viewer 看到手伸过来,下一 shot 是手握住物体"
+    },
+    "priority": 64
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "cut_on_action_眼神移动",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "眼神移动: 理想 cut point 眼神从 A 点移到 B 点的中途",
+    "rationale": "示例 viewer 看到眼神移动,下一 shot 是 B 点的目标",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Cut on Action 动作类型",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "cut_on_action"
+    ],
+    "extra_data": {
+      "action": "眼神移动",
+      "ideal_cut_point": "眼神从 A 点移到 B 点的中途",
+      "example": "viewer 看到眼神移动,下一 shot 是 B 点的目标"
+    },
+    "priority": 64
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "invisible_technique_cut_on_action",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "Cut on action: 动作吸引注意力,cut 不被察觉",
+    "rationale": "Rule of Six 提升所有 6 个维度(尤其 Rhythm + Eye-trace)",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Invisible Editing 5 techniques",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "invisible_editing"
+    ],
+    "extra_data": {
+      "technique": "Cut on action",
+      "principle": "动作吸引注意力,cut 不被察觉",
+      "rule_of_six_link": "提升所有 6 个维度(尤其 Rhythm + Eye-trace)"
+    },
+    "priority": 68
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "invisible_technique_cut_on_eyeline_match",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "Cut on eyeline match: 角色看向的方向 = 下一 shot 主体出现的位置",
+    "rationale": "Rule of Six 提升第 4 维度 (Eye-trace) + 第 6 维度 (3D space);详见 [`fxrxt-axis-compliance.md`](./fxrxt-axis-compliance.md) §Eyeline Match",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Invisible Editing 5 techniques",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "invisible_editing"
+    ],
+    "extra_data": {
+      "technique": "Cut on eyeline match",
+      "principle": "角色看向的方向 = 下一 shot 主体出现的位置",
+      "rule_of_six_link": "提升第 4 维度 (Eye-trace) + 第 6 维度 (3D space);详见 [`fxrxt-axis-compliance.md`](./fxrxt-axis-compliance.md) §Eyeline Match"
+    },
+    "priority": 68
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "invisible_technique_cut_on_sound_cue",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "Cut on sound cue: 声音(对话 / 音效 / 音乐)的节拍点",
+    "rationale": "Rule of Six 提升第 3 维度 (Rhythm);详见 [`cn-cutting-rhythm.md`](./cn-cutting-rhythm.md) §BGM-Driven Cut Sync",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Invisible Editing 5 techniques",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "invisible_editing"
+    ],
+    "extra_data": {
+      "technique": "Cut on sound cue",
+      "principle": "声音(对话 / 音效 / 音乐)的节拍点",
+      "rule_of_six_link": "提升第 3 维度 (Rhythm);详见 [`cn-cutting-rhythm.md`](./cn-cutting-rhythm.md) §BGM-Driven Cut Sync"
+    },
+    "priority": 68
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "invisible_technique_cut_on_match_cut",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "Cut on match cut: 两个 shot 通过视觉韵律(形状 / 动作 / 色彩)连接",
+    "rationale": "Rule of Six 提升第 5 维度 (2D plane);详见 [`fxrxt-axis-compliance.md`](./fxrxt-axis-compliance.md) §Match Cut Design",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Invisible Editing 5 techniques",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "invisible_editing"
+    ],
+    "extra_data": {
+      "technique": "Cut on match cut",
+      "principle": "两个 shot 通过视觉韵律(形状 / 动作 / 色彩)连接",
+      "rule_of_six_link": "提升第 5 维度 (2D plane);详见 [`fxrxt-axis-compliance.md`](./fxrxt-axis-compliance.md) §Match Cut Design"
+    },
+    "priority": 68
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "invisible_technique_cut_on_emotion_peak",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "Cut on emotion peak: 情绪弧线的峰值 / 谷值",
+    "rationale": "Rule of Six 提升第 1 维度 (Emotion) —— 这是 Murch Emotion-First 规则的直接应用",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Invisible Editing 5 techniques",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "invisible_editing"
+    ],
+    "extra_data": {
+      "technique": "Cut on emotion peak",
+      "principle": "情绪弧线的峰值 / 谷值",
+      "rule_of_six_link": "提升第 1 维度 (Emotion) —— 这是 Murch Emotion-First 规则的直接应用"
+    },
+    "priority": 68
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "micro_scene_钩子段0-3s",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "钩子段(0-3s): 推荐长度 3s，cut 密度 1-2 cuts(快速建立)",
+    "rationale": "90s 短剧 segment 切分 (古典 scene pacing 映射)。",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Scene Pacing 微场景",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "micro_scene"
+    ],
+    "extra_data": {
+      "micro_scene": "钩子段(0-3s)",
+      "length": "3s",
+      "cut_density": "1-2 cuts(快速建立)"
+    },
+    "priority": 66
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "micro_scene_建立段3-15s",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "建立段(3-15s): 推荐长度 12s，cut 密度 8-12 cuts(中等密度)",
+    "rationale": "90s 短剧 segment 切分 (古典 scene pacing 映射)。",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Scene Pacing 微场景",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "micro_scene"
+    ],
+    "extra_data": {
+      "micro_scene": "建立段(3-15s)",
+      "length": "12s",
+      "cut_density": "8-12 cuts(中等密度)"
+    },
+    "priority": 66
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "micro_scene_升级段15-45s",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "升级段(15-45s): 推荐长度 30s，cut 密度 20-30 cuts(高密度,配合 击中点)",
+    "rationale": "90s 短剧 segment 切分 (古典 scene pacing 映射)。",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Scene Pacing 微场景",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "micro_scene"
+    ],
+    "extra_data": {
+      "micro_scene": "升级段(15-45s)",
+      "length": "30s",
+      "cut_density": "20-30 cuts(高密度,配合 击中点)"
+    },
+    "priority": 66
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "micro_scene_高潮段45-80s",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "高潮段(45-80s): 推荐长度 35s，cut 密度 25-40 cuts(最高密度,配合 爽点)",
+    "rationale": "90s 短剧 segment 切分 (古典 scene pacing 映射)。",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Scene Pacing 微场景",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "micro_scene"
+    ],
+    "extra_data": {
+      "micro_scene": "高潮段(45-80s)",
+      "length": "35s",
+      "cut_density": "25-40 cuts(最高密度,配合 爽点)"
+    },
+    "priority": 66
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "micro_scene_收尾段80-90s",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "收尾段(80-90s): 推荐长度 10s，cut 密度 5-8 cuts(减速,留 卡点 悬念)",
+    "rationale": "90s 短剧 segment 切分 (古典 scene pacing 映射)。",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Scene Pacing 微场景",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "micro_scene"
+    ],
+    "extra_data": {
+      "micro_scene": "收尾段(80-90s)",
+      "length": "10s",
+      "cut_density": "5-8 cuts(减速,留 卡点 悬念)"
+    },
+    "priority": 66
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "scene_length_古典好莱坞_drama",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "古典好莱坞 drama: 平均场景长度 90-180 秒/场景",
+    "rationale": "Reisz-Millar 2nd ed + 行业统计",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Scene Pacing 场景长度",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "scene_length"
+    ],
+    "extra_data": {
+      "type": "古典好莱坞 drama",
+      "avg_scene_length": "90-180 秒/场景",
+      "source": "Reisz-Millar 2nd ed + 行业统计"
+    },
+    "priority": 62
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "scene_length_现代_action",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "现代 action: 平均场景长度 60-120 秒/场景",
+    "rationale": "行业观察(节奏加快趋势)",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Scene Pacing 场景长度",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "scene_length"
+    ],
+    "extra_data": {
+      "type": "现代 action",
+      "avg_scene_length": "60-120 秒/场景",
+      "source": "行业观察(节奏加快趋势)"
+    },
+    "priority": 62
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "scene_length_art_film_作者电影",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "Art film / 作者电影: 平均场景长度 180-360 秒/场景(长镜头多)",
+    "rationale": "行业观察",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Scene Pacing 场景长度",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "scene_length"
+    ],
+    "extra_data": {
+      "type": "Art film / 作者电影",
+      "avg_scene_length": "180-360 秒/场景(长镜头多)",
+      "source": "行业观察"
+    },
+    "priority": 62
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "scene_length_tv_drama电视剧",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "TV drama(电视剧): 平均场景长度 60-90 秒/场景",
+    "rationale": "电视剧节奏比电影快",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Scene Pacing 场景长度",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "scene_length"
+    ],
+    "extra_data": {
+      "type": "TV drama(电视剧)",
+      "avg_scene_length": "60-90 秒/场景",
+      "source": "电视剧节奏比电影快"
+    },
+    "priority": 62
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "cut_detect_rate_cut_on_action动作进行中切",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "Cut on action(动作进行中切): viewer 察觉率 ~10-15% viewer 察觉",
+    "rationale": "Reisz-Millar 2nd ed + eye-tracking 研究",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Cut on Action detect rates",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "detect_rate"
+    ],
+    "extra_data": {
+      "cut_type": "Cut on action(动作进行中切)",
+      "detect_rate": "~10-15% viewer 察觉",
+      "source": "Reisz-Millar 2nd ed + eye-tracking 研究"
+    },
+    "priority": 64
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "cut_detect_rate_cut_on_static静态画面之间切",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "Cut on static(静态画面之间切): viewer 察觉率 ~40-50% viewer 察觉",
+    "rationale": "Reisz-Millar 2nd ed",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Cut on Action detect rates",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "detect_rate"
+    ],
+    "extra_data": {
+      "cut_type": "Cut on static(静态画面之间切)",
+      "detect_rate": "~40-50% viewer 察觉",
+      "source": "Reisz-Millar 2nd ed"
+    },
+    "priority": 64
+  },
+  {
+    "category": "editing_rhythm",
+    "key_name": "cut_detect_rate_cut_on_motion_completion动作结束后切",
+    "key_type": "rhythm_rule",
+    "primary_recommendation": "Cut on motion completion(动作结束后切): viewer 察觉率 ~30-40% viewer 察觉",
+    "rationale": "行业观察",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Cut on Action detect rates",
+    "tags": [
+      "editor",
+      "editing_rhythm",
+      "detect_rate"
+    ],
+    "extra_data": {
+      "cut_type": "Cut on motion completion(动作结束后切)",
+      "detect_rate": "~30-40% viewer 察觉",
+      "source": "行业观察"
+    },
+    "priority": 64
+  },
+  {
+    "category": "murch_dimension",
+    "key_name": "murch_score_formula",
+    "key_type": "murch_dimension",
+    "primary_recommendation": "murch_score = emotion×0.50 + story×0.23 + rhythm×0.10 + eye_trace×0.07 + plane_2d×0.05 + plane_3d×0.03",
+    "rationale": "权重和 98% (2% 给直觉)。Story 用 2nd ed 23%。",
+    "source_file": "murch-rule-of-six.md",
+    "source_section": "加权评分计算公式",
+    "tags": [
+      "editor",
+      "murch",
+      "formula"
+    ],
+    "extra_data": {
+      "weights": {
+        "emotion": 0.5,
+        "story": 0.23,
+        "rhythm": 0.1,
+        "eye_trace": 0.07,
+        "plane_2d": 0.05,
+        "plane_3d": 0.03
+      },
+      "total": 0.98
+    },
+    "priority": 84
+  },
+  {
+    "category": "murch_dimension",
+    "key_name": "murch_score_threshold_70",
+    "key_type": "murch_dimension",
+    "primary_recommendation": "murch_score ≥ 7.0: 优秀 cut",
+    "rationale": "动作 保留",
+    "source_file": "murch-rule-of-six.md",
+    "source_section": "Application thresholds",
+    "tags": [
+      "editor",
+      "murch",
+      "threshold"
+    ],
+    "extra_data": {
+      "score_range": "≥ 7.0",
+      "assessment": "优秀 cut",
+      "action": "保留"
+    },
+    "priority": 72
+  },
+  {
+    "category": "murch_dimension",
+    "key_name": "murch_score_threshold_50_-_69",
+    "key_type": "murch_dimension",
+    "primary_recommendation": "murch_score 5.0 - 6.9: 合格 cut",
+    "rationale": "动作 保留,但若 murch_score < 5.5 应检查是否有更好 cut point",
+    "source_file": "murch-rule-of-six.md",
+    "source_section": "Application thresholds",
+    "tags": [
+      "editor",
+      "murch",
+      "threshold"
+    ],
+    "extra_data": {
+      "score_range": "5.0 - 6.9",
+      "assessment": "合格 cut",
+      "action": "保留,但若 murch_score < 5.5 应检查是否有更好 cut point"
+    },
+    "priority": 72
+  },
+  {
+    "category": "murch_dimension",
+    "key_name": "murch_score_threshold_30_-_49",
+    "key_type": "murch_dimension",
+    "primary_recommendation": "murch_score 3.0 - 4.9: 弱 cut",
+    "rationale": "动作 重新选择 cut point;若 emotion ≥ 8.0 则可保留(Emotion-First 豁免,见下节)",
+    "source_file": "murch-rule-of-six.md",
+    "source_section": "Application thresholds",
+    "tags": [
+      "editor",
+      "murch",
+      "threshold"
+    ],
+    "extra_data": {
+      "score_range": "3.0 - 4.9",
+      "assessment": "弱 cut",
+      "action": "重新选择 cut point;若 emotion ≥ 8.0 则可保留(Emotion-First 豁免,见下节)"
+    },
+    "priority": 72
+  },
+  {
+    "category": "murch_dimension",
+    "key_name": "murch_score_threshold_30",
+    "key_type": "murch_dimension",
+    "primary_recommendation": "murch_score < 3.0: 不合格 cut",
+    "rationale": "动作 否决;必须重新设计",
+    "source_file": "murch-rule-of-six.md",
+    "source_section": "Application thresholds",
+    "tags": [
+      "editor",
+      "murch",
+      "threshold"
+    ],
+    "extra_data": {
+      "score_range": "< 3.0",
+      "assessment": "不合格 cut",
+      "action": "否决;必须重新设计"
+    },
+    "priority": 72
+  },
+  {
+    "category": "murch_dimension",
+    "key_name": "emotion_first_rule",
+    "key_type": "murch_dimension",
+    "primary_recommendation": "Emotion-First: emotion≥8.0 保留 (即使 murch_score<5.0)；emotion≤3.0 否决 (即使 ≥7.0)。180° 轴线违反不受豁免。",
+    "rationale": "Murch: preserves Emotion violates other five → KEEP; fails Emotion → REJECT.",
+    "source_file": "murch-rule-of-six.md",
+    "source_section": "Emotion-First Decision Rule",
+    "tags": [
+      "editor",
+      "murch",
+      "emotion_first"
+    ],
+    "extra_data": {
+      "exempt_keep_emotion": 8.0,
+      "reject_emotion": 3.0,
+      "hard_constraint_no_exempt": "180° axis violation"
+    },
+    "priority": 82
+  },
+  {
+    "category": "murch_dimension",
+    "key_name": "eye_trace_30",
+    "key_type": "murch_dimension",
+    "primary_recommendation": "frame_displacement ≤ 30%: 10/10",
+    "rationale": "完美对齐 —— 观众注视中心几乎不动",
+    "source_file": "murch-rule-of-six.md",
+    "source_section": "Eye-Trace Quantification",
+    "tags": [
+      "editor",
+      "murch",
+      "eye_trace"
+    ],
+    "extra_data": {
+      "frame_displacement": "≤ 30%",
+      "score": "10/10",
+      "note": "完美对齐 —— 观众注视中心几乎不动"
+    },
+    "priority": 70
+  },
+  {
+    "category": "murch_dimension",
+    "key_name": "eye_trace_30_-_40",
+    "key_type": "murch_dimension",
+    "primary_recommendation": "frame_displacement 30% - 40%: 5-7/10",
+    "rationale": "可接受 —— 观众眼球小幅跳动但仍在 comfort zone",
+    "source_file": "murch-rule-of-six.md",
+    "source_section": "Eye-Trace Quantification",
+    "tags": [
+      "editor",
+      "murch",
+      "eye_trace"
+    ],
+    "extra_data": {
+      "frame_displacement": "30% - 40%",
+      "score": "5-7/10",
+      "note": "可接受 —— 观众眼球小幅跳动但仍在 comfort zone"
+    },
+    "priority": 70
+  },
+  {
+    "category": "murch_dimension",
+    "key_name": "eye_trace_40",
+    "key_type": "murch_dimension",
+    "primary_recommendation": "frame_displacement > 40%: ≤ 3/10(违反)",
+    "rationale": "Eye-trace violation —— 观众眼球大幅跳动,产生\"画面跳一下\"的不适感",
+    "source_file": "murch-rule-of-six.md",
+    "source_section": "Eye-Trace Quantification",
+    "tags": [
+      "editor",
+      "murch",
+      "eye_trace"
+    ],
+    "extra_data": {
+      "frame_displacement": "> 40%",
+      "score": "≤ 3/10(违反)",
+      "note": "Eye-trace violation —— 观众眼球大幅跳动,产生\"画面跳一下\"的不适感"
+    },
+    "priority": 70
+  },
+  {
+    "category": "murch_dimension",
+    "key_name": "blink_rhythm_theory",
+    "key_type": "murch_dimension",
+    "primary_recommendation": "Cut align 4s 眨眼节奏 (15-20 blinks/min)；>30 cuts/min 持续 >60s → viewer-fatigue。",
+    "rationale": "Invisible editing 生理基础。理想 cut point = 4s 整数倍。",
+    "source_file": "murch-rule-of-six.md",
+    "source_section": "Blink Rhythm Theory",
+    "tags": [
+      "editor",
+      "murch",
+      "blink_rhythm"
+    ],
+    "extra_data": {
+      "avg_blink_interval_s": 4,
+      "blink_rate_per_min": [
+        15,
+        20
+      ],
+      "fatigue_threshold_cuts_per_min": 30,
+      "fatigue_duration_s": 60
+    },
+    "priority": 76
+  },
+  {
+    "category": "murch_dimension",
+    "key_name": "murch_example_shot_1",
+    "key_type": "murch_dimension",
+    "primary_recommendation": "Shot 1 (主角背影特写,悬念(钩子)): murch_score 7.96 → 保留",
+    "rationale": "E8/10 (v=0.6 钩子锚定)/S7/10 (悬念建立)/R9/10 (3s align 钩子边界)/ET10/10 (focal 居中)/2D9/10 (背影构图强)/3D10/10 (轴线建立)",
+    "source_file": "murch-rule-of-six.md",
+    "source_section": "Murch Score worked example",
+    "tags": [
+      "editor",
+      "murch",
+      "worked_example"
+    ],
+    "extra_data": {
+      "shot": "1",
+      "timestamp": "0.0-3.0s",
+      "duration_s": "3.0s",
+      "content": "主角背影特写,悬念(钩子)",
+      "murch_score": 7.96,
+      "decision": "保留"
+    },
+    "priority": 64
+  },
+  {
+    "category": "murch_dimension",
+    "key_name": "murch_example_shot_2",
+    "key_type": "murch_dimension",
+    "primary_recommendation": "Shot 2 (主角转身,表情冷漠): murch_score 7.8 → 保留",
+    "rationale": "E8/10 (情绪延续)/S8/10 (揭示主角身份)/R8/10 (1.5s align 1.5x pace)/ET7/10 (focal 从背影到正面,位移 ~25%)/2D8/10 (构图和谐)/3D9/10 (轴线维护)",
+    "source_file": "murch-rule-of-six.md",
+    "source_section": "Murch Score worked example",
+    "tags": [
+      "editor",
+      "murch",
+      "worked_example"
+    ],
+    "extra_data": {
+      "shot": "2",
+      "timestamp": "3.0-4.5s",
+      "duration_s": "1.5s",
+      "content": "主角转身,表情冷漠",
+      "murch_score": 7.8,
+      "decision": "保留"
+    },
+    "priority": 64
+  },
+  {
+    "category": "murch_dimension",
+    "key_name": "murch_example_shot_3",
+    "key_type": "murch_dimension",
+    "primary_recommendation": "Shot 3 (配角震惊反应): murch_score 6.42 → 保留(临界)",
+    "rationale": "E6/10 (情绪 v=0.5 喘息)/S7/10 (配角视角)/R8/10 (节拍对齐)/ET6/10 (focal 切到配角,位移 ~35%)/2D7/10 (构图合理)/3D8/10 (轴线维护)",
+    "source_file": "murch-rule-of-six.md",
+    "source_section": "Murch Score worked example",
+    "tags": [
+      "editor",
+      "murch",
+      "worked_example"
+    ],
+    "extra_data": {
+      "shot": "3",
+      "timestamp": "4.5-6.0s",
+      "duration_s": "1.5s",
+      "content": "配角震惊反应",
+      "murch_score": 6.42,
+      "decision": "保留(临界)"
+    },
+    "priority": 64
+  },
+  {
+    "category": "murch_dimension",
+    "key_name": "murch_example_shot_4",
+    "key_type": "murch_dimension",
+    "primary_recommendation": "Shot 4 (主角展示实力(击中点)): murch_score 9.25 → 保留(优秀)",
+    "rationale": "E10/10 (v=0.7 击中点)/S9/10 (实力揭示)/R9/10 (3s align 4s 眨眼边界)/ET8/10 (focal 回到主角,位移 ~20%)/2D9/10 (动作构图)/3D9/10 (轴线维护)",
+    "source_file": "murch-rule-of-six.md",
+    "source_section": "Murch Score worked example",
+    "tags": [
+      "editor",
+      "murch",
+      "worked_example"
+    ],
+    "extra_data": {
+      "shot": "4",
+      "timestamp": "6.0-9.0s",
+      "duration_s": "3.0s",
+      "content": "主角展示实力(击中点)",
+      "murch_score": 9.25,
+      "decision": "保留(优秀)"
+    },
+    "priority": 64
+  },
+  {
+    "category": "murch_dimension",
+    "key_name": "murch_example_shot_5",
+    "key_type": "murch_dimension",
+    "primary_recommendation": "Shot 5 (反派震惊 + 后退): murch_score 8.27 → 保留",
+    "rationale": "E9/10 (v=0.8 升级)/S8/10 (反派视角)/R8/10 (节拍对齐)/ET7/10 (focal 切到反派,位移 ~30%)/2D8/10 (构图合理)/3D8/10 (轴线维护)",
+    "source_file": "murch-rule-of-six.md",
+    "source_section": "Murch Score worked example",
+    "tags": [
+      "editor",
+      "murch",
+      "worked_example"
+    ],
+    "extra_data": {
+      "shot": "5",
+      "timestamp": "9.0-12.0s",
+      "duration_s": "3.0s",
+      "content": "反派震惊 + 后退",
+      "murch_score": 8.27,
+      "decision": "保留"
+    },
+    "priority": 64
+  },
+  {
+    "category": "murch_dimension",
+    "key_name": "murch_example_shot_6",
+    "key_type": "murch_dimension",
+    "primary_recommendation": "Shot 6 (主角碾压(爽点 预热)): murch_score 9.37 → 保留(优秀)",
+    "rationale": "E10/10 (v=0.9 爽点 预热)/S9/10 (碾压兑现)/R9/10 (3s align 4s 边界)/ET9/10 (focal 回到主角,位移 ~15%)/2D10/10 (碾压构图)/3D9/10 (轴线维护)",
+    "source_file": "murch-rule-of-six.md",
+    "source_section": "Murch Score worked example",
+    "tags": [
+      "editor",
+      "murch",
+      "worked_example"
+    ],
+    "extra_data": {
+      "shot": "6",
+      "timestamp": "12.0-15.0s",
+      "duration_s": "3.0s",
+      "content": "主角碾压(爽点 预热)",
+      "murch_score": 9.37,
+      "decision": "保留(优秀)"
+    },
+    "priority": 64
+  },
+  {
+    "category": "murch_dimension",
+    "key_name": "space3d_check_70",
+    "key_type": "murch_dimension",
+    "primary_recommendation": "3D space check ≥ 7.0: 通过 优秀 cut",
+    "rationale": "失败 保留",
+    "source_file": "murch-rule-of-six.md",
+    "source_section": "3D space checklist",
+    "tags": [
+      "editor",
+      "murch",
+      "plane_3d"
+    ],
+    "extra_data": {
+      "check": "≥ 7.0",
+      "pass": "优秀 cut",
+      "fail": "保留",
+      "dimension": "3D space"
+    },
+    "priority": 62
+  },
+  {
+    "category": "murch_dimension",
+    "key_name": "space3d_check_50_-_69",
+    "key_type": "murch_dimension",
+    "primary_recommendation": "3D space check 5.0 - 6.9: 通过 合格 cut",
+    "rationale": "失败 保留,但若 murch_score < 5.5 应检查是否有更好 cut point",
+    "source_file": "murch-rule-of-six.md",
+    "source_section": "3D space checklist",
+    "tags": [
+      "editor",
+      "murch",
+      "plane_3d"
+    ],
+    "extra_data": {
+      "check": "5.0 - 6.9",
+      "pass": "合格 cut",
+      "fail": "保留,但若 murch_score < 5.5 应检查是否有更好 cut point",
+      "dimension": "3D space"
+    },
+    "priority": 62
+  },
+  {
+    "category": "murch_dimension",
+    "key_name": "space3d_check_30_-_49",
+    "key_type": "murch_dimension",
+    "primary_recommendation": "3D space check 3.0 - 4.9: 通过 弱 cut",
+    "rationale": "失败 重新选择 cut point;若 emotion ≥ 8.0 则可保留(Emotion-First 豁免,见下节)",
+    "source_file": "murch-rule-of-six.md",
+    "source_section": "3D space checklist",
+    "tags": [
+      "editor",
+      "murch",
+      "plane_3d"
+    ],
+    "extra_data": {
+      "check": "3.0 - 4.9",
+      "pass": "弱 cut",
+      "fail": "重新选择 cut point;若 emotion ≥ 8.0 则可保留(Emotion-First 豁免,见下节)",
+      "dimension": "3D space"
+    },
+    "priority": 62
+  },
+  {
+    "category": "murch_dimension",
+    "key_name": "space3d_check_30",
+    "key_type": "murch_dimension",
+    "primary_recommendation": "3D space check < 3.0: 通过 不合格 cut",
+    "rationale": "失败 否决;必须重新设计",
+    "source_file": "murch-rule-of-six.md",
+    "source_section": "3D space checklist",
+    "tags": [
+      "editor",
+      "murch",
+      "plane_3d"
+    ],
+    "extra_data": {
+      "check": "< 3.0",
+      "pass": "不合格 cut",
+      "fail": "否决;必须重新设计",
+      "dimension": "3D space"
+    },
+    "priority": 62
+  },
+  {
+    "category": "murch_dimension",
+    "key_name": "theory_murch_rule_of_six_本_ref",
+    "key_type": "murch_dimension",
+    "primary_recommendation": "Murch Rule of Six (本 ref): 加权评分模型,Emotion 占 50%",
+    "rationale": "canonical 剪辑决策模型 —— 所有 cut 必须先过 Rule of Six 评分",
+    "source_file": "murch-rule-of-six.md",
+    "source_section": "Rule of Six vs other theories",
+    "tags": [
+      "editor",
+      "murch",
+      "theory_comparison"
+    ],
+    "extra_data": {
+      "theory": "Murch Rule of Six (本 ref)",
+      "thesis": "加权评分模型,Emotion 占 50%",
+      "relation_to_rule_of_six": "canonical 剪辑决策模型 —— 所有 cut 必须先过 Rule of Six 评分"
+    },
+    "priority": 62
+  },
+  {
+    "category": "murch_dimension",
+    "key_name": "theory_reisz-millar_classical_editing_classical-editing-rhythmmdclassical-editing-rhythmmd",
+    "key_type": "murch_dimension",
+    "primary_recommendation": "Reisz-Millar Classical Editing ([`classical-editing-rhythm.md`](./classical-editing-rhythm.md)): invisible editing + cut-density windows + cut on action",
+    "rationale": "提供 Rule of Six 第 3 维度 (Rhythm) 的具体阈值;invisible editing 是 Rule of Six 高分的自然结果",
+    "source_file": "murch-rule-of-six.md",
+    "source_section": "Rule of Six vs other theories",
+    "tags": [
+      "editor",
+      "murch",
+      "theory_comparison"
+    ],
+    "extra_data": {
+      "theory": "Reisz-Millar Classical Editing ([`classical-editing-rhythm.md`](./classical-editing-rhythm.md))",
+      "thesis": "invisible editing + cut-density windows + cut on action",
+      "relation_to_rule_of_six": "提供 Rule of Six 第 3 维度 (Rhythm) 的具体阈值;invisible editing 是 Rule of Six 高分的自然结果"
+    },
+    "priority": 62
+  },
+  {
+    "category": "murch_dimension",
+    "key_name": "theory_eisenstein_montage_theory_montage-theorymdmontage-theorymd",
+    "key_type": "murch_dimension",
+    "primary_recommendation": "Eisenstein Montage Theory ([`montage-theory.md`](./montage-theory.md)): collision montage + intellectual montage",
+    "rationale": "与 Rule of Six 第 2 维度 (Story) 强相关 —— collision montage 的核心是\"cut 产生新意义\",即 story 维度的信息增量",
+    "source_file": "murch-rule-of-six.md",
+    "source_section": "Rule of Six vs other theories",
+    "tags": [
+      "editor",
+      "murch",
+      "theory_comparison"
+    ],
+    "extra_data": {
+      "theory": "Eisenstein Montage Theory ([`montage-theory.md`](./montage-theory.md))",
+      "thesis": "collision montage + intellectual montage",
+      "relation_to_rule_of_six": "与 Rule of Six 第 2 维度 (Story) 强相关 —— collision montage 的核心是\"cut 产生新意义\",即 story 维度的信息增量"
+    },
+    "priority": 62
+  },
+  {
+    "category": "murch_dimension",
+    "key_name": "theory_fxrxt_axis_compliance_fxrxt-axis-compliancemdfxrxt-axis-compliancemd",
+    "key_type": "murch_dimension",
+    "primary_recommendation": "FxRxT Axis Compliance ([`fxrxt-axis-compliance.md`](./fxrxt-axis-compliance.md)): 180° / 30° / eyeline / match cut",
+    "rationale": "提供 Rule of Six 第 6 维度 (3D space) 与第 4 维度 (Eye-trace) 的具体规则",
+    "source_file": "murch-rule-of-six.md",
+    "source_section": "Rule of Six vs other theories",
+    "tags": [
+      "editor",
+      "murch",
+      "theory_comparison"
+    ],
+    "extra_data": {
+      "theory": "FxRxT Axis Compliance ([`fxrxt-axis-compliance.md`](./fxrxt-axis-compliance.md))",
+      "thesis": "180° / 30° / eyeline / match cut",
+      "relation_to_rule_of_six": "提供 Rule of Six 第 6 维度 (3D space) 与第 4 维度 (Eye-trace) 的具体规则"
+    },
+    "priority": 62
+  },
+  {
+    "category": "murch_dimension",
+    "key_name": "theory_cn_短剧_cutting_rhythm_cn-cutting-rhythmmdcn-cutting-rhythmmd",
+    "key_type": "murch_dimension",
+    "primary_recommendation": "CN 短剧 Cutting Rhythm ([`cn-cutting-rhythm.md`](./cn-cutting-rhythm.md)): 平台 cut-density + 1.5x pace + ≤3s dead air",
+    "rationale": "提供 Rule of Six 第 3 维度 (Rhythm) 在 短剧 场景的具体数值",
+    "source_file": "murch-rule-of-six.md",
+    "source_section": "Rule of Six vs other theories",
+    "tags": [
+      "editor",
+      "murch",
+      "theory_comparison"
+    ],
+    "extra_data": {
+      "theory": "CN 短剧 Cutting Rhythm ([`cn-cutting-rhythm.md`](./cn-cutting-rhythm.md))",
+      "thesis": "平台 cut-density + 1.5x pace + ≤3s dead air",
+      "relation_to_rule_of_six": "提供 Rule of Six 第 3 维度 (Rhythm) 在 短剧 场景的具体数值"
+    },
+    "priority": 62
+  },
+  {
+    "category": "cut_density_window",
+    "key_name": "抖音_90s_男频_sharedglossarymd男频-male-oriented-channel_revenge战神归来_重生复仇",
+    "key_type": "density_window",
+    "primary_recommendation": "抖音 90s [男频](../../_shared/glossary.md#男频-male-oriented-channel) revenge(战神归来 / 重生复仇): 27-40 cuts/min cuts/min (40-60 cuts cuts/90s)",
+    "rationale": "ASL ~1.5-2.0s. MCN 公开观察 *estimated*",
+    "source_file": "cn-cutting-rhythm.md",
+    "source_section": "Cut-Density Windows by Platform/Genre",
+    "tags": [
+      "editor",
+      "cut_density_window",
+      "duanju"
+    ],
+    "extra_data": {
+      "platform_genre": "抖音 90s [男频](../../_shared/glossary.md#男频-male-oriented-channel) revenge(战神归来 / 重生复仇)",
+      "ep_duration": "90s",
+      "cuts_per_ep": "40-60 cuts",
+      "cuts_per_min": "27-40 cuts/min",
+      "avg_shot_length": "~1.5-2.0s"
+    },
+    "priority": 78
+  },
+  {
+    "category": "cut_density_window",
+    "key_name": "抖音_90s_女频_sharedglossarymd女频-female-oriented-channel_romance豪门虐恋_替身白月光",
+    "key_type": "density_window",
+    "primary_recommendation": "抖音 90s [女频](../../_shared/glossary.md#女频-female-oriented-channel) romance(豪门虐恋 / 替身白月光): 20-30 cuts/min cuts/min (30-45 cuts cuts/90s)",
+    "rationale": "ASL ~2.0-3.0s. MCN 公开观察 *estimated*",
+    "source_file": "cn-cutting-rhythm.md",
+    "source_section": "Cut-Density Windows by Platform/Genre",
+    "tags": [
+      "editor",
+      "cut_density_window",
+      "duanju"
+    ],
+    "extra_data": {
+      "platform_genre": "抖音 90s [女频](../../_shared/glossary.md#女频-female-oriented-channel) romance(豪门虐恋 / 替身白月光)",
+      "ep_duration": "90s",
+      "cuts_per_ep": "30-45 cuts",
+      "cuts_per_min": "20-30 cuts/min",
+      "avg_shot_length": "~2.0-3.0s"
+    },
+    "priority": 78
+  },
+  {
+    "category": "cut_density_window",
+    "key_name": "快手_草根_slice-of-life草根共鸣_生活片段",
+    "key_type": "density_window",
+    "primary_recommendation": "快手 草根 slice-of-life(草根共鸣 / 生活片段): 13-23 cuts/min cuts/min (20-35 cuts cuts/90-120s)",
+    "rationale": "ASL ~2.5-4.5s. MCN 公开观察 *estimated*",
+    "source_file": "cn-cutting-rhythm.md",
+    "source_section": "Cut-Density Windows by Platform/Genre",
+    "tags": [
+      "editor",
+      "cut_density_window",
+      "duanju"
+    ],
+    "extra_data": {
+      "platform_genre": "快手 草根 slice-of-life(草根共鸣 / 生活片段)",
+      "ep_duration": "90-120s",
+      "cuts_per_ep": "20-35 cuts",
+      "cuts_per_min": "13-23 cuts/min",
+      "avg_shot_length": "~2.5-4.5s"
+    },
+    "priority": 78
+  },
+  {
+    "category": "cut_density_window",
+    "key_name": "微信小程序剧_180s_小程序剧_sharedglossarymd小程序剧-mini-program-drama_drama长集数连续剧",
+    "key_type": "density_window",
+    "primary_recommendation": "微信小程序剧 180s [小程序剧](../../_shared/glossary.md#小程序剧-mini-program-drama) drama(长集数连续剧): 20-30 cuts/min cuts/min (60-90 cuts cuts/180s)",
+    "rationale": "ASL ~2.0-3.0s. MCN 公开观察 *estimated*",
+    "source_file": "cn-cutting-rhythm.md",
+    "source_section": "Cut-Density Windows by Platform/Genre",
+    "tags": [
+      "editor",
+      "cut_density_window",
+      "duanju"
+    ],
+    "extra_data": {
+      "platform_genre": "微信小程序剧 180s [小程序剧](../../_shared/glossary.md#小程序剧-mini-program-drama) drama(长集数连续剧)",
+      "ep_duration": "180s",
+      "cuts_per_ep": "60-90 cuts",
+      "cuts_per_min": "20-30 cuts/min",
+      "avg_shot_length": "~2.0-3.0s"
+    },
+    "priority": 78
+  },
+  {
+    "category": "cut_density_window",
+    "key_name": "视频号_60-90s_hybrid混合题材",
+    "key_type": "density_window",
+    "primary_recommendation": "视频号 60-90s hybrid(混合题材): 25-45 cuts/min cuts/min (25-40 cuts cuts/60-90s)",
+    "rationale": "ASL ~1.5-2.5s. 行业观察 *estimated*",
+    "source_file": "cn-cutting-rhythm.md",
+    "source_section": "Cut-Density Windows by Platform/Genre",
+    "tags": [
+      "editor",
+      "cut_density_window",
+      "duanju"
+    ],
+    "extra_data": {
+      "platform_genre": "视频号 60-90s hybrid(混合题材)",
+      "ep_duration": "60-90s",
+      "cuts_per_ep": "25-40 cuts",
+      "cuts_per_min": "25-45 cuts/min",
+      "avg_shot_length": "~1.5-2.5s"
+    },
+    "priority": 78
+  },
+  {
+    "category": "cut_density_window",
+    "key_name": "pace_rule_1_5x",
+    "key_type": "density_window",
+    "primary_recommendation": "1.5x Pace: 竖屏 ASL ≈1.5s；90s 单集 ≥60 cuts，180s 小程序剧 ≥120 cuts。",
+    "rationale": "男频 revenge 1.2-1.5s / 女频 romance 2.0-3.0s / 快手草根 2.5-4.5s。",
+    "source_file": "cn-cutting-rhythm.md",
+    "source_section": "1.5x Pace Rule",
+    "tags": [
+      "editor",
+      "cut_density_window",
+      "1_5x_pace"
+    ],
+    "extra_data": {
+      "portrait_asl_s": 1.5,
+      "min_cuts_90s": 60,
+      "min_cuts_180s": 120,
+      "canonical_source": "paywall-design.md §1.5x Pace Rule"
+    },
+    "priority": 80
+  },
+  {
+    "category": "cut_density_window",
+    "key_name": "dead_air_3s_rule",
+    "key_type": "density_window",
+    "primary_recommendation": "≤3s Dead Air: 单 shot ≤3s (除非例外)；每超 1s 跳出率 +~15% (抖音)。",
+    "rationale": "例外: emotional climax (v≥0.8) / BGM swell / scene establishment / thematic long take。",
+    "source_file": "cn-cutting-rhythm.md",
+    "source_section": "≤3s Dead Air Rule",
+    "tags": [
+      "editor",
+      "cut_density_window",
+      "dead_air"
+    ],
+    "extra_data": {
+      "max_shot_duration_s": 3,
+      "bounce_rate_per_extra_s": 0.15,
+      "exceptions": [
+        "emotional_climax",
+        "bgm_swell",
+        "scene_establishment",
+        "thematic_long_take"
+      ],
+      "canonical_source": "paywall-design.md §3-Second Dead Air Rule"
+    },
+    "priority": 80
+  },
+  {
+    "category": "cut_density_window",
+    "key_name": "bgm_driven_cut_sync",
+    "key_type": "density_window",
+    "primary_recommendation": "BGM-Driven Cut Sync: cut on beat → rhythm_coherence 0.85-0.95；alignment_rate ≥70%。",
+    "rationale": "BGM 对齐提升 rhythm_coherence ~25%。未对齐 (>200ms) → 0.40-0.60。",
+    "source_file": "cn-cutting-rhythm.md",
+    "source_section": "BGM-Driven Cut Sync",
+    "tags": [
+      "editor",
+      "cut_density_window",
+      "bgm_sync"
+    ],
+    "extra_data": {
+      "aligned_coherence": [
+        0.85,
+        0.95
+      ],
+      "unaligned_coherence": [
+        0.4,
+        0.6
+      ],
+      "min_alignment_rate": 0.7,
+      "coherence_boost": "~25%"
+    },
+    "priority": 78
+  },
+  {
+    "category": "cut_density_window",
+    "key_name": "impact_point_软峰情绪微冲击",
+    "key_type": "density_window",
+    "primary_recommendation": "击中点 软峰(情绪微冲击): 每 10-15 秒 至少 1 个；90s 单集 5-7 个",
+    "rationale": "每个击中点必须 align cut/transition。conflict-escalation.md(canonical)",
+    "source_file": "cn-cutting-rhythm.md",
+    "source_section": "击中点 Cut Alignment",
+    "tags": [
+      "editor",
+      "cut_density_window",
+      "impact_point"
+    ],
+    "extra_data": {
+      "impact_type": "软峰(情绪微冲击)",
+      "interval": "每 10-15 秒 至少 1 个",
+      "count_per_90s": "5-7 个"
+    },
+    "priority": 74
+  },
+  {
+    "category": "cut_density_window",
+    "key_name": "impact_point_硬峰情绪大冲击",
+    "key_type": "density_window",
+    "primary_recommendation": "击中点 硬峰(情绪大冲击): 每 30-45 秒 至少 1 个；90s 单集 1-2 个",
+    "rationale": "每个击中点必须 align cut/transition。conflict-escalation.md(canonical)",
+    "source_file": "cn-cutting-rhythm.md",
+    "source_section": "击中点 Cut Alignment",
+    "tags": [
+      "editor",
+      "cut_density_window",
+      "impact_point"
+    ],
+    "extra_data": {
+      "impact_type": "硬峰(情绪大冲击)",
+      "interval": "每 30-45 秒 至少 1 个",
+      "count_per_90s": "1-2 个"
+    },
+    "priority": 74
+  },
+  {
+    "category": "cut_density_window",
+    "key_name": "impact_point_总计",
+    "key_type": "density_window",
+    "primary_recommendation": "击中点 总计: —；90s 单集 6-9 个 击中点",
+    "rationale": "每个击中点必须 align cut/transition。conflict-escalation.md(canonical)",
+    "source_file": "cn-cutting-rhythm.md",
+    "source_section": "击中点 Cut Alignment",
+    "tags": [
+      "editor",
+      "cut_density_window",
+      "impact_point"
+    ],
+    "extra_data": {
+      "impact_type": "总计",
+      "interval": "—",
+      "count_per_90s": "6-9 个 击中点"
+    },
+    "priority": 74
+  },
+  {
+    "category": "cut_density_window",
+    "key_name": "density_driver_平台算法偏好",
+    "key_type": "density_window",
+    "primary_recommendation": "驱动 平台算法偏好: 影响 高",
+    "rationale": "抖音 推荐 算法权重 完播率 ~35% *estimated*(见 [`../compliance_marketing/references/platform-specs-douyin.md`](../compliance_marketing/references/platform-specs-douyin.md) §推荐机制),高 cut 密度 → 高完播率 → 高分发权重。快手 算法权重更均衡(完播率 / 互动率 / 转发率),允许稍慢节奏。",
+    "source_file": "cn-cutting-rhythm.md",
+    "source_section": "Why different platform density",
+    "tags": [
+      "editor",
+      "cut_density_window",
+      "driver"
+    ],
+    "extra_data": {
+      "driver": "平台算法偏好",
+      "impact": "高",
+      "explanation": "抖音 推荐 算法权重 完播率 ~35% *estimated*(见 [`../compliance_marketing/references/platform-specs-douyin.md`](../compliance_marketing/references/platform-specs-douyin.md) §推荐机制),高 cut 密度 → 高完播率 → 高分发权重。快手 算法权重更均衡(完播率 / 互动率 / 转发率),允许稍慢节奏。"
+    },
+    "priority": 60
+  },
+  {
+    "category": "cut_density_window",
+    "key_name": "density_driver_观众期待",
+    "key_type": "density_window",
+    "primary_recommendation": "驱动 观众期待: 影响 高",
+    "rationale": "男频 revenge 观众期待\"快节奏爽感\",女频 romance 观众接受\"慢节奏情感\"。快手草根观众更重视\"真实感\",不接受过度快切。",
+    "source_file": "cn-cutting-rhythm.md",
+    "source_section": "Why different platform density",
+    "tags": [
+      "editor",
+      "cut_density_window",
+      "driver"
+    ],
+    "extra_data": {
+      "driver": "观众期待",
+      "impact": "高",
+      "explanation": "男频 revenge 观众期待\"快节奏爽感\",女频 romance 观众接受\"慢节奏情感\"。快手草根观众更重视\"真实感\",不接受过度快切。"
+    },
+    "priority": 60
+  },
+  {
+    "category": "cut_density_window",
+    "key_name": "density_driver_单集时长",
+    "key_type": "density_window",
+    "primary_recommendation": "驱动 单集时长: 影响 中",
+    "rationale": "90s 单集需要更快节奏(信息密度高);180s 小程序剧 长集允许稍慢(有更多叙事空间)。",
+    "source_file": "cn-cutting-rhythm.md",
+    "source_section": "Why different platform density",
+    "tags": [
+      "editor",
+      "cut_density_window",
+      "driver"
+    ],
+    "extra_data": {
+      "driver": "单集时长",
+      "impact": "中",
+      "explanation": "90s 单集需要更快节奏(信息密度高);180s 小程序剧 长集允许稍慢(有更多叙事空间)。"
+    },
+    "priority": 60
+  },
+  {
+    "category": "cut_density_window",
+    "key_name": "density_driver_题材类型",
+    "key_type": "density_window",
+    "primary_recommendation": "驱动 题材类型: 影响 高",
+    "rationale": "action / revenge / 慕强 题材天然需要高 cut 密度;romance / 宫斗 题材接受中等密度;slice-of-life 题材允许低密度。",
+    "source_file": "cn-cutting-rhythm.md",
+    "source_section": "Why different platform density",
+    "tags": [
+      "editor",
+      "cut_density_window",
+      "driver"
+    ],
+    "extra_data": {
+      "driver": "题材类型",
+      "impact": "高",
+      "explanation": "action / revenge / 慕强 题材天然需要高 cut 密度;romance / 宫斗 题材接受中等密度;slice-of-life 题材允许低密度。"
+    },
+    "priority": 60
+  },
+  {
+    "category": "cut_density_window",
+    "key_name": "impact_example_0-3s",
+    "key_type": "density_window",
+    "primary_recommendation": "0-3s (钩子锚定, v=0.6): cut on action(主角转身)",
+    "rationale": "状态 aligned ✓",
+    "source_file": "cn-cutting-rhythm.md",
+    "source_section": "90s 短剧 击中点 alignment example",
+    "tags": [
+      "editor",
+      "cut_density_window",
+      "example"
+    ],
+    "extra_data": {
+      "timestamp": "0-3s",
+      "impact_type": "钩子锚定",
+      "emotion_v": "0.6",
+      "cut_alignment": "cut on action(主角转身)",
+      "status": "aligned ✓"
+    },
+    "priority": 60
+  },
+  {
+    "category": "cut_density_window",
+    "key_name": "impact_example_10-15s",
+    "key_type": "density_window",
+    "primary_recommendation": "~10-15s (第一次 击中点(软峰), v=0.7): cut on action(主角展示实力)",
+    "rationale": "状态 aligned ✓",
+    "source_file": "cn-cutting-rhythm.md",
+    "source_section": "90s 短剧 击中点 alignment example",
+    "tags": [
+      "editor",
+      "cut_density_window",
+      "example"
+    ],
+    "extra_data": {
+      "timestamp": "~10-15s",
+      "impact_type": "第一次 击中点(软峰)",
+      "emotion_v": "0.7",
+      "cut_alignment": "cut on action(主角展示实力)",
+      "status": "aligned ✓"
+    },
+    "priority": 60
+  },
+  {
+    "category": "cut_density_window",
+    "key_name": "impact_example_30-45s",
+    "key_type": "density_window",
+    "primary_recommendation": "~30-45s (硬峰 击中点, v=0.8): cut on BGM beat(反派震惊)",
+    "rationale": "状态 aligned ✓",
+    "source_file": "cn-cutting-rhythm.md",
+    "source_section": "90s 短剧 击中点 alignment example",
+    "tags": [
+      "editor",
+      "cut_density_window",
+      "example"
+    ],
+    "extra_data": {
+      "timestamp": "~30-45s",
+      "impact_type": "硬峰 击中点",
+      "emotion_v": "0.8",
+      "cut_alignment": "cut on BGM beat(反派震惊)",
+      "status": "aligned ✓"
+    },
+    "priority": 60
+  },
+  {
+    "category": "cut_density_window",
+    "key_name": "impact_example_70-80s",
+    "key_type": "density_window",
+    "primary_recommendation": "~70-80s ([爽点](../../_shared/glossary.md#爽点-satisfaction-beat) 峰值, v=0.95): cut on action(主角碾压)",
+    "rationale": "状态 aligned ✓",
+    "source_file": "cn-cutting-rhythm.md",
+    "source_section": "90s 短剧 击中点 alignment example",
+    "tags": [
+      "editor",
+      "cut_density_window",
+      "example"
+    ],
+    "extra_data": {
+      "timestamp": "~70-80s",
+      "impact_type": "[爽点](../../_shared/glossary.md#爽点-satisfaction-beat) 峰值",
+      "emotion_v": "0.95",
+      "cut_alignment": "cut on action(主角碾压)",
+      "status": "aligned ✓"
+    },
+    "priority": 60
+  },
+  {
+    "category": "cut_density_window",
+    "key_name": "impact_example_85-90s",
+    "key_type": "density_window",
+    "primary_recommendation": "~85-90s ([卡点](../../_shared/glossary.md#卡点-paywall-cliffhanger-paywall-moment) cliffhanger, v=unresolved): cut on BGM swell(悬念收尾)",
+    "rationale": "状态 aligned ✓",
+    "source_file": "cn-cutting-rhythm.md",
+    "source_section": "90s 短剧 击中点 alignment example",
+    "tags": [
+      "editor",
+      "cut_density_window",
+      "example"
+    ],
+    "extra_data": {
+      "timestamp": "~85-90s",
+      "impact_type": "[卡点](../../_shared/glossary.md#卡点-paywall-cliffhanger-paywall-moment) cliffhanger",
+      "emotion_v": "unresolved",
+      "cut_alignment": "cut on BGM swell(悬念收尾)",
+      "status": "aligned ✓"
+    },
+    "priority": 60
+  },
+  {
+    "category": "montage_method",
+    "key_name": "metric_montage度量蒙太奇",
+    "key_type": "montage_method",
+    "primary_recommendation": "Metric Montage(度量蒙太奇): cut 决定因素 = 固定帧数间隔(cut every 24/48/96 frames)",
+    "rationale": "复杂度 最低(机械). 应用 快节奏动作段 / 时间紧迫感",
+    "source_file": "montage-theory.md",
+    "source_section": "5 Montage Methods",
+    "tags": [
+      "editor",
+      "montage",
+      "metric_montage度量蒙太奇"
+    ],
+    "extra_data": {
+      "method": "Metric Montage(度量蒙太奇)",
+      "cut_decided_by": "固定帧数间隔(cut every 24/48/96 frames)",
+      "complexity": "最低(机械)",
+      "typical_use": "快节奏动作段 / 时间紧迫感"
+    },
+    "priority": 76
+  },
+  {
+    "category": "montage_method",
+    "key_name": "rhythmic_montage节奏蒙太奇",
+    "key_type": "montage_method",
+    "primary_recommendation": "Rhythmic Montage(节奏蒙太奇): cut 决定因素 = 画面内的视觉节奏(动作节奏 / 构图节奏)",
+    "rationale": "复杂度 中. 应用 舞蹈段 / 动作配合节奏",
+    "source_file": "montage-theory.md",
+    "source_section": "5 Montage Methods",
+    "tags": [
+      "editor",
+      "montage",
+      "rhythmic_montage节奏蒙太奇"
+    ],
+    "extra_data": {
+      "method": "Rhythmic Montage(节奏蒙太奇)",
+      "cut_decided_by": "画面内的视觉节奏(动作节奏 / 构图节奏)",
+      "complexity": "中",
+      "typical_use": "舞蹈段 / 动作配合节奏"
+    },
+    "priority": 76
+  },
+  {
+    "category": "montage_method",
+    "key_name": "tonal_montage调性蒙太奇",
+    "key_type": "montage_method",
+    "primary_recommendation": "Tonal Montage(调性蒙太奇): cut 决定因素 = 情绪色调(cut 前后情绪的连贯或对比)",
+    "rationale": "复杂度 中高. 应用 情感段 / 氛围营造",
+    "source_file": "montage-theory.md",
+    "source_section": "5 Montage Methods",
+    "tags": [
+      "editor",
+      "montage",
+      "tonal_montage调性蒙太奇"
+    ],
+    "extra_data": {
+      "method": "Tonal Montage(调性蒙太奇)",
+      "cut_decided_by": "情绪色调(cut 前后情绪的连贯或对比)",
+      "complexity": "中高",
+      "typical_use": "情感段 / 氛围营造"
+    },
+    "priority": 76
+  },
+  {
+    "category": "montage_method",
+    "key_name": "overtonal_montage泛调蒙太奇",
+    "key_type": "montage_method",
+    "primary_recommendation": "Overtonal Montage(泛调蒙太奇): cut 决定因素 = 累积情绪泛音(多个 cut 累积产生的整体情绪)",
+    "rationale": "复杂度 高. 应用 复杂情感段 / 主题升华",
+    "source_file": "montage-theory.md",
+    "source_section": "5 Montage Methods",
+    "tags": [
+      "editor",
+      "montage",
+      "overtonal_montage泛调蒙太奇"
+    ],
+    "extra_data": {
+      "method": "Overtonal Montage(泛调蒙太奇)",
+      "cut_decided_by": "累积情绪泛音(多个 cut 累积产生的整体情绪)",
+      "complexity": "高",
+      "typical_use": "复杂情感段 / 主题升华"
+    },
+    "priority": 76
+  },
+  {
+    "category": "montage_method",
+    "key_name": "intellectual_montage理性蒙太奇",
+    "key_type": "montage_method",
+    "primary_recommendation": "Intellectual Montage(理性蒙太奇): cut 决定因素 = 概念碰撞(thesis shot + antithesis shot → synthesis idea)",
+    "rationale": "复杂度 最高(理性). 应用 政治表达 / 哲学思辨 / 隐喻",
+    "source_file": "montage-theory.md",
+    "source_section": "5 Montage Methods",
+    "tags": [
+      "editor",
+      "montage",
+      "intellectual_montage理性蒙太奇"
+    ],
+    "extra_data": {
+      "method": "Intellectual Montage(理性蒙太奇)",
+      "cut_decided_by": "概念碰撞(thesis shot + antithesis shot → synthesis idea)",
+      "complexity": "最高(理性)",
+      "typical_use": "政治表达 / 哲学思辨 / 隐喻"
+    },
+    "priority": 76
+  },
+  {
+    "category": "montage_method",
+    "key_name": "metric_montage_快速fast",
+    "key_type": "montage_method",
+    "primary_recommendation": "Metric 快速(fast): every every 24 frames (1 秒)",
+    "rationale": "紧迫感 / 倒计时 / 快速 action",
+    "source_file": "montage-theory.md",
+    "source_section": "Metric Montage Frame Numbers",
+    "tags": [
+      "editor",
+      "montage",
+      "metric"
+    ],
+    "extra_data": {
+      "pace": "快速(fast)",
+      "frames_24fps": "every 24 frames",
+      "time_interval": "1 秒",
+      "use_case": "紧迫感 / 倒计时 / 快速 action"
+    },
+    "priority": 70
+  },
+  {
+    "category": "montage_method",
+    "key_name": "metric_montage_中速medium",
+    "key_type": "montage_method",
+    "primary_recommendation": "Metric 中速(medium): every every 48 frames (2 秒)",
+    "rationale": "标准 narrative pace",
+    "source_file": "montage-theory.md",
+    "source_section": "Metric Montage Frame Numbers",
+    "tags": [
+      "editor",
+      "montage",
+      "metric"
+    ],
+    "extra_data": {
+      "pace": "中速(medium)",
+      "frames_24fps": "every 48 frames",
+      "time_interval": "2 秒",
+      "use_case": "标准 narrative pace"
+    },
+    "priority": 70
+  },
+  {
+    "category": "montage_method",
+    "key_name": "metric_montage_慢速slow_build",
+    "key_type": "montage_method",
+    "primary_recommendation": "Metric 慢速(slow build): every every 96 frames (4 秒)",
+    "rationale": "缓慢积累 / 悬念铺垫",
+    "source_file": "montage-theory.md",
+    "source_section": "Metric Montage Frame Numbers",
+    "tags": [
+      "editor",
+      "montage",
+      "metric"
+    ],
+    "extra_data": {
+      "pace": "慢速(slow build)",
+      "frames_24fps": "every 96 frames",
+      "time_interval": "4 秒",
+      "use_case": "缓慢积累 / 悬念铺垫"
+    },
+    "priority": 70
+  },
+  {
+    "category": "montage_method",
+    "key_name": "collision_principle",
+    "key_type": "montage_method",
+    "primary_recommendation": "Collision: Thesis(shot A) + Antithesis(shot B) → Synthesis(idea C)。Montage 本质碰撞非链接。",
+    "rationale": "与 invisible editing (linkage) 对立。强度: 弱→中→强→极强。",
+    "source_file": "montage-theory.md",
+    "source_section": "Collision Principle",
+    "tags": [
+      "editor",
+      "montage",
+      "collision"
+    ],
+    "extra_data": {
+      "formula": "Thesis + Antithesis → Synthesis"
+    },
+    "priority": 74
+  },
+  {
+    "category": "montage_method",
+    "key_name": "collision_strength_弱碰撞",
+    "key_type": "montage_method",
+    "primary_recommendation": "弱碰撞: 视觉相似(如两个笑脸) → synthesis 低(synthesis 模糊)",
+    "rationale": "方法 Tonal coherent",
+    "source_file": "montage-theory.md",
+    "source_section": "Collision strength gradient",
+    "tags": [
+      "editor",
+      "montage",
+      "collision_strength"
+    ],
+    "extra_data": {
+      "strength": "弱碰撞",
+      "shot_relation": "视觉相似(如两个笑脸)",
+      "synthesis_clarity": "低(synthesis 模糊)",
+      "method": "Tonal coherent"
+    },
+    "priority": 66
+  },
+  {
+    "category": "montage_method",
+    "key_name": "collision_strength_中碰撞",
+    "key_type": "montage_method",
+    "primary_recommendation": "中碰撞: 视觉对比(如笑 vs 哭) → synthesis 中(synthesis 是\"情绪反差\")",
+    "rationale": "方法 Tonal contrast",
+    "source_file": "montage-theory.md",
+    "source_section": "Collision strength gradient",
+    "tags": [
+      "editor",
+      "montage",
+      "collision_strength"
+    ],
+    "extra_data": {
+      "strength": "中碰撞",
+      "shot_relation": "视觉对比(如笑 vs 哭)",
+      "synthesis_clarity": "中(synthesis 是\"情绪反差\")",
+      "method": "Tonal contrast"
+    },
+    "priority": 66
+  },
+  {
+    "category": "montage_method",
+    "key_name": "collision_strength_强碰撞",
+    "key_type": "montage_method",
+    "primary_recommendation": "强碰撞: 概念对比(如富 vs 穷 / 和平 vs 暴力) → synthesis 高(synthesis 是明确隐喻)",
+    "rationale": "方法 Intellectual",
+    "source_file": "montage-theory.md",
+    "source_section": "Collision strength gradient",
+    "tags": [
+      "editor",
+      "montage",
+      "collision_strength"
+    ],
+    "extra_data": {
+      "strength": "强碰撞",
+      "shot_relation": "概念对比(如富 vs 穷 / 和平 vs 暴力)",
+      "synthesis_clarity": "高(synthesis 是明确隐喻)",
+      "method": "Intellectual"
+    },
+    "priority": 66
+  },
+  {
+    "category": "montage_method",
+    "key_name": "collision_strength_极强碰撞",
+    "key_type": "montage_method",
+    "primary_recommendation": "极强碰撞: 概念矛盾(如人 vs 动物 / 生 vs 死) → synthesis 极高(synthesis 是强烈象征)",
+    "rationale": "方法 Intellectual(经典 Eisenstein)",
+    "source_file": "montage-theory.md",
+    "source_section": "Collision strength gradient",
+    "tags": [
+      "editor",
+      "montage",
+      "collision_strength"
+    ],
+    "extra_data": {
+      "strength": "极强碰撞",
+      "shot_relation": "概念矛盾(如人 vs 动物 / 生 vs 死)",
+      "synthesis_clarity": "极高(synthesis 是强烈象征)",
+      "method": "Intellectual(经典 Eisenstein)"
+    },
+    "priority": 66
+  },
+  {
+    "category": "montage_method",
+    "key_name": "intellectual_example_strike_1925",
+    "key_type": "montage_method",
+    "primary_recommendation": "*Strike* (1925): 工人被屠杀的镜头 + 牛被屠宰的镜头 → \"工人被当作牲畜对待\"的隐喻",
+    "rationale": "Eisenstein intellectual montage 经典案例。",
+    "source_file": "montage-theory.md",
+    "source_section": "Intellectual Montage examples",
+    "tags": [
+      "editor",
+      "montage",
+      "intellectual_example"
+    ],
+    "extra_data": {
+      "work": "*Strike* (1925)",
+      "thesis": "工人被屠杀的镜头",
+      "antithesis": "牛被屠宰的镜头",
+      "synthesis": "\"工人被当作牲畜对待\"的隐喻"
+    },
+    "priority": 68
+  },
+  {
+    "category": "montage_method",
+    "key_name": "intellectual_example_battleship_potemkin_1925",
+    "key_type": "montage_method",
+    "primary_recommendation": "*Battleship Potemkin* (1925): 镇压士兵的镜头 + 睡狮觉醒的雕像镜头 → \"人民觉醒反抗\"的象征",
+    "rationale": "Eisenstein intellectual montage 经典案例。",
+    "source_file": "montage-theory.md",
+    "source_section": "Intellectual Montage examples",
+    "tags": [
+      "editor",
+      "montage",
+      "intellectual_example"
+    ],
+    "extra_data": {
+      "work": "*Battleship Potemkin* (1925)",
+      "thesis": "镇压士兵的镜头",
+      "antithesis": "睡狮觉醒的雕像镜头",
+      "synthesis": "\"人民觉醒反抗\"的象征"
+    },
+    "priority": 68
+  },
+  {
+    "category": "montage_method",
+    "key_name": "intellectual_example_october_1928",
+    "key_type": "montage_method",
+    "primary_recommendation": "*October* (1928): 沙皇雕像的镜头 + 沙皇雕像被推倒的镜头 → \"旧政权崩溃\"的象征",
+    "rationale": "Eisenstein intellectual montage 经典案例。",
+    "source_file": "montage-theory.md",
+    "source_section": "Intellectual Montage examples",
+    "tags": [
+      "editor",
+      "montage",
+      "intellectual_example"
+    ],
+    "extra_data": {
+      "work": "*October* (1928)",
+      "thesis": "沙皇雕像的镜头",
+      "antithesis": "沙皇雕像被推倒的镜头",
+      "synthesis": "\"旧政权崩溃\"的象征"
+    },
+    "priority": 68
+  },
+  {
+    "category": "montage_method",
+    "key_name": "tonal_genre_男频_sharedglossarymd男频-male-oriented-channel_revenge战神归来_重生复仇",
+    "key_type": "montage_method",
+    "primary_recommendation": "[男频](../../_shared/glossary.md#男频-male-oriented-channel) revenge(战神归来 / 重生复仇): 推荐 Contrast 强碰撞",
+    "rationale": "爽点设计 主角弱势(cold tone)→ 主角爆发(warm + high saturation),强反差",
+    "source_file": "montage-theory.md",
+    "source_section": "Tonal Montage genre modes",
+    "tags": [
+      "editor",
+      "montage",
+      "tonal_genre"
+    ],
+    "extra_data": {
+      "genre": "[男频](../../_shared/glossary.md#男频-male-oriented-channel) revenge(战神归来 / 重生复仇)",
+      "tonal_mode": "Contrast 强碰撞",
+      "design": "主角弱势(cold tone)→ 主角爆发(warm + high saturation),强反差"
+    },
+    "priority": 70
+  },
+  {
+    "category": "montage_method",
+    "key_name": "tonal_genre_男频_sharedglossarymd男频-male-oriented-channel_慕强都市修仙_赘婿逆袭",
+    "key_type": "montage_method",
+    "primary_recommendation": "[男频](../../_shared/glossary.md#男频-male-oriented-channel) 慕强(都市修仙 / 赘婿逆袭): 推荐 Coherent 强化",
+    "rationale": "爽点设计 全程 warm + high saturation,放大\"碾压\"爽感",
+    "source_file": "montage-theory.md",
+    "source_section": "Tonal Montage genre modes",
+    "tags": [
+      "editor",
+      "montage",
+      "tonal_genre"
+    ],
+    "extra_data": {
+      "genre": "[男频](../../_shared/glossary.md#男频-male-oriented-channel) 慕强(都市修仙 / 赘婿逆袭)",
+      "tonal_mode": "Coherent 强化",
+      "design": "全程 warm + high saturation,放大\"碾压\"爽感"
+    },
+    "priority": 70
+  },
+  {
+    "category": "montage_method",
+    "key_name": "tonal_genre_女频_sharedglossarymd女频-female-oriented-channel_romance豪门虐恋_替身白月光",
+    "key_type": "montage_method",
+    "primary_recommendation": "[女频](../../_shared/glossary.md#女频-female-oriented-channel) romance(豪门虐恋 / 替身白月光): 推荐 Contrast 情感反差",
+    "rationale": "爽点设计 欢乐约会(bright)→ 误会分手(dark / desaturated),情绪跌宕",
+    "source_file": "montage-theory.md",
+    "source_section": "Tonal Montage genre modes",
+    "tags": [
+      "editor",
+      "montage",
+      "tonal_genre"
+    ],
+    "extra_data": {
+      "genre": "[女频](../../_shared/glossary.md#女频-female-oriented-channel) romance(豪门虐恋 / 替身白月光)",
+      "tonal_mode": "Contrast 情感反差",
+      "design": "欢乐约会(bright)→ 误会分手(dark / desaturated),情绪跌宕"
+    },
+    "priority": 70
+  },
+  {
+    "category": "montage_method",
+    "key_name": "tonal_genre_女频_sharedglossarymd女频-female-oriented-channel_宫斗宅斗",
+    "key_type": "montage_method",
+    "primary_recommendation": "[女频](../../_shared/glossary.md#女频-female-oriented-channel) 宫斗宅斗: 推荐 Coherent 阴谋氛围",
+    "rationale": "爽点设计 全程冷调 + 中饱和,营造\"暗流涌动\"感",
+    "source_file": "montage-theory.md",
+    "source_section": "Tonal Montage genre modes",
+    "tags": [
+      "editor",
+      "montage",
+      "tonal_genre"
+    ],
+    "extra_data": {
+      "genre": "[女频](../../_shared/glossary.md#女频-female-oriented-channel) 宫斗宅斗",
+      "tonal_mode": "Coherent 阴谋氛围",
+      "design": "全程冷调 + 中饱和,营造\"暗流涌动\"感"
+    },
+    "priority": 70
+  },
+  {
+    "category": "montage_method",
+    "key_name": "philosophy_linkage链接",
+    "key_type": "montage_method",
+    "primary_recommendation": "Linkage(链接): cut 是把两个 shot \"链接\"起来,延续叙事",
+    "rationale": "效果 viewer 感觉不到 cut,故事流畅",
+    "source_file": "montage-theory.md",
+    "source_section": "Linkage vs Collision",
+    "tags": [
+      "editor",
+      "montage",
+      "philosophy"
+    ],
+    "extra_data": {
+      "philosophy": "Linkage(链接)",
+      "thesis": "cut 是把两个 shot \"链接\"起来,延续叙事",
+      "representative": "古典好莱坞 invisible editing(见 [`classical-editing-rhythm.md`](./classical-editing-rhythm.md))",
+      "effect": "viewer 感觉不到 cut,故事流畅"
+    },
+    "priority": 64
+  },
+  {
+    "category": "montage_method",
+    "key_name": "philosophy_collision碰撞",
+    "key_type": "montage_method",
+    "primary_recommendation": "Collision(碰撞): cut 是让两个 shot \"碰撞\",产生新意义",
+    "rationale": "效果 viewer 感觉到 cut,新意义在脑海中产生",
+    "source_file": "montage-theory.md",
+    "source_section": "Linkage vs Collision",
+    "tags": [
+      "editor",
+      "montage",
+      "philosophy"
+    ],
+    "extra_data": {
+      "philosophy": "Collision(碰撞)",
+      "thesis": "cut 是让两个 shot \"碰撞\",产生新意义",
+      "representative": "Eisenstein montage(本 ref)",
+      "effect": "viewer 感觉到 cut,新意义在脑海中产生"
+    },
+    "priority": 64
+  },
+  {
+    "category": "montage_method",
+    "key_name": "tonal_syx_cut-density",
+    "key_type": "montage_method",
+    "primary_recommendation": "爽点三维协同 Cut-density: 高密度(40-60 cuts/90s-ep,见 [`cn-cutting-rhythm.md`](./cn-cutting-rhythm.md))",
+    "rationale": "数据源 editor 自身",
+    "source_file": "montage-theory.md",
+    "source_section": "Tonal 爽点 3-dim synergy",
+    "tags": [
+      "editor",
+      "montage",
+      "tonal_synergy"
+    ],
+    "extra_data": {
+      "dimension": "Cut-density",
+      "requirement": "高密度(40-60 cuts/90s-ep,见 [`cn-cutting-rhythm.md`](./cn-cutting-rhythm.md))",
+      "source": "editor 自身"
+    },
+    "priority": 66
+  },
+  {
+    "category": "montage_method",
+    "key_name": "tonal_syx_color-tone",
+    "key_type": "montage_method",
+    "primary_recommendation": "爽点三维协同 Color-tone: 暖调 / 高饱和(配合 慕强 / 爆发情绪)",
+    "rationale": "数据源 colorist 专家",
+    "source_file": "montage-theory.md",
+    "source_section": "Tonal 爽点 3-dim synergy",
+    "tags": [
+      "editor",
+      "montage",
+      "tonal_synergy"
+    ],
+    "extra_data": {
+      "dimension": "Color-tone",
+      "requirement": "暖调 / 高饱和(配合 慕强 / 爆发情绪)",
+      "source": "colorist 专家"
+    },
+    "priority": 66
+  },
+  {
+    "category": "montage_method",
+    "key_name": "tonal_syx_sound-tone",
+    "key_type": "montage_method",
+    "primary_recommendation": "爽点三维协同 Sound-tone: BGM beat-driven + 高能量(见 [`cn-cutting-rhythm.md`](./cn-cutting-rhythm.md) §BGM-Driven Cut Sync)",
+    "rationale": "数据源 composer 专家",
+    "source_file": "montage-theory.md",
+    "source_section": "Tonal 爽点 3-dim synergy",
+    "tags": [
+      "editor",
+      "montage",
+      "tonal_synergy"
+    ],
+    "extra_data": {
+      "dimension": "Sound-tone",
+      "requirement": "BGM beat-driven + 高能量(见 [`cn-cutting-rhythm.md`](./cn-cutting-rhythm.md) §BGM-Driven Cut Sync)",
+      "source": "composer 专家"
+    },
+    "priority": 66
+  },
+  {
+    "category": "montage_method",
+    "key_name": "metric_fps_fast",
+    "key_type": "montage_method",
+    "primary_recommendation": "Metric Fast: 24fps 24 frames / 30fps 30 frames / 60fps 60 frames",
+    "rationale": "时间间隔 1.0/2.0/4.0s 在所有 fps 相同；输出 cut_interval_s 避免 fps 歧义。",
+    "source_file": "montage-theory.md",
+    "source_section": "Metric fps conversion",
+    "tags": [
+      "editor",
+      "montage",
+      "metric_fps"
+    ],
+    "extra_data": {
+      "pace": "Fast",
+      "frames_24fps": "24 frames",
+      "time_24fps": "1.0s",
+      "frames_30fps": "30 frames",
+      "frames_60fps": "60 frames"
+    },
+    "priority": 62
+  },
+  {
+    "category": "montage_method",
+    "key_name": "metric_fps_medium",
+    "key_type": "montage_method",
+    "primary_recommendation": "Metric Medium: 24fps 48 frames / 30fps 60 frames / 60fps 120 frames",
+    "rationale": "时间间隔 1.0/2.0/4.0s 在所有 fps 相同；输出 cut_interval_s 避免 fps 歧义。",
+    "source_file": "montage-theory.md",
+    "source_section": "Metric fps conversion",
+    "tags": [
+      "editor",
+      "montage",
+      "metric_fps"
+    ],
+    "extra_data": {
+      "pace": "Medium",
+      "frames_24fps": "48 frames",
+      "time_24fps": "2.0s",
+      "frames_30fps": "60 frames",
+      "frames_60fps": "120 frames"
+    },
+    "priority": 62
+  },
+  {
+    "category": "montage_method",
+    "key_name": "metric_fps_slow",
+    "key_type": "montage_method",
+    "primary_recommendation": "Metric Slow: 24fps 96 frames / 30fps 120 frames / 60fps 240 frames",
+    "rationale": "时间间隔 1.0/2.0/4.0s 在所有 fps 相同；输出 cut_interval_s 避免 fps 歧义。",
+    "source_file": "montage-theory.md",
+    "source_section": "Metric fps conversion",
+    "tags": [
+      "editor",
+      "montage",
+      "metric_fps"
+    ],
+    "extra_data": {
+      "pace": "Slow",
+      "frames_24fps": "96 frames",
+      "time_24fps": "4.0s",
+      "frames_30fps": "120 frames",
+      "frames_60fps": "240 frames"
+    },
+    "priority": 62
+  },
+  {
+    "category": "axis_compliance",
+    "key_name": "180_degree_rule",
+    "key_type": "axis_rule",
+    "primary_recommendation": "180° Axis Rule: 两主体连线定义轴线，所有机位留同侧 (180° 半圆)。跨过 = axis violation。",
+    "rationale": "Classical film theory (>100 年)。FxRxT (F=Frame/R=Rhythm/T=Transition) 执行点。",
+    "source_file": "fxrxt-axis-compliance.md",
+    "source_section": "180° Axis Rule",
+    "tags": [
+      "editor",
+      "axis_compliance",
+      "180_axis_rule"
+    ],
+    "extra_data": {
+      "rule_type": "180",
+      "violation_threshold_deg": 180,
+      "zero_tolerance": true,
+      "not_exempt_by_emotion_first": true,
+      "legal_exceptions": [
+        "neutral_shot",
+        "dolly_transition",
+        "cutaway",
+        "redesign_axis"
+      ]
+    },
+    "priority": 84
+  },
+  {
+    "category": "axis_compliance",
+    "key_name": "30_degree_rule",
+    "key_type": "axis_rule",
+    "primary_recommendation": "30° Rule: 连续两 cut (同主体) 角度差 ≥30°。<30° = jump-cut 风险。",
+    "rationale": "Classical film theory (>100 年)。FxRxT (F=Frame/R=Rhythm/T=Transition) 执行点。",
+    "source_file": "fxrxt-axis-compliance.md",
+    "source_section": "30° Rule",
+    "tags": [
+      "editor",
+      "axis_compliance",
+      "30_rule"
+    ],
+    "extra_data": {
+      "rule_type": "30",
+      "violation_threshold_deg": 30,
+      "comparison": "<",
+      "legal_exceptions": [
+        "intentional_jump_cut (time/psychological/Godard/repetition)"
+      ]
+    },
+    "priority": 76
+  },
+  {
+    "category": "axis_compliance",
+    "key_name": "eyeline_match_rule",
+    "key_type": "axis_rule",
+    "primary_recommendation": "Eyeline Match: cut_A 视线方向与 cut_B 主体位置一致 (左看→右出)。方向差 >45° = 违反。",
+    "rationale": "Classical film theory (>100 年)。FxRxT (F=Frame/R=Rhythm/T=Transition) 执行点。",
+    "source_file": "fxrxt-axis-compliance.md",
+    "source_section": "Eyeline Match",
+    "tags": [
+      "editor",
+      "axis_compliance",
+      "eyeline_match"
+    ],
+    "extra_data": {
+      "rule_type": "eyeline",
+      "violation_threshold_deg": 45
+    },
+    "priority": 74
+  },
+  {
+    "category": "axis_compliance",
+    "key_name": "match_cut_design",
+    "key_type": "axis_rule",
+    "primary_recommendation": "Match Cut Design: 两 shot 通过视觉韵律 (形状/动作/色彩) 连接。3 类: graphic/motion/sound。",
+    "rationale": "Classical film theory (>100 年)。FxRxT (F=Frame/R=Rhythm/T=Transition) 执行点。",
+    "source_file": "fxrxt-axis-compliance.md",
+    "source_section": "Match Cut Design",
+    "tags": [
+      "editor",
+      "axis_compliance",
+      "match_cut_design"
+    ],
+    "extra_data": {
+      "rule_type": "match_cut",
+      "match_types": [
+        "graphic_match",
+        "motion_match",
+        "sound_match"
+      ],
+      "max_per_90s_ep": "1-2"
+    },
+    "priority": 72
+  },
+  {
+    "category": "axis_compliance",
+    "key_name": "axis_fix_neutral_shot_过渡",
+    "key_type": "axis_rule",
+    "primary_recommendation": "Axis fix: Neutral shot 过渡 — 插入一个正面 / 俯拍 / 全景 shot(不依赖轴线),作为\"轴线重置点\"",
+    "rationale": "适用 最通用;几乎所有轴线违反都可用此修复",
+    "source_file": "fxrxt-axis-compliance.md",
+    "source_section": "轴线合规修复策略",
+    "tags": [
+      "editor",
+      "axis_compliance",
+      "fix"
+    ],
+    "extra_data": {
+      "strategy": "Neutral shot 过渡",
+      "principle": "插入一个正面 / 俯拍 / 全景 shot(不依赖轴线),作为\"轴线重置点\"",
+      "use_case": "最通用;几乎所有轴线违反都可用此修复"
+    },
+    "priority": 64
+  },
+  {
+    "category": "axis_compliance",
+    "key_name": "axis_fix_dolly_tracking_shot_过渡",
+    "key_type": "axis_rule",
+    "primary_recommendation": "Axis fix: Dolly / tracking shot 过渡 — 用一个移动镜头从轴线一侧\"移\"到另一侧,viewer 跟随摄影机移动,方向感自然更新",
+    "rationale": "适用 适合有移动摄影机资源的场景",
+    "source_file": "fxrxt-axis-compliance.md",
+    "source_section": "轴线合规修复策略",
+    "tags": [
+      "editor",
+      "axis_compliance",
+      "fix"
+    ],
+    "extra_data": {
+      "strategy": "Dolly / tracking shot 过渡",
+      "principle": "用一个移动镜头从轴线一侧\"移\"到另一侧,viewer 跟随摄影机移动,方向感自然更新",
+      "use_case": "适合有移动摄影机资源的场景"
+    },
+    "priority": 64
+  },
+  {
+    "category": "axis_compliance",
+    "key_name": "axis_fix_cutaway切出",
+    "key_type": "axis_rule",
+    "primary_recommendation": "Axis fix: Cutaway(切出) — 切到一个与环境 / 物体相关的 shot(无关轴线),再切回新角度",
+    "rationale": "适用 适合需要短暂离开主体的场景",
+    "source_file": "fxrxt-axis-compliance.md",
+    "source_section": "轴线合规修复策略",
+    "tags": [
+      "editor",
+      "axis_compliance",
+      "fix"
+    ],
+    "extra_data": {
+      "strategy": "Cutaway(切出)",
+      "principle": "切到一个与环境 / 物体相关的 shot(无关轴线),再切回新角度",
+      "use_case": "适合需要短暂离开主体的场景"
+    },
+    "priority": 64
+  },
+  {
+    "category": "axis_compliance",
+    "key_name": "axis_fix_重新设计轴线",
+    "key_type": "axis_rule",
+    "primary_recommendation": "Axis fix: 重新设计轴线 — 修改 scene_builder 的轴线数据,让后续 shots 都 align 到新轴线",
+    "rationale": "适用 适合前期阶段(需要 scene_builder 协作)",
+    "source_file": "fxrxt-axis-compliance.md",
+    "source_section": "轴线合规修复策略",
+    "tags": [
+      "editor",
+      "axis_compliance",
+      "fix"
+    ],
+    "extra_data": {
+      "strategy": "重新设计轴线",
+      "principle": "修改 scene_builder 的轴线数据,让后续 shots 都 align 到新轴线",
+      "use_case": "适合前期阶段(需要 scene_builder 协作)"
+    },
+    "priority": 64
+  },
+  {
+    "category": "axis_compliance",
+    "key_name": "jumpcut_exception_时间跳跃蒙太奇",
+    "key_type": "axis_rule",
+    "primary_recommendation": "Jump-cut 例外 时间跳跃(蒙太奇): 表示时间快速流逝",
+    "rationale": "允许 允许(配合 overtonal montage,见 [`montage-theory.md`](./montage-theory.md) §Overtonal Montage)",
+    "source_file": "fxrxt-axis-compliance.md",
+    "source_section": "30° Rule jump-cut exceptions",
+    "tags": [
+      "editor",
+      "axis_compliance",
+      "jumpcut_exception"
+    ],
+    "extra_data": {
+      "scene": "时间跳跃(蒙太奇)",
+      "purpose": "表示时间快速流逝",
+      "allowed": "允许(配合 overtonal montage,见 [`montage-theory.md`](./montage-theory.md) §Overtonal Montage)"
+    },
+    "priority": 62
+  },
+  {
+    "category": "axis_compliance",
+    "key_name": "jumpcut_exception_角色心理混乱",
+    "key_type": "axis_rule",
+    "primary_recommendation": "Jump-cut 例外 角色心理混乱: 表示角色精神状态不稳定",
+    "rationale": "允许 允许(需 emotion_curve 支撑)",
+    "source_file": "fxrxt-axis-compliance.md",
+    "source_section": "30° Rule jump-cut exceptions",
+    "tags": [
+      "editor",
+      "axis_compliance",
+      "jumpcut_exception"
+    ],
+    "extra_data": {
+      "scene": "角色心理混乱",
+      "purpose": "表示角色精神状态不稳定",
+      "allowed": "允许(需 emotion_curve 支撑)"
+    },
+    "priority": 62
+  },
+  {
+    "category": "axis_compliance",
+    "key_name": "jumpcut_exception_godard_式作者风格",
+    "key_type": "axis_rule",
+    "primary_recommendation": "Jump-cut 例外 Godard 式作者风格: 打破古典剪辑的\"隐形\"幻觉",
+    "rationale": "允许 允许(但 短剧 中少见)",
+    "source_file": "fxrxt-axis-compliance.md",
+    "source_section": "30° Rule jump-cut exceptions",
+    "tags": [
+      "editor",
+      "axis_compliance",
+      "jumpcut_exception"
+    ],
+    "extra_data": {
+      "scene": "Godard 式作者风格",
+      "purpose": "打破古典剪辑的\"隐形\"幻觉",
+      "allowed": "允许(但 短剧 中少见)"
+    },
+    "priority": 62
+  },
+  {
+    "category": "axis_compliance",
+    "key_name": "jumpcut_exception_对话重复同一主体同一角度",
+    "key_type": "axis_rule",
+    "primary_recommendation": "Jump-cut 例外 对话重复(同一主体同一角度): 表示角色在重复同一行为",
+    "rationale": "允许 允许(需明确叙事理由)",
+    "source_file": "fxrxt-axis-compliance.md",
+    "source_section": "30° Rule jump-cut exceptions",
+    "tags": [
+      "editor",
+      "axis_compliance",
+      "jumpcut_exception"
+    ],
+    "extra_data": {
+      "scene": "对话重复(同一主体同一角度)",
+      "purpose": "表示角色在重复同一行为",
+      "allowed": "允许(需明确叙事理由)"
+    },
+    "priority": 62
+  },
+  {
+    "category": "axis_compliance",
+    "key_name": "eyeline_scene_对话pov_shot",
+    "key_type": "axis_rule",
+    "primary_recommendation": "Eyeline 场景 对话(POV shot): A 左看 → B 右出",
+    "rationale": "cut_A 角色 A 看向画面左侧 → cut_B 角色 B 出现在画面右侧",
+    "source_file": "fxrxt-axis-compliance.md",
+    "source_section": "Eyeline Match scenarios",
+    "tags": [
+      "editor",
+      "axis_compliance",
+      "eyeline"
+    ],
+    "extra_data": {
+      "scene": "对话(POV shot)",
+      "cut_a": "角色 A 看向画面左侧",
+      "cut_b": "角色 B 出现在画面右侧",
+      "eyeline": "A 左看 → B 右出"
+    },
+    "priority": 62
+  },
+  {
+    "category": "axis_compliance",
+    "key_name": "eyeline_scene_物体关注",
+    "key_type": "axis_rule",
+    "primary_recommendation": "Eyeline 场景 物体关注: A 下看 → 物体出现",
+    "rationale": "cut_A 角色 A 看向画面下方 → cut_B 物体(如手机)出现在画面中央",
+    "source_file": "fxrxt-axis-compliance.md",
+    "source_section": "Eyeline Match scenarios",
+    "tags": [
+      "editor",
+      "axis_compliance",
+      "eyeline"
+    ],
+    "extra_data": {
+      "scene": "物体关注",
+      "cut_a": "角色 A 看向画面下方",
+      "cut_b": "物体(如手机)出现在画面中央",
+      "eyeline": "A 下看 → 物体出现"
+    },
+    "priority": 62
+  },
+  {
+    "category": "axis_compliance",
+    "key_name": "eyeline_scene_远景注视",
+    "key_type": "axis_rule",
+    "primary_recommendation": "Eyeline 场景 远景注视: A 深看 → 远景出现",
+    "rationale": "cut_A 角色 A 看向画面深处(远方) → cut_B 远景(如城市天际线)",
+    "source_file": "fxrxt-axis-compliance.md",
+    "source_section": "Eyeline Match scenarios",
+    "tags": [
+      "editor",
+      "axis_compliance",
+      "eyeline"
+    ],
+    "extra_data": {
+      "scene": "远景注视",
+      "cut_a": "角色 A 看向画面深处(远方)",
+      "cut_b": "远景(如城市天际线)",
+      "eyeline": "A 深看 → 远景出现"
+    },
+    "priority": 62
+  },
+  {
+    "category": "axis_compliance",
+    "key_name": "matchcut_type_graphic_match图形匹配",
+    "key_type": "axis_rule",
+    "primary_recommendation": "Match cut Graphic match(图形匹配): 连接 形状 / 构图相似",
+    "rationale": "经典 *2001: A Space Odyssey* — 骨头 → 太空船(形状相似) | 短剧 场景转场:主角手中的酒杯 → 下一场景的圆形灯具",
+    "source_file": "fxrxt-axis-compliance.md",
+    "source_section": "Match Cut types",
+    "tags": [
+      "editor",
+      "axis_compliance",
+      "matchcut"
+    ],
+    "extra_data": {
+      "type": "Graphic match(图形匹配)",
+      "link_element": "形状 / 构图相似",
+      "classic": "*2001: A Space Odyssey* — 骨头 → 太空船(形状相似)",
+      "short_drama": "场景转场:主角手中的酒杯 → 下一场景的圆形灯具"
+    },
+    "priority": 64
+  },
+  {
+    "category": "axis_compliance",
+    "key_name": "matchcut_type_motion_match动作匹配",
+    "key_type": "axis_rule",
+    "primary_recommendation": "Match cut Motion match(动作匹配): 连接 动作延续 / 相似",
+    "rationale": "经典 角色挥手 → 下一 shot 旗帜飘扬(动作延续) | 短剧 动作转场:主角推门 → 下一场景门打开",
+    "source_file": "fxrxt-axis-compliance.md",
+    "source_section": "Match Cut types",
+    "tags": [
+      "editor",
+      "axis_compliance",
+      "matchcut"
+    ],
+    "extra_data": {
+      "type": "Motion match(动作匹配)",
+      "link_element": "动作延续 / 相似",
+      "classic": "角色挥手 → 下一 shot 旗帜飘扬(动作延续)",
+      "short_drama": "动作转场:主角推门 → 下一场景门打开"
+    },
+    "priority": 64
+  },
+  {
+    "category": "axis_compliance",
+    "key_name": "matchcut_type_sound_match声音匹配",
+    "key_type": "axis_rule",
+    "primary_recommendation": "Match cut Sound match(声音匹配): 连接 声音延续 / 相似",
+    "rationale": "经典 cut_A 的火车汽笛 → cut_B 的茶壶哨声(声音相似) | 短剧 声音转场:cut_A 的雷声 → cut_B 的爆炸声",
+    "source_file": "fxrxt-axis-compliance.md",
+    "source_section": "Match Cut types",
+    "tags": [
+      "editor",
+      "axis_compliance",
+      "matchcut"
+    ],
+    "extra_data": {
+      "type": "Sound match(声音匹配)",
+      "link_element": "声音延续 / 相似",
+      "classic": "cut_A 的火车汽笛 → cut_B 的茶壶哨声(声音相似)",
+      "short_drama": "声音转场:cut_A 的雷声 → cut_B 的爆炸声"
+    },
+    "priority": 64
+  },
+  {
+    "category": "axis_compliance",
+    "key_name": "fxrxt_f_frame",
+    "key_type": "axis_rule",
+    "primary_recommendation": "F (Frame): 景别(详见 [`../../_shared/glossary.md`](../../_shared/glossary.md#景别-shot-size-shot-scale))",
+    "rationale": "典型值 ECU / CU / MS / MLS / WS / EWS / POV / OTS",
+    "source_file": "fxrxt-axis-compliance.md",
+    "source_section": "FxRxT Integration",
+    "tags": [
+      "editor",
+      "axis_compliance",
+      "fxrxt"
+    ],
+    "extra_data": {
+      "dimension": "F (Frame)",
+      "meaning": "景别(详见 [`../../_shared/glossary.md`](../../_shared/glossary.md#景别-shot-size-shot-scale))",
+      "typical_values": "ECU / CU / MS / MLS / WS / EWS / POV / OTS"
+    },
+    "priority": 66
+  },
+  {
+    "category": "axis_compliance",
+    "key_name": "fxrxt_r_rhythm",
+    "key_type": "axis_rule",
+    "primary_recommendation": "R (Rhythm): 节奏模式",
+    "rationale": "典型值 static / gradual / accelerating / decelerating / jump_cut",
+    "source_file": "fxrxt-axis-compliance.md",
+    "source_section": "FxRxT Integration",
+    "tags": [
+      "editor",
+      "axis_compliance",
+      "fxrxt"
+    ],
+    "extra_data": {
+      "dimension": "R (Rhythm)",
+      "meaning": "节奏模式",
+      "typical_values": "static / gradual / accelerating / decelerating / jump_cut"
+    },
+    "priority": 66
+  },
+  {
+    "category": "axis_compliance",
+    "key_name": "fxrxt_t_transition",
+    "key_type": "axis_rule",
+    "primary_recommendation": "T (Transition): 转场模式",
+    "rationale": "典型值 cut / dissolve / overlap / wipe / match_cut",
+    "source_file": "fxrxt-axis-compliance.md",
+    "source_section": "FxRxT Integration",
+    "tags": [
+      "editor",
+      "axis_compliance",
+      "fxrxt"
+    ],
+    "extra_data": {
+      "dimension": "T (Transition)",
+      "meaning": "转场模式",
+      "typical_values": "cut / dissolve / overlap / wipe / match_cut"
+    },
+    "priority": 66
+  },
+  {
+    "category": "axis_compliance",
+    "key_name": "axis_quality_thresholds",
+    "key_type": "axis_rule",
+    "primary_recommendation": "axis_violation_count = 0 (零容忍)；continuity_match ≥0.80；transition_smoothness ≥0.88。",
+    "rationale": "180°+30°+eyeline 总和 = 0 才过 production gate。jump_cut_intentional=true 不计入。",
+    "source_file": "fxrxt-axis-compliance.md",
+    "source_section": "Quality Thresholds mapping",
+    "tags": [
+      "editor",
+      "axis_compliance",
+      "quality_threshold"
+    ],
+    "extra_data": {
+      "axis_violation_count": 0,
+      "continuity_match_min": 0.8,
+      "transition_smoothness_min": 0.88
+    },
+    "priority": 78
+  },
+  {
+    "category": "axis_compliance",
+    "key_name": "fxrxt_exec_f_frame",
+    "key_type": "axis_rule",
+    "primary_recommendation": "FxRxT F (Frame) 执行点: 景别切换时,主体位置应 maintain 方向感",
+    "rationale": "违反示例 cut_A MS(主角在左)→ cut_B CU(主角突然在右)= eyeline 风险",
+    "source_file": "fxrxt-axis-compliance.md",
+    "source_section": "FxRxT axis execution points",
+    "tags": [
+      "editor",
+      "axis_compliance",
+      "fxrxt_exec"
+    ],
+    "extra_data": {
+      "dimension": "F (Frame)",
+      "execution_point": "景别切换时,主体位置应 maintain 方向感",
+      "violation_example": "cut_A MS(主角在左)→ cut_B CU(主角突然在右)= eyeline 风险"
+    },
+    "priority": 62
+  },
+  {
+    "category": "axis_compliance",
+    "key_name": "fxrxt_exec_r_rhythm",
+    "key_type": "axis_rule",
+    "primary_recommendation": "FxRxT R (Rhythm) 执行点: jump_cut 节奏(连续快速 cut)容易触发 30° 违反",
+    "rationale": "违反示例 连续 5 个 cuts 角度差 < 30° = 30° rule 违反",
+    "source_file": "fxrxt-axis-compliance.md",
+    "source_section": "FxRxT axis execution points",
+    "tags": [
+      "editor",
+      "axis_compliance",
+      "fxrxt_exec"
+    ],
+    "extra_data": {
+      "dimension": "R (Rhythm)",
+      "execution_point": "jump_cut 节奏(连续快速 cut)容易触发 30° 违反",
+      "violation_example": "连续 5 个 cuts 角度差 < 30° = 30° rule 违反"
+    },
+    "priority": 62
+  },
+  {
+    "category": "axis_compliance",
+    "key_name": "fxrxt_exec_t_transition",
+    "key_type": "axis_rule",
+    "primary_recommendation": "FxRxT T (Transition) 执行点: match_cut 转场需要验证 eyeline match",
+    "rationale": "违反示例 cut_A 角色看向左 → cut_B match_cut 主体在左 = eyeline 违反(应主体在右)",
+    "source_file": "fxrxt-axis-compliance.md",
+    "source_section": "FxRxT axis execution points",
+    "tags": [
+      "editor",
+      "axis_compliance",
+      "fxrxt_exec"
+    ],
+    "extra_data": {
+      "dimension": "T (Transition)",
+      "execution_point": "match_cut 转场需要验证 eyeline match",
+      "violation_example": "cut_A 角色看向左 → cut_B match_cut 主体在左 = eyeline 违反(应主体在右)"
+    },
+    "priority": 62
+  },
+  {
+    "category": "axis_compliance",
+    "key_name": "responsibility_scene_builder",
+    "key_type": "axis_rule",
+    "primary_recommendation": "scene_builder: feasibility(可行性) —— 场景的轴线是否在物理 / 空间上可拍?摄影机位置是否合理?",
+    "rationale": "阶段 前期(场景设计)",
+    "source_file": "fxrxt-axis-compliance.md",
+    "source_section": "editor vs scene_builder responsibility",
+    "tags": [
+      "editor",
+      "axis_compliance",
+      "responsibility"
+    ],
+    "extra_data": {
+      "expert": "scene_builder",
+      "responsibility": "feasibility(可行性) —— 场景的轴线是否在物理 / 空间上可拍?摄影机位置是否合理?",
+      "phase": "前期(场景设计)"
+    },
+    "priority": 60
+  },
+  {
+    "category": "axis_compliance",
+    "key_name": "responsibility_editor",
+    "key_type": "axis_rule",
+    "primary_recommendation": "editor: compliance(合规) —— 实际 cut 是否违反 180° / 30° / eyeline 规则?cut 顺序是否维护方向感?",
+    "rationale": "阶段 后期(剪辑)",
+    "source_file": "fxrxt-axis-compliance.md",
+    "source_section": "editor vs scene_builder responsibility",
+    "tags": [
+      "editor",
+      "axis_compliance",
+      "responsibility"
+    ],
+    "extra_data": {
+      "expert": "editor",
+      "responsibility": "compliance(合规) —— 实际 cut 是否违反 180° / 30° / eyeline 规则?cut 顺序是否维护方向感?",
+      "phase": "后期(剪辑)"
+    },
+    "priority": 60
+  },
+  {
+    "category": "editing_failure_mode",
+    "key_name": "failure_jump_cut跳切",
+    "key_type": "failure_mode",
+    "primary_recommendation": "Jump cut(跳切): 症状 viewer 感觉\"画面跳一下\"",
+    "rationale": "诊断 30° rule 违反(角度差 < 30°,见 [`fxrxt-axis-compliance.md`](./fxrxt-axis-compliance.md) §30° Rule)",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Invisible Editing failure modes",
+    "tags": [
+      "editor",
+      "failure_mode"
+    ],
+    "extra_data": {
+      "symptom": "viewer 感觉\"画面跳一下\"",
+      "diagnostic": "30° rule 违反(角度差 < 30°,见 [`fxrxt-axis-compliance.md`](./fxrxt-axis-compliance.md) §30° Rule)",
+      "fix": "插入 neutral shot(正面 / 俯拍 / 全景)或调整角度差 ≥ 30°"
+    },
+    "priority": 70
+  },
+  {
+    "category": "editing_failure_mode",
+    "key_name": "failure_axis_violation越轴",
+    "key_type": "failure_mode",
+    "primary_recommendation": "Axis violation(越轴): 症状 viewer 方向感混乱",
+    "rationale": "诊断 180° 轴线违反(零容忍,见 [`fxrxt-axis-compliance.md`](./fxrxt-axis-compliance.md) §180° Axis Rule)",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Invisible Editing failure modes",
+    "tags": [
+      "editor",
+      "failure_mode"
+    ],
+    "extra_data": {
+      "symptom": "viewer 方向感混乱",
+      "diagnostic": "180° 轴线违反(零容忍,见 [`fxrxt-axis-compliance.md`](./fxrxt-axis-compliance.md) §180° Axis Rule)",
+      "fix": "插入 dolly shot / cutaway / neutral shot 过渡,或重新设计轴线"
+    },
+    "priority": 70
+  },
+  {
+    "category": "editing_failure_mode",
+    "key_name": "failure_eyeline_mismatch视线不匹配",
+    "key_type": "failure_mode",
+    "primary_recommendation": "Eyeline mismatch(视线不匹配): 症状 viewer 感觉角色\"看错方向\"",
+    "rationale": "诊断 eyeline 方向差 > 45°(见 [`fxrxt-axis-compliance.md`](./fxrxt-axis-compliance.md) §Eyeline Match)",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Invisible Editing failure modes",
+    "tags": [
+      "editor",
+      "failure_mode"
+    ],
+    "extra_data": {
+      "symptom": "viewer 感觉角色\"看错方向\"",
+      "diagnostic": "eyeline 方向差 > 45°(见 [`fxrxt-axis-compliance.md`](./fxrxt-axis-compliance.md) §Eyeline Match)",
+      "fix": "调整 cut 后镜头的主体位置,或翻转 cut 后镜头(水平镜像)"
+    },
+    "priority": 70
+  },
+  {
+    "category": "editing_failure_mode",
+    "key_name": "failure_flash_cut闪切",
+    "key_type": "failure_mode",
+    "primary_recommendation": "Flash cut(闪切): 症状 shot 过短(< 0.5s),viewer 来不及识别",
+    "rationale": "诊断 shot_duration < 0.5s 且非 action segment",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Invisible Editing failure modes",
+    "tags": [
+      "editor",
+      "failure_mode"
+    ],
+    "extra_data": {
+      "symptom": "shot 过短(< 0.5s),viewer 来不及识别",
+      "diagnostic": "shot_duration < 0.5s 且非 action segment",
+      "fix": "延长 shot 到 ≥ 0.5s,或删除该 shot"
+    },
+    "priority": 70
+  },
+  {
+    "category": "editing_failure_mode",
+    "key_name": "failure_dead_air冷场",
+    "key_type": "failure_mode",
+    "primary_recommendation": "Dead air(冷场): 症状 shot 过长(> 3s)且无情绪弧线承载",
+    "rationale": "诊断 shot_duration > 3s 且 emotion_curve.v < 0.4(见 [`cn-cutting-rhythm.md`](./cn-cutting-rhythm.md) §≤3s Dead Air Rule)",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Invisible Editing failure modes",
+    "tags": [
+      "editor",
+      "failure_mode"
+    ],
+    "extra_data": {
+      "symptom": "shot 过长(> 3s)且无情绪弧线承载",
+      "diagnostic": "shot_duration > 3s 且 emotion_curve.v < 0.4(见 [`cn-cutting-rhythm.md`](./cn-cutting-rhythm.md) §≤3s Dead Air Rule)",
+      "fix": "缩短 shot 到 ≤ 3s,或插入 cut / action point 维持节奏"
+    },
+    "priority": 70
+  },
+  {
+    "category": "editing_failure_mode",
+    "key_name": "failure_rhythm_drift节奏漂移",
+    "key_type": "failure_mode",
+    "primary_recommendation": "Rhythm drift(节奏漂移): 症状 cut 密度逐渐偏离 segment_type 窗口",
+    "rationale": "诊断 实际 cuts/min 偏离 segment_type 阈值 > 30%",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Invisible Editing failure modes",
+    "tags": [
+      "editor",
+      "failure_mode"
+    ],
+    "extra_data": {
+      "symptom": "cut 密度逐渐偏离 segment_type 窗口",
+      "diagnostic": "实际 cuts/min 偏离 segment_type 阈值 > 30%",
+      "fix": "重新规划 segment 边界,或调整 cut 密度回到窗口内"
+    },
+    "priority": 70
+  },
+  {
+    "category": "editing_failure_mode",
+    "key_name": "invisible_vs_visible_thresholds",
+    "key_type": "failure_mode",
+    "primary_recommendation": "Invisible cut: eye-tracking 注视 cut boundary <10% / 自报告察觉 <15% / pupil <10%。",
+    "rationale": "Visible (>30%/>40%/>25%) 通常意味 Rule of Six 某维度失败 (eye-trace 或 180°)。",
+    "source_file": "classical-editing-rhythm.md",
+    "source_section": "Invisible Editing measurement",
+    "tags": [
+      "editor",
+      "failure_mode",
+      "invisible_editing"
+    ],
+    "extra_data": {
+      "invisible_eye_tracking_pct": 10,
+      "invisible_self_report_pct": 15,
+      "visible_eye_tracking_pct": 30,
+      "visible_self_report_pct": 40
+    },
+    "priority": 74
+  },
+  {
+    "category": "editing_failure_mode",
+    "key_name": "antipattern_uniform_pacing_no_climax",
+    "key_type": "failure_mode",
+    "primary_recommendation": "反模式 节奏均匀无 build-to-climax: 整集 cut 密度均匀无高潮加密",
+    "rationale": "诊断 build-to-climax < 1.3 → 修复 最后 25% runtime 加密到 baseline ×1.5-2.0",
+    "source_file": "cn-cutting-rhythm.md",
+    "source_section": "短剧剪辑节奏 anti-patterns",
+    "tags": [
+      "editor",
+      "failure_mode",
+      "antipattern"
+    ],
+    "extra_data": {
+      "symptom": "整集 cut 密度均匀无高潮加密",
+      "diagnostic": "build-to-climax < 1.3",
+      "fix": "最后 25% runtime 加密到 baseline ×1.5-2.0"
+    },
+    "priority": 72
+  },
+  {
+    "category": "editing_failure_mode",
+    "key_name": "antipattern_overcut_no_breath",
+    "key_type": "failure_mode",
+    "primary_recommendation": "反模式 过度快切无喘息帧: 全程 60+ cuts/min 无喘息帧",
+    "rationale": "诊断 爆发段 >40 cuts/min 持续 >30s → 修复 每 15-20s 插入 2-3s 喘息帧",
+    "source_file": "cn-cutting-rhythm.md",
+    "source_section": "短剧剪辑节奏 anti-patterns",
+    "tags": [
+      "editor",
+      "failure_mode",
+      "antipattern"
+    ],
+    "extra_data": {
+      "symptom": "全程 60+ cuts/min 无喘息帧",
+      "diagnostic": "爆发段 >40 cuts/min 持续 >30s",
+      "fix": "每 15-20s 插入 2-3s 喘息帧"
+    },
+    "priority": 72
+  },
+  {
+    "category": "editing_failure_mode",
+    "key_name": "antipattern_bgm_cut_desync",
+    "key_type": "failure_mode",
+    "primary_recommendation": "反模式 BGM 与 cut 脱节: cut 时机与 BGM beat 不对齐",
+    "rationale": "诊断 bgm_alignment_rate < 50% → 修复 重生成 cut list 优先 bgm_aligned",
+    "source_file": "cn-cutting-rhythm.md",
+    "source_section": "短剧剪辑节奏 anti-patterns",
+    "tags": [
+      "editor",
+      "failure_mode",
+      "antipattern"
+    ],
+    "extra_data": {
+      "symptom": "cut 时机与 BGM beat 不对齐",
+      "diagnostic": "bgm_alignment_rate < 50%",
+      "fix": "重生成 cut list 优先 bgm_aligned"
+    },
+    "priority": 72
   }
 ]
