@@ -49541,5 +49541,246 @@
       },
       "report_artifact": "audit_report.json"
     }
+  },
+  {
+    "category": "audio_vision_mode",
+    "key_name": "empirical_sound",
+    "key_type": "audio_strategy",
+    "primary_recommendation": "Empirical sound(同步声)= sound 与 image 同步出现(脚步声+走路)。标准 diegetic SFX,用于环境 grounding",
+    "rationale": "Chion 5 种 sound-image 关系之一。同步声是最基础的音画关系,建立场景真实感与物理 grounding。Joy/Hope 情绪推荐 empirical + rendered。",
+    "source_file": "audio_pipeline/references/composer/chion-audio-vision.md",
+    "source_section": "§Chion 5 Audio-Vision Modes heuristic 1",
+    "tags": [
+      "audio_vision",
+      "chion",
+      "empirical",
+      "diegetic"
+    ],
+    "priority": 65,
+    "extra_data": {
+      "mode": 1,
+      "name": "empirical_sound",
+      "definition": "同步出现的 sound + image",
+      "typical_use": "标准 diegetic SFX / 环境 grounding",
+      "emotion_link": [
+        "Joy",
+        "Hope"
+      ]
+    }
+  },
+  {
+    "category": "audio_vision_mode",
+    "key_name": "adding_value",
+    "key_type": "audio_strategy",
+    "primary_recommendation": "Adding value(增值)= sound 赋予 image 新意义(沉默+face=内心独白)。用于情感放大",
+    "rationale": "Chion:声音不仅同步,更能'增值'——赋予画面原本没有的含义。沉默配面部特写让观众读出内心独白。Sadness/Loss 推荐用 adding value(沉默+face)。",
+    "source_file": "audio_pipeline/references/composer/chion-audio-vision.md",
+    "source_section": "§Chion 5 Audio-Vision Modes heuristic 1",
+    "tags": [
+      "audio_vision",
+      "chion",
+      "adding_value",
+      "emotional"
+    ],
+    "priority": 70,
+    "extra_data": {
+      "mode": 2,
+      "name": "adding_value",
+      "definition": "Sound 赋予 image 新意义",
+      "typical_use": "Emotional amplification(沉默+face=内心独白)",
+      "emotion_link": [
+        "Sadness",
+        "Loss",
+        "Anger"
+      ]
+    }
+  },
+  {
+    "category": "audio_vision_mode",
+    "key_name": "rendered_sound",
+    "key_type": "audio_strategy",
+    "primary_recommendation": "Rendered sound(渲染声)= sound 不是物体本身而是其印象(心跳声放大=紧张)。象征性再现",
+    "rationale": "Chion:声音是物体的'印象'而非物理实录——放大的心跳声传递紧张,是象征而非写实。Surprise 推荐用 acousmatic + rendered。",
+    "source_file": "audio_pipeline/references/composer/chion-audio-vision.md",
+    "source_section": "§Chion 5 Audio-Vision Modes heuristic 1",
+    "tags": [
+      "audio_vision",
+      "chion",
+      "rendered",
+      "symbolic"
+    ],
+    "priority": 65,
+    "extra_data": {
+      "mode": 3,
+      "name": "rendered_sound",
+      "definition": "Sound 是物体印象非物体本身",
+      "typical_use": "Symbolic representation(心跳放大=紧张)",
+      "emotion_link": [
+        "Joy",
+        "Hope",
+        "Surprise"
+      ]
+    }
+  },
+  {
+    "category": "audio_vision_mode",
+    "key_name": "psycho_analytic",
+    "key_type": "audio_strategy",
+    "primary_recommendation": "Psycho-analytic(心理分析)= sound 暗示 character 心理状态(童年音乐+现实场景=闪回)。心理叙事",
+    "rationale": "Chion:声音可揭示角色潜意识/心理——童年旋律叠在现实场景触发闪回。Fear/Tension 推荐用 acousmatic + psycho-analytic。",
+    "source_file": "audio_pipeline/references/composer/chion-audio-vision.md",
+    "source_section": "§Chion 5 Audio-Vision Modes heuristic 1",
+    "tags": [
+      "audio_vision",
+      "chion",
+      "psycho_analytic",
+      "psychological"
+    ],
+    "priority": 68,
+    "extra_data": {
+      "mode": 4,
+      "name": "psycho_analytic",
+      "definition": "Sound 暗示 character 心理状态",
+      "typical_use": "Psychological narrative(童年音乐+现实=闪回)",
+      "emotion_link": [
+        "Fear",
+        "Tension"
+      ]
+    }
+  },
+  {
+    "category": "audio_vision_mode",
+    "key_name": "acousmatic",
+    "key_type": "audio_strategy",
+    "primary_recommendation": "Acousmatic(幻听)= 听到声音但看不到声源(画外音/隐藏 source)。用于 mystery/悬疑。设计:声音持续 2-5s 后再 reveal source 建张力;+ close-up reaction shot 是经典组合",
+    "rationale": "Chion 借用 Schaeffer 的 acousmatic 概念——声源不可见制造悬念。声音越具体(revealed source 越易猜)效果越弱。Anticipation/Fear 推荐用 acousmatic。隐藏 boss 画外音、monster footsteps unseen、钥匙开门声先于门开都是经典用例。",
+    "source_file": "audio_pipeline/references/composer/chion-audio-vision.md",
+    "source_section": "§Chion 5 Modes + §Acousmatic concept heuristic 2",
+    "tags": [
+      "audio_vision",
+      "chion",
+      "acousmatic",
+      "mystery"
+    ],
+    "priority": 78,
+    "extra_data": {
+      "mode": 5,
+      "name": "acousmatic",
+      "definition": "听到声音但看不到声源",
+      "typical_use": "Mystery/悬疑",
+      "design_protocol": [
+        "sound 持续 2-5s 后 reveal source 建张力",
+        "越具体效果越弱",
+        "acousmatic + close-up reaction 经典组合"
+      ],
+      "use_cases": [
+        "mystery character 画外音",
+        "threat 声音 unseen",
+        "power dynamic(画外训斥+reaction)",
+        "revelation build-up(钥匙声先于门开)"
+      ],
+      "emotion_link": [
+        "Anticipation",
+        "Fear",
+        "Tension",
+        "Surprise"
+      ]
+    }
+  },
+  {
+    "category": "audio_vision_mode",
+    "key_name": "silence_as_design",
+    "key_type": "audio_strategy",
+    "primary_recommendation": "Silence 是设计选择(非 music/SFX 缺席):Tension silence(重要 beat 前 1-2s 静默建预期)/Emotional silence(失去悲伤的静默=adding value)/Diegetic silence(真空/耳聋 special effect)。短剧 silence ≤3s,后必须跟强 hook/drop/climax,不可连续(dead air=观众流失)",
+    "rationale": "Chion 强调 silence 是一种 audio-vision mode。静默是强力设计工具但短剧场景风险高(观众上滑):须短(≤3s)、紧跟高潮、不连续。",
+    "source_file": "audio_pipeline/references/composer/chion-audio-vision.md",
+    "source_section": "§Silence as design choice heuristic 6",
+    "tags": [
+      "audio_vision",
+      "chion",
+      "silence",
+      "design"
+    ],
+    "priority": 72,
+    "extra_data": {
+      "name": "silence_as_design",
+      "types": {
+        "tension_silence": "重要 beat 前 1-2s 静默建预期",
+        "emotional_silence": "失去/悲伤的静默(adding value)",
+        "diegetic_silence": "真空/耳聋场景 special effect"
+      },
+      "short_drama_rules": [
+        "时长 ≤3s(防上滑)",
+        "后必须跟强 hook/drop/climax",
+        "不可连续(dead air=观众流失)"
+      ]
+    }
+  },
+  {
+    "category": "audio_vision_mode",
+    "key_name": "emotion_mode_linkage",
+    "key_type": "audio_strategy",
+    "primary_recommendation": "emotion × audio-vision mode 推荐:Anticipation→Acousmatic(build-up);Fear/Tension→Acousmatic+Psycho-analytic;Sadness/Loss→Adding value(沉默+face);Joy/Hope→Empirical+Rendered;Anger→Empirical+Adding value;Surprise→Acousmatic+Rendered",
+    "rationale": "情绪与音画模式有天然适配关系;错用模式(如 joy 场景用 acousmatic)是 audio-vision anti-pattern。每 scene 须 specify audio-vision mode(per Chion 协议)。",
+    "source_file": "audio_pipeline/references/composer/chion-audio-vision.md",
+    "source_section": "§5 modes 与 emotion_curve 联动 heuristic 4",
+    "tags": [
+      "audio_vision",
+      "chion",
+      "emotion",
+      "linkage"
+    ],
+    "priority": 70,
+    "extra_data": {
+      "name": "emotion_mode_linkage",
+      "mapping": {
+        "Anticipation": [
+          "acousmatic"
+        ],
+        "Fear/Tension": [
+          "acousmatic",
+          "psycho_analytic"
+        ],
+        "Sadness/Loss": [
+          "adding_value"
+        ],
+        "Joy/Hope": [
+          "empirical",
+          "rendered"
+        ],
+        "Anger": [
+          "empirical",
+          "adding_value"
+        ],
+        "Surprise": [
+          "acousmatic",
+          "rendered"
+        ]
+      },
+      "anti_pattern": "错用模式(joy 用 acousmatic)"
+    }
+  },
+  {
+    "category": "audio_vision_mode",
+    "key_name": "composer_foley_mixer_boundary",
+    "key_type": "audio_strategy",
+    "primary_recommendation": "音画职责边界:composer 管 music(score/BGM),foley 管 physical SFX(footstep/door/prop),mixer 管 final levels/EQ/ducking。但 audio-vision mode 决策是 composer 的职责(决定 music vs SFX vs silence 在某 scene 的分配)",
+    "rationale": "三者分工明确,但'某 scene 用哪种音画模式'的顶层分配归 composer。避免 music 过响盖 dialogue(mixer ducking)等 anti-pattern。",
+    "source_file": "audio_pipeline/references/composer/chion-audio-vision.md",
+    "source_section": "§Composer vs Foley vs Mixer 边界 heuristic 5",
+    "tags": [
+      "audio_vision",
+      "chion",
+      "boundary",
+      "role"
+    ],
+    "priority": 60,
+    "extra_data": {
+      "name": "role_boundary",
+      "composer": "music(score/BGM)决策",
+      "foley": "physical SFX(footstep/door/prop)决策",
+      "mixer": "final levels/EQ/ducking",
+      "composer_owns": "audio-vision mode 决策(music vs SFX vs silence 分配)"
+    }
   }
 ]

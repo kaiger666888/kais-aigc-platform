@@ -127,6 +127,8 @@ export type CinemaCategory =
   | "spatial_reveal_method"
   // continuity_auditor (cross-shot consistency audit: face/wardrobe/color/object)
   | "cross_shot_audit"
+  // composer (Chion audio-vision modes: sound-image relationship)
+  | "audio_vision_mode"
   // alias / mapping helpers (query-quality fix — maps free-form LLM emotion
   // labels, e.g. shot_list "shock/disorientation", to canonical KB names)
   | "emotion_alias";
@@ -658,6 +660,7 @@ const DOMAIN_CATEGORY_SETS: Record<string, string[]> = {
     "spatial_audio_pattern",
     "sfx_prompt_pattern",
     "character_voice_protocol",
+    "audio_vision_mode",
   ],
   screenwriting: [
     "beat_sheet",
