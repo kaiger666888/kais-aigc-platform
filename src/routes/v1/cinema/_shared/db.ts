@@ -59,7 +59,18 @@ export type CinemaCategory =
   | "escalation_rung"
   | "vertical_pacing_dimension"
   | "completion_rate_rule"
-  | "share_trigger";
+  | "share_trigger"
+  // audio_pipeline (Wave 2)
+  | "tts_provider"
+  | "tts_emotion_signature"
+  | "foley_sfx_category"
+  | "lufs_standard"
+  | "frequency_band_owner"
+  | "lip_sync_benchmark"
+  | "bgm_strategy"
+  | "spatial_audio_pattern"
+  | "sfx_prompt_pattern"
+  | "character_voice_protocol";
 
 export type CinemaKeyType =
   // cinematography
@@ -108,7 +119,18 @@ export type CinemaKeyType =
   | "escalation_rung"
   | "pacing_dimension"
   | "completion_rule"
-  | "share_trigger";
+  | "share_trigger"
+  // audio_pipeline (Wave 2)
+  | "tts_provider"
+  | "tts_emotion"
+  | "sfx_category"
+  | "lufs"
+  | "frequency_band"
+  | "lip_sync_metric"
+  | "bgm"
+  | "spatial"
+  | "sfx_prompt"
+  | "voice_protocol";
 
 /** Loosely-typed seed/API entry (arrays + objects). Serialized to JSON columns. */
 export interface CinemaEntry {

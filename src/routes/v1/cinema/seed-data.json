@@ -28348,5 +28348,3131 @@
       "content": "女主走进公司,众人窃窃私语(中段升级 setup)"
     },
     "priority": 56
+  },
+  {
+    "category": "tts_provider",
+    "key_name": "minimax_t2a_01",
+    "key_type": "tts_provider",
+    "primary_recommendation": "MiniMax T2A-01 — CN 短剧首选:母语级普通话 + 6 emotions + intensity + 5s voice cloning。",
+    "rationale": "能力矩阵:CN 普通话✅母语级 / Emotional control✅ 6 emotions+intensity / Voice cloning✅ 5s sample / Latency 中(~3s)/ Cost $0.10 per 1K chars。",
+    "extra_data": {
+      "provider": "MiniMax T2A-01",
+      "cn_mandarin": "native",
+      "emotional_control": true,
+      "emotion_count": 6,
+      "voice_cloning": true,
+      "clone_sample_sec": 5,
+      "latency_ms": 3000,
+      "cost_per_1k_chars": 0.1,
+      "languages": ["zh", "en"],
+      "role": "CN 短剧 首选"
+    },
+    "source_file": "voicer/cn-tts-model-matrix.md",
+    "source_section": "Hermes TTS Provider Capability Matrix (2026-06)",
+    "tags": ["audio_pipeline", "tts_provider", "minimax", "cn_shortdrama"],
+    "priority": 70
+  },
+  {
+    "category": "tts_provider",
+    "key_name": "elevenlabs_multilingual_v2",
+    "key_type": "tts_provider",
+    "primary_recommendation": "ElevenLabs Multilingual v2 — 全球首选,情感细腻;1min voice cloning sample。",
+    "rationale": "能力矩阵:CN 普通话✅流利但带 accent / Emotional control✅ voice tuning / Voice cloning✅ 1min sample / Latency 低(~1s)/ Cost $0.30。",
+    "extra_data": {
+      "provider": "ElevenLabs Multilingual v2",
+      "cn_mandarin": "fluent_with_accent",
+      "emotional_control": true,
+      "voice_cloning": true,
+      "clone_sample_sec": 60,
+      "latency_ms": 1000,
+      "cost_per_1k_chars": 0.3,
+      "languages": ["multi"],
+      "role": "全球首选,情感细腻"
+    },
+    "source_file": "voicer/cn-tts-model-matrix.md",
+    "source_section": "Hermes TTS Provider Capability Matrix (2026-06)",
+    "tags": ["audio_pipeline", "tts_provider", "elevenlabs", "global"],
+    "priority": 68
+  },
+  {
+    "category": "tts_provider",
+    "key_name": "mistral_voxtral",
+    "key_type": "tts_provider",
+    "primary_recommendation": "Mistral Voxtral — 开源 + 自部署;prosody 控制;cloning✅。",
+    "rationale": "能力矩阵:CN 普通话✅流利 / Emotional control 中(prosody)/ Voice cloning✅ / Latency 低(~0.8s)/ Cost $0.15。",
+    "extra_data": {
+      "provider": "Mistral Voxtral",
+      "cn_mandarin": "fluent",
+      "emotional_control": "medium_prosody",
+      "voice_cloning": true,
+      "latency_ms": 800,
+      "cost_per_1k_chars": 0.15,
+      "languages": ["multi"],
+      "role": "开源 + 自部署"
+    },
+    "source_file": "voicer/cn-tts-model-matrix.md",
+    "source_section": "Hermes TTS Provider Capability Matrix (2026-06)",
+    "tags": ["audio_pipeline", "tts_provider", "voxtral", "opensource"],
+    "priority": 60
+  },
+  {
+    "category": "tts_provider",
+    "key_name": "google_gemini_tts",
+    "key_type": "tts_provider",
+    "primary_recommendation": "Google Gemini TTS — preset voice only(无 cloning);Google ecosystem。",
+    "rationale": "能力矩阵:CN 普通话✅流利 / Emotional control 中 / Voice cloning❌ preset only / Latency 低(~1s)/ Cost $0.20。",
+    "extra_data": {
+      "provider": "Google Gemini TTS",
+      "cn_mandarin": "fluent",
+      "emotional_control": "medium",
+      "voice_cloning": false,
+      "latency_ms": 1000,
+      "cost_per_1k_chars": 0.2,
+      "languages": ["multi"],
+      "role": "Google ecosystem"
+    },
+    "source_file": "voicer/cn-tts-model-matrix.md",
+    "source_section": "Hermes TTS Provider Capability Matrix (2026-06)",
+    "tags": ["audio_pipeline", "tts_provider", "gemini", "preset"],
+    "priority": 58
+  },
+  {
+    "category": "tts_provider",
+    "key_name": "microsoft_edge_tts",
+    "key_type": "tts_provider",
+    "primary_recommendation": "Microsoft Edge TTS — 免费 + 极低延迟(~0.3s);适合 preview / 群演。",
+    "rationale": "能力矩阵:CN 普通话✅流利 / Emotional control❌ preset only / Voice cloning❌ / Latency 极低(~0.3s)/ Cost 免费。",
+    "extra_data": {
+      "provider": "Microsoft Edge TTS",
+      "cn_mandarin": "fluent",
+      "emotional_control": false,
+      "voice_cloning": false,
+      "latency_ms": 300,
+      "cost_per_1k_chars": 0.0,
+      "languages": ["multi"],
+      "role": "preview / 群演"
+    },
+    "source_file": "voicer/cn-tts-model-matrix.md",
+    "source_section": "Hermes TTS Provider Capability Matrix (2026-06)",
+    "tags": ["audio_pipeline", "tts_provider", "edge_tts", "free", "extra"],
+    "priority": 56
+  },
+  {
+    "category": "tts_provider",
+    "key_name": "neutts",
+    "key_type": "tts_provider",
+    "primary_recommendation": "NeuTTS — CN 本土小众模型,母语级 + cloning✅。",
+    "rationale": "能力矩阵:CN 普通话✅母语级 / Emotional control✅ / Voice cloning✅ / Latency 中(~2s)/ Cost $0.12。",
+    "extra_data": {
+      "provider": "NeuTTS",
+      "cn_mandarin": "native",
+      "emotional_control": true,
+      "voice_cloning": true,
+      "latency_ms": 2000,
+      "cost_per_1k_chars": 0.12,
+      "languages": ["zh"],
+      "role": "CN 本土,小众模型"
+    },
+    "source_file": "voicer/cn-tts-model-matrix.md",
+    "source_section": "Hermes TTS Provider Capability Matrix (2026-06)",
+    "tags": ["audio_pipeline", "tts_provider", "neutts", "cn_native"],
+    "priority": 58
+  },
+  {
+    "category": "tts_provider",
+    "key_name": "qwen3_tts_1_7b",
+    "key_type": "tts_provider",
+    "primary_recommendation": "Qwen3-TTS-12Hz-1.7B — 实际部署的 sole TTS engine(v15.0+),ComfyUI workflow;替代 CosyVoice/GPT-SoVITS/MiniMax/ElevenLabs。",
+    "rationale": "通过 aigc-platform :10588 /api/v1/tts/speak 调用。同步接口(内部 submit→poll)。输出 FLAC 24000Hz mono。预热后 5-15s/clip。预设 9 speakers:Aiden/Dylan/Eric/Ono_Anna/Ryan/Serena/Sohee/Uncle_Fu/Vivian。",
+    "extra_data": {
+      "provider": "Qwen3-TTS-12Hz-1.7B",
+      "deployed": true,
+      "api": "POST http://localhost:10588/api/v1/tts/speak",
+      "sample_rate_hz": 24000,
+      "output_format": "FLAC",
+      "wall_clock_per_clip_sec": "5-15",
+      "preset_speakers": 9,
+      "replaces": ["CosyVoice", "GPT-SoVITS", "Chatterbox", "MiniMax", "ElevenLabs"]
+    },
+    "source_file": "voicer/qwen3-tts-api.md",
+    "source_section": "API Base",
+    "tags": ["audio_pipeline", "tts_provider", "qwen3_tts", "deployed", "aigc_platform"],
+    "priority": 75
+  },
+  {
+    "category": "tts_provider",
+    "key_name": "qwen3_tts_voice_clone",
+    "key_type": "tts_provider",
+    "primary_recommendation": "Qwen3-TTS voice_clone 模式 — 克隆 P04 生成的 voice identity(主角首选)。",
+    "rationale": "Body: {mode:voice_clone, text, ref_audio, ref_text}。两阶段工作流:voice_design 每角色一次 → voice_clone 所有台词(每 clip voice_design 会 OOM)。",
+    "extra_data": {
+      "mode": "voice_clone",
+      "required_fields": ["text", "ref_audio", "ref_text"],
+      "use_case": "Clone P04 voice identity (preferred for main characters)"
+    },
+    "source_file": "voicer/qwen3-tts-api.md",
+    "source_section": "Endpoint — three modes",
+    "tags": ["audio_pipeline", "tts_provider", "qwen3_tts", "voice_clone", "main_character"],
+    "priority": 72
+  },
+  {
+    "category": "tts_provider",
+    "key_name": "qwen3_tts_custom_voice",
+    "key_type": "tts_provider",
+    "primary_recommendation": "Qwen3-TTS custom_voice 模式 — 预设 speaker(旁白 / 配角)。",
+    "rationale": "Body: {mode:custom_voice, text, speaker}。9 预设 speaker。SKILL.md 列表(Aiden/Eric/Serena/Chelsie...)与 ComfyUI 实际节点(Aiden/Dylan/Eric/Ono_Anna/Ryan/Serena/Sohee/Uncle_Fu/Vivian)不一致——以 ComfyUI 为准,unlisted 返回 400。",
+    "extra_data": {
+      "mode": "custom_voice",
+      "required_fields": ["text", "speaker"],
+      "preset_speakers": ["Aiden", "Dylan", "Eric", "Ono_Anna", "Ryan", "Serena", "Sohee", "Uncle_Fu", "Vivian"],
+      "use_case": "Preset speaker (narration, side characters)"
+    },
+    "source_file": "voicer/qwen3-tts-api.md",
+    "source_section": "Endpoint — three modes",
+    "tags": ["audio_pipeline", "tts_provider", "qwen3_tts", "custom_voice", "preset"],
+    "priority": 70
+  },
+  {
+    "category": "tts_provider",
+    "key_name": "qwen3_tts_voice_design",
+    "key_type": "tts_provider",
+    "primary_recommendation": "Qwen3-TTS voice_design 模式 — 自然语言描述设计 voice(无 ref_audio)。",
+    "rationale": "Body: {mode:voice_design, text, instruct}。两阶段:每角色 voice_design 一次,再用 voice_clone 生成所有台词。",
+    "extra_data": {
+      "mode": "voice_design",
+      "required_fields": ["text", "instruct"],
+      "use_case": "Design voice from natural-language description (no ref_audio)"
+    },
+    "source_file": "voicer/qwen3-tts-api.md",
+    "source_section": "Endpoint — three modes",
+    "tags": ["audio_pipeline", "tts_provider", "qwen3_tts", "voice_design"],
+    "priority": 66
+  },
+  {
+    "category": "tts_provider",
+    "key_name": "gold_team_tts_tracker",
+    "key_type": "tts_provider",
+    "primary_recommendation": "gold-team tts-tracker — 本地异步 TTS,三模型调度(GPT-SoVITS/Chatterbox-Turbo/CosyVoice-300M)。",
+    "rationale": "task-based async API(POST /api/v1/tasks → poll)。零成本零外部 key,scratch/draft voice stem。~18-20s/phrase(lazy-load)。auto 模式 tts_zh 实测解析为 CosyVoice-300M。",
+    "extra_data": {
+      "provider": "gold-team tts-tracker",
+      "api": "http://127.0.0.1:8002/api/v1/tasks",
+      "models": ["GPT-SoVITS", "Chatterbox-Turbo", "CosyVoice-300M"],
+      "task_types": ["tts", "tts_zh", "tts_en", "tts_bilingual"],
+      "wall_clock_sec": "18-20",
+      "async": true
+    },
+    "source_file": "voicer/gold-team-tts-api.md",
+    "source_section": "Available Engines",
+    "tags": ["audio_pipeline", "tts_provider", "gold_team", "local", "async"],
+    "priority": 64
+  },
+  {
+    "category": "tts_provider",
+    "key_name": "gold_team_tts_triple_track",
+    "key_type": "tts_provider",
+    "primary_recommendation": "gold-team tts-triple-track — gpt_sovits/chatterbox/cosyvoice/auto 三轨调度。",
+    "rationale": "task type: tts。auto 由 dispatcher 选最佳模型。",
+    "extra_data": {
+      "provider": "gold-team tts-triple-track",
+      "api": "http://127.0.0.1:8002/api/v1/tasks",
+      "models": ["gpt_sovits", "chatterbox", "cosyvoice", "auto"],
+      "task_types": ["tts"],
+      "async": true
+    },
+    "source_file": "voicer/gold-team-tts-api.md",
+    "source_section": "Available Engines",
+    "tags": ["audio_pipeline", "tts_provider", "gold_team", "local"],
+    "priority": 60
+  },
+  {
+    "category": "tts_provider",
+    "key_name": "chartype_featured_multi_emotion",
+    "key_type": "tts_provider",
+    "primary_recommendation": "主角(featured)+ 多 emotion → MiniMax T2A-01 或 ElevenLabs。",
+    "rationale": "需要 emotional control + voice cloning。",
+    "extra_data": {
+      "character_type": "featured",
+      "multi_emotion": true,
+      "recommended": ["MiniMax T2A-01", "ElevenLabs Multilingual v2"],
+      "reason": "emotional control + voice cloning"
+    },
+    "source_file": "voicer/cn-tts-model-matrix.md",
+    "source_section": "Per-character 推荐选择",
+    "tags": ["audio_pipeline", "tts_provider", "character_type", "featured"],
+    "priority": 65
+  },
+  {
+    "category": "tts_provider",
+    "key_name": "chartype_supporting",
+    "key_type": "tts_provider",
+    "primary_recommendation": "配角(supporting)→ MiniMax T2A-01。",
+    "rationale": "CN 母语级 + 性价比。",
+    "extra_data": {
+      "character_type": "supporting",
+      "recommended": ["MiniMax T2A-01"],
+      "reason": "CN 母语级 + 性价比"
+    },
+    "source_file": "voicer/cn-tts-model-matrix.md",
+    "source_section": "Per-character 推荐选择",
+    "tags": ["audio_pipeline", "tts_provider", "character_type", "supporting"],
+    "priority": 62
+  },
+  {
+    "category": "tts_provider",
+    "key_name": "chartype_extra",
+    "key_type": "tts_provider",
+    "primary_recommendation": "群演(extra)→ Edge TTS。",
+    "rationale": "免费 + 速度快。",
+    "extra_data": {
+      "character_type": "extra",
+      "recommended": ["Microsoft Edge TTS"],
+      "reason": "免费 + 速度快"
+    },
+    "source_file": "voicer/cn-tts-model-matrix.md",
+    "source_section": "Per-character 推荐选择",
+    "tags": ["audio_pipeline", "tts_provider", "character_type", "extra"],
+    "priority": 58
+  },
+  {
+    "category": "tts_provider",
+    "key_name": "chartype_villain_complex",
+    "key_type": "tts_provider",
+    "primary_recommendation": "反派 / 复杂 emotion → ElevenLabs Multilingual v2。",
+    "rationale": "emotional prosody 细腻。",
+    "extra_data": {
+      "character_type": "villain",
+      "recommended": ["ElevenLabs Multilingual v2"],
+      "reason": "emotional prosody 细腻"
+    },
+    "source_file": "voicer/cn-tts-model-matrix.md",
+    "source_section": "Per-character 推荐选择",
+    "tags": ["audio_pipeline", "tts_provider", "character_type", "villain"],
+    "priority": 63
+  },
+  {
+    "category": "tts_provider",
+    "key_name": "chartype_ai_mechanical",
+    "key_type": "tts_provider",
+    "primary_recommendation": "AI voice / 机械 / 特殊 → Gemini TTS 或 NeuTTS。",
+    "rationale": "非自然 voice preset。",
+    "extra_data": {
+      "character_type": "ai_voice",
+      "recommended": ["Google Gemini TTS", "NeuTTS"],
+      "reason": "非自然 voice preset"
+    },
+    "source_file": "voicer/cn-tts-model-matrix.md",
+    "source_section": "Per-character 推荐选择",
+    "tags": ["audio_pipeline", "tts_provider", "character_type", "ai_voice"],
+    "priority": 58
+  },
+  {
+    "category": "tts_emotion_signature",
+    "key_name": "neutral",
+    "key_type": "tts_emotion",
+    "primary_recommendation": "neutral → speed=1.0, pitch_shift=0, neutral timbre(valence 0, arousal Low)。",
+    "rationale": "基准;无 emphasis tag。",
+    "extra_data": {
+      "emotion": "neutral",
+      "valence": 0,
+      "arousal": "Low",
+      "speed_factor": "1.0",
+      "pitch_shift": "0",
+      "timbre": "neutral"
+    },
+    "source_file": "voicer/tts-emotion-prosody-control.md",
+    "source_section": "Emotion taxonomy for TTS",
+    "tags": ["audio_pipeline", "tts_emotion", "neutral"],
+    "priority": 64
+  },
+  {
+    "category": "tts_emotion_signature",
+    "key_name": "joy",
+    "key_type": "tts_emotion",
+    "primary_recommendation": "joy → speed=1.05-1.15, pitch_shift=+2 to +5, brighter timbre(valence +1, arousal High)。",
+    "rationale": "喜悦:加速 + 升调 + 明亮音色。",
+    "extra_data": {
+      "emotion": "joy",
+      "valence": "+1",
+      "arousal": "High",
+      "speed_factor": "1.05-1.15",
+      "pitch_shift": "+2 to +5",
+      "timbre": "brighter"
+    },
+    "source_file": "voicer/tts-emotion-prosody-control.md",
+    "source_section": "Emotion taxonomy for TTS",
+    "tags": ["audio_pipeline", "tts_emotion", "joy"],
+    "priority": 64
+  },
+  {
+    "category": "tts_emotion_signature",
+    "key_name": "sadness",
+    "key_type": "tts_emotion",
+    "primary_recommendation": "sadness → speed=0.85-0.95, pitch_shift=-2 to -5, breathy timbre(valence -1, arousal Low)。",
+    "rationale": "悲伤:减速 + 降调 + 气声。",
+    "extra_data": {
+      "emotion": "sadness",
+      "valence": "-1",
+      "arousal": "Low",
+      "speed_factor": "0.85-0.95",
+      "pitch_shift": "-2 to -5",
+      "timbre": "breathy"
+    },
+    "source_file": "voicer/tts-emotion-prosody-control.md",
+    "source_section": "Emotion taxonomy for TTS",
+    "tags": ["audio_pipeline", "tts_emotion", "sadness"],
+    "priority": 64
+  },
+  {
+    "category": "tts_emotion_signature",
+    "key_name": "anger",
+    "key_type": "tts_emotion",
+    "primary_recommendation": "anger → speed=1.10-1.25, pitch_shift=-2 to +2 (variable), pressed timbre(valence -1, arousal High)。",
+    "rationale": "愤怒:加速 + pitch 可变(pressed 压缩音色)。",
+    "extra_data": {
+      "emotion": "anger",
+      "valence": "-1",
+      "arousal": "High",
+      "speed_factor": "1.10-1.25",
+      "pitch_shift": "-2 to +2 (variable)",
+      "timbre": "pressed"
+    },
+    "source_file": "voicer/tts-emotion-prosody-control.md",
+    "source_section": "Emotion taxonomy for TTS",
+    "tags": ["audio_pipeline", "tts_emotion", "anger"],
+    "priority": 64
+  },
+  {
+    "category": "tts_emotion_signature",
+    "key_name": "fear",
+    "key_type": "tts_emotion",
+    "primary_recommendation": "fear → speed=1.15-1.30, pitch_shift=+3 to +8, trembling timbre(valence -1, arousal High)。",
+    "rationale": "恐惧:显著加速 + 升调 + 颤抖音色。",
+    "extra_data": {
+      "emotion": "fear",
+      "valence": "-1",
+      "arousal": "High",
+      "speed_factor": "1.15-1.30",
+      "pitch_shift": "+3 to +8",
+      "timbre": "trembling"
+    },
+    "source_file": "voicer/tts-emotion-prosody-control.md",
+    "source_section": "Emotion taxonomy for TTS",
+    "tags": ["audio_pipeline", "tts_emotion", "fear"],
+    "priority": 64
+  },
+  {
+    "category": "tts_emotion_signature",
+    "key_name": "surprise",
+    "key_type": "tts_emotion",
+    "primary_recommendation": "surprise → speed=1.20-1.35 (initial burst), pitch_shift=+5 to +10, burst timbre(valence 0, arousal High)。",
+    "rationale": "惊讶:初始爆发式加速 + 大幅升调。",
+    "extra_data": {
+      "emotion": "surprise",
+      "valence": "0",
+      "arousal": "High",
+      "speed_factor": "1.20-1.35 (initial burst)",
+      "pitch_shift": "+5 to +10",
+      "timbre": "burst"
+    },
+    "source_file": "voicer/tts-emotion-prosody-control.md",
+    "source_section": "Emotion taxonomy for TTS",
+    "tags": ["audio_pipeline", "tts_emotion", "surprise"],
+    "priority": 64
+  },
+  {
+    "category": "tts_emotion_signature",
+    "key_name": "contempt",
+    "key_type": "tts_emotion",
+    "primary_recommendation": "contempt → speed=0.95-1.05, pitch_shift=-3 to -1, nasal timbre(valence -1, arousal Low)。",
+    "rationale": "蔑视:近基准速度 + 微降调 + 鼻音。",
+    "extra_data": {
+      "emotion": "contempt",
+      "valence": "-1",
+      "arousal": "Low",
+      "speed_factor": "0.95-1.05",
+      "pitch_shift": "-3 to -1",
+      "timbre": "nasal"
+    },
+    "source_file": "voicer/tts-emotion-prosody-control.md",
+    "source_section": "Emotion taxonomy for TTS",
+    "tags": ["audio_pipeline", "tts_emotion", "contempt"],
+    "priority": 64
+  },
+  {
+    "category": "tts_emotion_signature",
+    "key_name": "disgust",
+    "key_type": "tts_emotion",
+    "primary_recommendation": "disgust → speed=0.95-1.05, pitch_shift=-2 to 0, guttural timbre(valence -1, arousal Medium)。",
+    "rationale": "厌恶:近基准速度 + 微降调 + 喉音。",
+    "extra_data": {
+      "emotion": "disgust",
+      "valence": "-1",
+      "arousal": "Medium",
+      "speed_factor": "0.95-1.05",
+      "pitch_shift": "-2 to 0",
+      "timbre": "guttural"
+    },
+    "source_file": "voicer/tts-emotion-prosody-control.md",
+    "source_section": "Emotion taxonomy for TTS",
+    "tags": ["audio_pipeline", "tts_emotion", "disgust"],
+    "priority": 64
+  },
+  {
+    "category": "tts_emotion_signature",
+    "key_name": "prosody_speed_factor",
+    "key_type": "tts_emotion",
+    "primary_recommendation": "speed_factor 0.7-1.4,默认 1.0 — speaking rate;1.0 = natural。",
+    "extra_data": {
+      "parameter": "speed_factor",
+      "range": [0.7, 1.4],
+      "default": 1.0,
+      "effect": "Speaking rate; 1.0 = natural"
+    },
+    "source_file": "voicer/tts-emotion-prosody-control.md",
+    "source_section": "Prosody control parameters",
+    "tags": ["audio_pipeline", "tts_emotion", "prosody", "speed"],
+    "priority": 58
+  },
+  {
+    "category": "tts_emotion_signature",
+    "key_name": "prosody_pitch_shift",
+    "key_type": "tts_emotion",
+    "primary_recommendation": "pitch_shift -12 to +12 semitones,默认 0 — per-character pitch shift,preserves formants。",
+    "extra_data": {
+      "parameter": "pitch_shift",
+      "range": [-12, 12],
+      "unit": "semitones",
+      "default": 0,
+      "effect": "Pitch shift per character; preserves formants"
+    },
+    "source_file": "voicer/tts-emotion-prosody-control.md",
+    "source_section": "Prosody control parameters",
+    "tags": ["audio_pipeline", "tts_emotion", "prosody", "pitch"],
+    "priority": 58
+  },
+  {
+    "category": "tts_emotion_signature",
+    "key_name": "prosody_energy_factor",
+    "key_type": "tts_emotion",
+    "primary_recommendation": "energy_factor 0.5-2.0,默认 1.0 — loudness contour。",
+    "extra_data": {
+      "parameter": "energy_factor",
+      "range": [0.5, 2.0],
+      "default": 1.0,
+      "effect": "Loudness contour; 1.0 = natural"
+    },
+    "source_file": "voicer/tts-emotion-prosody-control.md",
+    "source_section": "Prosody control parameters",
+    "tags": ["audio_pipeline", "tts_emotion", "prosody", "energy"],
+    "priority": 56
+  },
+  {
+    "category": "tts_emotion_signature",
+    "key_name": "prosody_pause_factor",
+    "key_type": "tts_emotion",
+    "primary_recommendation": "pause_factor 0.5-2.0,默认 1.0 — inter-sentence pause scaling。",
+    "extra_data": {
+      "parameter": "pause_factor",
+      "range": [0.5, 2.0],
+      "default": 1.0,
+      "effect": "Inter-sentence pause scaling"
+    },
+    "source_file": "voicer/tts-emotion-prosody-control.md",
+    "source_section": "Prosody control parameters",
+    "tags": ["audio_pipeline", "tts_emotion", "prosody", "pause"],
+    "priority": 56
+  },
+  {
+    "category": "tts_emotion_signature",
+    "key_name": "prosody_breathiness",
+    "key_type": "tts_emotion",
+    "primary_recommendation": "breathiness 0.0-1.0,默认 0.2 — 气声量(higher = more intimate/weak)。",
+    "extra_data": {
+      "parameter": "breathiness",
+      "range": [0.0, 1.0],
+      "default": 0.2,
+      "effect": "Amount of breath (higher = more intimate/weak)"
+    },
+    "source_file": "voicer/tts-emotion-prosody-control.md",
+    "source_section": "Prosody control parameters",
+    "tags": ["audio_pipeline", "tts_emotion", "prosody", "breathiness"],
+    "priority": 56
+  },
+  {
+    "category": "tts_emotion_signature",
+    "key_name": "prosody_roughness",
+    "key_type": "tts_emotion",
+    "primary_recommendation": "roughness 0.0-1.0,默认 0.1 — 声带粗糙度(higher = more angry/strained)。",
+    "extra_data": {
+      "parameter": "roughness",
+      "range": [0.0, 1.0],
+      "default": 0.1,
+      "effect": "Vocal cord roughness (higher = more angry/strained)"
+    },
+    "source_file": "voicer/tts-emotion-prosody-control.md",
+    "source_section": "Prosody control parameters",
+    "tags": ["audio_pipeline", "tts_emotion", "prosody", "roughness"],
+    "priority": 56
+  },
+  {
+    "category": "foley_sfx_category",
+    "key_name": "sfx_atmospheres",
+    "key_type": "sfx_category",
+    "primary_recommendation": "#1 Atmospheres (背景环境) — 短剧 高频使用: high。城市/室内/户外。",
+    "rationale": "BBC SFX 类别 #1。Layer 1 典型音量 -25 dBFS。",
+    "extra_data": {
+      "category_idx": 1,
+      "name_en": "atmospheres",
+      "name_cn": "Atmospheres (背景环境)",
+      "layer": 1,
+      "dbfs": -25,
+      "shortdrama_usage": "high",
+      "usage_pct": null,
+      "note": "城市/室内/户外"
+    },
+    "source_file": "foley/sound-effect-taxonomy.md",
+    "source_section": "BBC 21-Category SFX Taxonomy",
+    "tags": ["audio_pipeline", "foley_sfx_category", "atmospheres"],
+    "priority": 65
+  },
+  {
+    "category": "foley_sfx_category",
+    "key_name": "sfx_doors",
+    "key_type": "sfx_category",
+    "primary_recommendation": "#2 Doors / 玄关 — 短剧 高频使用: very_high。关门/开门/敲门。",
+    "rationale": "BBC SFX 类别 #2。Layer 3 典型音量 -15 dBFS。短剧占比 ~15%。",
+    "extra_data": {
+      "category_idx": 2,
+      "name_en": "doors",
+      "name_cn": "Doors / 玄关",
+      "layer": 3,
+      "dbfs": -15,
+      "shortdrama_usage": "very_high",
+      "usage_pct": 15,
+      "note": "关门/开门/敲门"
+    },
+    "source_file": "foley/sound-effect-taxonomy.md",
+    "source_section": "BBC 21-Category SFX Taxonomy",
+    "tags": ["audio_pipeline", "foley_sfx_category", "doors"],
+    "priority": 65
+  },
+  {
+    "category": "foley_sfx_category",
+    "key_name": "sfx_footsteps",
+    "key_type": "sfx_category",
+    "primary_recommendation": "#3 Footsteps / 脚步 — 短剧 高频使用: very_high。不同地面 + 不同鞋。",
+    "rationale": "BBC SFX 类别 #3。Layer 2 典型音量 -18 dBFS。短剧占比 ~20%。",
+    "extra_data": {
+      "category_idx": 3,
+      "name_en": "footsteps",
+      "name_cn": "Footsteps / 脚步",
+      "layer": 2,
+      "dbfs": -18,
+      "shortdrama_usage": "very_high",
+      "usage_pct": 20,
+      "note": "不同地面 + 不同鞋"
+    },
+    "source_file": "foley/sound-effect-taxonomy.md",
+    "source_section": "BBC 21-Category SFX Taxonomy",
+    "tags": ["audio_pipeline", "foley_sfx_category", "footsteps"],
+    "priority": 65
+  },
+  {
+    "category": "foley_sfx_category",
+    "key_name": "sfx_vehicles",
+    "key_type": "sfx_category",
+    "primary_recommendation": "#4 Vehicles / 交通 — 短剧 高频使用: medium。汽车启动/刹车/喇叭。",
+    "rationale": "BBC SFX 类别 #4。Layer 3 典型音量 -15 dBFS。",
+    "extra_data": {
+      "category_idx": 4,
+      "name_en": "vehicles",
+      "name_cn": "Vehicles / 交通",
+      "layer": 3,
+      "dbfs": -15,
+      "shortdrama_usage": "medium",
+      "usage_pct": null,
+      "note": "汽车启动/刹车/喇叭"
+    },
+    "source_file": "foley/sound-effect-taxonomy.md",
+    "source_section": "BBC 21-Category SFX Taxonomy",
+    "tags": ["audio_pipeline", "foley_sfx_category", "vehicles"],
+    "priority": 60
+  },
+  {
+    "category": "foley_sfx_category",
+    "key_name": "sfx_crowds",
+    "key_type": "sfx_category",
+    "primary_recommendation": "#5 crowds / 人群 — 短剧 高频使用: high。街道人群/餐厅人群。",
+    "rationale": "BBC SFX 类别 #5。Layer 1 典型音量 -25 dBFS。",
+    "extra_data": {
+      "category_idx": 5,
+      "name_en": "crowds",
+      "name_cn": "crowds / 人群",
+      "layer": 1,
+      "dbfs": -25,
+      "shortdrama_usage": "high",
+      "usage_pct": null,
+      "note": "街道人群/餐厅人群"
+    },
+    "source_file": "foley/sound-effect-taxonomy.md",
+    "source_section": "BBC 21-Category SFX Taxonomy",
+    "tags": ["audio_pipeline", "foley_sfx_category", "crowds"],
+    "priority": 65
+  },
+  {
+    "category": "foley_sfx_category",
+    "key_name": "sfx_weather",
+    "key_type": "sfx_category",
+    "primary_recommendation": "#6 Weather / 天气 — 短剧 高频使用: medium。雨/雷/风。",
+    "rationale": "BBC SFX 类别 #6。Layer 1 典型音量 -25 dBFS。",
+    "extra_data": {
+      "category_idx": 6,
+      "name_en": "weather",
+      "name_cn": "Weather / 天气",
+      "layer": 1,
+      "dbfs": -25,
+      "shortdrama_usage": "medium",
+      "usage_pct": null,
+      "note": "雨/雷/风"
+    },
+    "source_file": "foley/sound-effect-taxonomy.md",
+    "source_section": "BBC 21-Category SFX Taxonomy",
+    "tags": ["audio_pipeline", "foley_sfx_category", "weather"],
+    "priority": 60
+  },
+  {
+    "category": "foley_sfx_category",
+    "key_name": "sfx_animals",
+    "key_type": "sfx_category",
+    "primary_recommendation": "#7 Animals / 动物 — 短剧 高频使用: low。狗叫/鸟鸣。",
+    "rationale": "BBC SFX 类别 #7。Layer 3 典型音量 -15 dBFS。",
+    "extra_data": {
+      "category_idx": 7,
+      "name_en": "animals",
+      "name_cn": "Animals / 动物",
+      "layer": 3,
+      "dbfs": -15,
+      "shortdrama_usage": "low",
+      "usage_pct": null,
+      "note": "狗叫/鸟鸣"
+    },
+    "source_file": "foley/sound-effect-taxonomy.md",
+    "source_section": "BBC 21-Category SFX Taxonomy",
+    "tags": ["audio_pipeline", "foley_sfx_category", "animals"],
+    "priority": 60
+  },
+  {
+    "category": "foley_sfx_category",
+    "key_name": "sfx_household",
+    "key_type": "sfx_category",
+    "primary_recommendation": "#8 Household / 家居 — 短剧 高频使用: medium。厨房/浴室。",
+    "rationale": "BBC SFX 类别 #8。Layer 2 典型音量 -18 dBFS。短剧占比 ~5%。",
+    "extra_data": {
+      "category_idx": 8,
+      "name_en": "household",
+      "name_cn": "Household / 家居",
+      "layer": 2,
+      "dbfs": -18,
+      "shortdrama_usage": "medium",
+      "usage_pct": 5,
+      "note": "厨房/浴室"
+    },
+    "source_file": "foley/sound-effect-taxonomy.md",
+    "source_section": "BBC 21-Category SFX Taxonomy",
+    "tags": ["audio_pipeline", "foley_sfx_category", "household"],
+    "priority": 60
+  },
+  {
+    "category": "foley_sfx_category",
+    "key_name": "sfx_office",
+    "key_type": "sfx_category",
+    "primary_recommendation": "#9 Office / 办公 — 短剧 高频使用: high。键盘/打印机/电话。",
+    "rationale": "BBC SFX 类别 #9。Layer 3 典型音量 -15 dBFS。短剧占比 ~5%。",
+    "extra_data": {
+      "category_idx": 9,
+      "name_en": "office",
+      "name_cn": "Office / 办公",
+      "layer": 3,
+      "dbfs": -15,
+      "shortdrama_usage": "high",
+      "usage_pct": 5,
+      "note": "键盘/打印机/电话"
+    },
+    "source_file": "foley/sound-effect-taxonomy.md",
+    "source_section": "BBC 21-Category SFX Taxonomy",
+    "tags": ["audio_pipeline", "foley_sfx_category", "office"],
+    "priority": 65
+  },
+  {
+    "category": "foley_sfx_category",
+    "key_name": "sfx_industrial",
+    "key_type": "sfx_category",
+    "primary_recommendation": "#10 Industrial / 工业 — 短剧 高频使用: low。工厂/机械。",
+    "rationale": "BBC SFX 类别 #10。Layer 2 典型音量 -18 dBFS。",
+    "extra_data": {
+      "category_idx": 10,
+      "name_en": "industrial",
+      "name_cn": "Industrial / 工业",
+      "layer": 2,
+      "dbfs": -18,
+      "shortdrama_usage": "low",
+      "usage_pct": null,
+      "note": "工厂/机械"
+    },
+    "source_file": "foley/sound-effect-taxonomy.md",
+    "source_section": "BBC 21-Category SFX Taxonomy",
+    "tags": ["audio_pipeline", "foley_sfx_category", "industrial"],
+    "priority": 60
+  },
+  {
+    "category": "foley_sfx_category",
+    "key_name": "sfx_machinery",
+    "key_type": "sfx_category",
+    "primary_recommendation": "#11 Machinery / 机械 — 短剧 高频使用: low。工厂/机械。",
+    "rationale": "BBC SFX 类别 #11。Layer 2 典型音量 -18 dBFS。",
+    "extra_data": {
+      "category_idx": 11,
+      "name_en": "machinery",
+      "name_cn": "Machinery / 机械",
+      "layer": 2,
+      "dbfs": -18,
+      "shortdrama_usage": "low",
+      "usage_pct": null,
+      "note": "工厂/机械"
+    },
+    "source_file": "foley/sound-effect-taxonomy.md",
+    "source_section": "BBC 21-Category SFX Taxonomy",
+    "tags": ["audio_pipeline", "foley_sfx_category", "machinery"],
+    "priority": 60
+  },
+  {
+    "category": "foley_sfx_category",
+    "key_name": "sfx_communications",
+    "key_type": "sfx_category",
+    "primary_recommendation": "#12 Communications / 通讯 — 短剧 高频使用: very_high。电话铃/短信提示音/微信。",
+    "rationale": "BBC SFX 类别 #12。Layer 4 典型音量 -10 dBFS。短剧占比 ~25%。",
+    "extra_data": {
+      "category_idx": 12,
+      "name_en": "communications",
+      "name_cn": "Communications / 通讯",
+      "layer": 4,
+      "dbfs": -10,
+      "shortdrama_usage": "very_high",
+      "usage_pct": 25,
+      "note": "电话铃/短信提示音/微信"
+    },
+    "source_file": "foley/sound-effect-taxonomy.md",
+    "source_section": "BBC 21-Category SFX Taxonomy",
+    "tags": ["audio_pipeline", "foley_sfx_category", "communications"],
+    "priority": 65
+  },
+  {
+    "category": "foley_sfx_category",
+    "key_name": "sfx_sports",
+    "key_type": "sfx_category",
+    "primary_recommendation": "#13 Sports / 运动 — 短剧 高频使用: low。—。",
+    "rationale": "BBC SFX 类别 #13。Layer 3 典型音量 -15 dBFS。",
+    "extra_data": {
+      "category_idx": 13,
+      "name_en": "sports",
+      "name_cn": "Sports / 运动",
+      "layer": 3,
+      "dbfs": -15,
+      "shortdrama_usage": "low",
+      "usage_pct": null,
+      "note": "—"
+    },
+    "source_file": "foley/sound-effect-taxonomy.md",
+    "source_section": "BBC 21-Category SFX Taxonomy",
+    "tags": ["audio_pipeline", "foley_sfx_category", "sports"],
+    "priority": 60
+  },
+  {
+    "category": "foley_sfx_category",
+    "key_name": "sfx_toys",
+    "key_type": "sfx_category",
+    "primary_recommendation": "#14 Toys / 玩具 — 短剧 高频使用: very_low。—。",
+    "rationale": "BBC SFX 类别 #14。Layer 3 典型音量 -15 dBFS。",
+    "extra_data": {
+      "category_idx": 14,
+      "name_en": "toys",
+      "name_cn": "Toys / 玩具",
+      "layer": 3,
+      "dbfs": -15,
+      "shortdrama_usage": "very_low",
+      "usage_pct": null,
+      "note": "—"
+    },
+    "source_file": "foley/sound-effect-taxonomy.md",
+    "source_section": "BBC 21-Category SFX Taxonomy",
+    "tags": ["audio_pipeline", "foley_sfx_category", "toys"],
+    "priority": 60
+  },
+  {
+    "category": "foley_sfx_category",
+    "key_name": "sfx_weapons",
+    "key_type": "sfx_category",
+    "primary_recommendation": "#15 Weapons / 武器 — 短剧 高频使用: high_male。枪声/拳击/刀剑(男频)。",
+    "rationale": "BBC SFX 类别 #15。Layer 4 典型音量 -10 dBFS。",
+    "extra_data": {
+      "category_idx": 15,
+      "name_en": "weapons",
+      "name_cn": "Weapons / 武器",
+      "layer": 4,
+      "dbfs": -10,
+      "shortdrama_usage": "high_male",
+      "usage_pct": null,
+      "note": "枪声/拳击/刀剑(男频)"
+    },
+    "source_file": "foley/sound-effect-taxonomy.md",
+    "source_section": "BBC 21-Category SFX Taxonomy",
+    "tags": ["audio_pipeline", "foley_sfx_category", "weapons"],
+    "priority": 60
+  },
+  {
+    "category": "foley_sfx_category",
+    "key_name": "sfx_water",
+    "key_type": "sfx_category",
+    "primary_recommendation": "#16 Water / 水 — 短剧 高频使用: medium。流水/浪/雨。",
+    "rationale": "BBC SFX 类别 #16。Layer 2 典型音量 -18 dBFS。",
+    "extra_data": {
+      "category_idx": 16,
+      "name_en": "water",
+      "name_cn": "Water / 水",
+      "layer": 2,
+      "dbfs": -18,
+      "shortdrama_usage": "medium",
+      "usage_pct": null,
+      "note": "流水/浪/雨"
+    },
+    "source_file": "foley/sound-effect-taxonomy.md",
+    "source_section": "BBC 21-Category SFX Taxonomy",
+    "tags": ["audio_pipeline", "foley_sfx_category", "water"],
+    "priority": 60
+  },
+  {
+    "category": "foley_sfx_category",
+    "key_name": "sfx_magical",
+    "key_type": "sfx_category",
+    "primary_recommendation": "#17 Magical / 魔幻 — 短剧 高频使用: medium_fantasy。法术/飞行(玄幻题材)。",
+    "rationale": "BBC SFX 类别 #17。Layer 4 典型音量 -10 dBFS。",
+    "extra_data": {
+      "category_idx": 17,
+      "name_en": "magical",
+      "name_cn": "Magical / 魔幻",
+      "layer": 4,
+      "dbfs": -10,
+      "shortdrama_usage": "medium_fantasy",
+      "usage_pct": null,
+      "note": "法术/飞行(玄幻题材)"
+    },
+    "source_file": "foley/sound-effect-taxonomy.md",
+    "source_section": "BBC 21-Category SFX Taxonomy",
+    "tags": ["audio_pipeline", "foley_sfx_category", "magical"],
+    "priority": 60
+  },
+  {
+    "category": "foley_sfx_category",
+    "key_name": "sfx_human_sounds",
+    "key_type": "sfx_category",
+    "primary_recommendation": "#18 Human sounds / 人声 — 短剧 高频使用: very_high。呼吸/叹气/笑。",
+    "rationale": "BBC SFX 类别 #18。Layer 2 典型音量 -18 dBFS。短剧占比 ~10%。",
+    "extra_data": {
+      "category_idx": 18,
+      "name_en": "human_sounds",
+      "name_cn": "Human sounds / 人声",
+      "layer": 2,
+      "dbfs": -18,
+      "shortdrama_usage": "very_high",
+      "usage_pct": 10,
+      "note": "呼吸/叹气/笑"
+    },
+    "source_file": "foley/sound-effect-taxonomy.md",
+    "source_section": "BBC 21-Category SFX Taxonomy",
+    "tags": ["audio_pipeline", "foley_sfx_category", "human_sounds"],
+    "priority": 65
+  },
+  {
+    "category": "foley_sfx_category",
+    "key_name": "sfx_food",
+    "key_type": "sfx_category",
+    "primary_recommendation": "#19 Food / 食物 — 短剧 高频使用: low。咀嚼/倒水。",
+    "rationale": "BBC SFX 类别 #19。Layer 2 典型音量 -18 dBFS。",
+    "extra_data": {
+      "category_idx": 19,
+      "name_en": "food",
+      "name_cn": "Food / 食物",
+      "layer": 2,
+      "dbfs": -18,
+      "shortdrama_usage": "low",
+      "usage_pct": null,
+      "note": "咀嚼/倒水"
+    },
+    "source_file": "foley/sound-effect-taxonomy.md",
+    "source_section": "BBC 21-Category SFX Taxonomy",
+    "tags": ["audio_pipeline", "foley_sfx_category", "food"],
+    "priority": 60
+  },
+  {
+    "category": "foley_sfx_category",
+    "key_name": "sfx_medical",
+    "key_type": "sfx_category",
+    "primary_recommendation": "#20 Medical / 医疗 — 短剧 高频使用: low。心跳/手术。",
+    "rationale": "BBC SFX 类别 #20。Layer 3 典型音量 -15 dBFS。",
+    "extra_data": {
+      "category_idx": 20,
+      "name_en": "medical",
+      "name_cn": "Medical / 医疗",
+      "layer": 3,
+      "dbfs": -15,
+      "shortdrama_usage": "low",
+      "usage_pct": null,
+      "note": "心跳/手术"
+    },
+    "source_file": "foley/sound-effect-taxonomy.md",
+    "source_section": "BBC 21-Category SFX Taxonomy",
+    "tags": ["audio_pipeline", "foley_sfx_category", "medical"],
+    "priority": 60
+  },
+  {
+    "category": "foley_sfx_category",
+    "key_name": "sfx_scifi",
+    "key_type": "sfx_category",
+    "primary_recommendation": "#21 Sci-fi / 科幻 — 短剧 高频使用: medium_scifi。飞船/激光(科幻题材)。",
+    "rationale": "BBC SFX 类别 #21。Layer 4 典型音量 -10 dBFS。",
+    "extra_data": {
+      "category_idx": 21,
+      "name_en": "scifi",
+      "name_cn": "Sci-fi / 科幻",
+      "layer": 4,
+      "dbfs": -10,
+      "shortdrama_usage": "medium_scifi",
+      "usage_pct": null,
+      "note": "飞船/激光(科幻题材)"
+    },
+    "source_file": "foley/sound-effect-taxonomy.md",
+    "source_section": "BBC 21-Category SFX Taxonomy",
+    "tags": ["audio_pipeline", "foley_sfx_category", "scifi"],
+    "priority": 60
+  },
+  {
+    "category": "foley_sfx_category",
+    "key_name": "sfx_scene_3_layers",
+    "key_type": "sfx_category",
+    "primary_recommendation": "每个 scene 必含 3 类 SFX:Atmosphere(背景层)/ Action-Foley(动作层)/ Spot-Highlight(强调层)。",
+    "extra_data": {
+      "layers": ["Atmosphere / ambience bed", "Action / Foley", "Spot / Highlight"]
+    },
+    "source_file": "foley/sound-effect-taxonomy.md",
+    "source_section": "3 类必备 SFX per scene",
+    "tags": ["audio_pipeline", "foley_sfx_category", "scene_protocol"],
+    "priority": 66
+  },
+  {
+    "category": "lufs_standard",
+    "key_name": "douyin_lufs",
+    "key_type": "lufs",
+    "primary_recommendation": "抖音: -14 LUFS integrated,True Peak ≤ -1 dBTP。短剧 标准。",
+    "rationale": "per ITU-R BS.1770-4 + AES Streaming Loudness + platform specs(2026)。Integrated 必须 = target ±0.5 LUFS tolerance。",
+    "extra_data": {
+      "platform": "douyin",
+      "platform_label": "抖音",
+      "lufs_target": -14,
+      "lufs_range": [-15, -13],
+      "true_peak_dbtp": -1,
+      "note": "短剧 标准"
+    },
+    "source_file": "mixer/mixing-secrets-small-studio.md",
+    "source_section": "Per-platform LUFS targets",
+    "tags": ["audio_pipeline", "lufs_standard", "douyin"],
+    "priority": 64
+  },
+  {
+    "category": "lufs_standard",
+    "key_name": "kuaishou_lufs",
+    "key_type": "lufs",
+    "primary_recommendation": "快手: -14 LUFS integrated,True Peak ≤ -1 dBTP。同抖音。",
+    "rationale": "per ITU-R BS.1770-4 + AES Streaming Loudness + platform specs(2026)。Integrated 必须 = target ±0.5 LUFS tolerance。",
+    "extra_data": {
+      "platform": "kuaishou",
+      "platform_label": "快手",
+      "lufs_target": -14,
+      "lufs_range": [-15, -13],
+      "true_peak_dbtp": -1,
+      "note": "同抖音"
+    },
+    "source_file": "mixer/mixing-secrets-small-studio.md",
+    "source_section": "Per-platform LUFS targets",
+    "tags": ["audio_pipeline", "lufs_standard", "kuaishou"],
+    "priority": 64
+  },
+  {
+    "category": "lufs_standard",
+    "key_name": "mini_program_lufs",
+    "key_type": "lufs",
+    "primary_recommendation": "小程序剧: -14 LUFS integrated,True Peak ≤ -1 dBTP。同抖音。",
+    "rationale": "per ITU-R BS.1770-4 + AES Streaming Loudness + platform specs(2026)。Integrated 必须 = target ±0.5 LUFS tolerance。",
+    "extra_data": {
+      "platform": "mini_program",
+      "platform_label": "小程序剧",
+      "lufs_target": -14,
+      "lufs_range": [-15, -13],
+      "true_peak_dbtp": -1,
+      "note": "同抖音"
+    },
+    "source_file": "mixer/mixing-secrets-small-studio.md",
+    "source_section": "Per-platform LUFS targets",
+    "tags": ["audio_pipeline", "lufs_standard", "mini_program"],
+    "priority": 64
+  },
+  {
+    "category": "lufs_standard",
+    "key_name": "shipinhao_lufs",
+    "key_type": "lufs",
+    "primary_recommendation": "视频号: -16 LUFS integrated,True Peak ≤ -1 dBTP。较安静。",
+    "rationale": "per ITU-R BS.1770-4 + AES Streaming Loudness + platform specs(2026)。Integrated 必须 = target ±0.5 LUFS tolerance。",
+    "extra_data": {
+      "platform": "shipinhao",
+      "platform_label": "视频号",
+      "lufs_target": -16,
+      "lufs_range": [-17, -15],
+      "true_peak_dbtp": -1,
+      "note": "较安静"
+    },
+    "source_file": "mixer/mixing-secrets-small-studio.md",
+    "source_section": "Per-platform LUFS targets",
+    "tags": ["audio_pipeline", "lufs_standard", "shipinhao"],
+    "priority": 64
+  },
+  {
+    "category": "lufs_standard",
+    "key_name": "tiktok_lufs",
+    "key_type": "lufs",
+    "primary_recommendation": "TikTok: -14 LUFS integrated,True Peak ≤ -1 dBTP。全球标准。",
+    "rationale": "per ITU-R BS.1770-4 + AES Streaming Loudness + platform specs(2026)。Integrated 必须 = target ±0.5 LUFS tolerance。",
+    "extra_data": {
+      "platform": "tiktok",
+      "platform_label": "TikTok",
+      "lufs_target": -14,
+      "lufs_range": [-15, -13],
+      "true_peak_dbtp": -1,
+      "note": "全球标准"
+    },
+    "source_file": "mixer/mixing-secrets-small-studio.md",
+    "source_section": "Per-platform LUFS targets",
+    "tags": ["audio_pipeline", "lufs_standard", "tiktok"],
+    "priority": 64
+  },
+  {
+    "category": "lufs_standard",
+    "key_name": "youtube_lufs",
+    "key_type": "lufs",
+    "primary_recommendation": "YouTube: -14 LUFS integrated,True Peak ≤ -1 dBTP。全球标准。",
+    "rationale": "per ITU-R BS.1770-4 + AES Streaming Loudness + platform specs(2026)。Integrated 必须 = target ±0.5 LUFS tolerance。",
+    "extra_data": {
+      "platform": "youtube",
+      "platform_label": "YouTube",
+      "lufs_target": -14,
+      "lufs_range": [-15, -13],
+      "true_peak_dbtp": -1,
+      "note": "全球标准"
+    },
+    "source_file": "mixer/mixing-secrets-small-studio.md",
+    "source_section": "Per-platform LUFS targets",
+    "tags": ["audio_pipeline", "lufs_standard", "youtube"],
+    "priority": 64
+  },
+  {
+    "category": "lufs_standard",
+    "key_name": "spotify_lufs",
+    "key_type": "lufs",
+    "primary_recommendation": "Spotify: -14 LUFS integrated,True Peak ≤ -1 dBTP。全球标准。",
+    "rationale": "per ITU-R BS.1770-4 + AES Streaming Loudness + platform specs(2026)。Integrated 必须 = target ±0.5 LUFS tolerance。",
+    "extra_data": {
+      "platform": "spotify",
+      "platform_label": "Spotify",
+      "lufs_target": -14,
+      "lufs_range": [-15, -13],
+      "true_peak_dbtp": -1,
+      "note": "全球标准"
+    },
+    "source_file": "mixer/mixing-secrets-small-studio.md",
+    "source_section": "Per-platform LUFS targets",
+    "tags": ["audio_pipeline", "lufs_standard", "spotify"],
+    "priority": 64
+  },
+  {
+    "category": "lufs_standard",
+    "key_name": "apple_music_lufs",
+    "key_type": "lufs",
+    "primary_recommendation": "Apple Music: -16 LUFS integrated,True Peak ≤ -1 dBTP。较安静。",
+    "rationale": "per ITU-R BS.1770-4 + AES Streaming Loudness + platform specs(2026)。Integrated 必须 = target ±0.5 LUFS tolerance。",
+    "extra_data": {
+      "platform": "apple_music",
+      "platform_label": "Apple Music",
+      "lufs_target": -16,
+      "lufs_range": [-17, -15],
+      "true_peak_dbtp": -1,
+      "note": "较安静"
+    },
+    "source_file": "mixer/mixing-secrets-small-studio.md",
+    "source_section": "Per-platform LUFS targets",
+    "tags": ["audio_pipeline", "lufs_standard", "apple_music"],
+    "priority": 64
+  },
+  {
+    "category": "lufs_standard",
+    "key_name": "cinema_lufs",
+    "key_type": "lufs",
+    "primary_recommendation": "影院: -27 LUFS integrated,True Peak ≤ -2 dBTP。theatrical mix。",
+    "rationale": "per ITU-R BS.1770-4 + AES Streaming Loudness + platform specs(2026)。Integrated 必须 = target ±0.5 LUFS tolerance。",
+    "extra_data": {
+      "platform": "cinema",
+      "platform_label": "影院",
+      "lufs_target": -27,
+      "lufs_range": [-28, -26],
+      "true_peak_dbtp": -2,
+      "note": "theatrical mix"
+    },
+    "source_file": "mixer/mixing-secrets-small-studio.md",
+    "source_section": "Per-platform LUFS targets",
+    "tags": ["audio_pipeline", "lufs_standard", "cinema"],
+    "priority": 64
+  },
+  {
+    "category": "lufs_standard",
+    "key_name": "loudness_penalty_rule",
+    "key_type": "lufs",
+    "primary_recommendation": "Mix to -14 LUFS integrated;需更响用 limiter(非 compressor)避免 pumping。",
+    "rationale": "若 mix target = -10 LUFS(过响),platforms 自动 normalize 到 -14 LUFS,导致动态范围压缩 + audible pumping。",
+    "extra_data": {
+      "rule": "mix to target LUFS; louder via limiter not compressor"
+    },
+    "source_file": "mixer/mixing-secrets-small-studio.md",
+    "source_section": "Loudness penalty 规避",
+    "tags": ["audio_pipeline", "lufs_standard", "loudness_penalty"],
+    "priority": 66
+  },
+  {
+    "category": "lufs_standard",
+    "key_name": "ffmpeg_two_pass_loudnorm",
+    "key_type": "lufs",
+    "primary_recommendation": "ffmpeg two-pass loudnorm: Pass1 measure(I=-14:TP=-1:LRA=11:print_format=json)→ Pass2 apply measured values。",
+    "extra_data": {
+      "tool": "ffmpeg loudnorm",
+      "pass1": "loudnorm=I=-14:TP=-1:LRA=11:print_format=json",
+      "pass2": "loudnorm=...:measured_I=<p1>:measured_TP=<p1>:measured_LRA=<p1>",
+      "I": -14,
+      "TP": -1,
+      "LRA": 11
+    },
+    "source_file": "mixer/lufs-standards.md",
+    "source_section": "ffmpeg two-pass loudnorm",
+    "tags": ["audio_pipeline", "lufs_standard", "ffmpeg", "loudnorm"],
+    "priority": 62
+  },
+  {
+    "category": "lufs_standard",
+    "key_name": "compliance_check_protocol",
+    "key_type": "lufs",
+    "primary_recommendation": "Final mix 必须 verify:Integrated ±0.5 LUFS / True Peak ≤ -1 dBTP / LRA 7-15 / 无 silence >3s / 48kHz。",
+    "extra_data": {
+      "checks": {
+        "integrated_tolerance_lufs": 0.5,
+        "true_peak_max_dbtp": -1,
+        "lra_range": [7, 15],
+        "max_silence_sec": 3,
+        "sample_rate_hz": 48000
+      }
+    },
+    "source_file": "mixer/lufs-standards.md",
+    "source_section": "Compliance check protocol",
+    "tags": ["audio_pipeline", "lufs_standard", "compliance"],
+    "priority": 65
+  },
+  {
+    "category": "frequency_band_owner",
+    "key_name": "band_sub_bass",
+    "key_type": "frequency_band",
+    "primary_recommendation": "20-80 Hz → Sub-bass SFX。Reserved for impact (explosion/impact)。",
+    "extra_data": {
+      "freq_range_hz": [20, 80],
+      "owner": "Sub-bass SFX",
+      "note": "Reserved for impact (explosion/impact)",
+      "ducking_priority": 1
+    },
+    "source_file": "mixer/mixing-secrets-small-studio.md",
+    "source_section": "5 大频段职责分配",
+    "tags": ["audio_pipeline", "frequency_band_owner", "sub_bass"],
+    "priority": 61
+  },
+  {
+    "category": "frequency_band_owner",
+    "key_name": "band_bass",
+    "key_type": "frequency_band",
+    "primary_recommendation": "80-200 Hz → Music bass / Foley low。Music + SFX share。",
+    "extra_data": {
+      "freq_range_hz": [80, 200],
+      "owner": "Music bass / Foley low",
+      "note": "Music + SFX share",
+      "ducking_priority": 1
+    },
+    "source_file": "mixer/mixing-secrets-small-studio.md",
+    "source_section": "5 大频段职责分配",
+    "tags": ["audio_pipeline", "frequency_band_owner", "bass"],
+    "priority": 61
+  },
+  {
+    "category": "frequency_band_owner",
+    "key_name": "band_low_mid",
+    "key_type": "frequency_band",
+    "primary_recommendation": "200-500 Hz → Music low-mid + dialogue warmth。Conflict zone — ducking required。",
+    "extra_data": {
+      "freq_range_hz": [200, 500],
+      "owner": "Music low-mid + dialogue warmth",
+      "note": "Conflict zone — ducking required",
+      "ducking_priority": 3
+    },
+    "source_file": "mixer/mixing-secrets-small-studio.md",
+    "source_section": "5 大频段职责分配",
+    "tags": ["audio_pipeline", "frequency_band_owner", "low_mid"],
+    "priority": 63
+  },
+  {
+    "category": "frequency_band_owner",
+    "key_name": "band_dialogue_intelligibility",
+    "key_type": "frequency_band",
+    "primary_recommendation": "500-2000 Hz → Dialogue intelligibility。Dialogue priority, music carve EQ。",
+    "extra_data": {
+      "freq_range_hz": [500, 2000],
+      "owner": "Dialogue intelligibility",
+      "note": "Dialogue priority, music carve EQ",
+      "ducking_priority": 5
+    },
+    "source_file": "mixer/mixing-secrets-small-studio.md",
+    "source_section": "5 大频段职责分配",
+    "tags": ["audio_pipeline", "frequency_band_owner", "dialogue_intelligibility"],
+    "priority": 65
+  },
+  {
+    "category": "frequency_band_owner",
+    "key_name": "band_dialogue_presence",
+    "key_type": "frequency_band",
+    "primary_recommendation": "2000-6000 Hz → Dialogue presence + SFX。Shared but dialogue dominant。",
+    "extra_data": {
+      "freq_range_hz": [2000, 6000],
+      "owner": "Dialogue presence + SFX",
+      "note": "Shared but dialogue dominant",
+      "ducking_priority": 4
+    },
+    "source_file": "mixer/mixing-secrets-small-studio.md",
+    "source_section": "5 大频段职责分配",
+    "tags": ["audio_pipeline", "frequency_band_owner", "dialogue_presence"],
+    "priority": 64
+  },
+  {
+    "category": "frequency_band_owner",
+    "key_name": "band_high_detail",
+    "key_type": "frequency_band",
+    "primary_recommendation": "6000-20000 Hz → Music high + SFX detail。Music + SFX share。",
+    "extra_data": {
+      "freq_range_hz": [6000, 20000],
+      "owner": "Music high + SFX detail",
+      "note": "Music + SFX share",
+      "ducking_priority": 2
+    },
+    "source_file": "mixer/mixing-secrets-small-studio.md",
+    "source_section": "5 大频段职责分配",
+    "tags": ["audio_pipeline", "frequency_band_owner", "high_detail"],
+    "priority": 62
+  },
+  {
+    "category": "frequency_band_owner",
+    "key_name": "dialogue_ducking_params",
+    "key_type": "frequency_band",
+    "primary_recommendation": "Dialogue ducking: Threshold -25 dBFS / Reduction -6~-12 dB / Attack 50-100ms / Release 300-500ms。",
+    "extra_data": {
+      "threshold_dbfs": -25,
+      "reduction_depth_db": [-6, -12],
+      "attack_ms": [50, 100],
+      "release_ms": [300, 500]
+    },
+    "source_file": "mixer/mixing-secrets-small-studio.md",
+    "source_section": "Dialogue ducking 4 参数",
+    "tags": ["audio_pipeline", "frequency_band_owner", "ducking"],
+    "priority": 66
+  },
+  {
+    "category": "frequency_band_owner",
+    "key_name": "dialogue_eq_carve",
+    "key_type": "frequency_band",
+    "primary_recommendation": "Dialogue priority EQ carve on music:1500Hz -4dB(Q1.5)/ 2500Hz -3dB(Q1.2)/ 3500Hz -2dB(Q1.0)。",
+    "extra_data": {
+      "carve_points": [{"freq_hz": 1500, "q": 1.5, "gain_db": -4}, {"freq_hz": 2500, "q": 1.2, "gain_db": -3}, {"freq_hz": 3500, "q": 1.0, "gain_db": -2}]
+    },
+    "source_file": "mixer/mixing-secrets-small-studio.md",
+    "source_section": "EQ carve protocol",
+    "tags": ["audio_pipeline", "frequency_band_owner", "eq_carve"],
+    "priority": 63
+  },
+  {
+    "category": "lip_sync_benchmark",
+    "key_name": "lipsync_wav2lip",
+    "key_type": "lip_sync_metric",
+    "primary_recommendation": "Wav2Lip: LRS2 LSE 7.32 / LSE-C 6.91; LRS3 LSE 7.46 / LSE-C 6.84。2020 baseline。",
+    "rationale": "LSE(Lip Sync Error-Distance)lower=better;LSE-C(Confidence)higher=better。LRS2/LRS3 = 国际标准 benchmark。",
+    "extra_data": {
+      "model": "Wav2Lip",
+      "lrs2_lse": 7.32,
+      "lrs2_lsec": 6.91,
+      "lrs3_lse": 7.46,
+      "lrs3_lsec": 6.84,
+      "note": "2020 baseline",
+      "metric_definition": "LSE=avg Euclidean dist in SyncNet emb space; LSE-C=dist improvement vs off-sync"
+    },
+    "source_file": "lip_sync/sync-quality-metrics.md",
+    "source_section": "Industry SOTA benchmarks",
+    "tags": ["audio_pipeline", "lip_sync_benchmark", "wav2lip"],
+    "priority": 64
+  },
+  {
+    "category": "lip_sync_benchmark",
+    "key_name": "lipsync_musetalk",
+    "key_type": "lip_sync_metric",
+    "primary_recommendation": "MuseTalk: LRS2 LSE 6.85 / LSE-C 7.12; LRS3 LSE 7.01 / LSE-C 7.08。2024。",
+    "rationale": "LSE(Lip Sync Error-Distance)lower=better;LSE-C(Confidence)higher=better。LRS2/LRS3 = 国际标准 benchmark。",
+    "extra_data": {
+      "model": "MuseTalk",
+      "lrs2_lse": 6.85,
+      "lrs2_lsec": 7.12,
+      "lrs3_lse": 7.01,
+      "lrs3_lsec": 7.08,
+      "note": "2024",
+      "metric_definition": "LSE=avg Euclidean dist in SyncNet emb space; LSE-C=dist improvement vs off-sync"
+    },
+    "source_file": "lip_sync/sync-quality-metrics.md",
+    "source_section": "Industry SOTA benchmarks",
+    "tags": ["audio_pipeline", "lip_sync_benchmark", "musetalk"],
+    "priority": 64
+  },
+  {
+    "category": "lip_sync_benchmark",
+    "key_name": "lipsync_synctalk",
+    "key_type": "lip_sync_metric",
+    "primary_recommendation": "SyncTalk: LRS2 LSE 6.42 / LSE-C 7.45; LRS3 LSE 6.58 / LSE-C 7.41。2024。",
+    "rationale": "LSE(Lip Sync Error-Distance)lower=better;LSE-C(Confidence)higher=better。LRS2/LRS3 = 国际标准 benchmark。",
+    "extra_data": {
+      "model": "SyncTalk",
+      "lrs2_lse": 6.42,
+      "lrs2_lsec": 7.45,
+      "lrs3_lse": 6.58,
+      "lrs3_lsec": 7.41,
+      "note": "2024",
+      "metric_definition": "LSE=avg Euclidean dist in SyncNet emb space; LSE-C=dist improvement vs off-sync"
+    },
+    "source_file": "lip_sync/sync-quality-metrics.md",
+    "source_section": "Industry SOTA benchmarks",
+    "tags": ["audio_pipeline", "lip_sync_benchmark", "synctalk"],
+    "priority": 64
+  },
+  {
+    "category": "lip_sync_benchmark",
+    "key_name": "lipsync_latentsync_v1_5",
+    "key_type": "lip_sync_metric",
+    "primary_recommendation": "LatentSync_v1_5: LRS2 LSE 5.89 / LSE-C 7.81; LRS3 LSE 5.95 / LSE-C 7.78。2024。",
+    "rationale": "LSE(Lip Sync Error-Distance)lower=better;LSE-C(Confidence)higher=better。LRS2/LRS3 = 国际标准 benchmark。",
+    "extra_data": {
+      "model": "LatentSync_v1_5",
+      "lrs2_lse": 5.89,
+      "lrs2_lsec": 7.81,
+      "lrs3_lse": 5.95,
+      "lrs3_lsec": 7.78,
+      "note": "2024",
+      "metric_definition": "LSE=avg Euclidean dist in SyncNet emb space; LSE-C=dist improvement vs off-sync"
+    },
+    "source_file": "lip_sync/sync-quality-metrics.md",
+    "source_section": "Industry SOTA benchmarks",
+    "tags": ["audio_pipeline", "lip_sync_benchmark", "latentsync_v1_5"],
+    "priority": 64
+  },
+  {
+    "category": "lip_sync_benchmark",
+    "key_name": "lipsync_latentsync_v1_6",
+    "key_type": "lip_sync_metric",
+    "primary_recommendation": "LatentSync_v1_6: LRS2 LSE 5.13 / LSE-C 8.25; LRS3 LSE 5.28 / LSE-C 8.19。2024 SOTA。",
+    "rationale": "LSE(Lip Sync Error-Distance)lower=better;LSE-C(Confidence)higher=better。LRS2/LRS3 = 国际标准 benchmark。",
+    "extra_data": {
+      "model": "LatentSync_v1_6",
+      "lrs2_lse": 5.13,
+      "lrs2_lsec": 8.25,
+      "lrs3_lse": 5.28,
+      "lrs3_lsec": 8.19,
+      "note": "2024 SOTA",
+      "metric_definition": "LSE=avg Euclidean dist in SyncNet emb space; LSE-C=dist improvement vs off-sync"
+    },
+    "source_file": "lip_sync/sync-quality-metrics.md",
+    "source_section": "Industry SOTA benchmarks",
+    "tags": ["audio_pipeline", "lip_sync_benchmark", "latentsync_v1_6"],
+    "priority": 72
+  },
+  {
+    "category": "lip_sync_benchmark",
+    "key_name": "lipsync_heygen",
+    "key_type": "lip_sync_metric",
+    "primary_recommendation": "HeyGen: LRS2 LSE 5.0 / LSE-C 8.3; LRS3 LSE 5.1 / LSE-C 8.2。commercial 2025 est。",
+    "rationale": "LSE(Lip Sync Error-Distance)lower=better;LSE-C(Confidence)higher=better。LRS2/LRS3 = 国际标准 benchmark。",
+    "extra_data": {
+      "model": "HeyGen",
+      "lrs2_lse": 5.0,
+      "lrs2_lsec": 8.3,
+      "lrs3_lse": 5.1,
+      "lrs3_lsec": 8.2,
+      "note": "commercial 2025 est",
+      "metric_definition": "LSE=avg Euclidean dist in SyncNet emb space; LSE-C=dist improvement vs off-sync"
+    },
+    "source_file": "lip_sync/sync-quality-metrics.md",
+    "source_section": "Industry SOTA benchmarks",
+    "tags": ["audio_pipeline", "lip_sync_benchmark", "heygen"],
+    "priority": 64
+  },
+  {
+    "category": "lip_sync_benchmark",
+    "key_name": "lipsync_sota_target",
+    "key_type": "lip_sync_metric",
+    "primary_recommendation": "SOTA target:match or exceed LatentSync v1.6(LSE ≤ 5.5 on LRS2, LSE-C ≥ 8.0 on LRS2)。",
+    "extra_data": {
+      "target_model": "LatentSync v1.6",
+      "lrs2_lse_max": 5.5,
+      "lrs2_lsec_min": 8.0
+    },
+    "source_file": "lip_sync/sync-quality-metrics.md",
+    "source_section": "Industry SOTA benchmarks",
+    "tags": ["audio_pipeline", "lip_sync_benchmark", "sota_target"],
+    "priority": 70
+  },
+  {
+    "category": "lip_sync_benchmark",
+    "key_name": "lipsync_grade_A_excellent",
+    "key_type": "lip_sync_metric",
+    "primary_recommendation": "Grade A: LSE <=6.0 / LSE-C >=7.5 / SyncNet conf >=0.85 → Final delivery。",
+    "extra_data": {
+      "grade": "A",
+      "lse": "<=6.0",
+      "lsec": ">=7.5",
+      "syncnet_conf": ">=0.85",
+      "use_case": "Final delivery"
+    },
+    "source_file": "lip_sync/sync-quality-metrics.md",
+    "source_section": "Quality grade thresholds",
+    "tags": ["audio_pipeline", "lip_sync_benchmark", "grade", "a"],
+    "priority": 62
+  },
+  {
+    "category": "lip_sync_benchmark",
+    "key_name": "lipsync_grade_B_acceptable",
+    "key_type": "lip_sync_metric",
+    "primary_recommendation": "Grade B: LSE 6.0-7.0 / LSE-C 6.5-7.5 / SyncNet conf 0.75-0.85 → Draft / review pass。",
+    "extra_data": {
+      "grade": "B",
+      "lse": "6.0-7.0",
+      "lsec": "6.5-7.5",
+      "syncnet_conf": "0.75-0.85",
+      "use_case": "Draft / review pass"
+    },
+    "source_file": "lip_sync/sync-quality-metrics.md",
+    "source_section": "Quality grade thresholds",
+    "tags": ["audio_pipeline", "lip_sync_benchmark", "grade", "b"],
+    "priority": 62
+  },
+  {
+    "category": "lip_sync_benchmark",
+    "key_name": "lipsync_grade_C_marginal",
+    "key_type": "lip_sync_metric",
+    "primary_recommendation": "Grade C: LSE 7.0-8.5 / LSE-C 5.5-6.5 / SyncNet conf 0.65-0.75 → Preview only。",
+    "extra_data": {
+      "grade": "C",
+      "lse": "7.0-8.5",
+      "lsec": "5.5-6.5",
+      "syncnet_conf": "0.65-0.75",
+      "use_case": "Preview only"
+    },
+    "source_file": "lip_sync/sync-quality-metrics.md",
+    "source_section": "Quality grade thresholds",
+    "tags": ["audio_pipeline", "lip_sync_benchmark", "grade", "c"],
+    "priority": 62
+  },
+  {
+    "category": "lip_sync_benchmark",
+    "key_name": "lipsync_grade_D_failed",
+    "key_type": "lip_sync_metric",
+    "primary_recommendation": "Grade D: LSE >8.5 / LSE-C <5.5 / SyncNet conf <0.65 → Reject; re-examine input。",
+    "extra_data": {
+      "grade": "D",
+      "lse": ">8.5",
+      "lsec": "<5.5",
+      "syncnet_conf": "<0.65",
+      "use_case": "Reject; re-examine input"
+    },
+    "source_file": "lip_sync/sync-quality-metrics.md",
+    "source_section": "Quality grade thresholds",
+    "tags": ["audio_pipeline", "lip_sync_benchmark", "grade", "d"],
+    "priority": 62
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "bgm_genre_male_revenge",
+    "key_type": "bgm",
+    "primary_recommendation": "男频-revenge: 默认 BPM 90-120;主乐器 Strings + percussion + brass;避免 Woodwinds (too soft)。",
+    "extra_data": {
+      "genre": "男频-revenge",
+      "tempo_bpm": "90-120",
+      "instrumentation": "Strings + percussion + brass",
+      "avoid": "Woodwinds (too soft)"
+    },
+    "source_file": "composer/bgm-and-song-creation.md",
+    "source_section": "Per-genre BGM conventions",
+    "tags": ["audio_pipeline", "bgm_strategy", "genre", "male_revenge"],
+    "priority": 62
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "bgm_genre_female_romance",
+    "key_type": "bgm",
+    "primary_recommendation": "女频-romance: 默认 BPM 60-90;主乐器 Piano + strings + acoustic guitar;避免 Heavy percussion。",
+    "extra_data": {
+      "genre": "女频-romance",
+      "tempo_bpm": "60-90",
+      "instrumentation": "Piano + strings + acoustic guitar",
+      "avoid": "Heavy percussion"
+    },
+    "source_file": "composer/bgm-and-song-creation.md",
+    "source_section": "Per-genre BGM conventions",
+    "tags": ["audio_pipeline", "bgm_strategy", "genre", "female_romance"],
+    "priority": 62
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "bgm_genre_cyberpunk",
+    "key_type": "bgm",
+    "primary_recommendation": "Cyberpunk: 默认 BPM 120-140;主乐器 Synth + electronic drums + bass;避免 Acoustic instruments。",
+    "extra_data": {
+      "genre": "Cyberpunk",
+      "tempo_bpm": "120-140",
+      "instrumentation": "Synth + electronic drums + bass",
+      "avoid": "Acoustic instruments"
+    },
+    "source_file": "composer/bgm-and-song-creation.md",
+    "source_section": "Per-genre BGM conventions",
+    "tags": ["audio_pipeline", "bgm_strategy", "genre", "cyberpunk"],
+    "priority": 62
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "bgm_genre_wuxia",
+    "key_type": "bgm",
+    "primary_recommendation": "Wuxia: 默认 BPM 70-100;主乐器 Erhu + dizi + guqin + percussion;避免 Western instruments。",
+    "extra_data": {
+      "genre": "Wuxia",
+      "tempo_bpm": "70-100",
+      "instrumentation": "Erhu + dizi + guqin + percussion",
+      "avoid": "Western instruments"
+    },
+    "source_file": "composer/bgm-and-song-creation.md",
+    "source_section": "Per-genre BGM conventions",
+    "tags": ["audio_pipeline", "bgm_strategy", "genre", "wuxia"],
+    "priority": 62
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "bgm_genre_horror",
+    "key_type": "bgm",
+    "primary_recommendation": "Horror: 默认 BPM 60-80 (variable);主乐器 Dissonant strings + sub-bass + atonal;避免 Major key melodies。",
+    "extra_data": {
+      "genre": "Horror",
+      "tempo_bpm": "60-80 (variable)",
+      "instrumentation": "Dissonant strings + sub-bass + atonal",
+      "avoid": "Major key melodies"
+    },
+    "source_file": "composer/bgm-and-song-creation.md",
+    "source_section": "Per-genre BGM conventions",
+    "tags": ["audio_pipeline", "bgm_strategy", "genre", "horror"],
+    "priority": 62
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "bgm_genre_comedy",
+    "key_type": "bgm",
+    "primary_recommendation": "Comedy: 默认 BPM 110-140;主乐器 Pizzicato strings + woodwinds + light percussion;避免 Heavy dramatic strings。",
+    "extra_data": {
+      "genre": "Comedy",
+      "tempo_bpm": "110-140",
+      "instrumentation": "Pizzicato strings + woodwinds + light percussion",
+      "avoid": "Heavy dramatic strings"
+    },
+    "source_file": "composer/bgm-and-song-creation.md",
+    "source_section": "Per-genre BGM conventions",
+    "tags": ["audio_pipeline", "bgm_strategy", "genre", "comedy"],
+    "priority": 62
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "bgm_curve_monotonic_rising",
+    "key_type": "bgm",
+    "primary_recommendation": "Monotonic rising → Sustained crescendo, key instruments added progressively。",
+    "extra_data": {
+      "curve_shape": "Monotonic rising",
+      "strategy": "Sustained crescendo, key instruments added progressively"
+    },
+    "source_file": "composer/bgm-and-song-creation.md",
+    "source_section": "BGM strategy from emotion_curve",
+    "tags": ["audio_pipeline", "bgm_strategy", "emotion_curve", "monotonic_rising"],
+    "priority": 60
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "bgm_curve_sawtooth",
+    "key_type": "bgm",
+    "primary_recommendation": "Sawtooth (peaks + drops) → Stab pattern: short motifs at peaks, silence at drops。",
+    "extra_data": {
+      "curve_shape": "Sawtooth (peaks + drops)",
+      "strategy": "Stab pattern: short motifs at peaks, silence at drops"
+    },
+    "source_file": "composer/bgm-and-song-creation.md",
+    "source_section": "BGM strategy from emotion_curve",
+    "tags": ["audio_pipeline", "bgm_strategy", "emotion_curve", "sawtooth"],
+    "priority": 60
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "bgm_curve_plateau",
+    "key_type": "bgm",
+    "primary_recommendation": "Plateau → Ambient drone with subtle texture variation。",
+    "extra_data": {
+      "curve_shape": "Plateau",
+      "strategy": "Ambient drone with subtle texture variation"
+    },
+    "source_file": "composer/bgm-and-song-creation.md",
+    "source_section": "BGM strategy from emotion_curve",
+    "tags": ["audio_pipeline", "bgm_strategy", "emotion_curve", "plateau"],
+    "priority": 60
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "bgm_curve_free_fall",
+    "key_type": "bgm",
+    "primary_recommendation": "Free-fall (sudden drop) → Sudden instrument cut OR dissonant chord。",
+    "extra_data": {
+      "curve_shape": "Free-fall (sudden drop)",
+      "strategy": "Sudden instrument cut OR dissonant chord"
+    },
+    "source_file": "composer/bgm-and-song-creation.md",
+    "source_section": "BGM strategy from emotion_curve",
+    "tags": ["audio_pipeline", "bgm_strategy", "emotion_curve", "free_fall"],
+    "priority": 60
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "bgm_curve_peak_valley",
+    "key_type": "bgm",
+    "primary_recommendation": "Peak-valley → Two contrasting motifs alternating。",
+    "extra_data": {
+      "curve_shape": "Peak-valley",
+      "strategy": "Two contrasting motifs alternating"
+    },
+    "source_file": "composer/bgm-and-song-creation.md",
+    "source_section": "BGM strategy from emotion_curve",
+    "tags": ["audio_pipeline", "bgm_strategy", "emotion_curve", "peak_valley"],
+    "priority": 60
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "bgm_tempo_hope",
+    "key_type": "bgm",
+    "primary_recommendation": "Hope / 升起 → 推荐 100-130 BPM;Major key, uplifting。",
+    "extra_data": {
+      "emotion_anchor": "Hope / 升起",
+      "tempo_bpm": "100-130",
+      "mood": "Major key, uplifting"
+    },
+    "source_file": "composer/musicgen-workflow.md",
+    "source_section": "Music tempo + emotion_curve sync",
+    "tags": ["audio_pipeline", "bgm_strategy", "tempo", "hope"],
+    "priority": 62
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "bgm_tempo_tension",
+    "key_type": "bgm",
+    "primary_recommendation": "Tension / 紧张 → 推荐 130-160 BPM;Minor key, building。",
+    "extra_data": {
+      "emotion_anchor": "Tension / 紧张",
+      "tempo_bpm": "130-160",
+      "mood": "Minor key, building"
+    },
+    "source_file": "composer/musicgen-workflow.md",
+    "source_section": "Music tempo + emotion_curve sync",
+    "tags": ["audio_pipeline", "bgm_strategy", "tempo", "tension"],
+    "priority": 62
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "bgm_tempo_climax",
+    "key_type": "bgm",
+    "primary_recommendation": "Climax / 高潮 → 推荐 140-180 BPM;Dissonance, intense。",
+    "extra_data": {
+      "emotion_anchor": "Climax / 高潮",
+      "tempo_bpm": "140-180",
+      "mood": "Dissonance, intense"
+    },
+    "source_file": "composer/musicgen-workflow.md",
+    "source_section": "Music tempo + emotion_curve sync",
+    "tags": ["audio_pipeline", "bgm_strategy", "tempo", "climax"],
+    "priority": 62
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "bgm_tempo_sadness",
+    "key_type": "bgm",
+    "primary_recommendation": "Sadness / 悲伤 → 推荐 60-80 BPM;Minor key, slow。",
+    "extra_data": {
+      "emotion_anchor": "Sadness / 悲伤",
+      "tempo_bpm": "60-80",
+      "mood": "Minor key, slow"
+    },
+    "source_file": "composer/musicgen-workflow.md",
+    "source_section": "Music tempo + emotion_curve sync",
+    "tags": ["audio_pipeline", "bgm_strategy", "tempo", "sadness"],
+    "priority": 62
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "bgm_tempo_romance",
+    "key_type": "bgm",
+    "primary_recommendation": "Romance / 甜蜜 → 推荐 80-110 BPM;Major key, soft。",
+    "extra_data": {
+      "emotion_anchor": "Romance / 甜蜜",
+      "tempo_bpm": "80-110",
+      "mood": "Major key, soft"
+    },
+    "source_file": "composer/musicgen-workflow.md",
+    "source_section": "Music tempo + emotion_curve sync",
+    "tags": ["audio_pipeline", "bgm_strategy", "tempo", "romance"],
+    "priority": 62
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "bgm_tempo_action",
+    "key_type": "bgm",
+    "primary_recommendation": "Action / 战斗 → 推荐 140-180 BPM;Percussion heavy, fast。",
+    "extra_data": {
+      "emotion_anchor": "Action / 战斗",
+      "tempo_bpm": "140-180",
+      "mood": "Percussion heavy, fast"
+    },
+    "source_file": "composer/musicgen-workflow.md",
+    "source_section": "Music tempo + emotion_curve sync",
+    "tags": ["audio_pipeline", "bgm_strategy", "tempo", "action"],
+    "priority": 62
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "bgm_climax_riser_impact_sparkle",
+    "key_type": "bgm",
+    "primary_recommendation": "高潮段固定三拍:riser(蓄力/铺垫)→ impact(钉点峰值,全段最响)→ sparkle(余韵收束)。",
+    "rationale": "响度阶梯表达「高潮在这」:riser 中等 / impact 峰值 / sparkle 回落。卡点片间距用 beat_frame(n) 与切点共用网格;非卡点片用秒(riser→impact ~1-1.5s,impact→sparkle ~0.8-1s)。",
+    "extra_data": {
+      "pattern": ["riser", "impact", "sparkle"],
+      "loudness_ladder": "riser=medium, impact=peak, sparkle=fall",
+      "non_card_spacing_sec": {
+        "riser_to_impact": [1.0, 1.5],
+        "impact_to_sparkle": [0.8, 1.0]
+      }
+    },
+    "source_file": "composer/bgm-and-song-creation.md",
+    "source_section": "riser→impact→sparkle 收束句式",
+    "tags": ["audio_pipeline", "bgm_strategy", "climax", "riser", "impact", "sparkle"],
+    "priority": 66
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "musicgen_mode_text_to_music",
+    "key_type": "bgm",
+    "primary_recommendation": "MusicGen-Large Text-to-music: 输入 text prompt → 输出 30s music。用途:新 music composition。",
+    "extra_data": {
+      "mode": "Text-to-music",
+      "input": "text prompt",
+      "output": "30s music",
+      "use_case": "新 music composition"
+    },
+    "source_file": "composer/musicgen-workflow.md",
+    "source_section": "MusicGen-Large 4 mode",
+    "tags": ["audio_pipeline", "bgm_strategy", "musicgen", "text_to_music"],
+    "priority": 60
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "musicgen_mode_melody_conditioning",
+    "key_type": "bgm",
+    "primary_recommendation": "MusicGen-Large Melody conditioning: 输入 text + melody audio → 输出 30s music following melody。用途:现有 melody 改编。",
+    "extra_data": {
+      "mode": "Melody conditioning",
+      "input": "text + melody audio",
+      "output": "30s music following melody",
+      "use_case": "现有 melody 改编"
+    },
+    "source_file": "composer/musicgen-workflow.md",
+    "source_section": "MusicGen-Large 4 mode",
+    "tags": ["audio_pipeline", "bgm_strategy", "musicgen", "melody_conditioning"],
+    "priority": 60
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "musicgen_mode_continuation",
+    "key_type": "bgm",
+    "primary_recommendation": "MusicGen-Large Continuation: 输入 text + audio → 输出 extended music。用途:续写已有 music。",
+    "extra_data": {
+      "mode": "Continuation",
+      "input": "text + audio",
+      "output": "extended music",
+      "use_case": "续写已有 music"
+    },
+    "source_file": "composer/musicgen-workflow.md",
+    "source_section": "MusicGen-Large 4 mode",
+    "tags": ["audio_pipeline", "bgm_strategy", "musicgen", "continuation"],
+    "priority": 60
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "musicgen_mode_stereo",
+    "key_type": "bgm",
+    "primary_recommendation": "MusicGen-Large Stereo: 输入 text → 输出 30s stereo music。用途:立体声输出。",
+    "extra_data": {
+      "mode": "Stereo",
+      "input": "text",
+      "output": "30s stereo music",
+      "use_case": "立体声输出"
+    },
+    "source_file": "composer/musicgen-workflow.md",
+    "source_section": "MusicGen-Large 4 mode",
+    "tags": ["audio_pipeline", "bgm_strategy", "musicgen", "stereo"],
+    "priority": 60
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "musicgen_generation_params",
+    "key_type": "bgm",
+    "primary_recommendation": "MusicGen:facebook/musicgen-large,duration 5-180s(默认30),temperature 0.5-1.5(默认1.0),guidance_scale 1.0-5.0(默认3.0),sample_rate 32000Hz。",
+    "extra_data": {
+      "model": "facebook/musicgen-large",
+      "duration_sec_range": [5, 180],
+      "duration_default": 30,
+      "temperature": [0.5, 1.5],
+      "top_k": 250,
+      "guidance_scale": [1.0, 5.0],
+      "sample_rate_hz": 32000
+    },
+    "source_file": "composer/musicgen-workflow.md",
+    "source_section": "MusicGen generation 参数",
+    "tags": ["audio_pipeline", "bgm_strategy", "musicgen", "params"],
+    "priority": 63
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "bgm_dual_engine_selection",
+    "key_type": "bgm",
+    "primary_recommendation": "Dual-engine:library match(score≥0.75 用)→ AI generation(match 失败或需 custom mood)。",
+    "extra_data": {
+      "engine1": "Local library match (emotion 0.6 + tempo 0.2 + duration 0.2)",
+      "engine2": "AI generation (custom mood)",
+      "library_threshold_use": 0.75,
+      "library_threshold_acceptable": 0.5
+    },
+    "source_file": "composer/bgm-and-song-creation.md",
+    "source_section": "Dual-engine BGM architecture",
+    "tags": ["audio_pipeline", "bgm_strategy", "dual_engine"],
+    "priority": 64
+  },
+  {
+    "category": "spatial_audio_pattern",
+    "key_name": "atmos_obj_position_x",
+    "key_type": "spatial",
+    "primary_recommendation": "Atmos object Position X:范围 -1 to 1 (left to right)。水平位置。",
+    "extra_data": {
+      "field": "Position X",
+      "range": "-1 to 1 (left to right)",
+      "purpose": "水平位置"
+    },
+    "source_file": "spatial_audio/dolby-atmos-workflow.md",
+    "source_section": "Object metadata 7 fields",
+    "tags": ["audio_pipeline", "spatial_audio_pattern", "atmos_object", "position_x"],
+    "priority": 60
+  },
+  {
+    "category": "spatial_audio_pattern",
+    "key_name": "atmos_obj_position_y",
+    "key_type": "spatial",
+    "primary_recommendation": "Atmos object Position Y:范围 -1 to 1 (front to back)。前后位置。",
+    "extra_data": {
+      "field": "Position Y",
+      "range": "-1 to 1 (front to back)",
+      "purpose": "前后位置"
+    },
+    "source_file": "spatial_audio/dolby-atmos-workflow.md",
+    "source_section": "Object metadata 7 fields",
+    "tags": ["audio_pipeline", "spatial_audio_pattern", "atmos_object", "position_y"],
+    "priority": 60
+  },
+  {
+    "category": "spatial_audio_pattern",
+    "key_name": "atmos_obj_position_z",
+    "key_type": "spatial",
+    "primary_recommendation": "Atmos object Position Z:范围 0 to 1 (bottom to top)。高度。",
+    "extra_data": {
+      "field": "Position Z",
+      "range": "0 to 1 (bottom to top)",
+      "purpose": "高度"
+    },
+    "source_file": "spatial_audio/dolby-atmos-workflow.md",
+    "source_section": "Object metadata 7 fields",
+    "tags": ["audio_pipeline", "spatial_audio_pattern", "atmos_object", "position_z"],
+    "priority": 60
+  },
+  {
+    "category": "spatial_audio_pattern",
+    "key_name": "atmos_obj_size",
+    "key_type": "spatial",
+    "primary_recommendation": "Atmos object Size:范围 0 to 1 (point to large)。声音 size (point source vs diffuse)。",
+    "extra_data": {
+      "field": "Size",
+      "range": "0 to 1 (point to large)",
+      "purpose": "声音 size (point source vs diffuse)"
+    },
+    "source_file": "spatial_audio/dolby-atmos-workflow.md",
+    "source_section": "Object metadata 7 fields",
+    "tags": ["audio_pipeline", "spatial_audio_pattern", "atmos_object", "size"],
+    "priority": 60
+  },
+  {
+    "category": "spatial_audio_pattern",
+    "key_name": "atmos_obj_divergence",
+    "key_type": "spatial",
+    "primary_recommendation": "Atmos object Divergence:范围 0 to 1。距离越远 divergence ↑。",
+    "extra_data": {
+      "field": "Divergence",
+      "range": "0 to 1",
+      "purpose": "距离越远 divergence ↑"
+    },
+    "source_file": "spatial_audio/dolby-atmos-workflow.md",
+    "source_section": "Object metadata 7 fields",
+    "tags": ["audio_pipeline", "spatial_audio_pattern", "atmos_object", "divergence"],
+    "priority": 60
+  },
+  {
+    "category": "spatial_audio_pattern",
+    "key_name": "atmos_obj_snap",
+    "key_type": "spatial",
+    "primary_recommendation": "Atmos object Snap:范围 0 / 1。是否 snap to bed channel。",
+    "extra_data": {
+      "field": "Snap",
+      "range": "0 / 1",
+      "purpose": "是否 snap to bed channel"
+    },
+    "source_file": "spatial_audio/dolby-atmos-workflow.md",
+    "source_section": "Object metadata 7 fields",
+    "tags": ["audio_pipeline", "spatial_audio_pattern", "atmos_object", "snap"],
+    "priority": 60
+  },
+  {
+    "category": "spatial_audio_pattern",
+    "key_name": "atmos_obj_zone_mask",
+    "key_type": "spatial",
+    "primary_recommendation": "Atmos object ZoneMask:范围 bitmask。限制 zone (如「仅头顶」)。",
+    "extra_data": {
+      "field": "ZoneMask",
+      "range": "bitmask",
+      "purpose": "限制 zone (如「仅头顶」)"
+    },
+    "source_file": "spatial_audio/dolby-atmos-workflow.md",
+    "source_section": "Object metadata 7 fields",
+    "tags": ["audio_pipeline", "spatial_audio_pattern", "atmos_object", "zone_mask"],
+    "priority": 60
+  },
+  {
+    "category": "spatial_audio_pattern",
+    "key_name": "atmos_bed_objects_architecture",
+    "key_type": "spatial",
+    "primary_recommendation": "Bed + Objects 2 层:Bed channels(7.1.2 fixed)+ Objects(最多 118 dynamic)。",
+    "rationale": "Cinema:7.1.2 bed + 118 objects。Consumer/短剧:7.1.2 bed + 12-20 objects。",
+    "extra_data": {
+      "bed": "7.1.2 or 9.1.6 fixed channel",
+      "objects_max": 118,
+      "cinema_objects": "12-118",
+      "consumer_objects": "12-20"
+    },
+    "source_file": "spatial_audio/dolby-atmos-workflow.md",
+    "source_section": "Bed + Objects 2 层架构",
+    "tags": ["audio_pipeline", "spatial_audio_pattern", "atmos", "architecture"],
+    "priority": 64
+  },
+  {
+    "category": "spatial_audio_pattern",
+    "key_name": "sixd_position_x_azimuth",
+    "key_type": "spatial",
+    "primary_recommendation": "6D 编码 Position X (azimuth): 水平方位,范围 -180 to +180 deg。",
+    "extra_data": {
+      "dimension": "Position X (azimuth)",
+      "description": "水平方位",
+      "range": "-180 to +180 deg"
+    },
+    "source_file": "spatial_audio/dolby-atmos-workflow.md",
+    "source_section": "6D spatial encoding 6 维度",
+    "tags": ["audio_pipeline", "spatial_audio_pattern", "6d", "position_x_azimuth"],
+    "priority": 58
+  },
+  {
+    "category": "spatial_audio_pattern",
+    "key_name": "sixd_position_y_elevation",
+    "key_type": "spatial",
+    "primary_recommendation": "6D 编码 Position Y (elevation): 高度方位,范围 -90 to +90 deg。",
+    "extra_data": {
+      "dimension": "Position Y (elevation)",
+      "description": "高度方位",
+      "range": "-90 to +90 deg"
+    },
+    "source_file": "spatial_audio/dolby-atmos-workflow.md",
+    "source_section": "6D spatial encoding 6 维度",
+    "tags": ["audio_pipeline", "spatial_audio_pattern", "6d", "position_y_elevation"],
+    "priority": 58
+  },
+  {
+    "category": "spatial_audio_pattern",
+    "key_name": "sixd_position_z_distance",
+    "key_type": "spatial",
+    "primary_recommendation": "6D 编码 Position Z (distance): 距离,范围 0.1m to 100m。",
+    "extra_data": {
+      "dimension": "Position Z (distance)",
+      "description": "距离",
+      "range": "0.1m to 100m"
+    },
+    "source_file": "spatial_audio/dolby-atmos-workflow.md",
+    "source_section": "6D spatial encoding 6 维度",
+    "tags": ["audio_pipeline", "spatial_audio_pattern", "6d", "position_z_distance"],
+    "priority": 58
+  },
+  {
+    "category": "spatial_audio_pattern",
+    "key_name": "sixd_size",
+    "key_type": "spatial",
+    "primary_recommendation": "6D 编码 Size: 声音 size,范围 0 (point) to 1 (diffuse)。",
+    "extra_data": {
+      "dimension": "Size",
+      "description": "声音 size",
+      "range": "0 (point) to 1 (diffuse)"
+    },
+    "source_file": "spatial_audio/dolby-atmos-workflow.md",
+    "source_section": "6D spatial encoding 6 维度",
+    "tags": ["audio_pipeline", "spatial_audio_pattern", "6d", "size"],
+    "priority": 58
+  },
+  {
+    "category": "spatial_audio_pattern",
+    "key_name": "sixd_orientation",
+    "key_type": "spatial",
+    "primary_recommendation": "6D 编码 Orientation: 朝向 (directional sound),范围 azimuth x elevation。",
+    "extra_data": {
+      "dimension": "Orientation",
+      "description": "朝向 (directional sound)",
+      "range": "azimuth x elevation"
+    },
+    "source_file": "spatial_audio/dolby-atmos-workflow.md",
+    "source_section": "6D spatial encoding 6 维度",
+    "tags": ["audio_pipeline", "spatial_audio_pattern", "6d", "orientation"],
+    "priority": 58
+  },
+  {
+    "category": "spatial_audio_pattern",
+    "key_name": "sixd_motion",
+    "key_type": "spatial",
+    "primary_recommendation": "6D 编码 Motion: 动态 trajectory,范围 spline curve through (X,Y,Z) over time。",
+    "extra_data": {
+      "dimension": "Motion",
+      "description": "动态 trajectory",
+      "range": "spline curve through (X,Y,Z) over time"
+    },
+    "source_file": "spatial_audio/dolby-atmos-workflow.md",
+    "source_section": "6D spatial encoding 6 维度",
+    "tags": ["audio_pipeline", "spatial_audio_pattern", "6d", "motion"],
+    "priority": 58
+  },
+  {
+    "category": "spatial_audio_pattern",
+    "key_name": "spatial_platform_douyin",
+    "key_type": "spatial",
+    "primary_recommendation": "抖音: spatial audio ❌ → Stereo mix。",
+    "rationale": "关键规则:CN 平台 stereo only;海外 platform 可选 spatial。",
+    "extra_data": {
+      "platform": "抖音",
+      "spatial_supported": false,
+      "recommendation": "Stereo mix"
+    },
+    "source_file": "spatial_audio/dolby-atmos-workflow.md",
+    "source_section": "Per-platform spatial audio 支持",
+    "tags": ["audio_pipeline", "spatial_audio_pattern", "platform", "douyin"],
+    "priority": 60
+  },
+  {
+    "category": "spatial_audio_pattern",
+    "key_name": "spatial_platform_kuaishou",
+    "key_type": "spatial",
+    "primary_recommendation": "快手: spatial audio ❌ → Stereo mix。",
+    "rationale": "关键规则:CN 平台 stereo only;海外 platform 可选 spatial。",
+    "extra_data": {
+      "platform": "快手",
+      "spatial_supported": false,
+      "recommendation": "Stereo mix"
+    },
+    "source_file": "spatial_audio/dolby-atmos-workflow.md",
+    "source_section": "Per-platform spatial audio 支持",
+    "tags": ["audio_pipeline", "spatial_audio_pattern", "platform", "kuaishou"],
+    "priority": 60
+  },
+  {
+    "category": "spatial_audio_pattern",
+    "key_name": "spatial_platform_mini_program",
+    "key_type": "spatial",
+    "primary_recommendation": "小程序剧: spatial audio ❌ → Stereo mix。",
+    "rationale": "关键规则:CN 平台 stereo only;海外 platform 可选 spatial。",
+    "extra_data": {
+      "platform": "小程序剧",
+      "spatial_supported": false,
+      "recommendation": "Stereo mix"
+    },
+    "source_file": "spatial_audio/dolby-atmos-workflow.md",
+    "source_section": "Per-platform spatial audio 支持",
+    "tags": ["audio_pipeline", "spatial_audio_pattern", "platform", "mini_program"],
+    "priority": 60
+  },
+  {
+    "category": "spatial_audio_pattern",
+    "key_name": "spatial_platform_shipinhao",
+    "key_type": "spatial",
+    "primary_recommendation": "视频号: spatial audio ❌ → Stereo mix。",
+    "rationale": "关键规则:CN 平台 stereo only;海外 platform 可选 spatial。",
+    "extra_data": {
+      "platform": "视频号",
+      "spatial_supported": false,
+      "recommendation": "Stereo mix"
+    },
+    "source_file": "spatial_audio/dolby-atmos-workflow.md",
+    "source_section": "Per-platform spatial audio 支持",
+    "tags": ["audio_pipeline", "spatial_audio_pattern", "platform", "shipinhao"],
+    "priority": 60
+  },
+  {
+    "category": "spatial_audio_pattern",
+    "key_name": "spatial_platform_tiktok",
+    "key_type": "spatial",
+    "primary_recommendation": "TikTok: spatial audio ✅ → 可选 binaural mix (Apple Spatial Audio 头戴)。",
+    "rationale": "关键规则:CN 平台 stereo only;海外 platform 可选 spatial。",
+    "extra_data": {
+      "platform": "TikTok",
+      "spatial_supported": true,
+      "recommendation": "可选 binaural mix (Apple Spatial Audio 头戴)"
+    },
+    "source_file": "spatial_audio/dolby-atmos-workflow.md",
+    "source_section": "Per-platform spatial audio 支持",
+    "tags": ["audio_pipeline", "spatial_audio_pattern", "platform", "tiktok"],
+    "priority": 60
+  },
+  {
+    "category": "spatial_audio_pattern",
+    "key_name": "spatial_platform_youtube",
+    "key_type": "spatial",
+    "primary_recommendation": "YouTube: spatial audio ✅ → 可选 spatial (360 audio + Ambisonics)。",
+    "rationale": "关键规则:CN 平台 stereo only;海外 platform 可选 spatial。",
+    "extra_data": {
+      "platform": "YouTube",
+      "spatial_supported": true,
+      "recommendation": "可选 spatial (360 audio + Ambisonics)"
+    },
+    "source_file": "spatial_audio/dolby-atmos-workflow.md",
+    "source_section": "Per-platform spatial audio 支持",
+    "tags": ["audio_pipeline", "spatial_audio_pattern", "platform", "youtube"],
+    "priority": 60
+  },
+  {
+    "category": "spatial_audio_pattern",
+    "key_name": "spatial_platform_cinema",
+    "key_type": "spatial",
+    "primary_recommendation": "Cinema: spatial audio ✅ → Full Atmos (Dolby Atmos / DTS:X)。",
+    "rationale": "关键规则:CN 平台 stereo only;海外 platform 可选 spatial。",
+    "extra_data": {
+      "platform": "Cinema",
+      "spatial_supported": true,
+      "recommendation": "Full Atmos (Dolby Atmos / DTS:X)"
+    },
+    "source_file": "spatial_audio/dolby-atmos-workflow.md",
+    "source_section": "Per-platform spatial audio 支持",
+    "tags": ["audio_pipeline", "spatial_audio_pattern", "platform", "cinema"],
+    "priority": 60
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_prompt_5_component_structure",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "SFX prompt 5 组件:{source} + {action} + {environment} + {proximity} + {temporal_dynamics}。",
+    "rationale": "✅ glass bottle breaking on concrete floor, sharp shattering, distant room echo, close-up perspective, instantaneous impact with 200ms decay tail。❌ breaking glass (too vague)。",
+    "extra_data": {
+      "components": ["source", "action", "environment", "proximity", "temporal_dynamics"],
+      "good_example": "glass bottle breaking on concrete floor, sharp shattering, distant room echo, close-up perspective, instantaneous impact with 200ms decay tail",
+      "bad_example": "breaking glass"
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "The 5-component SFX prompt structure",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "structure"],
+    "priority": 68
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_source_solid_impacts",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "Source — Solid impacts: glass, ceramic, metal, wood。Prompt keywords: glass bottle / ceramic plate / steel pipe。",
+    "rationale": "Specificity rule: always name the specific material (e.g., 'ceramic plate' not just 'plate')。",
+    "extra_data": {
+      "component": "source",
+      "category": "Solid impacts",
+      "examples": "glass, ceramic, metal, wood",
+      "keywords": "glass bottle / ceramic plate / steel pipe"
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "Component 1: Source",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "source", "solid_impacts"],
+    "priority": 58
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_source_liquid",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "Source — Liquid: water, oil, blood。Prompt keywords: water drop / oil sizzle / wet impact。",
+    "rationale": "Specificity rule: always name the specific material (e.g., 'ceramic plate' not just 'plate')。",
+    "extra_data": {
+      "component": "source",
+      "category": "Liquid",
+      "examples": "water, oil, blood",
+      "keywords": "water drop / oil sizzle / wet impact"
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "Component 1: Source",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "source", "liquid"],
+    "priority": 58
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_source_gas_air",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "Source — Gas/Air: wind, breath, explosion。Prompt keywords: wind howl / sharp exhale / distant explosion。",
+    "rationale": "Specificity rule: always name the specific material (e.g., 'ceramic plate' not just 'plate')。",
+    "extra_data": {
+      "component": "source",
+      "category": "Gas/Air",
+      "examples": "wind, breath, explosion",
+      "keywords": "wind howl / sharp exhale / distant explosion"
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "Component 1: Source",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "source", "gas_air"],
+    "priority": 58
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_source_organic",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "Source — Organic: footstep, body impact, voice。Prompt keywords: leather shoe on tile / fist on flesh / grunt。",
+    "rationale": "Specificity rule: always name the specific material (e.g., 'ceramic plate' not just 'plate')。",
+    "extra_data": {
+      "component": "source",
+      "category": "Organic",
+      "examples": "footstep, body impact, voice",
+      "keywords": "leather shoe on tile / fist on flesh / grunt"
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "Component 1: Source",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "source", "organic"],
+    "priority": 58
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_source_mechanical",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "Source — Mechanical: engine, gear, motor。Prompt keywords: diesel engine idle / metallic gear grind。",
+    "rationale": "Specificity rule: always name the specific material (e.g., 'ceramic plate' not just 'plate')。",
+    "extra_data": {
+      "component": "source",
+      "category": "Mechanical",
+      "examples": "engine, gear, motor",
+      "keywords": "diesel engine idle / metallic gear grind"
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "Component 1: Source",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "source", "mechanical"],
+    "priority": 58
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_source_electronic",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "Source — Electronic: beep, hum, glitch。Prompt keywords: high-pitched beep / 60Hz electrical hum。",
+    "rationale": "Specificity rule: always name the specific material (e.g., 'ceramic plate' not just 'plate')。",
+    "extra_data": {
+      "component": "source",
+      "category": "Electronic",
+      "examples": "beep, hum, glitch",
+      "keywords": "high-pitched beep / 60Hz electrical hum"
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "Component 1: Source",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "source", "electronic"],
+    "priority": 58
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_action_impact",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "Action — Impact (instant): break, shatter, slam, crack。Intensity modifier:sharp/dull/heavy/light。",
+    "extra_data": {
+      "component": "action",
+      "category": "Impact (instant)",
+      "examples": "break, shatter, slam, crack",
+      "intensity_modifiers": ["sharp", "dull", "heavy", "light"]
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "Component 2: Action",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "action", "impact"],
+    "priority": 57
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_action_sustained",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "Action — Sustained: hum, buzz, drone, ring。Intensity modifier:sharp/dull/heavy/light。",
+    "extra_data": {
+      "component": "action",
+      "category": "Sustained",
+      "examples": "hum, buzz, drone, ring",
+      "intensity_modifiers": ["sharp", "dull", "heavy", "light"]
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "Component 2: Action",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "action", "sustained"],
+    "priority": 57
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_action_friction",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "Action — Friction: scrape, slide, drag, rub。Intensity modifier:sharp/dull/heavy/light。",
+    "extra_data": {
+      "component": "action",
+      "category": "Friction",
+      "examples": "scrape, slide, drag, rub",
+      "intensity_modifiers": ["sharp", "dull", "heavy", "light"]
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "Component 2: Action",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "action", "friction"],
+    "priority": 57
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_action_movement",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "Action — Movement: roll, spin, fall, swing。Intensity modifier:sharp/dull/heavy/light。",
+    "extra_data": {
+      "component": "action",
+      "category": "Movement",
+      "examples": "roll, spin, fall, swing",
+      "intensity_modifiers": ["sharp", "dull", "heavy", "light"]
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "Component 2: Action",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "action", "movement"],
+    "priority": 57
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_action_explosion",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "Action — Explosion: burst, pop, boom, detonate。Intensity modifier:sharp/dull/heavy/light。",
+    "extra_data": {
+      "component": "action",
+      "category": "Explosion",
+      "examples": "burst, pop, boom, detonate",
+      "intensity_modifiers": ["sharp", "dull", "heavy", "light"]
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "Component 2: Action",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "action", "explosion"],
+    "priority": 57
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_env_open_outdoor",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "Environment — Open outdoor: no reflections, distant echoes。Keywords: open field / distant mountain echo。",
+    "extra_data": {
+      "component": "environment",
+      "category": "Open outdoor",
+      "acoustic_signature": "no reflections, distant echoes",
+      "keywords": "open field / distant mountain echo"
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "Component 3: Environment",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "environment", "open_outdoor"],
+    "priority": 57
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_env_small_room",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "Environment — Small room: short reverb (~200ms)。Keywords: small bedroom / tight reverb。",
+    "extra_data": {
+      "component": "environment",
+      "category": "Small room",
+      "acoustic_signature": "short reverb (~200ms)",
+      "keywords": "small bedroom / tight reverb"
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "Component 3: Environment",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "environment", "small_room"],
+    "priority": 57
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_env_large_hall",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "Environment — Large hall: long reverb (1-3s)。Keywords: cathedral / concert hall。",
+    "extra_data": {
+      "component": "environment",
+      "category": "Large hall",
+      "acoustic_signature": "long reverb (1-3s)",
+      "keywords": "cathedral / concert hall"
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "Component 3: Environment",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "environment", "large_hall"],
+    "priority": 57
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_env_industrial",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "Environment — Industrial: metallic ringing。Keywords: factory floor / metallic resonance。",
+    "extra_data": {
+      "component": "environment",
+      "category": "Industrial",
+      "acoustic_signature": "metallic ringing",
+      "keywords": "factory floor / metallic resonance"
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "Component 3: Environment",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "environment", "industrial"],
+    "priority": 57
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_env_vehicle_interior",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "Environment — Vehicle interior: confined, low-frequency rumble。Keywords: car interior / low rumble floor。",
+    "extra_data": {
+      "component": "environment",
+      "category": "Vehicle interior",
+      "acoustic_signature": "confined, low-frequency rumble",
+      "keywords": "car interior / low rumble floor"
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "Component 3: Environment",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "environment", "vehicle_interior"],
+    "priority": 57
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_proximity_close_up",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "Proximity — Close-up (intimate): keywords 'close-up / intimate / in-ear',mix level -3 to 0 dB。",
+    "extra_data": {
+      "component": "proximity",
+      "perspective": "Close-up (intimate)",
+      "keywords": "close-up / intimate / in-ear",
+      "mix_level_db": [-3, 0]
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "Component 4: Proximity",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "proximity", "close_up"],
+    "priority": 57
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_proximity_near",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "Proximity — Near (present): keywords 'near / present',mix level -6 to -3 dB。",
+    "extra_data": {
+      "component": "proximity",
+      "perspective": "Near (present)",
+      "keywords": "near / present",
+      "mix_level_db": [-6, -3]
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "Component 4: Proximity",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "proximity", "near"],
+    "priority": 57
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_proximity_mid",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "Proximity — Mid (normal): keywords '(default, no qualifier)',mix level -12 to -6 dB。",
+    "extra_data": {
+      "component": "proximity",
+      "perspective": "Mid (normal)",
+      "keywords": "(default, no qualifier)",
+      "mix_level_db": [-12, -6]
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "Component 4: Proximity",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "proximity", "mid"],
+    "priority": 57
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_proximity_far",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "Proximity — Far (distant): keywords 'distant / far away',mix level -18 to -12 dB。",
+    "extra_data": {
+      "component": "proximity",
+      "perspective": "Far (distant)",
+      "keywords": "distant / far away",
+      "mix_level_db": [-18, -12]
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "Component 4: Proximity",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "proximity", "far"],
+    "priority": 57
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_proximity_background",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "Proximity — Background (ambient): keywords 'background / ambient',mix level -24 to -18 dB。",
+    "extra_data": {
+      "component": "proximity",
+      "perspective": "Background (ambient)",
+      "keywords": "background / ambient",
+      "mix_level_db": [-24, -18]
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "Component 4: Proximity",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "proximity", "background"],
+    "priority": 57
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_temporal_instantaneous",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "Temporal — Instantaneous: <100ms attack + immediate decay。Keywords: sharp / instantaneous / staccato。",
+    "extra_data": {
+      "component": "temporal_dynamics",
+      "dynamic": "Instantaneous",
+      "description": "<100ms attack + immediate decay",
+      "keywords": "sharp / instantaneous / staccato"
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "Component 5: Temporal dynamics",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "temporal", "instantaneous"],
+    "priority": 57
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_temporal_sustained",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "Temporal — Sustained: Long hold with gradual decay。Keywords: sustained / drone。",
+    "extra_data": {
+      "component": "temporal_dynamics",
+      "dynamic": "Sustained",
+      "description": "Long hold with gradual decay",
+      "keywords": "sustained / drone"
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "Component 5: Temporal dynamics",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "temporal", "sustained"],
+    "priority": 57
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_temporal_crescendo",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "Temporal — Crescendo: Builds in intensity。Keywords: crescendo / building。",
+    "extra_data": {
+      "component": "temporal_dynamics",
+      "dynamic": "Crescendo",
+      "description": "Builds in intensity",
+      "keywords": "crescendo / building"
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "Component 5: Temporal dynamics",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "temporal", "crescendo"],
+    "priority": 57
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_temporal_decrescendo",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "Temporal — Decrescendo: Fades from intensity。Keywords: fading / decrescendo。",
+    "extra_data": {
+      "component": "temporal_dynamics",
+      "dynamic": "Decrescendo",
+      "description": "Fades from intensity",
+      "keywords": "fading / decrescendo"
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "Component 5: Temporal dynamics",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "temporal", "decrescendo"],
+    "priority": 57
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_temporal_pulse",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "Temporal — Pulse: Rhythmic repetition。Keywords: pulsing / rhythmic。",
+    "extra_data": {
+      "component": "temporal_dynamics",
+      "dynamic": "Pulse",
+      "description": "Rhythmic repetition",
+      "keywords": "pulsing / rhythmic"
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "Component 5: Temporal dynamics",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "temporal", "pulse"],
+    "priority": 57
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_vocab_whoosh",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "whoosh: 过渡/滑入/运镜划过;典型时长 0.8-2.3s;钉帧 运镜起手、批量元素飞入、镜头快速横移。",
+    "rationale": "按片种(题材气质)选词,不按画面事件。男频复仇偏 impact/riser;女频言情偏 sparkle/whoosh;悬疑偏 riser+突发 impact;喜剧偏 transition+轻 impact。禁用游戏 UI 音包(click/pluck/glass tap)。",
+    "extra_data": {
+      "vocabulary": "whoosh",
+      "use_semantic": "过渡/滑入/运镜划过",
+      "typical_duration_sec": "0.8-2.3s",
+      "typical_anchor": "运镜起手、批量元素飞入、镜头快速横移"
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "SFX 片种词汇表选型判据",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "vocabulary", "whoosh"],
+    "priority": 62
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_vocab_impact",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "impact: 砸落/冲击/重音钉点;典型时长 0.5-4.0s;钉帧 反派出场、爽点砸下、关键反转、字标落地(全段 SFX 响度峰值)。",
+    "rationale": "按片种(题材气质)选词,不按画面事件。男频复仇偏 impact/riser;女频言情偏 sparkle/whoosh;悬疑偏 riser+突发 impact;喜剧偏 transition+轻 impact。禁用游戏 UI 音包(click/pluck/glass tap)。",
+    "extra_data": {
+      "vocabulary": "impact",
+      "use_semantic": "砸落/冲击/重音钉点",
+      "typical_duration_sec": "0.5-4.0s",
+      "typical_anchor": "反派出场、爽点砸下、关键反转、字标落地(全段 SFX 响度峰值)"
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "SFX 片种词汇表选型判据",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "vocabulary", "impact"],
+    "priority": 62
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_vocab_riser",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "riser: 蓄力/上升铺垫;典型时长 3.0-5.0s;钉帧 高潮前蓄力、反转前铺垫、finale 组装段起。",
+    "rationale": "按片种(题材气质)选词,不按画面事件。男频复仇偏 impact/riser;女频言情偏 sparkle/whoosh;悬疑偏 riser+突发 impact;喜剧偏 transition+轻 impact。禁用游戏 UI 音包(click/pluck/glass tap)。",
+    "extra_data": {
+      "vocabulary": "riser",
+      "use_semantic": "蓄力/上升铺垫",
+      "typical_duration_sec": "3.0-5.0s",
+      "typical_anchor": "高潮前蓄力、反转前铺垫、finale 组装段起"
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "SFX 片种词汇表选型判据",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "vocabulary", "riser"],
+    "priority": 62
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_vocab_sparkle",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "sparkle: 亮点/收束/光效余韵;典型时长 1.0-4.5s;钉帧 关键道具揭示、治愈/温情收束、收尾余韵。",
+    "rationale": "按片种(题材气质)选词,不按画面事件。男频复仇偏 impact/riser;女频言情偏 sparkle/whoosh;悬疑偏 riser+突发 impact;喜剧偏 transition+轻 impact。禁用游戏 UI 音包(click/pluck/glass tap)。",
+    "extra_data": {
+      "vocabulary": "sparkle",
+      "use_semantic": "亮点/收束/光效余韵",
+      "typical_duration_sec": "1.0-4.5s",
+      "typical_anchor": "关键道具揭示、治愈/温情收束、收尾余韵"
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "SFX 片种词汇表选型判据",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "vocabulary", "sparkle"],
+    "priority": 62
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_vocab_transition",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "transition: 转场/场景切换;典型时长 0.5-1.3s;钉帧 场景切换、卡点衔接、品牌/标题落定。",
+    "rationale": "按片种(题材气质)选词,不按画面事件。男频复仇偏 impact/riser;女频言情偏 sparkle/whoosh;悬疑偏 riser+突发 impact;喜剧偏 transition+轻 impact。禁用游戏 UI 音包(click/pluck/glass tap)。",
+    "extra_data": {
+      "vocabulary": "transition",
+      "use_semantic": "转场/场景切换",
+      "typical_duration_sec": "0.5-1.3s",
+      "typical_anchor": "场景切换、卡点衔接、品牌/标题落定"
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "SFX 片种词汇表选型判据",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "vocabulary", "transition"],
+    "priority": 62
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_negative_prompt",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "SFX negative prompt:music, melody, song, vocals, speech, looping, repetitive, low quality, distorted, artifacted。",
+    "extra_data": {
+      "negative_prompt": "music, melody, song, vocals, speech, looping, repetitive, low quality, distorted, artifacted"
+    },
+    "source_file": "foley/sound-effects-prompt-engineering.md",
+    "source_section": "Negative prompt for SFX",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "negative_prompt"],
+    "priority": 60
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_7d_material",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "7D Material (M): 物体材质。取值: wood/metal/glass/flesh/fabric/plastic/water/stone。",
+    "extra_data": {
+      "dimension": "Material (M)",
+      "description": "物体材质",
+      "values": "wood/metal/glass/flesh/fabric/plastic/water/stone"
+    },
+    "source_file": "foley/stable-audio-open.md",
+    "source_section": "7 维度 foley 参数",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "7d", "material"],
+    "priority": 58
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_7d_action",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "7D Action (A): 动作类型。取值: impact/scrape/friction/break/drip/rustle/breathe。",
+    "extra_data": {
+      "dimension": "Action (A)",
+      "description": "动作类型",
+      "values": "impact/scrape/friction/break/drip/rustle/breathe"
+    },
+    "source_file": "foley/stable-audio-open.md",
+    "source_section": "7 维度 foley 参数",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "7d", "action"],
+    "priority": 58
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_7d_force",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "7D Force (F): 力度。取值: silent 0.0 / gentle 0.3 / moderate 0.5 / strong 0.7 / violent 1.0。",
+    "extra_data": {
+      "dimension": "Force (F)",
+      "description": "力度",
+      "values": "silent 0.0 / gentle 0.3 / moderate 0.5 / strong 0.7 / violent 1.0"
+    },
+    "source_file": "foley/stable-audio-open.md",
+    "source_section": "7 维度 foley 参数",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "7d", "force"],
+    "priority": 58
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_7d_environment",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "7D Environment (E): 环境。取值: reverb-time 0.0-5.0s + room-size 0.0-1.0 + outdoor/indoor。",
+    "extra_data": {
+      "dimension": "Environment (E)",
+      "description": "环境",
+      "values": "reverb-time 0.0-5.0s + room-size 0.0-1.0 + outdoor/indoor"
+    },
+    "source_file": "foley/stable-audio-open.md",
+    "source_section": "7 维度 foley 参数",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "7d", "environment"],
+    "priority": 58
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_7d_distance",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "7D Distance (D): 距离。取值: close-mic 0.0 / mid 0.5 / distant 1.0。",
+    "extra_data": {
+      "dimension": "Distance (D)",
+      "description": "距离",
+      "values": "close-mic 0.0 / mid 0.5 / distant 1.0"
+    },
+    "source_file": "foley/stable-audio-open.md",
+    "source_section": "7 维度 foley 参数",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "7d", "distance"],
+    "priority": 58
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_7d_layering",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "7D Layering (L): 层叠数。取值: 1-5 (单层/双层/三层/多层)。",
+    "extra_data": {
+      "dimension": "Layering (L)",
+      "description": "层叠数",
+      "values": "1-5 (单层/双层/三层/多层)"
+    },
+    "source_file": "foley/stable-audio-open.md",
+    "source_section": "7 维度 foley 参数",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "7d", "layering"],
+    "priority": 58
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_7d_emotional_intent",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "7D Emotional intent (EI): 情绪。取值: hope/fear/tension/relief/shock/neutral。",
+    "extra_data": {
+      "dimension": "Emotional intent (EI)",
+      "description": "情绪",
+      "values": "hope/fear/tension/relief/shock/neutral"
+    },
+    "source_file": "foley/stable-audio-open.md",
+    "source_section": "7 维度 foley 参数",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "7d", "emotional_intent"],
+    "priority": 58
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "sfx_7d_compile_formula",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "7D → Stable Audio prompt 编译:{Material} {Action}, {Force_intensity} force, {Distance} mic placement, {Environment} reverb {reverb_time}s, {Emotional_intent} mood。",
+    "rationale": "示例 7D:metal/impact/0.7/hall(1.8s)/0.4/2/tension → 'metal impact, strong force, mid-distance mic placement, hall reverb 1.8 seconds, tension mood'。",
+    "extra_data": {
+      "formula": "{Material} {Action}, {Force_intensity} force, {Distance} mic placement, {Environment} reverb {reverb_time}s, {Emotional_intent} mood",
+      "example": "metal impact, strong force, mid-distance mic placement, hall reverb 1.8 seconds, tension mood"
+    },
+    "source_file": "foley/stable-audio-open.md",
+    "source_section": "7D → Stable Audio Open prompt 编译公式",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "7d", "compile"],
+    "priority": 63
+  },
+  {
+    "category": "sfx_prompt_pattern",
+    "key_name": "stable_audio_open_params",
+    "key_type": "sfx_prompt",
+    "primary_recommendation": "Stable Audio Open 1.0:duration 0.5-47s(默认10),num_inference_steps 10-150(默认50),guidance_scale 1.0-15.0(默认7.0),sample_rate 44.1/48kHz。",
+    "extra_data": {
+      "model": "Stable Audio Open 1.0",
+      "duration_sec_range": [0.5, 47],
+      "duration_default": 10,
+      "num_inference_steps": [10, 150],
+      "default_steps": 50,
+      "guidance_scale": [1.0, 15.0],
+      "default_guidance": 7.0,
+      "sample_rate_khz": [44.1, 48],
+      "license": "CC-BY-NC-SA 4.0"
+    },
+    "source_file": "foley/stable-audio-open.md",
+    "source_section": "Stable Audio Open 1.0 generation 参数",
+    "tags": ["audio_pipeline", "sfx_prompt_pattern", "stable_audio", "params"],
+    "priority": 61
+  },
+  {
+    "category": "character_voice_protocol",
+    "key_name": "voice_id_3_layer_verification",
+    "key_type": "voice_protocol",
+    "primary_recommendation": "Voice ID 3 层验证:speaker embedding cosine ≥ 0.85 + F0 σ ≤ 30Hz + spectral envelope ≥ 0.80。",
+    "rationale": "任一层失败 → 重新生成 + 调整 voice cloning sample 或 provider。Speaker embedding 基于 ECAPA-TDNN 或 GE2EC。",
+    "extra_data": {
+      "layers": [{"metric": "speaker_embedding_cosine", "threshold": 0.85, "basis": "ECAPA-TDNN/GE2EC"}, {"metric": "f0_consistency", "threshold_hz": 30, "unit": "sigma across shots"}, {"metric": "spectral_envelope_similarity", "threshold": 0.8, "basis": "MFCC + formant"}]
+    },
+    "source_file": "voicer/character-voice-consistency.md",
+    "source_section": "Voice ID 一致性 3 层验证",
+    "tags": ["audio_pipeline", "character_voice_protocol", "verification"],
+    "priority": 68
+  },
+  {
+    "category": "character_voice_protocol",
+    "key_name": "voice_clone_quick_clone",
+    "key_type": "voice_protocol",
+    "primary_recommendation": "Quick clone(5-10s): 配角/群演/短 短剧。",
+    "extra_data": {
+      "tier": "Quick clone",
+      "sample_duration": "5-10s",
+      "scene": "配角/群演/短 短剧",
+      "providers": ["MiniMax", "ElevenLabs"]
+    },
+    "source_file": "voicer/character-voice-consistency.md",
+    "source_section": "5-sample + 30-sample cloning 协议",
+    "tags": ["audio_pipeline", "character_voice_protocol", "cloning_tier", "quick_clone"],
+    "priority": 62
+  },
+  {
+    "category": "character_voice_protocol",
+    "key_name": "voice_clone_standard_clone",
+    "key_type": "voice_protocol",
+    "primary_recommendation": "Standard clone(30s-1min): 主角/长篇 短剧。",
+    "extra_data": {
+      "tier": "Standard clone",
+      "sample_duration": "30s-1min",
+      "scene": "主角/长篇 短剧",
+      "providers": ["MiniMax", "ElevenLabs"]
+    },
+    "source_file": "voicer/character-voice-consistency.md",
+    "source_section": "5-sample + 30-sample cloning 协议",
+    "tags": ["audio_pipeline", "character_voice_protocol", "cloning_tier", "standard_clone"],
+    "priority": 62
+  },
+  {
+    "category": "character_voice_protocol",
+    "key_name": "voice_clone_premium_clone",
+    "key_type": "voice_protocol",
+    "primary_recommendation": "Premium clone(3-5min): 电影/高质量制作。",
+    "extra_data": {
+      "tier": "Premium clone",
+      "sample_duration": "3-5min",
+      "scene": "电影/高质量制作",
+      "providers": ["ElevenLabs Professional Voice Clone"]
+    },
+    "source_file": "voicer/character-voice-consistency.md",
+    "source_section": "5-sample + 30-sample cloning 协议",
+    "tags": ["audio_pipeline", "character_voice_protocol", "cloning_tier", "premium_clone"],
+    "priority": 62
+  },
+  {
+    "category": "character_voice_protocol",
+    "key_name": "voice_clone_preset_voice",
+    "key_type": "voice_protocol",
+    "primary_recommendation": "Preset voice(0s): 群演/一次性 character。",
+    "extra_data": {
+      "tier": "Preset voice",
+      "sample_duration": "0s",
+      "scene": "群演/一次性 character",
+      "providers": ["Edge TTS", "Gemini TTS"]
+    },
+    "source_file": "voicer/character-voice-consistency.md",
+    "source_section": "5-sample + 30-sample cloning 协议",
+    "tags": ["audio_pipeline", "character_voice_protocol", "cloning_tier", "preset_voice"],
+    "priority": 62
+  },
+  {
+    "category": "character_voice_protocol",
+    "key_name": "voice_clone_sample_protocol",
+    "key_type": "voice_protocol",
+    "primary_recommendation": "Voice cloning sample:干净 background / 48kHz 24-bit / 单人单话 / mid-range pitch+neutral emotion / 含 trigger phrase / 180-220 wpm 中文。",
+    "extra_data": {
+      "requirements": ["干净 background (无 music/noise/reverb)", "Sample rate 48kHz 24-bit", "单人单话", "Mid-range pitch + neutral emotion", "包含 character trigger phrase", "Mid-paced delivery 180-220 wpm 中文 / 140-160 wpm 英文"]
+    },
+    "source_file": "voicer/character-voice-consistency.md",
+    "source_section": "Voice cloning sample 采集协议",
+    "tags": ["audio_pipeline", "character_voice_protocol", "sample_protocol"],
+    "priority": 64
+  },
+  {
+    "category": "character_voice_protocol",
+    "key_name": "voice_5s_sample_protocol",
+    "key_type": "voice_protocol",
+    "primary_recommendation": "5-second voice cloning sample:持续 5-10s 单人单话 / 干净 background / mid-range pitch+neutral emotion / 48kHz 24-bit / 含 trigger phrase。",
+    "extra_data": {
+      "duration_sec": [5, 10],
+      "sample_rate_hz": 48000,
+      "bit_depth": 24,
+      "pitch": "mid-range",
+      "emotion": "neutral"
+    },
+    "source_file": "voicer/cn-tts-model-matrix.md",
+    "source_section": "Voice cloning 5-second sample 协议",
+    "tags": ["audio_pipeline", "character_voice_protocol", "5s_sample"],
+    "priority": 63
+  },
+  {
+    "category": "character_voice_protocol",
+    "key_name": "voice_arc_aging",
+    "key_type": "voice_protocol",
+    "primary_recommendation": "Voice arc — 角色 aging / 时间跨度: F0 ↓ + 速率 ↓ + breathiness ↑。",
+    "rationale": "Hard rule:voice arc 是 emotion/state 调整,不能改变 voice identity(speaker embedding)。跨 episode voice baseline 必须一致。",
+    "extra_data": {
+      "trigger": "角色 aging / 时间跨度",
+      "parameter_change": "F0 ↓ + 速率 ↓ + breathiness ↑"
+    },
+    "source_file": "voicer/character-voice-consistency.md",
+    "source_section": "Voice arc(情绪/状态变化)",
+    "tags": ["audio_pipeline", "character_voice_protocol", "voice_arc", "aging"],
+    "priority": 60
+  },
+  {
+    "category": "character_voice_protocol",
+    "key_name": "voice_arc_traumatized",
+    "key_type": "voice_protocol",
+    "primary_recommendation": "Voice arc — 角色 traumatized: F0 instability + pause 多 + whisper 倾向。",
+    "rationale": "Hard rule:voice arc 是 emotion/state 调整,不能改变 voice identity(speaker embedding)。跨 episode voice baseline 必须一致。",
+    "extra_data": {
+      "trigger": "角色 traumatized",
+      "parameter_change": "F0 instability + pause 多 + whisper 倾向"
+    },
+    "source_file": "voicer/character-voice-consistency.md",
+    "source_section": "Voice arc(情绪/状态变化)",
+    "tags": ["audio_pipeline", "character_voice_protocol", "voice_arc", "traumatized"],
+    "priority": 60
+  },
+  {
+    "category": "character_voice_protocol",
+    "key_name": "voice_arc_empowered",
+    "key_type": "voice_protocol",
+    "primary_recommendation": "Voice arc — 角色 empowered: F0 ↑ + volume ↑ + rate ↑。",
+    "rationale": "Hard rule:voice arc 是 emotion/state 调整,不能改变 voice identity(speaker embedding)。跨 episode voice baseline 必须一致。",
+    "extra_data": {
+      "trigger": "角色 empowered",
+      "parameter_change": "F0 ↑ + volume ↑ + rate ↑"
+    },
+    "source_file": "voicer/character-voice-consistency.md",
+    "source_section": "Voice arc(情绪/状态变化)",
+    "tags": ["audio_pipeline", "character_voice_protocol", "voice_arc", "empowered"],
+    "priority": 60
+  },
+  {
+    "category": "character_voice_protocol",
+    "key_name": "voice_arc_dying_sick",
+    "key_type": "voice_protocol",
+    "primary_recommendation": "Voice arc — 角色 dying / sick: breathiness ↑ + volume ↓ + pause 多。",
+    "rationale": "Hard rule:voice arc 是 emotion/state 调整,不能改变 voice identity(speaker embedding)。跨 episode voice baseline 必须一致。",
+    "extra_data": {
+      "trigger": "角色 dying / sick",
+      "parameter_change": "breathiness ↑ + volume ↓ + pause 多"
+    },
+    "source_file": "voicer/character-voice-consistency.md",
+    "source_section": "Voice arc(情绪/状态变化)",
+    "tags": ["audio_pipeline", "character_voice_protocol", "voice_arc", "dying_sick"],
+    "priority": 60
+  },
+  {
+    "category": "character_voice_protocol",
+    "key_name": "voice_cross_episode_hard_rule",
+    "key_type": "voice_protocol",
+    "primary_recommendation": "同一 character 跨 episode 必须保持 voice baseline 一致;voice arc 不能改变 voice identity。",
+    "extra_data": {
+      "rule": "voice arc = emotion/state modulation, must NOT change voice identity (speaker embedding)"
+    },
+    "source_file": "voicer/character-voice-consistency.md",
+    "source_section": "Cross-episode voice consistency hard rule",
+    "tags": ["audio_pipeline", "character_voice_protocol", "cross_episode"],
+    "priority": 64
   }
 ]
