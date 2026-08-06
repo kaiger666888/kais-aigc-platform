@@ -53,7 +53,7 @@ function VoicePlayBar({ audioUrl }: { audioUrl: string }) {
     e.stopPropagation()
     const el = audioRef.current
     if (!el) return
-    if (playing) { el.pause() } else { void el.play().catch(() => {}) }
+    if (playing) { el.pause() } else { if (!el.duration || !isFinite(el.duration)) el.load(); void el.play().catch(() => {}) }
   }, [playing])
 
   const onSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -87,7 +87,7 @@ function VoicePlayBar({ audioUrl }: { audioUrl: string }) {
       {/* 隐藏的真实 audio 元素，仅作播放引擎 */}
       <audio
         ref={audioRef}
-        preload="none"
+        preload="metadata"
         src={audioUrl}
         style={{ display: 'none' }}
         onPlay={() => setPlaying(true)}
