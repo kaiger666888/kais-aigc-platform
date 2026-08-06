@@ -46380,318 +46380,6 @@
   },
   {
     "category": "emotion_alias",
-    "key_name": "shock/disorientation",
-    "key_type": "alias",
-    "primary_recommendation": "Shock / Startle",
-    "rationale": "坠楼重生的开场冲击——突发信息打破稳态，映射到 crash zoom 情绪。",
-    "extra_data": {
-      "canonical_kb_key": "Shock / Startle",
-      "source": "p09_shot_list_convention"
-    },
-    "tags": [
-      "emotion_alias",
-      "emotion_mapping"
-    ],
-    "priority": 60,
-    "alternative_recommendations": [
-      "Unease / Disorientation"
-    ],
-    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
-    "source_section": "S01_B01"
-  },
-  {
-    "category": "emotion_alias",
-    "key_name": "confusion/dawning_recognition",
-    "key_type": "alias",
-    "primary_recommendation": "Confusion / Bewilderment",
-    "rationale": "签约现场苏醒后的认知错位——从不解到恍然的过渡情绪。",
-    "extra_data": {
-      "canonical_kb_key": "Confusion / Bewilderment",
-      "source": "p09_shot_list_convention"
-    },
-    "tags": [
-      "emotion_alias",
-      "emotion_mapping"
-    ],
-    "priority": 60,
-    "alternative_recommendations": [
-      "Epiphany / Clarity"
-    ],
-    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
-    "source_section": "S01_B02"
-  },
-  {
-    "category": "emotion_alias",
-    "key_name": "dread/alertness",
-    "key_type": "alias",
-    "primary_recommendation": "Awe / Dread",
-    "rationale": "对未知环境的警觉性恐惧——敬畏与威胁并存。",
-    "extra_data": {
-      "canonical_kb_key": "Awe / Dread",
-      "source": "p09_shot_list_convention"
-    },
-    "tags": [
-      "emotion_alias",
-      "emotion_mapping"
-    ],
-    "priority": 60,
-    "alternative_recommendations": [
-      "Suspense / Mystery"
-    ],
-    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
-    "source_section": "S01_B03"
-  },
-  {
-    "category": "emotion_alias",
-    "key_name": "tension/trapped",
-    "key_type": "alias",
-    "primary_recommendation": "Tension / Oppression",
-    "rationale": "被困的压抑张力——空间压迫感。",
-    "extra_data": {
-      "canonical_kb_key": "Tension / Oppression",
-      "source": "p09_shot_list_convention"
-    },
-    "tags": [
-      "emotion_alias",
-      "emotion_mapping"
-    ],
-    "priority": 60,
-    "alternative_recommendations": [
-      "Anguish / Torment"
-    ],
-    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
-    "source_section": "S01_B04"
-  },
-  {
-    "category": "emotion_alias",
-    "key_name": "fear/resolution_fork",
-    "key_type": "alias",
-    "primary_recommendation": "Fear / Terror",
-    "rationale": "抉择瞬间的具体威胁恐惧；modifier=decision_moment。",
-    "extra_data": {
-      "canonical_kb_key": "Fear / Terror",
-      "source": "p09_shot_list_convention"
-    },
-    "tags": [
-      "emotion_alias",
-      "emotion_mapping"
-    ],
-    "priority": 60,
-    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
-    "source_section": "S01_B05"
-  },
-  {
-    "category": "emotion_alias",
-    "key_name": "calm_control",
-    "key_type": "alias",
-    "primary_recommendation": "Dominance",
-    "rationale": "冷静掌控的权力气场——主体主导局势。",
-    "extra_data": {
-      "canonical_kb_key": "Dominance",
-      "source": "p09_shot_list_convention"
-    },
-    "tags": [
-      "emotion_alias",
-      "emotion_mapping"
-    ],
-    "priority": 60,
-    "alternative_recommendations": [
-      "Serenity / Peace"
-    ],
-    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
-    "source_section": "S02_B01"
-  },
-  {
-    "category": "emotion_alias",
-    "key_name": "pride/authority",
-    "key_type": "alias",
-    "primary_recommendation": "Power / Sublime",
-    "rationale": "骄傲与权威的崇高权力感。",
-    "extra_data": {
-      "canonical_kb_key": "Power / Sublime",
-      "source": "p09_shot_list_convention"
-    },
-    "tags": [
-      "emotion_alias",
-      "emotion_mapping"
-    ],
-    "priority": 60,
-    "alternative_recommendations": [
-      "Dominance"
-    ],
-    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
-    "source_section": "S02_B02"
-  },
-  {
-    "category": "emotion_alias",
-    "key_name": "satisfaction/suspicion",
-    "key_type": "alias",
-    "primary_recommendation": "Resentment / Bitterness",
-    "rationale": "满足中夹杂怀疑——愤懑与暗流并存。",
-    "extra_data": {
-      "canonical_kb_key": "Resentment / Bitterness",
-      "source": "p09_shot_list_convention"
-    },
-    "tags": [
-      "emotion_alias",
-      "emotion_mapping"
-    ],
-    "priority": 60,
-    "alternative_recommendations": [
-      "Suspense / Mystery"
-    ],
-    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
-    "source_section": "S02_B03"
-  },
-  {
-    "category": "emotion_alias",
-    "key_name": "brief_triumph",
-    "key_type": "alias",
-    "primary_recommendation": "Power / Sublime",
-    "rationale": "短暂的胜利高光——崇高权力的瞬时兑现。",
-    "extra_data": {
-      "canonical_kb_key": "Power / Sublime",
-      "source": "p09_shot_list_convention"
-    },
-    "tags": [
-      "emotion_alias",
-      "emotion_mapping"
-    ],
-    "priority": 60,
-    "alternative_recommendations": [
-      "Joy / Delight"
-    ],
-    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
-    "source_section": "S03_B01"
-  },
-  {
-    "category": "emotion_alias",
-    "key_name": "shock/betrayed",
-    "key_type": "alias",
-    "primary_recommendation": "Shock / Startle",
-    "rationale": "被背叛的震惊——突发冲击叠加愤怒。",
-    "extra_data": {
-      "canonical_kb_key": "Shock / Startle",
-      "source": "p09_shot_list_convention"
-    },
-    "tags": [
-      "emotion_alias",
-      "emotion_mapping"
-    ],
-    "priority": 60,
-    "alternative_recommendations": [
-      "Anger / Rage"
-    ],
-    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
-    "source_section": "S03_B02"
-  },
-  {
-    "category": "emotion_alias",
-    "key_name": "despair/isolation",
-    "key_type": "alias",
-    "primary_recommendation": "Despair",
-    "rationale": "绝望中的孤立无援——彻底的负面谷底。",
-    "extra_data": {
-      "canonical_kb_key": "Despair",
-      "source": "p09_shot_list_convention"
-    },
-    "tags": [
-      "emotion_alias",
-      "emotion_mapping"
-    ],
-    "priority": 60,
-    "alternative_recommendations": [
-      "Loneliness / Detachment"
-    ],
-    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
-    "source_section": "S03_B03"
-  },
-  {
-    "category": "emotion_alias",
-    "key_name": "despair/contemplation",
-    "key_type": "alias",
-    "primary_recommendation": "Despair",
-    "rationale": "绝望中的沉思——存在性的厌世感。",
-    "extra_data": {
-      "canonical_kb_key": "Despair",
-      "source": "p09_shot_list_convention"
-    },
-    "tags": [
-      "emotion_alias",
-      "emotion_mapping"
-    ],
-    "priority": 60,
-    "alternative_recommendations": [
-      "Weltschmerz / World-weariness"
-    ],
-    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
-    "source_section": "S04_B01"
-  },
-  {
-    "category": "emotion_alias",
-    "key_name": "awakening/explosive_catharsis",
-    "key_type": "alias",
-    "primary_recommendation": "Catharsis",
-    "rationale": "觉醒式爆发性宣泄——情绪能量的彻底释放。",
-    "extra_data": {
-      "canonical_kb_key": "Catharsis",
-      "source": "p09_shot_list_convention"
-    },
-    "tags": [
-      "emotion_alias",
-      "emotion_mapping"
-    ],
-    "priority": 60,
-    "alternative_recommendations": [
-      "Epiphany / Clarity"
-    ],
-    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
-    "source_section": "S04_B02"
-  },
-  {
-    "category": "emotion_alias",
-    "key_name": "peak_satisfaction/absolute_authority",
-    "key_type": "alias",
-    "primary_recommendation": "Power / Sublime",
-    "rationale": "巅峰满足与绝对权威——权力崇高感的顶点。",
-    "extra_data": {
-      "canonical_kb_key": "Power / Sublime",
-      "source": "p09_shot_list_convention"
-    },
-    "tags": [
-      "emotion_alias",
-      "emotion_mapping"
-    ],
-    "priority": 60,
-    "alternative_recommendations": [
-      "Dominance"
-    ],
-    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
-    "source_section": "S04_B03"
-  },
-  {
-    "category": "emotion_alias",
-    "key_name": "curiosity/unknown_dread",
-    "key_type": "alias",
-    "primary_recommendation": "Suspense / Mystery",
-    "rationale": "好奇与未知恐惧的交织——悬念驱动。",
-    "extra_data": {
-      "canonical_kb_key": "Suspense / Mystery",
-      "source": "p09_shot_list_convention"
-    },
-    "tags": [
-      "emotion_alias",
-      "emotion_mapping"
-    ],
-    "priority": 60,
-    "alternative_recommendations": [
-      "Awe / Dread"
-    ],
-    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
-    "source_section": "S05_B01"
-  },
-  {
-    "category": "emotion_alias",
     "key_name": "clinical_dread",
     "key_type": "alias",
     "primary_recommendation": "Awe / Dread",
@@ -47421,7 +47109,9 @@
     "priority": 60,
     "alternative_recommendations": [
       "Surprise"
-    ]
+    ],
+    "source_file": "emotion-camera-mapping.md",
+    "source_section": "canonical_emotion_key"
   },
   {
     "category": "emotion_alias",
@@ -47440,7 +47130,9 @@
     "priority": 60,
     "alternative_recommendations": [
       "Anxiety"
-    ]
+    ],
+    "source_file": "emotion-camera-mapping.md",
+    "source_section": "canonical_emotion_key"
   },
   {
     "category": "emotion_alias",
@@ -47459,7 +47151,9 @@
     "priority": 60,
     "alternative_recommendations": [
       "Fear / Terror"
-    ]
+    ],
+    "source_file": "emotion-camera-mapping.md",
+    "source_section": "canonical_emotion_key"
   },
   {
     "category": "emotion_alias",
@@ -47478,7 +47172,9 @@
     "priority": 60,
     "alternative_recommendations": [
       "Resentment / Bitterness"
-    ]
+    ],
+    "source_file": "emotion-camera-mapping.md",
+    "source_section": "canonical_emotion_key"
   },
   {
     "category": "emotion_alias",
@@ -47497,7 +47193,9 @@
     "priority": 60,
     "alternative_recommendations": [
       "Suspense / Mystery"
-    ]
+    ],
+    "source_file": "emotion-camera-mapping.md",
+    "source_section": "canonical_emotion_key"
   },
   {
     "category": "emotion_alias",
@@ -47516,7 +47214,9 @@
     "priority": 60,
     "alternative_recommendations": [
       "Suspenseful Anticipation"
-    ]
+    ],
+    "source_file": "emotion-camera-mapping.md",
+    "source_section": "canonical_emotion_key"
   },
   {
     "category": "emotion_alias",
@@ -47535,7 +47235,9 @@
     "priority": 60,
     "alternative_recommendations": [
       "Grief / Mourning"
-    ]
+    ],
+    "source_file": "emotion-camera-mapping.md",
+    "source_section": "canonical_emotion_key"
   },
   {
     "category": "emotion_alias",
@@ -47554,7 +47256,9 @@
     "priority": 60,
     "alternative_recommendations": [
       "Surprise"
-    ]
+    ],
+    "source_file": "emotion-camera-mapping.md",
+    "source_section": "canonical_emotion_key"
   },
   {
     "category": "emotion_alias",
@@ -47573,7 +47277,9 @@
     "priority": 60,
     "alternative_recommendations": [
       "Joy / Delight"
-    ]
+    ],
+    "source_file": "emotion-camera-mapping.md",
+    "source_section": "canonical_emotion_key"
   },
   {
     "category": "emotion_alias",
@@ -47592,7 +47298,9 @@
     "priority": 60,
     "alternative_recommendations": [
       "Epiphany / Clarity"
-    ]
+    ],
+    "source_file": "emotion-camera-mapping.md",
+    "source_section": "canonical_emotion_key"
   },
   {
     "category": "emotion_alias",
@@ -47611,7 +47319,9 @@
     "priority": 60,
     "alternative_recommendations": [
       "Serenity / Peace"
-    ]
+    ],
+    "source_file": "emotion-camera-mapping.md",
+    "source_section": "canonical_emotion_key"
   },
   {
     "category": "emotion_alias",
@@ -47630,6 +47340,8 @@
     "priority": 60,
     "alternative_recommendations": [
       "Unease / Disorientation"
-    ]
+    ],
+    "source_file": "emotion-camera-mapping.md",
+    "source_section": "canonical_emotion_key"
   }
 ]

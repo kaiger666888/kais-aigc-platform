@@ -272,6 +272,42 @@ def cmd_add(args):
     print(f"added: seed {appended} new + {replaced} replaced | db inserted {len(rows)}")
 
 
+def cmd_patch(args):
+    """Patch specific fields on existing keys: `patch CAT FILE.json` where FILE
+    is {key_name: {field: value, ...}}. Applies to both seed-data.json and DB.
+    Used to re-attribute source_file etc. without touching other fields."""
+    category = args[0]
+    path = args[1]
+    with open(path, encoding="utf-8") as f:
+        patches = json.load(f)  # {key_name: {field: value}}
+    assert isinstance(patches, dict), "patch: FILE must be a {key_name:{field:val}} object"
+    seed = load_seed()
+    n = 0
+    for e in seed:
+        if e["category"] == category and e["key_name"] in patches:
+            for fld, val in patches[e["key_name"]].items():
+                e[fld] = val
+            n += 1
+    save_seed(seed)
+    conn = connect()
+    ts = now_iso()
+    up = 0
+    for key, fields in patches.items():
+        sets, vals = [], []
+        for fld, val in fields.items():
+            sets.append(f"{fld}=?")
+            vals.append(to_json(val) if (fld in JSON_ARRAY_FIELDS or fld in JSON_OBJECT_FIELDS) else val)
+        sets.append("updated_at=?")
+        vals += [ts, category, key]
+        cur = conn.execute(
+            f"UPDATE cinema_knowledge SET {','.join(sets)} WHERE category=? AND key_name=?",
+            vals,
+        )
+        up += cur.rowcount
+    conn.commit()
+    print(f"patched: seed {n} entries, db updated {up} rows")
+
+
 def cmd_reseed(_args):
     seed = load_seed()
     conn = connect()
@@ -293,6 +329,7 @@ COMMANDS = {
     "check": cmd_check,
     "delete": cmd_delete,
     "add": cmd_add,
+    "patch": cmd_patch,
     "reseed": cmd_reseed,
 }
 
