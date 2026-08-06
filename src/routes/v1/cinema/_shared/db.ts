@@ -31,7 +31,35 @@ export type CinemaCategory =
   | "viral_hook"
   | "platform_rule"
   | "content_taboo"
-  | "aigc_label_spec";
+  | "aigc_label_spec"
+  // style_genome (Wave 1b — 5D hub)
+  | "director_dna"
+  | "genre_dna"
+  | "scamper_recipe"
+  | "auteur_tier_rule"
+  | "cross_cultural_transform"
+  | "cn_director_supplement"
+  // colorist (Wave 1b)
+  | "emotion_color"
+  | "platform_color_ceiling"
+  | "culture_color"
+  | "color_pipeline_param"
+  | "color_space_primaries"
+  | "genre_color_temp"
+  // editor (Wave 1b)
+  | "editing_rhythm"
+  | "murch_dimension"
+  | "cut_density_window"
+  | "montage_method"
+  | "axis_compliance"
+  | "editing_failure_mode"
+  // hook_retention (Wave 1b)
+  | "hook_pattern"
+  | "paywall_strength_tier"
+  | "escalation_rung"
+  | "vertical_pacing_dimension"
+  | "completion_rate_rule"
+  | "share_trigger";
 
 export type CinemaKeyType =
   // cinematography
@@ -51,7 +79,36 @@ export type CinemaKeyType =
   | "viral_element"
   | "platform_policy"
   | "taboo"
-  | "label_spec";
+  | "label_spec"
+  // style_genome (Wave 1b)
+  | "director"
+  | "signature_token"
+  | "genre"
+  | "scamper"
+  | "auteur_tier"
+  | "culture_transform"
+  | "cn_profile"
+  // colorist (Wave 1b)
+  | "color_ceiling"
+  | "culture_color"
+  | "pipeline_param"
+  | "color_space"
+  | "color_temp"
+  // editor (Wave 1b)
+  | "rhythm_rule"
+  | "murch_dimension"
+  | "density_window"
+  | "montage_method"
+  | "axis_rule"
+  | "failure_mode"
+  // hook_retention (Wave 1b)
+  | "hook_type"
+  | "hook_example"
+  | "paywall_tier"
+  | "escalation_rung"
+  | "pacing_dimension"
+  | "completion_rule"
+  | "share_trigger";
 
 /** Loosely-typed seed/API entry (arrays + objects). Serialized to JSON columns. */
 export interface CinemaEntry {
