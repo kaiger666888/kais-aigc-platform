@@ -46839,5 +46839,1259 @@
       "carry_failure"
     ],
     "priority": 70
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "shock/disorientation",
+    "key_type": "alias",
+    "primary_recommendation": "Shock / Startle",
+    "rationale": "坠楼重生的开场冲击——突发信息打破稳态，映射到 crash zoom 情绪。",
+    "extra_data": {
+      "canonical_kb_key": "Shock / Startle",
+      "source": "p09_shot_list_convention"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Unease / Disorientation"
+    ],
+    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
+    "source_section": "S01_B01"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "confusion/dawning_recognition",
+    "key_type": "alias",
+    "primary_recommendation": "Confusion / Bewilderment",
+    "rationale": "签约现场苏醒后的认知错位——从不解到恍然的过渡情绪。",
+    "extra_data": {
+      "canonical_kb_key": "Confusion / Bewilderment",
+      "source": "p09_shot_list_convention"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Epiphany / Clarity"
+    ],
+    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
+    "source_section": "S01_B02"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "dread/alertness",
+    "key_type": "alias",
+    "primary_recommendation": "Awe / Dread",
+    "rationale": "对未知环境的警觉性恐惧——敬畏与威胁并存。",
+    "extra_data": {
+      "canonical_kb_key": "Awe / Dread",
+      "source": "p09_shot_list_convention"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Suspense / Mystery"
+    ],
+    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
+    "source_section": "S01_B03"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "tension/trapped",
+    "key_type": "alias",
+    "primary_recommendation": "Tension / Oppression",
+    "rationale": "被困的压抑张力——空间压迫感。",
+    "extra_data": {
+      "canonical_kb_key": "Tension / Oppression",
+      "source": "p09_shot_list_convention"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Anguish / Torment"
+    ],
+    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
+    "source_section": "S01_B04"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "fear/resolution_fork",
+    "key_type": "alias",
+    "primary_recommendation": "Fear / Terror",
+    "rationale": "抉择瞬间的具体威胁恐惧；modifier=decision_moment。",
+    "extra_data": {
+      "canonical_kb_key": "Fear / Terror",
+      "source": "p09_shot_list_convention"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
+    "source_section": "S01_B05"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "calm_control",
+    "key_type": "alias",
+    "primary_recommendation": "Dominance",
+    "rationale": "冷静掌控的权力气场——主体主导局势。",
+    "extra_data": {
+      "canonical_kb_key": "Dominance",
+      "source": "p09_shot_list_convention"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Serenity / Peace"
+    ],
+    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
+    "source_section": "S02_B01"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "pride/authority",
+    "key_type": "alias",
+    "primary_recommendation": "Power / Sublime",
+    "rationale": "骄傲与权威的崇高权力感。",
+    "extra_data": {
+      "canonical_kb_key": "Power / Sublime",
+      "source": "p09_shot_list_convention"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Dominance"
+    ],
+    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
+    "source_section": "S02_B02"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "satisfaction/suspicion",
+    "key_type": "alias",
+    "primary_recommendation": "Resentment / Bitterness",
+    "rationale": "满足中夹杂怀疑——愤懑与暗流并存。",
+    "extra_data": {
+      "canonical_kb_key": "Resentment / Bitterness",
+      "source": "p09_shot_list_convention"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Suspense / Mystery"
+    ],
+    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
+    "source_section": "S02_B03"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "brief_triumph",
+    "key_type": "alias",
+    "primary_recommendation": "Power / Sublime",
+    "rationale": "短暂的胜利高光——崇高权力的瞬时兑现。",
+    "extra_data": {
+      "canonical_kb_key": "Power / Sublime",
+      "source": "p09_shot_list_convention"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Joy / Delight"
+    ],
+    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
+    "source_section": "S03_B01"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "shock/betrayed",
+    "key_type": "alias",
+    "primary_recommendation": "Shock / Startle",
+    "rationale": "被背叛的震惊——突发冲击叠加愤怒。",
+    "extra_data": {
+      "canonical_kb_key": "Shock / Startle",
+      "source": "p09_shot_list_convention"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Anger / Rage"
+    ],
+    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
+    "source_section": "S03_B02"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "despair/isolation",
+    "key_type": "alias",
+    "primary_recommendation": "Despair",
+    "rationale": "绝望中的孤立无援——彻底的负面谷底。",
+    "extra_data": {
+      "canonical_kb_key": "Despair",
+      "source": "p09_shot_list_convention"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Loneliness / Detachment"
+    ],
+    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
+    "source_section": "S03_B03"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "despair/contemplation",
+    "key_type": "alias",
+    "primary_recommendation": "Despair",
+    "rationale": "绝望中的沉思——存在性的厌世感。",
+    "extra_data": {
+      "canonical_kb_key": "Despair",
+      "source": "p09_shot_list_convention"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Weltschmerz / World-weariness"
+    ],
+    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
+    "source_section": "S04_B01"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "awakening/explosive_catharsis",
+    "key_type": "alias",
+    "primary_recommendation": "Catharsis",
+    "rationale": "觉醒式爆发性宣泄——情绪能量的彻底释放。",
+    "extra_data": {
+      "canonical_kb_key": "Catharsis",
+      "source": "p09_shot_list_convention"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Epiphany / Clarity"
+    ],
+    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
+    "source_section": "S04_B02"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "peak_satisfaction/absolute_authority",
+    "key_type": "alias",
+    "primary_recommendation": "Power / Sublime",
+    "rationale": "巅峰满足与绝对权威——权力崇高感的顶点。",
+    "extra_data": {
+      "canonical_kb_key": "Power / Sublime",
+      "source": "p09_shot_list_convention"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Dominance"
+    ],
+    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
+    "source_section": "S04_B03"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "curiosity/unknown_dread",
+    "key_type": "alias",
+    "primary_recommendation": "Suspense / Mystery",
+    "rationale": "好奇与未知恐惧的交织——悬念驱动。",
+    "extra_data": {
+      "canonical_kb_key": "Suspense / Mystery",
+      "source": "p09_shot_list_convention"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Awe / Dread"
+    ],
+    "source_file": "ep-shencongshenyuan-ep01/.pipeline-assets/shot-list.json",
+    "source_section": "S05_B01"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "clinical_dread",
+    "key_type": "alias",
+    "primary_recommendation": "Awe / Dread",
+    "rationale": "L1 valence LUT: 临床式冷静的恐惧 (Plutchik Fear, valence -0.3)。",
+    "extra_data": {
+      "canonical_kb_key": "Awe / Dread",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Fear / Terror"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "temporal_dread",
+    "key_type": "alias",
+    "primary_recommendation": "Awe / Dread",
+    "rationale": "L1 valence LUT: 时间性的恐惧 (Plutchik Fear, valence -0.3)。",
+    "extra_data": {
+      "canonical_kb_key": "Awe / Dread",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Fear / Terror"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "quiet_tension",
+    "key_type": "alias",
+    "primary_recommendation": "Tension / Oppression",
+    "rationale": "L1 valence LUT: 低声的张力 (Plutchik Fear, valence -0.3)。",
+    "extra_data": {
+      "canonical_kb_key": "Tension / Oppression",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Suspense / Mystery"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "grim_focus",
+    "key_type": "alias",
+    "primary_recommendation": "Tension / Oppression",
+    "rationale": "L1 valence LUT: 冷峻专注 (Plutchik Fear, valence -0.3)。",
+    "extra_data": {
+      "canonical_kb_key": "Tension / Oppression",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Dominance"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "composed_authority",
+    "key_type": "alias",
+    "primary_recommendation": "Dominance",
+    "rationale": "L1 valence LUT: 镇定的权威 (Plutchik Anticipation positive, valence +0.2)。",
+    "extra_data": {
+      "canonical_kb_key": "Dominance",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Serenity / Peace"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "serene_confidence",
+    "key_type": "alias",
+    "primary_recommendation": "Dominance",
+    "rationale": "L1 valence LUT: 宁静的自信 (Plutchik Anticipation positive, valence +0.2)。",
+    "extra_data": {
+      "canonical_kb_key": "Dominance",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Serenity / Peace"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "subtle_wrongness",
+    "key_type": "alias",
+    "primary_recommendation": "The Uncanny / Creepy",
+    "rationale": "L1 valence LUT: 微妙的违和 (Plutchik Surprise mild negative, valence -0.15)。",
+    "extra_data": {
+      "canonical_kb_key": "The Uncanny / Creepy",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Unease / Disorientation"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "uncanny_displacement",
+    "key_type": "alias",
+    "primary_recommendation": "The Uncanny / Creepy",
+    "rationale": "L1 valence LUT: 诡异的错位 (Plutchik Surprise mild negative, valence -0.15)。",
+    "extra_data": {
+      "canonical_kb_key": "The Uncanny / Creepy",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Unease / Disorientation"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "uncanny_tenderness",
+    "key_type": "alias",
+    "primary_recommendation": "The Uncanny / Creepy",
+    "rationale": "L1 valence LUT: 诡异的温柔 (Plutchik Surprise, valence +0.1)。",
+    "extra_data": {
+      "canonical_kb_key": "The Uncanny / Creepy",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Intimacy / Warmth"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "external_shock",
+    "key_type": "alias",
+    "primary_recommendation": "Shock / Startle",
+    "rationale": "L1 valence LUT: 外部冲击 (Plutchik Surprise negative, valence -0.55)。",
+    "extra_data": {
+      "canonical_kb_key": "Shock / Startle",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Fear / Terror"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "visceral_shock",
+    "key_type": "alias",
+    "primary_recommendation": "Shock / Startle",
+    "rationale": "L1 valence LUT: 内脏级冲击 (Plutchik Surprise negative, valence -0.55)。",
+    "extra_data": {
+      "canonical_kb_key": "Shock / Startle",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Fear / Terror"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "acoustic_shock",
+    "key_type": "alias",
+    "primary_recommendation": "Shock / Startle",
+    "rationale": "L1 valence LUT: 声学冲击 (Plutchik Surprise negative, valence -0.55)。",
+    "extra_data": {
+      "canonical_kb_key": "Shock / Startle",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Surprise"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "structural_failure",
+    "key_type": "alias",
+    "primary_recommendation": "Despair",
+    "rationale": "L1 valence LUT: 结构性崩溃 (Plutchik Fear escalating, valence -0.4)。",
+    "extra_data": {
+      "canonical_kb_key": "Despair",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Chaos / Loss of Control"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "irreversible_drift",
+    "key_type": "alias",
+    "primary_recommendation": "Despair",
+    "rationale": "L1 valence LUT: 不可逆漂移 (Plutchik Fear escalating, valence -0.4)。",
+    "extra_data": {
+      "canonical_kb_key": "Despair",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Anguish / Torment"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "mechanical_automation",
+    "key_type": "alias",
+    "primary_recommendation": "The Uncanny / Creepy",
+    "rationale": "L1 valence LUT: 机械自动化 (Plutchik Fear escalating, valence -0.4)。",
+    "extra_data": {
+      "canonical_kb_key": "The Uncanny / Creepy",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Paranoia"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "compulsive_repetition",
+    "key_type": "alias",
+    "primary_recommendation": "The Uncanny / Creepy",
+    "rationale": "L1 valence LUT: 强迫性重复 (Plutchik Disgust + Fear, valence -0.25)。",
+    "extra_data": {
+      "canonical_kb_key": "The Uncanny / Creepy",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Paranoia"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "mechanical_lock",
+    "key_type": "alias",
+    "primary_recommendation": "Chaos / Loss of Control",
+    "rationale": "L1 valence LUT: 机械锁死 (Plutchik Fear irreversible, valence -0.55)。",
+    "extra_data": {
+      "canonical_kb_key": "Chaos / Loss of Control",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Tension / Oppression"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "dual_stall",
+    "key_type": "alias",
+    "primary_recommendation": "Chaos / Loss of Control",
+    "rationale": "L1 valence LUT: 双重停滞 (Plutchik Fear irreversible, valence -0.55)。",
+    "extra_data": {
+      "canonical_kb_key": "Chaos / Loss of Control",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Tension / Oppression"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "simultaneous_collapse",
+    "key_type": "alias",
+    "primary_recommendation": "Chaos / Loss of Control",
+    "rationale": "L1 valence LUT: 同时坍塌 (Plutchik Fear irreversible, valence -0.55)。",
+    "extra_data": {
+      "canonical_kb_key": "Chaos / Loss of Control",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Despair"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "eerie_silence",
+    "key_type": "alias",
+    "primary_recommendation": "Suspense / Mystery",
+    "rationale": "L1 valence LUT: 诡异的寂静 (Plutchik Fear suspense, valence -0.4)。",
+    "extra_data": {
+      "canonical_kb_key": "Suspense / Mystery",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Awe / Dread"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "false_calm",
+    "key_type": "alias",
+    "primary_recommendation": "Suspense / Mystery",
+    "rationale": "L1 valence LUT: 虚假平静 (Plutchik Fear suspense, valence -0.4)。",
+    "extra_data": {
+      "canonical_kb_key": "Suspense / Mystery",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Unease / Disorientation"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "slow_realization",
+    "key_type": "alias",
+    "primary_recommendation": "Confusion / Bewilderment",
+    "rationale": "L1 valence LUT: 缓慢的醒悟 (Plutchik Surprise + Fear, valence -0.45)。",
+    "extra_data": {
+      "canonical_kb_key": "Confusion / Bewilderment",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Epiphany / Clarity"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "detached_determination",
+    "key_type": "alias",
+    "primary_recommendation": "Irony / Detachment",
+    "rationale": "L1 valence LUT: 抽离的决意 (Plutchik Surprise + Fear, valence -0.45)。",
+    "extra_data": {
+      "canonical_kb_key": "Irony / Detachment",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Dominance"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "horror_recognition",
+    "key_type": "alias",
+    "primary_recommendation": "Fear / Terror",
+    "rationale": "L1 valence LUT: 恐怖性认知 (Plutchik Fear extreme, valence -0.8)。",
+    "extra_data": {
+      "canonical_kb_key": "Fear / Terror",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Shock / Startle"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "frozen_recognition",
+    "key_type": "alias",
+    "primary_recommendation": "Fear / Terror",
+    "rationale": "L1 valence LUT: 冻结的认知 (Plutchik Fear extreme, valence -0.8)。",
+    "extra_data": {
+      "canonical_kb_key": "Fear / Terror",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Shock / Startle"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "cognitive_collapse",
+    "key_type": "alias",
+    "primary_recommendation": "Chaos / Loss of Control",
+    "rationale": "L1 valence LUT: 认知崩塌 (Plutchik Fear extreme, valence -0.8)。",
+    "extra_data": {
+      "canonical_kb_key": "Chaos / Loss of Control",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Confusion / Bewilderment"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "terminal_hook",
+    "key_type": "alias",
+    "primary_recommendation": "Awe / Dread",
+    "rationale": "L1 valence LUT: 终极钩子 (Plutchik Fear + Dread, valence -0.75)。",
+    "extra_data": {
+      "canonical_kb_key": "Awe / Dread",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Suspense / Mystery"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "terminal_action",
+    "key_type": "alias",
+    "primary_recommendation": "Awe / Dread",
+    "rationale": "L1 valence LUT: 终极行动 (Plutchik Fear + Dread, valence -0.75)。",
+    "extra_data": {
+      "canonical_kb_key": "Awe / Dread",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Suspense / Mystery"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "frozen_afterimage",
+    "key_type": "alias",
+    "primary_recommendation": "Fear / Terror",
+    "rationale": "L1 valence LUT: 冻结残像 (Plutchik Fear sustained, valence -0.65)。",
+    "extra_data": {
+      "canonical_kb_key": "Fear / Terror",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Paranoia"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "absurdist_recognition",
+    "key_type": "alias",
+    "primary_recommendation": "Irony / Detachment",
+    "rationale": "L1 valence LUT: 荒诞认知 (Plutchik Disgust mild, valence -0.3)。",
+    "extra_data": {
+      "canonical_kb_key": "Irony / Detachment",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Humor / Comedy Timing"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "surreal_peace",
+    "key_type": "alias",
+    "primary_recommendation": "Dreaminess / Trance",
+    "rationale": "L1 valence LUT: 超现实的平静 (Plutchik Joy uncanny, valence +0.3)。",
+    "extra_data": {
+      "canonical_kb_key": "Dreaminess / Trance",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Serenity / Peace"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "complicit_gaze",
+    "key_type": "alias",
+    "primary_recommendation": "Paranoia",
+    "rationale": "L1 valence LUT: 共谋的凝视 (Plutchik Fear + Surprise, valence -0.2)。",
+    "extra_data": {
+      "canonical_kb_key": "Paranoia",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Suspense / Mystery"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "tool_fracture_snap",
+    "key_type": "alias",
+    "primary_recommendation": "Anger / Rage",
+    "rationale": "L1 valence LUT: 工具断裂的爆发 (Plutchik Anger + Fear, valence -0.8)。",
+    "extra_data": {
+      "canonical_kb_key": "Anger / Rage",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Shock / Startle"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "involuntary_precision",
+    "key_type": "alias",
+    "primary_recommendation": "The Uncanny / Creepy",
+    "rationale": "L1 valence LUT: 非自愿的精确 (Plutchik Fear dissociative, valence -0.55)。",
+    "extra_data": {
+      "canonical_kb_key": "The Uncanny / Creepy",
+      "source": "script_auditor_valence_lut"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Dominance"
+    ],
+    "source_file": "script_auditor/references/per-shot-blackboard-audit.md",
+    "source_section": "valence_lut"
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "shock",
+    "key_type": "alias",
+    "primary_recommendation": "Shock / Startle",
+    "rationale": "裸词 shock → 突发冲击情绪。",
+    "extra_data": {
+      "canonical_kb_key": "Shock / Startle",
+      "source": "common_llm_single_word"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Surprise"
+    ]
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "fear",
+    "key_type": "alias",
+    "primary_recommendation": "Fear / Terror",
+    "rationale": "裸词 fear → 具体威胁恐惧。",
+    "extra_data": {
+      "canonical_kb_key": "Fear / Terror",
+      "source": "common_llm_single_word"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Anxiety"
+    ]
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "dread",
+    "key_type": "alias",
+    "primary_recommendation": "Awe / Dread",
+    "rationale": "裸词 dread → 敬畏式恐惧。",
+    "extra_data": {
+      "canonical_kb_key": "Awe / Dread",
+      "source": "common_llm_single_word"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Fear / Terror"
+    ]
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "anger",
+    "key_type": "alias",
+    "primary_recommendation": "Anger / Rage",
+    "rationale": "裸词 anger → 愤怒情绪。",
+    "extra_data": {
+      "canonical_kb_key": "Anger / Rage",
+      "source": "common_llm_single_word"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Resentment / Bitterness"
+    ]
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "tension",
+    "key_type": "alias",
+    "primary_recommendation": "Tension / Oppression",
+    "rationale": "裸词 tension → 压抑张力。",
+    "extra_data": {
+      "canonical_kb_key": "Tension / Oppression",
+      "source": "common_llm_single_word"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Suspense / Mystery"
+    ]
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "suspense",
+    "key_type": "alias",
+    "primary_recommendation": "Suspense / Mystery",
+    "rationale": "裸词 suspense → 悬念。",
+    "extra_data": {
+      "canonical_kb_key": "Suspense / Mystery",
+      "source": "common_llm_single_word"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Suspenseful Anticipation"
+    ]
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "despair",
+    "key_type": "alias",
+    "primary_recommendation": "Despair",
+    "rationale": "裸词 despair → 绝望谷底。",
+    "extra_data": {
+      "canonical_kb_key": "Despair",
+      "source": "common_llm_single_word"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Grief / Mourning"
+    ]
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "confusion",
+    "key_type": "alias",
+    "primary_recommendation": "Confusion / Bewilderment",
+    "rationale": "裸词 confusion → 困惑。",
+    "extra_data": {
+      "canonical_kb_key": "Confusion / Bewilderment",
+      "source": "common_llm_single_word"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Surprise"
+    ]
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "triumph",
+    "key_type": "alias",
+    "primary_recommendation": "Power / Sublime",
+    "rationale": "裸词 triumph → 胜利崇高感。",
+    "extra_data": {
+      "canonical_kb_key": "Power / Sublime",
+      "source": "common_llm_single_word"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Joy / Delight"
+    ]
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "catharsis",
+    "key_type": "alias",
+    "primary_recommendation": "Catharsis",
+    "rationale": "裸词 catharsis → 宣泄。",
+    "extra_data": {
+      "canonical_kb_key": "Catharsis",
+      "source": "common_llm_single_word"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Epiphany / Clarity"
+    ]
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "relief",
+    "key_type": "alias",
+    "primary_recommendation": "Catharsis",
+    "rationale": "裸词 relief → 释然/宣泄。",
+    "extra_data": {
+      "canonical_kb_key": "Catharsis",
+      "source": "common_llm_single_word"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Serenity / Peace"
+    ]
+  },
+  {
+    "category": "emotion_alias",
+    "key_name": "uncanny",
+    "key_type": "alias",
+    "primary_recommendation": "The Uncanny / Creepy",
+    "rationale": "裸词 uncanny → 诡异感。",
+    "extra_data": {
+      "canonical_kb_key": "The Uncanny / Creepy",
+      "source": "common_llm_single_word"
+    },
+    "tags": [
+      "emotion_alias",
+      "emotion_mapping"
+    ],
+    "priority": 60,
+    "alternative_recommendations": [
+      "Unease / Disorientation"
+    ]
   }
 ]
