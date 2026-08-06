@@ -539,7 +539,9 @@ export const DAG_NODES: readonly DagNodeDef[] = [
   { id: 'rapid-preview-clips', label: '快速预览', phaseCode: 'P10b', phaseIndex: 10, group: 'post',
     match: { phaseIndex: 10, idIncludes: 'rapid' }, expectedCount: 'dynamic' },
   // ── P11 视频渲染（post） ──
-  { id: 'first-last-frames', label: '首尾帧', phaseCode: 'P11', phaseIndex: 11, group: 'post',
+  // 条件帧生成（首/尾帧变体）：P11 video render 的多种条件输入之一。命名反映其本质——
+  // 按条件（纯 prompt / 仅首帧 / 仅尾帧 / 首尾帧 / 多参考）生成帧，而非固定首尾帧产物。
+  { id: 'iframe-generation', label: '条件帧生成', phaseCode: 'P11', phaseIndex: 11, group: 'post',
     match: { phaseIndex: 11, idIncludes: 'first_last_frames' }, expectedCount: 'dynamic' },
   { id: 'video-clips', label: '视频片段', phaseCode: 'P11', phaseIndex: 11, group: 'post',
     match: { phaseIndex: 11, stage: 'video' }, expectedCount: 'dynamic' },
@@ -552,39 +554,62 @@ export const DAG_NODES: readonly DagNodeDef[] = [
 ]
 
 /**
- * DAG 依赖边（asset-step → asset-step，分支/汇合）。基于管线 reader_phases 真实数据流：
- * 选题→大纲→剧本→角色→(灰底TR→换装TR / 声纹 / 时空剧本)→(场景图/风格/分镜)→
- * (场景选择→首尾帧 / 分镜→语音→视频)→主时间轴→成片。审计 gate 挂在对应产物后。
+ * DAG 依赖边（asset-step → asset-step，分支/汇合）。基于 KMC 管线真实依赖拓扑
+ * （reader_phases 数据流）+ 用户设计意图（换装TR 作为条件帧输入，含服化道信息更真实）：
+ *   选题/钩子 → 大纲 → 剧本(审计) → 角色 → (灰底TR → 换装TR / 声纹 / 时空剧本)
+ *   → (场景图/风格/色彩 → 场景选择 → 几何) + (时空剧本 → 分镜表 → E-Konte/转场/镜头审计)
+ *   → (分镜表 → 语音片段 → 时间线/语音审计 → 快速预览)
+ *   → P11 条件帧生成(场景选择+灰底TR+换装TR+E-Konte)
+ *     + P11 视频渲染(分镜表+灰底TR+场景图+语音+条件帧)
+ *   → 主时间轴 → 成片。
+ * 审计 gate（镜头审计 / 语音审计 / 快速预览）挂在对应产物后。
  */
 export const DAG_EDGES: readonly DagEdgeDef[] = [
+  // P01 → P02：选题核 + 钩子候选 共同输入故事框架
   { from: 'topic-kernel', to: 'story-framework' },
   { from: 'hook-candidates', to: 'story-framework' },
+  // P02 → P03：故事框架 → 剧本初稿 → 审计报告
   { from: 'story-framework', to: 'script-draft' },
   { from: 'script-draft', to: 'audit-report' },
+  // P03 → P04：剧本初稿 → 角色设定
   { from: 'script-draft', to: 'character-bible' },
+  // P04 内部链：角色设定 → 灰底Turnaround → 换装Turnaround；角色设定 → 声纹设计
   { from: 'character-bible', to: 'turnaround-sheets' },
   { from: 'turnaround-sheets', to: 'costume-turnarounds' },
   { from: 'character-bible', to: 'voice-design' },
+  // P04 → P06：角色设定 → 时空剧本
   { from: 'character-bible', to: 'spatio-temporal-script' },
+  // P06 → P07：时空剧本 → 场景图 / 风格向量 / 色彩意图；风格向量 → 场景图
   { from: 'spatio-temporal-script', to: 'scene-images' },
   { from: 'spatio-temporal-script', to: 'style-vector' },
   { from: 'spatio-temporal-script', to: 'color-intent' },
   { from: 'style-vector', to: 'scene-images' },
+  // P07 → P08：场景图 → 场景选择 → 几何布局
   { from: 'scene-images', to: 'scene-selection' },
   { from: 'scene-selection', to: 'geometry-bed' },
+  // P06 → P09：时空剧本 → 分镜表；分镜表 → E-Konte / 转场设计 / 镜头审计
   { from: 'spatio-temporal-script', to: 'shot-list' },
   { from: 'shot-list', to: 'e-konte-sheets' },
   { from: 'shot-list', to: 'transition-design' },
   { from: 'shot-list', to: 'shot-audit' },
-  { from: 'scene-selection', to: 'first-last-frames' },
-  { from: 'turnaround-sheets', to: 'first-last-frames' },
-  { from: 'e-konte-sheets', to: 'first-last-frames' },
+  // P09 → P10：分镜表 → 语音片段；语音片段 → 语音时间线 / 语音审计；语音审计 → 快速预览
   { from: 'shot-list', to: 'voice-clips' },
   { from: 'voice-clips', to: 'voice-timeline' },
   { from: 'voice-clips', to: 'voice-audit' },
   { from: 'voice-audit', to: 'rapid-preview-clips' },
+  // P11 条件帧生成（多输入）：场景选择 + 灰底TR + 换装TR(服化道信息) + E-Konte
+  { from: 'scene-selection', to: 'iframe-generation' },
+  { from: 'turnaround-sheets', to: 'iframe-generation' },
+  { from: 'costume-turnarounds', to: 'iframe-generation' },
+  { from: 'e-konte-sheets', to: 'iframe-generation' },
+  // P11 视频渲染（H3 ref2va 核心依赖）：分镜表(prompt/duration/角色) + 灰底TR(角色参考) +
+  //   场景图(背景参考) + 语音片段(对口型) + 条件帧(首/尾帧条件)
+  { from: 'shot-list', to: 'video-clips' },
+  { from: 'turnaround-sheets', to: 'video-clips' },
+  { from: 'scene-images', to: 'video-clips' },
   { from: 'voice-clips', to: 'video-clips' },
-  { from: 'first-last-frames', to: 'video-clips' },
+  { from: 'iframe-generation', to: 'video-clips' },
+  // P12 → P13：视频片段 → 主时间轴 → 成片
   { from: 'video-clips', to: 'master-timeline' },
   { from: 'master-timeline', to: 'master-mp4' },
 ]
@@ -711,6 +736,18 @@ export function deriveDagModels(
   const rawCache = new Map<string, Record<string, unknown> | undefined>()
   for (const n of nodes) rawCache.set(n.id, rawMap?.get(n.id))
 
+  // phase 级错误检测：收集存在 n-* 脚本节点（管线执行步骤）state=error/failed 的 phaseIndex。
+  // asset 节点 a-* 的失败由 per-node failed 处理；此处只看执行脚本节点的报错
+  // （如 P11 GLM 429 → phaseIndex 11 整体降级），避免历史成功产物掩盖管线已崩
+  // （「video-clips 显示 completed 但 P11 实际 error」的根因）。
+  const phaseErrors = new Set<number>()
+  for (const n of nodes) {
+    if (!n.id.startsWith('n-')) continue
+    if (!isFailState(stateOf(n))) continue
+    const pi = phaseIndexOf(n)
+    if (pi != null && pi > 0) phaseErrors.add(pi)
+  }
+
   const models = DAG_NODES.map((def): DagNodeModel => {
     const matched = nodes.filter((n) => nodeMatchesDag(n, rawCache.get(n.id), def.match))
     const total = matched.length
@@ -730,7 +767,11 @@ export function deriveDagModels(
     // 仅「无 curation 信息的结构化产物」（neutral）不触发金色——避免整图泛金。
     const needsDecision = candidates > 0 && (selected > 0 || explicitCandidates > 0)
 
-    const state = deriveDagState({ total, completed, needsDecision, failed })
+    const state = deriveDagState({
+      total, completed, needsDecision, failed,
+      phaseHasError: phaseErrors.has(def.phaseIndex),
+      expected,
+    })
 
     const assets: DagAssetRef[] = matched.map((n) => ({
       nodeId: n.id,
@@ -753,9 +794,18 @@ function deriveDagState(args: {
   completed: number
   needsDecision: boolean
   failed: boolean
+  /** 同 phaseIndex 是否存在 n-* 脚本节点报错（phase 级错误检测）。 */
+  phaseHasError: boolean
+  /** 预期计数（null = dynamic，按实际匹配数）。 */
+  expected: number | null
 }): DagNodeState {
-  const { total, completed, needsDecision, failed } = args
+  const { total, completed, needsDecision, failed, phaseHasError, expected } = args
   if (failed) return 'failed'
+  // phase 级错误检测：同 phaseIndex 存在 n-* 节点 state=error/failed（如 P11 GLM 429），
+  // 且该 asset-step 未达预期完成度 → 失败。expected 为 dynamic（null）时用 Infinity 兜底——
+  // phase 报错即视为该 step 失败（历史成功产物 ≠ 当前管线成功，需提醒用户管线已崩，勿被旧 LTX
+  // 成功产物误导为 completed）。仅影响 phaseErrors 命中的 phase，phase 未报错的节点不受影响。
+  if (phaseHasError && completed < (expected ?? Infinity)) return 'failed'
   if (total === 0) return 'pending'
   if (completed === 0) return 'running' // 有匹配节点但无成功产物 → 进行中
   const allDone = completed >= total

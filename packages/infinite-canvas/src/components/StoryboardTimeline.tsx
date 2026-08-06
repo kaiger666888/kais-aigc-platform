@@ -1392,6 +1392,50 @@ function PlayerPlaceholder({ fixedWidth }: { fixedWidth?: number }) {
   )
 }
 
+/**
+ * 播放器边缘的竖向折叠条（24px 宽）。恒位于播放器列与分镜列表之间——折叠态播放器列隐藏，
+ * 窄条仍在左边缘原位，故可随时点 ▶ 展开：
+ *   - 展开态：显示 ◀（点击收起播放器列）
+ *   - 折叠态：显示 ▶（点击展开播放器列）
+ * 鼠标悬停高亮。取代统计栏中的「收起/展开播放器」按钮，让折叠控件紧贴播放器。
+ */
+function PlayerCollapseStrip({
+  collapsed,
+  onToggle,
+}: {
+  collapsed: boolean
+  onToggle: () => void
+}) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      data-testid="player-collapse-strip"
+      onClick={onToggle}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      title={collapsed ? '展开播放器' : '收起播放器'}
+      style={{
+        width: 24,
+        flexShrink: 0,
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: hovered ? theme.bg.cardHover : theme.bg.panel,
+        border: 'none',
+        borderRight: `1px solid ${theme.border.default}`,
+        cursor: 'pointer',
+        color: hovered ? theme.text.primary : theme.text.tertiary,
+        fontSize: 14,
+        lineHeight: 1,
+        transition: 'background 120ms, color 120ms',
+      }}
+    >
+      {collapsed ? '▶' : '◀'}
+    </button>
+  )
+}
+
 // ─── 竖幅时间轴（VerticalTimeline） ──────────────────────
 
 /** 左侧分镜列表某行的实测几何（offsetTop/offsetHeight，相对列表内容原点）。 */
@@ -2160,6 +2204,15 @@ export default function StoryboardTimeline() {
     if (rfNode) setDetailNode(rfNode)
   }
 
+  // 折叠/展开播放器列（由播放器边缘竖条触发）：折叠时清除当前视频，避免后台继续播放。
+  const togglePlayer = useCallback(() => {
+    setPlayerCollapsed((v) => {
+      const next = !v
+      if (next && activeVideo) setActiveVideo(null)
+      return next
+    })
+  }, [activeVideo])
+
   // ─── 响应式：窗口尺寸 → 横/竖版布局 ──────────────────
   const [winSize, setWinSize] = useState(() => ({
     w: typeof window !== 'undefined' ? window.innerWidth : 1920,
@@ -2340,31 +2393,8 @@ export default function StoryboardTimeline() {
           <>
             <span style={{ flex: 1 }} />
             <span style={{ color: theme.text.tertiary, fontSize: 11 }}>
-              {playerCollapsed ? '💡 单击选中分镜，双击查看详情' : '💡 单击播放视频，双击查看详情'}
+              {playerCollapsed ? '💡 单击选中分镜' : '💡 单击播放视频'}
             </span>
-            {/* 播放器折叠/展开切换 */}
-            <button
-              onClick={() => {
-                setPlayerCollapsed((v) => !v)
-                if (activeVideo) setActiveVideo(null) // 折叠时清除当前视频
-              }}
-              style={{
-                background: 'none',
-                border: `1px solid ${theme.border.default}`,
-                borderRadius: 4,
-                cursor: 'pointer',
-                padding: '3px 10px',
-                fontSize: 11,
-                color: playerCollapsed ? theme.text.tertiary : theme.text.primary,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                whiteSpace: 'nowrap',
-              }}
-              title={playerCollapsed ? '展开播放器' : '收起播放器'}
-            >
-              {playerCollapsed ? '▶ 展开播放器' : '◀ 收起播放器'}
-            </button>
           </>
         )}
       </div>
@@ -2375,6 +2405,8 @@ export default function StoryboardTimeline() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'row', minWidth: 0 }}>
           {/* 左：播放器列 — 可折叠；展开时常驻（有视频播放/无视频占位），折叠时隐藏让分镜列表占满宽度 */}
           {!playerCollapsed && (activeVideo ? player : <PlayerPlaceholder fixedWidth={playerFixedWidth} />)}
+          {/* 播放器边缘竖向折叠条（恒在；折叠态播放器列隐藏，窄条仍在左边缘原位，可点 ▶ 展开） */}
+          <PlayerCollapseStrip collapsed={playerCollapsed} onToggle={togglePlayer} />
           {/* 右：分镜列表（占满剩余宽度） */}
           {shotList}
         </div>
