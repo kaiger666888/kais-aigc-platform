@@ -17,8 +17,9 @@ export const asNodeId = (s: string): NodeId => s as NodeId
 export const asVariantGroupId = (s: string): VariantGroupId => s as VariantGroupId
 export const asEdgeId = (s: string): EdgeId => s as EdgeId
 
-/** 节点执行状态 */
-export type NodeState = 'idle' | 'pending' | 'running' | 'success' | 'error' | 'cached'
+/** 节点执行状态 — 对齐 flowgraph-v2-schema.ts NodeStateSchema（存储契约）。
+ * 旧值 'cached' 已废弃，统一为 'skipped'。 */
+export type NodeState = 'idle' | 'pending' | 'running' | 'success' | 'error' | 'skipped'
 
 /** 审核状态 — 与 v2 zod schema (pending | approved | rejected) 对齐。
  * 旧的 'awaiting_audit' 值在 flowDataMapper 边界被归一化为 'pending'。 */
@@ -53,8 +54,12 @@ export type LinkSemanticType = 'data_flow' | 'sequence' | 'parallel' | 'referenc
 /** 连线引用类型（标识 ref-input / reference 通道） */
 export type LinkRefType = 'input' | 'reference'
 
-/** 画布节点类型枚举 */
-export type CanvasNodeType = 'script' | 'asset' | 'storyboard' | 'video' | 'audio' | 'zone'
+/** 画布节点类型枚举 — 对齐 flowgraph-v2-schema.ts NodeTypeSchema（13 枚举）。
+ * 旧的 6 枚举模型缺 3d/variant/reference/upscale/face_restore/suggestion/phase，
+ * 导致这些节点类型在 canvas.ts 边界处无类型覆盖。 */
+export type CanvasNodeType =
+  | 'script' | 'asset' | 'storyboard' | 'video' | 'audio' | 'zone'
+  | '3d' | 'variant' | 'reference' | 'upscale' | 'face_restore' | 'suggestion' | 'phase'
 
 // ─── 自定义节点数据（带索引签名以兼容 React Flow v12） ──────────
 

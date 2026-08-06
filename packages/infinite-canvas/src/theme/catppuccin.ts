@@ -143,7 +143,7 @@ export const theme = {
     running: v3theme.signal.running,
     success: v3theme.signal.approved,
     error: v3theme.signal.rejected,
-    cached: v3theme.signal.approved,
+    skipped: v3theme.signal.approved,
   } as Record<string, string>,
 
   // Edge data-type colors —— 产物模态色（CanvasEdge 以 55% 透明度使用；中性灰族见 v3theme.edge）

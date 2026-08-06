@@ -243,7 +243,7 @@ const catppuccinGold = '#f9e2af'
 function StateBadge({ state }: { state: NodeState }) {
   const labels: Record<NodeState, string> = {
     idle: '待处理', pending: '等待中', running: '运行中',
-    success: '完成', error: '失败', cached: '已缓存',
+    success: '完成', error: '失败', skipped: '已跳过',
   }
   return (
     <span style={{

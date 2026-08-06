@@ -9,7 +9,7 @@ export const stateColors: Record<NodeState, string> = {
   running: theme.state.running,
   success: theme.state.success,
   error: theme.state.error,
-  cached: theme.state.cached,
+  skipped: theme.state.skipped,
 }
 
 /** 连线数据类型 → 颜色映射 */
