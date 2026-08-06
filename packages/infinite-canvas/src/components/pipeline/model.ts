@@ -15,6 +15,8 @@ import type { Node } from '@xyflow/react'
 import type { AssetNodeV3, Stage } from '@kais/flowgraph-v3'
 import { PHASE_GROUPS, type PhaseGroup } from '../../constants'
 
+export type { PhaseGroup }
+
 // ─── 阶段执行状态（展示态） ──────────────────────────────────
 export type PhaseExecState = 'completed' | 'running' | 'failed' | 'awaiting_review' | 'pending'
 
@@ -184,22 +186,52 @@ function thumbnailOf(node: Node): string | null {
 }
 
 /**
- * 资产三态。权威 = V3 curation；缺失时回退旧 isPrimaryView + curationState。
+ * 资产三态。权威 = V3 curation；缺失时回退 raw sidecar（curationState / isPrimaryView）。
  *  - V3 selected / isPrimaryView=true → selected (★)
  *  - V3 deprecated / curationState='eliminated' → eliminated (✕)
  *  - 其余 → candidate (○)
+ *
+ * @param raw adapter sidecar 袋（assetType/curationState/isPrimaryView 等白名单外富字段；
+ *            migrate 不保留这些字段到 V3，故须经 rawDataByNodeId 穿透读取）。
  */
-function triStateOf(node: Node): AssetTriState {
+function triStateOf(node: Node, raw?: Record<string, unknown>): AssetTriState {
   const v3 = v3Of(node)
-  const curation = v3?.curation ?? dataOf(node).curation
+  const data = dataOf(node)
+  const curation = v3?.curation ?? raw?.curation ?? data.curation
   if (curation === 'selected') return 'selected'
   if (curation === 'deprecated') return 'eliminated'
-  // locked（解构集）/ candidate 走 curationState + isPrimaryView 回退
-  const curationState = dataOf(node).curationState
+  // locked（解构集）/ candidate 走 raw curationState + isPrimaryView 回退
+  const curationState = raw?.curationState ?? data.curationState
   if (curationState === 'eliminated') return 'eliminated'
   if (curationState === 'selected') return 'selected'
-  if (boolField(node, 'isPrimaryView')) return 'selected'
+  if (raw?.isPrimaryView === true || data.isPrimaryView === true) return 'selected'
   return 'candidate'
+}
+
+/**
+ * 四态 curation 分类（DAG 细粒度用，比 triStateOf 多一个 'neutral'）。
+ * 区分**显式** candidate（raw curationState 明确标 candidate/active，=真待决策）
+ * 与 **neutral**（无 curation 信息——多数结构化资产属此类）。
+ *
+ * ⚠️ 关键：migrate 对**每个**资产默认写入 v3.curation='candidate'（isWinner?'selected':'candidate'），
+ * 这是迁移占位而非真实决策。故此处**不**把 v3.curation==='candidate' 当作显式待选——
+ * 否则全图泛金。显式信号只认 raw curationState（canvas sync 写入）与 isPrimaryView。
+ *  - selected：v3.curation selected（migrate isWinner）/ raw curationState selected / isPrimaryView
+ *  - eliminated：v3.curation deprecated / raw curationState eliminated
+ *  - candidate：raw curationState 显式 candidate/active
+ *  - neutral：无上述显式信号（含 migrate 默认 candidate）
+ */
+function curationBucket(node: Node, raw?: Record<string, unknown>): 'selected' | 'eliminated' | 'candidate' | 'neutral' {
+  const v3 = v3Of(node)
+  const data = dataOf(node)
+  const curation = v3?.curation ?? raw?.curation ?? data.curation
+  const curationState = raw?.curationState ?? data.curationState
+  if (curation === 'selected' || curationState === 'selected') return 'selected'
+  if (raw?.isPrimaryView === true || data.isPrimaryView === true) return 'selected'
+  if (curation === 'deprecated' || curationState === 'eliminated') return 'eliminated'
+  // 显式待选：仅认 raw curationState（migrate 默认 candidate 不算）
+  if (curationState === 'candidate' || curationState === 'active') return 'candidate'
+  return 'neutral'
 }
 
 // ─── 聚合 ────────────────────────────────────────────────────
@@ -380,4 +412,400 @@ export const EXEC_STATE_META: Record<PhaseExecState, ExecStateVisual> = {
   awaiting_review: { glyph: '⏳', color: '#E0B665' },
   failed: { glyph: '✕', color: '#DD6A82' },
   pending: { glyph: '○', color: '#9A9FA8' },
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// v2 — 细粒度 DAG（资产子流程步骤粒度，BlueOcean 风格）
+//
+// v1 按 17 个 phase 大卡片横向排列，看不出 phase 内部子流程；v2 拆到
+// asset-step（一个 ASSET_SCHEMA slot 对应的生产步骤）粒度，节点间是真实
+// 依赖边（DAG 分支/汇合），用 dagre 分层布局 + SVG 渲染。
+//
+// 每个 DAG 节点 = 一类资产子流程步骤（如「灰底Turnaround」「首尾帧」），
+// 其状态/计数从画布 RF 节点经 match 规则派生（phaseIndex + id/stage/
+// assetType/turnaroundType/audioType 组合匹配）。
+// ═══════════════════════════════════════════════════════════════════════
+
+/** DAG 节点状态词汇表（has-candidates = 完成但有待选资产需人工决策）。 */
+export type DagNodeState = 'completed' | 'running' | 'failed' | 'has-candidates' | 'pending'
+
+/** 单个 DAG 节点的数据匹配规则：从画布 RF 节点派生该步骤的状态/计数。 */
+export interface DagNodeMatch {
+  /** 必填：图节点 phaseIndex（v3.phaseIndex 优先）。 */
+  phaseIndex: number
+  /** v3.stage / RF node.type（如 'global'/'script'/'video'/'voice'）。 */
+  stage?: string
+  /** v3.modality（'text'/'image'/'audio'/'video'）。 */
+  modality?: string
+  /** node.id 子串包含（大小写敏感，命中如 'first_last_frames'）。 */
+  idIncludes?: string
+  /** node.id 前缀。 */
+  idPrefix?: string
+  /** raw 袋 assetType（穿透 migrate 白名单，由 rawDataByNodeId 提供）。 */
+  assetType?: string
+  /** raw 袋 turnaroundType（'gray_base' / 'costume'）。 */
+  turnaroundType?: string
+  /** raw 袋 audioType（'voice' / 'bgm' / 'foley'）。 */
+  audioType?: string
+  /** 反向：要求 raw.turnaroundType 不等于该值（区分 character-bible vs turnaround）。 */
+  turnaroundNot?: string
+  /** 要求 raw.turnaroundType 缺省（character-bible 概念图，区别于灰底/换装 TR）。 */
+  turnaroundAbsent?: boolean
+  /** 仅匹配产品节点（id 以 'a-' 开头），排除 'n-p0X' 步骤节点与 zone。默认 true。 */
+  artifactsOnly?: boolean
+}
+
+export interface DagNodeDef {
+  id: string
+  label: string
+  /** 阶段码：P01 / P09b …（UI 序号）。 */
+  phaseCode: string
+  phaseIndex: number
+  group: PhaseGroup
+  match: DagNodeMatch
+  /** 预期计数（数字 = 固定预期；'dynamic' = 按实际匹配数显示）。 */
+  expectedCount?: number | 'dynamic'
+}
+
+export interface DagEdgeDef {
+  from: string
+  to: string
+}
+
+/**
+ * DAG 节点清单（27 个 asset-step）。匹配规则基于真实数据
+ *（项目 1785508691757 ep1：canvas sync 写入的语义化 id 如 a-turnaround-* /
+ *  a-first_last_frames-* / a-shot_list-*，以及 raw 袋 turnaroundType/audioType）。
+ * 真实数据缺的阶段（P03/P06/P12/P13）→ 匹配 0 节点 → 显示 pending（规划中）。
+ */
+export const DAG_NODES: readonly DagNodeDef[] = [
+  // ── P01 选题/钩子（research） ──
+  { id: 'topic-kernel', label: '选题核', phaseCode: 'P01', phaseIndex: 1, group: 'research',
+    match: { phaseIndex: 1, idIncludes: 'topic_kernel' }, expectedCount: 'dynamic' },
+  { id: 'hook-candidates', label: '钩子候选', phaseCode: 'P01', phaseIndex: 1, group: 'research',
+    match: { phaseIndex: 1, idIncludes: 'hook_design' }, expectedCount: 'dynamic' },
+  // ── P02 大纲（research） ──
+  { id: 'story-framework', label: '故事框架', phaseCode: 'P02', phaseIndex: 2, group: 'research',
+    match: { phaseIndex: 2 }, expectedCount: 'dynamic' },
+  // ── P03 剧本审计（story） ──
+  { id: 'script-draft', label: '剧本初稿', phaseCode: 'P03', phaseIndex: 3, group: 'story',
+    match: { phaseIndex: 3 }, expectedCount: 1 },
+  { id: 'audit-report', label: '审计报告', phaseCode: 'P03', phaseIndex: 3, group: 'story',
+    match: { phaseIndex: 3, idIncludes: 'audit' }, expectedCount: 'dynamic' },
+  // ── P04 角色设计（story） ──
+  { id: 'character-bible', label: '角色设定', phaseCode: 'P04', phaseIndex: 4, group: 'story',
+    match: { phaseIndex: 4, stage: 'global', assetType: 'character', turnaroundAbsent: true },
+    expectedCount: 'dynamic' },
+  { id: 'turnaround-sheets', label: '灰底Turnaround', phaseCode: 'P04', phaseIndex: 4, group: 'story',
+    match: { phaseIndex: 4, idPrefix: 'a-turnaround-', turnaroundType: 'gray_base' }, expectedCount: 'dynamic' },
+  { id: 'costume-turnarounds', label: '换装Turnaround', phaseCode: 'P04', phaseIndex: 4, group: 'story',
+    match: { phaseIndex: 4, idPrefix: 'a-turnaround-', turnaroundType: 'costume' }, expectedCount: 'dynamic' },
+  { id: 'voice-design', label: '声纹设计', phaseCode: 'P04', phaseIndex: 4, group: 'story',
+    match: { phaseIndex: 4, modality: 'audio' }, expectedCount: 'dynamic' },
+  // ── P06 时空剧本（production） ──
+  { id: 'spatio-temporal-script', label: '时空剧本', phaseCode: 'P06', phaseIndex: 6, group: 'production',
+    match: { phaseIndex: 6 }, expectedCount: 1 },
+  // ── P07 场景图生成（production） ──
+  { id: 'scene-images', label: '场景图', phaseCode: 'P07', phaseIndex: 7, group: 'production',
+    match: { phaseIndex: 7, stage: 'global', assetType: 'scene' }, expectedCount: 'dynamic' },
+  { id: 'style-vector', label: '风格向量', phaseCode: 'P07', phaseIndex: 7, group: 'production',
+    match: { phaseIndex: 7, idIncludes: 'style_vector' }, expectedCount: 1 },
+  { id: 'color-intent', label: '色彩意图', phaseCode: 'P07', phaseIndex: 7, group: 'production',
+    match: { phaseIndex: 7, idIncludes: 'color_intent' }, expectedCount: 1 },
+  // ── P08 场景选择（production） ──
+  { id: 'scene-selection', label: '场景选择', phaseCode: 'P08', phaseIndex: 8, group: 'production',
+    match: { phaseIndex: 8, idIncludes: 'scene_selection' }, expectedCount: 'dynamic' },
+  { id: 'geometry-bed', label: '几何布局', phaseCode: 'P08', phaseIndex: 8, group: 'production',
+    match: { phaseIndex: 8, idIncludes: 'geometry_bed' }, expectedCount: 1 },
+  // ── P09 分镜拆解（production） ──
+  { id: 'shot-list', label: '分镜表', phaseCode: 'P09', phaseIndex: 9, group: 'production',
+    match: { phaseIndex: 9, idIncludes: 'shot_list' }, expectedCount: 'dynamic' },
+  { id: 'e-konte-sheets', label: 'E-Konte绘卷', phaseCode: 'P09', phaseIndex: 9, group: 'production',
+    match: { phaseIndex: 9, idIncludes: 'e_konte_sheets' }, expectedCount: 'dynamic' },
+  { id: 'transition-design', label: '转场设计', phaseCode: 'P09', phaseIndex: 9, group: 'production',
+    match: { phaseIndex: 9, idIncludes: 'transition_design' }, expectedCount: 'dynamic' },
+  // ── P09b 镜头审计（production gate） ──
+  { id: 'shot-audit', label: '镜头审计', phaseCode: 'P09b', phaseIndex: 9, group: 'production',
+    match: { phaseIndex: 9, idIncludes: 'shot-audit' }, expectedCount: 'dynamic' },
+  // ── P10 语音合成（post） ──
+  { id: 'voice-clips', label: '语音片段', phaseCode: 'P10', phaseIndex: 10, group: 'post',
+    match: { phaseIndex: 10, idIncludes: 'voice_clips' }, expectedCount: 'dynamic' },
+  { id: 'voice-timeline', label: '语音时间线', phaseCode: 'P10', phaseIndex: 10, group: 'post',
+    match: { phaseIndex: 10, idIncludes: 'voice_timeline' }, expectedCount: 1 },
+  // ── P10c 语音审计（post gate） ──
+  { id: 'voice-audit', label: '语音审计', phaseCode: 'P10c', phaseIndex: 10, group: 'post',
+    match: { phaseIndex: 10, idIncludes: 'voice-audit' }, expectedCount: 'dynamic' },
+  // ── P10b 快速预览（post gate） ──
+  { id: 'rapid-preview-clips', label: '快速预览', phaseCode: 'P10b', phaseIndex: 10, group: 'post',
+    match: { phaseIndex: 10, idIncludes: 'rapid' }, expectedCount: 'dynamic' },
+  // ── P11 视频渲染（post） ──
+  { id: 'first-last-frames', label: '首尾帧', phaseCode: 'P11', phaseIndex: 11, group: 'post',
+    match: { phaseIndex: 11, idIncludes: 'first_last_frames' }, expectedCount: 'dynamic' },
+  { id: 'video-clips', label: '视频片段', phaseCode: 'P11', phaseIndex: 11, group: 'post',
+    match: { phaseIndex: 11, stage: 'video' }, expectedCount: 'dynamic' },
+  // ── P12 合成（post） ──
+  { id: 'master-timeline', label: '主时间轴', phaseCode: 'P12', phaseIndex: 12, group: 'post',
+    match: { phaseIndex: 12 }, expectedCount: 1 },
+  // ── P13 交付（post） ──
+  { id: 'master-mp4', label: '成片', phaseCode: 'P13', phaseIndex: 13, group: 'post',
+    match: { phaseIndex: 13 }, expectedCount: 1 },
+]
+
+/**
+ * DAG 依赖边（asset-step → asset-step，分支/汇合）。基于管线 reader_phases 真实数据流：
+ * 选题→大纲→剧本→角色→(灰底TR→换装TR / 声纹 / 时空剧本)→(场景图/风格/分镜)→
+ * (场景选择→首尾帧 / 分镜→语音→视频)→主时间轴→成片。审计 gate 挂在对应产物后。
+ */
+export const DAG_EDGES: readonly DagEdgeDef[] = [
+  { from: 'topic-kernel', to: 'story-framework' },
+  { from: 'hook-candidates', to: 'story-framework' },
+  { from: 'story-framework', to: 'script-draft' },
+  { from: 'script-draft', to: 'audit-report' },
+  { from: 'script-draft', to: 'character-bible' },
+  { from: 'character-bible', to: 'turnaround-sheets' },
+  { from: 'turnaround-sheets', to: 'costume-turnarounds' },
+  { from: 'character-bible', to: 'voice-design' },
+  { from: 'character-bible', to: 'spatio-temporal-script' },
+  { from: 'spatio-temporal-script', to: 'scene-images' },
+  { from: 'spatio-temporal-script', to: 'style-vector' },
+  { from: 'spatio-temporal-script', to: 'color-intent' },
+  { from: 'style-vector', to: 'scene-images' },
+  { from: 'scene-images', to: 'scene-selection' },
+  { from: 'scene-selection', to: 'geometry-bed' },
+  { from: 'spatio-temporal-script', to: 'shot-list' },
+  { from: 'shot-list', to: 'e-konte-sheets' },
+  { from: 'shot-list', to: 'transition-design' },
+  { from: 'shot-list', to: 'shot-audit' },
+  { from: 'scene-selection', to: 'first-last-frames' },
+  { from: 'turnaround-sheets', to: 'first-last-frames' },
+  { from: 'e-konte-sheets', to: 'first-last-frames' },
+  { from: 'shot-list', to: 'voice-clips' },
+  { from: 'voice-clips', to: 'voice-timeline' },
+  { from: 'voice-clips', to: 'voice-audit' },
+  { from: 'voice-audit', to: 'rapid-preview-clips' },
+  { from: 'voice-clips', to: 'video-clips' },
+  { from: 'first-last-frames', to: 'video-clips' },
+  { from: 'video-clips', to: 'master-timeline' },
+  { from: 'master-timeline', to: 'master-mp4' },
+]
+
+// ─── DAG 派生模型 ───────────────────────────────────────────
+
+export interface DagAssetRef {
+  nodeId: string
+  label: string
+  thumbnail: string | null
+  triState: AssetTriState
+  state: string
+  modality: string
+}
+
+export interface DagNodeModel {
+  def: DagNodeDef
+  state: DagNodeState
+  /** 匹配到的画布节点总数。 */
+  total: number
+  /** 成功（success/cached）数。 */
+  completed: number
+  /** 选定（curation selected / isPrimaryView / isWinner）数。 */
+  selected: number
+  /** 待决策数 = total - selected - eliminated（含无 curation 信息）。 */
+  candidates: number
+  /** 预期计数（null = dynamic）。 */
+  expected: number | null
+  /** 进度 0..1（completed/expected 或 completed/total）。 */
+  progress: number
+  assets: DagAssetRef[]
+  present: boolean
+}
+
+/** DAG 节点展示态 → 中文文案。 */
+export function dagStateLabel(s: DagNodeState): string {
+  switch (s) {
+    case 'completed': return '完成'
+    case 'running': return '运行中'
+    case 'failed': return '失败'
+    case 'has-candidates': return '待决策'
+    case 'pending': return '待执行'
+  }
+}
+
+/** DAG 节点展示态 → 字形 + 信号色（has-candidates 复用金色 ⚠）。 */
+export interface DagStateVisual {
+  glyph: string
+  color: string
+  spin?: boolean
+}
+
+export const DAG_STATE_META: Record<DagNodeState, DagStateVisual> = {
+  completed: { glyph: '✓', color: '#56B89A' },
+  running: { glyph: '⟳', color: '#E0B665', spin: true },
+  failed: { glyph: '✕', color: '#DD6A82' },
+  'has-candidates': { glyph: '⚠', color: '#E0B665' },
+  pending: { glyph: '○', color: '#9A9FA8' },
+}
+
+/** raw 袋字段读取（穿透 migrate 白名单）。 */
+function rawField(raw: Record<string, unknown> | undefined, key: string): unknown {
+  return raw?.[key]
+}
+
+/** 单节点是否匹配某 DAG match 规则。 */
+function nodeMatchesDag(
+  node: Node,
+  raw: Record<string, unknown> | undefined,
+  m: DagNodeMatch,
+): boolean {
+  const pi = phaseIndexOf(node)
+  if (pi !== m.phaseIndex) return false
+  if ((m.artifactsOnly ?? true) && !node.id.startsWith('a-')) return false
+  if (m.stage != null && stageOf(node) !== m.stage) return false
+  if (m.modality != null) {
+    const v3 = v3Of(node)
+    const mod = v3?.modality ?? dataOf(node).modality
+    if (mod !== m.modality) return false
+  }
+  if (m.idIncludes != null && !node.id.includes(m.idIncludes)) return false
+  if (m.idPrefix != null && !node.id.startsWith(m.idPrefix)) return false
+  if (m.assetType != null && rawField(raw, 'assetType') !== m.assetType) return false
+  if (m.turnaroundType != null && rawField(raw, 'turnaroundType') !== m.turnaroundType) return false
+  if (m.turnaroundAbsent === true && rawField(raw, 'turnaroundType') != null) return false
+  if (m.turnaroundNot != null && rawField(raw, 'turnaroundType') === m.turnaroundNot) return false
+  if (m.audioType != null && rawField(raw, 'audioType') !== m.audioType) return false
+  return true
+}
+
+function isDoneState(s: string): boolean {
+  return s === 'success' || s === 'cached'
+}
+
+function isFailState(s: string): boolean {
+  return s === 'failed' || s === 'error'
+}
+
+/** 标签：v3.phaseName 去阶段前缀 → data.label → id。 */
+function dagLabelOf(node: Node): string {
+  const v3 = v3Of(node)
+  if (v3?.phaseName) {
+    const stripped = v3.phaseName.replace(/^P\d{2}[a-z]?\s*[·\-]?\s*/u, '')
+    if (stripped) return stripped
+  }
+  return strField(node, 'label') ?? node.id
+}
+
+function modalityOf(node: Node): string {
+  const v3 = v3Of(node)
+  return v3?.modality ?? strField(node, 'modality') ?? 'image'
+}
+
+/**
+ * 主派生入口：画布 RF 节点 + raw 袋 → DAG 节点模型数组（顺序同 DAG_NODES）。
+ * @param nodes 画布 RF 节点（data.v3 = AssetNodeV3）
+ * @param rawMap adapter sidecar（assetType/turnaroundType/audioType 等白名单外字段）
+ */
+export function deriveDagModels(
+  nodes: Node[],
+  rawMap: Map<string, Record<string, unknown>> | null,
+): DagNodeModel[] {
+  // 预取每个节点的 raw 袋（O(n) 一次）
+  const rawCache = new Map<string, Record<string, unknown> | undefined>()
+  for (const n of nodes) rawCache.set(n.id, rawMap?.get(n.id))
+
+  const models = DAG_NODES.map((def): DagNodeModel => {
+    const matched = nodes.filter((n) => nodeMatchesDag(n, rawCache.get(n.id), def.match))
+    const total = matched.length
+    const completed = matched.filter((n) => isDoneState(stateOf(n))).length
+    const buckets = matched.map((n) => curationBucket(n, rawCache.get(n.id)))
+    const selected = buckets.filter((b) => b === 'selected').length
+    const eliminated = buckets.filter((b) => b === 'eliminated').length
+    const explicitCandidates = buckets.filter((b) => b === 'candidate').length
+    const failed = matched.some((n) => isFailState(stateOf(n)))
+    // 待决策 = 既未选定也未淘汰（含 neutral 与显式 candidate）
+    const candidates = Math.max(0, total - selected - eliminated)
+    const expected = def.expectedCount === 'dynamic' ? null : (def.expectedCount ?? null)
+    const denom = expected ?? total
+    const progress = denom > 0 ? Math.min(1, completed / denom) : 0
+
+    // 真实待决策：存在未定资产 且 有 curation 活动迹象（已选定 ≥1 或显式 candidate ≥1）。
+    // 仅「无 curation 信息的结构化产物」（neutral）不触发金色——避免整图泛金。
+    const needsDecision = candidates > 0 && (selected > 0 || explicitCandidates > 0)
+
+    const state = deriveDagState({ total, completed, needsDecision, failed })
+
+    const assets: DagAssetRef[] = matched.map((n) => ({
+      nodeId: n.id,
+      label: dagLabelOf(n),
+      thumbnail: thumbnailOf(n),
+      triState: triStateOf(n, rawCache.get(n.id)),
+      state: stateOf(n),
+      modality: modalityOf(n),
+    }))
+
+    return { def, state, total, completed, selected, candidates, expected, progress, assets, present: total > 0 }
+  })
+
+  return models
+}
+
+/** DAG 节点状态聚合规则（见任务文档「节点计数派生规则」）。 */
+function deriveDagState(args: {
+  total: number
+  completed: number
+  needsDecision: boolean
+  failed: boolean
+}): DagNodeState {
+  const { total, completed, needsDecision, failed } = args
+  if (failed) return 'failed'
+  if (total === 0) return 'pending'
+  if (completed === 0) return 'running' // 有匹配节点但无成功产物 → 进行中
+  const allDone = completed >= total
+  if (allDone) {
+    // 完成度满；若存在真实待决策（选定进行中但仍有未定）→ 金色提醒，否则完成
+    return needsDecision ? 'has-candidates' : 'completed'
+  }
+  return 'running' // 部分完成
+}
+
+/** 直连父节点 id 列表（DAG_EDGES 中 to === nodeId 的 from）。 */
+export function dagParentsOf(nodeId: string): string[] {
+  return DAG_EDGES.filter((e) => e.to === nodeId).map((e) => e.from)
+}
+
+/** 直连子节点 id 列表（DAG_EDGES 中 from === nodeId 的 to）。 */
+export function dagChildrenOf(nodeId: string): string[] {
+  return DAG_EDGES.filter((e) => e.from === nodeId).map((e) => e.to)
+}
+
+/** 祖先闭包（含自身）—— hover 时高亮上游路径。 */
+export function dagAncestorsOf(nodeId: string): Set<string> {
+  const out = new Set<string>()
+  const stack = [nodeId]
+  while (stack.length > 0) {
+    const cur = stack.pop()!
+    for (const p of dagParentsOf(cur)) {
+      if (!out.has(p)) {
+        out.add(p)
+        stack.push(p)
+      }
+    }
+  }
+  out.add(nodeId)
+  return out
+}
+
+/** 后代闭包（含自身）—— hover 时高亮下游路径。 */
+export function dagDescendantsOf(nodeId: string): Set<string> {
+  const out = new Set<string>()
+  const stack = [nodeId]
+  while (stack.length > 0) {
+    const cur = stack.pop()!
+    for (const c of dagChildrenOf(cur)) {
+      if (!out.has(c)) {
+        out.add(c)
+        stack.push(c)
+      }
+    }
+  }
+  out.add(nodeId)
+  return out
 }
