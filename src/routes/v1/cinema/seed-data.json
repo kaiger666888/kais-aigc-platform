@@ -48475,5 +48475,603 @@
       ],
       "ref": "ltx-video-workflows.md Prompt Precision 7 维 + R11"
     }
+  },
+  {
+    "category": "prop_taxonomy",
+    "key_name": "narrative_props",
+    "key_type": "prop",
+    "primary_recommendation": "narrative_props = 直接推进剧情的道具(信件 / 钥匙 / 武器 / 契约)。每件必须有 narrative_role,装饰即 NG",
+    "rationale": "叙事道具是情节齿轮,观众需追踪其存在与状态;没有 narrative_role 的道具是噪声,违反 production_designer '道具必须有叙事动机' 铁律。",
+    "source_file": "production_designer/SKILL.md",
+    "source_section": "§Prop Categories",
+    "tags": [
+      "production_designer",
+      "prop_taxonomy",
+      "narrative"
+    ],
+    "priority": 65,
+    "extra_data": {
+      "prop_kind": "narrative_props",
+      "examples": [
+        "信件",
+        "钥匙",
+        "武器",
+        "契约"
+      ],
+      "rule": "必须有 narrative_role,装饰=NG"
+    }
+  },
+  {
+    "category": "prop_taxonomy",
+    "key_name": "character_props",
+    "key_type": "prop",
+    "primary_recommendation": "character_props = 凸显角色个性的道具(角色书桌上有什么 / 随身物件),通过物件选择刻画人物",
+    "rationale": "物件即角色:一个角色的随身/桌面道具应折射其职业、性格、阶层;统一的角色道具集维持人物识别度。",
+    "source_file": "production_designer/SKILL.md",
+    "source_section": "§Prop Categories",
+    "tags": [
+      "production_designer",
+      "prop_taxonomy",
+      "character"
+    ],
+    "priority": 60,
+    "extra_data": {
+      "prop_kind": "character_props",
+      "examples": [
+        "书桌物件",
+        "随身配饰"
+      ],
+      "purpose": "刻画人物个性"
+    }
+  },
+  {
+    "category": "prop_taxonomy",
+    "key_name": "environmental_props",
+    "key_type": "prop",
+    "primary_recommendation": "environmental_props = 营造氛围/质感的道具(落叶 / 灰尘 / 光斑),不叙事但定调",
+    "rationale": "氛围道具填充场景真实感与情绪底色;它们不推进剧情但决定'这个空间的感觉',与 visual_director 的光照/色彩配合。",
+    "source_file": "production_designer/SKILL.md",
+    "source_section": "§Prop Categories",
+    "tags": [
+      "production_designer",
+      "prop_taxonomy",
+      "environment"
+    ],
+    "priority": 55,
+    "extra_data": {
+      "prop_kind": "environmental_props",
+      "examples": [
+        "落叶",
+        "灰尘",
+        "光斑"
+      ],
+      "purpose": "氛围质感"
+    }
+  },
+  {
+    "category": "prop_taxonomy",
+    "key_name": "motif_props",
+    "key_type": "prop",
+    "primary_recommendation": "motif_props = recurring visual motif 道具,必须通过 visual_motif_link 关联 visual_director 注册的 motif,不能独立创建",
+    "rationale": "母题道具承载跨 shot/scene 的视觉呼应(如'祖母的照片');production_designer 只决定它在哪些 shot 以什么位置/显隐度出现,母题本身归 visual_director 注册。独立创建 motif 违反职责边界。",
+    "source_file": "production_designer/SKILL.md",
+    "source_section": "§Prop Categories + §Visual Motif Placement",
+    "tags": [
+      "production_designer",
+      "prop_taxonomy",
+      "motif"
+    ],
+    "priority": 68,
+    "extra_data": {
+      "prop_kind": "motif_props",
+      "link_field": "visual_motif_link",
+      "visibility_levels": [
+        "显性(角色手持)",
+        "隐性(背景墙上)",
+        "暗示(反射)"
+      ],
+      "rule": "必须关联 visual_director 注册,不可独立创建"
+    }
+  },
+  {
+    "category": "prop_taxonomy",
+    "key_name": "era_defining_props",
+    "key_type": "prop",
+    "primary_recommendation": "era_defining_props = 时代标记道具(1970s 翻盖电话/老式电视;2025 smartphone)。时代错位(1975 剧本出现 iPhone)→ NG",
+    "rationale": "时代道具锚定故事时空;时代错位破坏可信度。production_designer 需对照 screenplay 暗示的时代 vs 实际道具做时代错位检查。",
+    "source_file": "production_designer/SKILL.md",
+    "source_section": "§Prop Categories + §Environment Constraint Rules",
+    "tags": [
+      "production_designer",
+      "prop_taxonomy",
+      "era"
+    ],
+    "priority": 70,
+    "extra_data": {
+      "prop_kind": "era_defining_props",
+      "examples": {
+        "1970s": [
+          "翻盖电话",
+          "老式电视"
+        ],
+        "2025": [
+          "smartphone"
+        ]
+      },
+      "anachronism_rule": "时代错位=NG(如 1975 出现 iPhone)"
+    }
+  },
+  {
+    "category": "prop_taxonomy",
+    "key_name": "culture_defining_props",
+    "key_type": "prop",
+    "primary_recommendation": "culture_defining_props = 文化标记道具(中式婚礼:红色喜字/龙凤烛;西式:花球)。跨文化混用(中式婚礼出现西式花球)→ WARNING(可融合但需 narrative motivation)",
+    "rationale": "文化道具传递地域/族群身份;随意混搭削弱文化特异性,但有意融合(需叙事理由)可接受。",
+    "source_file": "production_designer/SKILL.md",
+    "source_section": "§Prop Categories + §Environment Constraint Rules",
+    "tags": [
+      "production_designer",
+      "prop_taxonomy",
+      "culture"
+    ],
+    "priority": 65,
+    "extra_data": {
+      "prop_kind": "culture_defining_props",
+      "examples": {
+        "中式婚礼": [
+          "红色喜字",
+          "龙凤烛"
+        ],
+        "西式婚礼": [
+          "花球"
+        ]
+      },
+      "cross_culture_rule": "混用=WARNING,需 narrative motivation"
+    }
+  },
+  {
+    "category": "prop_taxonomy",
+    "key_name": "chekhov_lifecycle",
+    "key_type": "prop",
+    "primary_recommendation": "Chekhov 道具生命周期 LOAD→HOLD→FIRE→DEFLATE:LOAD(背景 defocused,S1)→HOLD(可见不变,S2-S3)→FIRE(成叙事中心揭示真义,S4)→DEFLATE(失力退为背景噪音,S5)。单场地弧线中尤其关键(观众有时间注意背景物)",
+    "rationale": "静态环境中背景物会被注意到,故 Chekhov 元素必须跨 shot 追踪生命周期。同一道具的 narrative function 随弧线三层转变:prop identity(是什么)→ narrative function(意味着什么)→ lighting state(当前光照下如何呈现)。不可逆证据道具(Icarus 弧线下降段)必须贯穿全程不变位置,仅 narrative function + screen_position 递减。",
+    "source_file": "production_designer/references/single-location-dynamic-lighting-playbook.md",
+    "source_section": "§Chekhov-Prop Lifecycle + §Irreversible Evidence Persistence + §Lighting-State Prop Coordination",
+    "tags": [
+      "production_designer",
+      "prop_taxonomy",
+      "chekhov",
+      "lifecycle"
+    ],
+    "priority": 72,
+    "extra_data": {
+      "lifecycle": [
+        "LOAD",
+        "HOLD",
+        "FIRE",
+        "DEFLATE"
+      ],
+      "states": {
+        "LOAD": "背景 defocused 不叙事(S1)",
+        "HOLD": "可见不变跨多 shot(S2-S3)",
+        "FIRE": "成叙事中心揭示真义(S4)",
+        "DEFLATE": "失力退为背景噪音(S5)"
+      },
+      "three_layer_tracking": [
+        "prop identity(是什么)",
+        "narrative function(意味着什么)",
+        "lighting state(光照下如何呈现)"
+      ],
+      "irreversible_evidence": {
+        "rule": "Icarus 下降段一个道具须贯穿全程不变位置",
+        "position": "如 desk_surface_face_down 跨 10 shot 不变",
+        "function_shift": "美丽毁灭(S3)→犯罪证据(S4)→永久后果(S5)",
+        "screen_position_decay": "frame_right→frame_right_peripheral→frame_upper_right_peripheral",
+        "must_never": "不可消失或改状态"
+      }
+    }
+  },
+  {
+    "category": "prop_taxonomy",
+    "key_name": "position_and_visibility_encoding",
+    "key_type": "prop",
+    "primary_recommendation": "道具位置双重编码:screen quadrant(9 宫格,供 cinematographer/visual_executor)+ 3D spatial position(scene-relative,供 physics_precheck/blender)。可见性蒙版:visible(应出现)/occluded(不应出现但场景存在,防穿帮)/excluded(场景不存在)",
+    "rationale": "双编码让摄影层(2D 画面位置)与物理层(3D 场景坐标)各取所需;可见性蒙版防穿帮(occluded 道具意外入镜)。camera forbidden zones 必须基于 P08 geometry_bed,不能凭空创造。",
+    "source_file": "production_designer/SKILL.md",
+    "source_section": "§Position Encoding + §Visibility Mask",
+    "tags": [
+      "production_designer",
+      "prop_taxonomy",
+      "position",
+      "visibility"
+    ],
+    "priority": 62,
+    "extra_data": {
+      "screen_quadrants": [
+        "frame_upper_left",
+        "frame_upper_center",
+        "frame_upper_right",
+        "frame_left",
+        "frame_center",
+        "frame_right",
+        "frame_lower_left",
+        "frame_lower_center",
+        "frame_lower_right"
+      ],
+      "position_3d_examples": [
+        "dashboard_passenger_side",
+        "behind_driver_seat"
+      ],
+      "visibility_mask": {
+        "visible": "应出现(含 position)",
+        "occluded": "不应出现但场景存在(防穿帮)",
+        "excluded": "场景完全不存在"
+      },
+      "forbidden_zone_rule": "camera_forbidden_zones 必须基于 P08 geometry_bed,不可凭空创造"
+    }
+  },
+  {
+    "category": "environment_constraint",
+    "key_name": "driving_orientation_lhd_rhd",
+    "key_type": "environment_constraint",
+    "primary_recommendation": "车内场景(scene_type=interior_car/driving)必须声明 driving_orientation:LHD(中国大陆默认,方向盘左)或 RHD(HK/海外)。缺失 → NG。声明须写入 ltx_prompt('left-hand drive, steering wheel on the left side')",
+    "rationale": "Volvo V2 教训:不声明时模型默认 RHD,与大陆左舵车矛盾导致方向盘位置错误。production_designer 决定环境约束(LHD/RHD),供 physics_precheck 的 lhd_rhd_declaration 检查消费。",
+    "source_file": "production_designer/SKILL.md",
+    "source_section": "§Environment Constraint Categories + §Environment Constraint Rules",
+    "tags": [
+      "production_designer",
+      "environment_constraint",
+      "lhd_rhd",
+      "vehicle",
+      "volvo_lesson"
+    ],
+    "priority": 82,
+    "extra_data": {
+      "constraint": "driving_orientation",
+      "values": [
+        "LHD",
+        "RHD",
+        "not_applicable"
+      ],
+      "default_mainland_china": "LHD",
+      "severity_on_missing": "NG",
+      "lhd_phrase": "left-hand drive, steering wheel on the left side",
+      "downstream_check": "physics_precheck.lhd_rhd_declaration"
+    }
+  },
+  {
+    "category": "environment_constraint",
+    "key_name": "era_constraint",
+    "key_type": "environment_constraint",
+    "primary_recommendation": "era 约束:声明 year/era label(1975/2025/qing_dynasty),配时代道具白名单。时代错位(1975 剧本出现 iPhone)→ NG",
+    "rationale": "时代一致性是可信度基石;production_designer 标记 screenplay 暗示的时代 vs 实际道具冲突,与 era_defining_props 配合做时代错位检查。",
+    "source_file": "production_designer/SKILL.md",
+    "source_section": "§Environment Constraint Rules + §Environment Constraint Declaration",
+    "tags": [
+      "production_designer",
+      "environment_constraint",
+      "era"
+    ],
+    "priority": 75,
+    "extra_data": {
+      "constraint": "era",
+      "examples": [
+        "1975",
+        "2025",
+        "qing_dynasty"
+      ],
+      "whitelist_rule": "时代道具白名单",
+      "anachronism_severity": "NG"
+    }
+  },
+  {
+    "category": "environment_constraint",
+    "key_name": "culture_constraint",
+    "key_type": "environment_constraint",
+    "primary_recommendation": "culture 约束:声明文化域(mainland_china/hong_kong/western/korean/japanese),配文化道具白名单。跨文化混用(中式婚礼出现西式花球)→ WARNING(可融合但需 narrative motivation)",
+    "rationale": "文化道具传递地域身份;production_designer 维护文化白名单,有意融合需叙事理由否则标记。",
+    "source_file": "production_designer/SKILL.md",
+    "source_section": "§Environment Constraint Rules + §Environment Constraint Declaration",
+    "tags": [
+      "production_designer",
+      "environment_constraint",
+      "culture"
+    ],
+    "priority": 68,
+    "extra_data": {
+      "constraint": "culture",
+      "values": [
+        "mainland_china",
+        "hong_kong",
+        "western",
+        "korean",
+        "japanese"
+      ],
+      "whitelist_rule": "文化道具白名单",
+      "cross_culture_severity": "WARNING(需 narrative motivation)"
+    }
+  },
+  {
+    "category": "environment_constraint",
+    "key_name": "scene_geometry_type",
+    "key_type": "environment_constraint",
+    "primary_recommendation": "scene_geometry_type 分类:interior / exterior / interior_car / exterior_urban / exterior_nature。触发对应 environment_constraint 检查(车内→LHD/RHD;特定场景→可见部件白名单)",
+    "rationale": "场景类型决定哪些约束适用;production_designer 据 scene_description 分类 scene_type,继承 P08 geometry_bed(vertical_clearance/obstacles),再标注 per-shot camera_forbidden/recommended_zones 供 physics_precheck 消费。",
+    "source_file": "production_designer/SKILL.md",
+    "source_section": "§Environment Constraint Categories + §Scene Geometry 约束",
+    "tags": [
+      "production_designer",
+      "environment_constraint",
+      "geometry",
+      "scene_type"
+    ],
+    "priority": 65,
+    "extra_data": {
+      "constraint": "scene_geometry_type",
+      "values": [
+        "interior",
+        "exterior",
+        "interior_car",
+        "exterior_urban",
+        "exterior_nature"
+      ],
+      "inherits": "P08 geometry_bed.json (vertical_clearance/obstacles)",
+      "outputs": "camera_forbidden_zones / camera_recommended_zones"
+    }
+  },
+  {
+    "category": "environment_constraint",
+    "key_name": "speculative_parts_ban",
+    "key_type": "environment_constraint",
+    "primary_recommendation": "禁止 speculative parts:ltx_prompt/production_design 不可出现 'glovebox'/'rearview mirror' 等模型会幻觉的部件名 → NG,改用 'lower dashboard area' 等通用空间语言",
+    "rationale": "Volvo S5-4 教训:speculative(臆测性)部件名让模型生成不存在的部件并拉伸画面;用通用空间描述代替精确部件名更安全。production_designer 决定可见部件白名单。",
+    "source_file": "production_designer/SKILL.md",
+    "source_section": "§Environment Constraint Declaration + §Prop Placement Rules + What NOT to do",
+    "tags": [
+      "production_designer",
+      "environment_constraint",
+      "speculative_parts",
+      "volvo_lesson"
+    ],
+    "priority": 80,
+    "extra_data": {
+      "rule": "no speculative part names",
+      "forbidden_examples": [
+        "glovebox",
+        "rearview mirror"
+      ],
+      "fix": "改用 'lower dashboard area' 等通用空间语言",
+      "downstream_check": "physics_precheck.speculative_car_parts"
+    }
+  },
+  {
+    "category": "environment_constraint",
+    "key_name": "environment_state_consistency",
+    "key_type": "environment_constraint",
+    "primary_recommendation": "同一 scene 内环境状态必须一致:道具状态(打开/关闭/满/空)、光线状态(昼/夜/黄昏)、天气(晴/雨/雾)跨 shot 不变,除非有 narrative motivation(时间跳转)。输出 environment_continuity_baseline.json 供 continuity_auditor 审计",
+    "rationale": "环境穿帮(shot N 白天 / N+1 夜晚)破坏连续性;production_designer 建场景级 baseline 锁定一致字段,continuity_auditor 据此审计。冲突定义:shot N forbidden zones 与 N+1 visible props 矛盾。",
+    "source_file": "production_designer/SKILL.md",
+    "source_section": "§Cross-shot Environment Continuity + §Environment Constraint Rules",
+    "tags": [
+      "production_designer",
+      "environment_constraint",
+      "continuity",
+      "state_consistency"
+    ],
+    "priority": 72,
+    "extra_data": {
+      "consistent_fields": [
+        "prop_state",
+        "lighting_state",
+        "weather",
+        "time_of_day"
+      ],
+      "exception": "narrative motivation(时间跳转)",
+      "output": "environment_continuity_baseline.json",
+      "downstream": "continuity_auditor"
+    }
+  },
+  {
+    "category": "environment_constraint",
+    "key_name": "lighting_state_registry",
+    "key_type": "environment_constraint",
+    "primary_recommendation": "单场地动态光照弧线:维护 lighting state registry(warm_teal/crimson_rim/fluorescent_white),光照转换帧(transition)必须在 environment_notes 显式追踪前后两态(如 'lighting_instant_transition_crimson_to_fluorescent_white')。desk-as-enclosure:下降序列中大型家具(桌沿)跨 shot 升至面部之上制造'下沉',无需角色移动",
+    "rationale": "单场地无场景切换时,光照状态转换是叙事弧线的主载体。transition 帧最关键须双态追踪。环境状态一致性(SKILL §113)已包含光线状态,故光照态归环境约束。desk-as-enclosure 用固定道具+体态变化制造下沉错觉,免 3D rig。",
+    "source_file": "production_designer/references/single-location-dynamic-lighting-playbook.md",
+    "source_section": "§Lighting transition choreography + §Lighting state registry + §Desk-as-enclosure",
+    "tags": [
+      "production_designer",
+      "environment_constraint",
+      "lighting",
+      "single_location"
+    ],
+    "priority": 68,
+    "extra_data": {
+      "states": {
+        "warm_teal": "S1 开场,舒适/顺从",
+        "crimson_rim": "S2 催化,假警/英雄决意",
+        "fluorescent_white": "S4 现实崩塌,暴露/审判"
+      },
+      "transition_rule": "transition 帧须在 environment_notes 双态追踪",
+      "desk_as_enclosure": {
+        "technique": "桌沿跨 shot 升至面部之上",
+        "progression_example": "S5 下巴→嘴→鼻→眉(仅剩抽搐眼睛)",
+        "benefit": "固定道具+体态变化,免 3D rig"
+      }
+    }
+  },
+  {
+    "category": "spatial_reveal_method",
+    "key_name": "reveal_4beat_choreography",
+    "key_type": "reveal_method",
+    "primary_recommendation": "渐进式空间揭示遵循 5 拍:Surface(仅表层,隐藏层严格不可见)→Foreshadow(植入一条潜意识微纹理提示)→Transition(层 N 揭示,层 N-1 成'搁浅异常残留')→Reveal Frame(所有层同时可见,峰值帧)→Post-Reveal(全层已知,身份解码)",
+    "rationale": "观众初期认知的空间(如'手术室')在中后期被揭示为另一空间(如'水族馆')。固定拍结构保证揭示节奏可控、回调连贯。验证于 ep-otter-doctor-v2(2层 12-shot)与 ep-hamster-demolition(4层 5-scene)。",
+    "source_file": "production_designer/references/progressive-spatial-reveal-playbook.md",
+    "source_section": "§1 The 4-Beat Reveal Choreography",
+    "tags": [
+      "production_designer",
+      "spatial_reveal",
+      "choreography",
+      "method"
+    ],
+    "priority": 75,
+    "extra_data": {
+      "beats": {
+        "Surface": "Hook/setup,仅表层,隐藏层严格不可见",
+        "Foreshadow": "Rising,植入一条潜意识细节(注塑纹理/异常反光),首看像正常",
+        "Transition": "Reversal,层 N 揭示,层 N-1 成搁浅残留,角色认知冻结",
+        "Reveal_Frame": "Climax,所有层同时可见,最高置信帧 0.93-0.95",
+        "Post_Reveal": "Ending,全层已知,身份符号解码,存在性放弃"
+      },
+      "validated_episodes": [
+        "ep-otter-doctor-v2 (surgical_room→aquarium_tank, 12-shot 2-layer)",
+        "ep-hamster-demolition (demolition→gold wall→lab→hamster cage toy, 5-scene 4-layer)"
+      ]
+    }
+  },
+  {
+    "category": "spatial_reveal_method",
+    "key_name": "stranded_anomalous_remnants",
+    "key_type": "reveal_method",
+    "primary_recommendation": "层转换时前层道具不可消失,须作'搁浅异常残留'(stranded remnant)保留——脱语境、常缩小,作回声标记。如 ep-hamster-demolition S4 微缩玩具屋内仍可见混凝土碎块",
+    "rationale": "前层道具凭空消失会被 continuity_auditor 标记穿帮;保留为搁浅残留既维持连续性又强化揭示冲击。这是揭示场景跨 shot 连续性的关键。",
+    "source_file": "production_designer/references/progressive-spatial-reveal-playbook.md",
+    "source_section": "§1 Key Rule: Stranded Anomalous Remnants",
+    "tags": [
+      "production_designer",
+      "spatial_reveal",
+      "continuity",
+      "remnant"
+    ],
+    "priority": 70,
+    "extra_data": {
+      "rule": "prior-layer props do not vanish; remain as stranded remnants",
+      "examples": [
+        "ep-hamster-demolition S4: 混凝土碎块仍在微缩玩具屋内",
+        "ep-hamster-demolition S3: 金墙面板重标为'实验室反射镜'"
+      ],
+      "downstream": "continuity_auditor 会标记无解释消失"
+    }
+  },
+  {
+    "category": "spatial_reveal_method",
+    "key_name": "space_identity_note_field",
+    "key_type": "reveal_method",
+    "primary_recommendation": "揭示场景每个 shot 的 production_design 必须含 space_identity_note 字符串字段,追踪当前揭示态(如 'primary_layer=surgical_room, hidden_layer=aquarium_tank (not yet revealed)');TRANSITION 与 REVEAL_FRAME shot 须显式标注",
+    "rationale": "空间身份逐步揭示需逐 shot 显式追踪揭示状态;space_identity_note 是揭示场景最核心的字段,让下游 visual_executor 知道哪些隐藏层元素该出现/隐藏。",
+    "source_file": "production_designer/references/progressive-spatial-reveal-playbook.md",
+    "source_section": "§2 The space_identity_note Field",
+    "tags": [
+      "production_designer",
+      "spatial_reveal",
+      "field_spec"
+    ],
+    "priority": 68,
+    "extra_data": {
+      "field": "space_identity_note",
+      "format_examples": {
+        "Surface": "primary_layer=X, hidden_layer=Y (not yet revealed, strictly invisible)",
+        "Foreshadow": "primary_layer=X, hidden_layer=Y (foreshadow via texture)",
+        "Transition": "TRANSITION primary_layer=..., hidden_layer=..., surface_remnant=...",
+        "Reveal_Frame": "REVEAL_FRAME all_layers_present: ...",
+        "Post_Reveal": "post_reveal_identity_dissolution: all_layers_known"
+      }
+    }
+  },
+  {
+    "category": "spatial_reveal_method",
+    "key_name": "prop_state_continuity_tracking",
+    "key_type": "reveal_method",
+    "primary_recommendation": "揭示场景须维护 Prop-State Tracking Table(continuity_anchors):每个跨 shot 变化的道具逐 shot 追踪物理状态。出现 3+ shot 的回调道具须有一行;只出现 1-2 shot 的不必,除非状态变化承重",
+    "rationale": "揭示场景道具状态变化频繁(如石头:干燥→沾汁液→裂纹;手术服:干净→湿透→干硬壳),不逐 shot 追踪会穿帮。这是揭示场景最重要的连续性工件。",
+    "source_file": "production_designer/references/progressive-spatial-reveal-playbook.md",
+    "source_section": "§3 Prop-State Tracking Table",
+    "tags": [
+      "production_designer",
+      "spatial_reveal",
+      "continuity",
+      "tracking"
+    ],
+    "priority": 66,
+    "extra_data": {
+      "artifact": "continuity_anchors",
+      "rule": "回调道具(3+ shot)须一行",
+      "example_props": {
+        "mini_rubber_hammer": "intact→dropped→on_ground→within_toy_set_small→bounced_resting",
+        "cheek_pouches": "normal→engorged_with_gold→engorged→engorged→deflated"
+      }
+    }
+  },
+  {
+    "category": "spatial_reveal_method",
+    "key_name": "material_contrast_technique",
+    "key_type": "reveal_method",
+    "primary_recommendation": "揭示帧的情感载荷依赖材质纹理对比(toy/plastic 层 vs real/organic 层)。production_designer 须在 environment_notes 声明材质对比(如 'real_fur_texture_vs_plastic_toy_vertical_contrast')。production_designer 拥有'可见什么材质',visual_director 拥有'材质什么色/光'",
+    "rationale": "材质对比本身就是揭示的视觉载体(上层光泽有机毛皮 vs 下层哑光塑料);不声明则丢失揭示的情感冲击。职责边界:材质归 production_designer,色光归 visual_director。",
+    "source_file": "production_designer/references/progressive-spatial-reveal-playbook.md",
+    "source_section": "§4 Material-Contrast Technique",
+    "tags": [
+      "production_designer",
+      "spatial_reveal",
+      "material",
+      "technique"
+    ],
+    "priority": 62,
+    "extra_data": {
+      "technique": "material texture contrast in environment_notes",
+      "examples": [
+        "ep-hamster-demolition S4: real_fur vs plastic_toy 垂直对比",
+        "ep-otter-doctor-v2: 手术钢精密 vs 水族馆玻璃/水流动"
+      ],
+      "ownership": "production_designer=材质, visual_director=色光"
+    }
+  },
+  {
+    "category": "spatial_reveal_method",
+    "key_name": "scale_inversion_handling",
+    "key_type": "reveal_method",
+    "primary_recommendation": "揭示涉及尺度反转(看似大的实为更大容器中的微小物):pre-reveal 不可有矛盾尺度线索;揭示帧所有前层道具同时缩小(声明 within_toy_set 缩小 vs cage_reality 全尺寸);尺度反转道具以 narrative_role:'scale_inversion_*' 标记",
+    "rationale": "尺度反转是揭示的强力手法(玩具屋→真实仓鼠笼);production_designer 须确保揭示前无破绽线索,揭示帧正确声明哪些道具缩小、哪些是全尺寸新元素,供 visual_executor 区分。",
+    "source_file": "production_designer/references/progressive-spatial-reveal-playbook.md",
+    "source_section": "§5 Scale Inversion Handling",
+    "tags": [
+      "production_designer",
+      "spatial_reveal",
+      "scale_inversion"
+    ],
+    "priority": 60,
+    "extra_data": {
+      "technique": "scale inversion (large-seeming is tiny inside larger container)",
+      "rules": [
+        "pre-reveal 无矛盾尺度线索",
+        "揭示帧前层道具同时缩小",
+        "声明 within_toy_set(shrunk) vs cage_reality(full-size)"
+      ],
+      "flag": "narrative_role: scale_inversion_*"
+    }
+  },
+  {
+    "category": "spatial_reveal_method",
+    "key_name": "confidence_calibration",
+    "key_type": "reveal_method",
+    "primary_recommendation": "揭示场景置信度校准:Surface 0.90-0.92 / Foreshadow 0.88-0.90 / Transition 0.85-0.88(最低,双层共存+残留管理最复杂)/ Reveal Frame 0.93-0.95(最高,所有元素已知)/ Post-Reveal 0.90-0.93",
+    "rationale": "揭示各拍复杂度不同,Transition 最难(双层共存+残留管理)置信最低,Reveal Frame 最清晰置信最高。校准置信度帮下游决策哪些 shot 需更仔细生成/审校。",
+    "source_file": "production_designer/references/progressive-spatial-reveal-playbook.md",
+    "source_section": "§6 Confidence Calibration",
+    "tags": [
+      "production_designer",
+      "spatial_reveal",
+      "confidence"
+    ],
+    "priority": 55,
+    "extra_data": {
+      "calibration": {
+        "Surface": "0.90-0.92",
+        "Foreshadow": "0.88-0.90",
+        "Transition": "0.85-0.88 (最低,双层共存)",
+        "Reveal_Frame": "0.93-0.95 (最高)",
+        "Post_Reveal": "0.90-0.93"
+      }
+    }
   }
 ]

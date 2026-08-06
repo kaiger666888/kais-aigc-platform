@@ -120,6 +120,10 @@ export type CinemaCategory =
   | "cross_call_weight"
   // physics_precheck (rule-level feasibility precheck: camera/character/continuity/vehicle/AI-cap)
   | "physics_feasibility_check"
+  // production_designer (art direction: prop placement + scene geometry + environment)
+  | "prop_taxonomy"
+  | "environment_constraint"
+  | "spatial_reveal_method"
   // alias / mapping helpers (query-quality fix — maps free-form LLM emotion
   // labels, e.g. shot_list "shock/disorientation", to canonical KB names)
   | "emotion_alias";
@@ -229,6 +233,10 @@ export type CinemaKeyType =
   | "cross_call_weight"
   // physics_precheck
   | "feasibility_rule"
+  // production_designer
+  | "prop"
+  | "environment_constraint"
+  | "reveal_method"
   // alias / mapping helpers
   | "alias";
 
@@ -686,6 +694,7 @@ const DOMAIN_CATEGORY_SETS: Record<string, string[]> = {
     "growth_chain_step",
   ],
   feasibility: ["physics_feasibility_check"],
+  production_design: ["prop_taxonomy", "environment_constraint", "spatial_reveal_method"],
 };
 
 /**
