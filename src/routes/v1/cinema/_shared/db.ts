@@ -1,4 +1,5 @@
 import { db } from "@/utils/db";
+import seedEntries from "../seed-data.json";
 
 /**
  * Cinema Decision Knowledge Base — SQLite layer.
@@ -121,6 +122,7 @@ export function ensureCinemaTables(): Promise<void> {
           t.text("selected_at");
         });
       }
+      await seedDefaultsIfEmpty();
     })().catch((err) => {
       // allow a retry on next request if bootstrap failed
       _ready = null;
@@ -128,6 +130,22 @@ export function ensureCinemaTables(): Promise<void> {
     });
   }
   return _ready;
+}
+
+/** Auto-loads seed-data.json the first time the knowledge table is empty. */
+async function seedDefaultsIfEmpty(): Promise<void> {
+  const row = await db("cinema_knowledge").count("* as c").first();
+  const count = (row as any)?.c ?? 0;
+  if (count > 0) return;
+  const entries = (seedEntries as unknown as CinemaEntry[]) ?? [];
+  if (!Array.isArray(entries) || !entries.length) return;
+  // Insert directly — tables are already created at this point and calling
+  // insertEntries() here would re-enter ensureCinemaTables() (deadlock on _ready).
+  const rows = entries
+    .filter((e) => e && e.category && e.key_name)
+    .map(serializeEntry);
+  if (rows.length) await db("cinema_knowledge").insert(rows);
+  console.log(`[cinema] seeded ${rows.length} default knowledge entries`);
 }
 
 // ---------------------------------------------------------------------------
