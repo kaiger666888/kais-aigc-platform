@@ -1881,6 +1881,8 @@ export default function StoryboardTimeline() {
 
   // 视频播放器：单击选中带 P11 视频的分镜即加载
   const [activeVideo, setActiveVideo] = useState<{ shotId: string; videoUrl: string; durationS: number } | null>(null)
+  // 左侧播放器区域折叠/展开：折叠时隐藏播放器列、分镜列表占满宽度、点击分镜只高亮选中不自动播放
+  const [playerCollapsed, setPlayerCollapsed] = useState(false)
   // 音频 mini 播放器：点击分镜音轨 chip 即加载
   const [activeAudio, setActiveAudio] = useState<AudioTrack | null>(null)
   /**
@@ -2146,7 +2148,8 @@ export default function StoryboardTimeline() {
   const selectShot = (shot: StoryboardShot) => {
     const rfNode = nodes.find((n) => n.id === shot.node.id)
     if (rfNode) setSelectedNode(rfNode)
-    if (shot.videoUrl) {
+    // 仅在播放器展开时才自动播放；折叠态只高亮选中
+    if (!playerCollapsed && shot.videoUrl) {
       setActiveVideo({ shotId: shot.shotId, videoUrl: shot.videoUrl, durationS: shot.durationS })
     }
   }
@@ -2337,8 +2340,31 @@ export default function StoryboardTimeline() {
           <>
             <span style={{ flex: 1 }} />
             <span style={{ color: theme.text.tertiary, fontSize: 11 }}>
-              💡 单击播放视频，双击查看详情
+              {playerCollapsed ? '💡 单击选中分镜，双击查看详情' : '💡 单击播放视频，双击查看详情'}
             </span>
+            {/* 播放器折叠/展开切换 */}
+            <button
+              onClick={() => {
+                setPlayerCollapsed((v) => !v)
+                if (activeVideo) setActiveVideo(null) // 折叠时清除当前视频
+              }}
+              style={{
+                background: 'none',
+                border: `1px solid ${theme.border.default}`,
+                borderRadius: 4,
+                cursor: 'pointer',
+                padding: '3px 10px',
+                fontSize: 11,
+                color: playerCollapsed ? theme.text.tertiary : theme.text.primary,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                whiteSpace: 'nowrap',
+              }}
+              title={playerCollapsed ? '展开播放器' : '收起播放器'}
+            >
+              {playerCollapsed ? '▶ 展开播放器' : '◀ 收起播放器'}
+            </button>
           </>
         )}
       </div>
@@ -2347,8 +2373,8 @@ export default function StoryboardTimeline() {
           横/竖版均 flexDirection:row；竖版播放器固定宽 portraitPlayerW，无视频时常驻占位。 */}
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'row', minWidth: 0 }}>
-          {/* 左：播放器列（无视频时常驻占位，保持布局稳定） */}
-          {activeVideo ? player : <PlayerPlaceholder fixedWidth={playerFixedWidth} />}
+          {/* 左：播放器列 — 可折叠；展开时常驻（有视频播放/无视频占位），折叠时隐藏让分镜列表占满宽度 */}
+          {!playerCollapsed && (activeVideo ? player : <PlayerPlaceholder fixedWidth={playerFixedWidth} />)}
           {/* 右：分镜列表（占满剩余宽度） */}
           {shotList}
         </div>
