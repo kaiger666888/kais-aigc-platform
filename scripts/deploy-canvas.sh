@@ -4,8 +4,20 @@
 # 用法: bash scripts/deploy-canvas.sh
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CANVAS_DIR="/data/workspace/kais-aigc-platform/packages/infinite-canvas"
 DEPLOY_DIR="/data/workspace/kais-aigc-platform/data/web/infinite-canvas"
+
+# ─── API 契约审计（非阻断：仅 warning）─────────────────────
+echo "📋 Running API contract audit..."
+set +e
+python3 "$SCRIPT_DIR/audit-api-contract.py"
+AUDIT_EXIT=$?
+set -e
+if [ $AUDIT_EXIT -ne 0 ]; then
+    echo "⚠️  API contract audit found mismatches (see above)."
+    echo "   These won't block deploy, but should be fixed."
+fi
 
 echo "[deploy-canvas] 构建 infinite-canvas (npm run build)..."
 cd "$CANVAS_DIR"

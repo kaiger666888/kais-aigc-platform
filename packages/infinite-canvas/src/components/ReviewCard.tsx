@@ -50,22 +50,38 @@ export default function ReviewCard({ filePath, nodeId, apiBase = '', onSelected 
   const [selected, setSelected] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
+  const [unavailable, setUnavailable] = useState(false)
 
   useEffect(() => {
     if (!filePath) return
     setLoading(true)
+    setUnavailable(false)
     fetch(`${apiBase}/api/v2/canvas/review/options`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ filePath }),
     })
-      .then(r => r.json())
+      .then(r => {
+        // 后端尚未实现 /api/v2/canvas/review/options —— 优雅 404 容错，不崩溃
+        if (!r.ok) {
+          console.warn('[ReviewCard] Review options API not implemented yet')
+          setUnavailable(true)
+          return null
+        }
+        return r.json()
+      })
       .then(json => {
+        if (!json) return
+        if (json.code === 404) {
+          console.warn('[ReviewCard] Review options API not implemented yet')
+          setUnavailable(true)
+          return
+        }
         if (json.code === 200 && json.data?.options) {
           setOptions(json.data.options)
         }
       })
-      .catch(() => {})
+      .catch(() => setUnavailable(true))
       .finally(() => setLoading(false))
   }, [filePath, apiBase])
 
@@ -80,8 +96,20 @@ export default function ReviewCard({ filePath, nodeId, apiBase = '', onSelected 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ projectId: 1, episodesId: 1, nodeId, selection: optionId }),
     })
-      .then(r => r.json())
+      .then(r => {
+        // 后端尚未实现 /api/v2/canvas/review/submit —— 优雅 404 容错，不崩溃
+        if (!r.ok) {
+          console.warn('[ReviewCard] Review submit API not implemented yet')
+          return null
+        }
+        return r.json()
+      })
       .then(json => {
+        if (!json) return
+        if (json.code === 404) {
+          console.warn('[ReviewCard] Review submit API not implemented yet')
+          return
+        }
         if (json.code === 200) {
           setConfirmed(true)
           onSelected?.(optionId)
@@ -99,7 +127,16 @@ export default function ReviewCard({ filePath, nodeId, apiBase = '', onSelected 
       </div>
     )
   }
-  if (options.length === 0) return null
+  if (options.length === 0) {
+    if (unavailable) {
+      return (
+        <div style={{ padding: 16, textAlign: 'center', color: theme.text.disabled, fontSize: 11 }}>
+          🔒 审核选项暂不可用
+        </div>
+      )
+    }
+    return null
+  }
 
   return (
     <div style={{
