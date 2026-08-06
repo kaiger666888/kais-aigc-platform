@@ -4228,5 +4228,1666 @@
     "source_section": "2.6 音频模式 audioMode 与 audioStrategy 映射",
     "tags": ["audio-mode"],
     "priority": 54
+  },
+  {
+    "category": "viral_hook",
+    "key_name": "母女和解",
+    "key_type": "viral_element",
+    "primary_recommendation": "触发'如果我妈/我女儿能这样对我就好了'的代入感,完播率提升 30-50%",
+    "alternative_recommendations": ["无需降级——天然合规;避免将母亲塑成刻板'控制狂'或女儿塑成'白眼狼',保持角色立体。"],
+    "rationale": "情感钩｜受众:女频/中老年｜关联红线:§6 歧视侮辱(中性提及,不涉群体贬低)",
+    "extra_data": {
+      "risk_level": "🟢",
+      "hook_type": "情感钩",
+      "audience": "女频/中老年",
+      "related_redline": "§6 歧视侮辱(中性提及,不涉群体贬低)",
+      "downgrade_plan": "无需降级——天然合规;避免将母亲塑成刻板'控制狂'或女儿塑成'白眼狼',保持角色立体。",
+      "strength_retention": "100%"
+    },
+    "source_file": "viral-element-catalog.md",
+    "source_section": "Catalog / 情感钩",
+    "tags": ["情感钩", "女频/中老年"],
+    "priority": 58
+  },
+  {
+    "category": "viral_hook",
+    "key_name": "兄弟背叛",
+    "key_type": "viral_element",
+    "primary_recommendation": "开场展示兄弟反目,触发'一定要看到背叛者被惩罚'的追看欲,转发率高",
+    "alternative_recommendations": ["将复仇暴力改为'商业手段报复'——揭穿阴谋、夺回公司、公开真相,而非肢体暴力。"],
+    "rationale": "情感钩｜受众:男频｜关联红线:§2 暴力血腥(若复仇含暴力展示)",
+    "extra_data": {
+      "risk_level": "🟡",
+      "hook_type": "情感钩",
+      "audience": "男频",
+      "related_redline": "§2 暴力血腥(若复仇含暴力展示)",
+      "downgrade_plan": "将复仇暴力改为'商业手段报复'——揭穿阴谋、夺回公司、公开真相,而非肢体暴力。",
+      "strength_retention": "~80%"
+    },
+    "source_file": "viral-element-catalog.md",
+    "source_section": "Catalog / 情感钩",
+    "tags": ["情感钩", "男频"],
+    "priority": 58
+  },
+  {
+    "category": "viral_hook",
+    "key_name": "失忆重逢",
+    "key_type": "viral_element",
+    "primary_recommendation": "主角失忆后与昔日恋人重逢却不相识,触发'什么时候会想起来'的悬念",
+    "alternative_recommendations": ["无需降级;失忆原因避免 §2 车祸血腥或 §4 未成年人事故,改为疾病或心理创伤。"],
+    "rationale": "情感钩｜受众:男女通吃｜关联红线:§2/§4(若失忆因车祸血腥/未成年人事故触发)",
+    "extra_data": {
+      "risk_level": "🟢",
+      "hook_type": "情感钩",
+      "audience": "男女通吃",
+      "related_redline": "§2/§4(若失忆因车祸血腥/未成年人事故触发)",
+      "downgrade_plan": "无需降级;失忆原因避免 §2 车祸血腥或 §4 未成年人事故,改为疾病或心理创伤。",
+      "strength_retention": "100%"
+    },
+    "source_file": "viral-element-catalog.md",
+    "source_section": "Catalog / 情感钩",
+    "tags": ["情感钩", "男女通吃"],
+    "priority": 58
+  },
+  {
+    "category": "viral_hook",
+    "key_name": "替身的爱",
+    "key_type": "viral_element",
+    "primary_recommendation": "女主发现自己只是男主初恋的'替身',触发强烈共情与愤怒,完播+转发双高",
+    "alternative_recommendations": ["女主从被动'工具人'改为主动选择——知情是替身,但出于自己目的(复仇/夺产)接受身份。"],
+    "rationale": "情感钩｜受众:女频｜关联红线:§6 歧视侮辱(若女主塑成'工具人'刻板)",
+    "extra_data": {
+      "risk_level": "🟡",
+      "hook_type": "情感钩",
+      "audience": "女频",
+      "related_redline": "§6 歧视侮辱(若女主塑成'工具人'刻板)",
+      "downgrade_plan": "女主从被动'工具人'改为主动选择——知情是替身,但出于自己目的(复仇/夺产)接受身份。",
+      "strength_retention": "~85%"
+    },
+    "source_file": "viral-element-catalog.md",
+    "source_section": "Catalog / 情感钩",
+    "tags": ["情感钩", "女频"],
+    "priority": 58
+  },
+  {
+    "category": "viral_hook",
+    "key_name": "临终告别",
+    "key_type": "viral_element",
+    "primary_recommendation": "角色得知绝症后的告别,触发强烈情感共鸣,中老年观众转发率极高",
+    "alternative_recommendations": ["绝症必须是真实医学设定(不可治愈或代价极大),严禁植入'某产品/疗法包治'虚假宣传。"],
+    "rationale": "情感钩｜受众:中老年｜关联红线:§7 虚假宣传(若植入'神药治愈'桥段)",
+    "extra_data": {
+      "risk_level": "🟡",
+      "hook_type": "情感钩",
+      "audience": "中老年",
+      "related_redline": "§7 虚假宣传(若植入'神药治愈'桥段)",
+      "downgrade_plan": "绝症必须是真实医学设定(不可治愈或代价极大),严禁植入'某产品/疗法包治'虚假宣传。",
+      "strength_retention": "100%"
+    },
+    "source_file": "viral-element-catalog.md",
+    "source_section": "Catalog / 情感钩",
+    "tags": ["情感钩", "中老年"],
+    "priority": 58
+  },
+  {
+    "category": "viral_hook",
+    "key_name": "商战阴谋",
+    "key_type": "viral_element",
+    "primary_recommendation": "开场展示主角被陷害/夺权,触发'如何翻盘'追看欲,男频核心爽点",
+    "alternative_recommendations": ["商战手段合法合规(不可展示内幕交易、诈骗详细操作作'学习材料')。"],
+    "rationale": "冲突钩｜受众:男频｜关联红线:§7 虚假宣传(若涉及金融产品植入)",
+    "extra_data": {
+      "risk_level": "🟢",
+      "hook_type": "冲突钩",
+      "audience": "男频",
+      "related_redline": "§7 虚假宣传(若涉及金融产品植入)",
+      "downgrade_plan": "商战手段合法合规(不可展示内幕交易、诈骗详细操作作'学习材料')。",
+      "strength_retention": "~90%"
+    },
+    "source_file": "viral-element-catalog.md",
+    "source_section": "Catalog / 冲突钩",
+    "tags": ["冲突钩", "男频"],
+    "priority": 58
+  },
+  {
+    "category": "viral_hook",
+    "key_name": "婆媳冲突",
+    "key_type": "viral_element",
+    "primary_recommendation": "开场展示婆媳激烈对峙,触发女性代入感与站队欲,完播率高",
+    "alternative_recommendations": ["冲突聚焦具体个体,给婆婆合理动机(护子心切、代际观念差异),非纯粹'恶毒'。"],
+    "rationale": "冲突钩｜受众:女频｜关联红线:§6 歧视侮辱(若上升到'所有婆婆都恶毒')",
+    "extra_data": {
+      "risk_level": "🟡",
+      "hook_type": "冲突钩",
+      "audience": "女频",
+      "related_redline": "§6 歧视侮辱(若上升到'所有婆婆都恶毒')",
+      "downgrade_plan": "冲突聚焦具体个体,给婆婆合理动机(护子心切、代际观念差异),非纯粹'恶毒'。",
+      "strength_retention": "~75%"
+    },
+    "source_file": "viral-element-catalog.md",
+    "source_section": "Catalog / 冲突钩",
+    "tags": ["冲突钩", "女频"],
+    "priority": 58
+  },
+  {
+    "category": "viral_hook",
+    "key_name": "阶级碰撞",
+    "key_type": "viral_element",
+    "primary_recommendation": "底层与顶层角色直接冲突(外卖员撞豪车),触发阶级情绪,转发率极高",
+    "alternative_recommendations": ["底层角色有尊严与能动性,展示其智慧/坚韧;避免农村口音、低收入外貌作笑点。"],
+    "rationale": "冲突钩｜受众:都市｜关联红线:§6 歧视侮辱(若底层塑成'粗鄙/野蛮'笑料)",
+    "extra_data": {
+      "risk_level": "🟡",
+      "hook_type": "冲突钩",
+      "audience": "都市",
+      "related_redline": "§6 歧视侮辱(若底层塑成'粗鄙/野蛮'笑料)",
+      "downgrade_plan": "底层角色有尊严与能动性,展示其智慧/坚韧;避免农村口音、低收入外貌作笑点。",
+      "strength_retention": "~80%"
+    },
+    "source_file": "viral-element-catalog.md",
+    "source_section": "Catalog / 冲突钩",
+    "tags": ["冲突钩", "都市"],
+    "priority": 58
+  },
+  {
+    "category": "viral_hook",
+    "key_name": "职场逆袭",
+    "key_type": "viral_element",
+    "primary_recommendation": "主角被上司/同事打压,触发'等他逆袭打脸'期待,慕强+共情双驱动",
+    "alternative_recommendations": ["逆袭通过能力+努力实现,不可依赖'诬陷对手'或'性别优势'。"],
+    "rationale": "冲突钩｜受众:男女通吃｜关联红线:§6 歧视侮辱(若涉性别/地域职场歧视)",
+    "extra_data": {
+      "risk_level": "🟢",
+      "hook_type": "冲突钩",
+      "audience": "男女通吃",
+      "related_redline": "§6 歧视侮辱(若涉性别/地域职场歧视)",
+      "downgrade_plan": "逆袭通过能力+努力实现,不可依赖'诬陷对手'或'性别优势'。",
+      "strength_retention": "100%"
+    },
+    "source_file": "viral-element-catalog.md",
+    "source_section": "Catalog / 冲突钩",
+    "tags": ["冲突钩", "男女通吃"],
+    "priority": 58
+  },
+  {
+    "category": "viral_hook",
+    "key_name": "复仇归来",
+    "key_type": "viral_element",
+    "primary_recommendation": "主角含冤归来,触发'看到仇人被惩罚'强烈期待,卡点转换率极高",
+    "alternative_recommendations": ["复仇改为'社会性死亡'——公开真相、法律制裁、商业摧毁、社交封杀;严禁刑讯/虐杀/私刑。"],
+    "rationale": "冲突钩｜受众:男频｜关联红线:§2 暴力血腥(若复仇含肢体暴力)",
+    "extra_data": {
+      "risk_level": "🟡",
+      "hook_type": "冲突钩",
+      "audience": "男频",
+      "related_redline": "§2 暴力血腥(若复仇含肢体暴力)",
+      "downgrade_plan": "复仇改为'社会性死亡'——公开真相、法律制裁、商业摧毁、社交封杀;严禁刑讯/虐杀/私刑。",
+      "strength_retention": "~75%"
+    },
+    "source_file": "viral-element-catalog.md",
+    "source_section": "Catalog / 冲突钩",
+    "tags": ["冲突钩", "男频"],
+    "priority": 58
+  },
+  {
+    "category": "viral_hook",
+    "key_name": "霸总装穷",
+    "key_type": "viral_element",
+    "primary_recommendation": "霸总伪装穷人接近女主,'何时暴露'悬念+'是否真爱'情感钩双叠加",
+    "alternative_recommendations": ["无需降级;装穷期间不可展示真实贫困苦难作笑料(避免 §6),改日常笨拙感。"],
+    "rationale": "反差钩｜受众:女频｜关联红线:§7 虚假宣传(若植入'穷人也能变富'金融诱导)",
+    "extra_data": {
+      "risk_level": "🟢",
+      "hook_type": "反差钩",
+      "audience": "女频",
+      "related_redline": "§7 虚假宣传(若植入'穷人也能变富'金融诱导)",
+      "downgrade_plan": "无需降级;装穷期间不可展示真实贫困苦难作笑料(避免 §6),改日常笨拙感。",
+      "strength_retention": "100%"
+    },
+    "source_file": "viral-element-catalog.md",
+    "source_section": "Catalog / 反差钩",
+    "tags": ["反差钩", "女频"],
+    "priority": 58
+  },
+  {
+    "category": "viral_hook",
+    "key_name": "草根暴富",
+    "key_type": "viral_element",
+    "primary_recommendation": "底层角色突然获巨额财富/超能力,触发'如果是我就好了'代入",
+    "alternative_recommendations": ["暴富来源合法(继承、创业成功、知识变现),严禁美化赌博、诈骗、传销。"],
+    "rationale": "反差钩｜受众:男频｜关联红线:§7 虚假宣传(若暴富涉赌博/非法手段美化)",
+    "extra_data": {
+      "risk_level": "🟡",
+      "hook_type": "反差钩",
+      "audience": "男频",
+      "related_redline": "§7 虚假宣传(若暴富涉赌博/非法手段美化)",
+      "downgrade_plan": "暴富来源合法(继承、创业成功、知识变现),严禁美化赌博、诈骗、传销。",
+      "strength_retention": "~85%"
+    },
+    "source_file": "viral-element-catalog.md",
+    "source_section": "Catalog / 反差钩",
+    "tags": ["反差钩", "男频"],
+    "priority": 58
+  },
+  {
+    "category": "viral_hook",
+    "key_name": "学霸变学渣",
+    "key_type": "viral_element",
+    "primary_recommendation": "曾经学霸因故堕落,触发'为什么''能否重新站起来'的期待",
+    "alternative_recommendations": ["角色明确成年(大学生/职场新人),严禁未成年人面孔 AI 形象;堕落原因避免自残/吸毒。"],
+    "rationale": "反差钩｜受众:青年｜关联红线:§4 未成年人保护(若角色未成年)",
+    "extra_data": {
+      "risk_level": "🟡",
+      "hook_type": "反差钩",
+      "audience": "青年",
+      "related_redline": "§4 未成年人保护(若角色未成年)",
+      "downgrade_plan": "角色明确成年(大学生/职场新人),严禁未成年人面孔 AI 形象;堕落原因避免自残/吸毒。",
+      "strength_retention": "~80%"
+    },
+    "source_file": "viral-element-catalog.md",
+    "source_section": "Catalog / 反差钩",
+    "tags": ["反差钩", "青年"],
+    "priority": 58
+  },
+  {
+    "category": "viral_hook",
+    "key_name": "假戏真做",
+    "key_type": "viral_element",
+    "primary_recommendation": "假扮情侣/假结婚契约场景,触发'何时假戏真做'追看欲",
+    "alternative_recommendations": ["无需降级;契约内容不可违法(逃债假离婚),改商业合作或家庭压力假扮。"],
+    "rationale": "反差钩｜受众:男女通吃｜关联红线:§7 虚假宣传(若契约涉违法假离婚/逃债)",
+    "extra_data": {
+      "risk_level": "🟢",
+      "hook_type": "反差钩",
+      "audience": "男女通吃",
+      "related_redline": "§7 虚假宣传(若契约涉违法假离婚/逃债)",
+      "downgrade_plan": "无需降级;契约内容不可违法(逃债假离婚),改商业合作或家庭压力假扮。",
+      "strength_retention": "100%"
+    },
+    "source_file": "viral-element-catalog.md",
+    "source_section": "Catalog / 反差钩",
+    "tags": ["反差钩", "男女通吃"],
+    "priority": 58
+  },
+  {
+    "category": "viral_hook",
+    "key_name": "反派洗白",
+    "key_type": "viral_element",
+    "primary_recommendation": "展示'反派'视角,触发'为什么变坏'好奇,颠覆预期",
+    "alternative_recommendations": ["反派的'恶'通过后果展示非过程展示;洗白需合理道德弧线(悔悟+补偿),非价值观反转。"],
+    "rationale": "反差钩｜受众:男女通吃｜关联红线:§2/§3(若反派行为展示过详细)",
+    "extra_data": {
+      "risk_level": "🟡",
+      "hook_type": "反差钩",
+      "audience": "男女通吃",
+      "related_redline": "§2/§3(若反派行为展示过详细)",
+      "downgrade_plan": "反派的'恶'通过后果展示非过程展示;洗白需合理道德弧线(悔悟+补偿),非价值观反转。",
+      "strength_retention": "~70%"
+    },
+    "source_file": "viral-element-catalog.md",
+    "source_section": "Catalog / 反差钩",
+    "tags": ["反差钩", "男女通吃"],
+    "priority": 58
+  },
+  {
+    "category": "viral_hook",
+    "key_name": "重生",
+    "key_type": "viral_element",
+    "primary_recommendation": "主角死亡后重生,触发'这一世改写命运'强烈期待,卡点转换率极高",
+    "alternative_recommendations": ["死亡改暗示剪辑(黑屏+音效);重生后不可预知违法事件(彩票/股票),改预知人际走向。"],
+    "rationale": "题材钩｜受众:男频/女频｜关联红线:§2 暴力血腥(若死亡场景血腥)",
+    "extra_data": {
+      "risk_level": "🟡",
+      "hook_type": "题材钩",
+      "audience": "男频/女频",
+      "related_redline": "§2 暴力血腥(若死亡场景血腥)",
+      "downgrade_plan": "死亡改暗示剪辑(黑屏+音效);重生后不可预知违法事件(彩票/股票),改预知人际走向。",
+      "strength_retention": "~85%"
+    },
+    "source_file": "viral-element-catalog.md",
+    "source_section": "Catalog / 题材钩",
+    "tags": ["题材钩", "男频/女频"],
+    "priority": 58
+  },
+  {
+    "category": "viral_hook",
+    "key_name": "穿越",
+    "key_type": "viral_element",
+    "primary_recommendation": "现代人穿越古代,'现代知识碾压古人'爽感+文化碰撞新奇",
+    "alternative_recommendations": ["无需降级;穿越朝代避敏感历史(近代革命史),改架空或盛世(唐/宋)。"],
+    "rationale": "题材钩｜受众:女频｜关联红线:§5 民族宗教(若涉历史民族歪曲)",
+    "extra_data": {
+      "risk_level": "🟢",
+      "hook_type": "题材钩",
+      "audience": "女频",
+      "related_redline": "§5 民族宗教(若涉历史民族歪曲)",
+      "downgrade_plan": "无需降级;穿越朝代避敏感历史(近代革命史),改架空或盛世(唐/宋)。",
+      "strength_retention": "100%"
+    },
+    "source_file": "viral-element-catalog.md",
+    "source_section": "Catalog / 题材钩",
+    "tags": ["题材钩", "女频"],
+    "priority": 58
+  },
+  {
+    "category": "viral_hook",
+    "key_name": "系统",
+    "key_type": "viral_element",
+    "primary_recommendation": "获得'系统'(游戏面板超能力),触发'升级打怪'爽感循环,男频完播核心",
+    "alternative_recommendations": ["系统任务合法合规(不可'杀人获经验'),改'完成任务获能力/知识/人脉提升'。"],
+    "rationale": "题材钩｜受众:男频｜关联红线:§7 虚假宣传(若系统任务美化违法)",
+    "extra_data": {
+      "risk_level": "🟢",
+      "hook_type": "题材钩",
+      "audience": "男频",
+      "related_redline": "§7 虚假宣传(若系统任务美化违法)",
+      "downgrade_plan": "系统任务合法合规(不可'杀人获经验'),改'完成任务获能力/知识/人脉提升'。",
+      "strength_retention": "100%"
+    },
+    "source_file": "viral-element-catalog.md",
+    "source_section": "Catalog / 题材钩",
+    "tags": ["题材钩", "男频"],
+    "priority": 58
+  },
+  {
+    "category": "viral_hook",
+    "key_name": "玄学",
+    "key_type": "viral_element",
+    "primary_recommendation": "获得玄学能力(看相/算命/通灵),触发神秘感+'改命'期待",
+    "alternative_recommendations": ["玄学能力明确为虚构设定(不作现实算命广告背书);避免展示具体'骗术操作'。"],
+    "rationale": "题材钩｜受众:女频｜关联红线:§7 虚假宣传(若玄学用于'算命骗钱'教学)",
+    "extra_data": {
+      "risk_level": "🟡",
+      "hook_type": "题材钩",
+      "audience": "女频",
+      "related_redline": "§7 虚假宣传(若玄学用于'算命骗钱'教学)",
+      "downgrade_plan": "玄学能力明确为虚构设定(不作现实算命广告背书);避免展示具体'骗术操作'。",
+      "strength_retention": "~85%"
+    },
+    "source_file": "viral-element-catalog.md",
+    "source_section": "Catalog / 题材钩",
+    "tags": ["题材钩", "女频"],
+    "priority": 58
+  },
+  {
+    "category": "viral_hook",
+    "key_name": "萌宝+互动剧",
+    "key_type": "viral_element",
+    "primary_recommendation": "女主带萌宝归来复仇/认亲,'母子联手'爽感+'生父是谁'悬念",
+    "alternative_recommendations": ["禁止使用——替换'成年少女归来认亲'(16-18 岁,真人出演,严禁 AI 面部);互动剧改线性叙事可降 🟡。"],
+    "rationale": "题材钩｜受众:女频｜关联红线:§4 未成年人保护(萌宝+AI面部+互动剧三重违规)",
+    "extra_data": {
+      "risk_level": "🔴",
+      "hook_type": "题材钩",
+      "audience": "女频",
+      "related_redline": "§4 未成年人保护(萌宝+AI面部+互动剧三重违规)",
+      "downgrade_plan": "禁止使用——替换'成年少女归来认亲'(16-18 岁,真人出演,严禁 AI 面部);互动剧改线性叙事可降 🟡。",
+      "strength_retention": "~70%"
+    },
+    "source_file": "viral-element-catalog.md",
+    "source_section": "Catalog / 题材钩",
+    "tags": ["题材钩", "女频"],
+    "priority": 58
+  },
+  {
+    "category": "viral_hook",
+    "key_name": "古装武打",
+    "key_type": "viral_element",
+    "primary_recommendation": "精彩武打场面,触发视觉冲击+'主角多强'好奇",
+    "alternative_recommendations": ["武打用特效血,避免开放伤口特写>2 秒;刀具刺入瞬间切反应镜头。"],
+    "rationale": "题材钩｜受众:男女通吃｜关联红线:§2 暴力血腥(若武打含真实刀具出血特写)",
+    "extra_data": {
+      "risk_level": "🟡",
+      "hook_type": "题材钩",
+      "audience": "男女通吃",
+      "related_redline": "§2 暴力血腥(若武打含真实刀具出血特写)",
+      "downgrade_plan": "武打用特效血,避免开放伤口特写>2 秒;刀具刺入瞬间切反应镜头。",
+      "strength_retention": "~90%"
+    },
+    "source_file": "viral-element-catalog.md",
+    "source_section": "Catalog / 题材钩",
+    "tags": ["题材钩", "男女通吃"],
+    "priority": 58
+  },
+  {
+    "category": "viral_hook",
+    "key_name": "双面人生",
+    "key_type": "viral_element",
+    "primary_recommendation": "主角白天/黑夜截然不同身份,触发'真实身份是什么'强烈好奇",
+    "alternative_recommendations": ["暗面必须非暴力(商业间谍→商业调查员;地下黑客→白帽安全研究员);严禁犯罪美化。"],
+    "rationale": "角色钩｜受众:男女通吃｜关联红线:§2/§7(若暗面涉非法活动美化)",
+    "extra_data": {
+      "risk_level": "🟡",
+      "hook_type": "角色钩",
+      "audience": "男女通吃",
+      "related_redline": "§2/§7(若暗面涉非法活动美化)",
+      "downgrade_plan": "暗面必须非暴力(商业间谍→商业调查员;地下黑客→白帽安全研究员);严禁犯罪美化。",
+      "strength_retention": "~75%"
+    },
+    "source_file": "viral-element-catalog.md",
+    "source_section": "Catalog / 角色钩",
+    "tags": ["角色钩", "男女通吃"],
+    "priority": 58
+  },
+  {
+    "category": "viral_hook",
+    "key_name": "反派主角",
+    "key_type": "viral_element",
+    "primary_recommendation": "开场即展示主角'恶行',触发'能否被救赎'复杂追看欲",
+    "alternative_recommendations": ["禁止使用——替换'灰色道德主角'(游走道德边缘但本质善良);纯'恶'主角几乎必触红线。"],
+    "rationale": "角色钩｜受众:男女通吃｜关联红线:§2/§3/§1(反派行为极易踩多红线)",
+    "extra_data": {
+      "risk_level": "🔴",
+      "hook_type": "角色钩",
+      "audience": "男女通吃",
+      "related_redline": "§2/§3/§1(反派行为极易踩多红线)",
+      "downgrade_plan": "禁止使用——替换'灰色道德主角'(游走道德边缘但本质善良);纯'恶'主角几乎必触红线。",
+      "strength_retention": "~70%"
+    },
+    "source_file": "viral-element-catalog.md",
+    "source_section": "Catalog / 角色钩",
+    "tags": ["角色钩", "男女通吃"],
+    "priority": 58
+  },
+  {
+    "category": "viral_hook",
+    "key_name": "替身",
+    "key_type": "viral_element",
+    "primary_recommendation": "主角被当作某人替身,'真实身份何时揭晓'悬念+'是否被真爱'情感钩",
+    "alternative_recommendations": ["替身角色必须有主动权与尊严(参见'替身的爱'降级方案)。"],
+    "rationale": "角色钩｜受众:女频｜关联红线:§6 歧视侮辱(若替身塑成无尊严'工具')",
+    "extra_data": {
+      "risk_level": "🟢",
+      "hook_type": "角色钩",
+      "audience": "女频",
+      "related_redline": "§6 歧视侮辱(若替身塑成无尊严'工具')",
+      "downgrade_plan": "替身角色必须有主动权与尊严(参见'替身的爱'降级方案)。",
+      "strength_retention": "100%"
+    },
+    "source_file": "viral-element-catalog.md",
+    "source_section": "Catalog / 角色钩",
+    "tags": ["角色钩", "女频"],
+    "priority": 58
+  },
+  {
+    "category": "viral_hook",
+    "key_name": "复仇女王",
+    "key_type": "viral_element",
+    "primary_recommendation": "女主从受害者到复仇者转变,触发'看她如何翻盘'强烈爽感",
+    "alternative_recommendations": ["复仇改商业/法律/社交手段;复仇对象聚焦具体加害者,不可上升到性别群体贬低。"],
+    "rationale": "角色钩｜受众:女频｜关联红线:§2/§6(若复仇涉肢体暴力或上升到性别群体贬低)",
+    "extra_data": {
+      "risk_level": "🟡",
+      "hook_type": "角色钩",
+      "audience": "女频",
+      "related_redline": "§2/§6(若复仇涉肢体暴力或上升到性别群体贬低)",
+      "downgrade_plan": "复仇改商业/法律/社交手段;复仇对象聚焦具体加害者,不可上升到性别群体贬低。",
+      "strength_retention": "~80%"
+    },
+    "source_file": "viral-element-catalog.md",
+    "source_section": "Catalog / 角色钩",
+    "tags": ["角色钩", "女频"],
+    "priority": 58
+  },
+  {
+    "category": "viral_hook",
+    "key_name": "病娇爱人",
+    "key_type": "viral_element",
+    "primary_recommendation": "对主角极度痴狂、占有欲极强,触发'危险又迷人'复杂情绪",
+    "alternative_recommendations": ["禁止使用——替换'深情守护者'(极度关心但尊重自主权边界,'默默守护'非'囚禁控制')。"],
+    "rationale": "角色钩｜受众:女频/BL｜关联红线:§3/§2/§6(占有欲常伴随囚禁/威胁/肢体暴力)",
+    "extra_data": {
+      "risk_level": "🔴",
+      "hook_type": "角色钩",
+      "audience": "女频/BL",
+      "related_redline": "§3/§2/§6(占有欲常伴随囚禁/威胁/肢体暴力)",
+      "downgrade_plan": "禁止使用——替换'深情守护者'(极度关心但尊重自主权边界,'默默守护'非'囚禁控制')。",
+      "strength_retention": "~70%"
+    },
+    "source_file": "viral-element-catalog.md",
+    "source_section": "Catalog / 角色钩",
+    "tags": ["角色钩", "女频/BL"],
+    "priority": 58
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "douyin.completion_rate",
+    "key_type": "platform_policy",
+    "primary_recommendation": "完播率(最高权重~35%):短剧冷启动门槛 30-40%,达不到 30% 通常不再推流",
+    "rationale": "douyin｜algorithm_signal",
+    "extra_data": {
+      "platform": "douyin",
+      "category": "algorithm_signal",
+      "risk_level": null,
+      "weight_est": "35%",
+      "threshold": "30-40%"
+    },
+    "source_file": "platform-specs-douyin.md",
+    "source_section": "分发规则/推荐机制",
+    "tags": ["douyin", "algorithm_signal"],
+    "priority": 60
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "douyin.interaction_rate",
+    "key_type": "platform_policy",
+    "primary_recommendation": "互动率(~25%):评论率门槛~1.5%,转发率门槛~0.5%",
+    "rationale": "douyin｜algorithm_signal",
+    "extra_data": {
+      "platform": "douyin",
+      "category": "algorithm_signal",
+      "risk_level": null,
+      "weight_est": "25%",
+      "comment_threshold": "1.5%",
+      "forward_threshold": "0.5%"
+    },
+    "source_file": "platform-specs-douyin.md",
+    "source_section": "分发规则/推荐机制",
+    "tags": ["douyin", "algorithm_signal"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "douyin.follow_conversion",
+    "key_type": "platform_policy",
+    "primary_recommendation": "关注转化率(~15%):矩阵号要求≥2%,否则后续集数难起量",
+    "rationale": "douyin｜algorithm_signal",
+    "extra_data": {
+      "platform": "douyin",
+      "category": "algorithm_signal",
+      "risk_level": null,
+      "weight_est": "15%",
+      "threshold": "2%"
+    },
+    "source_file": "platform-specs-douyin.md",
+    "source_section": "分发规则/推荐机制",
+    "tags": ["douyin", "algorithm_signal"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "douyin.watch_ratio",
+    "key_type": "platform_policy",
+    "primary_recommendation": "停留时长(~10%):平均观看÷视频时长,短剧应追求≥70%",
+    "rationale": "douyin｜algorithm_signal",
+    "extra_data": {
+      "platform": "douyin",
+      "category": "algorithm_signal",
+      "risk_level": null,
+      "weight_est": "10%",
+      "target": "70%"
+    },
+    "source_file": "platform-specs-douyin.md",
+    "source_section": "分发规则/推荐机制",
+    "tags": ["douyin", "algorithm_signal"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "douyin.front3s_skip",
+    "key_type": "platform_policy",
+    "primary_recommendation": "负反馈(~7% 反向权重):前 3 秒被划过>50% 判'质量低'",
+    "rationale": "douyin｜algorithm_signal",
+    "extra_data": {
+      "platform": "douyin",
+      "category": "algorithm_signal",
+      "risk_level": null,
+      "weight_est": "7%",
+      "skip_threshold": "50%"
+    },
+    "source_file": "platform-specs-douyin.md",
+    "source_section": "分发规则/推荐机制",
+    "tags": ["douyin", "algorithm_signal"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "douyin.duration_format",
+    "key_type": "platform_policy",
+    "primary_recommendation": "单集时长:竖屏 1-3 分钟(精剪引流 30-60s),横屏 3-5 分钟;<15s 不识别为'剧集';画幅 9:16 1080×1920+",
+    "rationale": "douyin｜algorithm_signal",
+    "extra_data": {
+      "platform": "douyin",
+      "category": "algorithm_signal",
+      "risk_level": null,
+      "vertical": "1-3min",
+      "horizontal": "3-5min",
+      "aspect": "9:16"
+    },
+    "source_file": "platform-specs-douyin.md",
+    "source_section": "内容时长与画幅",
+    "tags": ["douyin", "algorithm_signal"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "douyin.external_drainage",
+    "key_type": "platform_policy",
+    "primary_recommendation": "引流外部平台:视频/评论/简介放微信号、二维码、外链、'私信领取'话术 → 限流甚至封号",
+    "rationale": "douyin｜red_line",
+    "extra_data": {
+      "platform": "douyin",
+      "category": "red_line",
+      "risk_level": "🟡",
+      "linked_redline": "§7"
+    },
+    "source_file": "platform-specs-douyin.md",
+    "source_section": "平台专属红线",
+    "tags": ["douyin", "red_line"],
+    "priority": 58
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "douyin.medical_false_ad",
+    "key_type": "platform_policy",
+    "primary_recommendation": "医疗健康虚假宣传:非医疗资质账号推荐药品/保健品/减肥/美容针剂",
+    "rationale": "douyin｜red_line",
+    "extra_data": {
+      "platform": "douyin",
+      "category": "red_line",
+      "risk_level": "🔴",
+      "linked_redline": "§7"
+    },
+    "source_file": "platform-specs-douyin.md",
+    "source_section": "平台专属红线",
+    "tags": ["douyin", "red_line"],
+    "priority": 58
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "douyin.minor_misguidance",
+    "key_type": "platform_policy",
+    "primary_recommendation": "未成年人不当引导:诱导打赏/充值/模仿危险行为;未成年演员出演暴力或情爱场景",
+    "rationale": "douyin｜red_line",
+    "extra_data": {
+      "platform": "douyin",
+      "category": "red_line",
+      "risk_level": "🔴",
+      "linked_redline": "§4"
+    },
+    "source_file": "platform-specs-douyin.md",
+    "source_section": "平台专属红线",
+    "tags": ["douyin", "red_line"],
+    "priority": 58
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "douyin.finance_lure",
+    "key_type": "platform_policy",
+    "primary_recommendation": "金融理财诱导:推荐具体股票/基金/虚拟币/'内部消息';短剧植入'跟着 XX 老师炒股'",
+    "rationale": "douyin｜red_line",
+    "extra_data": {
+      "platform": "douyin",
+      "category": "red_line",
+      "risk_level": "🟡",
+      "linked_redline": "§7"
+    },
+    "source_file": "platform-specs-douyin.md",
+    "source_section": "平台专属红线",
+    "tags": ["douyin", "red_line"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "douyin.clickbait_cover",
+    "key_type": "platform_policy",
+    "primary_recommendation": "标题党与封面欺诈:封面与正文严重不符、低俗擦边封面、夸张煽情标题('震惊!''99%不知道')",
+    "rationale": "douyin｜red_line",
+    "extra_data": {
+      "platform": "douyin",
+      "category": "red_line",
+      "risk_level": "🟡",
+      "linked_redline": "§6"
+    },
+    "source_file": "platform-specs-douyin.md",
+    "source_section": "平台专属红线",
+    "tags": ["douyin", "red_line"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "douyin.filing_display",
+    "key_type": "platform_policy",
+    "primary_recommendation": "备案号展示:片头 5s 内或片尾字幕区显示备案号(字号≥视频高度 2.5%);简介栏填写;主页认证信息标注类别",
+    "rationale": "douyin｜filing",
+    "extra_data": {
+      "platform": "douyin",
+      "category": "filing",
+      "risk_level": null,
+      "min_font_ratio": 0.025,
+      "positions": ["片头5s", "片尾", "简介", "主页"]
+    },
+    "source_file": "platform-specs-douyin.md",
+    "source_section": "备案号展示位置",
+    "tags": ["douyin", "filing"],
+    "priority": 58
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "douyin.aigc_visible_mark",
+    "key_type": "platform_policy",
+    "primary_recommendation": "AIGC 显式标识:右下角持续'AI 生成'角标,尺寸≥视频高度 3%,整集全程可见",
+    "rationale": "douyin｜filing",
+    "extra_data": {
+      "platform": "douyin",
+      "category": "filing",
+      "risk_level": null,
+      "min_height_ratio": 0.03,
+      "position": "bottom-right",
+      "duration": "full"
+    },
+    "source_file": "platform-specs-douyin.md",
+    "source_section": "AIGC 标识要求",
+    "tags": ["douyin", "filing"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "douyin.male_formula",
+    "key_type": "platform_policy",
+    "primary_recommendation": "男频爆款:战神归来(退役特种兵+隐藏身份+家人受辱+暴起打脸,第3集卡点,完播≥45%)/赘婿逆袭/都市修仙/重生复仇",
+    "rationale": "douyin｜explosion_formula",
+    "extra_data": {
+      "platform": "douyin",
+      "category": "explosion_formula",
+      "risk_level": null,
+      "cliffhanger_ep": 3,
+      "completion_target": "45%"
+    },
+    "source_file": "platform-specs-douyin.md",
+    "source_section": "男频爆款公式",
+    "tags": ["douyin", "explosion_formula"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "douyin.female_formula",
+    "key_type": "platform_policy",
+    "primary_recommendation": "女频爆款:豪门虐恋(灰姑娘+霸总+误会+虐心+真相,第5集,完播≥42%)/闺蜜背叛/替身白月光/重生复仇",
+    "rationale": "douyin｜explosion_formula",
+    "extra_data": {
+      "platform": "douyin",
+      "category": "explosion_formula",
+      "risk_level": null,
+      "cliffhanger_ep": 5,
+      "completion_target": "42%"
+    },
+    "source_file": "platform-specs-douyin.md",
+    "source_section": "女频爆款公式",
+    "tags": ["douyin", "explosion_formula"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "douyin.golden_7s",
+    "key_type": "platform_policy",
+    "primary_recommendation": "黄金 7 秒:完播率在第 7 秒开始断崖式下跌,前 3 秒必须呈现冲突/反差,钩子须撑过 7 秒",
+    "rationale": "douyin｜explosion_formula",
+    "extra_data": {
+      "platform": "douyin",
+      "category": "explosion_formula",
+      "risk_level": null,
+      "cliff_drop_sec": 7
+    },
+    "source_file": "platform-specs-douyin.md",
+    "source_section": "完播率优化技巧",
+    "tags": ["douyin", "explosion_formula"],
+    "priority": 58
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "douyin.duplicate_content_trap",
+    "key_type": "platform_policy",
+    "primary_recommendation": "算法陷阱:30 天内≥3 集相似题材判'重复内容',推荐降权 30-50%;每集需引入新角色/场景/冲突类型",
+    "rationale": "douyin｜explosion_formula",
+    "extra_data": {
+      "platform": "douyin",
+      "category": "explosion_formula",
+      "risk_level": "🟡",
+      "penalty": "30-50% 降权",
+      "window_days": 30
+    },
+    "source_file": "platform-specs-douyin.md",
+    "source_section": "专属算法陷阱",
+    "tags": ["douyin", "explosion_formula"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "kuaishou.follow_page_weight",
+    "key_type": "platform_policy",
+    "primary_recommendation": "关注页活跃度(~30%):老铁文化粉丝黏性高,关注页占总流量 30-40%(远高于抖音 10-15%)",
+    "rationale": "kuaishou｜algorithm_signal",
+    "extra_data": {
+      "platform": "kuaishou",
+      "category": "algorithm_signal",
+      "risk_level": null,
+      "weight_est": "30%",
+      "follow_page_share": "30-40%"
+    },
+    "source_file": "platform-specs-kuaishou.md",
+    "source_section": "分发规则/推荐机制",
+    "tags": ["kuaishou", "algorithm_signal"],
+    "priority": 60
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "kuaishou.completion_rate",
+    "key_type": "platform_policy",
+    "primary_recommendation": "完播率(~25%):冷启动门槛 25-35%,略低于抖音",
+    "rationale": "kuaishou｜algorithm_signal",
+    "extra_data": {
+      "platform": "kuaishou",
+      "category": "algorithm_signal",
+      "risk_level": null,
+      "weight_est": "25%",
+      "threshold": "25-35%"
+    },
+    "source_file": "platform-specs-kuaishou.md",
+    "source_section": "分发规则/推荐机制",
+    "tags": ["kuaishou", "algorithm_signal"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "kuaishou.interaction_rate",
+    "key_type": "platform_policy",
+    "primary_recommendation": "互动率(~20%):评论+点赞+转发+'666'刷屏;评论率门槛~2%(高于抖音 1.5%)",
+    "rationale": "kuaishou｜algorithm_signal",
+    "extra_data": {
+      "platform": "kuaishou",
+      "category": "algorithm_signal",
+      "risk_level": null,
+      "weight_est": "20%",
+      "comment_threshold": "2%"
+    },
+    "source_file": "platform-specs-kuaishou.md",
+    "source_section": "分发规则/推荐机制",
+    "tags": ["kuaishou", "algorithm_signal"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "kuaishou.live_link_weight",
+    "key_type": "platform_policy",
+    "primary_recommendation": "直播联动权重(~10%):与直播间互动过的用户更易收到该账号短剧推荐",
+    "rationale": "kuaishou｜algorithm_signal",
+    "extra_data": {
+      "platform": "kuaishou",
+      "category": "algorithm_signal",
+      "risk_level": null,
+      "weight_est": "10%"
+    },
+    "source_file": "platform-specs-kuaishou.md",
+    "source_section": "分发规则/推荐机制",
+    "tags": ["kuaishou", "algorithm_signal"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "kuaishou.local_traffic",
+    "key_type": "platform_policy",
+    "primary_recommendation": "同城流量(~8%):强调'身边人/身边事',同城推荐权重高于抖音",
+    "rationale": "kuaishou｜algorithm_signal",
+    "extra_data": {
+      "platform": "kuaishou",
+      "category": "algorithm_signal",
+      "risk_level": null,
+      "weight_est": "8%"
+    },
+    "source_file": "platform-specs-kuaishou.md",
+    "source_section": "分发规则/推荐机制",
+    "tags": ["kuaishou", "algorithm_signal"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "kuaishou.livecommerce_false_ad",
+    "key_type": "platform_policy",
+    "primary_recommendation": "直播带货虚假宣传:直播间夸大商品功效/假货/价格欺诈;短剧植入商品与实物不符",
+    "rationale": "kuaishou｜red_line",
+    "extra_data": {
+      "platform": "kuaishou",
+      "category": "red_line",
+      "risk_level": "🔴",
+      "linked_redline": "§7"
+    },
+    "source_file": "platform-specs-kuaishou.md",
+    "source_section": "平台专属红线",
+    "tags": ["kuaishou", "red_line"],
+    "priority": 58
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "kuaishou.pk_improper",
+    "key_type": "platform_policy",
+    "primary_recommendation": "老铁 PK 不当内容:PK 中辱骂/暴力威胁/煽动粉丝攻击;短剧再现此类情节",
+    "rationale": "kuaishou｜red_line",
+    "extra_data": {
+      "platform": "kuaishou",
+      "category": "red_line",
+      "risk_level": "🟡",
+      "linked_redline": "§6"
+    },
+    "source_file": "platform-specs-kuaishou.md",
+    "source_section": "平台专属红线",
+    "tags": ["kuaishou", "red_line"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "kuaishou.vulgar_tuwei",
+    "key_type": "platform_policy",
+    "primary_recommendation": "低俗擦边与'土味':'土味'容忍度高于抖音但 2025-Q4 后加强;擦边舞蹈/性暗示仍为红线",
+    "rationale": "kuaishou｜red_line",
+    "extra_data": {
+      "platform": "kuaishou",
+      "category": "red_line",
+      "risk_level": "🟡",
+      "linked_redline": "§3"
+    },
+    "source_file": "platform-specs-kuaishou.md",
+    "source_section": "平台专属红线",
+    "tags": ["kuaishou", "red_line"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "kuaishou.showoff_wealth",
+    "key_type": "platform_policy",
+    "primary_recommendation": "草根炫富/仇富:刻意展示豪车/豪宅/现金堆/'富二代'标签,易引发负面舆情",
+    "rationale": "kuaishou｜red_line",
+    "extra_data": {
+      "platform": "kuaishou",
+      "category": "red_line",
+      "risk_level": "🟡",
+      "linked_redline": "§6"
+    },
+    "source_file": "platform-specs-kuaishou.md",
+    "source_section": "平台专属红线",
+    "tags": ["kuaishou", "red_line"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "kuaishou.local_false_info",
+    "key_type": "platform_policy",
+    "primary_recommendation": "同城虚假信息:摆拍本地新闻/谣言/冒充公职人员",
+    "rationale": "kuaishou｜red_line",
+    "extra_data": {
+      "platform": "kuaishou",
+      "category": "red_line",
+      "risk_level": "🔴",
+      "linked_redline": "§7"
+    },
+    "source_file": "platform-specs-kuaishou.md",
+    "source_section": "平台专属红线",
+    "tags": ["kuaishou", "red_line"],
+    "priority": 58
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "kuaishou.grassroots_formula",
+    "key_type": "platform_policy",
+    "primary_recommendation": "草根共鸣公式(主流):农村逆袭/老铁义气/打工人逆袭(外卖员+隐藏富豪+同事打脸,第3集,完播≥42%)/返乡创业",
+    "rationale": "kuaishou｜explosion_formula",
+    "extra_data": {
+      "platform": "kuaishou",
+      "category": "explosion_formula",
+      "risk_level": null,
+      "cliffhanger_ep": 3,
+      "completion_target": "42%"
+    },
+    "source_file": "platform-specs-kuaishou.md",
+    "source_section": "草根共鸣公式",
+    "tags": ["kuaishou", "explosion_formula"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "kuaishou.family_ethics_formula",
+    "key_type": "platform_policy",
+    "primary_recommendation": "家庭伦理公式:婆媳大战/父子代沟/兄弟分家/后妈难当;前 3 秒家庭冲突,每集'这就是我家'瞬间",
+    "rationale": "kuaishou｜explosion_formula",
+    "extra_data": {
+      "platform": "kuaishou",
+      "category": "explosion_formula",
+      "risk_level": null
+    },
+    "source_file": "platform-specs-kuaishou.md",
+    "source_section": "家庭伦理公式",
+    "tags": ["kuaishou", "explosion_formula"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "kuaishou.old_iron_phrasing",
+    "key_type": "platform_policy",
+    "primary_recommendation": "老铁话术+方言:'老铁们''双击 666''点关注不迷路';适度东北话/四川话/河南话提升草根共鸣",
+    "rationale": "kuaishou｜explosion_formula",
+    "extra_data": {
+      "platform": "kuaishou",
+      "category": "explosion_formula",
+      "risk_level": null
+    },
+    "source_file": "platform-specs-kuaishou.md",
+    "source_section": "完播率优化技巧",
+    "tags": ["kuaishou", "explosion_formula"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "kuaishou.livecommerce_combo",
+    "key_type": "platform_policy",
+    "primary_recommendation": "短剧+直播带货联动:短剧植入商品→引流直播间→讲解转化(商品销售 80-90% 归主播);短剧内不得直接展示购买链接",
+    "rationale": "kuaishou｜explosion_formula",
+    "extra_data": {
+      "platform": "kuaishou",
+      "category": "explosion_formula",
+      "risk_level": null,
+      "creator_share": "80-90%"
+    },
+    "source_file": "platform-specs-kuaishou.md",
+    "source_section": "直播带货联动变现",
+    "tags": ["kuaishou", "explosion_formula"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "miniprogram.group_share",
+    "key_type": "platform_policy",
+    "primary_recommendation": "群分享转化(~30%):分享到微信群后群成员点击打开比例,门槛 5-10%(单次转化深度高)",
+    "rationale": "miniprogram｜algorithm_signal",
+    "extra_data": {
+      "platform": "miniprogram",
+      "category": "algorithm_signal",
+      "risk_level": null,
+      "weight_est": "30%",
+      "threshold": "5-10%"
+    },
+    "source_file": "platform-specs-miniprogram.md",
+    "source_section": "分发规则/微信生态裂变机制",
+    "tags": ["miniprogram", "algorithm_signal"],
+    "priority": 60
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "miniprogram.moments",
+    "key_type": "platform_policy",
+    "primary_recommendation": "朋友圈曝光(~25%):分享到朋友圈的曝光转化,门槛~2-5% 点击率",
+    "rationale": "miniprogram｜algorithm_signal",
+    "extra_data": {
+      "platform": "miniprogram",
+      "category": "algorithm_signal",
+      "risk_level": null,
+      "weight_est": "25%",
+      "threshold": "2-5%"
+    },
+    "source_file": "platform-specs-miniprogram.md",
+    "source_section": "分发规则/微信生态裂变机制",
+    "tags": ["miniprogram", "algorithm_signal"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "miniprogram.official_account",
+    "key_type": "platform_policy",
+    "primary_recommendation": "公众号导流(~20%):公众号文章嵌入小程序卡片,转化率 8-15%(高质量定向流量)",
+    "rationale": "miniprogram｜algorithm_signal",
+    "extra_data": {
+      "platform": "miniprogram",
+      "category": "algorithm_signal",
+      "risk_level": null,
+      "weight_est": "20%",
+      "threshold": "8-15%"
+    },
+    "source_file": "platform-specs-miniprogram.md",
+    "source_section": "分发规则/微信生态裂变机制",
+    "tags": ["miniprogram", "algorithm_signal"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "miniprogram.channels_link",
+    "key_type": "platform_policy",
+    "primary_recommendation": "视频号联动(~15%):视频号短视频挂载小程序入口,2024-Q3 后主要获客通道",
+    "rationale": "miniprogram｜algorithm_signal",
+    "extra_data": {
+      "platform": "miniprogram",
+      "category": "algorithm_signal",
+      "risk_level": null,
+      "weight_est": "15%"
+    },
+    "source_file": "platform-specs-miniprogram.md",
+    "source_section": "分发规则/微信生态裂变机制",
+    "tags": ["miniprogram", "algorithm_signal"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "miniprogram.long_series_mode",
+    "key_type": "platform_policy",
+    "primary_recommendation": "长剧集模式:典型 10-30 集(长篇 50-80 集),单集 1-3 分钟(短)或 5-10 分钟(长),长集转化优于短集",
+    "rationale": "miniprogram｜algorithm_signal",
+    "extra_data": {
+      "platform": "miniprogram",
+      "category": "algorithm_signal",
+      "risk_level": null,
+      "episodes": "10-30",
+      "long_episodes": "5-10min"
+    },
+    "source_file": "platform-specs-miniprogram.md",
+    "source_section": "长剧集模式与画幅",
+    "tags": ["miniprogram", "algorithm_signal"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "miniprogram.induce_share",
+    "key_type": "platform_policy",
+    "primary_recommendation": "诱导分享:'分享到 3 个群解锁下一集''不分享就封号'等强制分享话术",
+    "rationale": "miniprogram｜red_line",
+    "extra_data": {
+      "platform": "miniprogram",
+      "category": "red_line",
+      "risk_level": "🔴",
+      "linked_redline": "§7"
+    },
+    "source_file": "platform-specs-miniprogram.md",
+    "source_section": "平台专属红线",
+    "tags": ["miniprogram", "red_line"],
+    "priority": 58
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "miniprogram.multi_level_distribution",
+    "key_type": "platform_policy",
+    "primary_recommendation": "多级分销:拉人头返佣、层级奖励、'邀请好友赚 ¥X'机制",
+    "rationale": "miniprogram｜red_line",
+    "extra_data": {
+      "platform": "miniprogram",
+      "category": "red_line",
+      "risk_level": "🔴",
+      "linked_redline": "§7"
+    },
+    "source_file": "platform-specs-miniprogram.md",
+    "source_section": "平台专属红线",
+    "tags": ["miniprogram", "red_line"],
+    "priority": 58
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "miniprogram.politics_strict",
+    "key_type": "platform_policy",
+    "primary_recommendation": "涉政(比短视频严):任何涉国家领导人、台海/游行/体制议题;微信审核比抖音/快手更严,账号会被封",
+    "rationale": "miniprogram｜red_line",
+    "extra_data": {
+      "platform": "miniprogram",
+      "category": "red_line",
+      "risk_level": "🔴",
+      "linked_redline": "§1",
+      "stricter_than": ["douyin", "kuaishou"]
+    },
+    "source_file": "platform-specs-miniprogram.md",
+    "source_section": "平台专属红线",
+    "tags": ["miniprogram", "red_line"],
+    "priority": 60
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "miniprogram.content_edge_strict",
+    "key_type": "platform_policy",
+    "primary_recommendation": "内容擦边(微信标准更严):色情低俗判定最严;接吻>3 秒、床戏暗示均会被拒",
+    "rationale": "miniprogram｜red_line",
+    "extra_data": {
+      "platform": "miniprogram",
+      "category": "red_line",
+      "risk_level": "🔴",
+      "linked_redline": "§3",
+      "kiss_limit_sec": 3
+    },
+    "source_file": "platform-specs-miniprogram.md",
+    "source_section": "平台专属红线",
+    "tags": ["miniprogram", "red_line"],
+    "priority": 58
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "miniprogram.minor_large_spend",
+    "key_type": "platform_policy",
+    "primary_recommendation": "未成年人大额消费:诱导未成年人充值超单笔 ¥50 或月累计 ¥200,微信主动介入退款并处罚",
+    "rationale": "miniprogram｜red_line",
+    "extra_data": {
+      "platform": "miniprogram",
+      "category": "red_line",
+      "risk_level": "🔴",
+      "single_limit_cny": 50,
+      "monthly_limit_cny": 200
+    },
+    "source_file": "platform-specs-miniprogram.md",
+    "source_section": "小程序剧专属审核要点",
+    "tags": ["miniprogram", "red_line"],
+    "priority": 58
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "miniprogram.induce_follow",
+    "key_type": "platform_policy",
+    "primary_recommendation": "诱导关注/误导跳转:假按钮('点击领取'实为关注公众号)、伪装系统提示",
+    "rationale": "miniprogram｜red_line",
+    "extra_data": {
+      "platform": "miniprogram",
+      "category": "red_line",
+      "risk_level": "🟡",
+      "linked_redline": "§7"
+    },
+    "source_file": "platform-specs-miniprogram.md",
+    "source_section": "平台专属红线",
+    "tags": ["miniprogram", "red_line"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "miniprogram.dual_filing",
+    "key_type": "platform_policy",
+    "primary_recommendation": "双重备案(特有):既是短剧(广电总局)又是小程序(微信 ICP);任一缺失下架。另可能需增值电信业务许可证",
+    "rationale": "miniprogram｜filing",
+    "extra_data": {
+      "platform": "miniprogram",
+      "category": "filing",
+      "risk_level": null,
+      "filings": ["广电网络剧/AI漫剧", "微信小程序ICP", "增值电信业务许可证(付费分发)"]
+    },
+    "source_file": "platform-specs-miniprogram.md",
+    "source_section": "双重备案",
+    "tags": ["miniprogram", "filing"],
+    "priority": 60
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "miniprogram.long_series_formula",
+    "key_type": "platform_policy",
+    "primary_recommendation": "长剧集悬念公式:重生复仇/豪门恩怨/穿越重生/战神归来(长篇),每 3 集 1 个强卡点,多线叙事,完播≥45-50%",
+    "rationale": "miniprogram｜explosion_formula",
+    "extra_data": {
+      "platform": "miniprogram",
+      "category": "explosion_formula",
+      "risk_level": null,
+      "cliffhanger_every_n_ep": 3,
+      "completion_target": "45-50%"
+    },
+    "source_file": "platform-specs-miniprogram.md",
+    "source_section": "长剧集悬念公式",
+    "tags": ["miniprogram", "explosion_formula"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "miniprogram.emotional_resonance_formula",
+    "key_type": "platform_policy",
+    "primary_recommendation": "情感共鸣公式:亲情催泪/友情背叛/职场逆袭/师徒情;每集'泪目/心动/心酸'瞬间,允许慢热铺陈",
+    "rationale": "miniprogram｜explosion_formula",
+    "extra_data": {
+      "platform": "miniprogram",
+      "category": "explosion_formula",
+      "risk_level": null
+    },
+    "source_file": "platform-specs-miniprogram.md",
+    "source_section": "情感共鸣公式",
+    "tags": ["miniprogram", "explosion_formula"],
+    "priority": 55
+  },
+  {
+    "category": "platform_rule",
+    "key_name": "miniprogram.pay_cliffhanger",
+    "key_type": "platform_policy",
+    "primary_recommendation": "付费卡点设计:每 3 集至少 1 个付费卡点,单集 60-80% 处设悬念收尾;卡点须为剧情转折点(揭阴谋/身份反转/生死);付费转化率 3-8%",
+    "rationale": "miniprogram｜explosion_formula",
+    "extra_data": {
+      "platform": "miniprogram",
+      "category": "explosion_formula",
+      "risk_level": null,
+      "cliffhanger_every_n_ep": 3,
+      "position_in_ep": "60-80%",
+      "pay_conv": "3-8%"
+    },
+    "source_file": "platform-specs-miniprogram.md",
+    "source_section": "付费卡点设计",
+    "tags": ["miniprogram", "explosion_formula"],
+    "priority": 58
+  },
+  {
+    "category": "content_taboo",
+    "key_name": "political_leader_impersonation",
+    "key_type": "taboo",
+    "primary_recommendation": "模仿国家领导人形象/声音作为角色出场",
+    "rationale": "严重等级 high｜平台 all",
+    "extra_data": {
+      "severity": "high",
+      "legal_basis": "《网络安全法》第12条;《网络音视频信息服务管理规定》第10条;《互联网视听节目服务管理规定》第16条",
+      "platform": "all"
+    },
+    "source_file": "cn-content-rules.md",
+    "source_section": "§1 政治敏感",
+    "tags": ["high", "all"],
+    "priority": 68
+  },
+  {
+    "category": "content_taboo",
+    "key_name": "territory_dispute_map",
+    "key_type": "taboo",
+    "primary_recommendation": "涉及领土争议地图(错误标注南海/藏南/钓鱼岛)",
+    "rationale": "严重等级 high｜平台 all",
+    "extra_data": {
+      "severity": "high",
+      "legal_basis": "《网络安全法》第12条;《网络音视频信息服务管理规定》第10条;《互联网视听节目服务管理规定》第16条",
+      "platform": "all"
+    },
+    "source_file": "cn-content-rules.md",
+    "source_section": "§1 政治敏感",
+    "tags": ["high", "all"],
+    "priority": 68
+  },
+  {
+    "category": "content_taboo",
+    "key_name": "revolution_history_distortion",
+    "key_type": "taboo",
+    "primary_recommendation": "历史革命题材歪曲史实(美化军阀、丑化革命先烈)",
+    "rationale": "严重等级 high｜平台 all",
+    "extra_data": {
+      "severity": "high",
+      "legal_basis": "《网络安全法》第12条;《网络音视频信息服务管理规定》第10条;《互联网视听节目服务管理规定》第16条",
+      "platform": "all"
+    },
+    "source_file": "cn-content-rules.md",
+    "source_section": "§1 政治敏感",
+    "tags": ["high", "all"],
+    "priority": 68
+  },
+  {
+    "category": "content_taboo",
+    "key_name": "flag_desecration",
+    "key_type": "taboo",
+    "primary_recommendation": "国旗倒置/撕毁等不规范使用国家象征",
+    "rationale": "严重等级 high｜平台 all",
+    "extra_data": {
+      "severity": "high",
+      "legal_basis": "《网络安全法》第12条;《网络音视频信息服务管理规定》第10条;《互联网视听节目服务管理规定》第16条",
+      "platform": "all"
+    },
+    "source_file": "cn-content-rules.md",
+    "source_section": "§1 政治敏感",
+    "tags": ["high", "all"],
+    "priority": 68
+  },
+  {
+    "category": "content_taboo",
+    "key_name": "leader_portrait_closeup",
+    "key_type": "taboo",
+    "primary_recommendation": "国家领导人人像特写",
+    "rationale": "严重等级 high｜平台 all",
+    "extra_data": {
+      "severity": "high",
+      "legal_basis": "《网络安全法》第12条;《网络音视频信息服务管理规定》第10条;《互联网视听节目服务管理规定》第16条",
+      "platform": "all"
+    },
+    "source_file": "cn-content-rules.md",
+    "source_section": "§1 政治敏感",
+    "tags": ["high", "all"],
+    "priority": 68
+  },
+  {
+    "category": "content_taboo",
+    "key_name": "forged_official_document",
+    "key_type": "taboo",
+    "primary_recommendation": "红头文件伪造特写",
+    "rationale": "严重等级 high｜平台 all",
+    "extra_data": {
+      "severity": "high",
+      "legal_basis": "《网络安全法》第12条;《网络音视频信息服务管理规定》第10条;《互联网视听节目服务管理规定》第16条",
+      "platform": "all"
+    },
+    "source_file": "cn-content-rules.md",
+    "source_section": "§1 政治敏感",
+    "tags": ["high", "all"],
+    "priority": 68
+  },
+  {
+    "category": "content_taboo",
+    "key_name": "political_system_mockery",
+    "key_type": "taboo",
+    "primary_recommendation": "嘲讽/颠覆政治制度、历史定论的内容",
+    "rationale": "严重等级 high｜平台 all",
+    "extra_data": {
+      "severity": "high",
+      "legal_basis": "《网络安全法》第12条;《网络音视频信息服务管理规定》第10条;《互联网视听节目服务管理规定》第16条",
+      "platform": "all"
+    },
+    "source_file": "cn-content-rules.md",
+    "source_section": "§1 政治敏感",
+    "tags": ["high", "all"],
+    "priority": 68
+  },
+  {
+    "category": "content_taboo",
+    "key_name": "political_redline_overview",
+    "key_type": "taboo",
+    "primary_recommendation": "§1 政治敏感:涉及国家领导人、国家象征、领土完整、政治制度、历史定论等敏感议题的内容,🔴 一律拒绝(疑似命中即拒,不可降级)。注:§2-§8 已于 2026-07-04 移除,operator 决策仅保留 §1 政治敏感为唯一红线。",
+    "rationale": "内容审核红线 Checklist(Political Only)",
+    "extra_data": {
+      "severity": "high",
+      "legal_basis": "《网络安全法》第12条;《网络音视频信息服务管理规定》第10条;《互联网视听节目服务管理规定》第16条",
+      "platform": "all",
+      "active_only_section_1": true,
+      "removed_sections": "§2-§8 (2026-07-04)"
+    },
+    "source_file": "cn-content-rules.md",
+    "source_section": "§1 政治敏感",
+    "tags": ["high", "all"],
+    "priority": 70
+  },
+  {
+    "category": "content_taboo",
+    "key_name": "aigc_disclosure_false_positive",
+    "key_type": "taboo",
+    "primary_recommendation": "digi:ai_disclosure_present 字段与显式标识实际存在不一致(false positive 是合规违规)",
+    "rationale": "严重等级 high｜平台 all",
+    "extra_data": {
+      "severity": "high",
+      "legal_basis": "网信办《人工智能生成合成内容标识办法》(国家互联网信息办公室令 第17号,2025-09-01)",
+      "platform": "all"
+    },
+    "source_file": "cn-content-rules.md",
+    "source_section": "AI 标识办法/隐式标识",
+    "tags": ["high", "all"],
+    "priority": 68
+  },
+  {
+    "category": "content_taboo",
+    "key_name": "missing_visible_aigc_mark",
+    "key_type": "taboo",
+    "primary_recommendation": "缺失显式 AI 标识(右下角'AI 生成'角标,尺寸≥视频高度 3-5%,全程可见)",
+    "rationale": "严重等级 high｜平台 all",
+    "extra_data": {
+      "severity": "high",
+      "legal_basis": "网信办《人工智能生成合成内容标识办法》(国家互联网信息办公室令 第17号,2025-09-01)",
+      "platform": "all"
+    },
+    "source_file": "cn-content-rules.md",
+    "source_section": "AI 标识办法/显式标识",
+    "tags": ["high", "all"],
+    "priority": 68
+  },
+  {
+    "category": "content_taboo",
+    "key_name": "ai_minor_face",
+    "key_type": "taboo",
+    "primary_recommendation": "AI 生成未成年人面部(萌宝题材 + AI 面部 + 互动剧三重违规)",
+    "rationale": "严重等级 high｜平台 all",
+    "extra_data": {
+      "severity": "high",
+      "legal_basis": "《未成年人保护法》;§4 未成年人保护",
+      "platform": "all"
+    },
+    "source_file": "cn-content-rules.md",
+    "source_section": "§4 未成年人保护",
+    "tags": ["high", "all"],
+    "priority": 68
+  },
+  {
+    "category": "content_taboo",
+    "key_name": "minor_in_explicit_scene",
+    "key_type": "taboo",
+    "primary_recommendation": "未成年演员出演暴力或情爱场景",
+    "rationale": "严重等级 high｜平台 all",
+    "extra_data": {
+      "severity": "high",
+      "legal_basis": "§4 未成年人保护",
+      "platform": "all"
+    },
+    "source_file": "cn-content-rules.md",
+    "source_section": "§4 未成年人保护",
+    "tags": ["high", "all"],
+    "priority": 68
+  },
+  {
+    "category": "content_taboo",
+    "key_name": "unfiled_distribution",
+    "key_type": "taboo",
+    "primary_recommendation": "未完成广电总局备案即商业分发(下架 + 信用扣分 + 6 个月禁新备案)",
+    "rationale": "严重等级 high｜平台 all",
+    "extra_data": {
+      "severity": "high",
+      "legal_basis": "广电总局《人工智能生成剧集(漫剧)网络播出管理试点办法》*estimated(2026-04-01)",
+      "platform": "all"
+    },
+    "source_file": "cn-content-rules.md",
+    "source_section": "AI 漫剧备案 Regime",
+    "tags": ["high", "all"],
+    "priority": 68
+  },
+  {
+    "category": "content_taboo",
+    "key_name": "no_refile_after_major_edit",
+    "key_type": "taboo",
+    "primary_recommendation": "单集修改≥30% 时长未重新备案",
+    "rationale": "严重等级 medium｜平台 all",
+    "extra_data": {
+      "severity": "medium",
+      "legal_basis": "广电总局《人工智能生成剧集(漫剧)网络播出管理试点办法》*estimated(2026-04-01)",
+      "platform": "all",
+      "refile_threshold": "30% duration"
+    },
+    "source_file": "cn-content-rules.md",
+    "source_section": "AI 漫剧备案 Regime",
+    "tags": ["medium", "all"],
+    "priority": 68
+  },
+  {
+    "category": "content_taboo",
+    "key_name": "medical_cure_false_ad",
+    "key_type": "taboo",
+    "primary_recommendation": "绝症题材植入'神药/某疗法包治'虚假宣传桥段",
+    "rationale": "严重等级 high｜平台 all",
+    "extra_data": {
+      "severity": "high",
+      "legal_basis": "§7 虚假宣传;《广告法》",
+      "platform": "all"
+    },
+    "source_file": "cn-content-rules.md",
+    "source_section": "§7 虚假宣传",
+    "tags": ["high", "all"],
+    "priority": 68
+  },
+  {
+    "category": "aigc_label_spec",
+    "key_name": "visible_label",
+    "key_type": "label_spec",
+    "primary_recommendation": "显式标识(Visible Mark):画面叠加可被人眼识别的 AI 来源标识,播放全程持续可见。",
+    "rationale": "网信办令第17号(2025-09-01):文字'AI 生成'或图标+文字组合;纯图标不合规。",
+    "extra_data": {
+      "min_height_ratio": 0.05,
+      "position": "bottom-right/bottom-left",
+      "duration": "full (no fade)",
+      "min_opacity": 0.7,
+      "form": "text or icon+text",
+      "min_font_ratio_of_frame_height": 0.05,
+      "example_1080x1920": {
+        "x": "864..1056",
+        "y": "1800..1900",
+        "font_px": 28
+      }
+    },
+    "source_file": "cn-content-rules.md",
+    "source_section": "AI 标识办法/显式标识",
+    "tags": ["aigc-label", "visible"],
+    "priority": 62
+  },
+  {
+    "category": "aigc_label_spec",
+    "key_name": "metadata_label",
+    "key_type": "label_spec",
+    "primary_recommendation": "隐式标识(Metadata):嵌入文件元数据的不可见标识,C2PA/Content Credentials 风格,可被平台机器读。",
+    "rationale": "digi:source 必须为 'AI-generated' 或 'AI-assisted';provenance 链记录每道工序;ai_disclosure_present 与显式标识一致。",
+    "extra_data": {
+      "format": "C2PA / Content Credentials 1.4+",
+      "required_fields": ["digi:source", "digi:provenance", "digi:ai_disclosure_present"],
+      "digi_source_values": ["AI-generated", "AI-assisted"]
+    },
+    "source_file": "cn-content-rules.md",
+    "source_section": "AI 标识办法/隐式标识",
+    "tags": ["aigc-label", "metadata"],
+    "priority": 60
+  },
+  {
+    "category": "aigc_label_spec",
+    "key_name": "script_disclosure",
+    "key_type": "label_spec",
+    "primary_recommendation": "文本披露(Script Disclosure):节目正文中以语音或字幕明确告知含 AI 生成成分。",
+    "rationale": "含 AI 生成角色面部/语音/背景的节目必须≥1 处文本披露;字号≥字幕条 80%,停留≥2 秒。",
+    "extra_data": {
+      "min_font_ratio_of_subtitle": 0.8,
+      "min_dwell_sec": 2,
+      "templates": {
+        "cold-open": "本作品由 AI 辅助生成,部分画面与声音经过人工智能处理",
+        "mid-roll": "(本场景由 AI 生成)",
+        "end-card": "本作品由 <出品方> 联合 AI 创作工具制作,生成式 AI 使用情况已备案"
+      }
+    },
+    "source_file": "cn-content-rules.md",
+    "source_section": "AI 标识办法/文本披露",
+    "tags": ["aigc-label", "disclosure"],
+    "priority": 60
+  },
+  {
+    "category": "aigc_label_spec",
+    "key_name": "filing_trigger_matrix",
+    "key_type": "label_spec",
+    "primary_recommendation": "AI 漫剧备案触发矩阵(2026-04-01):按内容类型 × 集数 × 时长 × 商业意图触发,宁多备不漏备。",
+    "rationale": "全 AIG 阈值最低(≥3 集/≥15 分钟/任何分发→重点备案);互动剧≥1 集即重点备案+未成年人保护评估。",
+    "extra_data": {
+      "matrix": [{"type": "真人+AIG", "episodes": "≥10", "duration": "≥60min", "filing": "普通备案"}, {"type": "拟人化动画", "episodes": "≥6", "duration": "≥30min", "filing": "普通备案+角色版权声明"}, {"type": "全 AIG", "episodes": "≥3", "duration": "≥15min", "filing": "重点备案(完整流水日志+模型清单)"}, {"type": "互动剧", "episodes": "≥1", "duration": "≥5min", "filing": "重点备案+互动分支说明+未保评估"}],
+      "thresholds_estimated": true
+    },
+    "source_file": "cn-content-rules.md",
+    "source_section": "AI 漫剧备案 Regime",
+    "tags": ["aigc-label", "filing"],
+    "priority": 58
+  },
+  {
+    "category": "aigc_label_spec",
+    "key_name": "labeling_workflow",
+    "key_type": "label_spec",
+    "primary_recommendation": "AIGC Labeling Workflow:7 步标准流程(判定范围→显式标识→隐式标识→文本披露→备案检查→政治敏感过审→归档)。",
+    "rationale": "每步按序执行,任一步缺失即不合规;归档保留期≥节目下架后 2 年。",
+    "extra_data": {
+      "steps": 7,
+      "pipeline": ["判定 AIGC 范围", "添加显式标识", "写入隐式标识", "插入文本披露", "触发备案检查(漫剧)", "政治敏感红线过审", "归档"],
+      "archive_retention_years": 2
+    },
+    "source_file": "cn-content-rules.md",
+    "source_section": "AIGC Labeling Workflow",
+    "tags": ["aigc-label", "workflow"],
+    "priority": 56
   }
 ]
