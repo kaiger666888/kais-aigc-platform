@@ -74,6 +74,18 @@
 .am-lib__toolbar{display:flex;align-items:center;gap:8px;padding:11px 16px;border-bottom:1px solid var(--cv-line-panel);flex-wrap:wrap}
 .am-lib__count{margin-left:auto;font-size:11.5px;color:var(--cv-text-tertiary);font-family:var(--cv-font-mono)}
 .am-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(184px,1fr));gap:13px;padding:14px 16px 22px;align-content:start}
+/* ── 待选资产分组容器 ── */
+.am-groups{padding:8px 16px 22px;display:flex;flex-direction:column;gap:18px}
+.am-group{display:flex;flex-direction:column;gap:10px}
+.am-group__header{display:flex;align-items:center;gap:8px;padding:6px 4px 4px;
+  border-bottom:1px solid var(--cv-line-canvas);position:sticky;top:0;z-index:5;
+  background:var(--cv-bg-canvas)}
+.am-group__emoji{font-size:15px;line-height:1}
+.am-group__title{font-size:13px;font-weight:600;color:var(--cv-text-primary)}
+.am-group__count{font-size:10.5px;color:var(--cv-text-tertiary);font-family:var(--cv-font-mono);
+  margin-left:auto;background:var(--cv-bg-card);padding:2px 8px;border-radius:10px}
+.am-group__grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(184px,1fr));
+  gap:13px;align-content:start}
 .am-card{background:var(--cv-bg-card);border-radius:10px;overflow:hidden;cursor:pointer;position:relative;
   box-shadow:var(--cv-shadow-card);transition:transform .14s,box-shadow .14s;border:1px solid transparent;animation:am-pop .2s ease-out}
 @keyframes am-pop{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
@@ -356,6 +368,8 @@
 .am-tree-toggle.is-collapsed{transform:rotate(-90deg)}
 .am-tree-section{margin-bottom:6px}
 .am-tree-children{overflow:hidden;transition:max-height .2s ease}
+/* 分镜级内嵌的「分镜列表」折叠子区（S01–S44 归组，置于分镜级最下方） */
+.am-tree-subsection{margin-top:4px}
 
 /* ──────────────── 视图E · 首尾帧生成流水线 ──────────────── */
 .am-pipe{display:flex;flex-direction:column;height:100%;overflow:hidden}
@@ -455,6 +469,35 @@
 .am-shot-cont--none{color:var(--cv-text-disabled);background:var(--cv-bg-overlay);font-weight:400}
 
 @media (max-width:880px){.am-shot-row{gap:8px}.am-shot-frames{min-width:0;width:100%}}
+
+/* ── shot → beat 两级折叠组 ── */
+.am-shot-group{display:flex;flex-direction:column;gap:6px;padding:6px 0 8px;
+  border-top:1px dashed var(--cv-line-panel)}
+.am-shot-group:first-child{border-top:none;padding-top:0}
+.am-shot-group__head-label{display:flex;align-items:baseline;gap:8px;padding:2px 4px;
+  color:var(--cv-text-secondary)}
+.am-shot-group__id{font-family:var(--cv-font-mono);font-size:11.5px;font-weight:700;
+  color:var(--cv-text-primary);letter-spacing:.5px}
+.am-shot-group__count{font-size:10.5px;color:var(--cv-text-tertiary);font-family:var(--cv-font-mono)}
+.am-shot-group__head{padding-left:0}
+.am-shot-group__beats{display:flex;flex-direction:column;gap:6px;padding-left:14px;
+  border-left:2px solid var(--cv-line-panel);margin-left:32px}
+/* beat 子行：缩小分镜号、轻度高亮背景 */
+.am-shot-row--beat{background:var(--cv-bg-overlay);font-size:11px}
+.am-shot-row--beat .am-shot-row__id{font-size:11.5px;font-weight:600;color:var(--cv-text-secondary)}
+.am-shot-row--beat .am-shot-frame{width:48px;height:72px}
+.am-shot-row--indented{margin-left:0}
+/* beat 占位行：无 keyframe 资产，仅展示 P09 文字描述 / 对白 / 出场角色。
+   flex:1 占据帧区域原位置，与首尾帧行视觉对齐。 */
+.am-shot-beatinfo{flex:1;min-width:200px;display:flex;flex-direction:column;gap:3px;
+  padding:6px 10px;border-radius:7px;background:var(--cv-bg-card);
+  border:1px dashed var(--cv-line-panel)}
+.am-shot-beatinfo__chars{font-size:10.5px;color:var(--cv-text-tertiary);
+  font-family:var(--cv-font-mono);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.am-shot-beatinfo__desc{font-size:11.5px;line-height:1.45;color:var(--cv-text-secondary);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+@media (max-width:880px){.am-shot-beatinfo{min-width:0;width:100%}}
 
 /* ── 双击查看资产详情提示 & 灰底基础参考区域 ── */
 /* Hero 大图 / 服装套系缩略图悬浮提示：双击查看详情（角色管理 + 场景管理复用） */

@@ -426,6 +426,37 @@ export const EXEC_STATE_META: Record<PhaseExecState, ExecStateVisual> = {
 // assetType/turnaroundType/audioType 组合匹配）。
 // ═══════════════════════════════════════════════════════════════════════
 
+/**
+ * KMC PHASE_REGISTRY slot 依赖镜像（从 pipeline/phases/__init__.py + 各 phase INPUT_SLOTS/OUTPUT_SLOTS 提取）。
+ * 这是 DAG_EDGES 的权威依据 —— 每条 DAG 边必须能追溯到某个 phase 的 INPUT_SLOTS 中存在对应 OUTPUT_SLOTS。
+ * 更新 KMC slot 时必须同步此处。
+ */
+export interface KmcSlotEntry {
+  phaseCode: string
+  inputs: string[]   // 该 phase 从 asset bus 读取的 slot
+  outputs: string[]  // 该 phase 写入 asset bus 的 slot
+}
+
+export const KMC_SLOT_REGISTRY: readonly KmcSlotEntry[] = [
+  { phaseCode: 'P01',  inputs: ['requirement'],                          outputs: ['topic-kernel', 'hook-design'] },
+  { phaseCode: 'P02',  inputs: ['topic-kernel'],                         outputs: ['story-framework'] },
+  { phaseCode: 'P03',  inputs: ['story-framework'],                      outputs: ['script-draft', 'audit-report'] },
+  { phaseCode: 'P04',  inputs: ['script-draft'],                         outputs: ['character-bible', 'character-assets'] },
+  { phaseCode: 'P06',  inputs: ['script-draft', 'character-bible'],      outputs: ['spatio-temporal-script', 'final-audit', 'visual-direction', 'production-design', 'physics-precheck-report'] },
+  { phaseCode: 'P07',  inputs: ['spatio-temporal-script', 'character-assets'], outputs: ['scene-images', 'style-vector', 'color-intent', 'scene-blueprint', 'scene-temporal-variants'] },
+  { phaseCode: 'P08',  inputs: ['scene-images', 'spatio-temporal-script'],     outputs: ['scene-selection', 'geometry-bed'] },
+  { phaseCode: 'P09',  inputs: ['scene-selection', 'spatio-temporal-script', 'character-bible', 'character-assets', 'style-vector', 'color-intent', 'scene-images', 'geometry-bed'], outputs: ['shot-list', 'e-konte-sheets'] },
+  { phaseCode: 'P09b', inputs: ['shot-list', 'hook-design', 'requirement'],    outputs: ['shot-audit'] },
+  { phaseCode: 'P10',  inputs: ['shot-list', 'script-draft'],                  outputs: ['voice-clips', 'voice-timeline'] },
+  { phaseCode: 'P10c', inputs: ['voice-clips', 'voice-timeline', 'shot-list'], outputs: ['voice-audit'] },
+  { phaseCode: 'P10b', inputs: ['voice-clips', 'voice-timeline', 'e-konte-sheets'], outputs: ['rapid-preview-clips', 'episode-meta'] },
+  { phaseCode: 'P11',  inputs: ['shot-list', 'scene-images', 'character-assets', 'voice-timeline', 'voice-clips'], outputs: ['video-clips', 'lip-sync-reports', 'take-log'] },
+  { phaseCode: 'P12',  inputs: ['video-clips', 'voice-clips', 'lip-sync-reports', 'style-vector'], outputs: ['master-timeline', 'audio-stems', 'foley-stems', 'bgm-tracks'] },
+  { phaseCode: 'P13',  inputs: ['master-timeline', 'audio-stems', 'color-intent', 'transition-design'], outputs: ['master-mp4', 'delivery-package'] },
+  { phaseCode: 'P14',  inputs: ['master-mp4'],                           outputs: ['quality-audit'] },
+  { phaseCode: 'P15',  inputs: ['quality-audit'],                        outputs: ['feedback-log'] },
+]
+
 /** DAG 节点状态词汇表（has-candidates = 完成但有待选资产需人工决策）。 */
 export type DagNodeState = 'completed' | 'running' | 'failed' | 'has-candidates' | 'pending'
 
@@ -548,24 +579,39 @@ export const DAG_NODES: readonly DagNodeDef[] = [
     match: { phaseIndex: 11, idIncludes: 'first_last_frames' }, expectedCount: 'dynamic' },
   { id: 'video-clips', label: '视频片段', phaseCode: 'P11', phaseIndex: 11, group: 'post',
     match: { phaseIndex: 11, stage: 'video' }, expectedCount: 'dynamic' },
+  // P11 唇形同步报告（KMC P11 OUTPUT_SLOTS 含 lip-sync-reports）：video render 后口型对齐校验产物
+  { id: 'lip-sync-reports', label: '唇形同步', phaseCode: 'P11', phaseIndex: 11, group: 'post',
+    match: { phaseIndex: 11, idIncludes: 'lip_sync' }, expectedCount: 'dynamic' },
   // ── P12 合成（post） ──
   { id: 'master-timeline', label: '主时间轴', phaseCode: 'P12', phaseIndex: 12, group: 'post',
     match: { phaseIndex: 12 }, expectedCount: 1 },
+  // P12 音频混音（对白混音 + BGM + Foley 合成），KMC 产出 audio-stems slot
+  { id: 'audio-mix', label: '音频混音', phaseCode: 'P12', phaseIndex: 12, group: 'post',
+    match: { phaseIndex: 12, idIncludes: 'audio' }, expectedCount: 1 },
   // ── P13 交付（post） ──
   { id: 'master-mp4', label: '成片', phaseCode: 'P13', phaseIndex: 13, group: 'post',
     match: { phaseIndex: 13 }, expectedCount: 1 },
+  // ── P14 质量审计（post） ──
+  { id: 'quality-audit', label: '质量审计', phaseCode: 'P14', phaseIndex: 14, group: 'post',
+    match: { phaseIndex: 14 }, expectedCount: 'dynamic' },
+  // ── P15 反馈（post） ──
+  { id: 'feedback-loop', label: '反馈闭环', phaseCode: 'P15', phaseIndex: 15, group: 'post',
+    match: { phaseIndex: 15 }, expectedCount: 'dynamic' },
 ]
 
 /**
- * DAG 依赖边（asset-step → asset-step，分支/汇合）。基于 KMC 管线真实依赖拓扑
- * （reader_phases 数据流）+ 用户设计意图（换装TR 作为条件帧输入，含服化道信息更真实）：
- *   选题/钩子 → 大纲 → 剧本(审计) → 角色 → (灰底TR → 换装TR / 声纹 / 时空剧本)
- *   → (场景图/风格/色彩 → 场景选择 → 几何) + (时空剧本 → 分镜表 → E-Konte/转场/镜头审计)
- *   → (分镜表 → 语音片段 → 时间线/语音审计 → 快速预览)
- *   → P11 条件帧生成(场景选择+灰底TR+换装TR+E-Konte)
- *     + P11 视频渲染(分镜表+灰底TR+场景图+语音+条件帧)
- *   → 主时间轴 → 成片。
- * 审计 gate（镜头审计 / 语音审计 / 快速预览）挂在对应产物后。
+ * DAG 依赖边 —— 基于 KMC_SLOT_REGISTRY 派生。
+ * 规则：DAG 节点 N 的 phaseCode 对应的 KMC phase 的 INPUT_SLOTS 中每个 slot，
+ *      如果该 slot 出现在另一个 KMC phase 的 OUTPUT_SLOTS 中，
+ *      则画一条从「产出该 slot 的 phase 的 DAG 节点」到「N」的边。
+ *
+ * 例外处理（手动调整）：
+ *   - phase 级线性门控边（P09b→P10, P10c→P10b→P11）是 KMC depends_on 链，
+ *     不完全等价于 slot 数据流。这些边从 PHASE_REGISTRY 的 depends_on 派生。
+ *   - P11 的 'character-assets' INPUT_SLOT 在 DAG 中不画为 turnaround-sheets → video-clips 边，
+ *     因为 P11 不直接消费 turnaround_sheet —— P09 从 character-assets 解析出 turnaround_path
+ *     写入 shot-list，P11 通过 shot-list 间接消费（P09 _resolve_character_refs）。
+ *     DAG 边用 costume-turnarounds → iframe-generation 表示 L2 换装参考链。
  */
 export const DAG_EDGES: readonly DagEdgeDef[] = [
   // P01 → P02：选题核 + 钩子候选 共同输入故事框架
@@ -595,26 +641,45 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   { from: 'shot-list', to: 'e-konte-sheets' },
   { from: 'shot-list', to: 'transition-design' },
   { from: 'shot-list', to: 'shot-audit' },
-  // P09 → P10：分镜表 → 语音片段；语音片段 → 语音时间线 / 语音审计；语音审计 → 快速预览
-  { from: 'shot-list', to: 'voice-clips' },
+  // P09 → P10：分镜表 → 语音片段（数据流 + 门控双边）；语音片段 → 语音时间线 / 语音审计；语音审计 → 快速预览
+  // 数据流：P10 INPUT_SLOTS 含 shot-list（真读 shot-list）；门控：P09b depends_on 通过才跑 P10
+  { from: 'shot-list', to: 'voice-clips' },       // 数据流：P10 读 shot-list
+  { from: 'shot-audit', to: 'voice-clips' },       // 门控：P09b 审计通过才能跑 P10
   { from: 'voice-clips', to: 'voice-timeline' },
   { from: 'voice-clips', to: 'voice-audit' },
   { from: 'voice-audit', to: 'rapid-preview-clips' },
-  // P11 条件帧生成（多输入）：场景选择 + 灰底TR + 换装TR(服化道信息) + E-Konte
+  // P10b 数据流：KMC P10b INPUT_SLOTS 含 e-konte-sheets（快速预览读 E-Konte 分镜图）
+  { from: 'e-konte-sheets', to: 'rapid-preview-clips' },
+  // P11 条件帧生成（多输入）：场景选择 + 换装TR(服化道信息，P09解析首选参考) + E-Konte
+  // 注：灰底TR 不直接连 P11 子步骤 — P09 _resolve_character_refs 从 character-assets 选出
+  //     turnaround_path（首选L2换装，fallback L1灰底）写入 shot-list，P11 通过 shot-list 间接消费
   { from: 'scene-selection', to: 'iframe-generation' },
-  { from: 'turnaround-sheets', to: 'iframe-generation' },
   { from: 'costume-turnarounds', to: 'iframe-generation' },
   { from: 'e-konte-sheets', to: 'iframe-generation' },
-  // P11 视频渲染（H3 ref2va 核心依赖）：分镜表(prompt/duration/角色) + 灰底TR(角色参考) +
+  // P11 视频渲染（H3 ref2va 核心依赖）：分镜表(prompt/duration/角色 + turnaround_path) +
   //   场景图(背景参考) + 语音片段(对口型) + 条件帧(首/尾帧条件)
+  // 注：turnaround-sheets 不直连 — 角色参考图通过 shot-list.character_refs[].turnaround_path
+  //     传入（P09 已从 L2换装/L1灰底 中解析选定）
   { from: 'shot-list', to: 'video-clips' },
-  { from: 'turnaround-sheets', to: 'video-clips' },
   { from: 'scene-images', to: 'video-clips' },
   { from: 'voice-clips', to: 'video-clips' },
   { from: 'iframe-generation', to: 'video-clips' },
-  // P12 → P13：视频片段 → 主时间轴 → 成片
+  // P10c/P10b 门控：视频渲染必须经过快速预览（KMC: p11 depends_on=[p10b_rapid_preview]）
+  { from: 'rapid-preview-clips', to: 'video-clips' },
+  // P12：视频片段 → 主时间轴；语音片段 → 音频混音 → 主时间轴；唇形同步报告 → 主时间轴
+  // P11 产出 lip-sync-reports，P12 INPUT_SLOTS 含 lip-sync-reports（合成校验口型对齐）
+  { from: 'video-clips', to: 'lip-sync-reports' },
+  { from: 'lip-sync-reports', to: 'master-timeline' },
   { from: 'video-clips', to: 'master-timeline' },
+  { from: 'voice-clips', to: 'audio-mix' },
+  { from: 'audio-mix', to: 'master-timeline' },
+  // P12 → P13：主时间轴 → 成片；P13 INPUT_SLOTS 还含 color-intent / transition-design
   { from: 'master-timeline', to: 'master-mp4' },
+  { from: 'color-intent', to: 'master-mp4' },
+  { from: 'transition-design', to: 'master-mp4' },
+  // P13 → P14 → P15：成片 → 质量审计 → 反馈闭环
+  { from: 'master-mp4', to: 'quality-audit' },
+  { from: 'quality-audit', to: 'feedback-loop' },
 ]
 
 // ─── DAG 派生模型 ───────────────────────────────────────────
@@ -898,4 +963,63 @@ export function dagDescendantsOf(nodeId: string): Set<string> {
   }
   out.add(nodeId)
   return out
+}
+
+// ─── 构建时校验（dev/CI 入口，运行时不调用） ────────────────
+
+/**
+ * 构建时校验：检查 DAG_EDGES 与 KMC_SLOT_REGISTRY 的一致性。
+ * - 每条数据流边 from→to 必须能追溯到 from 的 phaseCode 在 KMC 中 outputs 某 slot，且 to 的 phaseCode inputs 该 slot
+ * - 门控边（gate edges）豁免此检查（它们来自 PHASE_REGISTRY depends_on 而非 slot 流）
+ * - 输出不一致列表（空 = 完全一致）
+ *
+ * 不在运行时调用（避免 bundle 体积），只作为开发参考 + 未来 CI 校验入口。
+ */
+export function validateDagEdges(): string[] {
+  const issues: string[] = []
+  const nodeById = new Map(DAG_NODES.map((n) => [n.id, n]))
+  const regByCode = new Map(KMC_SLOT_REGISTRY.map((e) => [e.phaseCode, e]))
+
+  // 门控边（来自 PHASE_REGISTRY depends_on 线性门控链，非 slot 数据流）→ 豁免。
+  const GATE_EDGES = new Set<string>([
+    'shot-audit|voice-clips',           // P09b → P10
+    'voice-audit|rapid-preview-clips',  // P10c → P10b
+    'rapid-preview-clips|video-clips',  // P10b → P11
+  ])
+  // 前端建模边：DAG 刻意表达比 KMC slot 粒度更细的依赖（KMC 未单列对应 slot）→ 豁免并记录原因。
+  const DESIGN_INTENT_EDGES = new Map<string, string>([
+    ['scene-selection|iframe-generation', '条件帧按所选场景生成；KMC P11 INPUT_SLOTS 未单列 scene-selection'],
+  ])
+
+  for (const e of DAG_EDGES) {
+    const key = `${e.from}|${e.to}`
+    if (GATE_EDGES.has(key)) continue
+    if (DESIGN_INTENT_EDGES.has(key)) continue
+    const from = nodeById.get(e.from)
+    const to = nodeById.get(e.to)
+    if (!from || !to) {
+      issues.push(`边 ${e.from}→${e.to} 引用了未定义的 DAG 节点`)
+      continue
+    }
+    // phase 内子步骤排序（同 phaseCode）非跨 phase slot 流 → 豁免
+    if (from.phaseCode === to.phaseCode) continue
+    const fr = regByCode.get(from.phaseCode)
+    const tr = regByCode.get(to.phaseCode)
+    if (!fr || !tr) {
+      issues.push(`边 ${e.from}→${e.to} 的 phaseCode 不在 KMC_SLOT_REGISTRY（${from.phaseCode}/${to.phaseCode}）`)
+      continue
+    }
+    // 数据流成立：共享 slot / from 节点 id 即被 to 消费的 slot / to 节点 id 即 from 产出的 slot
+    const ok =
+      fr.outputs.some((s) => tr.inputs.includes(s)) ||
+      tr.inputs.includes(e.from) ||
+      fr.outputs.includes(e.to)
+    if (!ok) {
+      issues.push(
+        `数据流边 ${e.from}(${from.phaseCode})→${e.to}(${to.phaseCode}) 无 KMC slot 依据：` +
+        `outputs=${JSON.stringify(fr.outputs)} ∩ inputs=${JSON.stringify(tr.inputs)}`,
+      )
+    }
+  }
+  return issues
 }

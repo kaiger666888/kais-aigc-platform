@@ -26,12 +26,21 @@ import DialoguePanel from './DialoguePanel'
 import {
   TYPE_LABEL, realTags,
   assetDetailToItem, modalityVar, modalityWeakVar,
-  inferLevel, inferSceneId, inferShotId, inferSubtype,
+  inferLevel, inferSceneId, inferShotId, inferFullShotId, inferSubtype,
+  isBeatShotId, shotPrefix, beatShortLabel,
   SUBTYPE_LABEL, SUBTYPE_EMOJI, LEVEL_LABEL,
   type AssetItem, type AssetType, type AssetLevel, type AssetSubtype,
 } from './assetManagerData'
 
 type AssetTab = 'selected' | 'candidate' | 'eliminated'
+
+/** 分镜列表 shot→beat 两级节点。shotId 为 S 前缀（S01）；beats 为其下 beat 行（S01_B01）。
+ *  n = 该 shot 下所有资产数（含 beat 级）；beats 可为空（shot 级资产无 beat 细分）。 */
+interface ShotGroupNode {
+  shotId: string
+  beats: { id: string; n: number }[]
+  n: number
+}
 
 function cssVars(vars: Record<string, string>): React.CSSProperties {
   return vars as React.CSSProperties
@@ -216,6 +225,45 @@ function getGroupKey(d: AssetDetail): string {
 }
 
 /**
+ * 分组可读标题 + 图标 —— 仅用于待选资产分组的展示，不参与三态流转逻辑。
+ * 根据 getGroupKey 的前缀推断分组类型，给出人眼可读的标题与表情图标。
+ */
+function getGroupDisplayInfo(d: AssetDetail): { title: string; emoji: string } {
+  const key = getGroupKey(d)
+  if (key.startsWith('char:')) {
+    // 角色名：从 name 字段提取（去掉 v1 后缀）
+    const name = (d.name || '').replace(/\s*v\d+\s*$/i, '').trim() || d.characterId || key
+    return { title: name, emoji: '🎭' }
+  }
+  if (key.startsWith('scene:')) {
+    return { title: d.name || key, emoji: '🏠' }
+  }
+  if (key.startsWith('keyframe:')) {
+    // keyframe:CHARID:BASE → 提取 BASE（shot_id 前缀）
+    const parts = key.split(':')
+    const base = parts[2] || d.name || key
+    return { title: base, emoji: '🎬' }
+  }
+  return { title: d.name || key, emoji: '📦' }
+}
+
+/** 待选资产分组容器（同组变体并列展示，便于对比选择）。 */
+interface CandidateGroup {
+  key: string
+  title: string
+  emoji: string
+  items: AssetDetail[]
+}
+
+/** 分组排序优先级：角色(char:) > 场景(scene:) > 分镜(keyframe:) > 其他。 */
+const groupOrder = (key: string): number => {
+  if (key.startsWith('char:')) return 0
+  if (key.startsWith('scene:')) return 1
+  if (key.startsWith('keyframe:')) return 2
+  return 3
+}
+
+/**
  * 始终在层级树显示的子类型条目（即使 DB 暂无数据，也以 count=0 灰色不可点击呈现）。
  * 对应 Kai 管线中尚未注册到 o_assets 的中间产物：②灰底 Turnaround / ⑦分镜级 Turnaround。
  * （④三视角已废弃，不再常驻显示。）
@@ -277,6 +325,10 @@ export default function AssetLibrary() {
       return next
     })
   }, [])
+  // 分镜级内「分镜列表」(S01–S44) 折叠父节点的展开状态（默认展开，保持原有可见性）
+  const [shotListCollapsed, setShotListCollapsed] = useState(false)
+  // 分镜列表中各 shot 节点（S01）的展开/折叠状态：默认全部折叠（点击 ▼ 展开 beat 行）
+  const [expandedShots, setExpandedShots] = useState<Set<string>>(new Set())
 
   const tags = useMemo(() => realTags(assets.map(assetDetailToItem)), [assets])
 
@@ -303,7 +355,14 @@ export default function AssetLibrary() {
       } else if (entityFilter.type === 'scene') {
         if (inferSceneId(d) !== entityFilter.id) return false
       } else if (entityFilter.type === 'shot') {
-        if (inferShotId(d) !== entityFilter.id) return false
+        // 兼容 shot 级（S01）与 beat 级（S01_B01）两种 entityFilter：
+        //   - beat 级 id（含 _B）→ 用 inferFullShotId 精确匹配
+        //   - shot 级 id（S01）→ 用 inferShotId 前缀匹配（该 shot 下全部资产含其 beats）
+        if (isBeatShotId(entityFilter.id)) {
+          if (inferFullShotId(d) !== entityFilter.id) return false
+        } else {
+          if (inferShotId(d) !== entityFilter.id) return false
+        }
       } else if (entityFilter.type === 'subtype') {
         if (inferSubtype(d) !== entityFilter.id) return false
       }
@@ -320,6 +379,30 @@ export default function AssetLibrary() {
       return !d.isPrimaryView && d.state !== 'eliminated' // candidate
     })
   }, [filtered, tab])
+
+  // 待选资产按 getGroupKey 分组 —— 让用户一眼识别同组变体、便于对比选择。
+  // 仅 candidate tab 启用；selected（每组仅 1 张无对比需求）/eliminated（回收站）仍是平铺网格。
+  const candidateGroups = useMemo<CandidateGroup[]>(() => {
+    if (tab !== 'candidate') return []
+    const map = new Map<string, AssetDetail[]>()
+    for (const d of tabFiltered) {
+      const key = getGroupKey(d)
+      if (!map.has(key)) map.set(key, [])
+      map.get(key)!.push(d)
+    }
+    const groups: CandidateGroup[] = []
+    for (const [key, items] of map) {
+      const info = getGroupDisplayInfo(items[0])
+      groups.push({ key, title: info.title, emoji: info.emoji, items })
+    }
+    // 层级优先（角色>场景>分镜>其他），同层级内按 title 自然序。
+    groups.sort((a, b) => {
+      const ord = groupOrder(a.key) - groupOrder(b.key)
+      if (ord !== 0) return ord
+      return a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' })
+    })
+    return groups
+  }, [tabFiltered, tab])
 
   // 自动初始化：确保每个 characterId 组恰好有一个选定资产。
   // 用 ref 防重入 — 只跑一次，避免 reload → assets 变化 → effect 再跑 → 死循环。
@@ -438,27 +521,79 @@ export default function AssetLibrary() {
       .sort((a, b) => a.id.localeCompare(b.id))
   }, [activeAssets])
 
-  // 分镜级 · 首尾帧列表（⑧⑨）：按 inferShotId 分组（自然排序 S01_B01 < S02_B01 < S10_B01）
-  const shotGroups = useMemo(() => {
+  // 分镜级 · 首尾帧列表（⑧⑨）—— shot→beat 两级分组：
+  //   ① 从 canvas graph 的 storyboard 节点（P09 shot_list）提取完整 shot_id（含 beat），
+  //      得到「某 shot 下有哪些 beat」的权威结构，即使该 beat 暂无 keyframe 资产。
+  //   ② 从 o_assets keyframe（inferFullShotId，保留 _B 后缀）统计每个 shot/beat 的资产数。
+  //   shot 级（S01，无 _B）作为父节点；beat 级（S01_B01）作为子节点。
+  const shotGroups = useMemo<ShotGroupNode[]>(() => {
+    // 资产数量：按完整 shotId（含 beat）统计
     const counts = new Map<string, number>()
     for (const d of activeAssets) {
       if (inferLevel(d) !== 'shot') continue
-      const sid = inferShotId(d)
+      const sid = inferFullShotId(d)
       if (sid) counts.set(sid, (counts.get(sid) ?? 0) + 1)
     }
-    return [...counts.entries()]
-      .map(([id, n]) => ({ id, n }))
-      .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' }))
-  }, [activeAssets])
+    // 从 graph 提取所有 beat 级 shot_id（S01_B01），用于补全 shot 结构
+    const beatSet = new Set<string>()        // 所有 beat 级 id（S01_B01）
+    if (graph) {
+      for (const node of graph.nodes) {
+        if (node.kind !== 'asset' || node.stage !== 'storyboard') continue
+        const raw = rawDataByNodeId?.get(node.id) ?? {}
+        const sid = typeof raw.shot_id === 'string' ? raw.shot_id : null
+        if (!sid) continue
+        if (isBeatShotId(sid)) {
+          beatSet.add(sid)
+        }
+      }
+    }
+    // 构造 shot → beats 两级结构
+    const groupMap = new Map<string, ShotGroupNode>()
+    const natCmp = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+    const getGroup = (shotId: string): ShotGroupNode => {
+      let g = groupMap.get(shotId)
+      if (!g) { g = { shotId, beats: [], n: 0 }; groupMap.set(shotId, g) }
+      return g
+    }
+    // 资产驱动的分组（o_assets keyframe）
+    for (const [fullId, n] of counts) {
+      if (isBeatShotId(fullId)) {
+        const pre = shotPrefix(fullId)
+        const g = getGroup(pre)
+        g.beats.push({ id: fullId, n })
+        g.n += n
+      } else {
+        // shot 级资产（无 _B）
+        const g = getGroup(fullId)
+        g.n += n
+      }
+    }
+    // graph 驱动：把 beatSet 中尚未被 keyframe 统计覆盖的 beat 补进对应 shot
+    for (const beatId of beatSet) {
+      const pre = shotPrefix(beatId)
+      const g = getGroup(pre)
+      const exists = g.beats.some((b) => b.id === beatId)
+      if (!exists) g.beats.push({ id: beatId, n: counts.get(beatId) ?? 0 })
+    }
+    // 排序：shot 级按自然序；每组内 beats 按 B 序自然序
+    const groups = [...groupMap.values()]
+    for (const g of groups) g.beats.sort((a, b) => natCmp(a.id, b.id))
+    groups.sort((a, b) => natCmp(a.shotId, b.shotId))
+    return groups
+  }, [activeAssets, graph, rawDataByNodeId])
 
   // 分镜级 · 对白数（P10 voice_clips：canvas graph 中 clip_type='dialogue' 的 audio 节点）。
   // 对白不在 assets-registry，与 DialoguePanel 同源从 store graph 抽取。
+  // 识别与 DialoguePanel.clipsFromRaw 对齐：clip_type='dialogue' 或 assetType='voice'（且非空 text）。
   const dialogueCount = useMemo(() => {
     if (!graph) return 0
     let n = 0
     for (const node of graph.nodes) {
       const raw = rawDataByNodeId?.get(node.id) ?? {}
-      if (raw.clip_type === 'dialogue') n++
+      if (raw.clip_type !== 'dialogue' && raw.assetType !== 'voice') continue
+      const text = raw.text as string | undefined
+      if (!text || !String(text).trim()) continue
+      n++
     }
     return n
   }, [graph, rawDataByNodeId])
@@ -542,6 +677,114 @@ export default function AssetLibrary() {
       showToast('设置失败: ' + (err as Error).message, 'error')
       await reload()
     }
+  }
+
+  // 单张资产卡片渲染（selected / candidate / eliminated 三 tab 完全共用同一份 JSX，
+  // 仅外层容器不同：candidate 套分组容器，其余平铺网格）。
+  const renderCard = (d: AssetDetail) => {
+    const a = assetDetailToItem(d)
+    const groupKey = getGroupKey(d)
+    const isKey = a.type === 'prop_key'
+    return (
+      <div
+        key={a.uuid}
+        className="am-card"
+        data-uuid={a.uuid}
+        style={cssVars({ '--cardc': `var(${modalityVar(a.modality)})`, '--cardw': `var(${modalityWeakVar(a.modality)})` })}
+        onClick={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => { e.stopPropagation(); openAssetDetail(a.uuid) }}
+      >
+        {/* 选定资产徽标 */}
+        {a.isPrimaryView && <span className="am-card__primary-flag">★ 选定</span>}
+
+        {isKey && <span className="am-card__keyflag">🔒 关键</span>}
+        {a.reuses ? <span className="am-card__reuse am-badge am-badge--reuse">{a.reuses} 集</span> : null}
+
+        <button
+          className="am-card__add"
+          onClick={(e) => { e.stopPropagation(); void handleAddToCanvas(a) }}
+          title="添加到当前画布"
+        >＋ 画布</button>
+
+        {/* 【资产↔画布交叉联动】定位到画布上对应节点（未放置时画布侧 toast 提示） */}
+        <button
+          className="am-card__locate"
+          onClick={(e) => { e.stopPropagation(); handleLocateOnCanvas(a) }}
+          title="在画布上定位此资产"
+        >📍 定位</button>
+
+        {/* 待选资产 tab 下显示「设为选定」按钮 */}
+        {tab === 'candidate' && (
+          <button
+            className="am-card__select-btn"
+            onClick={(e) => { e.stopPropagation(); void handleSelect(d.id, groupKey) }}
+            title="设为选定资产（同组仅保留一个）"
+          >★ 选定</button>
+        )}
+
+        {/* 选定资产 tab 下显示「取消选定」按钮（退回待选，同组淘汰自动恢复） */}
+        {tab === 'selected' && (
+          <button
+            className="am-card__deselect-btn"
+            onClick={async (e) => {
+              e.stopPropagation()
+              // 同组被淘汰的兄弟变体（不含自身）将随取消选定一并恢复为待选。
+              const eliminated = assets.filter(
+                (dd) => getGroupKey(dd) === groupKey && dd.id !== d.id && dd.state === 'eliminated',
+              )
+              // 乐观更新 UI：该资产 → 待选；同组淘汰 → 恢复待选。
+              patchLocal(d.id, { isPrimaryView: false, state: 'active' })
+              for (const dd of eliminated) patchLocal(dd.id, { state: 'active' })
+              // 后端同步（不 reload；失败时回滚）。
+              try {
+                await updateAsset(d.id, { isPrimaryView: false, state: 'active' })
+                for (const dd of eliminated) {
+                  try { await updateAsset(dd.id, { state: 'active' }) } catch { /* 忽略单项失败 */ }
+                }
+                showToast('已退回待选资产', 'success')
+              } catch (err) {
+                showToast('操作失败: ' + (err as Error).message, 'error')
+                await reload()
+              }
+            }}
+            title="退回待选资产（同组淘汰将一并恢复）"
+          >✕ 取消选定</button>
+        )}
+
+        {/* 淘汰资产 tab 下显示「恢复待选」按钮 */}
+        {tab === 'eliminated' && (
+          <button
+            className="am-card__select-btn"
+            onClick={async (e) => {
+              e.stopPropagation()
+              // 乐观更新 UI：淘汰 → 待选。
+              patchLocal(d.id, { state: 'active', isPrimaryView: false })
+              try {
+                await updateAsset(d.id, { state: 'active' })
+                showToast('已恢复到待选', 'success')
+              } catch (err) {
+                showToast('恢复失败: ' + (err as Error).message, 'error')
+                await reload()
+              }
+            }}
+            title="恢复到待选资产"
+          >↻ 恢复</button>
+        )}
+
+        <div
+          className="am-card__thumb"
+          style={(a.type === 'voice' || a.type === 'audio') ? { aspectRatio: 'auto', height: 200 } : undefined}
+        ><Thumb item={a} portraitUrl={a.type === 'voice' || a.type === 'audio' ? (a.characterId ? charPortraitMap.get(a.characterId) : null) : null} /></div>
+        <div className="am-card__typebar" />
+        <div className="am-card__body">
+          <div className="am-card__name">{a.name}</div>
+          <div className="am-card__meta">
+            <span className="am-card__typetag">{TYPE_LABEL[a.type] ?? a.type}</span>
+            <span className="am-card__scope">{a.scope === 'library' ? '全局资产' : '项目资产'}</span>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -665,20 +908,6 @@ export default function AssetLibrary() {
           </button>
           {!collapsedLevels.has('shot') && (
             <div className="am-tree-children">
-              {/* 分镜组（首尾帧变体，按 shot 自然序）—— S01_B01 < S02_B01 < S10_B01 */}
-              {shotGroups.map((s) => (
-                <button
-                  key={s.id}
-                  className={`am-tree-node am-tree-node--grandchild ${entityFilter?.type === 'shot' && entityFilter.id === s.id ? 'is-on' : ''}`}
-                  onClick={() => {
-                    setLevelFilter('shot'); setEntityFilter({ type: 'shot', id: s.id })
-                    setTypeFilter(null); setTagFilter(null)
-                  }}
-                >
-                  <span className="am-tree-node__ic">·</span>{s.id}
-                  <span className="am-tree-node__n">{s.n}</span>
-                </button>
-              ))}
               {/* ⑦ 分镜级 Turnaround（人物定妆）—— DB 无数据，count=0 灰色不可点击 */}
               {renderSubtypeNode('costume_turnaround', true)}
               {/* Notion §1.1c 服化道时段变体 */}
@@ -701,6 +930,85 @@ export default function AssetLibrary() {
               {renderSubtypeNode('foley_stem', true)}
               {/* Notion §5d BGM 音轨 */}
               {renderSubtypeNode('bgm_track', true)}
+              {/* 分镜列表（S01–S44 首尾帧变体，按 shot 自然序）—— 折叠父节点，置于分镜级最下方。
+                  此前这 44 条分镜平铺在分镜级顶部，淹没了 定妆/对白/场景角度/音轨 等子类型；
+                  现归入可折叠「分镜列表」父节点并下沉，让常用子类型优先可见，需要时展开查具体分镜。 */}
+              {shotGroups.length > 0 && (
+                <div className="am-tree-subsection">
+                  <button
+                    className="am-tree-node am-tree-node--parent am-tree-node--child"
+                    onClick={() => setShotListCollapsed((v) => !v)}
+                  >
+                    <span className={`am-tree-toggle ${shotListCollapsed ? 'is-collapsed' : 'is-expanded'}`}>▼</span>
+                    <span className="am-tree-node__ic">🎞️</span>分镜列表
+                    <span className="am-tree-node__n">{shotGroups.length}</span>
+                  </button>
+                  {!shotListCollapsed && (
+                    <div className="am-tree-children">
+                      {shotGroups.map((g) => {
+                        const shotOn = entityFilter?.type === 'shot' && entityFilter.id === g.shotId
+                        const expanded = expandedShots.has(g.shotId)
+                        const hasBeats = g.beats.length > 0
+                        const toggleShot = (e: React.MouseEvent) => {
+                          e.stopPropagation()
+                          setExpandedShots((prev) => {
+                            const next = new Set(prev)
+                            if (next.has(g.shotId)) next.delete(g.shotId)
+                            else next.add(g.shotId)
+                            return next
+                          })
+                        }
+                        return (
+                          <div key={g.shotId}>
+                            <button
+                              className={`am-tree-node am-tree-node--grandchild ${shotOn ? 'is-on' : ''}`}
+                              onClick={() => {
+                                setLevelFilter('shot'); setEntityFilter({ type: 'shot', id: g.shotId })
+                                setTypeFilter(null); setTagFilter(null)
+                              }}
+                            >
+                              {hasBeats ? (
+                                <span
+                                  className={`am-tree-toggle ${expanded ? 'is-expanded' : 'is-collapsed'}`}
+                                  style={{ width: '14px', flexShrink: 0 }}
+                                  onClick={toggleShot}
+                                  role="button"
+                                  aria-label={expanded ? '折叠 beat' : '展开 beat'}
+                                >▼</span>
+                              ) : (
+                                <span className="am-tree-node__ic">·</span>
+                              )}
+                              {g.shotId}
+                              <span className="am-tree-node__n">{g.n}</span>
+                            </button>
+                            {hasBeats && expanded && (
+                              <div className="am-tree-children">
+                                {g.beats.map((b) => {
+                                  const beatOn = entityFilter?.type === 'shot' && entityFilter.id === b.id
+                                  return (
+                                    <button
+                                      key={b.id}
+                                      className={`am-tree-node am-tree-node--grandchild ${beatOn ? 'is-on' : ''}`}
+                                      style={{ paddingLeft: 68 }}
+                                      onClick={() => {
+                                        setLevelFilter('shot'); setEntityFilter({ type: 'shot', id: b.id })
+                                        setTypeFilter(null); setTagFilter(null)
+                                      }}
+                                    >
+                                      <span className="am-tree-node__ic">·</span>{beatShortLabel(b.id)}
+                                      <span className="am-tree-node__n">{b.n}</span>
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -780,113 +1088,26 @@ export default function AssetLibrary() {
                     ? '当前没有淘汰资产 —— 待选中的资产被新选定取代后会自动归入此处。'
                     : '当前没有待选资产 —— 所有变体均已设为选定。'}
             </div>
-          ) : (
-            <div className="am-grid">
-              {tabFiltered.map((d) => {
-                const a = assetDetailToItem(d)
-                const groupKey = getGroupKey(d)
-                const isKey = a.type === 'prop_key'
-                return (
-                  <div
-                    key={a.uuid}
-                    className="am-card"
-                    data-uuid={a.uuid}
-                    style={cssVars({ '--cardc': `var(${modalityVar(a.modality)})`, '--cardw': `var(${modalityWeakVar(a.modality)})` })}
-                    onClick={(e) => e.stopPropagation()}
-                    onDoubleClick={(e) => { e.stopPropagation(); openAssetDetail(a.uuid) }}
-                  >
-                    {/* 选定资产徽标 */}
-                    {a.isPrimaryView && <span className="am-card__primary-flag">★ 选定</span>}
-
-                    {isKey && <span className="am-card__keyflag">🔒 关键</span>}
-                    {a.reuses ? <span className="am-card__reuse am-badge am-badge--reuse">{a.reuses} 集</span> : null}
-
-                    <button
-                      className="am-card__add"
-                      onClick={(e) => { e.stopPropagation(); void handleAddToCanvas(a) }}
-                      title="添加到当前画布"
-                    >＋ 画布</button>
-
-                    {/* 【资产↔画布交叉联动】定位到画布上对应节点（未放置时画布侧 toast 提示） */}
-                    <button
-                      className="am-card__locate"
-                      onClick={(e) => { e.stopPropagation(); handleLocateOnCanvas(a) }}
-                      title="在画布上定位此资产"
-                    >📍 定位</button>
-
-                    {/* 待选资产 tab 下显示「设为选定」按钮 */}
-                    {tab === 'candidate' && (
-                      <button
-                        className="am-card__select-btn"
-                        onClick={(e) => { e.stopPropagation(); void handleSelect(d.id, groupKey) }}
-                        title="设为选定资产（同组仅保留一个）"
-                      >★ 选定</button>
-                    )}
-
-                    {/* 选定资产 tab 下显示「取消选定」按钮（退回待选，同组淘汰自动恢复） */}
-                    {tab === 'selected' && (
-                      <button
-                        className="am-card__deselect-btn"
-                        onClick={async (e) => {
-                          e.stopPropagation()
-                          // 同组被淘汰的兄弟变体（不含自身）将随取消选定一并恢复为待选。
-                          const eliminated = assets.filter(
-                            (dd) => getGroupKey(dd) === groupKey && dd.id !== d.id && dd.state === 'eliminated',
-                          )
-                          // 乐观更新 UI：该资产 → 待选；同组淘汰 → 恢复待选。
-                          patchLocal(d.id, { isPrimaryView: false, state: 'active' })
-                          for (const dd of eliminated) patchLocal(dd.id, { state: 'active' })
-                          // 后端同步（不 reload；失败时回滚）。
-                          try {
-                            await updateAsset(d.id, { isPrimaryView: false, state: 'active' })
-                            for (const dd of eliminated) {
-                              try { await updateAsset(dd.id, { state: 'active' }) } catch { /* 忽略单项失败 */ }
-                            }
-                            showToast('已退回待选资产', 'success')
-                          } catch (err) {
-                            showToast('操作失败: ' + (err as Error).message, 'error')
-                            await reload()
-                          }
-                        }}
-                        title="退回待选资产（同组淘汰将一并恢复）"
-                      >✕ 取消选定</button>
-                    )}
-
-                    {/* 淘汰资产 tab 下显示「恢复待选」按钮 */}
-                    {tab === 'eliminated' && (
-                      <button
-                        className="am-card__select-btn"
-                        onClick={async (e) => {
-                          e.stopPropagation()
-                          // 乐观更新 UI：淘汰 → 待选。
-                          patchLocal(d.id, { state: 'active', isPrimaryView: false })
-                          try {
-                            await updateAsset(d.id, { state: 'active' })
-                            showToast('已恢复到待选', 'success')
-                          } catch (err) {
-                            showToast('恢复失败: ' + (err as Error).message, 'error')
-                            await reload()
-                          }
-                        }}
-                        title="恢复到待选资产"
-                      >↻ 恢复</button>
-                    )}
-
-                    <div
-                      className="am-card__thumb"
-                      style={(a.type === 'voice' || a.type === 'audio') ? { aspectRatio: 'auto', height: 200 } : undefined}
-                    ><Thumb item={a} portraitUrl={a.type === 'voice' || a.type === 'audio' ? (a.characterId ? charPortraitMap.get(a.characterId) : null) : null} /></div>
-                    <div className="am-card__typebar" />
-                    <div className="am-card__body">
-                      <div className="am-card__name">{a.name}</div>
-                      <div className="am-card__meta">
-                        <span className="am-card__typetag">{TYPE_LABEL[a.type] ?? a.type}</span>
-                        <span className="am-card__scope">{a.scope === 'library' ? '全局资产' : '项目资产'}</span>
-                      </div>
-                    </div>
+          ) : tab === 'candidate' && candidateGroups.length > 0 ? (
+            // 待选资产：按类型分组展示（同组变体并列对比，便于择优选定）
+            <div className="am-groups">
+              {candidateGroups.map((group) => (
+                <div key={group.key} className="am-group">
+                  <div className="am-group__header">
+                    <span className="am-group__emoji">{group.emoji}</span>
+                    <span className="am-group__title">{group.title}</span>
+                    <span className="am-group__count">{group.items.length} 个待选</span>
                   </div>
-                )
-              })}
+                  <div className="am-group__grid">
+                    {group.items.map((d) => renderCard(d))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            // 选定 / 淘汰 tab：保持原平铺网格
+            <div className="am-grid">
+              {tabFiltered.map((d) => renderCard(d))}
             </div>
           )}
         </div>
