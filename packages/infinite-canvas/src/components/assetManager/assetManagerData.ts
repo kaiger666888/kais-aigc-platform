@@ -337,6 +337,16 @@ export type AssetLevel = 'show' | 'scene' | 'shot' | 'pipeline'
  */
 export type AssetSubtype =
   | 'character_concept'    // ① 角色设定图（全剧级，非 turnaround 的 character 资产）
+  | 'character_bible'      // 角色文字设定（Notion 导入的纯文本 character 资产，无 filePath/图）
+  // ── Notion 文档型资产（8 类，复用既有 DB type，靠 meta.subtype 区分）──
+  // requirement/story/script/scene/character(服化道)/voice/audio(BGM) 各承载一类创意文档。
+  | 'pipeline_requirement' // 创作需求（DB type='requirement'，前端避开 type 名混淆用 pipeline_ 前缀）
+  | 'story_framework'      // 故事框架（DB type='story'）
+  | 'episode_script'       // 分集剧本（DB type='script'）
+  | 'scene_design'         // 场景设定文档（DB type='scene'，文字描述，区别于 scene_base 图）
+  | 'costume_design'       // 服化道设定（DB type='character'，按 characterId 归属角色）
+  | 'voice_profile'        // 音色总谱（DB type='voice'，区别于单条声纹 voice_print）
+  | 'bgm_design'           // BGM 总谱（DB type='audio'，区别于 BGM 音轨 bgm_track）
   | 'turnaround_sheet'     // ② 灰底紧身衣 Turnaround 整图（全剧级身份锚点，viewAngle=null）
   | 'turnaround_view'      // Turnaround 拆分视角（全剧级，viewAngle=front/side/back/three_quarter）
   | 'scene_base'           // ③ 场景设定图（场景级，如「宴会厅 v1」）
@@ -425,6 +435,15 @@ export function inferLevel(d: AssetDetail): AssetLevel {
   const sub = parseMetaSubtype(d.meta)
   if (sub === 'midframe' || sub === 'costume_temporal_variant') return 'shot'
   if (sub === 'foley_stem' || sub === 'bgm_track') return 'scene' // 音轨按场景级归类
+  // ── Notion 文档型资产层级（全剧级创意文档）──
+  // requirement/story_framework/episode_script/costume_design/voice_profile 默认即 'show'，
+  // 但 bgm_design 的 DB type='audio' 会被下方 audio→scene 误归场景级，故在此显式归全剧。
+  // episode_script 虽是分集级，但 AssetLevel 无独立 episode 层 → 归全剧。
+  // scene_design（type='scene'）已由上方 type 检查归入 'scene'。
+  if (sub === 'requirement' || sub === 'story_framework' || sub === 'episode_script' ||
+      sub === 'costume_design' || sub === 'voice_profile' || sub === 'bgm_design') {
+    return 'show'
+  }
   if (d.type === 'audio') return 'scene'
   // ── 管线产出层级（P06+ 的文本/视频/音频产物）──
   if (d.type === 'script_phase' || d.type === 'outline' || d.type === 'topic' ||
@@ -437,6 +456,20 @@ export function inferLevel(d: AssetDetail): AssetLevel {
 /** 从 AssetDetail 推断子类型 */
 export function inferSubtype(d: AssetDetail): AssetSubtype {
   const metaSub = parseMetaSubtype(d.meta)
+
+  // ── Notion 文档型资产（8 类创意文档，复用既有 DB type，靠 meta.subtype 区分）──
+  // 必须在按 type 分支判定之前短路：这些资产跨多个 DB type，否则会被各自 type 分支
+  // 误判——voice_profile→voice_print、scene_design→scene_base、costume_design→
+  // character_concept/bible、bgm_design→unknown、episode_script/story/requirement→unknown。
+  // requirement 在前端用 pipeline_requirement（避开与 DB type 名 'requirement' 混淆）。
+  if (metaSub === 'requirement') return 'pipeline_requirement'
+  if (metaSub === 'story_framework') return 'story_framework'
+  if (metaSub === 'episode_script') return 'episode_script'
+  if (metaSub === 'scene_design') return 'scene_design'
+  if (metaSub === 'costume_design') return 'costume_design'
+  if (metaSub === 'voice_profile') return 'voice_profile'
+  if (metaSub === 'bgm_design') return 'bgm_design'
+  // character_bible（type=character，无图）由下方 character 分支按 !filePath 判定。
 
   // ── 音频：Foley / BGM 独立音轨（Notion §5c/§5d，复用 audio DB type）──
   if (d.type === 'audio') {
@@ -483,7 +516,12 @@ export function inferSubtype(d: AssetDetail): AssetSubtype {
     ) {
       return 'turnaround_sheet'
     }
-    // 其余 character + viewAngle=null = 角色设定图（①）
+    // 纯文本角色设定（Notion 导入，无 filePath/图）：不归为角色设定图（①），
+    // 避免无图资产混入「角色设定图」分类、显示灰色 emoji 占位符。
+    if (!d.filePath) {
+      return 'character_bible'
+    }
+    // 其余 character + 有图 = 角色设定图（①）
     return 'character_concept'
   }
   if (d.type === 'keyframe') {
@@ -1228,6 +1266,14 @@ function inferSubtypeFromItem(a: AssetItem): AssetSubtype {
   // 把 registry 的 string type 强制 as AssetType —— 运行时仍是 'keyframe' 等，故这里按 string 比较。
   const t = a.type as string
   const metaSub = parseMetaSubtype(a.meta)
+  // ── Notion 文档型资产 —— 与 inferSubtype(AssetDetail) 保持等价（顶层 metaSub 短路）
+  if (metaSub === 'requirement') return 'pipeline_requirement'
+  if (metaSub === 'story_framework') return 'story_framework'
+  if (metaSub === 'episode_script') return 'episode_script'
+  if (metaSub === 'scene_design') return 'scene_design'
+  if (metaSub === 'costume_design') return 'costume_design'
+  if (metaSub === 'voice_profile') return 'voice_profile'
+  if (metaSub === 'bgm_design') return 'bgm_design'
   if (t === 'audio') {
     if (metaSub === 'foley_stem') return 'foley_stem'
     if (metaSub === 'bgm_track') return 'bgm_track'
@@ -1255,6 +1301,8 @@ function inferSubtypeFromItem(a: AssetItem): AssetSubtype {
       nm.includes('灰底turnaround') ||
       (fp.includes('turnaround_sheets/turnaround_') && !fp.includes('base_turnaround'))
     ) return 'turnaround_sheet'
+    // 纯文本角色设定（无 filePath/图）—— 与 inferSubtype(AssetDetail) 保持等价
+    if (!a.filePath) return 'character_bible'
     // 其余 = 角色设定图（①）
     return 'character_concept'
   }
@@ -1319,6 +1367,15 @@ function inferSubtypeFromItem(a: AssetItem): AssetSubtype {
  */
 export const SUBTYPE_LABEL: Record<AssetSubtype, string> = {
   character_concept: '角色设定图',
+  character_bible: '角色文字设定',
+  // ── Notion 文档型资产 ──
+  pipeline_requirement: '创作需求',
+  story_framework: '故事框架',
+  episode_script: '分集剧本',
+  scene_design: '场景设定',
+  costume_design: '服化道',
+  voice_profile: '音色总谱',
+  bgm_design: 'BGM总谱',
   turnaround_sheet: '灰色紧身衣Turnaround',
   turnaround_view: '视角拆分',
   scene_base: '场景设定图',
@@ -1357,6 +1414,15 @@ export const SUBTYPE_LABEL: Record<AssetSubtype, string> = {
  */
 export const SUBTYPE_EMOJI: Record<AssetSubtype, string> = {
   character_concept: '🎨',
+  character_bible: '📝',
+  // ── Notion 文档型资产 ──
+  pipeline_requirement: '📋',
+  story_framework: '📐',
+  episode_script: '📝',
+  scene_design: '🎭',
+  costume_design: '👔',
+  voice_profile: '🎤',
+  bgm_design: '🎵',
   turnaround_sheet: '👕',
   turnaround_view: '📐',
   scene_base: '🏠',

@@ -269,11 +269,15 @@ const groupOrder = (key: string): number => {
  * （④三视角已废弃，不再常驻显示。）
  */
 const ALWAYS_SHOW_SUBTYPES: ReadonlySet<AssetSubtype> = new Set([
+  'character_concept',
   'turnaround_sheet', 'costume_turnaround',
   // Notion 新资产类型占位（count=0 时灰色显示，让用户知道这些分类存在）
   'scene_blueprint', 'scene_temporal_variant', 'scene_view_angle',
   'costume_temporal_variant', 'midframe',
   'foley_stem', 'bgm_track',
+  // Notion 文档型资产（创作需求/故事框架/分集剧本/场景设定/服化道/音色总谱/BGM总谱）
+  'pipeline_requirement', 'story_framework', 'episode_script',
+  'scene_design', 'costume_design', 'voice_profile', 'bgm_design',
   // 管线产出（P06+）：count=0 时也以灰色不可点击显示，让用户知道分类存在
   'spatio_temporal_script', 'shot_list', 'video_clips', 'master_timeline', 'master_mp4',
 ])
@@ -352,8 +356,9 @@ export default function AssetLibrary() {
       if (entityFilter.type === 'character') {
         // id === '' 表示"全部角色"，仅校验层级已在上面完成
         if (entityFilter.id !== '' && d.characterId !== entityFilter.id) return false
-        // 角色列表仅含角色设定图（①）—— 灰底 Turnaround 等另由 subtype 条目进入
-        if (inferSubtype(d) !== 'character_concept') return false
+        // 角色列表含角色设定图（①）+ 角色文字设定（Notion 导入纯文本 character_bible）；
+        // 灰底 Turnaround 等另由 subtype 条目进入。
+        if (inferSubtype(d) !== 'character_concept' && inferSubtype(d) !== 'character_bible') return false
       } else if (entityFilter.type === 'scene') {
         if (inferSceneId(d) !== entityFilter.id) return false
       } else if (entityFilter.type === 'shot') {
@@ -479,24 +484,50 @@ export default function AssetLibrary() {
   }, [activeAssets])
 
   // ── 层级树数据（useMemo 派生） ──
-  // 全剧级 · 角色列表：仅角色设定图（①），按 characterId 分组，附带可读角色名
+  // 全剧级 · 角色列表：角色设定图（①）+ 角色文字设定（character_bible，无图），
+  // 按 characterId 分组，附带可读角色名。名称优先级：设定图（①）> 主文字设定
+  // （name 含 character_bible，去掉 "- character_bible" 后缀）> 服化道等兜底名。
   const showCharacters = useMemo(() => {
     const counts = new Map<string, number>()
-    const names = new Map<string, string>()
+    const conceptNames = new Map<string, string>()
+    const bibleNames = new Map<string, string>()
+    const fallbackNames = new Map<string, string>()
+    // 清理资产名为可读角色名：去版本后缀 + 去 Notion " - character_bible" 后缀。
+    const cleanName = (s: string) =>
+      s.replace(/\s*-\s*character_bible\s*$/i, '').replace(/\s*v\d+$/i, '').trim()
     for (const d of activeAssets) {
       if (inferLevel(d) !== 'show') continue
-      if (inferSubtype(d) !== 'character_concept') continue
+      const st = inferSubtype(d)
+      if (st !== 'character_concept' && st !== 'character_bible') continue
       if (!d.characterId) continue
       counts.set(d.characterId, (counts.get(d.characterId) ?? 0) + 1)
-      if (!names.has(d.characterId)) {
-        const nm = (d.name || '').replace(/\s*v\d+$/i, '').trim()
-        if (nm) names.set(d.characterId, nm)
-      }
+      const nm = cleanName(d.name || '')
+      if (!nm) continue
+      let sink: Map<string, string>
+      if (st === 'character_concept') sink = conceptNames
+      else if ((d.name || '').toLowerCase().includes('character_bible')) sink = bibleNames
+      else sink = fallbackNames
+      if (!sink.has(d.characterId)) sink.set(d.characterId, nm)
     }
     return [...counts.entries()]
-      .map(([id, n]) => ({ id, n, label: names.get(id) || id }))
+      .map(([id, n]) => ({ id, n, label: conceptNames.get(id) ?? bibleNames.get(id) ?? fallbackNames.get(id) ?? id }))
       .sort((a, b) => a.label.localeCompare(b.label))
   }, [activeAssets])
+
+  // 角色设定图概念图：从全量资产（含 eliminated）中提取——
+  // 旧版 v1/v2/v3 概念图虽被淘汰，但它们是项目中唯一代表「角色设定图」的图片，
+  // 按 Kai 资产管理设计原则：左栏=生产导向平铺所有三态。
+  const characterConceptAssets = useMemo(
+    () => assets.filter((d) => inferSubtype(d) === 'character_concept'),
+    [assets]
+  )
+  // 服化道设定：同理从全量（含 eliminated）统计——这些是角色服装设计文档，
+  // 因三态分组（按 characterId 与概念图同组）常被一并标为淘汰，但仍是项目唯一的
+  // 服化道记录，左栏按「平铺所有三态」原则计数（节点点击后在「淘汰资产」tab 可见）。
+  const costumeDesignAssets = useMemo(
+    () => assets.filter((d) => inferSubtype(d) === 'costume_design'),
+    [assets]
+  )
 
   // 全子类型计数（驱动各层级固定条目 + count 徽标）
   const subtypeCounts = useMemo(() => {
@@ -505,8 +536,11 @@ export default function AssetLibrary() {
       const st = inferSubtype(d)
       counts[st] = (counts[st] ?? 0) + 1
     }
+    // character_concept / costume_design 从全量（含 eliminated）统计
+    counts['character_concept'] = characterConceptAssets.length
+    counts['costume_design'] = costumeDesignAssets.length
     return counts
-  }, [activeAssets])
+  }, [activeAssets, characterConceptAssets, costumeDesignAssets])
   const sub = useCallback((st: AssetSubtype): number => subtypeCounts[st] ?? 0, [subtypeCounts])
 
   // 场景级 · 场景设定图列表（③）：仅 scene_base，按场景名分组
@@ -691,6 +725,13 @@ export default function AssetLibrary() {
   // 仅外层容器不同：candidate 套分组容器，其余平铺网格）。
   const renderCard = (d: AssetDetail) => {
     const a = assetDetailToItem(d)
+    // 无图文档型资产：用更精确的子类型 emoji 替代类型默认 emoji（👤/📦），
+    // 让 Notion 文档（创作需求/故事框架/分集剧本/场景设定/服化道/音色总谱/BGM总谱/角色文字设定）
+    // 一眼可辨为文字资产，而非误判为「缺图的角色设定图 / 通用占位」。
+    if (!a.filePath) {
+      const st = inferSubtype(d)
+      if (st !== 'unknown') a.emoji = SUBTYPE_EMOJI[st]
+    }
     const groupKey = getGroupKey(d)
     const isKey = a.type === 'prop_key'
     return (
@@ -857,6 +898,15 @@ export default function AssetLibrary() {
               {renderSubtypeNode('turnaround_sheet', true)}
               {/* ③ 声纹参考（角色声纹，全剧级资产） */}
               {renderSubtypeNode('voice_print', true)}
+              {/* Notion 文档型资产 · 音频总谱（全剧级） */}
+              {renderSubtypeNode('voice_profile', true)}
+              {renderSubtypeNode('bgm_design', true)}
+              {/* Notion 文档型资产 · 创作文档（全剧级 / 分集级） */}
+              {renderSubtypeNode('pipeline_requirement', true)}
+              {renderSubtypeNode('story_framework', true)}
+              {renderSubtypeNode('episode_script', true)}
+              {/* 服化道设定（角色级，按 characterId 归属各角色；DB type=character，无图文档） */}
+              {renderSubtypeNode('costume_design', true)}
             </div>
           )}
         </div>
@@ -881,6 +931,8 @@ export default function AssetLibrary() {
                 <span className="am-tree-node__ic">▦</span>全部场景设定
                 <span className="am-tree-node__n">{sub('scene_base')}</span>
               </button>
+              {/* Notion 场景设定文档（场景级文字描述，区别于 scene_base 设定图） */}
+              {renderSubtypeNode('scene_design', true)}
               {/* Notion §1.2a 场景蓝图（空间结构+灭点+地标） */}
               {renderSubtypeNode('scene_blueprint', true)}
               {/* Notion §1.2b 场景时空变体（时段/天气） */}
