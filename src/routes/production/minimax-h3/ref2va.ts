@@ -1,23 +1,41 @@
 /**
- * MiniMax H3 — ref2va (参考图 + 参考音频 → 视频 + 音频)
+ * MiniMax H3 — ref2va / hybrid (参考图(+参考音频/视频) [+首尾帧] → 视频 + 音频)  —— T8 插件工作流
  *
  * POST /api/production/minimax-h3/ref2va   (multipart/form-data)
- *   refImages      : File[]  (1-10 张参考图, required)
- *   refAudios      : File[]  (0-4 个参考音频, optional)
- *   prompt         : string  (正面提示词, required)
- *   negativePrompt : string  (默认见 H3_DEFAULT_NEGATIVE)
+ *   refImages      : File[]  (1-9 张参考图, required)
+ *   refAudios      : File[]  (0-3 个参考音频, optional)
+ *   refVideos      : File[]  (0-3 个参考视频帧序列, optional)
+ *   refVideoAudios : File[]  (0-3 个视频配对音轨, optional)
+ *   firstFrame     : File    (可选 —— 与 refImages 同时提供时 T8 自动进入 hybrid 模式)
+ *   lastFrame      : File    (可选 —— 同上)
+ *   prompt         : string  (正面提示词, 可含 <Picture N>/<Video N>/<Audio N> 标签)
+ *   projectId      : number  (required)
+ *   negativePrompt : string  (T8 不需要, 接受但忽略)
  *   width/height   : number  (默认 1344×768, 必须 32 倍数)
- *   length         : number  (默认 124, 自动对齐到 n%17==5)
+ *   length         : number  (默认 124, 自动对齐 n%17==5)
  *   refImageSize   : "match" | "max"  (默认 "match")
  *   seed/steps/shiftVideo/shiftAudio : number
+ *   turbo          : boolean (true=Turbo LoRA 4 步加速)
+ *   saveSeparateAudio : boolean (可选:额外输出分离音频文件)
  *   filenamePrefix : string
- *   projectId      : string
+ *
+ * 模式自动判定 (T8 task_type="auto"):
+ *   - 仅 refImages/refAudios/refVideos        → Ref2VA
+ *   - refImages + firstFrame/lastFrame         → Hybrid (参考图 + 关键帧共存)
+ *
+ * T8 工作流节点拓扑 (node 20 接 ref_images 数组, 直接传 [[nodeId,0],...] 列表):
+ *   10-13: loaders (同 t2va)
+ *   14/141/142...: LoadImage (参考图)
+ *   15/151/152...: LoadAudio (参考音频)
+ *   170/171...   : LoadImage (参考视频帧序列)
+ *   180/181...   : LoadAudio (视频配对音轨)
+ *   90           : LoadImage (hybrid 首帧, 可选) / 91: LoadImage (hybrid 尾帧, 可选)
+ *   [14_lora]    : LoraLoaderBypassModelOnly (可选, turbo)
+ *   20: MiniMaxH3AudioConditioningT8 (ref_images/ref_audios/ref_videos/ref_video_audios + first_frame/last_frame)
+ *   30-33/40/42/50: 同 t2va 采样→解码→保存链路
  *
  * 返回 promptId + pollUrl,客户端轮询:
  *   GET /api/production/minimax-h3/status/:promptId
- *
- * 架构参照 ltx/msr.ts (express router + zod + multer + copyToContainer),
- * 但 H3 工作流结构完全不同 —— 见 buildH3Ref2vaWorkflow。
  */
 
 import express from "express";
@@ -33,9 +51,9 @@ import {
   H3_CONFIG,
   H3_CONSTANTS,
   H3_DEFAULTS,
-  H3_TESPEED,
+  H3_T8,
+  H3_TURBO,
   alignH3FrameCount,
-  H3_DEFAULT_NEGATIVE,
 } from "./config";
 
 const router = express.Router();
@@ -62,283 +80,158 @@ function copyToContainer(localPath: string, containerPath: string) {
   }
 }
 
-// ============================================================
-// Workflow builder
-// ============================================================
-//
-// 节点拓扑(与 /home/kai/shared/h3_ref2va_s3_3.json 的 prompt 字段格式一致):
-//   10: CLIPLoader          (qwen3vl_32b_minimax_h3_nvfp4_awq, type="minimax")
-//   11: VAELoader           (minimax_h3_video_vae_fp16)
-//   12: UNETLoader          (minimax_h3_fl2va_pruned_int8_convrot, weight_dtype="default")
-//   13: VAELoader           (minimax_h3_audio_vae_fp32)
-//   14: LoadImage           (第 1 张参考图;多参考时 141,142... 递增)
-//   15: LoadAudio           (第 1 个参考音频;多参考时 151,152... 递增)
-//   16: MiniMaxH3ImageToVideo      (负面条件生成器 —— 仅用于 KSampler 的 negative)
-//   20: MiniMaxH3ReferenceToVideo  (正面条件生成器 —— 接 ref_images/ref_audios,输出 [0]=cond [1]=latent)
-//   21: MiniMaxH3SigmaShift        (model 噪声调度:shift_video / shift_audio)
-//   30: KSampler             (latent_image = ["20", 1] —— ref2va 第二输出是 latent)
-//   40: VAEDecode            (视频解码)
-//   50: SaveWEBM             (webm 内嵌音频,codec=vp9)
-//   (可选) 41: VAEDecodeAudio + 51: SaveAudio —— 输出分离的音频文件
-//
-// ⚠️ 关键差异 vs LTX:
-//   1. H3 是 CFG-distilled,cfg=1.0,负面提示词实际不生效(但节点结构上仍需 negative conditioning)。
-//   2. H3 不需要音频冻结 mask —— TTS 参考音频通过 ref_audios 直接传入,模型自动处理。
-//   3. SaveWEBM 输出 webm 已内嵌音频;仅当需要分离音频文件时才加 41/51 节点。
+// 参考资产节点 ID 分配 (避开 loaders 的 10-13、turbo 14_lora、采样 30-33、解码 40/42/50)
+const imageNodeId = (i: number) => (i === 0 ? "14" : `14${i}`);   // "14","141","142"...
+const audioNodeId = (i: number) => (i === 0 ? "15" : `15${i}`);   // "15","151","152"...
+const videoNodeId = (i: number) => `17${i}`;                      // "170","171","172"
+const videoAudioNodeId = (i: number) => `18${i}`;                 // "180","181","182"
+// hybrid 首尾帧 (与参考图节点 14* 区分)
+const FIRST_FRAME_NODE = "90";
+const LAST_FRAME_NODE = "91";
 
+// ============================================================
+// Workflow builder (T8)
+// ============================================================
 interface H3Ref2vaWorkflowOpts {
-  refImageFilenames: string[];      // 1-9 参考图(已在容器内)
-  refAudioFilenames: string[];      // 0-3 参考音频(已在容器内)
-  refVideoFilenames: string[];      // 0-3 参考视频帧序列(已在容器内)
-  refVideoAudioFilenames: string[]; // 0-3 视频配对音轨(已在容器内)
-  prompt: string;                // 正面提示词(可含 <Picture N>/<Video N>/<Audio N> 标签)
-  negativePrompt: string;        // 负面提示词(cfg=1.0 实际不生效,节点结构需要)
+  refImageFilenames: string[];        // 1-9 参考图(容器内)
+  refAudioFilenames: string[];        // 0-3 参考音频(容器内)
+  refVideoFilenames: string[];        // 0-3 参考视频帧序列(容器内)
+  refVideoAudioFilenames: string[];   // 0-3 视频配对音轨(容器内)
+  prompt: string;                     // 可含 <Picture N>/<Video N>/<Audio N> 标签
   width: number;
   height: number;
-  length: number;                // 帧数(调用方应先 alignH3FrameCount)
+  length: number;                     // 调用方应先 alignH3FrameCount
   seed: number;
   steps: number;
-  cfg: number;                   // 必须 1.0
-  samplerName: string;           // R2V 官方推荐: res_multistep
-  scheduler: string;             // R2V 官方推荐: simple
-  denoise: number;
   shiftVideo: number;
   shiftAudio: number;
-  refImageSize: "match" | "max"; // match=等比缩(快), max=2048px(最佳保真度)
+  refImageSize: "match" | "max";      // match=等比缩(快), max=2048px(最佳保真度)
   filenamePrefix: string;
-  fps: number;
-  codec: string;
-  crf: number;
-  saveSeparateAudio?: boolean;   // 可选:额外输出分离音频(VAEDecodeAudio + SaveAudio)
+  firstFrameFilename?: string | null; // hybrid: 首帧图(容器内)
+  lastFrameFilename?: string | null;  // hybrid: 尾帧图(容器内)
+  turbo?: boolean;
+  saveSeparateAudio?: boolean;        // 额外输出分离音频 (SaveAudio 取 AVDecodeT8[1])
 }
 
 export function buildH3Ref2vaWorkflow(opts: H3Ref2vaWorkflowOpts): Record<string, any> {
   const {
     refImageFilenames, refAudioFilenames,
     refVideoFilenames, refVideoAudioFilenames,
-    prompt, negativePrompt,
-    width, height, length,
-    seed, steps, cfg, samplerName, scheduler, denoise,
-    shiftVideo, shiftAudio, refImageSize,
-    filenamePrefix, fps, codec, crf,
-    saveSeparateAudio,
+    prompt, width, height, length,
+    seed, steps, shiftVideo, shiftAudio, refImageSize,
+    filenamePrefix,
+    firstFrameFilename, lastFrameFilename,
+    turbo, saveSeparateAudio,
   } = opts;
 
-  // 参考图 LoadImage 节点:首张 = "14"(与已验证 JSON 对齐),其余 141,142...
-  const imageNodes: Record<string, any> = {};
-  const refImageSlots: Record<string, any> = {};
-  refImageFilenames.forEach((filename, i) => {
-    const nodeId = i === 0 ? "14" : `14${i}`;   // "14","141","142"...
-    imageNodes[nodeId] = {
-      class_type: "LoadImage",
-      inputs: { image: filename },
-    };
-    refImageSlots[`ref_images.ref_image_${i}`] = [nodeId, 0];
-  });
-
-  // 参考音频 LoadAudio 节点:首个 = "15",其余 151,152...
-  const audioNodes: Record<string, any> = {};
-  const refAudioSlots: Record<string, any> = {};
-  refAudioFilenames.forEach((filename, i) => {
-    const nodeId = i === 0 ? "15" : `15${i}`;   // "15","151","152"...
-    audioNodes[nodeId] = {
-      class_type: "LoadAudio",
-      inputs: { audio: filename },
-    };
-    refAudioSlots[`ref_audios.ref_audio_${i}`] = [nodeId, 0];
-  });
-
-  // 参考视频 LoadImage 节点(帧序列):节点 ID 170,171,172...
-  const videoNodes: Record<string, any> = {};
-  const refVideoSlots: Record<string, any> = {};
-  refVideoFilenames.forEach((filename, i) => {
-    const nodeId = `17${i}`;   // "170","171","172"
-    videoNodes[nodeId] = {
-      class_type: "LoadImage",
-      inputs: { image: filename },
-    };
-    refVideoSlots[`ref_videos.ref_video_${i}`] = [nodeId, 0];
-  });
-
-  // 视频配对音轨 LoadAudio 节点:节点 ID 180,181,182...
-  const videoAudioNodes: Record<string, any> = {};
-  const refVideoAudioSlots: Record<string, any> = {};
-  refVideoAudioFilenames.forEach((filename, i) => {
-    const nodeId = `18${i}`;   // "180","181","182"
-    videoAudioNodes[nodeId] = {
-      class_type: "LoadAudio",
-      inputs: { audio: filename },
-    };
-    refVideoAudioSlots[`ref_video_audios.ref_video_audio_${i}`] = [nodeId, 0];
-  });
-
-  return {
+  const nodes: Record<string, any> = {
     // === 模型 / 文本编码器 / VAE ===
-    "10": {
-      class_type: "CLIPLoader",
-      inputs: {
-        clip_name: H3_DEFAULTS.clipName,
-        type: "minimax",
-      },
-    },
-    "11": {
-      class_type: "VAELoader",
-      inputs: { vae_name: H3_DEFAULTS.videoVaeName },
-    },
-    "12": {
-      class_type: "UNETLoader",
-      inputs: {
-        unet_name: H3_DEFAULTS.ref2vaModel,
-        weight_dtype: "default",
-      },
-    },
-    "13": {
-      class_type: "VAELoader",
-      inputs: { vae_name: H3_DEFAULTS.audioVaeName },
-    },
+    "10": { class_type: "CLIPLoader", inputs: { clip_name: H3_DEFAULTS.clipName, type: "minimax" } },
+    "11": { class_type: "VAELoader", inputs: { vae_name: H3_DEFAULTS.videoVaeName } },
+    "12": { class_type: "UNETLoader", inputs: { unet_name: H3_DEFAULTS.fl2vaModel, weight_dtype: "default" } },
+    "13": { class_type: "VAELoader", inputs: { vae_name: H3_DEFAULTS.audioVaeName } },
 
-    // === 参考资产加载 (动态) ===
-    ...imageNodes,
-    ...audioNodes,
-    ...videoNodes,
-    ...videoAudioNodes,
-
-    // === 负面条件 (MiniMaxH3ImageToVideo) ===
-    // H3 CFG-distilled → cfg=1.0,负面提示词实际不生效,但 KSampler 需要一个 negative conditioning 占位。
-    "16": {
-      class_type: "MiniMaxH3ImageToVideo",
-      inputs: {
-        clip: ["10", 0],
-        vae: ["11", 0],
-        prompt: negativePrompt,
-        width,
-        height,
-        length,
+    // === Turbo LoRA (可选; INT8 用 bypass) ===
+    ...(turbo ? {
+      [H3_TURBO.nodeId]: {
+        class_type: H3_TURBO.loaderClassType,
+        inputs: {
+          model: ["12", 0],
+          lora_name: H3_TURBO.useEma ? H3_TURBO.loraNameEma : H3_TURBO.loraName,
+          strength_model: H3_TURBO.strengthModel,
+        },
       },
-    },
+    } : {}),
 
-    // === 正面条件 (MiniMaxH3ReferenceToVideo) ===
-    // 输出:[0]=conditioning, [1]=latent(喂给 KSampler latent_image)。
-    // ref_images / ref_audios 通过结构化槽位注入(与 prompt 标签独立)。
+    // === 统一条件 (ref_images 等为数组, 直接传 [[nodeId,0],...] 列表) ===
+    // task_type="auto" 自动判 ref2va (有 ref_images) 或 hybrid (ref_images + 首尾帧)。
     "20": {
-      class_type: "MiniMaxH3ReferenceToVideo",
+      class_type: "MiniMaxH3AudioConditioningT8",
       inputs: {
         clip: ["10", 0],
-        vae: ["11", 0],
+        video_vae: ["11", 0],
         audio_vae: ["13", 0],
         prompt,
-        width,
-        height,
-        length,
+        width, height, length,
+        task_type: H3_T8.taskType,
+        audio_mode: H3_T8.audioMode,
+        audio_denoise_strength: H3_T8.audioDenoiseStrength,
+        add_source_as_reference: H3_T8.addSourceAsReference,
+        prompt_primary_audio_ordinal: H3_T8.promptPrimaryAudioOrdinal,
+        strict_prompt_tags: H3_T8.strictPromptTags,
         ref_image_size: refImageSize,
-        ...refImageSlots,
-        ...refVideoSlots,
-        ...refVideoAudioSlots,
-        ...refAudioSlots,
+        reference_video_policy: H3_T8.referenceVideoPolicy,
+        ...(refImageFilenames.length ? { ref_images: refImageFilenames.map((_, i) => [imageNodeId(i), 0]) } : {}),
+        ...(refAudioFilenames.length ? { ref_audios: refAudioFilenames.map((_, i) => [audioNodeId(i), 0]) } : {}),
+        ...(refVideoFilenames.length ? { ref_videos: refVideoFilenames.map((_, i) => [videoNodeId(i), 0]) } : {}),
+        ...(refVideoAudioFilenames.length ? { ref_video_audios: refVideoAudioFilenames.map((_, i) => [videoAudioNodeId(i), 0]) } : {}),
+        ...(firstFrameFilename ? { first_frame: [FIRST_FRAME_NODE, 0] } : {}),
+        ...(lastFrameFilename ? { last_frame: [LAST_FRAME_NODE, 0] } : {}),
       },
     },
 
-    // === 噪声调度 (SigmaShift) ===
-    "21": {
-      class_type: "MiniMaxH3SigmaShift",
+    // === Dual-Clock 采样器配置 ===
+    "30": {
+      class_type: "MiniMaxH3DualClockSamplerT8",
       inputs: {
-        model: ["12", 0],
+        model: turbo ? [H3_TURBO.nodeId, 0] : ["12", 0],
+        av_latent: ["20", 1],
+        steps: turbo ? H3_TURBO.turboSteps : steps,
         shift_video: shiftVideo,
         shift_audio: shiftAudio,
       },
     },
 
-    // === 采样 ===
-    // TESpeed 加速: SigmaShift(21) → TESpeed(35) → KSampler(30)
-    ...(H3_TESPEED.enabled
-      ? {
-          [H3_TESPEED.nodeId]: {
-            class_type: H3_TESPEED.classType,
-            inputs: {
-              model: ["21", 0],
-              processing_control_value: H3_TESPEED.processingControlValue,
-              processing_percent_1: H3_TESPEED.processingPercent1,
-              processing_percent_2: H3_TESPEED.processingPercent2,
-              mcs: H3_TESPEED.mcs,
-              device: H3_TESPEED.device,
-              cache_depth: H3_TESPEED.cacheDepth,
-            },
-          },
-        }
-      : {}),
-    "30": {
-      class_type: "KSampler",
-      inputs: {
-        model: H3_TESPEED.enabled ? [H3_TESPEED.nodeId, 0] : ["21", 0],
-        positive: ["20", 0],
-        negative: ["16", 0],
-        latent_image: ["20", 1],   // ref2va 第二输出 = latent
-        seed,
-        steps,
-        cfg,
-        sampler_name: samplerName,
-        scheduler,
-        denoise,
-      },
+    "31": { class_type: "RandomNoise", inputs: { noise_seed: seed } },
+    "32": { class_type: "BasicGuider", inputs: { model: ["30", 0], conditioning: ["20", 0] } },
+    "33": {
+      class_type: "SamplerCustomAdvanced",
+      inputs: { noise: ["31", 0], guider: ["32", 0], sampler: ["30", 1], sigmas: ["30", 2], latent_image: ["20", 1] },
     },
 
-    // === 视频解码 ===
     "40": {
-      class_type: "VAEDecode",
-      inputs: {
-        samples: ["30", 0],
-        vae: ["11", 0],
-      },
+      class_type: "MiniMaxH3AVDecodeT8",
+      inputs: { av_latent: ["33", 0], video_vae: ["11", 0], audio_vae: ["13", 0] },
     },
-
-    // === 音频解码 (合并到视频) ===
-    "43": {
-      class_type: "VAEDecodeAudio",
-      inputs: {
-        samples: ["30", 0],
-        vae: ["13", 0],
-      },
-    },
-
-    // === 合并视频+音频 ===
-    "44": {
+    "42": {
       class_type: "CreateVideo",
-      inputs: {
-        images: ["40", 0],
-        fps,
-        audio: ["43", 0],
-      },
+      inputs: { images: ["40", 0], fps: H3_CONSTANTS.FPS, audio: ["40", 1] },
     },
-
-    // === 保存 (mp4 内嵌音频) ===
     "50": {
       class_type: "SaveVideo",
-      inputs: {
-        video: ["44", 0],
-        filename_prefix: filenamePrefix,
-        format: "mp4",
-        codec: "auto",
-      },
+      inputs: { video: ["42", 0], filename_prefix: filenamePrefix, format: "mp4", codec: "auto" },
     },
 
-    // === (可选) 分离音频文件 ===
+    // === (可选) 分离音频文件 (AVDecodeT8[1]=AUDIO) ===
     ...(saveSeparateAudio ? {
-      "41": {
-        class_type: "VAEDecodeAudio",
-        inputs: {
-          samples: ["30", 0],
-          vae: ["13", 0],
-        },
-      },
       "51": {
         class_type: "SaveAudio",
-        inputs: {
-          audio: ["41", 0],
-          filename_prefix: `${filenamePrefix}_audio`,
-        },
+        inputs: { audio: ["40", 1], filename_prefix: `${filenamePrefix}_audio` },
       },
     } : {}),
   };
+
+  // === 动态添加参考资产 LoadImage / LoadAudio 节点 ===
+  refImageFilenames.forEach((filename, i) => {
+    nodes[imageNodeId(i)] = { class_type: "LoadImage", inputs: { image: filename } };
+  });
+  refAudioFilenames.forEach((filename, i) => {
+    nodes[audioNodeId(i)] = { class_type: "LoadAudio", inputs: { audio: filename } };
+  });
+  refVideoFilenames.forEach((filename, i) => {
+    nodes[videoNodeId(i)] = { class_type: "LoadImage", inputs: { image: filename } };
+  });
+  refVideoAudioFilenames.forEach((filename, i) => {
+    nodes[videoAudioNodeId(i)] = { class_type: "LoadAudio", inputs: { audio: filename } };
+  });
+  if (firstFrameFilename) {
+    nodes[FIRST_FRAME_NODE] = { class_type: "LoadImage", inputs: { image: firstFrameFilename } };
+  }
+  if (lastFrameFilename) {
+    nodes[LAST_FRAME_NODE] = { class_type: "LoadImage", inputs: { image: lastFrameFilename } };
+  }
+
+  return nodes;
 }
 
 // ============================================================
@@ -352,6 +245,8 @@ export default router.post(
     { name: "refVideos", maxCount: H3_CONSTANTS.MAX_REF_VIDEOS },       // ≤3 个参考视频(帧序列)
     { name: "refVideoAudios", maxCount: H3_CONSTANTS.MAX_REF_VIDEOS },  // 视频配对音轨
     { name: "refAudios", maxCount: H3_CONSTANTS.MAX_REF_AUDIOS },       // ≤3 个独立参考音频
+    { name: "firstFrame", maxCount: 1 },                                // hybrid: 首帧
+    { name: "lastFrame", maxCount: 1 },                                 // hybrid: 尾帧
   ]),
   validateFields({
     projectId: z.coerce.number(),
@@ -360,16 +255,17 @@ export default router.post(
   async (req, res) => {
     const projectId = req.body.projectId;
     const prompt = req.body.prompt as string;
-    const negativePrompt = (req.body.negativePrompt as string) || H3_DEFAULT_NEGATIVE;
     const width = Number(req.body.width) || H3_DEFAULTS.defaultWidth;
     const height = Number(req.body.height) || H3_DEFAULTS.defaultHeight;
     const refImageSize = (req.body.refImageSize === "max" ? "max" : "match");
     const seed = req.body.seed ? Number(req.body.seed) : Math.floor(Math.random() * 2147483647);
-    const steps = Number(req.body.steps) || H3_DEFAULTS.r2vSteps;
+    const turbo = req.body.turbo === "true" || req.body.turbo === true;
+    const steps = turbo ? H3_TURBO.turboSteps : (Number(req.body.steps) || H3_DEFAULTS.r2vSteps);
     const shiftVideo = Number(req.body.shiftVideo) || H3_DEFAULTS.shiftVideo;
     const shiftAudio = Number(req.body.shiftAudio) || H3_DEFAULTS.shiftAudio;
     const filenamePrefix = (req.body.filenamePrefix as string) || `h3_ref2va_${projectId}_${Date.now()}`;
     const saveSeparateAudio = req.body.saveSeparateAudio === "true" || req.body.saveSeparateAudio === true;
+    // negativePrompt 在 T8 下不再使用; 接受该字段以保持 API 向后兼容。
 
     // 分辨率必须 32 倍数
     if (width % 32 !== 0 || height % 32 !== 0) {
@@ -385,6 +281,8 @@ export default router.post(
     const refVideoFiles = files?.refVideos || [];
     const refVideoAudioFiles = files?.refVideoAudios || [];
     const refAudioFiles = files?.refAudios || [];
+    const firstFrameFile = files?.firstFrame?.[0];
+    const lastFrameFile = files?.lastFrame?.[0];
 
     if (refImageFiles.length < 1) {
       return res.status(400).send(error(`At least 1 reference image required (refImages). Up to ${H3_CONSTANTS.MAX_REF_IMAGES} supported.`));
@@ -403,6 +301,10 @@ export default router.post(
     if (totalRefFiles > H3_CONSTANTS.MAX_REF_FILES_TOTAL) {
       return res.status(400).send(error(`Too many reference files total: ${totalRefFiles} (max ${H3_CONSTANTS.MAX_REF_FILES_TOTAL}).`));
     }
+
+    // 模式标记 (T8 task_type="auto" 自动判; 此处仅用于响应)
+    const isHybrid = !!(firstFrameFile || lastFrameFile);
+    const mode = isHybrid ? "hybrid" : "ref2va";
 
     // --- 上传参考图到 ComfyUI 容器 ---
     const refImageFilenames: string[] = [];
@@ -435,9 +337,6 @@ export default router.post(
     for (const file of refAudioFiles) { try { fs.unlinkSync(file.path); } catch {} }
 
     // --- 上传参考视频(帧序列)到 ComfyUI 容器 ---
-    // 注意: ComfyUI LoadImage 节点接收 IMAGE 类型。参考视频以帧序列形式传入。
-    // 实际使用时调用方应预先提取视频帧为图片序列。此处接收单个帧打包文件(如 GIF/APNG/多帧 PNG)。
-    // 简化处理: refVideos 作为额外参考图传入(ref_video_N 槽位)。
     const refVideoFilenames: string[] = [];
     try {
       for (const file of refVideoFiles) {
@@ -467,6 +366,28 @@ export default router.post(
     }
     for (const file of refVideoAudioFiles) { try { fs.unlinkSync(file.path); } catch {} }
 
+    // --- 上传 hybrid 首尾帧到 ComfyUI 容器 ---
+    let firstFrameFilename: string | null = null;
+    let lastFrameFilename: string | null = null;
+    try {
+      if (firstFrameFile) {
+        const ext = path.extname(firstFrameFile.originalname || ".png") || ".png";
+        firstFrameFilename = `${uuidv4()}${ext}`;
+        copyToContainer(firstFrameFile.path, `${H3_CONFIG.comfyuiInputDir}/${firstFrameFilename}`);
+      }
+      if (lastFrameFile) {
+        const ext = path.extname(lastFrameFile.originalname || ".png") || ".png";
+        lastFrameFilename = `${uuidv4()}${ext}`;
+        copyToContainer(lastFrameFile.path, `${H3_CONFIG.comfyuiInputDir}/${lastFrameFilename}`);
+      }
+    } catch (err: any) {
+      if (firstFrameFile) { try { fs.unlinkSync(firstFrameFile.path); } catch {} }
+      if (lastFrameFile) { try { fs.unlinkSync(lastFrameFile.path); } catch {} }
+      return res.status(502).send(error(`Failed to upload hybrid frame(s) to ComfyUI: ${err.message}`));
+    }
+    if (firstFrameFile) { try { fs.unlinkSync(firstFrameFile.path); } catch {} }
+    if (lastFrameFile) { try { fs.unlinkSync(lastFrameFile.path); } catch {} }
+
     // --- 构建 + 提交 ---
     const workflow = buildH3Ref2vaWorkflow({
       refImageFilenames,
@@ -474,23 +395,18 @@ export default router.post(
       refVideoFilenames,
       refVideoAudioFilenames,
       prompt,
-      negativePrompt,
       width,
       height,
       length,
       seed,
       steps,
-      cfg: H3_CONSTANTS.CFG,           // H3 CFG-distilled, 固定 1.0
-      samplerName: H3_DEFAULTS.r2vSamplerName,  // R2V 官方: res_multistep
-      scheduler: H3_DEFAULTS.r2vScheduler,      // R2V 官方: simple
-      denoise: H3_DEFAULTS.denoise,
       shiftVideo,
       shiftAudio,
       refImageSize,
       filenamePrefix,
-      fps: H3_CONSTANTS.FPS,
-      codec: H3_DEFAULTS.codec,
-      crf: H3_DEFAULTS.crf,
+      firstFrameFilename,
+      lastFrameFilename,
+      turbo,
       saveSeparateAudio,
     });
 
@@ -509,18 +425,23 @@ export default router.post(
       res.status(200).send(success({
         promptId,
         status: "submitted",
-        estimatedTime: "10-15 min",
+        mode,
+        estimatedTime: turbo ? "3-7 min" : "10-15 min",
         pollUrl: `/api/production/minimax-h3/status/${promptId}`,
         params: {
-          width, height, length, fps: H3_DEFAULTS.fps, seed, steps,
+          engine: "t8",
+          width, height, length, fps: H3_CONSTANTS.FPS, seed, steps,
           shiftVideo, shiftAudio, refImageSize,
           refImageCount: refImageFilenames.length,
           refAudioCount: refAudioFilenames.length,
           refVideoCount: refVideoFilenames.length,
           refVideoAudioCount: refVideoAudioFilenames.length,
+          hasFirstFrame: !!firstFrameFilename,
+          hasLastFrame: !!lastFrameFilename,
+          turbo,
           cfg: H3_CONSTANTS.CFG,
         },
-        message: "H3 ref2va task submitted to ComfyUI",
+        message: `H3 ${mode} task submitted to ComfyUI (T8 Dual-Clock)`,
       }));
     } catch (err: any) {
       const msg = err.response?.data?.error?.message || err.response?.data?.node_errors || err.message || String(err);

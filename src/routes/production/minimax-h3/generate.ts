@@ -61,10 +61,10 @@ import {
   H3_CONFIG,
   H3_DEFAULTS,
   H3_CONSTANTS,
-  H3_TESPEED,
+  H3_T8,
+  H3_TURBO,
   H3_PROFILES,
   alignH3FrameCount,
-  H3_DEFAULT_NEGATIVE,
 } from "./config";
 // 复用 replace-audio 的辅助函数 (这些函数仅新增了 export 关键字, 逻辑未变更)
 import {
@@ -101,169 +101,141 @@ function safeUnlink(p: string | null | undefined): void {
 }
 
 // ============================================================
-// H3 工作流构建 (内联, 节点拓扑复制自 t2va.ts / i2va.ts / ref2va.ts)
+// H3 工作流构建 (T8 内联, 节点拓扑与 t2va.ts / i2va.ts / ref2va.ts 一致)
 // ============================================================
 //
-// 不 import 那三个路由文件, 仅 import config 常量后在本文件内联构建工作流 JSON。
-// 三种模式共享节点 10/11/12/13/16/21/30/40/41/42/50, 仅在以下处分支:
-//   - 节点 12 (UNETLoader): t2va/i2va 用 fl2va 模型; ref2va 用 ref2va 模型
-//   - 节点 20 (正面条件): t2va/i2va 用 MiniMaxH3ImageToVideo; ref2va 用 MiniMaxH3ReferenceToVideo
-//   - 采样器: t2va/i2va 用 euler+50 步; ref2va 用 res_multistep+20 步
+// 不 import 那三个路由文件, 仅 import config 常量后在本文件内联构建 T8 工作流 JSON。
+// 三种模式共享 T8 节点 10/11/12/13/20/30/31/32/33/40/42/50, 仅在以下处分支:
+//   - 节点 20 (统一条件 MiniMaxH3AudioConditioningT8):
+//       t2va   —— 无图输入
+//       i2va   —— first_frame = 节点 14
+//       ref2va —— ref_images 数组 (节点 14/141/142...)
 //   - LoadImage 节点: i2va 首帧 = 节点 14; ref2va 参考图 = 节点 14/141/142...
+//   - turbo 模式: 插入 14_lora (LoraLoaderBypassModelOnly), steps 固定 4
+// T8 统一模型 fl2va_int8_convrot 覆盖所有 task_type (task_type="auto" 自动判定)。
 
 interface H3GenOpts {
   mode: "t2va" | "i2va" | "ref2va";
   prompt: string;
-  negativePrompt: string;
   width: number;
   height: number;
   length: number;
   seed: number;
-  /** 采样步数覆盖 (null 则用默认 t2v=50 / r2v=20) */
+  /** 采样步数覆盖 (null 则用 H3_DEFAULTS.t2vSteps; turbo 时强制 H3_TURBO.turboSteps) */
   stepsOverride: number | null;
   /** i2va 首帧图 (容器内文件名); t2va / ref2va 传 null */
   firstFrameFilename: string | null;
   /** ref2va 参考图 (容器内文件名数组); t2va / i2va 传 [] */
   refImageFilenames: string[];
   filenamePrefix: string;
+  /** 启用 Turbo LoRA (LoraLoaderBypassModelOnly, 4 步加速) */
+  turbo?: boolean;
 }
 
 function buildH3Workflow(opts: H3GenOpts): Record<string, any> {
   const {
-    mode, prompt, negativePrompt,
+    mode, prompt,
     width, height, length, seed,
     stepsOverride,
     firstFrameFilename, refImageFilenames, filenamePrefix,
+    turbo,
   } = opts;
 
   const isRef2va = mode === "ref2va";
-  // 模型 / 采样器 / 步数按模式选择
-  const unetModel = isRef2va ? H3_DEFAULTS.ref2vaModel : H3_DEFAULTS.fl2vaModel;
-  const steps = stepsOverride || (isRef2va ? H3_DEFAULTS.r2vSteps : H3_DEFAULTS.t2vSteps);
-  const samplerName = isRef2va ? H3_DEFAULTS.r2vSamplerName : H3_DEFAULTS.t2vSamplerName;
-  const scheduler = isRef2va ? H3_DEFAULTS.r2vScheduler : H3_DEFAULTS.t2vScheduler;
+  const steps = turbo ? H3_TURBO.turboSteps : (stepsOverride || H3_DEFAULTS.t2vSteps);
+  // ref2va 参考图节点 ID: 首张 "14", 其余 141,142...
+  const imageNodeId = (i: number) => (i === 0 ? "14" : `14${i}`);
 
   const nodes: Record<string, any> = {
     // === 模型 / 文本编码器 / VAE ===
     "10": { class_type: "CLIPLoader", inputs: { clip_name: H3_DEFAULTS.clipName, type: "minimax" } },
     "11": { class_type: "VAELoader", inputs: { vae_name: H3_DEFAULTS.videoVaeName } },
-    "12": { class_type: "UNETLoader", inputs: { unet_name: unetModel, weight_dtype: "default" } },
+    "12": { class_type: "UNETLoader", inputs: { unet_name: H3_DEFAULTS.fl2vaModel, weight_dtype: "default" } },
     "13": { class_type: "VAELoader", inputs: { vae_name: H3_DEFAULTS.audioVaeName } },
+
+    // === Turbo LoRA (可选; INT8 用 bypass) ===
+    ...(turbo ? {
+      [H3_TURBO.nodeId]: {
+        class_type: H3_TURBO.loaderClassType,
+        inputs: {
+          model: ["12", 0],
+          lora_name: H3_TURBO.useEma ? H3_TURBO.loraNameEma : H3_TURBO.loraName,
+          strength_model: H3_TURBO.strengthModel,
+        },
+      },
+    } : {}),
+
+    // === 统一条件 (MiniMaxH3AudioConditioningT8) ===
+    // task_type="auto" 自动判 t2va/i2va/ref2va/hybrid (按连接的可选输入)。
+    "20": {
+      class_type: "MiniMaxH3AudioConditioningT8",
+      inputs: {
+        clip: ["10", 0],
+        video_vae: ["11", 0],
+        audio_vae: ["13", 0],
+        prompt,
+        width, height, length,
+        task_type: H3_T8.taskType,
+        audio_mode: H3_T8.audioMode,
+        audio_denoise_strength: H3_T8.audioDenoiseStrength,
+        add_source_as_reference: H3_T8.addSourceAsReference,
+        prompt_primary_audio_ordinal: H3_T8.promptPrimaryAudioOrdinal,
+        strict_prompt_tags: H3_T8.strictPromptTags,
+        ref_image_size: "match",
+        reference_video_policy: H3_T8.referenceVideoPolicy,
+        ...(mode === "i2va" && firstFrameFilename ? { first_frame: ["14", 0] } : {}),
+        ...(isRef2va && refImageFilenames.length
+          ? { ref_images: refImageFilenames.map((_, i) => [imageNodeId(i), 0]) }
+          : {}),
+      },
+    },
+
+    // === Dual-Clock 采样器配置 (内置 12/3 shift + flow sigma + 双时钟 Euler) ===
+    "30": {
+      class_type: "MiniMaxH3DualClockSamplerT8",
+      inputs: {
+        model: turbo ? [H3_TURBO.nodeId, 0] : ["12", 0],
+        av_latent: ["20", 1],
+        steps,
+        shift_video: H3_DEFAULTS.shiftVideo,
+        shift_audio: H3_DEFAULTS.shiftAudio,
+      },
+    },
+
+    // === 采样链路 (RandomNoise + BasicGuider + SamplerCustomAdvanced 产出 LATENT) ===
+    "31": { class_type: "RandomNoise", inputs: { noise_seed: seed } },
+    "32": { class_type: "BasicGuider", inputs: { model: ["30", 0], conditioning: ["20", 0] } },
+    "33": {
+      class_type: "SamplerCustomAdvanced",
+      inputs: { noise: ["31", 0], guider: ["32", 0], sampler: ["30", 1], sigmas: ["30", 2], latent_image: ["20", 1] },
+    },
+
+    // === 联合 AV 解码 (IMAGE + AUDIO) + 合并 + 保存 ===
+    "40": {
+      class_type: "MiniMaxH3AVDecodeT8",
+      inputs: { av_latent: ["33", 0], video_vae: ["11", 0], audio_vae: ["13", 0] },
+    },
+    "42": {
+      class_type: "CreateVideo",
+      inputs: { images: ["40", 0], fps: H3_CONSTANTS.FPS, audio: ["40", 1] },
+    },
+    "50": {
+      class_type: "SaveVideo",
+      inputs: { video: ["42", 0], filename_prefix: filenamePrefix, format: "mp4", codec: "auto" },
+    },
   };
 
   // === LoadImage 节点 ===
   // ref2va: 参考图首张 = "14", 其余 141,142...
   if (isRef2va) {
     refImageFilenames.forEach((filename, i) => {
-      const nodeId = i === 0 ? "14" : `14${i}`;
-      nodes[nodeId] = { class_type: "LoadImage", inputs: { image: filename } };
+      nodes[imageNodeId(i)] = { class_type: "LoadImage", inputs: { image: filename } };
     });
   }
   // i2va: 首帧图 = "14"
   if (mode === "i2va" && firstFrameFilename) {
     nodes["14"] = { class_type: "LoadImage", inputs: { image: firstFrameFilename } };
   }
-
-  // === 负面条件 (MiniMaxH3ImageToVideo, 无图) ===
-  // H3 CFG-distilled (cfg=1.0), 负面提示词实际不生效, 但 KSampler 需 negative conditioning 占位。
-  nodes["16"] = {
-    class_type: "MiniMaxH3ImageToVideo",
-    inputs: { clip: ["10", 0], vae: ["11", 0], prompt: negativePrompt, width, height, length },
-  };
-
-  // === 正面条件 ===
-  if (isRef2va) {
-    // ref2va: MiniMaxH3ReferenceToVideo, ref_images 通过结构化槽位注入
-    const refImageSlots: Record<string, any> = {};
-    refImageFilenames.forEach((_, i) => {
-      const nodeId = i === 0 ? "14" : `14${i}`;
-      refImageSlots[`ref_images.ref_image_${i}`] = [nodeId, 0];
-    });
-    nodes["20"] = {
-      class_type: "MiniMaxH3ReferenceToVideo",
-      inputs: {
-        clip: ["10", 0],
-        vae: ["11", 0],
-        audio_vae: ["13", 0],
-        prompt,
-        width, height, length,
-        ref_image_size: "match",
-        ...refImageSlots,
-      },
-    };
-  } else {
-    // t2va / i2va: MiniMaxH3ImageToVideo (i2va 接 first_frame)
-    nodes["20"] = {
-      class_type: "MiniMaxH3ImageToVideo",
-      inputs: {
-        clip: ["10", 0],
-        vae: ["11", 0],
-        prompt,
-        width, height, length,
-        ...(mode === "i2va" && firstFrameFilename ? { first_frame: ["14", 0] } : {}),
-      },
-    };
-  }
-
-  // === 噪声调度 (SigmaShift) ===
-  nodes["21"] = {
-    class_type: "MiniMaxH3SigmaShift",
-    inputs: {
-      model: ["12", 0],
-      shift_video: H3_DEFAULTS.shiftVideo,
-      shift_audio: H3_DEFAULTS.shiftAudio,
-    },
-  };
-
-  // === 采样 (latent_image = ["20", 1] —— ToVideo 条件生成器第二输出 = latent) ===
-  // TESpeed 加速: SigmaShift(21) → TESpeed(35) → KSampler(30)
-  if (H3_TESPEED.enabled) {
-    nodes[H3_TESPEED.nodeId] = {
-      class_type: H3_TESPEED.classType,
-      inputs: {
-        model: ["21", 0],
-        processing_control_value: H3_TESPEED.processingControlValue,
-        processing_percent_1: H3_TESPEED.processingPercent1,
-        processing_percent_2: H3_TESPEED.processingPercent2,
-        mcs: H3_TESPEED.mcs,
-        device: H3_TESPEED.device,
-        cache_depth: H3_TESPEED.cacheDepth,
-      },
-    };
-  }
-  nodes["30"] = {
-    class_type: "KSampler",
-    inputs: {
-      model: H3_TESPEED.enabled ? [H3_TESPEED.nodeId, 0] : ["21", 0],
-      positive: ["20", 0],
-      negative: ["16", 0],
-      latent_image: ["20", 1],
-      seed,
-      steps,
-      cfg: H3_CONSTANTS.CFG,
-      sampler_name: samplerName,
-      scheduler,
-      denoise: H3_DEFAULTS.denoise,
-    },
-  };
-
-  // === 视频解码 ===
-  nodes["40"] = { class_type: "VAEDecode", inputs: { samples: ["30", 0], vae: ["11", 0] } };
-
-  // === 音频解码 (合并到视频) ===
-  nodes["41"] = { class_type: "VAEDecodeAudio", inputs: { samples: ["30", 0], vae: ["13", 0] } };
-
-  // === 合并视频 + 音频 ===
-  nodes["42"] = {
-    class_type: "CreateVideo",
-    inputs: { images: ["40", 0], fps: H3_CONSTANTS.FPS, audio: ["41", 0] },
-  };
-
-  // === 保存 (mp4 内嵌音频) ===
-  nodes["50"] = {
-    class_type: "SaveVideo",
-    inputs: { video: ["42", 0], filename_prefix: filenamePrefix, format: "mp4", codec: "auto" },
-  };
 
   return nodes;
 }
@@ -313,18 +285,21 @@ export default router.post(
     // H3 视频生成种子 (默认随机); Foley 种子用 LTX 默认 (42)
     const h3Seed = req.body.seed ? Number(req.body.seed) : Math.floor(Math.random() * 2147483647);
 
-    // 采样步数覆盖 (优先级: 显式 steps > profile.steps > 模式默认)
-    // profile: "preview" (15步+跳过Foley) | "production" (官方步数+完整Foley)
+    // 采样步数覆盖 (优先级: 显式 steps > profile.steps; turbo 时强制 H3_TURBO.turboSteps)
+    // profile: "preview" (15步+跳过Foley) | "turbo" (4步+Turbo LoRA+跳过Foley)
+    //        | "production" (50步 lossless+完整Foley)
     const rawProfile = ((req.body.profile as string) || "production").toLowerCase();
-    if (!["preview", "production"].includes(rawProfile)) {
+    if (!["preview", "turbo", "production"].includes(rawProfile)) {
       return res
         .status(400)
-        .send(error(`profile must be one of: preview | production (got "${rawProfile}")`));
+        .send(error(`profile must be one of: preview | turbo | production (got "${rawProfile}")`));
     }
     const profile = H3_PROFILES[rawProfile as keyof typeof H3_PROFILES];
+    // turbo: profile=turbo 或显式 turbo=true 任一为真即启用 (启用后 steps 强制 4)
+    const turbo = req.body.turbo === "true" || req.body.turbo === true || profile.turbo;
     const h3StepsOverride = req.body.steps
       ? Number(req.body.steps)
-      : profile.steps; // null → 按模式默认 (t2v=50 / r2v=20)
+      : profile.steps;
 
     // ── 文件入参 ──
     const files = req.files as Record<string, Express.Multer.File[]> | undefined;
@@ -388,13 +363,13 @@ export default router.post(
     const h3Wf = buildH3Workflow({
       mode,
       prompt,
-      negativePrompt: H3_DEFAULT_NEGATIVE, // H3 视频用视觉负面词; API 的 negativePrompt 留给 Foley
       width, height, length,
       seed: h3Seed,
       stepsOverride: h3StepsOverride,
       firstFrameFilename,
       refImageFilenames,
       filenamePrefix: `${filenamePrefix}_h3`,
+      turbo,
     });
 
     let h3PromptId: string | null = null;
@@ -469,6 +444,7 @@ export default router.post(
         success({
           status: "completed",
           profile: rawProfile,
+          turbo,
           videoUrl: `/mnt/agents/output/${filenamePrefix}_h3.mp4`,
           videoPath: previewOutputPath,
           pipeline: {
@@ -476,7 +452,7 @@ export default router.post(
             foley: null, // 预览档跳过
           },
           hasTts: !!ttsAudioFile,
-          note: "preview profile: H3 native audio (Foley replaced) — 15-step fast preview",
+          note: `T8 Dual-Clock preview${turbo ? " (Turbo 4-step)" : ""}: H3 native audio, Foley skipped`,
         }, "H3 preview completed (native audio, Foley skipped)"),
       );
     }
@@ -650,6 +626,8 @@ export default router.post(
     res.status(200).send(
       success({
         status: "completed",
+        profile: rawProfile,
+        turbo,
         videoUrl: outputUrl,
         videoPath: finalOutputPath,
         pipeline: {

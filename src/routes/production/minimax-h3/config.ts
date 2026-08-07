@@ -24,8 +24,11 @@ export const H3_CONFIG = {
 };
 
 // 模型文件名常量(避免在 H3_DEFAULTS 内重复字面量)
-const FL2VA_MODEL = "minimax_h3_fl2va_pruned_int8_convrot.safetensors";
-const REF2VA_MODEL = "minimax_h3_ref2va_pruned_int8_convrot.safetensors";
+// T8 统一: fl2va_int8_convrot 非剪枝版 (34GB) 支持所有 task_type (t2va/i2va/fl2va/ref2va/hybrid)。
+// ref2va 不再需要单独权重 —— pruned ref2va int8 无法完整应用 Turbo LoRA (见 T8 插件 README),
+// 故 REF2VA_MODEL 保留为向后兼容别名, 指向同一 fl2va 文件。
+const FL2VA_MODEL = "minimax_h3_fl2va_int8_convrot.safetensors";
+const REF2VA_MODEL = FL2VA_MODEL;
 
 // ============================================================
 // H3_CONSTANTS —— 固化常量(官方源码 nodes_minimax_h3.py 硬编码)
@@ -67,14 +70,18 @@ export const H3_DEFAULTS = {
   videoVaeName: "minimax_h3_video_vae_fp16.safetensors",
   audioVaeName: "minimax_h3_audio_vae_fp32.safetensors",
 
-  // T2V/I2V 采样参数(官方 quality=lossless 推荐)
-  t2vSteps: 50,              // 官方 lossless 推荐 50 步
+  // T8 Dual-Clock 采样参数(MiniMaxH3DualClockSamplerT8 内置 Dual-Clock Euler,
+  // 修复原生 KSampler 低步数音频白噪声 bug;比原生更高效 —— 官方 50 步 T8 实测 15 步已清晰)
+  // 预览档: 15 步; 生产档: 50 步 (或 Turbo 4 步, 见 H3_TURBO)
+  t2vSteps: 15,              // T8 实测 15 步已足够 (旧原生 KSampler 需 50 步)
+  // sampler/scheduler 在 T8 下不再使用 (Dual-Clock 内置 flow sigma 网格,不接外部 scheduler);
+  // 保留常量仅为向后兼容别名, 实际不被工作流引用。
   t2vSamplerName: "euler",
   t2vScheduler: "simple",
 
-  // R2V 采样参数(官方模板验证)
-  r2vSteps: 20,              // 官方 R2V 模板用 20 步
-  r2vSamplerName: "res_multistep",  // ⚠️ R2V 官方用 res_multistep(非 euler)
+  // R2V: T8 统一为 15 步 (旧原生 res_multistep 需 20 步)
+  r2vSteps: 15,
+  r2vSamplerName: "res_multistep",  // T8 下不再使用, 保留向后兼容
   r2vScheduler: "simple",
 
   // shift(官方硬推荐,允许 API 覆盖但不建议变更)
@@ -98,7 +105,7 @@ export const H3_DEFAULTS = {
   // 旧代码直接读 H3_DEFAULTS.modelName / steps / samplerName / scheduler / cfg,
   // 在新结构(fl2vaModel / t2v* / r2v* / H3_CONSTANTS.CFG)被消费者全部接入前保留。
   modelName: FL2VA_MODEL,
-  steps: 50,
+  steps: 15,
   samplerName: "euler",
   scheduler: "simple",
   cfg: H3_CONSTANTS.CFG,
@@ -114,21 +121,26 @@ export function alignH3FrameCount(n: number): number {
 }
 
 // ============================================================
-// H3_TESPEED —— TESpeed 残差缓存加速配置
+// H3_TESPEED —— TESpeed 残差缓存加速配置 (全局 patch)
 // ============================================================
-// TESpeedMiniMaxH3 (ComfyUI-TE-Speed-MiniMaxH3-OSS) 在 SigmaShift 与 KSampler 之间
-// 注入 block-cache 加速：缓存尾部 75% transformer blocks 的残差，相邻步 sigma 差
-// 小时用缓存残差补偿，实测 50 步从 20m40s → 12m01s (-42%)。
+// TESpeedMiniMaxH3 (ComfyUI-TE-Speed-MiniMaxH3-OSS) 通过 patch_model.py 向 ComfyUI 的
+// MiniMax H3 model.py 注入 ("block_loop", 0) 钩子, 缓存尾部 75% transformer blocks 的
+// 残差 —— 这是全局 patch, 不需要在每个工作流里插入 TESpeed 节点。
+//
+// T8 工作流里 MiniMaxH3DualClockSamplerT8 调用的是同一底层 model, 故 TESpeed 钩子
+// 仍然生效 (实测 50 步从 20m40s → 12m01s, -42%)。
+// ⚠️ 因此 T8 工作流不再插入 TESpeed 节点 (旧原生链路在 SigmaShift(21)→KSampler(30) 间
+//    插 TESpeed(35); T8 无 SigmaShift/KSampler)。enabled=true 仅表示全局 patch 已就位。
 //
 // ⚠️ 前置条件（已在 comfyui-primary 容器完成）：
 //   1. custom_nodes/ComfyUI-TE-Speed-MiniMaxH3-OSS 已安装
 //   2. patch_model.py 已执行（model.py 注入 ("block_loop", 0) 钩子）
-//   未满足时节点静默返回未 patch 的 model（stock speed），不报错。
+//   未满足时 model 用 stock speed 运行, 不报错。
 export const H3_TESPEED = {
-  enabled: true,          // 总开关（false 时 workflow 不插入 TESpeed 节点）
+  enabled: true,          // 全局 patch 开关 (T8 工作流不再插入节点, 仅作就位标记)
   classType: "TESpeedMiniMaxH3",
-  nodeId: "35",           // 插入节点 ID（SigmaShift=21 → TESpeed=35 → KSampler=30）
-  // 参数（与基准测试一致，参考插件 README 默认值）
+  nodeId: "35",           // 历史: 旧原生链路插入节点 ID (T8 不再使用)
+  // 参数（与基准测试一致，参考插件 README 默认值；T8 下仅作记录）
   processingControlValue: 0.12,  // sigma 差阈值：低于此值允许缓存步
   processingPercent1: 0.1,       // 缓存窗口起点：前 10% 步始终完整计算
   processingPercent2: 0.9,       // 缓存窗口终点：后 10% 步始终完整计算
@@ -138,25 +150,92 @@ export const H3_TESPEED = {
 } as const;
 
 // ============================================================
-// H3_PROFILES —— 质量/速度 profile 预设 (KMC 搭配方案, 2026-08-06)
+// H3_T8 —— T8 插件 (comfyui-minimax-h3-audio-T8) 工作流常量
 // ============================================================
-// 配合 KMC 管线 P11 的两种生成档位:
-//   preview    —— 最快速但保证质量: 15 步 (基准已验证画质清晰) + TESpeed,
-//                  跳过 Foley 环境音替换 (H3 原生音频直出), ~6 min/条
-//   production —— 最高质量前提下尽量快: 官方 lossless 步数 (t2v=50 / r2v=20)
-//                  + TESpeed + 完整 Foley 管线 (LTX+BGM检测+TTS混音), ~20 min/条
-// 调用方通过 generate 的 `profile` 入参选择; 显式传 steps 时以 steps 为准。
+// T8 插件在 comfyui-primary 容器注册 14 个节点。核心三节点替代原生链路:
+//   MiniMaxH3AudioConditioningT8 —— 统一条件节点 (替代 ImageToVideo + ReferenceToVideo),
+//                                     一个节点覆盖 t2va/i2va/fl2va/l2va/ref2va/hybrid
+//   MiniMaxH3DualClockSamplerT8  —— Dual-Clock 采样器配置 (内置 12/3 shift + flow sigma 网格
+//                                     + 双时钟 Euler; 修复原生 KSampler 低步数音频白噪声 bug;
+//                                     代替 SigmaShift + KSamplerSelect + scheduler)
+//   MiniMaxH3AVDecodeT8          —— 联合 AV latent 解码 (输出 IMAGE + AUDIO, 一次解码)
+//
+// ⚠️ T8 采样链路 (经 ComfyUI /prompt 校验 + 插件 examples/dual_clock_4step_api.json 确认):
+//   DualClockSamplerT8 输出 (MODEL, SAMPLER, SIGMAS) 三元组, 不是 LATENT。
+//   需配 RandomNoise + BasicGuider + SamplerCustomAdvanced 才完成采样产出 LATENT:
+//     Conditioning[1]=LATENT ──┬─► DualClockSamplerT8.av_latent
+//                              └─► SamplerCustomAdvanced.latent_image
+//     DualClockSampler[0]=MODEL ─► BasicGuider.model
+//     Conditioning[0]=COND    ──► BasicGuider.conditioning
+//     RandomNoise[0]=NOISE    ─► SamplerCustomAdvanced.noise  (noise_seed 接 API seed)
+//     BasicGuider[0]=GUIDER   ─► SamplerCustomAdvanced.guider
+//     DualClock[1]=SAMPLER    ─► SamplerCustomAdvanced.sampler
+//     DualClock[2]=SIGMAS     ─► SamplerCustomAdvanced.sigmas
+//     SamplerCustomAdvanced[0]=LATENT ─► AVDecodeT8.av_latent
+//     AVDecodeT8[0]=IMAGE / [1]=AUDIO ─► CreateVideo → SaveVideo
+//
+// 这里的常量是已验证工作流的固定/默认输入值 (见 task gsd-task-h3-t8-integration)。
+export const H3_T8 = {
+  // ── MiniMaxH3AudioConditioningT8 默认输入 ──
+  taskType: "auto",                    // 自动判定 t2va/i2va/fl2va/ref2va/hybrid (按连接的可选输入)
+  audioMode: "native",                 // native=从零生成目标音频 (本管线不接 drive_audio)
+  audioDenoiseStrength: 0.35,          // 音频去噪强度 (native 模式下不生效, 保留兼容)
+  addSourceAsReference: false,         // 源音频是否同时作为参考 (无 drive_audio 故 false)
+  promptPrimaryAudioOrdinal: 0,        // 0=禁用 (无驱动音频源; 否则指定主音频序号 1-9)
+  strictPromptTags: true,              // 严格解析 prompt 多模态 <Picture N>/<Audio N> 标签
+  referenceVideoPolicy: "official_2_to_15s", // 参考视频时长策略
+} as const;
+
+// ============================================================
+// H3_TURBO —— T8 + Turbo LoRA 4 步加速配置
+// ============================================================
+// Turbo LoRA (ComfyUI 格式, 容器内 minimax_h3_turbo_4step_*_comfyui.safetensors) 已就位。
+// 在 UNETLoader(12) 与 DualClockSamplerT8(30) 之间插入 LoraLoaderBypassModelOnly,
+// steps 固定 4 步 (vs 标准 15 步 / 生产 50 步), 实测 ~3.1x 加速 (136s vs 420s)。
+//
+// ⚠️ INT8/量化模型必须用 LoraLoader*Bypass* 而非普通合并型 (T8 README: 不要假设等价)。
+// ⚠️ Turbo 需非剪枝 fl2va 模型 —— pruned 模型无法完整应用 Turbo LoRA。
+//
+// 默认关闭 —— API 参数 turbo=true 或 profile="turbo" 时启用。
+export const H3_TURBO = {
+  enabled: false,             // 默认关闭
+  loraName: "minimax_h3_turbo_4step_original_comfyui.safetensors",
+  loraNameEma: "minimax_h3_turbo_4step_ema_original_comfyui.safetensors",
+  useEma: true,               // EMA 版画质略好 (作者推荐)
+  strengthModel: 1.0,         // 必须 1.0
+  turboSteps: 4,              // Turbo 模式固定 4 步
+  nodeId: "14_lora",          // LoraLoaderBypassModelOnly 节点 ID
+  loaderClassType: "LoraLoaderBypassModelOnly", // INT8 模型用 bypass (非合并)
+} as const;
+
+// ============================================================
+// H3_PROFILES —— 质量/速度 profile 预设 (T8 + KMC 搭配方案, 2026-08-07)
+// ============================================================
+// 配合 KMC 管线的三种生成档位 (T8 Dual-Clock 采样器):
+//   preview    —— 最快速但保证质量: T8 15 步 + TESpeed 全局 patch, 跳过 Foley
+//                  (H3 原生音频直出), ~6 min/条
+//   turbo      —— 极速: T8 4 步 + Turbo LoRA (~3.1x 加速), 跳过 Foley, ~3 min/条
+//   production —— 最高质量: T8 50 步 lossless + 完整 Foley 管线 (LTX+BGM检测+TTS混音), ~20 min/条
+// 调用方通过 generate 的 `profile` 入参选择; 显式传 steps 时以 steps 为准 (但 turbo 仍由
+// profile.turbo / turbo 入参决定是否启用 LoRA)。
 export const H3_PROFILES = {
   preview: {
-    label: "Preview (15-step, skip Foley)",
-    // 预览档统一 15 步 (t2v/i2v/ref2v 均 15 —— ref2va 官方 20 步, 预览无需等)
-    steps: 15,
-    skipFoley: true, // 跳过 Step 2 Foley / Step 3 合并, 直出 H3 原生视频
+    label: "Preview (15-step T8 Dual-Clock, skip Foley)",
+    steps: 15,            // T8 实测 15 步已清晰 (旧原生 KSampler 需 50 步)
+    skipFoley: true,      // 跳过 Step 2 Foley / Step 3 合并, 直出 H3 原生视频
+    turbo: false,
+  },
+  turbo: {
+    label: "Turbo (4-step + Turbo LoRA, ~3x faster)",
+    steps: 4,             // H3_TURBO.turboSteps
+    skipFoley: true,      // 预览档同样跳过 Foley
+    turbo: true,          // 启用 Turbo LoRA (LoraLoaderBypassModelOnly)
   },
   production: {
-    label: "Production (lossless steps, full Foley)",
-    steps: null, // null = 按模式官方默认 (t2v=50 / r2v=20)
-    skipFoley: false, // 完整 Foley 环境音替换 + BGM 检测重试 + TTS 混音
+    label: "Production (50-step lossless T8, full Foley)",
+    steps: 50,            // lossless (T8 下 50 步)
+    skipFoley: false,     // 完整 Foley 环境音替换 + BGM 检测重试 + TTS 混音
+    turbo: false,
   },
 } as const;
 
@@ -222,9 +301,11 @@ export function adaptH3Canvas(width: number, height: number): { width: number; h
 // ============================================================
 //
 // H3 ref2va 多模态条件通过两条路径注入,二者独立:
-//   1. 结构化槽位 (ref_images.ref_image_N / ref_audios.ref_audio_N) — 必须连接,
-//      决定哪些参考图/音频参与条件(与 prompt 文本无关)。
+//   1. 参考媒体连接 (T8: ref_images / ref_audios / ref_videos / ref_video_audios 直接传
+//      [[nodeId,0],...] 数组到 MiniMaxH3AudioConditioningT8; 旧原生链路用 ref_image_N 槽位)
+//      — 决定哪些参考图/音频参与条件(与 prompt 文本无关)。
 //   2. 文本标签 — 在 prompt 中用占位符锚定参考的位置(可选增强,模型据此对齐多模态时序)。
+//      T8 的 strict_prompt_tags 会严格校验标签编号与连接的参考数量一致。
 //
 // 标签约定 (ref2va):
 //   - 参考图标签:<Picture 1>(源码 docstring 标准)或 <Image 1>(也能工作)
