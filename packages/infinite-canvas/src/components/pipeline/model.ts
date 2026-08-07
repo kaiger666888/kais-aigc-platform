@@ -576,7 +576,7 @@ export const DAG_NODES: readonly DagNodeDef[] = [
   // 条件帧生成（首/尾帧变体）：P11 video render 的多种条件输入之一。命名反映其本质——
   // 按条件（纯 prompt / 仅首帧 / 仅尾帧 / 首尾帧 / 多参考）生成帧，而非固定首尾帧产物。
   { id: 'iframe-generation', label: '条件帧生成', phaseCode: 'P11', phaseIndex: 11, group: 'post',
-    match: { phaseIndex: 11, idIncludes: 'first_last_frames' }, expectedCount: 'dynamic' },
+    match: { idPrefix: 'a-keyframe-' }, expectedCount: 'dynamic' },
   { id: 'video-clips', label: '视频片段', phaseCode: 'P11', phaseIndex: 11, group: 'post',
     match: { phaseIndex: 11, stage: 'video' }, expectedCount: 'dynamic' },
   // P11 唇形同步报告（KMC P11 OUTPUT_SLOTS 含 lip-sync-reports）：video render 后口型对齐校验产物
