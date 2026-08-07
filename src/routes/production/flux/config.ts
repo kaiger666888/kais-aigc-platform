@@ -50,6 +50,30 @@ export const FLUX_DEFAULTS = {
     defaultWidth: 1024,
     defaultHeight: 1024, // Kontext 更适合正方形
   },
+
+  // INT8 ConvRot 配置（对应 ComfyUI-INT8-Fast-Fork 的 INT8ModelAdapter 节点）
+  // 字段名与节点的 required INPUT_TYPES 一一对应（已通过容器内源码核验）
+  int8Config: {
+    // INT8 路径必须加载原生 bf16 模型（非 fp8）+ default dtype。
+    // 原因：若加载 fp8 模型，INT8 ConvRot 反量化 kernel 会以 fp8e4nv 为目标 dtype，
+    // 而 Ampere(RTX 3090) 不支持 fp8e4nv（Triton 仅支持 fp8e4b15/fp8e5），采样阶段报
+    // "type fp8e4nv not supported in this architecture"。
+    // bf16 源模型 → INT8 ConvRot（Ampere 原生 INT8 Tensor Core）才是正确链路。
+    unetName: "flux1-dev.safetensors",
+    unetWeightDtype: "default",
+    // ConvRot 量化模式：先做 Hadamard 旋转消除异常值再量化，质量最好。
+    // 等价于旧文档里的 outlierMethod:"convrot"；节点改用 quantization_mode 表达。
+    quantizationMode: "int8_convrot",
+    modelType: "auto", // 自动识别架构（flux 等），跳过不适配/质量敏感层
+    enableQuantization: "as_needed", // 转换 FP8/浮点输入（FLUX FP8 模型会被转换）
+    runtimeBackend: "torch_int_mm", // 非 ConvRot 层的后端；ConvRot 层固定走 fused runtime
+    bakeLoadedLoras: true, // 把 LoRA 在 float 空间合并后再量化（须在 INT8 之前加载 LoRA）
+    // 以下为 INT8ModelAdapter 的其余 required widget 输入（显式给出，避免依赖 ComfyUI 默认值）
+    int4MixedRatio: 0.0, // 仅 int4_mixed 生效，int8 模式下无影响
+    smallBatchFallback: "only_small_layers", // 小 batch 回退 fp16/bf16，限小层（默认）
+    prepackWeights: false, // 实验性权重预打包，仅 Triton 层受益
+    logProgress: true, // 控制台打印量化进度与层计数
+  },
 };
 
 /**
@@ -70,4 +94,19 @@ export enum ConsistencyMode {
 
   /** Flux Kontext Dev（参考图角色一致性，最佳效果） */
   KONTEXT = "kontext",
+}
+
+/**
+ * 量化模式
+ *
+ * RTX 3090 (Ampere) 无原生 FP8 Tensor Core，FP8 会 fallback 到 BF16 模拟；
+ * 而 INT8 ConvRot 走 Ampere 原生 INT8 Tensor Core，比 FP8 快约 1.5-1.7x。
+ * 转换通过 ComfyUI-INT8-Fast-Fork 的 INT8ModelAdapter 节点在内存中实时完成
+ * （同时保留原始 + INT8 两份，主机 128GB 内存充足；首次转换有数秒旋转开销）。
+ */
+export enum QuantizationMode {
+  /** FP8 E4M3（现有默认，Ampere 上会 fallback 到 BF16 模拟） */
+  FP8 = "fp8",
+  /** INT8 ConvRot（Ampere 原生 INT8 Tensor Core，比 FP8 快 1.5-1.7x） */
+  INT8 = "int8",
 }

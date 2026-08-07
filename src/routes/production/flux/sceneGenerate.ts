@@ -21,7 +21,7 @@ import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
-import { FLUX_CONFIG, FLUX_DEFAULTS, ConsistencyMode } from "./config";
+import { FLUX_CONFIG, FLUX_DEFAULTS, ConsistencyMode, QuantizationMode } from "./config";
 
 const router = express.Router();
 
@@ -53,6 +53,7 @@ interface SceneGenOptions {
   seed: number;
   steps: number;
   guidance: number;
+  quantization: QuantizationMode; // 量化模式: fp8（默认）| int8（ConvRot，Ampere 原生 INT8 加速）
   referenceImageName?: string; // IPAdapter 风格参考图（容器内文件名）
   filenamePrefix: string;
 }
@@ -188,18 +189,170 @@ function buildFluxPureWorkflow(opts: SceneGenOptions) {
   return wf;
 }
 
+/**
+ * FLUX INT8 ConvRot 场景一致性工作流（storyboard LoRA）
+ *
+ * 与 FP8 storyboard 的关键区别：在 LoraLoader 与 ModelSamplingFlux 之间插入
+ * INT8ModelAdapter（ComfyUI-INT8-Fast-Fork），把模型实时转成 INT8 ConvRot。
+ *
+ * 节点契约（容器源码核验）：INT8ModelAdapter 的 required 输入为
+ *   model / enable_quantization / model_type / quantization_mode /
+ *   runtime_backend / bake_loaded_loras (+ int4_mixed_ratio /
+ *   small_batch_fallback / prepack_weights / log_progress，此处用节点默认值)
+ * 模型流: UNETLoader(12) → LoraLoader(38) → INT8ModelAdapter(39) →
+ *         ModelSamplingFlux(40) → [BasicScheduler(17), BasicGuider(22)]
+ * LoRA 必须在 INT8 之前加载，配合 bake_loaded_loras:true 把 LoRA 烘焙进 INT8。
+ */
+function buildFluxINT8StoryboardWorkflow(opts: SceneGenOptions) {
+  const {
+    prompt, negativePrompt, width, height, batchSize,
+    seed, steps, guidance, filenamePrefix,
+  } = opts;
+
+  return {
+    "3": {
+      class_type: "KSamplerSelect",
+      inputs: { sampler_name: FLUX_DEFAULTS.samplerName },
+    },
+    "4": {
+      class_type: "CLIPTextEncode",
+      inputs: { text: negativePrompt, clip: ["11", 1] },
+    },
+    "5": {
+      class_type: "EmptySD3LatentImage",
+      inputs: { width, height, batch_size: batchSize },
+    },
+    "6": {
+      class_type: "CLIPTextEncode",
+      inputs: { text: prompt, clip: ["11", 0] },
+    },
+    "8": {
+      class_type: "VAEDecode",
+      inputs: { samples: ["13", 0], vae: ["10", 0] },
+    },
+    "9": {
+      class_type: "SaveImage",
+      inputs: { filename_prefix: filenamePrefix, images: ["8", 0] },
+    },
+    "10": {
+      class_type: "VAELoader",
+      inputs: { vae_name: FLUX_DEFAULTS.vaeName },
+    },
+    "11": {
+      class_type: "DualCLIPLoader",
+      inputs: {
+        clip_name1: FLUX_DEFAULTS.clipName1,
+        clip_name2: FLUX_DEFAULTS.clipName2,
+        type: FLUX_DEFAULTS.clipType,
+      },
+    },
+    // 加载原生 bf16 模型（INT8 路径不能用 fp8 源模型，否则反量化 kernel 以
+    // fp8e4nv 为目标 dtype，Ampere 不支持）。INT8 转换由下游 INT8ModelAdapter 完成。
+    "12": {
+      class_type: "UNETLoader",
+      inputs: {
+        unet_name: FLUX_DEFAULTS.int8Config.unetName,
+        weight_dtype: FLUX_DEFAULTS.int8Config.unetWeightDtype,
+      },
+    },
+    "13": {
+      class_type: "SamplerCustomAdvanced",
+      inputs: {
+        noise: ["25", 0],
+        guider: ["22", 0],
+        sampler: ["3", 0],
+        sigmas: ["17", 0],
+        latent_image: ["5", 0],
+      },
+    },
+    "17": {
+      class_type: "BasicScheduler",
+      inputs: {
+        scheduler: FLUX_DEFAULTS.scheduler,
+        steps,
+        denoise: FLUX_DEFAULTS.denoise,
+        model: ["40", 0], // 连到 INT8 后的 ModelSamplingFlux
+      },
+    },
+    "22": {
+      class_type: "BasicGuider",
+      inputs: { model: ["40", 0], conditioning: ["26", 0] },
+    },
+    "25": {
+      class_type: "RandomNoise",
+      inputs: { noise_seed: seed },
+    },
+    "26": {
+      class_type: "FluxGuidance",
+      inputs: { guidance, conditioning: ["6", 0] },
+    },
+    // LoRA 必须在 INT8 之前（bake_loaded_loras 会把它烘焙进 INT8）
+    "38": {
+      class_type: "LoraLoader",
+      inputs: {
+        lora_name: FLUX_DEFAULTS.storyboardLoraName,
+        strength_model: FLUX_DEFAULTS.storyboardLoraStrength,
+        strength_clip: 1,
+        model: ["12", 0],
+        clip: ["11", 0],
+      },
+    },
+    // Enable INT8 (INT8ModelAdapter) — ConvRot 量化
+    "39": {
+      class_type: "INT8ModelAdapter",
+      inputs: {
+        model: ["38", 0],
+        enable_quantization: FLUX_DEFAULTS.int8Config.enableQuantization,
+        model_type: FLUX_DEFAULTS.int8Config.modelType,
+        quantization_mode: FLUX_DEFAULTS.int8Config.quantizationMode,
+        int4_mixed_ratio: FLUX_DEFAULTS.int8Config.int4MixedRatio,
+        small_batch_fallback: FLUX_DEFAULTS.int8Config.smallBatchFallback,
+        runtime_backend: FLUX_DEFAULTS.int8Config.runtimeBackend,
+        prepack_weights: FLUX_DEFAULTS.int8Config.prepackWeights,
+        bake_loaded_loras: FLUX_DEFAULTS.int8Config.bakeLoadedLoras,
+        log_progress: FLUX_DEFAULTS.int8Config.logProgress,
+      },
+    },
+    "40": {
+      class_type: "ModelSamplingFlux",
+      inputs: {
+        shift: FLUX_DEFAULTS.shift,
+        max_shift: FLUX_DEFAULTS.maxShift,
+        base_shift: FLUX_DEFAULTS.baseShift,
+        width,
+        height,
+        model: ["39", 0], // INT8 model → ModelSamplingFlux
+      },
+    },
+  };
+}
+
+/**
+ * 纯 INT8 文生图（无 LoRA）：与 INT8 storyboard 相同，但 UNETLoader 直连
+ * INT8ModelAdapter，跳过 LoraLoader。
+ */
+function buildFluxINT8PureWorkflow(opts: SceneGenOptions) {
+  const wf = buildFluxINT8StoryboardWorkflow(opts);
+  // 跳过 LoRA：UNET 直连 INT8ModelAdapter
+  (wf as any)["39"].inputs.model = ["12", 0];
+  delete (wf as any)["38"];
+  return wf;
+}
+
 export function buildWorkflow(opts: SceneGenOptions): Record<string, any> {
+  const useINT8 = opts.quantization === QuantizationMode.INT8;
+
   switch (opts.mode) {
     case ConsistencyMode.STORYBOARD_LORA:
-      return buildFluxStoryboardWorkflow(opts);
+      return useINT8 ? buildFluxINT8StoryboardWorkflow(opts) : buildFluxStoryboardWorkflow(opts);
     case ConsistencyMode.IPADAPTER_STYLE:
-      return buildFluxIPAdapterWorkflow(opts);
+      return buildFluxIPAdapterWorkflow(opts); // INT8 不适配（未实现，保持抛错）
     case ConsistencyMode.COMBINED:
-      return buildFluxCombinedWorkflow(opts);
+      return buildFluxCombinedWorkflow(opts); // INT8 不适配（未实现，保持抛错）
     case ConsistencyMode.NONE:
-      return buildFluxPureWorkflow(opts);
+      return useINT8 ? buildFluxINT8PureWorkflow(opts) : buildFluxPureWorkflow(opts);
     default:
-      return buildFluxStoryboardWorkflow(opts);
+      return useINT8 ? buildFluxINT8StoryboardWorkflow(opts) : buildFluxStoryboardWorkflow(opts);
   }
 }
 
@@ -248,6 +401,7 @@ const sceneGenSchema = z.object({
   seed: z.number().int().default(() => Math.floor(Math.random() * 1e15)),
   steps: z.number().int().min(1).max(100).default(FLUX_DEFAULTS.steps),
   guidance: z.number().min(0).max(20).default(FLUX_DEFAULTS.guidance),
+  quantization: z.enum(["fp8", "int8"]).default("fp8"),
 });
 
 router.post("/scene-generate", upload.single("reference_image"), async (req: any, res: any) => {
@@ -275,6 +429,7 @@ router.post("/scene-generate", upload.single("reference_image"), async (req: any
       seed: params.seed,
       steps: params.steps,
       guidance: params.guidance,
+      quantization: params.quantization as QuantizationMode,
       referenceImageName,
       filenamePrefix,
     });
@@ -298,6 +453,7 @@ router.post("/scene-generate", upload.single("reference_image"), async (req: any
       jobId,
       promptId,
       mode,
+      quantization: params.quantization,
       seed: params.seed,
       imageCount: images.length,
       images,
@@ -332,6 +488,7 @@ const storyboardSchema = z.object({
   seed: z.number().int().default(() => Math.floor(Math.random() * 1e15)),
   steps: z.number().int().min(1).max(100).default(FLUX_DEFAULTS.steps),
   guidance: z.number().min(0).max(20).default(FLUX_DEFAULTS.guidance),
+  quantization: z.enum(["fp8", "int8"]).default("fp8"),
 });
 
 router.post("/storyboard", async (req: any, res: any) => {
@@ -360,6 +517,7 @@ router.post("/storyboard", async (req: any, res: any) => {
       seed: params.seed,
       steps: params.steps,
       guidance: params.guidance,
+      quantization: params.quantization as QuantizationMode,
       filenamePrefix,
     });
 
@@ -388,6 +546,7 @@ router.post("/storyboard", async (req: any, res: any) => {
       jobId,
       promptId,
       fullPrompt,
+      quantization: params.quantization,
       seed: params.seed,
       sceneCount: params.scenes.length,
       imageCount: images.length,
