@@ -462,8 +462,8 @@ export type DagNodeState = 'completed' | 'running' | 'failed' | 'has-candidates'
 
 /** 单个 DAG 节点的数据匹配规则：从画布 RF 节点派生该步骤的状态/计数。 */
 export interface DagNodeMatch {
-  /** 必填：图节点 phaseIndex（v3.phaseIndex 优先）。 */
-  phaseIndex: number
+  /** 图节点 phaseIndex（v3.phaseIndex 优先）。可选——Notion 导入等节点无 phaseIndex 时省略。 */
+  phaseIndex?: number
   /** v3.stage / RF node.type（如 'global'/'script'/'video'/'voice'）。 */
   stage?: string
   /** v3.modality（'text'/'image'/'audio'/'video'）。 */
@@ -527,14 +527,14 @@ export const DAG_NODES: readonly DagNodeDef[] = [
     match: { phaseIndex: 3, idIncludes: 'audit' }, expectedCount: 'dynamic' },
   // ── P04 角色设计（story） ──
   { id: 'character-bible', label: '角色设定', phaseCode: 'P04', phaseIndex: 4, group: 'story',
-    match: { phaseIndex: 4, stage: 'global', assetType: 'character', turnaroundAbsent: true },
+    match: { idPrefix: 'notion-character_bible', assetType: 'character', turnaroundAbsent: true, artifactsOnly: false },
     expectedCount: 'dynamic' },
   { id: 'turnaround-sheets', label: '灰底Turnaround', phaseCode: 'P04', phaseIndex: 4, group: 'story',
     match: { phaseIndex: 4, idPrefix: 'a-turnaround-', turnaroundType: 'gray_base' }, expectedCount: 'dynamic' },
   { id: 'costume-turnarounds', label: '换装Turnaround', phaseCode: 'P04', phaseIndex: 4, group: 'story',
     match: { phaseIndex: 4, idPrefix: 'a-turnaround-', turnaroundType: 'costume' }, expectedCount: 'dynamic' },
   { id: 'voice-design', label: '声纹设计', phaseCode: 'P04', phaseIndex: 4, group: 'story',
-    match: { phaseIndex: 4, modality: 'audio' }, expectedCount: 'dynamic' },
+    match: { phaseIndex: 4, idPrefix: 'a-voice_design-', artifactsOnly: true }, expectedCount: 'dynamic' },
   // ── P06 时空剧本（production） ──
   { id: 'spatio-temporal-script', label: '时空剧本', phaseCode: 'P06', phaseIndex: 6, group: 'production',
     match: { phaseIndex: 6 }, expectedCount: 1 },
@@ -751,7 +751,7 @@ function nodeMatchesDag(
   m: DagNodeMatch,
 ): boolean {
   const pi = phaseIndexOf(node)
-  if (pi !== m.phaseIndex) return false
+  if (m.phaseIndex != null && pi !== m.phaseIndex) return false
   if ((m.artifactsOnly ?? true) && !node.id.startsWith('a-')) return false
   if (m.stage != null && stageOf(node) !== m.stage) return false
   if (m.modality != null) {
