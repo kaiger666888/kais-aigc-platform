@@ -444,10 +444,10 @@ export const KMC_SLOT_REGISTRY: readonly KmcSlotEntry[] = [
   { phaseCode: 'P04',  inputs: ['script-draft'],                         outputs: ['character-bible', 'character-assets'] },
   { phaseCode: 'P06',  inputs: ['script-draft', 'character-bible'],      outputs: ['spatio-temporal-script', 'final-audit', 'visual-direction', 'production-design', 'physics-precheck-report'] },
   { phaseCode: 'P07',  inputs: ['spatio-temporal-script', 'character-assets'], outputs: ['scene-images', 'style-vector', 'color-intent', 'scene-blueprint', 'scene-temporal-variants'] },
-  { phaseCode: 'P08',  inputs: ['scene-images', 'spatio-temporal-script'],     outputs: ['scene-selection', 'geometry-bed'] },
-  { phaseCode: 'P09',  inputs: ['scene-selection', 'spatio-temporal-script', 'character-bible', 'character-assets', 'style-vector', 'color-intent', 'scene-images', 'geometry-bed'], outputs: ['shot-list', 'e-konte-sheets'] },
+  { phaseCode: 'P08',  inputs: ['scene-images', 'spatio-temporal-script'],     outputs: ['scene-selection'] },
+  { phaseCode: 'P09',  inputs: ['scene-selection', 'spatio-temporal-script', 'character-bible', 'character-assets', 'style-vector', 'color-intent', 'scene-images'], outputs: ['shot-list', 'e-konte-sheets', 'transition-design'] },
   { phaseCode: 'P09b', inputs: ['shot-list', 'hook-design', 'requirement'],    outputs: ['shot-audit'] },
-  { phaseCode: 'P10',  inputs: ['shot-list', 'script-draft'],                  outputs: ['voice-clips', 'voice-timeline'] },
+  { phaseCode: 'P10',  inputs: ['shot-list', 'script-draft', 'voice-design'],           outputs: ['voice-clips', 'voice-timeline'] },
   { phaseCode: 'P10c', inputs: ['voice-clips', 'voice-timeline', 'shot-list'], outputs: ['voice-audit'] },
   { phaseCode: 'P10b', inputs: ['voice-clips', 'voice-timeline', 'e-konte-sheets'], outputs: ['rapid-preview-clips', 'episode-meta'] },
   { phaseCode: 'P11',  inputs: ['shot-list', 'scene-images', 'character-assets', 'voice-timeline', 'voice-clips'], outputs: ['video-clips', 'lip-sync-reports', 'take-log'] },
@@ -496,6 +496,8 @@ export interface DagNodeDef {
   match: DagNodeMatch
   /** 预期计数（数字 = 固定预期；'dynamic' = 按实际匹配数显示）。 */
   expectedCount?: number | 'dynamic'
+  /** 审计/Gate 弱节点：渲染时缩小 + 降低不透明度 */
+  dim?: boolean
 }
 
 export interface DagEdgeDef {
@@ -521,7 +523,7 @@ export const DAG_NODES: readonly DagNodeDef[] = [
   // ── P03 剧本审计（story） ──
   { id: 'script-draft', label: '剧本初稿', phaseCode: 'P03', phaseIndex: 3, group: 'story',
     match: { phaseIndex: 3 }, expectedCount: 1 },
-  { id: 'audit-report', label: '审计报告', phaseCode: 'P03', phaseIndex: 3, group: 'story',
+  { id: 'audit-report', label: '审计报告', phaseCode: 'P03', phaseIndex: 3, group: 'story', dim: true,
     match: { phaseIndex: 3, idIncludes: 'audit' }, expectedCount: 'dynamic' },
   // ── P04 角色设计（story） ──
   { id: 'character-bible', label: '角色设定', phaseCode: 'P04', phaseIndex: 4, group: 'story',
@@ -549,8 +551,6 @@ export const DAG_NODES: readonly DagNodeDef[] = [
   // ── P08 场景选择（production） ──
   { id: 'scene-selection', label: '场景选择', phaseCode: 'P08', phaseIndex: 8, group: 'production',
     match: { phaseIndex: 8, idIncludes: 'scene_selection' }, expectedCount: 'dynamic' },
-  { id: 'geometry-bed', label: '几何布局', phaseCode: 'P08', phaseIndex: 8, group: 'production',
-    match: { phaseIndex: 8, idIncludes: 'geometry_bed' }, expectedCount: 1 },
   // ── P09 分镜拆解（production） ──
   { id: 'shot-list', label: '分镜表', phaseCode: 'P09', phaseIndex: 9, group: 'production',
     match: { phaseIndex: 9, idIncludes: 'shot_list' }, expectedCount: 'dynamic' },
@@ -559,7 +559,7 @@ export const DAG_NODES: readonly DagNodeDef[] = [
   { id: 'transition-design', label: '转场设计', phaseCode: 'P09', phaseIndex: 9, group: 'production',
     match: { phaseIndex: 9, idIncludes: 'transition_design' }, expectedCount: 'dynamic' },
   // ── P09b 镜头审计（production gate） ──
-  { id: 'shot-audit', label: '镜头审计', phaseCode: 'P09b', phaseIndex: 9, group: 'production',
+  { id: 'shot-audit', label: '镜头审计', phaseCode: 'P09b', phaseIndex: 9, group: 'production', dim: true,
     match: { phaseIndex: 9, idIncludes: 'shot-audit' }, expectedCount: 'dynamic' },
   // ── P10 语音合成（post） ──
   { id: 'voice-clips', label: '语音片段', phaseCode: 'P10', phaseIndex: 10, group: 'post',
@@ -567,10 +567,10 @@ export const DAG_NODES: readonly DagNodeDef[] = [
   { id: 'voice-timeline', label: '语音时间线', phaseCode: 'P10', phaseIndex: 10, group: 'post',
     match: { phaseIndex: 10, idIncludes: 'voice_timeline' }, expectedCount: 1 },
   // ── P10c 语音审计（post gate） ──
-  { id: 'voice-audit', label: '语音审计', phaseCode: 'P10c', phaseIndex: 10, group: 'post',
+  { id: 'voice-audit', label: '语音审计', phaseCode: 'P10c', phaseIndex: 10, group: 'post', dim: true,
     match: { phaseIndex: 10, idIncludes: 'voice-audit' }, expectedCount: 'dynamic' },
   // ── P10b 快速预览（post gate） ──
-  { id: 'rapid-preview-clips', label: '快速预览', phaseCode: 'P10b', phaseIndex: 10, group: 'post',
+  { id: 'rapid-preview-clips', label: '快速预览', phaseCode: 'P10b', phaseIndex: 10, group: 'post', dim: true,
     match: { phaseIndex: 10, idIncludes: 'rapid' }, expectedCount: 'dynamic' },
   // ── P11 视频渲染（post） ──
   // 条件帧生成（首/尾帧变体）：P11 video render 的多种条件输入之一。命名反映其本质——
@@ -580,7 +580,7 @@ export const DAG_NODES: readonly DagNodeDef[] = [
   { id: 'video-clips', label: '视频片段', phaseCode: 'P11', phaseIndex: 11, group: 'post',
     match: { phaseIndex: 11, stage: 'video' }, expectedCount: 'dynamic' },
   // P11 唇形同步报告（KMC P11 OUTPUT_SLOTS 含 lip-sync-reports）：video render 后口型对齐校验产物
-  { id: 'lip-sync-reports', label: '唇形同步', phaseCode: 'P11', phaseIndex: 11, group: 'post',
+  { id: 'lip-sync-reports', label: '唇形同步', phaseCode: 'P11', phaseIndex: 11, group: 'post', dim: true,
     match: { phaseIndex: 11, idIncludes: 'lip_sync' }, expectedCount: 'dynamic' },
   // ── P12 合成（post） ──
   { id: 'master-timeline', label: '主时间轴', phaseCode: 'P12', phaseIndex: 12, group: 'post',
@@ -592,10 +592,10 @@ export const DAG_NODES: readonly DagNodeDef[] = [
   { id: 'master-mp4', label: '成片', phaseCode: 'P13', phaseIndex: 13, group: 'post',
     match: { phaseIndex: 13 }, expectedCount: 1 },
   // ── P14 质量审计（post） ──
-  { id: 'quality-audit', label: '质量审计', phaseCode: 'P14', phaseIndex: 14, group: 'post',
+  { id: 'quality-audit', label: '质量审计', phaseCode: 'P14', phaseIndex: 14, group: 'post', dim: true,
     match: { phaseIndex: 14 }, expectedCount: 'dynamic' },
   // ── P15 反馈（post） ──
-  { id: 'feedback-loop', label: '反馈闭环', phaseCode: 'P15', phaseIndex: 15, group: 'post',
+  { id: 'feedback-loop', label: '反馈闭环', phaseCode: 'P15', phaseIndex: 15, group: 'post', dim: true,
     match: { phaseIndex: 15 }, expectedCount: 'dynamic' },
 ]
 
@@ -626,6 +626,8 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   { from: 'character-bible', to: 'turnaround-sheets' },
   { from: 'turnaround-sheets', to: 'costume-turnarounds' },
   { from: 'character-bible', to: 'voice-design' },
+  // P04 声纹设计 → P10 语音片段：TTS 两阶段工作流（先 VoiceDesign 生成声纹，再 VoiceClone 批量克隆对白）
+  { from: 'voice-design', to: 'voice-clips' },
   // P04 → P06：角色设定 → 时空剧本
   { from: 'character-bible', to: 'spatio-temporal-script' },
   // P06 → P07：时空剧本 → 场景图 / 风格向量 / 色彩意图；风格向量 → 场景图
@@ -633,9 +635,8 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   { from: 'spatio-temporal-script', to: 'style-vector' },
   { from: 'spatio-temporal-script', to: 'color-intent' },
   { from: 'style-vector', to: 'scene-images' },
-  // P07 → P08：场景图 → 场景选择 → 几何布局
+  // P07 → P08：场景图 → 场景选择
   { from: 'scene-images', to: 'scene-selection' },
-  { from: 'scene-selection', to: 'geometry-bed' },
   // P06 → P09：时空剧本 → 分镜表；分镜表 → E-Konte / 转场设计 / 镜头审计
   { from: 'spatio-temporal-script', to: 'shot-list' },
   { from: 'shot-list', to: 'e-konte-sheets' },
@@ -915,7 +916,9 @@ function deriveImplicitCompletion(
     case 'character-bible':
       return (modelMap.get('turnaround-sheets')?.completed ?? 0) > 0
     case 'voice-design':
-      return (modelMap.get('voice-clips')?.completed ?? 0) > 0
+      // 声纹设计有独立的画布节点（canvas_sync P04 voice_design 映射），
+      // 不再需要从 voice-clips 反推完成状态。
+      return false
     default:
       return false
   }
