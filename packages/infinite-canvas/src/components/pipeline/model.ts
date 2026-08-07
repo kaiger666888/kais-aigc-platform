@@ -441,7 +441,7 @@ export const KMC_SLOT_REGISTRY: readonly KmcSlotEntry[] = [
   { phaseCode: 'P01',  inputs: ['requirement'],                          outputs: ['topic-kernel', 'hook-design'] },
   { phaseCode: 'P02',  inputs: ['topic-kernel'],                         outputs: ['story-framework'] },
   { phaseCode: 'P03',  inputs: ['story-framework'],                      outputs: ['script-draft', 'audit-report'] },
-  { phaseCode: 'P04',  inputs: ['script-draft'],                         outputs: ['character-bible', 'character-assets'] },
+  { phaseCode: 'P04',  inputs: ['script-draft'],                         outputs: ['character-bible', 'character-design-images', 'character-assets'] },
   { phaseCode: 'P06',  inputs: ['script-draft', 'character-bible'],      outputs: ['spatio-temporal-script', 'final-audit', 'visual-direction', 'production-design', 'physics-precheck-report'] },
   { phaseCode: 'P07',  inputs: ['spatio-temporal-script', 'character-assets'], outputs: ['scene-images', 'style-vector', 'color-intent', 'scene-blueprint', 'scene-temporal-variants'] },
   { phaseCode: 'P08',  inputs: ['scene-images', 'spatio-temporal-script'],     outputs: ['scene-selection'] },
@@ -529,6 +529,9 @@ export const DAG_NODES: readonly DagNodeDef[] = [
   { id: 'character-bible', label: '角色设定', phaseCode: 'P04', phaseIndex: 4, group: 'story',
     match: { idPrefix: 'notion-character_bible', assetType: 'character', turnaroundAbsent: true, artifactsOnly: false },
     expectedCount: 'dynamic' },
+  // 角色设定图（概念设计图 v1/v2/v3）：o_assets type=character / 无 workflow_phase，灰底 turnaround 的参考图
+  { id: 'character-design-images', label: '角色设定图', phaseCode: 'P04', phaseIndex: 4, group: 'story',
+    match: { idPrefix: 'a-character_design-' }, expectedCount: 'dynamic' },
   { id: 'turnaround-sheets', label: '灰底Turnaround', phaseCode: 'P04', phaseIndex: 4, group: 'story',
     match: { phaseIndex: 4, idPrefix: 'a-turnaround-', turnaroundType: 'gray_base' }, expectedCount: 'dynamic' },
   { id: 'costume-turnarounds', label: '换装Turnaround', phaseCode: 'P04', phaseIndex: 4, group: 'story',
@@ -622,8 +625,9 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   { from: 'script-draft', to: 'audit-report' },
   // P03 → P04：剧本初稿 → 角色设定
   { from: 'script-draft', to: 'character-bible' },
-  // P04 内部链：角色设定 → 灰底Turnaround → 换装Turnaround；角色设定 → 声纹设计
-  { from: 'character-bible', to: 'turnaround-sheets' },
+  // P04 内部链：角色设定(文字) → 角色设定图(概念参考) → 灰底Turnaround → 换装Turnaround；角色设定 → 声纹设计
+  { from: 'character-bible', to: 'character-design-images' },
+  { from: 'character-design-images', to: 'turnaround-sheets' },
   { from: 'turnaround-sheets', to: 'costume-turnarounds' },
   { from: 'character-bible', to: 'voice-design' },
   // P04 声纹设计 → P10 语音片段：TTS 两阶段工作流（先 VoiceDesign 生成声纹，再 VoiceClone 批量克隆对白）
