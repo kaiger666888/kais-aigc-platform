@@ -328,7 +328,7 @@ export function realTags(items: AssetItem[]): string[] {
 // ─── 层级推断（纯前端，不改后端） ─────────────────────────
 
 /** 资产层级 */
-export type AssetLevel = 'show' | 'scene' | 'shot'
+export type AssetLevel = 'show' | 'scene' | 'shot' | 'pipeline'
 
 /**
  * 资产子类型（从现有数据推断）—— 对应 Kai 管线链条的各阶段产物。
@@ -359,6 +359,17 @@ export type AssetSubtype =
   | 'foley_stem'               // Foley 独立音轨 —— Notion §5c
   | 'bgm_track'                // BGM 音轨 —— Notion §5d
   | 'voice_print'              // 声纹（角色声纹参考，type='voice'）
+  // ── 管线产出（P06 时空剧本及后续阶段） ──
+  | 'spatio_temporal_script'  // P06 时空剧本（逐镜头导演意图表）
+  | 'shot_list'               // P09 分镜列表（技术分镜参数）
+  | 'e_konte'                 // P09 E-Konte（分镜表）
+  | 'voice_clips'             // P10 语音片段（TTS 对白音频）
+  | 'rapid_preview'           // P10b 快速预览（粗剪视频）
+  | 'video_clips'             // P11 视频片段（单镜渲染视频）
+  | 'master_timeline'         // P12 合成母版（音视频合成）
+  | 'audio_stems'             // P12 音频混音轨
+  | 'master_mp4'              // P13 交付成品
+  | 'delivery_package'        // P13 交付包
   | 'unknown'
 
 // ─── 扩展视角矩阵（Notion 场景视角 §1.2c） ──────────────────
@@ -415,6 +426,11 @@ export function inferLevel(d: AssetDetail): AssetLevel {
   if (sub === 'midframe' || sub === 'costume_temporal_variant') return 'shot'
   if (sub === 'foley_stem' || sub === 'bgm_track') return 'scene' // 音轨按场景级归类
   if (d.type === 'audio') return 'scene'
+  // ── 管线产出层级（P06+ 的文本/视频/音频产物）──
+  if (d.type === 'script_phase' || d.type === 'outline' || d.type === 'topic' ||
+      d.type === 'video' || d.type === 'clip' || d.type === 'delivery') {
+    return 'pipeline'
+  }
   return 'show'  // character 默认全剧级
 }
 
@@ -505,6 +521,34 @@ export function inferSubtype(d: AssetDetail): AssetSubtype {
     }
     // ③ 场景设定图（场景级，如「宴会厅 v1」）
     return 'scene_base'
+  }
+  // ── 管线产出子类型推断（P06+）──
+  if (d.type === 'script_phase' || d.type === 'outline' || d.type === 'topic') {
+    // P06 时空剧本：name/describe/tags 含 spatio/temporal/时空
+    const nm = (d.name || '').toLowerCase()
+    const tags = (d.tags || '').toLowerCase()
+    if (nm.includes('spatio') || nm.includes('时空') || tags.includes('spatio-temporal')) return 'spatio_temporal_script'
+    return 'unknown'
+  }
+  if (d.type === 'storyboard') {
+    const nm = (d.name || '').toLowerCase()
+    if (nm.includes('e-konte') || nm.includes('ekonte') || nm.includes('econte')) return 'e_konte'
+    return 'shot_list'
+  }
+  if (d.type === 'video') {
+    return 'video_clips'
+  }
+  if (d.type === 'clip') {
+    const nm = (d.name || '').toLowerCase()
+    const tags = (d.tags || '').toLowerCase()
+    if (nm.includes('master') || tags.includes('master') || nm.includes('合成') || tags.includes('composition')) return 'master_timeline'
+    if (nm.includes('preview') || tags.includes('preview') || nm.includes('预览')) return 'rapid_preview'
+    return 'video_clips'
+  }
+  if (d.type === 'delivery') {
+    const nm = (d.name || '').toLowerCase()
+    if (nm.includes('package') || nm.includes('包')) return 'delivery_package'
+    return 'master_mp4'
   }
   return 'unknown'
 }
@@ -909,11 +953,40 @@ export function inferSceneId(d: AssetDetail): string | null {
   return null
 }
 
-/** 从 AssetDetail 提取 shotId */
+/** 从 AssetDetail 提取 shotId（shot 前缀，如 "S01"）。
+ *  截断到 S 编号，用于 shot 级筛选与分组的粗粒度匹配。
+ *  需要保留 beat 级（S01_B01）时请用 inferFullShotId。 */
 export function inferShotId(d: AssetDetail): string | null {
   if (d.type !== 'keyframe') return null
   const m = (d.name || '').match(/^(S\d+)/i)
   return m ? m[1] : null
+}
+
+/** 从 AssetDetail 提取完整 shotId（含 beat 后缀，如 "S01_B01"）。
+ *  name 形如 "S01_B01_first_v1" → "S01_B01"；"S01_first_v1" → "S01"。
+ *  无 beat 后缀时与 inferShotId 一致，仅返回 S 前缀。 */
+export function inferFullShotId(d: AssetDetail): string | null {
+  if (d.type !== 'keyframe') return null
+  const m = (d.name || '').match(/^(S\d+(?:_B\d+)?)/i)
+  return m ? m[1] : null
+}
+
+/** shotId/shotLabel 是否为 beat 级（含 _B 后缀，如 "S01_B01"）。 */
+export function isBeatShotId(id: string): boolean {
+  return /_B\d+$/i.test(id)
+}
+
+/** 从 shotId（可能含 beat）提取 shot 级前缀（如 "S01_B01" → "S01"、"S01" → "S01"）。
+ *  用于把 beat 归入所属 shot 分组。 */
+export function shotPrefix(id: string): string {
+  const i = id.toUpperCase().indexOf('_B')
+  return i > 0 ? id.slice(0, i) : id
+}
+
+/** beat 级展示短标签："S01_B01" → "B01"；非 beat 原样返回。 */
+export function beatShortLabel(id: string): string {
+  const m = id.match(/_B(\d+)$/i)
+  return m ? `B${m[1]}` : id
 }
 
 // ─── 生成链路推断（纯前端，不改后端） ─────────────────────
@@ -1209,6 +1282,33 @@ function inferSubtypeFromItem(a: AssetItem): AssetSubtype {
     ) return 'scene_angle_shot'
     return 'scene_base'
   }
+  // ── 管线产出子类型推断（P06+）—— 与 inferSubtype(AssetDetail) 保持等价
+  if (t === 'script_phase' || t === 'outline' || t === 'topic') {
+    const nm = (a.name || '').toLowerCase()
+    const tags = (a.tags ?? []).join(',').toLowerCase()
+    if (nm.includes('spatio') || nm.includes('时空') || tags.includes('spatio-temporal')) return 'spatio_temporal_script'
+    return 'unknown'
+  }
+  if (t === 'storyboard') {
+    const nm = (a.name || '').toLowerCase()
+    if (nm.includes('e-konte') || nm.includes('ekonte') || nm.includes('econte')) return 'e_konte'
+    return 'shot_list'
+  }
+  if (t === 'video') {
+    return 'video_clips'
+  }
+  if (t === 'clip') {
+    const nm = (a.name || '').toLowerCase()
+    const tags = (a.tags ?? []).join(',').toLowerCase()
+    if (nm.includes('master') || tags.includes('master') || nm.includes('合成') || tags.includes('composition')) return 'master_timeline'
+    if (nm.includes('preview') || tags.includes('preview') || nm.includes('预览')) return 'rapid_preview'
+    return 'video_clips'
+  }
+  if (t === 'delivery') {
+    const nm = (a.name || '').toLowerCase()
+    if (nm.includes('package') || nm.includes('包')) return 'delivery_package'
+    return 'master_mp4'
+  }
   return 'unknown'
 }
 
@@ -1237,6 +1337,17 @@ export const SUBTYPE_LABEL: Record<AssetSubtype, string> = {
   foley_stem: 'Foley音轨',
   bgm_track: 'BGM音轨',
   voice_print: '声纹',
+  // ── 管线产出（P06+）──
+  spatio_temporal_script: '时空剧本',
+  shot_list: '分镜参数表',
+  e_konte: 'E-Konte分镜表',
+  voice_clips: '语音片段',
+  rapid_preview: '快速预览',
+  video_clips: '视频片段',
+  master_timeline: '合成母版',
+  audio_stems: '混音音轨',
+  master_mp4: '交付成品',
+  delivery_package: '交付包',
   unknown: '其他',
 }
 
@@ -1264,6 +1375,17 @@ export const SUBTYPE_EMOJI: Record<AssetSubtype, string> = {
   foley_stem: '👣',
   bgm_track: '🎼',
   voice_print: '🎤',
+  // ── 管线产出（P06+）──
+  spatio_temporal_script: '🎬',
+  shot_list: '📋',
+  e_konte: '🎞️',
+  voice_clips: '🗣️',
+  rapid_preview: '⏩',
+  video_clips: '🎥',
+  master_timeline: '🎞️',
+  audio_stems: '🎚️',
+  master_mp4: '📦',
+  delivery_package: '📦',
   unknown: '📦',
 }
 
@@ -1272,5 +1394,6 @@ export const LEVEL_LABEL: Record<AssetLevel, string> = {
   show: '全剧级',
   scene: '场景级',
   shot: '分镜级',
+  pipeline: '管线产出',
 }
 

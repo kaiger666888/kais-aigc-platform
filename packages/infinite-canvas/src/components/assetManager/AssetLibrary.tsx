@@ -274,6 +274,8 @@ const ALWAYS_SHOW_SUBTYPES: ReadonlySet<AssetSubtype> = new Set([
   'scene_blueprint', 'scene_temporal_variant', 'scene_view_angle',
   'costume_temporal_variant', 'midframe',
   'foley_stem', 'bgm_track',
+  // 管线产出（P06+）：count=0 时也以灰色不可点击显示，让用户知道分类存在
+  'spatio_temporal_script', 'shot_list', 'video_clips', 'master_timeline', 'master_mp4',
 ])
 
 export default function AssetLibrary() {
@@ -606,6 +608,12 @@ export default function AssetLibrary() {
   const shotCount =
     sub('keyframe_first') + sub('keyframe_last') + sub('scene_angle_shot') +
     sub('costume_turnaround')
+  // 管线产出（P06+）：时空剧本 / 分镜参数 / E-Konte / 语音 / 快速预览 / 视频 / 合成母版 / 混音 / 成品 / 交付包
+  const pipelineCount =
+    sub('spatio_temporal_script') + sub('shot_list') + sub('e_konte') +
+    sub('voice_clips') + sub('rapid_preview') + sub('video_clips') +
+    sub('master_timeline') + sub('audio_stems') + sub('master_mp4') +
+    sub('delivery_package')
 
   // ── 层级树 subtype 条目渲染辅助 ──
   const subtypeOn = (st: AssetSubtype) => entityFilter?.type === 'subtype' && entityFilter.id === st
@@ -1009,6 +1017,32 @@ export default function AssetLibrary() {
                   )}
                 </div>
               )}
+            </div>
+          )}
+        </div>
+
+        {/* ── 管线产出 (Pipeline) ── */}
+        <div className="am-tree-section">
+          <button
+            className="am-tree-node am-tree-node--parent"
+            onClick={() => toggleLevel('pipeline')}
+          >
+            <span className={`am-tree-toggle ${collapsedLevels.has('pipeline') ? 'is-collapsed' : 'is-expanded'}`}>▼</span>
+            <span className="am-tree-node__ic">🎬</span>{LEVEL_LABEL.pipeline}
+            <span className="am-tree-node__n">{pipelineCount}</span>
+          </button>
+          {!collapsedLevels.has('pipeline') && (
+            <div className="am-tree-children">
+              {renderSubtypeNode('spatio_temporal_script', true)}
+              {renderSubtypeNode('shot_list', true)}
+              {renderSubtypeNode('e_konte')}
+              {renderSubtypeNode('voice_clips')}
+              {renderSubtypeNode('rapid_preview', true)}
+              {renderSubtypeNode('video_clips', true)}
+              {renderSubtypeNode('master_timeline', true)}
+              {renderSubtypeNode('audio_stems', true)}
+              {renderSubtypeNode('master_mp4', true)}
+              {renderSubtypeNode('delivery_package')}
             </div>
           )}
         </div>
