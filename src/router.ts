@@ -158,6 +158,7 @@ import route154 from "./routes/v1/trellis2/preview";
 import route155 from "./routes/v1/trellis2/status";
 import route156 from "./routes/v1/tts/speak";
 import route157 from "./routes/v1/tts/status";
+import route158 from "./routes/production/flux/flux2Generate";
 
 export default async (app: Express) => {
   app.use("/api/assets/addAssets", route1);
@@ -317,4 +318,5 @@ export default async (app: Express) => {
   app.use("/api/v1/trellis2/status", route155);
   app.use("/api/v1/tts/speak", route156);
   app.use("/api/v1/tts/status", route157);
+  app.use("/api/v1/production/flux2", route158);
 }

@@ -77,6 +77,61 @@ export const FLUX_DEFAULTS = {
 };
 
 /**
+ * FLUX.2-dev 配置（平行于 FLUX.1，不替换）
+ *
+ * FLUX.2 是全新架构（comfy/supported_models.py class Flux2，shift=2.02），与 FLUX.1 关键差异：
+ *   - 文本编码器：单文件 CLIPLoader(mistral_3_small_flux2) type="flux2"，非 DualCLIP(T5XXL+CLIP-L)
+ *   - VAE：flux2-vae（独立 VAE，非 flux1-dev-ae）
+ *   - 采样链：EmptyFlux2LatentImage + Flux2Scheduler（shift 内置于 Flux2 模型类，无 ModelSamplingFlux）
+ *   - 无 LoRA / 无 IPAdapter（FLUX.2 暂不支持）
+ *   - guidance-distilled：BasicGuider 单条件（无负向提示词）
+ *
+ * 模型已就位于容器 comfyui-primary 的 /root/ComfyUI/models/（object_info 已识别全部文件名）。
+ */
+export const FLUX2_DEFAULTS = {
+  // 模型文件名（容器 /root/ComfyUI/models/{diffusion_models,text_encoders,vae}/）
+  // flux2_dev_fp8mixed 是 FLUX.2 dev 唯一可用权重（fp8 混合精度，无 bf16 源模型）。
+  unetName: "flux2_dev_fp8mixed.safetensors",
+  unetWeightDtype: "default",
+  // FLUX.2 单文件 CLIP loader（非 DualCLIP）：mistral_3_small 文本编码器
+  clipName: "mistral_3_small_flux2_fp8.safetensors",
+  clipType: "flux2",
+  // 17GB 编码器卸载到 CPU（34G DiT + 17G 编码器无法同时驻留 24G VRAM）
+  clipDevice: "cpu",
+  vaeName: "flux2-vae.safetensors",
+
+  // 采样默认参数（FLUX.2 模型类 shift=2.02，由 Flux2Scheduler 内部计算）
+  samplerName: "euler",
+  scheduler: "simple",
+  steps: 24,
+  guidance: 3.5,
+  denoise: 1.0,
+
+  // 默认分辨率（正方形）
+  defaultWidth: 1024,
+  defaultHeight: 1024,
+
+  // INT8 ConvRot 配置（与 FLUX.1 相同的 INT8ModelAdapter 节点路径）
+  // 字段名与节点的 required INPUT_TYPES 一一对应（object_info 核验）。
+  // 注意：flux2_dev_fp8mixed 是 fp8 混合源；Ampere(RTX 3090) 上 INT8 反量化 kernel
+  // 若以 fp8e4nv 为目标 dtype 会报错（见 FLUX.1 的同类坑）——能否采样取决于运行时，
+  // 此处按 spec 提供 int8 路径，实测结果见 README/任务报告。
+  int8Config: {
+    unetName: "flux2_dev_fp8mixed.safetensors",
+    unetWeightDtype: "default",
+    quantizationMode: "int8_convrot", // 先 Hadamard 旋转消异常值再量化（质量最佳）
+    modelType: "auto", // 自动识别架构
+    enableQuantization: "always", // FLUX.2 源即 fp8mixed，始终转换浮点输入
+    runtimeBackend: "torch_int_mm", // 非 ConvRot 层后端；ConvRot 层固定走 fused runtime
+    bakeLoadedLoras: true, // 无 LoRA，字段保留以对齐节点契约
+    int4MixedRatio: 0.0, // 仅 int4_mixed 生效
+    smallBatchFallback: "only_small_layers", // 小 batch 回退 fp16/bf16
+    prepackWeights: false, // 实验性权重预打包
+    logProgress: true, // 控制台打印量化进度
+  },
+};
+
+/**
  * 场景一致性模式
  */
 export enum ConsistencyMode {
