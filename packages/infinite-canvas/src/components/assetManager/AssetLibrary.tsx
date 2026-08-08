@@ -796,7 +796,8 @@ export default function AssetLibrary() {
         try { await updateAsset(d.id, { isPrimaryView: false, state: 'eliminated' }) } catch { /* 忽略单项失败 */ }
       }
       await updateAsset(assetId, { isPrimaryView: true, state: 'active' })
-      showToast('已设为选定资产，其余变体已自动淘汰', 'success')
+      const groupInfo = getGroupDisplayInfo(assets.find((d) => d.id === assetId)!)
+      showToast(`已设为选定资产 · ${groupInfo.title}（${others.length} 个变体已自动淘汰）`, 'success')
     } catch (err) {
       showToast('设置失败: ' + (err as Error).message, 'error')
       await reload()
@@ -872,7 +873,7 @@ export default function AssetLibrary() {
                 for (const dd of eliminated) {
                   try { await updateAsset(dd.id, { state: 'active' }) } catch { /* 忽略单项失败 */ }
                 }
-                showToast('已退回待选资产', 'success')
+                showToast(`已退回待选 · ${getGroupDisplayInfo(d).title}（${eliminated.length} 个淘汰变体已恢复）`, 'success')
               } catch (err) {
                 showToast('操作失败: ' + (err as Error).message, 'error')
                 await reload()
@@ -1260,11 +1261,12 @@ export default function AssetLibrary() {
             // 待选资产：按类型分组展示（同组变体并列对比，便于择优选定）
             <div className="am-groups">
               {candidateGroups.map((group) => (
-                <div key={group.key} className="am-group">
+                <div key={group.key} className="am-group" data-group-key={group.key}>
                   <div className="am-group__header">
                     <span className="am-group__emoji">{group.emoji}</span>
                     <span className="am-group__title">{group.title}</span>
-                    <span className="am-group__count">{group.items.length} 个待选</span>
+                    <span className="am-group__count">{group.items.length} 个变体</span>
+                    <span className="am-group__hint" title="互斥组 · 选定其一则同组其余自动淘汰">⚙ 互斥组 · 选定其一则同组其余自动淘汰</span>
                   </div>
                   <div className="am-group__grid">
                     {group.items.map((d) => renderCard(d))}

@@ -74,16 +74,24 @@
 .am-lib__toolbar{display:flex;align-items:center;gap:8px;padding:11px 16px;border-bottom:1px solid var(--cv-line-panel);flex-wrap:wrap}
 .am-lib__count{margin-left:auto;font-size:11.5px;color:var(--cv-text-tertiary);font-family:var(--cv-font-mono)}
 .am-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(184px,1fr));gap:13px;padding:14px 16px 22px;align-content:start}
-/* ── 待选资产分组容器 ── */
+/* ── 待选资产分组容器（互斥组：同组变体选定其一则其余自动淘汰） ──
+   左侧金色竖条 =「选定/互斥」信号色（复用 text 模态金），类比 git diff 指示条，
+   让用户一眼识别这些卡片属同一互斥组；header 轻微金色调区分其余平铺网格。 */
 .am-groups{padding:8px 16px 22px;display:flex;flex-direction:column;gap:18px}
-.am-group{display:flex;flex-direction:column;gap:10px}
-.am-group__header{display:flex;align-items:center;gap:8px;padding:6px 4px 4px;
+.am-group{display:flex;flex-direction:column;gap:10px;position:relative;
+  border-left:3px solid var(--cv-mod-text-dim);border-radius:0 8px 8px 0;
+  padding-left:12px;margin-left:-3px;
+  background:linear-gradient(90deg,var(--cv-mod-text-weak),transparent 38%)}
+.am-group__header{display:flex;align-items:center;gap:8px;padding:6px 4px 4px;min-width:0;
   border-bottom:1px solid var(--cv-line-canvas);position:sticky;top:0;z-index:5;
   background:var(--cv-bg-canvas)}
-.am-group__emoji{font-size:15px;line-height:1}
-.am-group__title{font-size:13px;font-weight:600;color:var(--cv-text-primary)}
+.am-group__emoji{font-size:15px;line-height:1;flex:0 0 auto}
+.am-group__title{font-size:13px;font-weight:600;color:var(--cv-text-primary);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto;min-width:0}
 .am-group__count{font-size:10.5px;color:var(--cv-text-tertiary);font-family:var(--cv-font-mono);
-  margin-left:auto;background:var(--cv-bg-card);padding:2px 8px;border-radius:10px}
+  margin-left:auto;background:var(--cv-bg-card);padding:2px 8px;border-radius:10px;flex:0 0 auto;white-space:nowrap}
+.am-group__hint{font-size:9.5px;color:var(--cv-text-tertiary);flex:0 1 auto;min-width:0;
+  max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:help}
 .am-group__grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(184px,1fr));
   gap:13px;align-content:start}
 .am-card{background:var(--cv-bg-card);border-radius:10px;overflow:hidden;cursor:pointer;position:relative;
