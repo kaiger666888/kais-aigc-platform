@@ -611,10 +611,9 @@ export const DAG_NODES: readonly DagNodeDef[] = [
  * 例外处理（手动调整）：
  *   - phase 级线性门控边（P09b→P10, P10c→P10b→P11）是 KMC depends_on 链，
  *     不完全等价于 slot 数据流。这些边从 PHASE_REGISTRY 的 depends_on 派生。
- *   - P11 的 'character-assets' INPUT_SLOT 在 DAG 中不画为 turnaround-sheets → video-clips 边，
- *     因为 P11 不直接消费 turnaround_sheet —— P09 从 character-assets 解析出 turnaround_path
- *     写入 shot-list，P11 通过 shot-list 间接消费（P09 _resolve_character_refs）。
- *     DAG 边用 costume-turnarounds → iframe-generation 表示 L2 换装参考链。
+ *   - P11 的 'character-assets' INPUT_SLOT 对应 turnaround-sheets → video-clips 边（按 slot 审计补全）；
+ *     P11 同时通过 shot-list.character_refs[].turnaround_path 间接消费 turnaround（P09 _resolve_character_refs
+ *     从 character-assets 选出首选参考），DAG 另用 costume-turnarounds → iframe-generation 表示 L2 换装参考链。
  */
 export const DAG_EDGES: readonly DagEdgeDef[] = [
   // P01 → P02：选题核 + 钩子候选 共同输入故事框架
@@ -632,6 +631,8 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   { from: 'character-bible', to: 'voice-design' },
   // P04 声纹设计 → P10 语音片段：TTS 两阶段工作流（先 VoiceDesign 生成声纹，再 VoiceClone 批量克隆对白）
   { from: 'voice-design', to: 'voice-clips' },
+  // P03 → P06：剧本初稿 → 时空剧本（P06 INPUT_SLOTS 含 script-draft）
+  { from: 'script-draft', to: 'spatio-temporal-script' },
   // P04 → P06：角色设定 → 时空剧本
   { from: 'character-bible', to: 'spatio-temporal-script' },
   // P06 → P07：时空剧本 → 场景图 / 风格向量 / 色彩意图；风格向量 → 场景图
@@ -639,22 +640,45 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   { from: 'spatio-temporal-script', to: 'style-vector' },
   { from: 'spatio-temporal-script', to: 'color-intent' },
   { from: 'style-vector', to: 'scene-images' },
+  // P04 → P07：灰底Turnaround → 场景图（P07 INPUT_SLOTS 含 character-assets = turnaround-sheets）
+  { from: 'turnaround-sheets', to: 'scene-images' },
+  // P06 → P08：时空剧本 → 场景选择（P08 INPUT_SLOTS 含 spatio-temporal-script）
+  { from: 'spatio-temporal-script', to: 'scene-selection' },
   // P07 → P08：场景图 → 场景选择
   { from: 'scene-images', to: 'scene-selection' },
   // P06 → P09：时空剧本 → 分镜表；分镜表 → E-Konte / 转场设计 / 镜头审计
   { from: 'spatio-temporal-script', to: 'shot-list' },
+  // P04 → P09：角色设定 / 灰底Turnaround → 分镜表（P09 INPUT_SLOTS 含 character-bible + character-assets）
+  { from: 'character-bible', to: 'shot-list' },
+  { from: 'turnaround-sheets', to: 'shot-list' },
+  // P07 → P09：风格向量 / 色彩意图 / 场景图 → 分镜表（P09 INPUT_SLOTS 含 style-vector + color-intent + scene-images）
+  { from: 'style-vector', to: 'shot-list' },
+  { from: 'color-intent', to: 'shot-list' },
+  { from: 'scene-images', to: 'shot-list' },
+  // P08 → P09：场景选择 → 分镜表（P09 INPUT_SLOTS 含 scene-selection）
+  { from: 'scene-selection', to: 'shot-list' },
   { from: 'shot-list', to: 'e-konte-sheets' },
   { from: 'shot-list', to: 'transition-design' },
   { from: 'shot-list', to: 'shot-audit' },
+  // P01 → P09b：钩子候选 → 镜头审计（P09b INPUT_SLOTS 含 hook-design = hook-candidates）
+  { from: 'hook-candidates', to: 'shot-audit' },
   // P09 → P10：分镜表 → 语音片段（数据流 + 门控双边）；语音片段 → 语音时间线 / 语音审计；语音审计 → 快速预览
   // 数据流：P10 INPUT_SLOTS 含 shot-list（真读 shot-list）；门控：P09b depends_on 通过才跑 P10
   { from: 'shot-list', to: 'voice-clips' },       // 数据流：P10 读 shot-list
   { from: 'shot-audit', to: 'voice-clips' },       // 门控：P09b 审计通过才能跑 P10
+  // P03 → P10：剧本初稿 → 语音片段（P10 INPUT_SLOTS 含 script-draft）
+  { from: 'script-draft', to: 'voice-clips' },
   { from: 'voice-clips', to: 'voice-timeline' },
   { from: 'voice-clips', to: 'voice-audit' },
+  // P10 → P10c：语音时间线 / 分镜表 → 语音审计（P10c INPUT_SLOTS 含 voice-timeline + shot-list）
+  { from: 'voice-timeline', to: 'voice-audit' },
+  { from: 'shot-list', to: 'voice-audit' },
   { from: 'voice-audit', to: 'rapid-preview-clips' },
   // P10b 数据流：KMC P10b INPUT_SLOTS 含 e-konte-sheets（快速预览读 E-Konte 分镜图）
   { from: 'e-konte-sheets', to: 'rapid-preview-clips' },
+  // P10 → P10b：语音片段 / 语音时间线 → 快速预览（P10b INPUT_SLOTS 含 voice-clips + voice-timeline）
+  { from: 'voice-clips', to: 'rapid-preview-clips' },
+  { from: 'voice-timeline', to: 'rapid-preview-clips' },
   // P11 条件帧生成（多输入）：场景选择 + 换装TR(服化道信息，P09解析首选参考) + E-Konte
   // 注：灰底TR 不直接连 P11 子步骤 — P09 _resolve_character_refs 从 character-assets 选出
   //     turnaround_path（首选L2换装，fallback L1灰底）写入 shot-list，P11 通过 shot-list 间接消费
@@ -663,12 +687,14 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   { from: 'e-konte-sheets', to: 'iframe-generation' },
   // P11 视频渲染（H3 ref2va 核心依赖）：分镜表(prompt/duration/角色 + turnaround_path) +
   //   场景图(背景参考) + 语音片段(对口型) + 条件帧(首/尾帧条件)
-  // 注：turnaround-sheets 不直连 — 角色参考图通过 shot-list.character_refs[].turnaround_path
-  //     传入（P09 已从 L2换装/L1灰底 中解析选定）
   { from: 'shot-list', to: 'video-clips' },
   { from: 'scene-images', to: 'video-clips' },
   { from: 'voice-clips', to: 'video-clips' },
   { from: 'iframe-generation', to: 'video-clips' },
+  // P04 → P11：灰底Turnaround → 视频片段（P11 INPUT_SLOTS 含 character-assets = turnaround-sheets）
+  { from: 'turnaround-sheets', to: 'video-clips' },
+  // P10 → P11：语音时间线 → 视频片段（P11 INPUT_SLOTS 含 voice-timeline）
+  { from: 'voice-timeline', to: 'video-clips' },
   // P10c/P10b 门控：视频渲染必须经过快速预览（KMC: p11 depends_on=[p10b_rapid_preview]）
   { from: 'rapid-preview-clips', to: 'video-clips' },
   // P12：视频片段 → 主时间轴；语音片段 → 音频混音 → 主时间轴；唇形同步报告 → 主时间轴
@@ -676,10 +702,13 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   { from: 'video-clips', to: 'lip-sync-reports' },
   { from: 'lip-sync-reports', to: 'master-timeline' },
   { from: 'video-clips', to: 'master-timeline' },
-  { from: 'voice-clips', to: 'audio-mix' },
   { from: 'audio-mix', to: 'master-timeline' },
-  // P12 → P13：主时间轴 → 成片；P13 INPUT_SLOTS 还含 color-intent / transition-design
+  // P07 → P12：风格向量 → 主时间轴（P12 INPUT_SLOTS 含 style-vector）
+  { from: 'style-vector', to: 'master-timeline' },
+  { from: 'voice-clips', to: 'audio-mix' },
+  // P12 → P13：主时间轴 → 成片；P13 INPUT_SLOTS 还含 audio-stems(=audio-mix) / color-intent / transition-design
   { from: 'master-timeline', to: 'master-mp4' },
+  { from: 'audio-mix', to: 'master-mp4' },
   { from: 'color-intent', to: 'master-mp4' },
   { from: 'transition-design', to: 'master-mp4' },
   // P13 → P14 → P15：成片 → 质量审计 → 反馈闭环
