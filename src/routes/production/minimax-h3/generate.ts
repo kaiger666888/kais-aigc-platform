@@ -136,6 +136,13 @@ interface H3GenOpts {
   turbo?: boolean;
   /** 走原生 KSampler + SigmaShift 链路 (true) 或 T8 Dual-Clock (false/undefined) */
   native?: boolean;
+  /**
+   * 原生链路是否插入 TESpeed 节点(35)。
+   * 默认 (不传或 true): 插入 (仅当 H3_TESPEED.enabled=true)。
+   * 显式 false: 不插入 —— 用于 native-sage profile (SageAttention 全局生效, 无质量损失)。
+   * T8 工作流忽略此字段。
+   */
+  tespeed?: boolean;
   /** 负面提示词 (原生链路 KSampler 需占位; T8 忽略) */
   negativePrompt?: string;
 }
@@ -350,7 +357,10 @@ function buildH3WorkflowNative(opts: H3GenOpts): Record<string, any> {
 
   // === 采样 (latent_image = ["20", 1] —— ToVideo 条件生成器第二输出 = latent) ===
   // TESpeed 加速: SigmaShift(21) → TESpeed(35) → KSampler(30)
-  if (H3_TESPEED.enabled) {
+  // 仅当 H3_TESPEED.enabled=true 且 opts.tespeed !== false 时插入。
+  // native-sage profile 传 tespeed=false → 不插入 (SageAttention 全局生效, 无质量损失)。
+  const useTespeed = H3_TESPEED.enabled && opts.tespeed !== false;
+  if (useTespeed) {
     nodes[H3_TESPEED.nodeId] = {
       class_type: H3_TESPEED.classType,
       inputs: {
@@ -367,7 +377,7 @@ function buildH3WorkflowNative(opts: H3GenOpts): Record<string, any> {
   nodes["30"] = {
     class_type: "KSampler",
     inputs: {
-      model: H3_TESPEED.enabled ? [H3_TESPEED.nodeId, 0] : ["21", 0],
+      model: useTespeed ? [H3_TESPEED.nodeId, 0] : ["21", 0],
       positive: ["20", 0],
       negative: ["16", 0],
       latent_image: ["20", 1],
@@ -451,16 +461,18 @@ export default router.post(
     //        | "production" (50步 lossless+完整Foley)
     //        | "native" (原生 KSampler+SigmaShift, t2v/i2va 50步 / ref2va 20步, 非 T8)
     const rawProfile = ((req.body.profile as string) || "production").toLowerCase();
-    if (![ "preview", "turbo", "production", "native" ].includes(rawProfile)) {
+    if (![ "preview", "turbo", "production", "native", "native-sage" ].includes(rawProfile)) {
       return res
         .status(400)
-        .send(error(`profile must be one of: preview | turbo | production | native (got "${rawProfile}")`));
+        .send(error(`profile must be one of: preview | turbo | production | native | native-sage (got "${rawProfile}")`));
     }
     const profile = H3_PROFILES[rawProfile as keyof typeof H3_PROFILES];
-    // native: profile=native 或显式 native=true
+    // native: profile=native/native-sage 或显式 native=true
     const native = req.body.native === "true" || req.body.native === true || profile.native;
     // turbo: profile=turbo 或显式 turbo=true 任一为真即启用 (启用后 steps 由 motion 参数决定)
     const turbo = req.body.turbo === "true" || req.body.turbo === true || profile.turbo;
+    // tespeed: 原生链路是否插入 TESpeed 节点(35)。native-sage profile 的 tespeed=false → 不插入。
+    const tespeed = profile.tespeed !== false;
     const motion = (req.body.motion as string) || undefined; // low | medium | high
     // 步数优先级: 显式 steps > motion-based (turbo时) > profile.steps (native profile.steps=null → 按模式默认)
     const h3StepsOverride = req.body.steps
@@ -537,6 +549,7 @@ export default router.post(
       filenamePrefix: `${filenamePrefix}_h3`,
       turbo,
       native,
+      tespeed,
     };
     const h3Wf = native
       ? buildH3WorkflowNative({ ...nativeWfOpts, negativePrompt: H3_DEFAULT_NEGATIVE })

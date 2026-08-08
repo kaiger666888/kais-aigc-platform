@@ -231,7 +231,7 @@ export function getTurboSteps(motion?: string): number {
 // T8 迁移前的原生 KSampler + SigmaShift 链路配置 (pre-T8, commit c2ad955a~1)。
 // 与 H3_DEFAULTS 的 t2v*/r2v* 字段并行 —— H3_DEFAULTS 现面向 T8 (steps=15, scheduler=simple),
 // 而 H3_NATIVE 面向原生 KSampler 链路 (steps=50, scheduler=normal)。
-// 通过 profile="native" 选择 (见 H3_PROFILES.native)。
+// 通过 profile="native" 或 "native-sage" 选择 (见 H3_PROFILES; 两者区别仅在 tespeed 节点)。
 // 注意: 原生链路用 res_multistep 做 R2V, T8 用统一的 Dual-Clock Euler。
 export const H3_NATIVE = {
   // t2va/i2va/fl2va 原生采样参数 (官方 lossless 推荐)
@@ -247,13 +247,16 @@ export const H3_NATIVE = {
 // ============================================================
 // H3_PROFILES —— 质量/速度 profile 预设 (T8 + native + KMC 搭配方案)
 // ============================================================
-// 配合 KMC 管线的四种生成档位:
-//   preview    —— 最快速但保证质量: T8 15 步 + TESpeed 全局 patch, 跳过 Foley
-//                  (H3 原生音频直出), ~6 min/条
-//   turbo      —— 极速: T8 4 步 + Turbo LoRA (~3.1x 加速), 跳过 Foley, ~3 min/条
-//   production —— 最高质量: T8 50 步 lossless + 完整 Foley 管线 (LTX+BGM检测+TTS混音), ~20 min/条
-//   native     —— 原生 (non-T8) KSampler + SigmaShift 链路: t2v/i2va 50 步 / ref2va 20 步,
-//                  不使用 T8 节点也不使用 Turbo LoRA。用于 A/B 对比或 T8 不可用时的回退。
+// 配合 KMC 管线的五种生成档位:
+//   preview      —— 最快速但保证质量: T8 15 步 + TESpeed 全局 patch, 跳过 Foley
+//                   (H3 原生音频直出), ~6 min/条
+//   turbo        —— 极速: T8 4 步 + Turbo LoRA (~3.1x 加速), 跳过 Foley, ~3 min/条
+//   production   —— 最高质量: T8 50 步 lossless + 完整 Foley 管线 (LTX+BGM检测+TTS混音), ~20 min/条
+//   native       —— 原生 (non-T8) KSampler + SigmaShift + TESpeed 节点: t2v/i2va 50 步 / ref2va 20 步,
+//                   不使用 T8 节点也不使用 Turbo LoRA。TESpeed 节点(35)额外缓存残差 (可能有质量损失)。
+//   native-sage  —— 原生 (non-T8) KSampler + SigmaShift, 不插入 TESpeed 节点。
+//                   ComfyUI 已全局启用 --use-sage-attention, SageAttention 自动生效 (无质量损失)。
+//                   与 native 的唯一区别: tespeed=false → 不插入 TESpeed 节点(35)。
 // 调用方通过 generate 的 `profile` 入参选择; 显式传 steps 时以 steps 为准 (但 turbo 仍由
 // profile.turbo / turbo 入参决定是否启用 LoRA)。
 export const H3_PROFILES = {
@@ -263,6 +266,7 @@ export const H3_PROFILES = {
     skipFoley: true,      // 跳过 Step 2 Foley / Step 3 合并, 直出 H3 原生视频
     turbo: false,
     native: false,
+    tespeed: false,       // T8 工作流不插入 TESpeed 节点 (全局 patch 仍生效)
   },
   turbo: {
     label: "Turbo (4~8-step + Turbo LoRA, motion-adaptive)",
@@ -270,6 +274,7 @@ export const H3_PROFILES = {
     skipFoley: true,      // 预览档同样跳过 Foley
     turbo: true,          // 启用 Turbo LoRA (LoraLoaderBypassModelOnly)
     native: false,
+    tespeed: false,       // T8 工作流不插入 TESpeed 节点
   },
   production: {
     label: "Production (50-step lossless T8, full Foley)",
@@ -277,13 +282,23 @@ export const H3_PROFILES = {
     skipFoley: false,     // 完整 Foley 环境音替换 + BGM 检测重试 + TTS 混音
     turbo: false,
     native: false,
+    tespeed: false,       // T8 工作流不插入 TESpeed 节点
   },
   native: {
-    label: "Native (KSampler + SigmaShift, non-T8, pre-T8 fallback)",
+    label: "Native (KSampler + SigmaShift + TESpeed node, non-T8)",
     steps: null,          // null = 按模式默认 (t2v/i2va=50, ref2va=20, 见 H3_NATIVE)
     skipFoley: false,     // 默认走完整 Foley 管线 (可由调用方覆盖)
     turbo: false,
     native: true,
+    tespeed: true,        // 原生链路插入 TESpeed 节点(35)做额外缓存控制 (可能有质量损失)
+  },
+  "native-sage": {
+    label: "Native-Sage (KSampler + SigmaShift, no TESpeed node; SageAttention global)",
+    steps: null,          // null = 按模式默认 (t2v/i2va=50, ref2va=20, 见 H3_NATIVE)
+    skipFoley: false,
+    turbo: false,
+    native: true,
+    tespeed: false,       // 纯原生链路, 不插入 TESpeed 节点 (SageAttention 全局生效, 无质量损失)
   },
 } as const;
 

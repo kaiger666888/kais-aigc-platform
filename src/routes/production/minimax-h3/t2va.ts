@@ -53,6 +53,7 @@ import {
   H3_TESPEED,
   H3_NATIVE,
   H3_DEFAULT_NEGATIVE,
+  H3_PROFILES,
   H3_RESOLUTION_TABLE,
   H3_DURATION_TABLE,
   alignH3FrameCount,
@@ -84,6 +85,12 @@ interface H3T2vaWorkflowOpts {
   filenamePrefix: string;
   turbo?: boolean;       // true=插入 LoraLoaderBypassModelOnly, 4~8 步加速 (步数由 motion 决定)
   native?: boolean;      // true=走原生 KSampler + SigmaShift 链路 (仅 buildH3T2vaWorkflowNative 使用)
+  /**
+   * 原生链路是否插入 TESpeed 节点(35)。
+   * 默认 (不传或 true): 插入 (仅当 H3_TESPEED.enabled=true)。
+   * 显式 false: 不插入 —— 用于 native-sage (SageAttention 全局生效, 无质量损失)。
+   */
+  tespeed?: boolean;
   // ── 原生链路专用 (native=true 时生效, T8 忽略) ──
   negativePrompt?: string;
   cfg?: number;
@@ -224,7 +231,11 @@ export function buildH3T2vaWorkflowNative(opts: H3T2vaWorkflowOpts): Record<stri
     samplerName = H3_NATIVE.t2vSamplerName,
     scheduler = H3_NATIVE.t2vScheduler,
     denoise = H3_DEFAULTS.denoise,
+    tespeed,
   } = opts;
+  // TESpeed 节点(35) 仅当 H3_TESPEED.enabled=true 且 tespeed !== false 时插入。
+  // native-sage (tespeed=false) → 不插入 (SageAttention 全局生效, 无质量损失)。
+  const useTespeed = H3_TESPEED.enabled && tespeed !== false;
 
   return {
     // === 模型 / 文本编码器 / VAE ===
@@ -255,8 +266,8 @@ export function buildH3T2vaWorkflowNative(opts: H3T2vaWorkflowOpts): Record<stri
 
     // === 采样 ===
     // TESpeed 加速: SigmaShift(21) → TESpeed(35) → KSampler(30)
-    // native 模式默认不插入 TESpeed 节点 (H3_TESPEED.enabled=true 仅表示全局 patch 就位)。
-    ...(H3_TESPEED.enabled ? {
+    // 仅当 H3_TESPEED.enabled=true 且 tespeed !== false 时插入 (native-sage=false 不插入)。
+    ...(useTespeed ? {
       [H3_TESPEED.nodeId]: {
         class_type: H3_TESPEED.classType,
         inputs: {
@@ -273,7 +284,7 @@ export function buildH3T2vaWorkflowNative(opts: H3T2vaWorkflowOpts): Record<stri
     "30": {
       class_type: "KSampler",
       inputs: {
-        model: H3_TESPEED.enabled ? [H3_TESPEED.nodeId, 0] : ["21", 0],
+        model: useTespeed ? [H3_TESPEED.nodeId, 0] : ["21", 0],
         positive: ["20", 0],
         negative: ["16", 0],
         latent_image: ["20", 1],
@@ -320,8 +331,12 @@ export default router.post(
     const seed = req.body.seed ? Number(req.body.seed) : Math.floor(Math.random() * 2147483647);
     const turbo = req.body.turbo === "true" || req.body.turbo === true;
     const motion = (req.body.motion as string) || undefined; // low | medium | high
-    // native: profile=native 或显式 native=true
-    const nativeParam = req.body.native === "true" || req.body.native === true;
+    // native: profile=native/native-sage 或显式 native=true
+    const rawProfile = ((req.body.profile as string) || "").toLowerCase();
+    const profile = H3_PROFILES[rawProfile as keyof typeof H3_PROFILES];
+    const nativeParam = req.body.native === "true" || req.body.native === true || profile?.native === true;
+    // tespeed: 原生链路是否插入 TESpeed 节点(35)。native-sage profile 的 tespeed=false → 不插入。
+    const tespeed = profile?.tespeed !== false;
     const shiftVideo = Number(req.body.shiftVideo) || H3_DEFAULTS.shiftVideo;
     const shiftAudio = Number(req.body.shiftAudio) || H3_DEFAULTS.shiftAudio;
     const refImageSize = req.body.refImageSize === "max" ? "max" : "match";
@@ -395,6 +410,7 @@ export default router.post(
           filenamePrefix,
           turbo,
           native,
+          tespeed,
           cfg: H3_CONSTANTS.CFG,
           samplerName: H3_NATIVE.t2vSamplerName,
           scheduler: H3_NATIVE.t2vScheduler,
