@@ -36,6 +36,7 @@ interface Flux2GenOptions {
   guidance: number;
   quantization: QuantizationMode; // fp8（直接加载 fp8mixed）| int8（INT8ModelAdapter ConvRot 量化）
   filenamePrefix: string;
+  useCompile?: boolean; // torch.compile 加速（INT8 模式下 -30% s/it，实测 448s→253s）
 }
 
 /**
@@ -72,7 +73,29 @@ function buildFlux2Workflow(opts: Flux2GenOptions): Record<string, any> {
   } : {};
 
   // BasicGuider 的 model 输入：INT8 接 INT8ModelAdapter(9)，否则接 UNETLoader(1)
-  const modelRef = useINT8 ? ["9", 0] : ["1", 0];
+  const modelAfterInt8 = useINT8 ? ["9", 0] : ["1", 0];
+
+  // torch.compile 节点（INT8 模式下实测 -30% s/it：6.38→4.48 s/it, 448s→253s）。
+  // 使用 KJ Nodes TorchCompileModelAdvanced（仅编译 transformer blocks，避免 INT8LazyTorchCompile
+  // 在 FLUX.2 上的 _CompiledModuleProxy.dtype 兼容问题）。
+  const compileNode = opts.useCompile ? {
+    "17": {
+      class_type: "TorchCompileModelAdvanced",
+      inputs: {
+        model: modelAfterInt8,
+        backend: "inductor",
+        fullgraph: false,
+        mode: "default",
+        dynamic: "auto",
+        compile_transformer_blocks_only: true,
+        dynamo_cache_size_limit: 64,
+        debug_compile_keys: false,
+        disable_dynamic_vram: true,
+      },
+    },
+  } : {};
+
+  const modelRef = opts.useCompile ? ["17", 0] : modelAfterInt8;
 
   return {
     // UNETLoader — FLUX.2 dev DiT（fp8mixed）。INT8 路径同模型，量化由下游 INT8ModelAdapter 完成。
@@ -146,6 +169,7 @@ function buildFlux2Workflow(opts: Flux2GenOptions): Record<string, any> {
       inputs: { filename_prefix: filenamePrefix, images: ["13", 0] },
     },
     ...int8Node,
+    ...compileNode,
   };
 }
 
@@ -255,6 +279,7 @@ const flux2GenSchema = z.object({
   steps: z.number().int().min(1).max(100).default(FLUX2_DEFAULTS.steps),
   guidance: z.number().min(0).max(20).default(FLUX2_DEFAULTS.guidance),
   quantization: z.enum(["fp8", "int8"]).default("fp8"),
+  use_compile: z.boolean().default(true), // torch.compile 加速（INT8 模式 -30% s/it）
 });
 
 router.post("/scene-generate", async (req: any, res: any) => {
@@ -273,6 +298,7 @@ router.post("/scene-generate", async (req: any, res: any) => {
       guidance: params.guidance,
       quantization: params.quantization as QuantizationMode,
       filenamePrefix,
+      useCompile: params.use_compile,
     });
 
     const promptId = await submitPrompt(workflow);
