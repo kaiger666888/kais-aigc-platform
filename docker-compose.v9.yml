@@ -48,6 +48,11 @@ services:
     image: ${COMFYUI_BASE_IMAGE:-yanwk/comfyui-boot:cu130-megapak-pt211}
     container_name: comfyui-primary
     restart: unless-stopped
+    # 硬护栏: --lowvram 会把加载过的模型全堆 CPU RAM 且不清,无 limit 时一路吃光整机触发 swap thrashing
+    # memory=64g swap=72g cpus=10 (feedback_comfyui-cgroup-limit)
+    mem_limit: 64g
+    memswap_limit: 72g
+    cpus: 10
     ports:
       - "${COMFYUI_PRIMARY_PORT:-8188}:8188"
     environment:
@@ -124,6 +129,10 @@ services:
     image: ${COMFYUI_BASE_IMAGE:-yanwk/comfyui-boot:cu130-megapak-pt211}
     container_name: comfyui-auxiliary
     restart: unless-stopped
+    # 硬护栏: 防 ComfyUI offload 累积吃光整机(同 comfyui-primary,轻量任务给 16g,见 feedback_comfyui-cgroup-limit)
+    mem_limit: 16g
+    memswap_limit: 20g
+    cpus: 6
     ports:
       - "${COMFYUI_AUX_PORT:-8189}:8188"
     environment:
