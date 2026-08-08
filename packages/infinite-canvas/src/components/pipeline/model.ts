@@ -639,8 +639,8 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   { from: 'spatio-temporal-script', to: 'style-vector' },
   { from: 'spatio-temporal-script', to: 'color-intent' },
   { from: 'style-vector', to: 'scene-images' },
-  // P04 → P07：灰底Turnaround → 场景图（P07 INPUT_SLOTS 含 character-assets = turnaround-sheets）
-  { from: 'turnaround-sheets', to: 'scene-images' },
+  // P07 场景图生成：时空剧本 + 风格向量 → 场景图（P07 INPUT_SLOTS 含 character-assets，
+  // 但只读 JSON 文字描述做角色一致性参考，不直接使用灰底TR 图片文件）
   // P06 → P08：时空剧本 → 场景选择（P08 是 sub gate，选择在 scene-images 三态上体现）
   // scene-images → scene-selection 和 spatio-temporal-script → scene-selection 边已删除
   // P07 → P08 场景选择边已删除（P08 选择在 scene-images 三态上体现）
@@ -690,8 +690,9 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   { from: 'scene-images', to: 'video-clips' },
   { from: 'voice-clips', to: 'video-clips' },
   { from: 'iframe-generation', to: 'video-clips' },
-  // P04 → P11：灰底Turnaround → 视频片段（P11 INPUT_SLOTS 含 character-assets = turnaround-sheets）
-  { from: 'turnaround-sheets', to: 'video-clips' },
+  // P04 → P11：换装Turnaround → 视频片段（P11 INPUT_SLOTS 含 character-assets，
+  // 实际通过 shot-list.character_refs[].turnaround_path 消费 L2 换装TR，不直接用灰底TR）
+  { from: 'costume-turnarounds', to: 'video-clips' },
   // P10 → P11：语音时间线 → 视频片段（P11 INPUT_SLOTS 含 voice-timeline）
   { from: 'voice-timeline', to: 'video-clips' },
   // P10c/P10b 门控：视频渲染必须经过快速预览（KMC: p11 depends_on=[p10b_rapid_preview]）
