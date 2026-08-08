@@ -610,9 +610,12 @@ export const DAG_NODES: readonly DagNodeDef[] = [
  * 例外处理（手动调整）：
  *   - phase 级线性门控边（P09b→P10, P10c→P10b→P11）是 KMC depends_on 链，
  *     不完全等价于 slot 数据流。这些边从 PHASE_REGISTRY 的 depends_on 派生。
- *   - P11 的 'character-assets' INPUT_SLOT 对应 turnaround-sheets → video-clips 边（按 slot 审计补全）；
- *     P11 同时通过 shot-list.character_refs[].turnaround_path 间接消费 turnaround（P09 _resolve_character_refs
- *     从 character-assets 选出首选参考），DAG 另用 costume-turnarounds → iframe-generation 表示 L2 换装参考链。
+ *   - 'character-assets' 是聚合 slot（含 L1-L4 全部角色资产 JSON manifest），DAG 中拆成 3 个
+ *     独立节点（character-bible / turnaround-sheets / costume-turnarounds）。下游消费的映射：
+ *       P07 场景图：读 JSON 文字描述 → character-bible → scene-images
+ *       P09 分镜表：_resolve_character_refs 只用 L2 换装TR → costume-turnarounds → shot-list
+ *       P11 视频渲染：shot-list.character_refs[].turnaround_path → costume-turnarounds → video-clips
+ *     灰底TR（turnaround-sheets）只产出一条边 → costume-turnarounds（L2 image2image 参考图）。
  */
 export const DAG_EDGES: readonly DagEdgeDef[] = [
   // P01 → P02：选题核 + 钩子候选 共同输入故事框架
@@ -639,8 +642,11 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   { from: 'spatio-temporal-script', to: 'style-vector' },
   { from: 'spatio-temporal-script', to: 'color-intent' },
   { from: 'style-vector', to: 'scene-images' },
-  // P07 场景图生成：时空剧本 + 风格向量 → 场景图（P07 INPUT_SLOTS 含 character-assets，
-  // 但只读 JSON 文字描述做角色一致性参考，不直接使用灰底TR 图片文件）
+  // P07 场景图生成：时空剧本 + 风格向量 + 角色设定(文字) → 场景图
+  // P07 INPUT_SLOTS 含 character-assets，但只读 JSON 文字描述做角色一致性参考。
+  // character-assets 是聚合 slot（含 L1-L4 全部角色资产），DAG 中拆成 3 节点，
+  // 其中 character-bible（角色设定文字）是 P07 实际消费的内容。
+  { from: 'character-bible', to: 'scene-images' },
   // P06 → P08：时空剧本 → 场景选择（P08 是 sub gate，选择在 scene-images 三态上体现）
   // scene-images → scene-selection 和 spatio-temporal-script → scene-selection 边已删除
   // P07 → P08 场景选择边已删除（P08 选择在 scene-images 三态上体现）
