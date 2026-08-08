@@ -26,6 +26,7 @@ import route22 from "./routes/canvas/v2/nodes";
 import route23 from "./routes/canvas/v2/review-gate";
 import route24 from "./routes/canvas/v2/save-v2";
 import route25 from "./routes/canvas/v2/thumbnail/batch";
+import routeCanvasSyncAssets from "./routes/canvas/v2/sync-assets";
 import route26 from "./routes/canvas/v2/thumbnail/index";
 import route27 from "./routes/notion-proxy";
 import route28 from "./routes/production/flux/kontext-generate/index";
@@ -185,6 +186,7 @@ export default async (app: Express) => {
   app.use("/api/canvas/v2/nodes", route22);
   app.use("/api/canvas/v2/review-gate", route23);
   app.use("/api/canvas/v2/save-v2", route24);
+  app.use("/api/canvas/v2/sync-assets", routeCanvasSyncAssets);
   app.use("/api/canvas/v2/thumbnail", route26);
   app.use("/api/canvas/v2/thumbnail/batch", route25);
   app.use("/api/notion-proxy", route27);
