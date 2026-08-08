@@ -199,11 +199,39 @@ function Thumb({ item, portraitUrl }: { item: AssetItem; portraitUrl?: string | 
 }
 
 /**
- * 分组键 —— 决定"哪几个资产互为同一角色的变体"。
+ * 安全解析 meta JSON 字符串 → Record（一次 parse 拿全部字段，供 getGroupKey 热路径复用）。
+ * assetManagerData.ts 内已有 parseMetaSubtype / parseCostumeMeta，但前者未导出且二者各
+ * 只返回部分字段；这里用一个通用解析器避免重复 JSON.parse，并保持本文件自洽。
+ */
+function parseMetaFields(meta?: string | null): Record<string, unknown> | null {
+  if (!meta) return null
+  try {
+    const p = JSON.parse(meta)
+    return p && typeof p === 'object' ? (p as Record<string, unknown>) : null
+  } catch {
+    return null
+  }
+}
+
+/** 安全读取 meta 解析结果中的字符串字段（非字符串 / 空串 → undefined）。 */
+function metaStr(meta: Record<string, unknown> | null, key: string): string | undefined {
+  const v = meta?.[key]
+  return typeof v === 'string' && v.trim() ? v.trim() : undefined
+}
+
+/**
+ * 分组键 —— 决定"哪几个资产互斥（选定其一则同组其余淘汰）"。
  * 角色：characterId = "shenzhiyi" / "luyanzhou"；场景：characterId 存场景 ID 如 "S01"。
- * 角色类资产（character/turnaround 等）一律按 characterId 统一分组，不拼接 type ——
- * 这样同一角色的 turnaround_sheet / character_design / 3d_model 全归入同一组，
- * 否则不同 type 会被拆成多组、各组各选一个 primary，导致一个角色多张图进入选定资产。
+ *
+ * 角色类资产按 `characterId + meta.subtype` **分层细分**互斥组，而非统一归一组——
+ * 否则选定某换装 Turnaround 时，会把同角色的概念图、灰底 Turnaround、全部分集服化道
+ * 一并错误淘汰。各层互斥范围：
+ *   - costume_design（分集服化道）→ 按 episode + scene 细分（每集每场景独立互斥）
+ *   - costume_turnaround（换装 TR）→ 按 costume_type 细分
+ *   - turnaround_sheet / base_turnaround / 有 costume_set → 基线 TR（同角色灰底变体互斥）
+ *   - character_bible → 同角色 Bible 互斥
+ *   - voice_print → 同角色声纹互斥
+ *   - 其余（概念图 character_design / character_concept / subtype 空）→ 同角色概念图互斥
  */
 function getGroupKey(d: AssetDetail): string {
   // keyframe（首尾帧）按 characterId + name 前缀分组
@@ -213,9 +241,37 @@ function getGroupKey(d: AssetDetail): string {
     const base = d.name?.replace(/_v\d+$/, '') || ''
     return `keyframe:${d.characterId}:${base}`
   }
-  // 角色类资产（character/turnaround 等）一律按 characterId 统一分组
+  // 角色类资产按 characterId + subtype 层级细分互斥组
   if (d.characterId) {
-    return `char:${d.characterId}`
+    const meta = parseMetaFields(d.meta)
+    const subtype = metaStr(meta, 'subtype')
+    const costumeType = metaStr(meta, 'costume_type')
+    const costumeSet = metaStr(meta, 'costume_set')
+    const episode = metaStr(meta, 'episode')
+    const scene = metaStr(meta, 'scene')
+
+    // 分集服化道：按 episode + scene 细分（每集每场景独立互斥）
+    if (subtype === 'costume_design') {
+      return `char:${d.characterId}:costume_design:${episode || ''}:${scene || ''}`
+    }
+    // 换装 Turnaround：按 costume_type 细分
+    if (subtype === 'costume_turnaround') {
+      return `char:${d.characterId}:costume_tr:${costumeType || ''}`
+    }
+    // 灰底 / 基线 Turnaround（subtype=turnaround_sheet/base_turnaround 或带 costume_set）
+    if (subtype === 'turnaround_sheet' || subtype === 'base_turnaround' || costumeSet) {
+      return `char:${d.characterId}:baseline_tr`
+    }
+    // 角色 Bible
+    if (subtype === 'character_bible') {
+      return `char:${d.characterId}:bible`
+    }
+    // 声纹（voice_print）
+    if (subtype === 'voice_print') {
+      return `char:${d.characterId}:voice`
+    }
+    // 角色概念图（subtype 空 或 character_design/character_concept）
+    return `char:${d.characterId}:concept`
   }
   // 场景类资产按 name 分组
   if (d.type === 'scene' || d.type === 'scene_variant' || d.type === 'scene_image') {
@@ -231,9 +287,35 @@ function getGroupKey(d: AssetDetail): string {
 function getGroupDisplayInfo(d: AssetDetail): { title: string; emoji: string } {
   const key = getGroupKey(d)
   if (key.startsWith('char:')) {
-    // 角色名：从 name 字段提取（去掉 v1 后缀）
-    const name = (d.name || '').replace(/\s*v\d+\s*$/i, '').trim() || d.characterId || key
-    return { title: name, emoji: '🎭' }
+    // char:<charId>:<category>[:<sub>...] —— 提取角色名 + 层级可读标签
+    const parts = key.split(':')
+    const category = parts[2] ?? ''
+    const meta = parseMetaFields(d.meta)
+    // 角色中文名：优先 costume_design 的 meta.character；否则取 name 首个空格/·前的 token（去 v1 后缀）
+    const charName = metaStr(meta, 'character')
+      || (d.name || '').split(/[\s·]/)[0]?.replace(/v\d+$/i, '').trim()
+      || d.characterId || parts[1] || key
+
+    let catLabel = ''
+    let emoji = '🎭'
+    switch (category) {
+      case 'concept':    catLabel = '概念设定'; emoji = '👤'; break
+      case 'bible':      catLabel = '角色Bible'; emoji = '📖'; break
+      case 'baseline_tr': catLabel = '基线Turnaround'; emoji = '🔄'; break
+      case 'voice':      catLabel = '声纹'; emoji = '🎙️'; break
+      case 'costume_tr': {
+        const ct = metaStr(meta, 'costume_type') || parts[3] || ''
+        catLabel = ct ? `换装TR·${ct}` : '换装TR'; emoji = '👗'; break
+      }
+      case 'costume_design': {
+        const ep = metaStr(meta, 'episode') || parts[3] || ''
+        const sc = metaStr(meta, 'scene') || parts[4] || ''
+        const scope = [ep, sc].filter(Boolean).join('·')
+        catLabel = scope ? `服化道·${scope}` : '服化道'; emoji = '🧥'; break
+      }
+      default: catLabel = category || '角色'
+    }
+    return { title: `${charName} · ${catLabel}`, emoji }
   }
   if (key.startsWith('scene:')) {
     return { title: d.name || key, emoji: '🏠' }
