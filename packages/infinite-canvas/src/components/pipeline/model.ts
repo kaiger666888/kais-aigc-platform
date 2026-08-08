@@ -52,9 +52,9 @@ export const PIPELINE_PHASES: readonly PipelinePhaseDef[] = [
   { sortKey: 7, code: 'P08', name: '场景选择', group: 'production', phaseIndex: 8, sub: true },
   { sortKey: 8, code: 'P09', name: '分镜拆解', group: 'production', phaseIndex: 9 },
   { sortKey: 9, code: 'P09b', name: '镜头审计', group: 'production', phaseIndex: 9, sub: true },
-  { sortKey: 10, code: 'P10', name: '语音合成', group: 'post', phaseIndex: 10 },
+  { sortKey: 10, code: 'P10', name: '语音合成', group: 'post', phaseIndex: 10, sub: true },
   { sortKey: 11, code: 'P10c', name: '语音审计', group: 'post', phaseIndex: 10, sub: true },
-  { sortKey: 12, code: 'P10b', name: '快速预览', group: 'post', phaseIndex: 10, sub: true },
+  { sortKey: 12, code: 'P10b', name: '视频预览', group: 'post', phaseIndex: 10, sub: true },
   { sortKey: 13, code: 'P11', name: '视频渲染', group: 'post', phaseIndex: 11 },
   { sortKey: 14, code: 'P12', name: '合成', group: 'post', phaseIndex: 12 },
   { sortKey: 15, code: 'P13', name: '交付', group: 'post', phaseIndex: 13 },
@@ -447,10 +447,10 @@ export const KMC_SLOT_REGISTRY: readonly KmcSlotEntry[] = [
   { phaseCode: 'P08',  inputs: ['scene-images', 'spatio-temporal-script'],     outputs: ['scene-selection'] },
   { phaseCode: 'P09',  inputs: ['scene-selection', 'spatio-temporal-script', 'character-bible', 'character-assets', 'style-vector', 'color-intent', 'scene-images'], outputs: ['shot-list', 'e-konte-sheets', 'transition-design'] },
   { phaseCode: 'P09b', inputs: ['shot-list', 'hook-design', 'requirement'],    outputs: ['shot-audit'] },
-  { phaseCode: 'P10',  inputs: ['shot-list', 'script-draft', 'voice-design'],           outputs: ['voice-clips', 'voice-timeline'] },
-  { phaseCode: 'P10c', inputs: ['voice-clips', 'voice-timeline', 'shot-list'], outputs: ['voice-audit'] },
-  { phaseCode: 'P10b', inputs: ['voice-clips', 'voice-timeline', 'e-konte-sheets'], outputs: ['rapid-preview-clips', 'episode-meta'] },
-  { phaseCode: 'P11',  inputs: ['shot-list', 'scene-images', 'character-assets', 'voice-timeline', 'voice-clips'], outputs: ['video-clips', 'lip-sync-reports', 'take-log'] },
+  { phaseCode: 'P10',  inputs: ['shot-list', 'script-draft', 'voice-design'],           outputs: ['voice-clips'] },
+  { phaseCode: 'P10c', inputs: ['voice-clips', 'shot-list'], outputs: ['voice-audit'] },
+  { phaseCode: 'P10b', inputs: ['voice-clips', 'e-konte-sheets'], outputs: ['rapid-preview-clips', 'episode-meta'] },
+  { phaseCode: 'P11',  inputs: ['shot-list', 'scene-images', 'character-assets', 'voice-clips'], outputs: ['video-clips', 'lip-sync-reports', 'take-log'] },
   { phaseCode: 'P12',  inputs: ['video-clips', 'voice-clips', 'lip-sync-reports', 'style-vector'], outputs: ['master-timeline', 'audio-stems', 'foley-stems', 'bgm-tracks'] },
   { phaseCode: 'P13',  inputs: ['master-timeline', 'audio-stems', 'color-intent', 'transition-design'], outputs: ['master-mp4', 'delivery-package'] },
   { phaseCode: 'P14',  inputs: ['master-mp4'],                           outputs: ['quality-audit'] },
@@ -566,13 +566,8 @@ export const DAG_NODES: readonly DagNodeDef[] = [
   // ── P10 语音合成（post） ──
   { id: 'voice-clips', label: '语音片段', phaseCode: 'P10', phaseIndex: 10, group: 'post',
     match: { phaseIndex: 10, idIncludes: 'voice_clips' }, expectedCount: 'dynamic' },
-  { id: 'voice-timeline', label: '语音时间线', phaseCode: 'P10', phaseIndex: 10, group: 'post',
-    match: { phaseIndex: 10, idIncludes: 'voice_timeline' }, expectedCount: 1 },
-  // ── P10c 语音审计（post gate） ──
-  { id: 'voice-audit', label: '语音审计', phaseCode: 'P10c', phaseIndex: 10, group: 'post', dim: true,
-    match: { phaseIndex: 10, idIncludes: 'voice-audit' }, expectedCount: 'dynamic' },
-  // ── P10b 快速预览（post gate） ──
-  { id: 'rapid-preview-clips', label: '快速预览', phaseCode: 'P10b', phaseIndex: 10, group: 'post', dim: true,
+  // ── P10b 视频预览（post gate） ──
+  { id: 'rapid-preview-clips', label: '视频预览', phaseCode: 'P10b', phaseIndex: 10, group: 'post', dim: true,
     match: { phaseIndex: 10, idIncludes: 'rapid' }, expectedCount: 'dynamic' },
   // ── P11 视频渲染（post） ──
   // 条件帧生成（首/尾帧变体）：P11 video render 的多种条件输入之一。命名反映其本质——
@@ -667,23 +662,17 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   { from: 'shot-list', to: 'shot-audit' },
   // P01 → P09b：钩子候选 → 镜头审计（P09b INPUT_SLOTS 含 hook-design = hook-candidates）
   { from: 'hook-candidates', to: 'shot-audit' },
-  // P09 → P10：分镜表 → 语音片段（数据流 + 门控双边）；语音片段 → 语音时间线 / 语音审计；语音审计 → 快速预览
+  // P09 → P10：分镜表 → 语音片段（数据流 + 门控双边）
   // 数据流：P10 INPUT_SLOTS 含 shot-list（真读 shot-list）；门控：P09b depends_on 通过才跑 P10
+  // P10c 语音审计已内联到 P10（sub gate，不单列 DAG 节点）；P10 voice-clips 直接流向 P10b/P11
   { from: 'shot-list', to: 'voice-clips' },       // 数据流：P10 读 shot-list
   { from: 'shot-audit', to: 'voice-clips' },       // 门控：P09b 审计通过才能跑 P10
   // P03 → P10：剧本初稿 → 语音片段（P10 INPUT_SLOTS 含 script-draft）
   { from: 'script-draft', to: 'voice-clips' },
-  { from: 'voice-clips', to: 'voice-timeline' },
-  { from: 'voice-clips', to: 'voice-audit' },
-  // P10 → P10c：语音时间线 / 分镜表 → 语音审计（P10c INPUT_SLOTS 含 voice-timeline + shot-list）
-  { from: 'voice-timeline', to: 'voice-audit' },
-  { from: 'shot-list', to: 'voice-audit' },
-  { from: 'voice-audit', to: 'rapid-preview-clips' },
-  // P10b 数据流：KMC P10b INPUT_SLOTS 含 e-konte-sheets（快速预览读 E-Konte 分镜图）
+  // P10b 数据流：KMC P10b INPUT_SLOTS 含 e-konte-sheets（视频预览读 E-Konte 分镜图）
   { from: 'e-konte-sheets', to: 'rapid-preview-clips' },
-  // P10 → P10b：语音片段 / 语音时间线 → 快速预览（P10b INPUT_SLOTS 含 voice-clips + voice-timeline）
+  // P10 → P10b：语音片段 → 视频预览（P10b INPUT_SLOTS 含 voice-clips；P10c 审计内联到 P10 emit 侧）
   { from: 'voice-clips', to: 'rapid-preview-clips' },
-  { from: 'voice-timeline', to: 'rapid-preview-clips' },
   // P11 条件帧生成（多输入）：场景图 + 换装TR(服化道信息) + E-Konte
   // 注：灰底TR 不直接连 P11 子步骤 — P09 _resolve_character_refs 只用 L2 换装 TR（无 L1 fallback），
   //     turnaround_path 写入 shot-list，P11 通过 shot-list 间接消费
@@ -699,9 +688,7 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   // P04 → P11：换装Turnaround → 视频片段（P11 INPUT_SLOTS 含 character-assets，
   // 实际通过 shot-list.character_refs[].turnaround_path 消费 L2 换装TR，不直接用灰底TR）
   { from: 'costume-turnarounds', to: 'video-clips' },
-  // P10 → P11：语音时间线 → 视频片段（P11 INPUT_SLOTS 含 voice-timeline）
-  { from: 'voice-timeline', to: 'video-clips' },
-  // P10c/P10b 门控：视频渲染必须经过快速预览（KMC: p11 depends_on=[p10b_rapid_preview]）
+  // P10c/P10b 门控：视频渲染必须经过视频预览（KMC: p11 depends_on=[p10b_rapid_preview]）
   { from: 'rapid-preview-clips', to: 'video-clips' },
   // P12：视频片段 → 主时间轴；语音片段 → 音频混音 → 主时间轴；唇形同步报告 → 主时间轴
   // P11 产出 lip-sync-reports，P12 INPUT_SLOTS 含 lip-sync-reports（合成校验口型对齐）
@@ -1025,7 +1012,6 @@ export function validateDagEdges(): string[] {
   // 门控边（来自 PHASE_REGISTRY depends_on 线性门控链，非 slot 数据流）→ 豁免。
   const GATE_EDGES = new Set<string>([
     'shot-audit|voice-clips',           // P09b → P10
-    'voice-audit|rapid-preview-clips',  // P10c → P10b
     'rapid-preview-clips|video-clips',  // P10b → P11
   ])
   // 前端建模边：DAG 刻意表达比 KMC slot 粒度更细的依赖（KMC 未单列对应 slot）→ 豁免并记录原因。
