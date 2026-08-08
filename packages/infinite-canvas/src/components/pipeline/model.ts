@@ -49,7 +49,7 @@ export const PIPELINE_PHASES: readonly PipelinePhaseDef[] = [
   { sortKey: 4, code: 'P04', name: '角色设计', group: 'story', phaseIndex: 4 },
   { sortKey: 5, code: 'P06', name: '时空剧本', group: 'production', phaseIndex: 6 },
   { sortKey: 6, code: 'P07', name: '场景图生成', group: 'production', phaseIndex: 7 },
-  { sortKey: 7, code: 'P08', name: '场景选择', group: 'production', phaseIndex: 8 },
+  { sortKey: 7, code: 'P08', name: '场景选择', group: 'production', phaseIndex: 8, sub: true },
   { sortKey: 8, code: 'P09', name: '分镜拆解', group: 'production', phaseIndex: 9 },
   { sortKey: 9, code: 'P09b', name: '镜头审计', group: 'production', phaseIndex: 9, sub: true },
   { sortKey: 10, code: 'P10', name: '语音合成', group: 'post', phaseIndex: 10 },
@@ -552,8 +552,7 @@ export const DAG_NODES: readonly DagNodeDef[] = [
   { id: 'color-intent', label: '色彩意图', phaseCode: 'P07', phaseIndex: 7, group: 'production',
     match: { phaseIndex: 7, idIncludes: 'color_intent' }, expectedCount: 1 },
   // ── P08 场景选择（production） ──
-  { id: 'scene-selection', label: '场景选择', phaseCode: 'P08', phaseIndex: 8, group: 'production',
-    match: { phaseIndex: 8, idIncludes: 'scene_selection' }, expectedCount: 'dynamic' },
+  // P08 场景选择已合并到 scene-images 的三态 curation（sub: true，不承载独立节点）
   // ── P09 分镜拆解（production） ──
   { id: 'shot-list', label: '分镜表', phaseCode: 'P09', phaseIndex: 9, group: 'production',
     match: { phaseIndex: 9, idIncludes: 'shot_list' }, expectedCount: 'dynamic' },
@@ -642,10 +641,9 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   { from: 'style-vector', to: 'scene-images' },
   // P04 → P07：灰底Turnaround → 场景图（P07 INPUT_SLOTS 含 character-assets = turnaround-sheets）
   { from: 'turnaround-sheets', to: 'scene-images' },
-  // P06 → P08：时空剧本 → 场景选择（P08 INPUT_SLOTS 含 spatio-temporal-script）
-  { from: 'spatio-temporal-script', to: 'scene-selection' },
-  // P07 → P08：场景图 → 场景选择
-  { from: 'scene-images', to: 'scene-selection' },
+  // P06 → P08：时空剧本 → 场景选择（P08 是 sub gate，选择在 scene-images 三态上体现）
+  // scene-images → scene-selection 和 spatio-temporal-script → scene-selection 边已删除
+  // P07 → P08 场景选择边已删除（P08 选择在 scene-images 三态上体现）
   // P06 → P09：时空剧本 → 分镜表；分镜表 → E-Konte / 转场设计 / 镜头审计
   { from: 'spatio-temporal-script', to: 'shot-list' },
   // P04 → P09：角色设定 / 灰底Turnaround → 分镜表（P09 INPUT_SLOTS 含 character-bible + character-assets）
@@ -655,8 +653,7 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   { from: 'style-vector', to: 'shot-list' },
   { from: 'color-intent', to: 'shot-list' },
   { from: 'scene-images', to: 'shot-list' },
-  // P08 → P09：场景选择 → 分镜表（P09 INPUT_SLOTS 含 scene-selection）
-  { from: 'scene-selection', to: 'shot-list' },
+  // P08 → P09 场景选择边已删除（scene-images → shot-list 已存在于 P07→P09 数据流）
   { from: 'shot-list', to: 'e-konte-sheets' },
   { from: 'shot-list', to: 'transition-design' },
   { from: 'shot-list', to: 'shot-audit' },
@@ -682,7 +679,7 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   // P11 条件帧生成（多输入）：场景选择 + 换装TR(服化道信息，P09解析首选参考) + E-Konte
   // 注：灰底TR 不直接连 P11 子步骤 — P09 _resolve_character_refs 从 character-assets 选出
   //     turnaround_path（首选L2换装，fallback L1灰底）写入 shot-list，P11 通过 shot-list 间接消费
-  { from: 'scene-selection', to: 'iframe-generation' },
+  { from: 'scene-images', to: 'iframe-generation' },
   { from: 'costume-turnarounds', to: 'iframe-generation' },
   { from: 'e-konte-sheets', to: 'iframe-generation' },
   // P11 视频渲染（H3 ref2va 核心依赖）：分镜表(prompt/duration/角色 + turnaround_path) +
@@ -1024,7 +1021,7 @@ export function validateDagEdges(): string[] {
   ])
   // 前端建模边：DAG 刻意表达比 KMC slot 粒度更细的依赖（KMC 未单列对应 slot）→ 豁免并记录原因。
   const DESIGN_INTENT_EDGES = new Map<string, string>([
-    ['scene-selection|iframe-generation', '条件帧按所选场景生成；KMC P11 INPUT_SLOTS 未单列 scene-selection'],
+    ['scene-images|iframe-generation', '条件帧按所选场景生成；KMC P11 INPUT_SLOTS 未单列 scene-images（原 scene-selection 节点已合并）'],
   ])
 
   for (const e of DAG_EDGES) {
