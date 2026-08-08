@@ -540,6 +540,11 @@ export default router.post(
     // ============================================================
     // Step 1: H3 视频生成
     // ============================================================
+    // T8 DualClockSampler 独立可用, LoRA 是可选加速。
+    // turbo=true → T8 链路 (低步数 ≤15 加载 LoRA, 高步数不加 LoRA)。
+    // native=true → KSampler+SigmaShift 链路。
+    const effectiveNative = native;
+
     const nativeWfOpts = {
       mode,
       prompt,
@@ -549,11 +554,11 @@ export default router.post(
       firstFrameFilename,
       refImageFilenames,
       filenamePrefix: `${filenamePrefix}_h3`,
-      turbo,
-      native,
+      turbo: turbo && !effectiveNative,  // native 链路时 turbo=false
+      native: effectiveNative,
       tespeed,
     };
-    const h3Wf = native
+    const h3Wf = effectiveNative
       ? buildH3WorkflowNative({ ...nativeWfOpts, negativePrompt: H3_DEFAULT_NEGATIVE })
       : buildH3WorkflowT8(nativeWfOpts);
 

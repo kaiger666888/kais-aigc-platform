@@ -460,6 +460,9 @@ export default router.post(
     if (lastFrameFile) { try { fs.unlinkSync(lastFrameFile.path); } catch {} }
 
     // ── 构建 + 提交 ──
+    // T8 DualClockSampler 独立可用, LoRA 是可选加速。
+    // turbo=true 走 T8 链路 (低步数 ≤15 加载 LoRA, 高步数不加 LoRA)。
+    // native=true 走 KSampler+SigmaShift 链路。
     const workflow = native
       ? buildH3I2vaWorkflowNative({
           firstFrameFilename,
@@ -470,8 +473,8 @@ export default router.post(
           shiftVideo, shiftAudio,
           refImageSize,
           filenamePrefix,
-          turbo,
-          native,
+          turbo: false,
+          native: true,
           tespeed,
           cfg: H3_CONSTANTS.CFG,
           samplerName: H3_NATIVE.t2vSamplerName,
