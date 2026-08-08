@@ -1016,3 +1016,66 @@ export async function placeAssetOnCanvas(
   return true
 }
 
+
+/**
+ * 分镜故事板（storyboard board）—— p10b 组装的全景分镜板 JSON。
+ * GET /api/v1/storyboard/:projectId/:episodesId 返回 { scenes[], stats }。
+ * 路由 tier 链：o_assets.meta → canvas_nodes.data → 文件 → 空 board。
+ */
+export interface StoryboardShot {
+  shot_id: string
+  thumbnail: string
+  shot_scale: string
+  camera_motion: string
+  framing: string
+  duration_sec: number | null
+  dialogue_summary: string
+  characters: string[]
+  transition_from: string
+  transition_to: string
+  emotion: string
+  action_note: string
+  preview_clip: string
+}
+export interface StoryboardScene {
+  scene_id: string
+  scene_title: string
+  shots: StoryboardShot[]
+}
+export interface StoryboardBoard {
+  type: string
+  episode_id: string
+  generated_at: string | null
+  scenes: StoryboardScene[]
+  stats: { total_shots: number; total_duration_sec: number; total_scenes: number }
+  source?: string
+}
+
+export async function fetchStoryboardBoard(
+  projectId: number,
+  episodesId: number,
+  cancelToken?: CancelToken,
+): Promise<StoryboardBoard> {
+  const timeoutController = new AbortController()
+  const timeoutId = setTimeout(() => timeoutController.abort(), TIMEOUT_MS)
+  const signals: AbortSignal[] = [timeoutController.signal]
+  if (cancelToken) signals.push(cancelToken.signal)
+  const combinedController = new AbortController()
+  const onAbort = () => combinedController.abort()
+  signals.forEach((s) => {
+    if (s.aborted) combinedController.abort()
+    else s.addEventListener('abort', onAbort, { once: true })
+  })
+  try {
+    const res = await fetch(`${API_BASE}/v1/storyboard/${projectId}/${episodesId}`, {
+      method: 'GET',
+      signal: combinedController.signal,
+    })
+    clearTimeout(timeoutId)
+    if (!res.ok) throw new ApiError(`HTTP ${res.status}`, 'network', res.status)
+    const json = await res.json()
+    return json.data as StoryboardBoard
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}

@@ -39,7 +39,7 @@ import './variants/registerCInteractions'
 import { useTraceHighlight } from '../hooks/useTraceHighlight'
 
 import type { NodeState } from '../types/canvas'
-import { useCanvasStore } from '../store/canvasStore'
+import { useCanvasStore, type ViewMode } from '../store/canvasStore'
 import { ToastContainer } from '../hooks/useToast'
 import { canvasToFlowGraph } from '../utils/flowDataMapper'
 import { getLayoutedElements } from '../utils/autoLayout'
@@ -48,6 +48,7 @@ import { useCanvasSocket } from '../hooks/useCanvasSocket'
 import StoryboardTimeline from './StoryboardTimeline'
 import AssetManager from './assetManager/AssetManager'
 import PipelineStateMachine from './PipelineStateMachine'
+import StoryboardBoard from './storyboard/StoryboardBoard'
 import { useLayout } from '../hooks/useLayout'
 import { canvasStateKey, loadCanvasState, useCanvasPersistence } from '../hooks/useCanvasPersistence'
 import { useNavHistory, type NavSnapshot } from '../hooks/useNavHistory'
@@ -474,7 +475,7 @@ function CanvasInner() {
   }, [navHistory, setSelectedNode, setDetailNode])
 
   // 视图模式切换：先拍当前状态进历史（记录切之前的视图），再切。
-  const handleSetViewMode = useCallback((mode: 'canvas' | 'timeline' | 'assets' | 'pipeline') => {
+  const handleSetViewMode = useCallback((mode: ViewMode) => {
     if (navSkipRef.current) { setViewMode(mode); return }
     navHistory.push()
     setViewMode(mode)
@@ -739,6 +740,9 @@ function CanvasInner() {
             <ViewModeButton active={viewMode === 'pipeline'} onClick={() => handleSetViewMode('pipeline')}>
               <UiIcon kind="pipeline" size={13} />管线
             </ViewModeButton>
+            <ViewModeButton active={viewMode === 'storyboard_board'} onClick={() => handleSetViewMode('storyboard_board')}>
+              <UiIcon kind="layout" size={13} />分镜板
+            </ViewModeButton>
           </div>
 
           {/* 应用级历史导航：后退 / 前进（全局功能，恢复完整应用状态） */}
@@ -800,6 +804,8 @@ function CanvasInner() {
             onRefresh={projectId && episodesId != null ? () => loadCanvas(projectId, episodesId) : undefined}
             onLocateNode={handleLocateNode}
           />
+        ) : viewMode === 'storyboard_board' ? (
+          <StoryboardBoard />
         ) : (
         <>
         <EventChipClickContext.Provider value={handleEventChipClick}>
