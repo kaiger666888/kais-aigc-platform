@@ -159,6 +159,8 @@ function buildH3WorkflowT8(opts: H3GenOpts): Record<string, any> {
   const isRef2va = mode === "ref2va";
   // turbo 模式下 steps 优先用 stepsOverride (可能携带 motion-based 值), 否则按默认 motion 兜底
   const steps = turbo ? (stepsOverride || getTurboSteps()) : (stepsOverride || H3_DEFAULTS.t2vSteps);
+  // Turbo LoRA 仅在低步数 (≤15) 时加载; 高步数时 LoRA 无益反而引入伪影
+  const useLora = turbo && steps <= 15;
   // ref2va 参考图节点 ID: 首张 "14", 其余 141,142...
   const imageNodeId = (i: number) => (i === 0 ? "14" : `14${i}`);
 
@@ -169,8 +171,8 @@ function buildH3WorkflowT8(opts: H3GenOpts): Record<string, any> {
     "12": { class_type: "UNETLoader", inputs: { unet_name: H3_DEFAULTS.fl2vaModel, weight_dtype: "default" } },
     "13": { class_type: "VAELoader", inputs: { vae_name: H3_DEFAULTS.audioVaeName } },
 
-    // === Turbo LoRA (可选; INT8 用 bypass) ===
-    ...(turbo ? {
+    // === Turbo LoRA (仅低步数 ≤15; 高步数跳过避免伪影) ===
+    ...(useLora ? {
       [H3_TURBO.nodeId]: {
         class_type: H3_TURBO.loaderClassType,
         inputs: {
@@ -210,7 +212,7 @@ function buildH3WorkflowT8(opts: H3GenOpts): Record<string, any> {
     "30": {
       class_type: "MiniMaxH3DualClockSamplerT8",
       inputs: {
-        model: turbo ? [H3_TURBO.nodeId, 0] : ["12", 0],
+        model: useLora ? [H3_TURBO.nodeId, 0] : ["12", 0],
         av_latent: ["20", 1],
         steps,
         shift_video: H3_DEFAULTS.shiftVideo,

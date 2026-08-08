@@ -140,8 +140,8 @@ export function buildH3I2vaWorkflowT8(opts: H3I2vaWorkflowOpts): Record<string, 
     "12": { class_type: "UNETLoader", inputs: { unet_name: H3_DEFAULTS.fl2vaModel, weight_dtype: "default" } },
     "13": { class_type: "VAELoader", inputs: { vae_name: H3_DEFAULTS.audioVaeName } },
 
-    // === Turbo LoRA (可选; INT8 用 bypass) ===
-    ...(turbo ? {
+    // === Turbo LoRA (仅低步数 ≤15; 高步数跳过避免伪影) ===
+    ...(turbo && steps <= 15 ? {
       [H3_TURBO.nodeId]: {
         class_type: H3_TURBO.loaderClassType,
         inputs: {
@@ -178,7 +178,7 @@ export function buildH3I2vaWorkflowT8(opts: H3I2vaWorkflowOpts): Record<string, 
     "30": {
       class_type: "MiniMaxH3DualClockSamplerT8",
       inputs: {
-        model: turbo ? [H3_TURBO.nodeId, 0] : ["12", 0],
+        model: turbo && steps <= 15 ? [H3_TURBO.nodeId, 0] : ["12", 0],
         av_latent: ["20", 1],
         steps,
         shift_video: shiftVideo,
