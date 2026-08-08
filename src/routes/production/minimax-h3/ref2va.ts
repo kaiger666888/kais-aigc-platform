@@ -54,6 +54,9 @@ import {
   H3_DEFAULTS,
   H3_T8,
   H3_TURBO,
+  H3_TESPEED,
+  H3_NATIVE,
+  H3_DEFAULT_NEGATIVE,
   alignH3FrameCount,
   getTurboSteps,
 } from "./config";
@@ -113,9 +116,16 @@ interface H3Ref2vaWorkflowOpts {
   lastFrameFilename?: string | null;  // hybrid: 尾帧图(容器内)
   turbo?: boolean;
   saveSeparateAudio?: boolean;        // 额外输出分离音频 (SaveAudio 取 AVDecodeT8[1])
+  native?: boolean;                   // true=走原生 KSampler + SigmaShift 链路
+  // ── 原生链路专用 (native=true 时生效, T8 忽略) ──
+  negativePrompt?: string;
+  cfg?: number;
+  samplerName?: string;
+  scheduler?: string;
+  denoise?: number;
 }
 
-export function buildH3Ref2vaWorkflow(opts: H3Ref2vaWorkflowOpts): Record<string, any> {
+export function buildH3Ref2vaWorkflowT8(opts: H3Ref2vaWorkflowOpts): Record<string, any> {
   const {
     refImageFilenames, refAudioFilenames,
     refVideoFilenames, refVideoAudioFilenames,
@@ -237,6 +247,178 @@ export function buildH3Ref2vaWorkflow(opts: H3Ref2vaWorkflowOpts): Record<string
 }
 
 // ============================================================
+// Workflow builder (Native — KSampler + SigmaShift, pre-T8 拓扑)
+// ============================================================
+// 节点拓扑 (从 commit c2ad955a~1 恢复):
+//   10: CLIPLoader / 11: VAELoader(video) / 12: UNETLoader(ref2vaModel) / 13: VAELoader(audio)
+//   14/141/142: LoadImage (参考图)
+//   15/151/152: LoadAudio (参考音频)
+//   170/171...: LoadImage (参考视频帧序列)
+//   180/181...: LoadAudio (视频配对音轨)
+//   16: MiniMaxH3ImageToVideo (负面条件占位)
+//   20: MiniMaxH3ReferenceToVideo (正面条件, ref_images 通过结构化槽位 ref_images.ref_image_N 注入)
+//   21: MiniMaxH3SigmaShift
+//   [可选 35]: TESpeed (H3_TESPEED.enabled —— native 模式默认不启用)
+//   30: KSampler (latent_image = ["20", 1] —— ReferenceToVideo 第二输出 = latent)
+//   40: VAEDecode / 43: VAEDecodeAudio / 44: CreateVideo / 50: SaveVideo
+//   (可选) 41/51: VAEDecodeAudio + SaveAudio —— 分离音频文件
+// ⚠️ 原生 ref2va 用 ref2vaModel (pruned int8), 而非 T8 的统一 fl2va_int8_convrot。
+export function buildH3Ref2vaWorkflowNative(opts: H3Ref2vaWorkflowOpts): Record<string, any> {
+  const {
+    refImageFilenames, refAudioFilenames,
+    refVideoFilenames, refVideoAudioFilenames,
+    prompt, width, height, length,
+    seed, steps, shiftVideo, shiftAudio, refImageSize,
+    filenamePrefix,
+    negativePrompt = H3_DEFAULT_NEGATIVE,
+    cfg = H3_CONSTANTS.CFG,
+    samplerName = H3_NATIVE.r2vSamplerName,
+    scheduler = H3_NATIVE.r2vScheduler,
+    denoise = H3_DEFAULTS.denoise,
+    saveSeparateAudio,
+  } = opts;
+
+  // 参考图 LoadImage 节点: 首张 = "14", 其余 141,142...
+  const imageNodes: Record<string, any> = {};
+  const refImageSlots: Record<string, any> = {};
+  refImageFilenames.forEach((filename, i) => {
+    const nodeId = i === 0 ? "14" : `14${i}`;
+    imageNodes[nodeId] = { class_type: "LoadImage", inputs: { image: filename } };
+    refImageSlots[`ref_images.ref_image_${i}`] = [nodeId, 0];
+  });
+
+  // 参考音频 LoadAudio 节点: 首个 = "15", 其余 151,152...
+  const audioNodes: Record<string, any> = {};
+  const refAudioSlots: Record<string, any> = {};
+  refAudioFilenames.forEach((filename, i) => {
+    const nodeId = i === 0 ? "15" : `15${i}`;
+    audioNodes[nodeId] = { class_type: "LoadAudio", inputs: { audio: filename } };
+    refAudioSlots[`ref_audios.ref_audio_${i}`] = [nodeId, 0];
+  });
+
+  // 参考视频帧序列: 节点 ID 170,171,172...
+  const videoNodes: Record<string, any> = {};
+  const refVideoSlots: Record<string, any> = {};
+  refVideoFilenames.forEach((filename, i) => {
+    const nodeId = `17${i}`;
+    videoNodes[nodeId] = { class_type: "LoadImage", inputs: { image: filename } };
+    refVideoSlots[`ref_videos.ref_video_${i}`] = [nodeId, 0];
+  });
+
+  // 视频配对音轨: 节点 ID 180,181,182...
+  const videoAudioNodes: Record<string, any> = {};
+  const refVideoAudioSlots: Record<string, any> = {};
+  refVideoAudioFilenames.forEach((filename, i) => {
+    const nodeId = `18${i}`;
+    videoAudioNodes[nodeId] = { class_type: "LoadAudio", inputs: { audio: filename } };
+    refVideoAudioSlots[`ref_video_audios.ref_video_audio_${i}`] = [nodeId, 0];
+  });
+
+  return {
+    // === 模型 / 文本编码器 / VAE ===
+    "10": { class_type: "CLIPLoader", inputs: { clip_name: H3_DEFAULTS.clipName, type: "minimax" } },
+    "11": { class_type: "VAELoader", inputs: { vae_name: H3_DEFAULTS.videoVaeName } },
+    // 原生 ref2va 用 ref2vaModel (pruned int8), 非 T8 统一 fl2va
+    "12": { class_type: "UNETLoader", inputs: { unet_name: H3_DEFAULTS.ref2vaModel, weight_dtype: "default" } },
+    "13": { class_type: "VAELoader", inputs: { vae_name: H3_DEFAULTS.audioVaeName } },
+
+    // === 参考资产加载 (动态) ===
+    ...imageNodes,
+    ...audioNodes,
+    ...videoNodes,
+    ...videoAudioNodes,
+
+    // === 负面条件 (MiniMaxH3ImageToVideo) ===
+    // H3 CFG-distilled → cfg=1.0, 负面提示词实际不生效, 但 KSampler 需要 negative conditioning 占位。
+    "16": {
+      class_type: "MiniMaxH3ImageToVideo",
+      inputs: { clip: ["10", 0], vae: ["11", 0], prompt: negativePrompt, width, height, length },
+    },
+
+    // === 正面条件 (MiniMaxH3ReferenceToVideo) ===
+    // 输出: [0]=conditioning, [1]=latent (喂给 KSampler latent_image)。
+    // ref_images / ref_audios 通过结构化槽位注入 (与 prompt 标签独立)。
+    "20": {
+      class_type: "MiniMaxH3ReferenceToVideo",
+      inputs: {
+        clip: ["10", 0],
+        vae: ["11", 0],
+        audio_vae: ["13", 0],
+        prompt,
+        width, height, length,
+        ref_image_size: refImageSize,
+        ...refImageSlots,
+        ...refVideoSlots,
+        ...refVideoAudioSlots,
+        ...refAudioSlots,
+      },
+    },
+
+    // === 噪声调度 (SigmaShift) ===
+    "21": {
+      class_type: "MiniMaxH3SigmaShift",
+      inputs: { model: ["12", 0], shift_video: shiftVideo, shift_audio: shiftAudio },
+    },
+
+    // === 采样 ===
+    // TESpeed 加速: SigmaShift(21) → TESpeed(35) → KSampler(30)
+    ...(H3_TESPEED.enabled ? {
+      [H3_TESPEED.nodeId]: {
+        class_type: H3_TESPEED.classType,
+        inputs: {
+          model: ["21", 0],
+          processing_control_value: H3_TESPEED.processingControlValue,
+          processing_percent_1: H3_TESPEED.processingPercent1,
+          processing_percent_2: H3_TESPEED.processingPercent2,
+          mcs: H3_TESPEED.mcs,
+          device: H3_TESPEED.device,
+          cache_depth: H3_TESPEED.cacheDepth,
+        },
+      },
+    } : {}),
+    "30": {
+      class_type: "KSampler",
+      inputs: {
+        model: H3_TESPEED.enabled ? [H3_TESPEED.nodeId, 0] : ["21", 0],
+        positive: ["20", 0],
+        negative: ["16", 0],
+        latent_image: ["20", 1],   // ReferenceToVideo 第二输出 = latent
+        seed, steps, cfg,
+        sampler_name: samplerName,
+        scheduler, denoise,
+      },
+    },
+
+    // === 视频解码 ===
+    "40": { class_type: "VAEDecode", inputs: { samples: ["30", 0], vae: ["11", 0] } },
+
+    // === 音频解码 (合并到视频) ===
+    "43": { class_type: "VAEDecodeAudio", inputs: { samples: ["30", 0], vae: ["13", 0] } },
+
+    // === 合并视频+音频 ===
+    "44": {
+      class_type: "CreateVideo",
+      inputs: { images: ["40", 0], fps: H3_CONSTANTS.FPS, audio: ["43", 0] },
+    },
+
+    // === 保存 (mp4 内嵌音频) ===
+    "50": {
+      class_type: "SaveVideo",
+      inputs: { video: ["44", 0], filename_prefix: filenamePrefix, format: "mp4", codec: "auto" },
+    },
+
+    // === (可选) 分离音频文件 ===
+    ...(saveSeparateAudio ? {
+      "41": { class_type: "VAEDecodeAudio", inputs: { samples: ["30", 0], vae: ["13", 0] } },
+      "51": {
+        class_type: "SaveAudio",
+        inputs: { audio: ["41", 0], filename_prefix: `${filenamePrefix}_audio` },
+      },
+    } : {}),
+  };
+}
+
+// ============================================================
 // Handler
 // ============================================================
 
@@ -263,15 +445,20 @@ export default router.post(
     const seed = req.body.seed ? Number(req.body.seed) : Math.floor(Math.random() * 2147483647);
     const turbo = req.body.turbo === "true" || req.body.turbo === true;
     const motion = (req.body.motion as string) || undefined; // low | medium | high
-    // 步数优先级: 显式 steps > motion-based (turbo时) > 默认
-    const steps = turbo
-      ? (Number(req.body.steps) || getTurboSteps(motion))
-      : (Number(req.body.steps) || H3_DEFAULTS.r2vSteps);
+    // native: profile=native 或显式 native=true
+    const nativeParam = req.body.native === "true" || req.body.native === true;
     const shiftVideo = Number(req.body.shiftVideo) || H3_DEFAULTS.shiftVideo;
     const shiftAudio = Number(req.body.shiftAudio) || H3_DEFAULTS.shiftAudio;
     const filenamePrefix = (req.body.filenamePrefix as string) || `h3_ref2va_${projectId}_${Date.now()}`;
     const saveSeparateAudio = req.body.saveSeparateAudio === "true" || req.body.saveSeparateAudio === true;
-    // negativePrompt 在 T8 下不再使用; 接受该字段以保持 API 向后兼容。
+    // native 模式需要负面提示词占位 (KSampler 的 negative conditioning); T8 忽略该字段。
+    const negativePrompt = (req.body.negativePrompt as string) || H3_DEFAULT_NEGATIVE;
+    // 步数优先级: 显式 steps > motion-based (turbo时) > native 默认 20 > T8 默认 15
+    const defaultSteps = nativeParam ? H3_NATIVE.r2vSteps : H3_DEFAULTS.r2vSteps;
+    const steps = turbo
+      ? (Number(req.body.steps) || getTurboSteps(motion))
+      : (Number(req.body.steps) || defaultSteps);
+    const native = nativeParam; // profile=native ⇒ 走原生 KSampler 链路
 
     // 分辨率必须 32 倍数
     if (width % 32 !== 0 || height % 32 !== 0) {
@@ -395,26 +582,43 @@ export default router.post(
     if (lastFrameFile) { try { fs.unlinkSync(lastFrameFile.path); } catch {} }
 
     // --- 构建 + 提交 ---
-    const workflow = buildH3Ref2vaWorkflow({
-      refImageFilenames,
-      refAudioFilenames,
-      refVideoFilenames,
-      refVideoAudioFilenames,
-      prompt,
-      width,
-      height,
-      length,
-      seed,
-      steps,
-      shiftVideo,
-      shiftAudio,
-      refImageSize,
-      filenamePrefix,
-      firstFrameFilename,
-      lastFrameFilename,
-      turbo,
-      saveSeparateAudio,
-    });
+    const workflow = native
+      ? buildH3Ref2vaWorkflowNative({
+          refImageFilenames,
+          refAudioFilenames,
+          refVideoFilenames,
+          refVideoAudioFilenames,
+          prompt, negativePrompt,
+          width, height, length,
+          seed, steps,
+          shiftVideo, shiftAudio, refImageSize,
+          filenamePrefix,
+          firstFrameFilename,
+          lastFrameFilename,
+          turbo,
+          saveSeparateAudio,
+          native,
+          cfg: H3_CONSTANTS.CFG,
+          samplerName: H3_NATIVE.r2vSamplerName,
+          scheduler: H3_NATIVE.r2vScheduler,
+          denoise: H3_DEFAULTS.denoise,
+        })
+      : buildH3Ref2vaWorkflowT8({
+          refImageFilenames,
+          refAudioFilenames,
+          refVideoFilenames,
+          refVideoAudioFilenames,
+          prompt,
+          width, height, length,
+          seed, steps,
+          shiftVideo, shiftAudio, refImageSize,
+          filenamePrefix,
+          firstFrameFilename,
+          lastFrameFilename,
+          turbo,
+          saveSeparateAudio,
+          native,
+        });
 
     try {
       const comfyRes = await axios.post(
@@ -432,10 +636,11 @@ export default router.post(
         promptId,
         status: "submitted",
         mode,
-        estimatedTime: turbo ? "3-7 min" : "10-15 min",
+        estimatedTime: turbo ? "3-7 min" : (native ? "10-15 min" : "6-12 min"),
         pollUrl: `/api/production/minimax-h3/status/${promptId}`,
         params: {
-          engine: "t8",
+          engine: native ? "native" : "t8",
+          native,
           width, height, length, fps: H3_CONSTANTS.FPS, seed, steps,
           shiftVideo, shiftAudio, refImageSize,
           refImageCount: refImageFilenames.length,
@@ -447,7 +652,9 @@ export default router.post(
           turbo,
           cfg: H3_CONSTANTS.CFG,
         },
-        message: `H3 ${mode} task submitted to ComfyUI (T8 Dual-Clock)`,
+        message: native
+          ? `H3 ${mode} task submitted to ComfyUI (native KSampler + SigmaShift)`
+          : `H3 ${mode} task submitted to ComfyUI (T8 Dual-Clock)`,
       }));
     } catch (err: any) {
       const msg = err.response?.data?.error?.message || err.response?.data?.node_errors || err.message || String(err);

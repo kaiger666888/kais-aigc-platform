@@ -226,13 +226,34 @@ export function getTurboSteps(motion?: string): number {
 }
 
 // ============================================================
-// H3_PROFILES —— 质量/速度 profile 预设 (T8 + KMC 搭配方案, 2026-08-07)
+// H3_NATIVE —— 原生 (non-T8) 链路采样器/调度器配置
 // ============================================================
-// 配合 KMC 管线的三种生成档位 (T8 Dual-Clock 采样器):
+// T8 迁移前的原生 KSampler + SigmaShift 链路配置 (pre-T8, commit c2ad955a~1)。
+// 与 H3_DEFAULTS 的 t2v*/r2v* 字段并行 —— H3_DEFAULTS 现面向 T8 (steps=15, scheduler=simple),
+// 而 H3_NATIVE 面向原生 KSampler 链路 (steps=50, scheduler=normal)。
+// 通过 profile="native" 选择 (见 H3_PROFILES.native)。
+// 注意: 原生链路用 res_multistep 做 R2V, T8 用统一的 Dual-Clock Euler。
+export const H3_NATIVE = {
+  // t2va/i2va/fl2va 原生采样参数 (官方 lossless 推荐)
+  t2vSamplerName: "euler",
+  t2vScheduler: "normal",
+  t2vSteps: 50,
+  // ref2va 原生采样参数 (官方 R2V 推荐)
+  r2vSamplerName: "res_multistep",
+  r2vScheduler: "normal",
+  r2vSteps: 20,
+} as const;
+
+// ============================================================
+// H3_PROFILES —— 质量/速度 profile 预设 (T8 + native + KMC 搭配方案)
+// ============================================================
+// 配合 KMC 管线的四种生成档位:
 //   preview    —— 最快速但保证质量: T8 15 步 + TESpeed 全局 patch, 跳过 Foley
 //                  (H3 原生音频直出), ~6 min/条
 //   turbo      —— 极速: T8 4 步 + Turbo LoRA (~3.1x 加速), 跳过 Foley, ~3 min/条
 //   production —— 最高质量: T8 50 步 lossless + 完整 Foley 管线 (LTX+BGM检测+TTS混音), ~20 min/条
+//   native     —— 原生 (non-T8) KSampler + SigmaShift 链路: t2v/i2va 50 步 / ref2va 20 步,
+//                  不使用 T8 节点也不使用 Turbo LoRA。用于 A/B 对比或 T8 不可用时的回退。
 // 调用方通过 generate 的 `profile` 入参选择; 显式传 steps 时以 steps 为准 (但 turbo 仍由
 // profile.turbo / turbo 入参决定是否启用 LoRA)。
 export const H3_PROFILES = {
@@ -241,18 +262,28 @@ export const H3_PROFILES = {
     steps: 15,            // T8 实测 15 步已清晰 (旧原生 KSampler 需 50 步)
     skipFoley: true,      // 跳过 Step 2 Foley / Step 3 合并, 直出 H3 原生视频
     turbo: false,
+    native: false,
   },
   turbo: {
     label: "Turbo (4~8-step + Turbo LoRA, motion-adaptive)",
     steps: 4,             // 默认值, 实际由 motion 参数决定 (low/medium=4, high=8)
     skipFoley: true,      // 预览档同样跳过 Foley
     turbo: true,          // 启用 Turbo LoRA (LoraLoaderBypassModelOnly)
+    native: false,
   },
   production: {
     label: "Production (50-step lossless T8, full Foley)",
     steps: 50,            // lossless (T8 下 50 步)
     skipFoley: false,     // 完整 Foley 环境音替换 + BGM 检测重试 + TTS 混音
     turbo: false,
+    native: false,
+  },
+  native: {
+    label: "Native (KSampler + SigmaShift, non-T8, pre-T8 fallback)",
+    steps: null,          // null = 按模式默认 (t2v/i2va=50, ref2va=20, 见 H3_NATIVE)
+    skipFoley: false,     // 默认走完整 Foley 管线 (可由调用方覆盖)
+    turbo: false,
+    native: true,
   },
 } as const;
 

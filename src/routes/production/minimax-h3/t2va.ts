@@ -50,6 +50,9 @@ import {
   H3_CONSTANTS,
   H3_T8,
   H3_TURBO,
+  H3_TESPEED,
+  H3_NATIVE,
+  H3_DEFAULT_NEGATIVE,
   H3_RESOLUTION_TABLE,
   H3_DURATION_TABLE,
   alignH3FrameCount,
@@ -80,9 +83,16 @@ interface H3T2vaWorkflowOpts {
   refImageSize: "match" | "max";
   filenamePrefix: string;
   turbo?: boolean;       // true=插入 LoraLoaderBypassModelOnly, 4~8 步加速 (步数由 motion 决定)
+  native?: boolean;      // true=走原生 KSampler + SigmaShift 链路 (仅 buildH3T2vaWorkflowNative 使用)
+  // ── 原生链路专用 (native=true 时生效, T8 忽略) ──
+  negativePrompt?: string;
+  cfg?: number;
+  samplerName?: string;
+  scheduler?: string;
+  denoise?: number;
 }
 
-export function buildH3T2vaWorkflow(opts: H3T2vaWorkflowOpts): Record<string, any> {
+export function buildH3T2vaWorkflowT8(opts: H3T2vaWorkflowOpts): Record<string, any> {
   const {
     prompt, width, height, length,
     seed, steps, shiftVideo, shiftAudio,
@@ -186,6 +196,114 @@ export function buildH3T2vaWorkflow(opts: H3T2vaWorkflowOpts): Record<string, an
 }
 
 // ============================================================
+// Workflow builder (Native — KSampler + SigmaShift, pre-T8 拓扑)
+// ============================================================
+// 节点拓扑 (从 commit c2ad955a~1 恢复, 适配当前 config 常量):
+//   10: CLIPLoader (clip_name, type="minimax")
+//   11: VAELoader (video vae)
+//   12: UNETLoader (fl2vaModel —— 原生链路也用统一 fl2va 模型)
+//   13: VAELoader (audio vae)
+//   16: MiniMaxH3ImageToVideo (负面条件占位, 无图)
+//   20: MiniMaxH3ImageToVideo (正面条件 —— 输出 [0]=cond [1]=latent)
+//   21: MiniMaxH3SigmaShift (shift_video / shift_audio)
+//   [可选 35]: TESpeed (如果 H3_TESPEED.enabled —— native 模式默认不启用)
+//   30: KSampler (model→21或35, positive→20, negative→16, latent_image→20[1])
+//   40: VAEDecode (samples→30, vae→11)
+//   41: VAEDecodeAudio (samples→30, vae→13)
+//   42: CreateVideo (images→40, fps, audio→41)
+//   50: SaveVideo
+// ⚠️ native 模式默认不插入 TESpeed 节点 (与 pre-T8 代码一致的行为)。
+//    TESpeed 是全局 patch, enabled=true 仅表示 patch 就位。
+export function buildH3T2vaWorkflowNative(opts: H3T2vaWorkflowOpts): Record<string, any> {
+  const {
+    prompt, width, height, length,
+    seed, steps, shiftVideo, shiftAudio,
+    filenamePrefix,
+    negativePrompt = H3_DEFAULT_NEGATIVE,
+    cfg = H3_CONSTANTS.CFG,
+    samplerName = H3_NATIVE.t2vSamplerName,
+    scheduler = H3_NATIVE.t2vScheduler,
+    denoise = H3_DEFAULTS.denoise,
+  } = opts;
+
+  return {
+    // === 模型 / 文本编码器 / VAE ===
+    "10": { class_type: "CLIPLoader", inputs: { clip_name: H3_DEFAULTS.clipName, type: "minimax" } },
+    "11": { class_type: "VAELoader", inputs: { vae_name: H3_DEFAULTS.videoVaeName } },
+    "12": { class_type: "UNETLoader", inputs: { unet_name: H3_DEFAULTS.fl2vaModel, weight_dtype: "default" } },
+    "13": { class_type: "VAELoader", inputs: { vae_name: H3_DEFAULTS.audioVaeName } },
+
+    // === 负面条件 (MiniMaxH3ImageToVideo, 无图) ===
+    // cfg=1.0 时实际不生效, 但 KSampler 需要 negative conditioning 占位。
+    "16": {
+      class_type: "MiniMaxH3ImageToVideo",
+      inputs: { clip: ["10", 0], vae: ["11", 0], prompt: negativePrompt, width, height, length },
+    },
+
+    // === 正面条件 (MiniMaxH3ImageToVideo, 纯文本) ===
+    // 输出: [0]=conditioning, [1]=latent (喂给 KSampler latent_image)。
+    "20": {
+      class_type: "MiniMaxH3ImageToVideo",
+      inputs: { clip: ["10", 0], vae: ["11", 0], prompt, width, height, length },
+    },
+
+    // === 噪声调度 (SigmaShift) ===
+    "21": {
+      class_type: "MiniMaxH3SigmaShift",
+      inputs: { model: ["12", 0], shift_video: shiftVideo, shift_audio: shiftAudio },
+    },
+
+    // === 采样 ===
+    // TESpeed 加速: SigmaShift(21) → TESpeed(35) → KSampler(30)
+    // native 模式默认不插入 TESpeed 节点 (H3_TESPEED.enabled=true 仅表示全局 patch 就位)。
+    ...(H3_TESPEED.enabled ? {
+      [H3_TESPEED.nodeId]: {
+        class_type: H3_TESPEED.classType,
+        inputs: {
+          model: ["21", 0],
+          processing_control_value: H3_TESPEED.processingControlValue,
+          processing_percent_1: H3_TESPEED.processingPercent1,
+          processing_percent_2: H3_TESPEED.processingPercent2,
+          mcs: H3_TESPEED.mcs,
+          device: H3_TESPEED.device,
+          cache_depth: H3_TESPEED.cacheDepth,
+        },
+      },
+    } : {}),
+    "30": {
+      class_type: "KSampler",
+      inputs: {
+        model: H3_TESPEED.enabled ? [H3_TESPEED.nodeId, 0] : ["21", 0],
+        positive: ["20", 0],
+        negative: ["16", 0],
+        latent_image: ["20", 1],
+        seed, steps, cfg,
+        sampler_name: samplerName,
+        scheduler, denoise,
+      },
+    },
+
+    // === 视频解码 ===
+    "40": { class_type: "VAEDecode", inputs: { samples: ["30", 0], vae: ["11", 0] } },
+
+    // === 音频解码 ===
+    "41": { class_type: "VAEDecodeAudio", inputs: { samples: ["30", 0], vae: ["13", 0] } },
+
+    // === 合并视频+音频 ===
+    "42": {
+      class_type: "CreateVideo",
+      inputs: { images: ["40", 0], fps: H3_CONSTANTS.FPS, audio: ["41", 0] },
+    },
+
+    // === 保存 (mp4 内嵌音频) ===
+    "50": {
+      class_type: "SaveVideo",
+      inputs: { video: ["42", 0], filename_prefix: filenamePrefix, format: "mp4", codec: "auto" },
+    },
+  };
+}
+
+// ============================================================
 // Handler
 // ============================================================
 
@@ -202,15 +320,20 @@ export default router.post(
     const seed = req.body.seed ? Number(req.body.seed) : Math.floor(Math.random() * 2147483647);
     const turbo = req.body.turbo === "true" || req.body.turbo === true;
     const motion = (req.body.motion as string) || undefined; // low | medium | high
-    // 步数优先级: 显式 steps > motion-based (turbo时) > 默认
-    const steps = turbo
-      ? (Number(req.body.steps) || getTurboSteps(motion))
-      : (Number(req.body.steps) || H3_DEFAULTS.t2vSteps);
+    // native: profile=native 或显式 native=true
+    const nativeParam = req.body.native === "true" || req.body.native === true;
     const shiftVideo = Number(req.body.shiftVideo) || H3_DEFAULTS.shiftVideo;
     const shiftAudio = Number(req.body.shiftAudio) || H3_DEFAULTS.shiftAudio;
     const refImageSize = req.body.refImageSize === "max" ? "max" : "match";
     const filenamePrefix = (req.body.filenamePrefix as string) || `h3_t2va_${projectId}_${Date.now()}`;
-    // negativePrompt 在 T8 下不再使用 (无负面条件节点); 接受该字段以保持 API 向后兼容。
+    // native 模式需要负面提示词占位 (KSampler 的 negative conditioning); T8 忽略该字段。
+    const negativePrompt = (req.body.negativePrompt as string) || H3_DEFAULT_NEGATIVE;
+    // 步数优先级: 显式 steps > motion-based (turbo时) > native 默认 50 > T8 默认 15
+    const defaultSteps = nativeParam ? H3_NATIVE.t2vSteps : H3_DEFAULTS.t2vSteps;
+    const steps = turbo
+      ? (Number(req.body.steps) || getTurboSteps(motion))
+      : (Number(req.body.steps) || defaultSteps);
+    const native = nativeParam; // profile=native ⇒ 走原生 KSampler 链路
 
     // ── 分辨率解析:width/height 直接指定(最高优先)> aspectRatio 预设 > 默认 ──
     const explicitW = req.body.width ? Number(req.body.width) : 0;
@@ -262,15 +385,31 @@ export default router.post(
       durationSeconds = length / H3_CONSTANTS.FPS;
     }
 
-    const workflow = buildH3T2vaWorkflow({
-      prompt,
-      width, height, length,
-      seed, steps,
-      shiftVideo, shiftAudio,
-      refImageSize,
-      filenamePrefix,
-      turbo,
-    });
+    const workflow = native
+      ? buildH3T2vaWorkflowNative({
+          prompt, negativePrompt,
+          width, height, length,
+          seed, steps,
+          shiftVideo, shiftAudio,
+          refImageSize,
+          filenamePrefix,
+          turbo,
+          native,
+          cfg: H3_CONSTANTS.CFG,
+          samplerName: H3_NATIVE.t2vSamplerName,
+          scheduler: H3_NATIVE.t2vScheduler,
+          denoise: H3_DEFAULTS.denoise,
+        })
+      : buildH3T2vaWorkflowT8({
+          prompt,
+          width, height, length,
+          seed, steps,
+          shiftVideo, shiftAudio,
+          refImageSize,
+          filenamePrefix,
+          turbo,
+          native,
+        });
 
     try {
       const comfyRes = await axios.post(
@@ -287,10 +426,11 @@ export default router.post(
       res.status(200).send(success({
         promptId,
         status: "submitted",
-        estimatedTime: turbo ? "3-5 min" : "10-15 min",
+        estimatedTime: turbo ? "3-5 min" : (native ? "10-15 min" : "6-12 min"),
         pollUrl: `/api/production/minimax-h3/status/${promptId}`,
         params: {
-          engine: "t8",
+          engine: native ? "native" : "t8",
+          native,
           width,
           height,
           resolution: `${width}x${height}`,
@@ -305,7 +445,9 @@ export default router.post(
           cfg: H3_CONSTANTS.CFG,
           turbo,
         },
-        message: "H3 t2va task submitted to ComfyUI (T8 Dual-Clock)",
+        message: native
+          ? "H3 t2va task submitted to ComfyUI (native KSampler + SigmaShift)"
+          : "H3 t2va task submitted to ComfyUI (T8 Dual-Clock)",
       }));
     } catch (err: any) {
       const msg = err.response?.data?.error?.message || err.response?.data?.node_errors || err.message || String(err);

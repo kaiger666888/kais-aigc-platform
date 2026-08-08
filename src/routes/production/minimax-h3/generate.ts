@@ -63,7 +63,10 @@ import {
   H3_CONSTANTS,
   H3_T8,
   H3_TURBO,
+  H3_TESPEED,
+  H3_NATIVE,
   H3_PROFILES,
+  H3_DEFAULT_NEGATIVE,
   alignH3FrameCount,
   getTurboSteps,
 } from "./config";
@@ -131,9 +134,13 @@ interface H3GenOpts {
   filenamePrefix: string;
   /** 启用 Turbo LoRA (LoraLoaderBypassModelOnly, 4~8 步加速, 步数由 motion 参数决定) */
   turbo?: boolean;
+  /** 走原生 KSampler + SigmaShift 链路 (true) 或 T8 Dual-Clock (false/undefined) */
+  native?: boolean;
+  /** 负面提示词 (原生链路 KSampler 需占位; T8 忽略) */
+  negativePrompt?: string;
 }
 
-function buildH3Workflow(opts: H3GenOpts): Record<string, any> {
+function buildH3WorkflowT8(opts: H3GenOpts): Record<string, any> {
   const {
     mode, prompt,
     width, height, length, seed,
@@ -243,6 +250,158 @@ function buildH3Workflow(opts: H3GenOpts): Record<string, any> {
 }
 
 // ============================================================
+// H3 原生工作流构建 (Native — KSampler + SigmaShift, pre-T8 拓扑)
+// ============================================================
+//
+// 从 commit c2ad955a~1 恢复, 适配当前 config 常量。
+// 三种模式共享原生节点 10/11/12/13/16/21/30/40/41/42/50, 仅在以下处分支:
+//   - 节点 12 (UNETLoader): t2va/i2va 用 fl2vaModel; ref2va 用 ref2vaModel (pruned int8)
+//   - 节点 20 (正面条件): t2va/i2va 用 MiniMaxH3ImageToVideo; ref2va 用 MiniMaxH3ReferenceToVideo
+//   - 采样器/步数: t2va/i2va 用 euler + H3_NATIVE.t2vSteps(50); ref2va 用 res_multistep + H3_NATIVE.r2vSteps(20)
+//   - LoadImage 节点: i2va 首帧 = 节点 14; ref2va 参考图 = 节点 14/141/142...
+// ⚠️ native 模式不使用 Turbo LoRA, 不使用 T8 节点 (MiniMaxH3AudioConditioningT8 / DualClockSamplerT8 / AVDecodeT8)。
+// ⚠️ native 模式默认不插入 TESpeed 节点 (与 pre-T8 代码一致的行为; H3_TESPEED.enabled=true 仅表示全局 patch 就位)。
+function buildH3WorkflowNative(opts: H3GenOpts): Record<string, any> {
+  const {
+    mode, prompt, negativePrompt = H3_DEFAULT_NEGATIVE,
+    width, height, length, seed,
+    stepsOverride,
+    firstFrameFilename, refImageFilenames, filenamePrefix,
+  } = opts;
+
+  const isRef2va = mode === "ref2va";
+  // 模型 / 采样器 / 步数按模式选择 (原生链路)
+  const unetModel = isRef2va ? H3_DEFAULTS.ref2vaModel : H3_DEFAULTS.fl2vaModel;
+  const steps = stepsOverride || (isRef2va ? H3_NATIVE.r2vSteps : H3_NATIVE.t2vSteps);
+  const samplerName = isRef2va ? H3_NATIVE.r2vSamplerName : H3_NATIVE.t2vSamplerName;
+  const scheduler = isRef2va ? H3_NATIVE.r2vScheduler : H3_NATIVE.t2vScheduler;
+
+  const nodes: Record<string, any> = {
+    // === 模型 / 文本编码器 / VAE ===
+    "10": { class_type: "CLIPLoader", inputs: { clip_name: H3_DEFAULTS.clipName, type: "minimax" } },
+    "11": { class_type: "VAELoader", inputs: { vae_name: H3_DEFAULTS.videoVaeName } },
+    "12": { class_type: "UNETLoader", inputs: { unet_name: unetModel, weight_dtype: "default" } },
+    "13": { class_type: "VAELoader", inputs: { vae_name: H3_DEFAULTS.audioVaeName } },
+  };
+
+  // === LoadImage 节点 ===
+  // ref2va: 参考图首张 = "14", 其余 141,142...
+  if (isRef2va) {
+    refImageFilenames.forEach((filename, i) => {
+      const nodeId = i === 0 ? "14" : `14${i}`;
+      nodes[nodeId] = { class_type: "LoadImage", inputs: { image: filename } };
+    });
+  }
+  // i2va: 首帧图 = "14"
+  if (mode === "i2va" && firstFrameFilename) {
+    nodes["14"] = { class_type: "LoadImage", inputs: { image: firstFrameFilename } };
+  }
+
+  // === 负面条件 (MiniMaxH3ImageToVideo, 无图) ===
+  // H3 CFG-distilled (cfg=1.0), 负面提示词实际不生效, 但 KSampler 需 negative conditioning 占位。
+  nodes["16"] = {
+    class_type: "MiniMaxH3ImageToVideo",
+    inputs: { clip: ["10", 0], vae: ["11", 0], prompt: negativePrompt, width, height, length },
+  };
+
+  // === 正面条件 ===
+  if (isRef2va) {
+    // ref2va: MiniMaxH3ReferenceToVideo, ref_images 通过结构化槽位注入
+    const refImageSlots: Record<string, any> = {};
+    refImageFilenames.forEach((_, i) => {
+      const nodeId = i === 0 ? "14" : `14${i}`;
+      refImageSlots[`ref_images.ref_image_${i}`] = [nodeId, 0];
+    });
+    nodes["20"] = {
+      class_type: "MiniMaxH3ReferenceToVideo",
+      inputs: {
+        clip: ["10", 0],
+        vae: ["11", 0],
+        audio_vae: ["13", 0],
+        prompt,
+        width, height, length,
+        ref_image_size: "match",
+        ...refImageSlots,
+      },
+    };
+  } else {
+    // t2va / i2va: MiniMaxH3ImageToVideo (i2va 接 first_frame)
+    nodes["20"] = {
+      class_type: "MiniMaxH3ImageToVideo",
+      inputs: {
+        clip: ["10", 0],
+        vae: ["11", 0],
+        prompt,
+        width, height, length,
+        ...(mode === "i2va" && firstFrameFilename ? { first_frame: ["14", 0] } : {}),
+      },
+    };
+  }
+
+  // === 噪声调度 (SigmaShift) ===
+  nodes["21"] = {
+    class_type: "MiniMaxH3SigmaShift",
+    inputs: {
+      model: ["12", 0],
+      shift_video: H3_DEFAULTS.shiftVideo,
+      shift_audio: H3_DEFAULTS.shiftAudio,
+    },
+  };
+
+  // === 采样 (latent_image = ["20", 1] —— ToVideo 条件生成器第二输出 = latent) ===
+  // TESpeed 加速: SigmaShift(21) → TESpeed(35) → KSampler(30)
+  if (H3_TESPEED.enabled) {
+    nodes[H3_TESPEED.nodeId] = {
+      class_type: H3_TESPEED.classType,
+      inputs: {
+        model: ["21", 0],
+        processing_control_value: H3_TESPEED.processingControlValue,
+        processing_percent_1: H3_TESPEED.processingPercent1,
+        processing_percent_2: H3_TESPEED.processingPercent2,
+        mcs: H3_TESPEED.mcs,
+        device: H3_TESPEED.device,
+        cache_depth: H3_TESPEED.cacheDepth,
+      },
+    };
+  }
+  nodes["30"] = {
+    class_type: "KSampler",
+    inputs: {
+      model: H3_TESPEED.enabled ? [H3_TESPEED.nodeId, 0] : ["21", 0],
+      positive: ["20", 0],
+      negative: ["16", 0],
+      latent_image: ["20", 1],
+      seed,
+      steps,
+      cfg: H3_CONSTANTS.CFG,
+      sampler_name: samplerName,
+      scheduler,
+      denoise: H3_DEFAULTS.denoise,
+    },
+  };
+
+  // === 视频解码 ===
+  nodes["40"] = { class_type: "VAEDecode", inputs: { samples: ["30", 0], vae: ["11", 0] } };
+
+  // === 音频解码 (合并到视频) ===
+  nodes["41"] = { class_type: "VAEDecodeAudio", inputs: { samples: ["30", 0], vae: ["13", 0] } };
+
+  // === 合并视频 + 音频 ===
+  nodes["42"] = {
+    class_type: "CreateVideo",
+    inputs: { images: ["40", 0], fps: H3_CONSTANTS.FPS, audio: ["41", 0] },
+  };
+
+  // === 保存 (mp4 内嵌音频) ===
+  nodes["50"] = {
+    class_type: "SaveVideo",
+    inputs: { video: ["42", 0], filename_prefix: filenamePrefix, format: "mp4", codec: "auto" },
+  };
+
+  return nodes;
+}
+
+// ============================================================
 // Handler —— 三步管线编排
 // ============================================================
 
@@ -290,17 +449,20 @@ export default router.post(
     // 采样步数覆盖 (优先级: 显式 steps > motion-based (turbo时) > profile.steps)
     // profile: "preview" (15步+跳过Foley) | "turbo" (motion-adaptive 4~8步+Turbo LoRA+跳过Foley)
     //        | "production" (50步 lossless+完整Foley)
+    //        | "native" (原生 KSampler+SigmaShift, t2v/i2va 50步 / ref2va 20步, 非 T8)
     const rawProfile = ((req.body.profile as string) || "production").toLowerCase();
-    if (![ "preview", "turbo", "production" ].includes(rawProfile)) {
+    if (![ "preview", "turbo", "production", "native" ].includes(rawProfile)) {
       return res
         .status(400)
-        .send(error(`profile must be one of: preview | turbo | production (got "${rawProfile}")`));
+        .send(error(`profile must be one of: preview | turbo | production | native (got "${rawProfile}")`));
     }
     const profile = H3_PROFILES[rawProfile as keyof typeof H3_PROFILES];
+    // native: profile=native 或显式 native=true
+    const native = req.body.native === "true" || req.body.native === true || profile.native;
     // turbo: profile=turbo 或显式 turbo=true 任一为真即启用 (启用后 steps 由 motion 参数决定)
     const turbo = req.body.turbo === "true" || req.body.turbo === true || profile.turbo;
     const motion = (req.body.motion as string) || undefined; // low | medium | high
-    // 步数优先级: 显式 steps > motion-based (turbo时) > profile.steps
+    // 步数优先级: 显式 steps > motion-based (turbo时) > profile.steps (native profile.steps=null → 按模式默认)
     const h3StepsOverride = req.body.steps
       ? Number(req.body.steps)
       : (turbo && motion ? getTurboSteps(motion) : profile.steps);
@@ -364,7 +526,7 @@ export default router.post(
     // ============================================================
     // Step 1: H3 视频生成
     // ============================================================
-    const h3Wf = buildH3Workflow({
+    const nativeWfOpts = {
       mode,
       prompt,
       width, height, length,
@@ -374,7 +536,11 @@ export default router.post(
       refImageFilenames,
       filenamePrefix: `${filenamePrefix}_h3`,
       turbo,
-    });
+      native,
+    };
+    const h3Wf = native
+      ? buildH3WorkflowNative({ ...nativeWfOpts, negativePrompt: H3_DEFAULT_NEGATIVE })
+      : buildH3WorkflowT8(nativeWfOpts);
 
     let h3PromptId: string | null = null;
     let localH3VideoPath: string | null = null;
