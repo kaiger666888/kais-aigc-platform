@@ -12,7 +12,8 @@
  *   steps          : number  (默认 15,T8 Dual-Clock 实测已足够)
  *   shiftVideo     : number  (默认 12.0)
  *   shiftAudio     : number  (默认 3.0)
- *   turbo          : boolean (true=启用 Turbo LoRA, 4 步加速;默认 false)
+ *   turbo          : boolean (true=启用 Turbo LoRA 加速;步数由 motion 决定;默认 false)
+ *   motion         : string  ("low" | "medium" | "high", turbo 模式下决定步数,默认 medium)
  *   refImageSize   : "match" | "max"  (默认 "match")
  *   negativePrompt : string  (T8 不需要负面条件, 接受但忽略 —— 向后兼容)
  *   filenamePrefix : string
@@ -52,6 +53,7 @@ import {
   H3_RESOLUTION_TABLE,
   H3_DURATION_TABLE,
   alignH3FrameCount,
+  getTurboSteps,
 } from "./config";
 
 const router = express.Router();
@@ -72,12 +74,12 @@ interface H3T2vaWorkflowOpts {
   height: number;
   length: number;
   seed: number;          // 接 RandomNoise.noise_seed (保留可复现性)
-  steps: number;         // turbo 时由 builder 覆盖为 H3_TURBO.turboSteps
+  steps: number;         // turbo 时由 handler 传入 motion-based 步数 (getTurboSteps)
   shiftVideo: number;
   shiftAudio: number;
   refImageSize: "match" | "max";
   filenamePrefix: string;
-  turbo?: boolean;       // true=插入 LoraLoaderBypassModelOnly, 4 步加速
+  turbo?: boolean;       // true=插入 LoraLoaderBypassModelOnly, 4~8 步加速 (步数由 motion 决定)
 }
 
 export function buildH3T2vaWorkflow(opts: H3T2vaWorkflowOpts): Record<string, any> {
@@ -136,7 +138,7 @@ export function buildH3T2vaWorkflow(opts: H3T2vaWorkflowOpts): Record<string, an
       inputs: {
         model: turbo ? [H3_TURBO.nodeId, 0] : ["12", 0],
         av_latent: ["20", 1],
-        steps: turbo ? H3_TURBO.turboSteps : steps,
+        steps,
         shift_video: shiftVideo,
         shift_audio: shiftAudio,
       },
@@ -199,7 +201,11 @@ export default router.post(
     const prompt = req.body.prompt as string;
     const seed = req.body.seed ? Number(req.body.seed) : Math.floor(Math.random() * 2147483647);
     const turbo = req.body.turbo === "true" || req.body.turbo === true;
-    const steps = turbo ? H3_TURBO.turboSteps : (Number(req.body.steps) || H3_DEFAULTS.t2vSteps);
+    const motion = (req.body.motion as string) || undefined; // low | medium | high
+    // 步数优先级: 显式 steps > motion-based (turbo时) > 默认
+    const steps = turbo
+      ? (Number(req.body.steps) || getTurboSteps(motion))
+      : (Number(req.body.steps) || H3_DEFAULTS.t2vSteps);
     const shiftVideo = Number(req.body.shiftVideo) || H3_DEFAULTS.shiftVideo;
     const shiftAudio = Number(req.body.shiftAudio) || H3_DEFAULTS.shiftAudio;
     const refImageSize = req.body.refImageSize === "max" ? "max" : "match";

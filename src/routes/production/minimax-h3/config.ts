@@ -187,26 +187,43 @@ export const H3_T8 = {
 } as const;
 
 // ============================================================
-// H3_TURBO —— T8 + Turbo LoRA 4 步加速配置
+// H3_TURBO —— T8 + Turbo LoRA 动态加速配置 (motion-adaptive)
 // ============================================================
 // Turbo LoRA (ComfyUI 格式, 容器内 minimax_h3_turbo_4step_*_comfyui.safetensors) 已就位。
 // 在 UNETLoader(12) 与 DualClockSamplerT8(30) 之间插入 LoraLoaderBypassModelOnly,
-// steps 固定 4 步 (vs 标准 15 步 / 生产 50 步), 实测 ~3.1x 加速 (136s vs 420s)。
+// steps 按动态级别 4~8 步 (vs 标准 15 步 / 生产 50 步), 实测 4 步 ~3.1x 加速。
 //
 // ⚠️ INT8/量化模型必须用 LoraLoader*Bypass* 而非普通合并型 (T8 README: 不要假设等价)。
 // ⚠️ Turbo 需非剪枝 fl2va 模型 —— pruned 模型无法完整应用 Turbo LoRA。
 //
 // 默认关闭 —— API 参数 turbo=true 或 profile="turbo" 时启用。
+// 步数由 motion 参数决定 (low/medium=4, high=8), 见 getTurboSteps()。
 export const H3_TURBO = {
   enabled: false,             // 默认关闭
   loraName: "minimax_h3_turbo_4step_original_comfyui.safetensors",
   loraNameEma: "minimax_h3_turbo_4step_ema_original_comfyui.safetensors",
   useEma: true,               // EMA 版画质略好 (作者推荐)
   strengthModel: 1.0,         // 必须 1.0
-  turboSteps: 4,              // Turbo 模式固定 4 步
   nodeId: "14_lora",          // LoraLoaderBypassModelOnly 节点 ID
   loaderClassType: "LoraLoaderBypassModelOnly", // INT8 模型用 bypass (非合并)
+  // 动态分级步数策略 (2026-08-08 实测: 高动态4步画面崩坏严重,8步显著改善)
+  // 低/中动态(对白/拥抱/站立): 4步 ~140s, 画质可接受
+  // 高动态(追逐/赛车/打斗):    8步 ~250s, 避免面部/肢体崩坏
+  motionSteps: {
+    low: 4,       // 站立/对白/慢速移动
+    medium: 4,    // 拥抱/行走/轻微动作
+    high: 8,      // 追逐/赛车/打斗/快速运动
+  },
+  defaultMotion: "medium" as const,
 } as const;
+
+export type H3MotionLevel = "low" | "medium" | "high";
+
+/** 根据 motion 级别获取 turbo 步数 (未传 motion 时用 defaultMotion) */
+export function getTurboSteps(motion?: string): number {
+  const m = (motion || H3_TURBO.defaultMotion) as H3MotionLevel;
+  return H3_TURBO.motionSteps[m] ?? H3_TURBO.motionSteps.medium;
+}
 
 // ============================================================
 // H3_PROFILES —— 质量/速度 profile 预设 (T8 + KMC 搭配方案, 2026-08-07)
@@ -226,8 +243,8 @@ export const H3_PROFILES = {
     turbo: false,
   },
   turbo: {
-    label: "Turbo (4-step + Turbo LoRA, ~3x faster)",
-    steps: 4,             // H3_TURBO.turboSteps
+    label: "Turbo (4~8-step + Turbo LoRA, motion-adaptive)",
+    steps: 4,             // 默认值, 实际由 motion 参数决定 (low/medium=4, high=8)
     skipFoley: true,      // 预览档同样跳过 Foley
     turbo: true,          // 启用 Turbo LoRA (LoraLoaderBypassModelOnly)
   },

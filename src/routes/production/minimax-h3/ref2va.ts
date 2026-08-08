@@ -15,7 +15,8 @@
  *   length         : number  (默认 124, 自动对齐 n%17==5)
  *   refImageSize   : "match" | "max"  (默认 "match")
  *   seed/steps/shiftVideo/shiftAudio : number
- *   turbo          : boolean (true=Turbo LoRA 4 步加速)
+ *   turbo          : boolean (true=Turbo LoRA 加速;步数由 motion 决定)
+ *   motion         : string  ("low" | "medium" | "high", turbo 模式下决定步数,默认 medium)
  *   saveSeparateAudio : boolean (可选:额外输出分离音频文件)
  *   filenamePrefix : string
  *
@@ -54,6 +55,7 @@ import {
   H3_T8,
   H3_TURBO,
   alignH3FrameCount,
+  getTurboSteps,
 } from "./config";
 
 const router = express.Router();
@@ -176,7 +178,7 @@ export function buildH3Ref2vaWorkflow(opts: H3Ref2vaWorkflowOpts): Record<string
       inputs: {
         model: turbo ? [H3_TURBO.nodeId, 0] : ["12", 0],
         av_latent: ["20", 1],
-        steps: turbo ? H3_TURBO.turboSteps : steps,
+        steps,
         shift_video: shiftVideo,
         shift_audio: shiftAudio,
       },
@@ -260,7 +262,11 @@ export default router.post(
     const refImageSize = (req.body.refImageSize === "max" ? "max" : "match");
     const seed = req.body.seed ? Number(req.body.seed) : Math.floor(Math.random() * 2147483647);
     const turbo = req.body.turbo === "true" || req.body.turbo === true;
-    const steps = turbo ? H3_TURBO.turboSteps : (Number(req.body.steps) || H3_DEFAULTS.r2vSteps);
+    const motion = (req.body.motion as string) || undefined; // low | medium | high
+    // 步数优先级: 显式 steps > motion-based (turbo时) > 默认
+    const steps = turbo
+      ? (Number(req.body.steps) || getTurboSteps(motion))
+      : (Number(req.body.steps) || H3_DEFAULTS.r2vSteps);
     const shiftVideo = Number(req.body.shiftVideo) || H3_DEFAULTS.shiftVideo;
     const shiftAudio = Number(req.body.shiftAudio) || H3_DEFAULTS.shiftAudio;
     const filenamePrefix = (req.body.filenamePrefix as string) || `h3_ref2va_${projectId}_${Date.now()}`;

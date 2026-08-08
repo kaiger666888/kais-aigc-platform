@@ -65,6 +65,7 @@ import {
   H3_TURBO,
   H3_PROFILES,
   alignH3FrameCount,
+  getTurboSteps,
 } from "./config";
 // 复用 replace-audio 的辅助函数 (这些函数仅新增了 export 关键字, 逻辑未变更)
 import {
@@ -111,7 +112,7 @@ function safeUnlink(p: string | null | undefined): void {
 //       i2va   —— first_frame = 节点 14
 //       ref2va —— ref_images 数组 (节点 14/141/142...)
 //   - LoadImage 节点: i2va 首帧 = 节点 14; ref2va 参考图 = 节点 14/141/142...
-//   - turbo 模式: 插入 14_lora (LoraLoaderBypassModelOnly), steps 固定 4
+//   - turbo 模式: 插入 14_lora (LoraLoaderBypassModelOnly), steps 由 motion 参数决定 (4~8)
 // T8 统一模型 fl2va_int8_convrot 覆盖所有 task_type (task_type="auto" 自动判定)。
 
 interface H3GenOpts {
@@ -121,14 +122,14 @@ interface H3GenOpts {
   height: number;
   length: number;
   seed: number;
-  /** 采样步数覆盖 (null 则用 H3_DEFAULTS.t2vSteps; turbo 时强制 H3_TURBO.turboSteps) */
+  /** 采样步数覆盖 (null 则用 H3_DEFAULTS.t2vSteps; turbo 时用 getTurboSteps 兜底) */
   stepsOverride: number | null;
   /** i2va 首帧图 (容器内文件名); t2va / ref2va 传 null */
   firstFrameFilename: string | null;
   /** ref2va 参考图 (容器内文件名数组); t2va / i2va 传 [] */
   refImageFilenames: string[];
   filenamePrefix: string;
-  /** 启用 Turbo LoRA (LoraLoaderBypassModelOnly, 4 步加速) */
+  /** 启用 Turbo LoRA (LoraLoaderBypassModelOnly, 4~8 步加速, 步数由 motion 参数决定) */
   turbo?: boolean;
 }
 
@@ -142,7 +143,8 @@ function buildH3Workflow(opts: H3GenOpts): Record<string, any> {
   } = opts;
 
   const isRef2va = mode === "ref2va";
-  const steps = turbo ? H3_TURBO.turboSteps : (stepsOverride || H3_DEFAULTS.t2vSteps);
+  // turbo 模式下 steps 优先用 stepsOverride (可能携带 motion-based 值), 否则按默认 motion 兜底
+  const steps = turbo ? (stepsOverride || getTurboSteps()) : (stepsOverride || H3_DEFAULTS.t2vSteps);
   // ref2va 参考图节点 ID: 首张 "14", 其余 141,142...
   const imageNodeId = (i: number) => (i === 0 ? "14" : `14${i}`);
 
@@ -285,21 +287,23 @@ export default router.post(
     // H3 视频生成种子 (默认随机); Foley 种子用 LTX 默认 (42)
     const h3Seed = req.body.seed ? Number(req.body.seed) : Math.floor(Math.random() * 2147483647);
 
-    // 采样步数覆盖 (优先级: 显式 steps > profile.steps; turbo 时强制 H3_TURBO.turboSteps)
-    // profile: "preview" (15步+跳过Foley) | "turbo" (4步+Turbo LoRA+跳过Foley)
+    // 采样步数覆盖 (优先级: 显式 steps > motion-based (turbo时) > profile.steps)
+    // profile: "preview" (15步+跳过Foley) | "turbo" (motion-adaptive 4~8步+Turbo LoRA+跳过Foley)
     //        | "production" (50步 lossless+完整Foley)
     const rawProfile = ((req.body.profile as string) || "production").toLowerCase();
-    if (!["preview", "turbo", "production"].includes(rawProfile)) {
+    if (![ "preview", "turbo", "production" ].includes(rawProfile)) {
       return res
         .status(400)
         .send(error(`profile must be one of: preview | turbo | production (got "${rawProfile}")`));
     }
     const profile = H3_PROFILES[rawProfile as keyof typeof H3_PROFILES];
-    // turbo: profile=turbo 或显式 turbo=true 任一为真即启用 (启用后 steps 强制 4)
+    // turbo: profile=turbo 或显式 turbo=true 任一为真即启用 (启用后 steps 由 motion 参数决定)
     const turbo = req.body.turbo === "true" || req.body.turbo === true || profile.turbo;
+    const motion = (req.body.motion as string) || undefined; // low | medium | high
+    // 步数优先级: 显式 steps > motion-based (turbo时) > profile.steps
     const h3StepsOverride = req.body.steps
       ? Number(req.body.steps)
-      : profile.steps;
+      : (turbo && motion ? getTurboSteps(motion) : profile.steps);
 
     // ── 文件入参 ──
     const files = req.files as Record<string, Express.Multer.File[]> | undefined;
@@ -452,7 +456,7 @@ export default router.post(
             foley: null, // 预览档跳过
           },
           hasTts: !!ttsAudioFile,
-          note: `T8 Dual-Clock preview${turbo ? " (Turbo 4-step)" : ""}: H3 native audio, Foley skipped`,
+          note: `T8 Dual-Clock preview${turbo ? " (Turbo, motion-adaptive)" : ""}: H3 native audio, Foley skipped`,
         }, "H3 preview completed (native audio, Foley skipped)"),
       );
     }

@@ -60,7 +60,26 @@ export const SEEDVR2_DEFAULTS = {
   seed: 42,
 } as const;
 
-// ─── RTX VSR (NVIDIA RTX Video Super Resolution) ──────────
+// ─── RTX VSR (NVIDIA RTX Video Super Resolution) ─────────────────────
+// ⚠️ 用途规范（2026-08-08 定量测试结论，务必遵守）
+//
+// RTX VSR 是 NVIDIA 为【真实视频流】设计的【插值超分】，不生成新细节：
+//   - 本质：修复压缩损失（低码率马赛克/块效应），不是扩散超分
+//   - 实测：对 AI 生成视频 SSIM(原始 vs VSR降回原分辨率)=0.964（零新信息）
+//           PSNR=40.2 dB（只是插值放大），清晰度比值 0.81×（反而更糊）
+//           全尺寸(5376×3072)清晰度仅 3.1 vs 原始 30.9 → 低分辨率硬拉大
+//
+// ✅ 适用场景（保留的能力）：
+//   - 真实视频/摄像头画面的超分放大（监控视频增强等）
+//   - 高码率压缩视频清晰度恢复（HIGHBITRATE_* 模式）
+//   - 视频去噪（DENOISE_* 模式）/ 去模糊（DEBLUR_* 模式）
+//   - 需要快速处理（~450fps on 3090）的场景
+//
+// ❌ 不适用场景（禁止）：
+//   - AI 生成视频（H3/LTX/Wan 等）超分放大 → 无实质清晰度提升，用 SeedVR2 替代
+//   - 修复 AI 生成视频画面崩坏（面部扭曲/肢体变形）→ 应增加 sampling steps，非超分
+//   - P11/P12 管线视频后处理超分 → 用 SeedVR2 扩散超分替代
+//
 // 独立 FastAPI 微服务，运行在 comfyui-primary 容器 :10589
 // VRAM 占用仅 ~13MB，不阻塞 ComfyUI 渲染队列
 // 宿主机访问: http://localhost:10589 (socat 转发)

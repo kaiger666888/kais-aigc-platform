@@ -13,6 +13,19 @@ const router = express.Router();
 /**
  * RTX Video Super Resolution 配置 — 双 GPU 实例
  *
+ * ┌─────────────────────────────────────────────────────────────────┐
+ * │ ⚠️ 用途限制（2026-08-08 定量测试结论，务必遵守）              │
+ * │                                                                 │
+ * │ RTX VSR 是【插值超分】，不生成新细节，不是扩散超分。            │
+ * │                                                                 │
+ * │ ❌ 禁止用于 AI 生成视频超分（H3/LTX/Wan 等模型输出）：          │
+ * │    实测 SSIM=0.964（零新信息），清晰度比值 0.81×（反而更糊）。  │
+ * │    AI 视频超分请用 SeedVR2；修复画面崩坏请增加 sampling steps。 │
+ * │                                                                 │
+ * │ ✅ 仅用于真实视频流/摄像头/压缩视频恢复（HIGHBITRATE/DENOISE/   │
+ * │    DEBLUR 模式）等 NVIDIA 设计目标场景。                        │
+ * └─────────────────────────────────────────────────────────────────┘
+ *
  * 两个独立 VSR 微服务实例，平台统一管控，自动选择最优实例：
  *   - 3060Ti (端口 10590): 宿主机直跑，~568 MiB VRAM，不干扰 3090 渲染
  *   - 3090   (端口 10589): comfyui-primary 容器内，socat 转发
@@ -106,6 +119,30 @@ const vsrSchema = {
   returnFormat: z.enum(["png", "jpeg", "webp"]).optional(),
 };
 
+/**
+ * 规范化 VSR 微服务返回数据 — 把 output_url 替换为 output_path（文件系统绝对路径）。
+ *
+ * VSR 微服务返回两个字段：
+ *   - output_path: 文件系统绝对路径（如 /home/kai/shared/gpu0/rtx-vsr/xxx.mp4）
+ *   - output_url:  微服务内部静态文件路由（如 /output/xxx.mp4）— 相对路径
+ *
+ * KAP 调用方用 output_url 做 os.path.exists() / os.path.getsize()，
+ * 因此路由层需把 output_url 规范化为绝对路径。同时处理批量 results 数组。
+ */
+function normalizeVsrOutput<T>(data: T): T {
+  const fixItem = (item: any): any => {
+    if (item && typeof item === "object" && item.output_path) {
+      return { ...item, output_url: item.output_path };
+    }
+    return item;
+  };
+  const fixed = fixItem(data);
+  if (fixed && Array.isArray(fixed.results)) {
+    fixed.results = fixed.results.map(fixItem);
+  }
+  return fixed as T;
+}
+
 // ─── POST /api/production/postprocess/rtx-vsr/upscale ─────
 /**
  * 图片超分放大 (RTX VSR)
@@ -164,7 +201,7 @@ export const upscaleImage = router.post(
       // Clean up temp file
       try { fs.unlinkSync(req.file.path); } catch {}
 
-      const data = vsrResp.data;
+      const data = normalizeVsrOutput(vsrResp.data);
       const outputFilename = data.output_url ? path.basename(data.output_url) : "";
       const webUrl = outputFilename
         ? `${inst.webBaseUrl}/${outputFilename}`
@@ -228,7 +265,8 @@ export const upscaleBatch = router.post(
         try { fs.unlinkSync(file.path); } catch {}
       }
 
-      res.status(200).send(success({ ...vsrResp.data, instance: inst.name }));
+      const data = normalizeVsrOutput(vsrResp.data);
+      res.status(200).send(success({ ...data, instance: inst.name }));
     } catch (err: any) {
       for (const file of files) {
         try { fs.unlinkSync(file.path); } catch {}
@@ -280,7 +318,7 @@ export const upscaleVideo = router.post(
 
       try { fs.unlinkSync(req.file.path); } catch {}
 
-      const data = vsrResp.data;
+      const data = normalizeVsrOutput(vsrResp.data);
       const outputFilename = data.output_url ? path.basename(data.output_url) : "";
       const webUrl = outputFilename
         ? `${inst.webBaseUrl}/${outputFilename}`
