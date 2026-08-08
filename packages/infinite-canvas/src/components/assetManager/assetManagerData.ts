@@ -433,7 +433,7 @@ export function inferLevel(d: AssetDetail): AssetLevel {
   if (d.type === 'scene' || d.type === 'scene_variant' || d.type === 'scene_image') return 'scene'
   // ── Notion 新资产类型层级推断（按 meta.subtype / type 归位）──
   const sub = parseMetaSubtype(d.meta)
-  if (sub === 'midframe' || sub === 'costume_temporal_variant') return 'shot'
+  if (sub === 'midframe' || sub === 'costume_temporal_variant' || sub === 'costume_turnaround') return 'shot'
   if (sub === 'foley_stem' || sub === 'bgm_track') return 'scene' // 音轨按场景级归类
   // ── Notion 文档型资产层级（全剧级创意文档）──
   // requirement/story_framework/episode_script/costume_design/voice_profile 默认即 'show'，
@@ -1376,7 +1376,7 @@ export const SUBTYPE_LABEL: Record<AssetSubtype, string> = {
   costume_design: '服化道',
   voice_profile: '音色总谱',
   bgm_design: 'BGM总谱',
-  turnaround_sheet: '灰色紧身衣Turnaround',
+  turnaround_sheet: '灰底Turnaround',
   turnaround_view: '视角拆分',
   scene_base: '场景设定图',
   scene_three_view: '三视角场景（已废弃）',
