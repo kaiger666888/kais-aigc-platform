@@ -646,9 +646,11 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   // P07 → P08 场景选择边已删除（P08 选择在 scene-images 三态上体现）
   // P06 → P09：时空剧本 → 分镜表；分镜表 → E-Konte / 转场设计 / 镜头审计
   { from: 'spatio-temporal-script', to: 'shot-list' },
-  // P04 → P09：角色设定 / 灰底Turnaround → 分镜表（P09 INPUT_SLOTS 含 character-bible + character-assets）
+  // P04 → P09：角色设定 / 换装Turnaround → 分镜表（P09 INPUT_SLOTS 含 character-bible + character-assets）
+  // 注：灰底TR 不直接连 P09 — _resolve_character_refs 只用 L2 换装 TR（无 L1 fallback），
+  //     缺 L2 → raise RuntimeError(rollback_to=p04)
   { from: 'character-bible', to: 'shot-list' },
-  { from: 'turnaround-sheets', to: 'shot-list' },
+  { from: 'costume-turnarounds', to: 'shot-list' },
   // P07 → P09：风格向量 / 色彩意图 / 场景图 → 分镜表（P09 INPUT_SLOTS 含 style-vector + color-intent + scene-images）
   { from: 'style-vector', to: 'shot-list' },
   { from: 'color-intent', to: 'shot-list' },
@@ -676,9 +678,9 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   // P10 → P10b：语音片段 / 语音时间线 → 快速预览（P10b INPUT_SLOTS 含 voice-clips + voice-timeline）
   { from: 'voice-clips', to: 'rapid-preview-clips' },
   { from: 'voice-timeline', to: 'rapid-preview-clips' },
-  // P11 条件帧生成（多输入）：场景选择 + 换装TR(服化道信息，P09解析首选参考) + E-Konte
-  // 注：灰底TR 不直接连 P11 子步骤 — P09 _resolve_character_refs 从 character-assets 选出
-  //     turnaround_path（首选L2换装，fallback L1灰底）写入 shot-list，P11 通过 shot-list 间接消费
+  // P11 条件帧生成（多输入）：场景图 + 换装TR(服化道信息) + E-Konte
+  // 注：灰底TR 不直接连 P11 子步骤 — P09 _resolve_character_refs 只用 L2 换装 TR（无 L1 fallback），
+  //     turnaround_path 写入 shot-list，P11 通过 shot-list 间接消费
   { from: 'scene-images', to: 'iframe-generation' },
   { from: 'costume-turnarounds', to: 'iframe-generation' },
   { from: 'e-konte-sheets', to: 'iframe-generation' },
