@@ -446,12 +446,16 @@ export const KMC_SLOT_REGISTRY: readonly KmcSlotEntry[] = [
   { phaseCode: 'P06',  inputs: ['script-draft', 'character-bible'],      outputs: ['spatio-temporal-script', 'final-audit', 'visual-direction', 'production-design', 'physics-precheck-report'] },
   { phaseCode: 'P07',  inputs: ['spatio-temporal-script', 'character-assets'], outputs: ['scene-images', 'style-vector', 'color-intent', 'scene-blueprint', 'scene-temporal-variants'] },
   { phaseCode: 'P08',  inputs: ['scene-images', 'spatio-temporal-script'],     outputs: ['scene-selection'] },
-  { phaseCode: 'P09',  inputs: ['scene-selection', 'spatio-temporal-script', 'character-bible', 'character-assets', 'style-vector', 'color-intent', 'scene-images'], outputs: ['shot-list', 'e-konte-sheets', 'transition-design'] },
+  { phaseCode: 'P09',  inputs: ['scene-selection', 'spatio-temporal-script', 'character-bible', 'character-assets', 'style-vector', 'color-intent', 'scene-images'], outputs: ['shot-list', 'transition-design'] },
   { phaseCode: 'P09b', inputs: ['shot-list', 'hook-design', 'requirement'],    outputs: ['shot-audit'] },
+  // P09c 白模分镜板（可选 degrade-tolerant）：读 shot-list + 场景图 + 换装TR，
+  // dreamina i2i 生成 clay-render maquette 分镜板整图（按场景分组，每张≤6格）。
+  // dreamina 不可用时降级写空 slot 不阻塞下游；替代原 e-konte-sheets 的位置。
+  { phaseCode: 'P09c', inputs: ['shot-list', 'scene-images', 'character-assets'], outputs: ['storyboard-board'] },
   { phaseCode: 'P10',  inputs: ['shot-list', 'script-draft', 'voice-design'],           outputs: ['voice-clips'] },
   { phaseCode: 'P10a', inputs: ['shot-list', 'voice-clips'],                             outputs: ['shot-timeline'] },
   { phaseCode: 'P10c', inputs: ['voice-clips', 'shot-list'], outputs: ['voice-audit'] },
-  { phaseCode: 'P11a', inputs: ['shot-list', 'scene-images', 'character-assets', 'voice-clips', 'shot-timeline', 'e-konte-sheets'], outputs: ['preview-clips'] },
+  { phaseCode: 'P11a', inputs: ['shot-list', 'scene-images', 'character-assets', 'voice-clips', 'shot-timeline', 'storyboard-board'], outputs: ['preview-clips'] },
   { phaseCode: 'P11b', inputs: ['preview-clips'], outputs: ['video-clips', 'take-log'] },
   { phaseCode: 'P12',  inputs: ['video-clips', 'voice-clips', 'style-vector'], outputs: ['master-timeline', 'audio-stems', 'foley-stems', 'bgm-tracks'] },
   { phaseCode: 'P13',  inputs: ['master-timeline', 'audio-stems', 'color-intent', 'transition-design'], outputs: ['master-mp4', 'delivery-package'] },
@@ -558,8 +562,10 @@ export const DAG_NODES: readonly DagNodeDef[] = [
   // ── P09 分镜拆解（production） ──
   { id: 'shot-list', label: '分镜表', phaseCode: 'P09', phaseIndex: 9, group: 'production',
     match: { phaseIndex: 9, idIncludes: 'shot_list' }, expectedCount: 'dynamic' },
-  { id: 'e-konte-sheets', label: 'E-Konte绘卷', phaseCode: 'P09', phaseIndex: 9, group: 'production',
-    match: { phaseIndex: 9, idIncludes: 'e_konte_sheets' }, expectedCount: 'dynamic' },
+  // P09c 白模分镜板（替代原 e-konte-sheets）：dreamina i2i clay-render maquette 分镜板整图。
+  // dreamina 不可用时降级写空 slot 不阻塞下游，故非 dim 弱节点。
+  { id: 'storyboard-board', label: '白模分镜板', phaseCode: 'P09c', phaseIndex: 9, group: 'production',
+    match: { phaseIndex: 9, idPrefix: 'a-storyboard_sheet-' }, expectedCount: 'dynamic' },
   { id: 'transition-design', label: '转场设计', phaseCode: 'P09', phaseIndex: 9, group: 'production',
     match: { phaseIndex: 9, idIncludes: 'transition_design' }, expectedCount: 'dynamic' },
   // ── P09b 镜头审计（production gate） ──
@@ -586,6 +592,12 @@ export const DAG_NODES: readonly DagNodeDef[] = [
   // P12 音频混音（对白混音 + BGM + Foley 合成），KMC 产出 audio-stems slot
   { id: 'audio-mix', label: '音频混音', phaseCode: 'P12', phaseIndex: 12, group: 'post',
     match: { phaseIndex: 12, idIncludes: 'audio' }, expectedCount: 1 },
+  // P12 BGM 音轨（ACE-Step 引擎生成），KMC 产出 bgm-tracks slot
+  { id: 'bgm-tracks', label: 'BGM音轨', phaseCode: 'P12', phaseIndex: 12, group: 'post',
+    match: { phaseIndex: 12, idIncludes: 'bgm' }, expectedCount: 'dynamic' },
+  // P12 Foley 音轨（LTX-2.3 Foley LoRA V2A 生成），KMC 产出 foley-stems slot
+  { id: 'foley-stems', label: 'Foley音轨', phaseCode: 'P12', phaseIndex: 12, group: 'post',
+    match: { phaseIndex: 12, idIncludes: 'foley' }, expectedCount: 'dynamic' },
   // ── P13 交付（post） ──
   { id: 'master-mp4', label: '成片', phaseCode: 'P13', phaseIndex: 13, group: 'post',
     match: { phaseIndex: 13 }, expectedCount: 1 },
@@ -658,7 +670,10 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   { from: 'color-intent', to: 'shot-list' },
   { from: 'scene-images', to: 'shot-list' },
   // P08 → P09 场景选择边已删除（scene-images → shot-list 已存在于 P07→P09 数据流）
-  { from: 'shot-list', to: 'e-konte-sheets' },
+  // P09c 白模分镜板数据输入：shot-list（panel 内容）+ 场景图（环境）+ 换装TR（角色外貌）
+  { from: 'shot-list', to: 'storyboard-board' },
+  { from: 'scene-images', to: 'storyboard-board' },
+  { from: 'costume-turnarounds', to: 'storyboard-board' },
   { from: 'shot-list', to: 'transition-design' },
   { from: 'shot-list', to: 'shot-audit' },
   // P01 → P09b：钩子候选 → 镜头审计（P09b INPUT_SLOTS 含 hook-design = hook-candidates）
@@ -667,7 +682,10 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   // 数据流：P10 INPUT_SLOTS 含 shot-list（真读 shot-list）；门控：P09b depends_on 通过才跑 P10
   // P10c 语音审计已内联到 P10（sub gate，不单列 DAG 节点）；P10 voice-clips 直接流向 P11a
   { from: 'shot-list', to: 'voice-clips' },       // 数据流：P10 读 shot-list
-  { from: 'shot-audit', to: 'voice-clips' },       // 门控：P09b 审计通过才能跑 P10
+  // P09c 白模分镜板插入 shot-audit 与 voice-clips 之间（替代原 e-konte-sheets 位置）。
+  // 顺序门控：P09b 审计后才生成白模板；P09c 跑完才进 P10。degrade-tolerant 永不阻塞。
+  { from: 'shot-audit', to: 'storyboard-board' },
+  { from: 'storyboard-board', to: 'voice-clips' },
   // P03 → P10：剧本初稿 → 语音片段（P10 INPUT_SLOTS 含 script-draft）
   { from: 'script-draft', to: 'voice-clips' },
   // P10 → P10a：语音片段 → 时间线推导（ffprobe 实测 TTS 时长 → 确定性 shot-timeline）
@@ -681,7 +699,7 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   // P11a 条件帧生成（多输入汇聚到片段预览）：场景图 + 换装TR + E-Konte
   { from: 'scene-images', to: 'iframe-generation' },
   { from: 'costume-turnarounds', to: 'iframe-generation' },
-  { from: 'e-konte-sheets', to: 'iframe-generation' },
+  { from: 'storyboard-board', to: 'iframe-generation' },
   { from: 'iframe-generation', to: 'preview-clips' },
   // P11a 片段预览（H3 turbo）：场景图 + 语音片段(对白驱动) + 换装TR
   { from: 'scene-images', to: 'preview-clips' },
@@ -695,6 +713,13 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   { from: 'audio-mix', to: 'master-timeline' },
   // P07 → P12：风格向量 → 主时间轴（P12 INPUT_SLOTS 含 style-vector）
   { from: 'style-vector', to: 'master-timeline' },
+  // P12 音频子流程：对白/风格 → BGM（ACE-Step 引擎）；视频 → Foley（LTX-2.3 Foley LoRA V2A）；
+  // BGM + Foley + 对白 汇入音频混音
+  { from: 'voice-clips', to: 'bgm-tracks' },      // BGM 参考对白节奏做 ducking
+  { from: 'style-vector', to: 'bgm-tracks' },      // BGM 情绪跟随风格向量
+  { from: 'video-clips', to: 'foley-stems' },      // Foley V2A 需要视频画面参考
+  { from: 'bgm-tracks', to: 'audio-mix' },
+  { from: 'foley-stems', to: 'audio-mix' },
   { from: 'voice-clips', to: 'audio-mix' },
   // P12 → P13：主时间轴 → 成片；P13 INPUT_SLOTS 还含 audio-stems(=audio-mix) / color-intent / transition-design
   { from: 'master-timeline', to: 'master-mp4' },
@@ -1008,7 +1033,8 @@ export function validateDagEdges(): string[] {
 
   // 门控边（来自 PHASE_REGISTRY depends_on 线性门控链，非 slot 数据流）→ 豁免。
   const GATE_EDGES = new Set<string>([
-    'shot-audit|voice-clips',           // P09b → P10
+    'shot-audit|storyboard-board',      // P09b → P09c（白模分镜板在审计后顺序执行）
+    'storyboard-board|voice-clips',     // P09c → P10（白模板 degrade-tolerant，顺序门控不阻塞）
   ])
   // 前端建模边：DAG 刻意表达比 KMC slot 粒度更细的依赖（KMC 未单列对应 slot）→ 豁免并记录原因。
   const DESIGN_INTENT_EDGES = new Map<string, string>([
