@@ -226,6 +226,63 @@ export function getTurboSteps(motion?: string): number {
 }
 
 // ============================================================
+// H3_LIGHTX2V —— LightX2V Turbo LoRA v1.0 配置 (4步 / 8步 双版本, 非 T8 / 非 Turbo)
+// ============================================================
+// LightX2V Turbo LoRA v1.0 正式版 (ComfyUI bf16 格式, 容器内):
+//   - minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors (768p/1344×768 训练, 4步)
+//   - minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors       (544p mixed 训练, 8步)
+// 链路: UNETLoader(12) → SigmaShift(14_shift) → LoraLoaderModelOnly(15) → 采样链路。
+//
+// ⚠️ v1.0 正式版必须使用 SigmaShift (与 v0.1 预览版相反):
+//   - v0.1 旧版不带 SigmaShift 导致极暗画面 —— 真因正是缺少 shift, 不是 shift 过大。
+//   - v1.0 shift 值因版本而异 (官方 Minimax-H3-Turbo 规格):
+//       4步正式版: shift_video=6  (768p 训练优化), 推荐 4 步, lora-alpha=128 (strength_model=1.0)
+//       8步正式版: shift_video=12 (544p mixed 训练), 推荐 8 步 (亦可 4 步)
+//   - shift_audio 始终 3.0 (两版一致)。
+//
+// ⚠️ 关键区别 (与 native / T8 / Turbo):
+//   1. 使用 SigmaShift —— shift_video 按 variant 取值 (4步=6, 8步=12)。
+//   2. 不使用 T8 节点 (MiniMaxH3AudioConditioningT8 / DualClockSamplerT8 / AVDecodeT8)。
+//   3. 不使用 T8 Turbo LoRA (用独立 LightX2V LoRA, strength=1.0)。
+//   4. 用 SamplerCustomAdvanced + BasicScheduler(simple) + KSamplerSelect(res_multistep) + BasicGuider。
+//
+// 默认关闭 —— profile="lightx2v-4" 或 "lightx2v-8" 时启用 (见 H3_PROFILES)。
+// 旧的 v0.1 预览版权重文件保留在容器内, 未删除 (向后兼容)。
+export const H3_LIGHTX2V_VARIANTS = {
+  // 4步正式版: 768p 训练分辨率, shift_video=6, 4 步推理
+  "lightx2v-4": {
+    loraName: "minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors",
+    strengthModel: 1.0,
+    steps: 4,
+    shiftVideo: 6.0,    // ⚠️ 4步正式版用 shift=6 (非 12!)
+    shiftAudio: 3.0,
+    samplerName: "res_multistep",
+    scheduler: "simple",
+    denoise: 1.0,
+    nodeId: "15",                            // LoraLoaderModelOnly 节点 ID
+    loaderClassType: "LoraLoaderModelOnly",  // 完整 bf16 权重用合并型 loader (非 INT8 bypass)
+  },
+  // 8步正式版: 544p 训练分辨率 (mixed aspect ratio), shift_video=12, 推荐 8 步 (亦可 4 步)
+  "lightx2v-8": {
+    loraName: "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors",
+    strengthModel: 1.0,
+    steps: 8,
+    shiftVideo: 12.0,
+    shiftAudio: 3.0,
+    samplerName: "res_multistep",
+    scheduler: "simple",
+    denoise: 1.0,
+    nodeId: "15",
+    loaderClassType: "LoraLoaderModelOnly",
+  },
+} as const;
+
+// 向后兼容别名 (默认指向 4 步版; 字段超集兼容旧 H3_LIGHTX2V 消费者)
+export const H3_LIGHTX2V = H3_LIGHTX2V_VARIANTS["lightx2v-4"];
+
+export type H3LightX2VVariant = keyof typeof H3_LIGHTX2V_VARIANTS;
+
+// ============================================================
 // H3_NATIVE —— 原生 (non-T8) 链路采样器/调度器配置
 // ============================================================
 // T8 迁移前的原生 KSampler + SigmaShift 链路配置 (pre-T8, commit c2ad955a~1)。
@@ -257,6 +314,10 @@ export const H3_NATIVE = {
 //   native-sage  —— 原生 (non-T8) KSampler + SigmaShift, 不插入 TESpeed 节点。
 //                   ComfyUI 已全局启用 --use-sage-attention, SageAttention 自动生效 (无质量损失)。
 //                   与 native 的唯一区别: tespeed=false → 不插入 TESpeed 节点(35)。
+//   lightx2v-4   —— LightX2V Turbo LoRA v1.0 正式版 (4 步, 768p 训练, shift_video=6 + res_multistep +
+//                   simple scheduler)。不使用 T8 节点也不使用 T8 Turbo LoRA; ~72s 渲染。跳过 Foley。
+//   lightx2v-8   —— LightX2V Turbo LoRA v1.0 正式版 (8 步, 544p 训练, shift_video=12)。画质更高,
+//                   ~120s 渲染。跳过 Foley (直出 H3 原生音频)。
 // 调用方通过 generate 的 `profile` 入参选择; 显式传 steps 时以 steps 为准 (但 turbo 仍由
 // profile.turbo / turbo 入参决定是否启用 LoRA)。
 export const H3_PROFILES = {
@@ -299,6 +360,22 @@ export const H3_PROFILES = {
     turbo: false,
     native: true,
     tespeed: false,       // 纯原生链路, 不插入 TESpeed 节点 (SageAttention 全局生效, 无质量损失)
+  },
+  "lightx2v-4": {
+    label: "LightX2V v1.0 4-step (768p, shift=6, ~72s render)",
+    steps: 4,
+    skipFoley: true,      // 直出 H3 原生音频, 跳过 Foley
+    turbo: false,         // 不使用 T8 Turbo LoRA (用独立的 LightX2V LoRA)
+    native: false,        // 不使用原生 KSampler 链路 (LightX2V 自有 SigmaShift + 采样链路)
+    tespeed: false,       // LightX2V 链路不插入 TESpeed 节点
+  },
+  "lightx2v-8": {
+    label: "LightX2V v1.0 8-step (544p, shift=12, ~120s render, higher quality)",
+    steps: 8,
+    skipFoley: true,      // 直出 H3 原生音频, 跳过 Foley
+    turbo: false,         // 不使用 T8 Turbo LoRA (用独立的 LightX2V LoRA)
+    native: false,        // 不使用原生 KSampler 链路 (LightX2V 自有 SigmaShift + 采样链路)
+    tespeed: false,       // LightX2V 链路不插入 TESpeed 节点
   },
 } as const;
 

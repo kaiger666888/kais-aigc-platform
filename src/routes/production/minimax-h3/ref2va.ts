@@ -458,6 +458,13 @@ export default router.post(
     const motion = (req.body.motion as string) || undefined; // low | medium | high
     // native: profile=native/native-sage 或显式 native=true
     const rawProfile = ((req.body.profile as string) || "").toLowerCase();
+    // profile 校验: 空字符串 (默认 T8) 或 H3_PROFILES 中的合法 key
+    // (preview | turbo | production | native | native-sage | lightx2v)。
+    if (rawProfile && !(rawProfile in H3_PROFILES)) {
+      return res
+        .status(400)
+        .send(error(`profile must be one of: ${Object.keys(H3_PROFILES).join(" | ")} (got "${rawProfile}")`));
+    }
     const profile = H3_PROFILES[rawProfile as keyof typeof H3_PROFILES];
     const nativeParam = req.body.native === "true" || req.body.native === true || profile?.native === true;
     // tespeed: 原生链路是否插入 TESpeed 节点(35)。native-sage profile 的 tespeed=false → 不插入。
