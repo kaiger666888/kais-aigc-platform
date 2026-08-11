@@ -295,7 +295,7 @@ export const H3_PROFILES = {
   "native-sage": {
     label: "Native-Sage (KSampler + SigmaShift, no TESpeed node; SageAttention global)",
     steps: null,          // null = 按模式默认 (t2v/i2va=50, ref2va=20, 见 H3_NATIVE)
-    skipFoley: false,
+    skipFoley: true,
     turbo: false,
     native: true,
     tespeed: false,       // 纯原生链路, 不插入 TESpeed 节点 (SageAttention 全局生效, 无质量损失)
