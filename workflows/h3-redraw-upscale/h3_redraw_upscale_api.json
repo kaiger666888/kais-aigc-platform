@@ -1,0 +1,268 @@
+{
+  "unet": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "clip": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "type": "minimax",
+      "device": "default"
+    }
+  },
+  "vae_video": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    }
+  },
+  "vae_audio": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+    }
+  },
+  "te_model": {
+    "class_type": "TESpeedMiniMaxH3",
+    "inputs": {
+      "model": [
+        "unet",
+        0
+      ],
+      "processing_control_value": 0.12,
+      "processing_percent_1": 0.1,
+      "processing_percent_2": 0.9,
+      "mcs": 2,
+      "device": "auto"
+    }
+  },
+  "ref2va": {
+    "class_type": "MiniMaxH3ReferenceToVideo",
+    "inputs": {
+      "clip": [
+        "clip",
+        0
+      ],
+      "vae": [
+        "vae_video",
+        0
+      ],
+      "audio_vae": [
+        "vae_audio",
+        0
+      ],
+      "prompt": "A cinematic 16:9 shot: a young woman with long black hair sits at a café table by the window, gently stirring a cup of milk tea, soft afternoon sunlight, shallow depth of field, natural ambient café sounds, gentle clinking of cups.",
+      "width": 864,
+      "height": 480,
+      "length": 73,
+      "ref_image_size": "match"
+    }
+  },
+  "noise1": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": 12345
+    }
+  },
+  "sampler": {
+    "class_type": "KSamplerSelect",
+    "inputs": {
+      "sampler_name": "euler"
+    }
+  },
+  "sigmas1": {
+    "class_type": "BasicScheduler",
+    "inputs": {
+      "model": [
+        "te_model",
+        0
+      ],
+      "scheduler": "beta",
+      "steps": 20,
+      "denoise": 1.0
+    }
+  },
+  "guider1": {
+    "class_type": "BasicGuider",
+    "inputs": {
+      "model": [
+        "te_model",
+        0
+      ],
+      "conditioning": [
+        "ref2va",
+        0
+      ]
+    }
+  },
+  "pass1": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": [
+        "noise1",
+        0
+      ],
+      "guider": [
+        "guider1",
+        0
+      ],
+      "sampler": [
+        "sampler",
+        0
+      ],
+      "sigmas": [
+        "sigmas1",
+        0
+      ],
+      "latent_image": [
+        "ref2va",
+        1
+      ]
+    }
+  },
+  "noise2": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": 98765
+    }
+  },
+  "sigmas2": {
+    "class_type": "BasicScheduler",
+    "inputs": {
+      "model": [
+        "te_model",
+        0
+      ],
+      "scheduler": "beta",
+      "steps": 10,
+      "denoise": 0.35
+    }
+  },
+  "upscaler": {
+    "class_type": "MiniMaxH3LatentUpscaleCombined",
+    "inputs": {
+      "samples": [
+        "pass1",
+        1
+      ],
+      "scale_by": 1.5,
+      "method": "bilinear",
+      "model": [
+        "te_model",
+        0
+      ],
+      "noise": [
+        "noise2",
+        0
+      ],
+      "sigmas": [
+        "sigmas2",
+        0
+      ],
+      "audio_denoise": 0.35,
+      "positive": [
+        "ref2va",
+        0
+      ]
+    }
+  },
+  "disable_noise": {
+    "class_type": "DisableNoise",
+    "inputs": {}
+  },
+  "guider2": {
+    "class_type": "BasicGuider",
+    "inputs": {
+      "model": [
+        "te_model",
+        0
+      ],
+      "conditioning": [
+        "upscaler",
+        1
+      ]
+    }
+  },
+  "pass2": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": [
+        "disable_noise",
+        0
+      ],
+      "guider": [
+        "guider2",
+        0
+      ],
+      "sampler": [
+        "sampler",
+        0
+      ],
+      "sigmas": [
+        "sigmas2",
+        0
+      ],
+      "latent_image": [
+        "upscaler",
+        0
+      ]
+    }
+  },
+  "decode_video": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "pass2",
+        0
+      ],
+      "vae": [
+        "vae_video",
+        0
+      ]
+    }
+  },
+  "decode_audio": {
+    "class_type": "VAEDecodeAudio",
+    "inputs": {
+      "samples": [
+        "pass2",
+        0
+      ],
+      "vae": [
+        "vae_audio",
+        0
+      ]
+    }
+  },
+  "create_video": {
+    "class_type": "CreateVideo",
+    "inputs": {
+      "images": [
+        "decode_video",
+        0
+      ],
+      "fps": 24,
+      "audio": [
+        "decode_audio",
+        0
+      ],
+      "bit_depth": 8
+    }
+  },
+  "save_video": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "video": [
+        "create_video",
+        0
+      ],
+      "filename_prefix": "h3_redraw_upscale",
+      "format": "auto",
+      "codec": "auto"
+    }
+  }
+}

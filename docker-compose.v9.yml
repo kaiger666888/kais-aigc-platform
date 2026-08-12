@@ -63,6 +63,9 @@ services:
       # Phase 36 follow-up: 强制 PyTorch 按 PCI 总线序,与 nvidia-smi 编号对齐
       # 容器内只看到 1 张 GPU (隔离后),cuda:0 永远是被隔离的那张,但保持显式声明以防 NVIDIA Container Toolkit 行为变化
       CUDA_DEVICE_ORDER: PCI_BUS_ID
+      # 二采重绘放大 toolkit: triton 由 pre-start 安装供 SolAttn 直接 import;
+      # 但 DISABLE 必须保持 "1" —— 实测 triton 可导入时, ComfyUI 的 --enable-triton-backend 会卡死启动
+      # (frozen 在 Manager init). SolAttn 走 per-model override 不依赖全局 triton attention backend.
       TORCH_CUDA_DISABLE_TRITON: "1"
       TRANSFORMERS_CACHE: /tmp/hf_cache
       TORCH_HOME: /tmp/torch_cache
@@ -89,6 +92,9 @@ services:
       - /data/workspace/comfyui-incremental-nodes/facerestore_cf:/root/ComfyUI/custom_nodes/facerestore_cf
       - /data/workspace/comfyui-incremental-nodes/ComfyUI-Licon-MSR:/root/ComfyUI/custom_nodes/ComfyUI-Licon-MSR
       - /data/workspace/comfyui-incremental-nodes/ComfyUI-PromptRelay:/root/ComfyUI/custom_nodes/ComfyUI-PromptRelay
+      - /data/workspace/comfyui-incremental-nodes/ltx_foley_v2a:/root/ComfyUI/custom_nodes/ltx_foley_v2a
+      # SolAttn 用 ComfyExtension/io.ComfyNode API, kais-incremental 自动装载器认不出 → 独立挂载为顶层 custom_node
+      - /data/workspace/comfyui-extra-nodes/ComfyUI-SolAttn_triton:/root/ComfyUI/custom_nodes/ComfyUI-SolAttn_triton
       - /data/workspace/comfyui-incremental-nodes/scripts/fix-kornia.sh:/root/user-scripts/pre-start.sh
       - /data/workspace/comfyui-incremental-nodes/scripts/install-insightface.sh:/root/user-scripts/install-insightface.sh
       - /data/workspace/comfyui-incremental-nodes/scripts/install-training-deps.sh:/root/user-scripts/install-training-deps.sh
@@ -97,6 +103,7 @@ services:
       - /data/workspace/comfyui-incremental-nodes/scripts/install-facerestore-deps.sh:/root/user-scripts/install-facerestore-deps.sh
       - /data/models/cosyvoice:/root/ComfyUI/models/cosyvoice:rw
       - /data/models/IndexTTS-2:/root/ComfyUI/models/IndexTTS-2:ro
+      - /data/models/IndexTTS-2.5:/root/ComfyUI/models/IndexTTS-2.5:rw
       - /data/models/w2v-bert-2.0:/data/models/w2v-bert-2.0:ro
       - comfyui-cache:/tmp/hf_cache
     networks:

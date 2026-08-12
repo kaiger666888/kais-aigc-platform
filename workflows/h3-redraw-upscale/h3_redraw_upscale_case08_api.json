@@ -1,0 +1,298 @@
+{
+  "unet": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "clip": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "type": "minimax",
+      "device": "default"
+    }
+  },
+  "vae_video": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    }
+  },
+  "vae_audio": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+    }
+  },
+  "te_model": {
+    "class_type": "TESpeedMiniMaxH3",
+    "inputs": {
+      "model": [
+        "unet",
+        0
+      ],
+      "processing_control_value": 0.12,
+      "processing_percent_1": 0.1,
+      "processing_percent_2": 0.9,
+      "mcs": 2,
+      "device": "auto"
+    }
+  },
+  "ref1": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "case08/1.jpg"
+    }
+  },
+  "ref2": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "case08/2.jpg"
+    }
+  },
+  "refbg": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "case08/bg.png"
+    }
+  },
+  "ref2va": {
+    "class_type": "MiniMaxH3ReferenceToVideo",
+    "inputs": {
+      "clip": [
+        "clip",
+        0
+      ],
+      "vae": [
+        "vae_video",
+        0
+      ],
+      "audio_vae": [
+        "vae_audio",
+        0
+      ],
+      "prompt": "<Picture 1> is the man in the deep red embroidered robe with a black fur collar. <Picture 2> is the woman in the pale green ornate ancient dress. <Picture 3> is the scene background — the ancient Jiangnan village alley after rain.\n\nRealistic cinematic Chinese fantasy style, maintain strong reference consistency for both characters and the ancient village street. Do not change their faces, hairstyles, costumes, colors, accessories, fabric patterns, body proportions, or overall visual style.\n\n15-second one-shot video, no cuts, high-motion chase sequence. After the rain, an ancient Jiangnan village alley with white walls, black tiled roofs, wet stone pavement, warm glowing lanterns, misty mountains in the distance, and willow branches hanging in the foreground.\n\nThe camera starts behind the wet willow branches, then rushes forward rapidly into the narrow alley. The woman in the pale green ornate ancient dress suddenly runs across the frame from right to left, her long layered skirt, translucent shawl, jade ornaments, earrings, and hair ribbons flying dramatically in the wind. She glances back with a tense expression while running.\n\nThe man in the deep red embroidered robe with a black fur collar bursts out from the left-side alley entrance and immediately chases after her. His long hair, pearl earrings, wide sleeves, red robe, and black fur collar move violently with the speed. His footsteps hit the wet stone pavement, splashing water from puddles.\n\nThe camera follows them in one continuous fast tracking shot, weaving through the narrow alley. The woman dodges around a stone step, spins past a glowing lantern, and her green shawl sweeps across the frame. The man closes the distance, reaches out toward her, but she quickly turns sideways and slips past him. Their sleeves nearly touch, creating a strong flowing motion between red and green fabric.\n\nThe camera circles around them as they pass each other, then instantly swings behind the man as he turns and continues chasing her deeper into the alley. Lantern reflections stretch and break across the wet ground. Willow leaves, mist, robe hems, hair strands, earrings, and translucent fabric all move strongly with the wind and speed.\n\nIn the final seconds, the woman suddenly stops, spins around sharply, and her long green dress forms a wide circular arc on the wet stone pavement. The man rushes forward and stops just in front of her, his red sleeves and robe continuing to fly forward from inertia. The camera pushes in quickly from a low angle and ends on their intense face-to-face stare. Strong dynamic motion, fast chase, dramatic fabric movement, water splashes, camera rotation, rapid push-in, wind-blown hair and accessories. No cuts, no face change, no costume change, no style change.\n",
+      "width": 736,
+      "height": 416,
+      "length": 124,
+      "ref_image_size": "match",
+      "ref_images.ref_image_0": [
+        "ref1",
+        0
+      ],
+      "ref_images.ref_image_1": [
+        "ref2",
+        0
+      ],
+      "ref_images.ref_image_2": [
+        "refbg",
+        0
+      ]
+    }
+  },
+  "noise1": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": 20260812
+    }
+  },
+  "sampler": {
+    "class_type": "KSamplerSelect",
+    "inputs": {
+      "sampler_name": "euler"
+    }
+  },
+  "sigmas1": {
+    "class_type": "BasicScheduler",
+    "inputs": {
+      "model": [
+        "te_model",
+        0
+      ],
+      "scheduler": "beta",
+      "steps": 20,
+      "denoise": 1.0
+    }
+  },
+  "guider1": {
+    "class_type": "BasicGuider",
+    "inputs": {
+      "model": [
+        "te_model",
+        0
+      ],
+      "conditioning": [
+        "ref2va",
+        0
+      ]
+    }
+  },
+  "pass1": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": [
+        "noise1",
+        0
+      ],
+      "guider": [
+        "guider1",
+        0
+      ],
+      "sampler": [
+        "sampler",
+        0
+      ],
+      "sigmas": [
+        "sigmas1",
+        0
+      ],
+      "latent_image": [
+        "ref2va",
+        1
+      ]
+    }
+  },
+  "noise2": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": 80808080
+    }
+  },
+  "sigmas2": {
+    "class_type": "BasicScheduler",
+    "inputs": {
+      "model": [
+        "te_model",
+        0
+      ],
+      "scheduler": "beta",
+      "steps": 18,
+      "denoise": 0.6
+    }
+  },
+  "upscaler": {
+    "class_type": "MiniMaxH3LatentUpscaleCombined",
+    "inputs": {
+      "samples": [
+        "pass1",
+        1
+      ],
+      "scale_by": 1.75,
+      "method": "bilinear",
+      "model": [
+        "te_model",
+        0
+      ],
+      "noise": [
+        "noise2",
+        0
+      ],
+      "sigmas": [
+        "sigmas2",
+        0
+      ],
+      "audio_denoise": 0.35,
+      "positive": [
+        "ref2va",
+        0
+      ]
+    }
+  },
+  "disable_noise": {
+    "class_type": "DisableNoise",
+    "inputs": {}
+  },
+  "guider2": {
+    "class_type": "BasicGuider",
+    "inputs": {
+      "model": [
+        "te_model",
+        0
+      ],
+      "conditioning": [
+        "upscaler",
+        1
+      ]
+    }
+  },
+  "pass2": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": [
+        "disable_noise",
+        0
+      ],
+      "guider": [
+        "guider2",
+        0
+      ],
+      "sampler": [
+        "sampler",
+        0
+      ],
+      "sigmas": [
+        "sigmas2",
+        0
+      ],
+      "latent_image": [
+        "upscaler",
+        0
+      ]
+    }
+  },
+  "decode_video": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "pass2",
+        0
+      ],
+      "vae": [
+        "vae_video",
+        0
+      ]
+    }
+  },
+  "decode_audio": {
+    "class_type": "VAEDecodeAudio",
+    "inputs": {
+      "samples": [
+        "pass2",
+        0
+      ],
+      "vae": [
+        "vae_audio",
+        0
+      ]
+    }
+  },
+  "create_video": {
+    "class_type": "CreateVideo",
+    "inputs": {
+      "images": [
+        "decode_video",
+        0
+      ],
+      "fps": 24,
+      "audio": [
+        "decode_audio",
+        0
+      ],
+      "bit_depth": 8
+    }
+  },
+  "save_video": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "video": [
+        "create_video",
+        0
+      ],
+      "filename_prefix": "h3_redraw_case08",
+      "format": "auto",
+      "codec": "auto"
+    }
+  }
+}
