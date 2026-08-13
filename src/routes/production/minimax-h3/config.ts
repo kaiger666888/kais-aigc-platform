@@ -253,10 +253,10 @@ export const H3_LIGHTX2V_VARIANTS = {
   "lightx2v-4": {
     loraName: "minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors",
     strengthModel: 1.0,
-    steps: 4,
+    steps: 5,            // 官方 infer_steps=5 (4步去噪+1终步sigma=0)
     shiftVideo: 6.0,    // ⚠️ 4步正式版用 shift=6 (非 12!)
     shiftAudio: 3.0,
-    samplerName: "res_multistep",
+    samplerName: "euler",  // 官方 training_euler = FlowMatch Euler, ComfyUI 最近接是 euler
     scheduler: "simple",
     denoise: 1.0,
     nodeId: "15",                            // LoraLoaderModelOnly 节点 ID
@@ -265,11 +265,11 @@ export const H3_LIGHTX2V_VARIANTS = {
   // 8步正式版: 544p 训练分辨率 (mixed aspect ratio), shift_video=12, 推荐 8 步 (亦可 4 步)
   "lightx2v-8": {
     loraName: "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors",
-    strengthModel: 1.0,
-    steps: 8,
+    strengthModel: 16.0,  // ⚠️ 8步版 alpha=8/rank=128=0.0625, 需补偿到1.0: 128/8=16
+    steps: 9,             // 官方 8步推荐, +1终步sigma=0
     shiftVideo: 12.0,
     shiftAudio: 3.0,
-    samplerName: "res_multistep",
+    samplerName: "euler",   // 官方 training_euler = FlowMatch Euler
     scheduler: "simple",
     denoise: 1.0,
     nodeId: "15",
@@ -362,16 +362,16 @@ export const H3_PROFILES = {
     tespeed: false,       // 纯原生链路, 不插入 TESpeed 节点 (SageAttention 全局生效, 无质量损失)
   },
   "lightx2v-4": {
-    label: "LightX2V v1.0 4-step (768p, shift=6, ~72s render)",
-    steps: 4,
+    label: "LightX2V v1.0 5-step (768p, shift=6, euler, ~72s render)",
+    steps: 5,             // 官方 infer_steps=5 (4步去噪+1终步sigma=0)
     skipFoley: true,      // 直出 H3 原生音频, 跳过 Foley
     turbo: false,         // 不使用 T8 Turbo LoRA (用独立的 LightX2V LoRA)
     native: false,        // 不使用原生 KSampler 链路 (LightX2V 自有 SigmaShift + 采样链路)
     tespeed: false,       // LightX2V 链路不插入 TESpeed 节点
   },
   "lightx2v-8": {
-    label: "LightX2V v1.0 8-step (544p, shift=12, ~120s render, higher quality)",
-    steps: 8,
+    label: "LightX2V v1.0 9-step (544p, shift=12, euler, ~120s render, higher quality)",
+    steps: 9,             // 官方 8步推荐+1终步
     skipFoley: true,      // 直出 H3 原生音频, 跳过 Foley
     turbo: false,         // 不使用 T8 Turbo LoRA (用独立的 LightX2V LoRA)
     native: false,        // 不使用原生 KSampler 链路 (LightX2V 自有 SigmaShift + 采样链路)
