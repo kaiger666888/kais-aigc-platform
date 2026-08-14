@@ -111,6 +111,61 @@ export const H3_DEFAULTS = {
   cfg: H3_CONSTANTS.CFG,
 } as const;
 
+// ============================================================================
+// H3 Token 预算 (2026-08-14 RTX 3090 三轮 9 次压力测试实测)
+// 崩溃由 token 总数 (width × height × length) 决定, 不是单帧分辨率。
+// 374M tokens (1344×768×362f) 时 comfy_kitchen CUDA/triton 双后端均崩溃
+// (illegal memory access @ Model Initializing, 进程 abort)。
+// 崩溃与是否 OOM 无关 (VRAM 23GB 未满也崩), 是 comfy_kitchen 量化算子
+// 在高 token 数下的越界 bug。
+// ============================================================================
+export const H3_TOKEN_BUDGET_SAFE = 300_000_000;   // 安全线 (生产建议)
+export const H3_TOKEN_BUDGET_CRASH = 340_000_000;  // 实测崩溃线 (326M✅/374M❌)
+
+/** 实测成功边界样本 (tokens → 配置), 用于文档与自动降档参考 */
+export const H3_TOKEN_FRONTIER: Array<{ w: number; h: number; f: number; tokens: number; ok: boolean; seconds: number }> = [
+  { w: 1600, h: 896, f: 124, tokens: 177_766_400, ok: true,  seconds: 441 }, // 最高分辨率纪录
+  { w: 1472, h: 832, f: 124, tokens: 151_863_296, ok: true,  seconds: 313 },
+  { w: 1472, h: 832, f: 175, tokens: 214_323_200, ok: true,  seconds: 498 },
+  { w: 1344, h: 768, f: 175, tokens: 180_633_600, ok: true,  seconds: 370 },
+  { w: 1344, h: 768, f: 243, tokens: 250_822_656, ok: true,  seconds: 514 },
+  { w: 1344, h: 768, f: 311, tokens: 321_011_712, ok: true,  seconds: 786 }, // 1344×768 时长上限 (13s)
+  { w: 1280, h: 704, f: 362, tokens: 326_205_440, ok: true,  seconds: 838 }, // 满 15s 最高分辨率
+  { w: 1216, h: 672, f: 362, tokens: 295_809_024, ok: true,  seconds: 625 },
+  { w: 1344, h: 768, f: 362, tokens: 373_653_504, ok: false, seconds: 0 },   // ❌ 双后端崩溃
+];
+
+export type H3TokenBudgetLevel = "ok" | "warn" | "reject";
+
+/**
+ * token 预算校验。返回 { tokens, level: "ok" | "warn" | "reject", message }。
+ * - ok:     ≤300M 安全线内
+ * - warn:   300M~340M 之间 (1280×704×362f=326M 实测可过, 但接近崩溃线)
+ * - reject: >340M (实测 374M 双后端崩溃, 拒绝提交)
+ */
+export function checkH3TokenBudget(
+  width: number,
+  height: number,
+  length: number,
+): { tokens: number; level: H3TokenBudgetLevel; message: string } {
+  const tokens = width * height * length;
+  if (tokens <= H3_TOKEN_BUDGET_SAFE) {
+    return { tokens, level: "ok", message: "" };
+  }
+  if (tokens <= H3_TOKEN_BUDGET_CRASH) {
+    return {
+      tokens,
+      level: "warn",
+      message: `token budget ${tokens.toLocaleString()} between safe(300M) and crash(340M) line — 实测 326M (1280×704×362f) 可过但接近崩溃线, 建议降档`,
+    };
+  }
+  return {
+    tokens,
+    level: "reject",
+    message: `token budget ${tokens.toLocaleString()} exceeds crash line 340M — 实测 374M (1344×768×362f) 双后端崩溃 (illegal memory access)。满 15s 请用 ≤1280×704`,
+  };
+}
+
 // ============================================================
 // 帧数对齐(保留不变)
 // ============================================================

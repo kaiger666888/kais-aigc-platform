@@ -26,6 +26,11 @@
  *   width          : number  (默认 1344, 必须 32 倍数)
  *   height         : number  (默认 768, 必须 32 倍数)
  *   length         : number  (帧数, 默认 124, 自动对齐 n%17==5)
+ *
+ *   # ⚠️ Token 预算 (2026-08-14 压力测试): width×height×length ≤ 300M 安全线
+ *   #   - 340M+ 实测崩溃 (1344×768×362f=374M, comfy_kitchen 双后端 illegal access)
+ *   #   - 满 15s (362f) 最高 1280×704 (=326M, warn 区); 1344×768 最高 311f
+ *   #   - 详见 config.ts 的 H3_TOKEN_FRONTIER / checkH3TokenBudget()
  *   seed           : number  (H3 视频生成种子, 默认随机)
  *
  *   # 可选: 音频参数
@@ -78,6 +83,7 @@ import {
   H3_USE_CASES,
   H3_DEFAULT_NEGATIVE,
   alignH3FrameCount,
+  checkH3TokenBudget,
   getTurboSteps,
   type H3UseCasePreset,
 } from "./config";
@@ -684,6 +690,31 @@ export default router.post(
     // ── 帧数 (自动对齐 n%17==5) ──
     const rawLength = Number(req.body.length) || H3_DEFAULTS.defaultLength;
     const length = alignH3FrameCount(rawLength);
+
+    // ── Token 预算校验 (2026-08-14 压力测试: 崩溃由 width×height×length 决定) ──
+    // reject → 400 拒绝 (340M+ 实测双后端崩溃); warn → 日志放行 (326M 实测可过, 不误杀)。
+    const tokenBudget = checkH3TokenBudget(width, height, length);
+    if (tokenBudget.level === "reject") {
+      return res.status(400).send(error(tokenBudget.message, {
+        tokenBudget: {
+          tokens: tokenBudget.tokens,
+          level: tokenBudget.level,
+          safeLine: 300_000_000,
+          crashLine: 340_000_000,
+          requested: { width, height, length },
+          suggestion:
+            length >= 340
+              ? { width: 1280, height: 704, length, note: "满时长请降分辨率 (1280×704×362f=326M 实测可过)" }
+              : { width: 1344, height: 768, length: Math.min(length, 311), note: "1344×768 最高 311f (13s)" },
+        },
+      }));
+    }
+    if (tokenBudget.level === "warn") {
+      console.warn(
+        `[generate] H3 token budget WARN: ${width}×${height}×${length}f = ` +
+        `${tokenBudget.tokens.toLocaleString()} tokens — ${tokenBudget.message}`,
+      );
+    }
 
     // H3 视频生成种子 (默认随机); Foley 种子用 LTX 默认 (42)
     const h3Seed = req.body.seed ? Number(req.body.seed) : Math.floor(Math.random() * 2147483647);
