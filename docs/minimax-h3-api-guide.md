@@ -2,6 +2,8 @@
 
 > 适用于 kais-aigc-platform 内置的 MiniMax H3 视频生成引擎。
 > H3 生成带**原生立体声音频**的视频，一个 forward pass 出视频+音频。
+> 统一同步管线 `POST /generate`（全 8 档 profile + Foley 音频管线）与 KMC 分用途
+> `useCase` 入口见 [h3-generation-paths.md](./h3-generation-paths.md)。
 
 ## 端点列表
 

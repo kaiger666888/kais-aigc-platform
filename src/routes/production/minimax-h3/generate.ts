@@ -16,6 +16,12 @@
  *   refImages[]    : File[]  (ref2va 模式的参考图, 最多 9 张)
  *   refVideo       : File    (lineart-anime 模式的线稿参考视频, 可选)
  *
+ *   # 可选: 分用途入口 (KMC 推荐 — 一个参数解析 profile/mode/motion/audioMix)
+ *   useCase        : string  ("preview-lock" | "final-shot" | "broll" | "keyframe-interp"
+ *                             | "portrait-dialogue" | "motion-board" | "lineart-color")
+ *                             仅提供默认值; 显式传 mode/profile/motion/steps/audioMix 仍可覆盖 (显式优先)。
+ *                             详见 config.ts 的 H3_USE_CASES。
+ *
  *   # 可选: 视频参数
  *   width          : number  (默认 1344, 必须 32 倍数)
  *   height         : number  (默认 768, 必须 32 倍数)
@@ -69,9 +75,11 @@ import {
   H3_LIGHTX2V_VARIANTS,
   H3_LINEART_ANIME,
   H3_PROFILES,
+  H3_USE_CASES,
   H3_DEFAULT_NEGATIVE,
   alignH3FrameCount,
   getTurboSteps,
+  type H3UseCasePreset,
 } from "./config";
 // 复用 replace-audio 的辅助函数 (这些函数仅新增了 export 关键字, 逻辑未变更)
 import {
@@ -643,8 +651,22 @@ export default router.post(
     const filenamePrefix =
       (req.body.filenamePrefix as string) || `h3_generate_${projectId}_${Date.now()}`;
 
-    // ── 模式解析 + 校验 ──
-    const rawMode = ((req.body.mode as string) || "t2va").toLowerCase();
+    // ── useCase 分用途入口 (KMC 推荐: 一个参数解析 profile/mode/motion/audioMix) ──
+    // useCase 仅提供默认值; 调用方显式传 mode/profile/motion/steps/audioMix 仍可覆盖 (显式优先)。
+    // 不传 useCase 时完全向后兼容 (mode 默认 t2va, profile 默认 production)。详见 config.ts H3_USE_CASES。
+    const rawUseCase = (req.body.useCase as string)?.toLowerCase() || null;
+    let useCasePreset: H3UseCasePreset | null = null;
+    if (rawUseCase) {
+      if (!(rawUseCase in H3_USE_CASES)) {
+        return res.status(400).send(error(
+          `useCase must be one of: ${Object.keys(H3_USE_CASES).join(" | ")} (got "${rawUseCase}")`,
+        ));
+      }
+      useCasePreset = H3_USE_CASES[rawUseCase as keyof typeof H3_USE_CASES];
+    }
+
+    // ── 模式解析 + 校验 (显式 mode > useCase.mode > "t2va") ──
+    const rawMode = ((req.body.mode as string) || useCasePreset?.mode || "t2va").toLowerCase();
     if (!["t2va", "i2va", "ref2va"].includes(rawMode)) {
       return res.status(400).send(error(`mode must be one of: t2va | i2va | ref2va (got "${rawMode}")`));
     }
@@ -673,7 +695,7 @@ export default router.post(
     //        | "lightx2v-4" (LightX2V Turbo LoRA v1.0, 4 步 768p shift=6 / 无 T8, 跳过 Foley)
     //        | "lightx2v-8" (LightX2V Turbo LoRA v1.0, 8 步 544p shift=12 / 无 T8, 跳过 Foley)
     //        | "lineart-anime" (LineartAnime LoRA, 20 步 shift=12, line art→anime 上色 / ref2va, 无 T8, 跳过 Foley)
-    const rawProfile = ((req.body.profile as string) || "production").toLowerCase();
+    const rawProfile = ((req.body.profile as string) || useCasePreset?.profile || "production").toLowerCase();
     if (![ "preview", "turbo", "production", "native", "native-sage", "lightx2v-4", "lightx2v-8", "lineart-anime" ].includes(rawProfile)) {
       return res
         .status(400)
@@ -686,11 +708,20 @@ export default router.post(
     const turbo = req.body.turbo === "true" || req.body.turbo === true || profile.turbo;
     // tespeed: 原生链路是否插入 TESpeed 节点(35)。native-sage profile 的 tespeed=false → 不插入。
     const tespeed = profile.tespeed !== false;
-    const motion = (req.body.motion as string) || undefined; // low | medium | high
+    const motion = (req.body.motion as string) || useCasePreset?.motion || undefined; // low | medium | high
     // 步数优先级: 显式 steps > motion-based (turbo时) > profile.steps (native profile.steps=null → 按模式默认)
     const h3StepsOverride = req.body.steps
       ? Number(req.body.steps)
       : (turbo && motion ? getTurboSteps(motion) : profile.steps);
+
+    // 音频混音策略 (仅 skipFoley=false 档位的 Step3 合并生效): 显式 > useCase.audioMix > "balanced"
+    //   balanced          —— TTS I=-16 + 环境音 I=-24 volume=0.5 (默认, 对白与环境音并重)
+    //   dialogue-priority —— 环境音压到 I=-28 volume=0.3 (口播/短剧对白, 对白绝对优先)
+    const rawAudioMix = (req.body.audioMix as string) || useCasePreset?.audioMix || "balanced";
+    if (rawAudioMix !== "balanced" && rawAudioMix !== "dialogue-priority") {
+      return res.status(400).send(error(`audioMix must be one of: balanced | dialogue-priority (got "${rawAudioMix}")`));
+    }
+    const audioMix = rawAudioMix;
 
     // ── 文件入参 ──
     const files = req.files as Record<string, Express.Multer.File[]> | undefined;
@@ -875,6 +906,7 @@ export default router.post(
         success({
           status: "completed",
           profile: rawProfile,
+          useCase: rawUseCase,
           turbo,
           videoUrl: `/mnt/agents/output/${filenamePrefix}_h3.mp4`,
           videoPath: previewOutputPath,
@@ -1037,7 +1069,7 @@ export default router.post(
       fs.mkdirSync(path.dirname(finalOutputPath), { recursive: true });
       // 用 H3 原始分辨率视频合并: mergeAudioAndVideo 只取视频流 (-map 0:v:0),
       // 用 Foley 环境音 (+可选 TTS 混音) 替换原音轨。
-      mergeAudioAndVideo(localH3VideoPath!, localTtsAudio, ambientAudioPath!, finalOutputPath);
+      mergeAudioAndVideo(localH3VideoPath!, localTtsAudio, ambientAudioPath!, finalOutputPath, audioMix);
     } catch (err: any) {
       safeUnlink(localTtsAudio);
       for (const p of tmpPaths) safeUnlink(p);
@@ -1058,6 +1090,8 @@ export default router.post(
       success({
         status: "completed",
         profile: rawProfile,
+        useCase: rawUseCase,
+        audioMix,
         turbo,
         videoUrl: outputUrl,
         videoPath: finalOutputPath,

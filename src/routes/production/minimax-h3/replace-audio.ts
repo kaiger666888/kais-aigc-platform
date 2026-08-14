@@ -649,13 +649,19 @@ export function mergeAudioAndVideo(
   ttsAudioPath: string | null,
   ambientAudioPath: string,
   outputPath: string,
+  audioMix: "balanced" | "dialogue-priority" = "balanced",
 ): void {
   // 响度归一化策略 (A/B 实测定稿):
   //   loudnorm(EBU R128) 比 dynaudnorm 更自然 — 保留原始音频质感, 不会过度放大噪声
   //   目标: I=-20 LUFS (环境音理想值), TP=-2 dBFS, LRA=11
   //
   //   - 无 TTS: loudnorm 环境音到 I=-20 后合并
-  //   - 有 TTS: TTS loudnorm I=-16 (对白标准) + 环境音 loudnorm I=-24 (背景层)
+  //   - 有 TTS (balanced): TTS loudnorm I=-16 (对白标准) + 环境音 loudnorm I=-24 (背景层) + volume=0.5
+  //   - 有 TTS (dialogue-priority): 环境音进一步压低 (I=-28 + volume=0.3), 对白绝对优先
+  //     (口播/短剧对白场景: 环境音只作极弱底色, 避免 TTS 被环境音掩蔽)
+  const ambLoudnorm = audioMix === "dialogue-priority"
+    ? "loudnorm=I=-28:TP=-2:LRA=11,volume=0.3"
+    : "loudnorm=I=-24:TP=-2:LRA=11,volume=0.5";
   if (ttsAudioPath && fs.existsSync(ttsAudioPath)) {
     // 两轨混音: TTS (对白) + ambient (环境音)
     const mixedAudio = outputPath.replace(/\.mp4$/, "_mixed.aac");
@@ -663,7 +669,7 @@ export function mergeAudioAndVideo(
       `ffmpeg -y -i "${ttsAudioPath}" -i "${ambientAudioPath}" ` +
       `-filter_complex ` +
       `"[0:a]loudnorm=I=-16:TP=-1.5:LRA=11[tts];` +
-      `[1:a]loudnorm=I=-24:TP=-2:LRA=11,volume=0.5[amb];` +
+      `[1:a]${ambLoudnorm}[amb];` +
       `[tts][amb]amix=inputs=2:duration=first:weights=1 1:normalize=0[mix]" ` +
       `-map "[mix]" -c:a aac -b:a 192k "${mixedAudio}"`,
       { timeout: 120_000 },

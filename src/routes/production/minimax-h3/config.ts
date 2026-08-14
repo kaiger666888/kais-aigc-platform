@@ -328,7 +328,7 @@ export const H3_NATIVE = {
 // ============================================================
 // H3_PROFILES —— 质量/速度 profile 预设 (T8 + native + KMC 搭配方案)
 // ============================================================
-// 配合 KMC 管线的五种生成档位:
+// 配合 KMC 管线的八种生成档位 (调用方也可改用 useCase 分用途入口, 见 H3_USE_CASES):
 //   preview      —— 最快速但保证质量: T8 15 步 + TESpeed 全局 patch, 跳过 Foley
 //                   (H3 原生音频直出), ~6 min/条
 //   turbo        —— 极速: T8 4 步 + Turbo LoRA (~3.1x 加速), 跳过 Foley, ~3 min/条
@@ -415,6 +415,76 @@ export const H3_PROFILES = {
 } as const;
 
 export type H3ProfileName = keyof typeof H3_PROFILES;
+
+// ============================================================
+// H3_USE_CASES —— 面向 KMC 的"分用途"入口 (useCase → profile/mode/motion/audioMix)
+// ============================================================
+// KMC 调 POST /generate 时传 useCase 即可, 无需在 Python 侧自行解析 profile/mode/motion。
+// 语义: useCase 只提供默认值; 调用方显式传 mode/profile/motion/steps/audioMix 仍可覆盖 (显式优先),
+//       故与旧调用方 (直接传 profile/mode) 完全向后兼容。
+//   preview-lock      —— P11a 创意锁定预览 (turbo + motion-adaptive + 跳 Foley, ~3min)
+//   final-shot        —— P11b 成片 (native KSampler + 完整 Foley 环境音管线)
+//   broll             —— 纯文本空镜 / B-roll (t2va, 无参考图, full Foley)
+//   keyframe-interp   —— 首尾帧驱动插值镜头 (i2va, full Foley)
+//   portrait-dialogue —— 竖屏短剧对白 (ref2va, TTS 优先混音: 对白压低环境音)
+//   motion-board      —— 极速运动分镜草稿 (lightx2v-4, ~72s, 跳 Foley)
+//   lineart-color     —— 线稿视频 → 彩色动漫上色 (lineart-anime, 仅 ref2va, 跳 Foley)
+// audioMix 仅对 skipFoley=false 的档位生效 (preview-lock/motion-board/lineart-color 直出 H3 原生音频, 不混音)。
+export interface H3UseCasePreset {
+  label: string;
+  profile: H3ProfileName;
+  /** 该用途的默认输入模式 (调用方显式传 mode 则覆盖) */
+  mode: "t2va" | "i2va" | "ref2va";
+  /** motion 仅 turbo 档有意义 (low/medium/high → getTurboSteps 4/4/8 步) */
+  motion?: "low" | "medium" | "high";
+  /** 音频混音策略 (仅 skipFoley=false 档位的 Step3 合并生效) */
+  audioMix?: "balanced" | "dialogue-priority";
+}
+
+export const H3_USE_CASES = {
+  "preview-lock": {
+    label: "P11a 创意锁定预览 (turbo, motion-adaptive, skip Foley, ~3min)",
+    profile: "turbo",
+    mode: "ref2va",
+    motion: "medium",
+  },
+  "final-shot": {
+    label: "P11b 成片 (native KSampler + 完整 Foley 环境音管线)",
+    profile: "native",
+    mode: "ref2va",
+    audioMix: "balanced",
+  },
+  broll: {
+    label: "纯文本空镜 / B-roll (t2va, 无参考图, full Foley)",
+    profile: "production",
+    mode: "t2va",
+    audioMix: "balanced",
+  },
+  "keyframe-interp": {
+    label: "首尾帧驱动插值镜头 (i2va, full Foley)",
+    profile: "production",
+    mode: "i2va",
+    audioMix: "balanced",
+  },
+  "portrait-dialogue": {
+    label: "竖屏短剧对白 (ref2va, TTS 优先混音: 对白压低环境音)",
+    profile: "production",
+    mode: "ref2va",
+    audioMix: "dialogue-priority",
+  },
+  "motion-board": {
+    label: "极速运动分镜草稿 (lightx2v-4, ~72s, skip Foley)",
+    profile: "lightx2v-4",
+    mode: "ref2va",
+  },
+  "lineart-color": {
+    label: "线稿视频 → 彩色动漫上色 (lineart-anime, 仅 ref2va, skip Foley)",
+    profile: "lineart-anime",
+    mode: "ref2va",
+  },
+} as const satisfies Record<string, H3UseCasePreset>;
+
+export type H3UseCaseName = keyof typeof H3_USE_CASES;
 
 // ============================================================
 // H3_RESOLUTION_TABLE —— 分辨率预设表
