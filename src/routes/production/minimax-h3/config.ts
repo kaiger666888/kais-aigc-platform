@@ -265,7 +265,7 @@ export const H3_LIGHTX2V_VARIANTS = {
   // 8步正式版: 544p 训练分辨率 (mixed aspect ratio), shift_video=12, 推荐 8 步 (亦可 4 步)
   "lightx2v-8": {
     loraName: "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors",
-    strengthModel: 16.0,  // ⚠️ 8步版 alpha=8/rank=128=0.0625, 需补偿到1.0: 128/8=16
+    strengthModel: 1.0,   // alpha=8/rank=128=0.0625 是训练时的正确缩放, B@A已含全部幅度, 无需补偿
     steps: 9,             // 官方 8步推荐, +1终步sigma=0
     shiftVideo: 12.0,
     shiftAudio: 3.0,
@@ -281,6 +281,30 @@ export const H3_LIGHTX2V_VARIANTS = {
 export const H3_LIGHTX2V = H3_LIGHTX2V_VARIANTS["lightx2v-4"];
 
 export type H3LightX2VVariant = keyof typeof H3_LIGHTX2V_VARIANTS;
+
+// ============================================================
+// H3_LINEART_ANIME —— LineartAnime LoRA (DiffSynth-Studio) 配置
+// ============================================================
+// LineartAnime LoRA: 将线稿视频(line art)上色为彩色动漫视频。
+// 基于 Ref2VA 模式训练, rank=32, 仅训练 attention + MLP 层 (qkv_proj/out_proj/fc1/fc2)。
+// ComfyUI 格式: 已从 DiffSynth-Studio 格式转换 (添加 diffusion_model. 前缀, 跳过 pruned 不兼容的 adaln)。
+//
+// ⚠️ 仅兼容 ref2va 模式 (基于 Ref2VA 训练)。
+// ⚠️ 使用标准 SigmaShift + KSampler 链路 (非 T8), 与 LightX2V 链路结构一致。
+// ⚠️ strength_model=1.0 (rank=32, 无 alpha 补偿需求)。
+// ⚠️ 需要配合 ref_video (线稿视频) 作为参考输入实现上色功能。
+export const H3_LINEART_ANIME = {
+  loraName: "minimax_h3_lineart_anime_ref2va_comfyui.safetensors",
+  strengthModel: 1.0,
+  steps: 20,              // DiffSynth-Studio 官方示例用 20 步
+  shiftVideo: 12.0,       // 标准 H3 shift (非 Turbo, 不需要降低)
+  shiftAudio: 3.0,
+  samplerName: "euler",
+  scheduler: "simple",
+  denoise: 1.0,
+  nodeId: "15",                            // LoraLoaderModelOnly 节点 ID (同 LightX2V)
+  loaderClassType: "LoraLoaderModelOnly",  // 完整权重用合并型 loader
+} as const;
 
 // ============================================================
 // H3_NATIVE —— 原生 (non-T8) 链路采样器/调度器配置
@@ -318,6 +342,9 @@ export const H3_NATIVE = {
 //                   simple scheduler)。不使用 T8 节点也不使用 T8 Turbo LoRA; ~72s 渲染。跳过 Foley。
 //   lightx2v-8   —— LightX2V Turbo LoRA v1.0 正式版 (8 步, 544p 训练, shift_video=12)。画质更高,
 //                   ~120s 渲染。跳过 Foley (直出 H3 原生音频)。
+//   lineart-anime —— LineartAnime LoRA (DiffSynth-Studio, rank=32)。将线稿视频上色为彩色动漫视频,
+//                    20 步 + 标准 shift_video=12, 仅 ref2va 模式。复用 LightX2V 的 SigmaShift + LoRA
+//                    拓扑 (非 T8)。跳过 Foley (直出 H3 原生音频)。
 // 调用方通过 generate 的 `profile` 入参选择; 显式传 steps 时以 steps 为准 (但 turbo 仍由
 // profile.turbo / turbo 入参决定是否启用 LoRA)。
 export const H3_PROFILES = {
@@ -376,6 +403,14 @@ export const H3_PROFILES = {
     turbo: false,         // 不使用 T8 Turbo LoRA (用独立的 LightX2V LoRA)
     native: false,        // 不使用原生 KSampler 链路 (LightX2V 自有 SigmaShift + 采样链路)
     tespeed: false,       // LightX2V 链路不插入 TESpeed 节点
+  },
+  "lineart-anime": {
+    label: "LineartAnime (20-step + LineartAnime LoRA, line art → anime colorization, ref2va only)",
+    steps: 20,             // DiffSynth 官方示例步数
+    skipFoley: true,       // 直出 H3 原生音频
+    turbo: false,          // 不使用 T8 Turbo LoRA
+    native: false,         // 不使用原生 KSampler 链路 (用 SigmaShift + LoRA, 同 LightX2V)
+    tespeed: false,        // 不插入 TESpeed 节点
   },
 } as const;
 

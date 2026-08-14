@@ -14,6 +14,7 @@
  *   mode           : string  ("t2va" | "i2va" | "ref2va", 默认 "t2va")
  *   image          : File    (i2va 模式需要首帧图片)
  *   refImages[]    : File[]  (ref2va 模式的参考图, 最多 9 张)
+ *   refVideo       : File    (lineart-anime 模式的线稿参考视频, 可选)
  *
  *   # 可选: 视频参数
  *   width          : number  (默认 1344, 必须 32 倍数)
@@ -66,6 +67,7 @@ import {
   H3_TESPEED,
   H3_NATIVE,
   H3_LIGHTX2V_VARIANTS,
+  H3_LINEART_ANIME,
   H3_PROFILES,
   H3_DEFAULT_NEGATIVE,
   alignH3FrameCount,
@@ -132,6 +134,8 @@ interface H3GenOpts {
   firstFrameFilename: string | null;
   /** ref2va 参考图 (容器内文件名数组); t2va / i2va 传 [] */
   refImageFilenames: string[];
+  /** lineart-anime 线稿参考视频 (容器内文件名); 其他模式传 null */
+  refVideoFilename: string | null;
   filenamePrefix: string;
   /** 启用 Turbo LoRA (LoraLoaderBypassModelOnly, 4~8 步加速, 步数由 motion 参数决定) */
   turbo?: boolean;
@@ -415,10 +419,12 @@ function buildH3WorkflowNative(opts: H3GenOpts): Record<string, any> {
 }
 
 // ============================================================
-// H3 LightX2V 工作流构建 (LightX2V Turbo LoRA v1.0, 4步/8步, SigmaShift / 无 T8)
+// H3 SigmaShift + LoRA 工作流构建 (LightX2V Turbo LoRA v1.0 4步/8步 / LineartAnime LoRA, 无 T8)
 // ============================================================
 //
 // LightX2V Turbo LoRA v1.0 正式版: lightx2v-4 (~72s, 768p, shift=6) / lightx2v-8 (~120s, 544p, shift=12)。
+// LineartAnime LoRA (lineart-anime profile): rank=32, 20 步, 标准 shift=12, 仅 ref2va。
+// 两者共享同一 SigmaShift + LoRA + KSampler 拓扑, 故本函数已泛化为接受任意 LoRA 配置 (loraConfig)。
 // 三种模式共享节点 10/11/12/13/14_shift/15/16/20/30/31/32/33/34/40/41/42/50, 仅在以下处分支:
 //   - 节点 12 (UNETLoader): t2va/i2va 用 fl2vaModel; ref2va 用 ref2vaModel (同 native)
 //   - 节点 20 (正面条件): t2va/i2va 用 MiniMaxH3ImageToVideo; ref2va 用 MiniMaxH3ReferenceToVideo (同 native)
@@ -430,21 +436,35 @@ function buildH3WorkflowNative(opts: H3GenOpts): Record<string, any> {
 //   - 不使用 T8 Turbo LoRA (用独立 LightX2V LoRA, strength=1.0)
 //   - 采样链路: KSamplerSelect(30) + BasicScheduler(31) + RandomNoise(32) + BasicGuider(33) + SamplerCustomAdvanced(34)
 //   - model 链: 12(UNET) → 14_shift(SigmaShift) → 15(LoRA) → BasicScheduler(31)/BasicGuider(33)
+// SigmaShift + LoRA 配置结构 (LightX2V v1.0 各版本与 LineartAnime 共用同一工作流拓扑)。
+// H3_LIGHTX2V_VARIANTS[*] 与 H3_LINEART_ANIME 均满足此结构。
+interface H3LoraShiftConfig {
+  loraName: string;
+  strengthModel: number;
+  steps: number;
+  shiftVideo: number;
+  shiftAudio: number;
+  samplerName: string;
+  scheduler: string;
+  denoise: number;
+  nodeId: string;
+  loaderClassType: string;
+}
+
 function buildH3WorkflowLightX2V(
   opts: H3GenOpts,
-  variant: "lightx2v-4" | "lightx2v-8",
+  loraConfig: H3LoraShiftConfig,
 ): Record<string, any> {
   const {
     mode, prompt, negativePrompt = H3_DEFAULT_NEGATIVE,
     width, height, length, seed,
     stepsOverride,
-    firstFrameFilename, refImageFilenames, filenamePrefix,
+    firstFrameFilename, refImageFilenames, refVideoFilename, filenamePrefix,
   } = opts;
 
   const isRef2va = mode === "ref2va";
   const unetModel = isRef2va ? H3_DEFAULTS.ref2vaModel : H3_DEFAULTS.fl2vaModel;
-  const lx2v = H3_LIGHTX2V_VARIANTS[variant];
-  const steps = stepsOverride || lx2v.steps;
+  const steps = stepsOverride || loraConfig.steps;
 
   const nodes: Record<string, any> = {
     // === 模型 / 文本编码器 / VAE ===
@@ -461,18 +481,18 @@ function buildH3WorkflowLightX2V(
       class_type: "MiniMaxH3SigmaShift",
       inputs: {
         model: ["12", 0],
-        shift_video: lx2v.shiftVideo,
-        shift_audio: lx2v.shiftAudio,
+        shift_video: loraConfig.shiftVideo,
+        shift_audio: loraConfig.shiftAudio,
       },
     },
 
-    // === LightX2V Turbo LoRA (LoraLoaderModelOnly, model→14_shift) ===
-    [lx2v.nodeId]: {
-      class_type: lx2v.loaderClassType,
+    // === LoRA (LoraLoaderModelOnly, model→14_shift) —— LightX2V / LineartAnime 共用 ===
+    [loraConfig.nodeId]: {
+      class_type: loraConfig.loaderClassType,
       inputs: {
         model: ["14_shift", 0],
-        lora_name: lx2v.loraName,
-        strength_model: lx2v.strengthModel,
+        lora_name: loraConfig.loraName,
+        strength_model: loraConfig.strengthModel,
       },
     },
   };
@@ -532,26 +552,41 @@ function buildH3WorkflowLightX2V(
     };
   }
 
+  // === ref_video 支持 (LineartAnime: 线稿视频 → 彩色视频) ===
+  // LoadVideo → GetVideoComponents → 拆出 IMAGE 帧序列 + AUDIO → 注入 node 20
+  // (MiniMaxH3ReferenceToVideo) 的 ref_videos / ref_video_audios 结构化槽位。
+  // 仅在 ref2va 模式 + 提供了线稿参考视频时构建 (lineart-anime profile)。
+  // 节点 ID "60"/"61" 不与本工作流其他节点冲突 (本链路最高用至 "50")。
+  if (isRef2va && refVideoFilename) {
+    nodes["60"] = { class_type: "LoadVideo", inputs: { file: refVideoFilename } };
+    nodes["61"] = {
+      class_type: "GetVideoComponents",
+      inputs: { video: ["60", 0] },  // 输出 [IMAGE, AUDIO, FLOAT, INT]
+    };
+    nodes["20"].inputs["ref_videos.ref_video_0"] = ["61", 0];              // IMAGE frames
+    nodes["20"].inputs["ref_video_audios.ref_video_audio_0"] = ["61", 1];  // AUDIO
+  }
+
   // === 采样链路 (SigmaShift 在 model 链上游 14_shift 已应用) ===
   // KSamplerSelect(30) + BasicScheduler(31) + RandomNoise(32) + BasicGuider(33) + SamplerCustomAdvanced(34)
   // ⚠️ BasicGuider / BasicScheduler 的 model 输入 = Node 15 (LoRA loader 输出, 已含 SigmaShift), 不是 Node 12。
   nodes["30"] = {
     class_type: "KSamplerSelect",
-    inputs: { sampler_name: lx2v.samplerName },
+    inputs: { sampler_name: loraConfig.samplerName },
   };
   nodes["31"] = {
     class_type: "BasicScheduler",
     inputs: {
-      model: [lx2v.nodeId, 0],
-      scheduler: lx2v.scheduler,
+      model: [loraConfig.nodeId, 0],
+      scheduler: loraConfig.scheduler,
       steps,
-      denoise: lx2v.denoise,
+      denoise: loraConfig.denoise,
     },
   };
   nodes["32"] = { class_type: "RandomNoise", inputs: { noise_seed: seed } };
   nodes["33"] = {
     class_type: "BasicGuider",
-    inputs: { model: [lx2v.nodeId, 0], conditioning: ["20", 0] },
+    inputs: { model: [loraConfig.nodeId, 0], conditioning: ["20", 0] },
   };
   nodes["34"] = {
     class_type: "SamplerCustomAdvanced",
@@ -595,6 +630,7 @@ export default router.post(
     { name: "image", maxCount: 1 },                              // i2va 首帧图
     { name: "refImages", maxCount: H3_CONSTANTS.MAX_REF_IMAGES }, // ref2va 参考图 (≤9)
     { name: "ttsAudio", maxCount: 1 },                            // TTS 对白音频 (可选)
+    { name: "refVideo", maxCount: 1 },                            // lineart-anime 线稿参考视频 (可选)
   ]),
   validateFields({
     projectId: z.coerce.number(),
@@ -636,11 +672,12 @@ export default router.post(
     //        | "native" (原生 KSampler+SigmaShift, t2v/i2va 50步 / ref2va 20步, 非 T8)
     //        | "lightx2v-4" (LightX2V Turbo LoRA v1.0, 4 步 768p shift=6 / 无 T8, 跳过 Foley)
     //        | "lightx2v-8" (LightX2V Turbo LoRA v1.0, 8 步 544p shift=12 / 无 T8, 跳过 Foley)
+    //        | "lineart-anime" (LineartAnime LoRA, 20 步 shift=12, line art→anime 上色 / ref2va, 无 T8, 跳过 Foley)
     const rawProfile = ((req.body.profile as string) || "production").toLowerCase();
-    if (![ "preview", "turbo", "production", "native", "native-sage", "lightx2v-4", "lightx2v-8" ].includes(rawProfile)) {
+    if (![ "preview", "turbo", "production", "native", "native-sage", "lightx2v-4", "lightx2v-8", "lineart-anime" ].includes(rawProfile)) {
       return res
         .status(400)
-        .send(error(`profile must be one of: preview | turbo | production | native | native-sage | lightx2v-4 | lightx2v-8 (got "${rawProfile}")`));
+        .send(error(`profile must be one of: preview | turbo | production | native | native-sage | lightx2v-4 | lightx2v-8 | lineart-anime (got "${rawProfile}")`));
     }
     const profile = H3_PROFILES[rawProfile as keyof typeof H3_PROFILES];
     // native: profile=native/native-sage 或显式 native=true
@@ -660,13 +697,16 @@ export default router.post(
     const imageFile = files?.image?.[0];
     const refImageFiles = files?.refImages || [];
     const ttsAudioFile = files?.ttsAudio?.[0];
+    const refVideoFile = files?.refVideo?.[0];
 
     // 模式入参校验
     if (mode === "i2va" && !imageFile) {
       return res.status(400).send(error("mode=i2va requires an 'image' file (first frame)."));
     }
     if (mode === "ref2va") {
-      if (refImageFiles.length < 1) {
+      // lineart-anime profile 可只用 refVideo (线稿视频) 不传 refImages
+      const isLineartAnime = rawProfile === "lineart-anime";
+      if (refImageFiles.length < 1 && !isLineartAnime) {
         return res
           .status(400)
           .send(error(`mode=ref2va requires at least 1 'refImages' file (up to ${H3_CONSTANTS.MAX_REF_IMAGES}).`));
@@ -711,6 +751,21 @@ export default router.post(
     if (imageFile) safeUnlink(imageFile.path);
     for (const f of refImageFiles) safeUnlink(f.path);
 
+    // ── 上传参考视频到 ComfyUI 容器 (lineart-anime) ──
+    let refVideoFilename: string | null = null;
+    if (refVideoFile) {
+      const ext = path.extname(refVideoFile.originalname || ".mp4") || ".mp4";
+      refVideoFilename = `${uuidv4()}${ext}`;
+      try {
+        copyToContainer(refVideoFile.path, `${H3_CONFIG.comfyuiInputDir}/${refVideoFilename}`);
+      } catch (err: any) {
+        safeUnlink(refVideoFile.path);
+        if (ttsAudioFile) safeUnlink(ttsAudioFile.path);
+        return res.status(502).send(error(`Failed to upload refVideo to ComfyUI: ${err.message}`));
+      }
+      safeUnlink(refVideoFile.path);
+    }
+
     // ============================================================
     // Step 1: H3 视频生成
     // ============================================================
@@ -727,20 +782,25 @@ export default router.post(
       stepsOverride: h3StepsOverride,
       firstFrameFilename,
       refImageFilenames,
+      refVideoFilename,
       filenamePrefix: `${filenamePrefix}_h3`,
       turbo: turbo && !effectiveNative,  // native 链路时 turbo=false
       native: effectiveNative,
       tespeed,
     };
-    // LightX2V: 独立分支 (SigmaShift + LightX2V Turbo LoRA v1.0, 无 T8)。
-    // 用 rawProfile 字符串判定 variant (profile.native=false 故 effectiveNative=false, 不会误入 native)。
-    const lightx2vVariant = rawProfile === "lightx2v-4" || rawProfile === "lightx2v-8"
-      ? (rawProfile as "lightx2v-4" | "lightx2v-8")
-      : null;
+    // SigmaShift + LoRA 工作流 (无 T8): LightX2V Turbo LoRA v1.0 (lightx2v-4/8) 或
+    // LineartAnime LoRA (lineart-anime)。三者共享同一拓扑, 仅 LoRA 配置/steps/shift 不同。
+    // 用 rawProfile 字符串解析配置 (这些 profile.native=false 故 effectiveNative=false, 不会误入 native)。
+    let loraShiftConfig: H3LoraShiftConfig | null = null;
+    if (rawProfile === "lightx2v-4" || rawProfile === "lightx2v-8") {
+      loraShiftConfig = H3_LIGHTX2V_VARIANTS[rawProfile as "lightx2v-4" | "lightx2v-8"];
+    } else if (rawProfile === "lineart-anime") {
+      loraShiftConfig = H3_LINEART_ANIME;
+    }
     const h3Wf = effectiveNative
       ? buildH3WorkflowNative({ ...nativeWfOpts, negativePrompt: H3_DEFAULT_NEGATIVE })
-      : lightx2vVariant
-        ? buildH3WorkflowLightX2V(nativeWfOpts, lightx2vVariant)
+      : loraShiftConfig
+        ? buildH3WorkflowLightX2V(nativeWfOpts, loraShiftConfig)
         : buildH3WorkflowT8(nativeWfOpts);
 
     let h3PromptId: string | null = null;
