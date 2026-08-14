@@ -49,6 +49,8 @@ import route44 from "./routes/production/minimax-h3/ref2va";
 import route45 from "./routes/production/minimax-h3/replace-audio";
 import route46 from "./routes/production/minimax-h3/status";
 import route47 from "./routes/production/minimax-h3/t2va";
+import routeMusic3Generate from "./routes/production/music3/generate";
+import routeMusic3Status from "./routes/production/music3/status";
 import route48 from "./routes/production/postprocess/enhance";
 import route49 from "./routes/production/postprocess/rtx-vsr/index";
 import route50 from "./routes/production/postprocess/seedvr2";
@@ -210,6 +212,8 @@ export default async (app: Express) => {
   app.use("/api/production/minimax-h3/replace-audio", route45);
   app.use("/api/production/minimax-h3/status", route46);
   app.use("/api/production/minimax-h3/t2va", route47);
+  app.use("/api/production/music3/generate", routeMusic3Generate);
+  app.use("/api/production/music3/status", routeMusic3Status);
   app.use("/api/production/postprocess/enhance", route48);
   app.use("/api/production/postprocess/rtx-vsr", route49);
   app.use("/api/production/postprocess/seedvr2", route50);
