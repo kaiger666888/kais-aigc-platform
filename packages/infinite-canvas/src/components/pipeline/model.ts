@@ -462,17 +462,20 @@ export const KMC_SLOT_REGISTRY: readonly KmcSlotEntry[] = [
   // P09c 白模分镜板（可选 degrade-tolerant）：读 shot-list + 场景图 + 换装TR，
   // dreamina i2i 生成 clay-render maquette 分镜板整图（按场景分组，每张≤6格）。
   // dreamina 不可用时降级写空 slot 不阻塞下游；替代原 e-konte-sheets 的位置。
-  { phaseCode: 'P09c', inputs: ['shot-list', 'scene-images', 'character-assets'], outputs: ['storyboard-board'] },
+  // storyboard-qc (qwen-eye, 2026-08-16): advisory 板面 QC；P14 聚合，无人消费它做门控。
+  { phaseCode: 'P09c', inputs: ['shot-list', 'scene-images', 'character-assets'], outputs: ['storyboard-board', 'storyboard-qc'] },
   { phaseCode: 'P10',  inputs: ['shot-list', 'script-draft', 'voice-design'],           outputs: ['voice-clips'] },
   { phaseCode: 'P10a', inputs: ['shot-list', 'voice-clips'],                             outputs: ['shot-timeline'] },
   { phaseCode: 'P10c', inputs: ['voice-clips', 'shot-list'], outputs: ['voice-audit'] },
-  { phaseCode: 'P11a', inputs: ['shot-list', 'scene-images', 'character-assets', 'voice-clips', 'shot-timeline', 'storyboard-board'], outputs: ['preview-clips'] },
+  // preview-qc (qwen-eye, 2026-08-16): advisory 变体首帧 QC；P14 聚合。
+  { phaseCode: 'P11a', inputs: ['shot-list', 'scene-images', 'character-assets', 'voice-clips', 'shot-timeline', 'storyboard-board'], outputs: ['preview-clips', 'preview-qc'] },
   { phaseCode: 'P11b', inputs: ['preview-clips'], outputs: ['video-clips', 'take-log'] },
   // P11c 视频智能质检（qwen-eye）：读 video-clips + shot-list（SPEC 字段），
   // 写 video-qc（per_shot 判定 + summary；advisory，P14 聚合，P12 不读）。
   { phaseCode: 'P11c', inputs: ['video-clips', 'shot-list'], outputs: ['video-qc'] },
   { phaseCode: 'P12',  inputs: ['video-clips', 'voice-clips', 'style-vector'], outputs: ['master-timeline', 'audio-stems', 'foley-stems', 'bgm-tracks'] },
-  { phaseCode: 'P13',  inputs: ['master-timeline', 'audio-stems', 'color-intent', 'transition-design'], outputs: ['master-mp4', 'delivery-package'] },
+  // master-qc (qwen-eye, 2026-08-16): advisory 母带终审；NEVER gates delivery, P14 聚合。
+  { phaseCode: 'P13',  inputs: ['master-timeline', 'audio-stems', 'color-intent', 'transition-design'], outputs: ['master-mp4', 'delivery-package', 'master-qc'] },
   { phaseCode: 'P14',  inputs: ['master-mp4'],                           outputs: ['quality-audit'] },
   { phaseCode: 'P15',  inputs: ['quality-audit'],                        outputs: ['feedback-log'] },
 ]
@@ -586,6 +589,9 @@ export const DAG_NODES: readonly DagNodeDef[] = [
   // dreamina 不可用时降级写空 slot 不阻塞下游，故非 dim 弱节点。
   { id: 'storyboard-board', label: '白模分镜板', phaseCode: 'P09c', phaseIndex: 9, group: 'production',
     match: { phaseIndex: 9, idPrefix: 'a-storyboard_sheet-' }, expectedCount: 'dynamic' },
+  // P09c 分镜板质检（qwen-eye advisory）：canvas sync 写 a-storyboard-qc 单节点。
+  { id: 'storyboard-qc', label: '分镜板质检', phaseCode: 'P09c', phaseIndex: 9, group: 'production', dim: true,
+    match: { phaseIndex: 9, idIncludes: 'storyboard-qc' }, expectedCount: 1 },
   { id: 'transition-design', label: '转场设计', phaseCode: 'P09', phaseIndex: 9, group: 'production',
     match: { phaseIndex: 9, idIncludes: 'transition_design' }, expectedCount: 'dynamic' },
   // ── P09b 镜头审计（production gate） ──
@@ -603,6 +609,9 @@ export const DAG_NODES: readonly DagNodeDef[] = [
     match: { idPrefix: 'a-keyframe-' }, expectedCount: 'dynamic' },
   { id: 'preview-clips', label: '片段预览', phaseCode: 'P11a', phaseIndex: 11, group: 'post',
     match: { phaseIndex: 11, stage: 'video', idIncludes: 'preview' }, expectedCount: 'dynamic' },
+  // P11a 预览质检（qwen-eye advisory）：变体首帧 vs shot intent；P14 聚合。
+  { id: 'preview-qc', label: '预览质检', phaseCode: 'P11a', phaseIndex: 11, group: 'post', dim: true,
+    match: { phaseIndex: 11, idIncludes: 'preview-qc' }, expectedCount: 1 },
   // ── P11b 片段生成（正式渲染，预览锁定后执行） ──
   { id: 'video-clips', label: '片段生成', phaseCode: 'P11b', phaseIndex: 11, group: 'post',
     match: { phaseIndex: 11, stage: 'video' }, expectedCount: 'dynamic' },
@@ -625,6 +634,9 @@ export const DAG_NODES: readonly DagNodeDef[] = [
   // ── P13 交付（post） ──
   { id: 'master-mp4', label: '成片', phaseCode: 'P13', phaseIndex: 13, group: 'post',
     match: { phaseIndex: 13 }, expectedCount: 1 },
+  // P13 母带终审（qwen-eye advisory）：五维判定；NEVER gates delivery。
+  { id: 'master-qc', label: '母带终审', phaseCode: 'P13', phaseIndex: 13, group: 'post', dim: true,
+    match: { phaseIndex: 13, idIncludes: 'master-qc' }, expectedCount: 1 },
   // ── P14 质量审计（post） ──
   { id: 'quality-audit', label: '质量审计', phaseCode: 'P14', phaseIndex: 14, group: 'post', dim: true,
     match: { phaseIndex: 14 }, expectedCount: 'dynamic' },
