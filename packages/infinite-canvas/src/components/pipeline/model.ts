@@ -46,6 +46,9 @@ export const PIPELINE_PHASES: readonly PipelinePhaseDef[] = [
   { sortKey: 1, code: 'P01', name: '选题/钩子', group: 'research', phaseIndex: 1 },
   { sortKey: 2, code: 'P02', name: '大纲', group: 'research', phaseIndex: 2 },
   { sortKey: 3, code: 'P03', name: '剧本审计', group: 'story', phaseIndex: 3 },
+  // P03.5 86ke 戏剧事件打磨：sub（共享 P03 lane 的 phaseIndex 3，整数下标无法表达 3.5，
+  // 与 P09b/P10a 同款处理）；sortKey 是 number，3.5 可精确表达插入位。
+  { sortKey: 3.5, code: 'P03.5', name: '戏剧事件打磨', group: 'story', phaseIndex: 3, sub: true },
   { sortKey: 4, code: 'P04', name: '角色设计', group: 'story', phaseIndex: 4 },
   { sortKey: 5, code: 'P06', name: '时空剧本', group: 'production', phaseIndex: 6 },
   { sortKey: 6, code: 'P07', name: '场景图生成', group: 'production', phaseIndex: 7 },
@@ -442,6 +445,11 @@ export const KMC_SLOT_REGISTRY: readonly KmcSlotEntry[] = [
   { phaseCode: 'P01',  inputs: ['requirement'],                          outputs: ['topic-kernel', 'hook-design'] },
   { phaseCode: 'P02',  inputs: ['topic-kernel'],                         outputs: ['story-framework'] },
   { phaseCode: 'P03',  inputs: ['story-framework'],                      outputs: ['script-draft', 'audit-report'] },
+  // P03.5 86ke 戏剧事件打磨：读 script-draft + story-framework（beat 级 event_type），
+  //写 script-draft-polished + dramatic-polish-report（degrade 时 polished=原文）。
+  { phaseCode: 'P03.5', inputs: ['script-draft', 'story-framework'],    outputs: ['script-draft-polished', 'dramatic-polish-report'] },
+  // P04 读序：运行时优先 script-draft-polished、fallback script-draft（KMC p04 run() 实现；
+  //registry 里保持 script-draft 单输入以维持 P03 lineage 拓扑）。
   { phaseCode: 'P04',  inputs: ['script-draft'],                         outputs: ['character-bible', 'character-design-images', 'character-assets'] },
   { phaseCode: 'P06',  inputs: ['script-draft', 'character-bible'],      outputs: ['spatio-temporal-script', 'final-audit', 'visual-direction', 'production-design', 'physics-precheck-report'] },
   { phaseCode: 'P07',  inputs: ['spatio-temporal-script', 'character-assets'], outputs: ['scene-images', 'style-vector', 'color-intent', 'scene-blueprint', 'scene-temporal-variants'] },
@@ -531,6 +539,12 @@ export const DAG_NODES: readonly DagNodeDef[] = [
     match: { phaseIndex: 3 }, expectedCount: 1 },
   { id: 'audit-report', label: '审计报告', phaseCode: 'P03', phaseIndex: 3, group: 'story', dim: true,
     match: { phaseIndex: 3, idIncludes: 'audit' }, expectedCount: 'dynamic' },
+  // ── P03.5 戏剧事件打磨（story, 86ke）── 同 phaseIndex=3 lane；用 idIncludes 区分
+  //（canvas sync 写入 a-script_draft_polished / a-dramatic_polish_report 节点）。
+  { id: 'script-draft-polished', label: '打磨剧本', phaseCode: 'P03.5', phaseIndex: 3, group: 'story', dim: true,
+    match: { phaseIndex: 3, idIncludes: 'script_draft_polished' }, expectedCount: 1 },
+  { id: 'dramatic-polish-report', label: '戏剧打磨报告', phaseCode: 'P03.5', phaseIndex: 3, group: 'story', dim: true,
+    match: { phaseIndex: 3, idIncludes: 'dramatic_polish_report' }, expectedCount: 1 },
   // ── P04 角色设计（story） ──
   { id: 'character-bible', label: '角色设定', phaseCode: 'P04', phaseIndex: 4, group: 'story',
     match: { idPrefix: 'notion-character_bible', assetType: 'character', turnaroundAbsent: true, artifactsOnly: false },
@@ -632,7 +646,13 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   // P02 → P03：故事框架 → 剧本初稿 → 审计报告
   { from: 'story-framework', to: 'script-draft' },
   { from: 'script-draft', to: 'audit-report' },
-  // P03 → P04：剧本初稿 → 角色设定
+  // P03 → P03.5：剧本初稿 + 故事框架（beat 级 event_type）→ 打磨剧本 + 打磨报告
+  { from: 'script-draft', to: 'script-draft-polished' },
+  { from: 'story-framework', to: 'script-draft-polished' },
+  { from: 'script-draft-polished', to: 'dramatic-polish-report' },
+  // P03.5 → P04：打磨剧本 → 角色设定（运行时读序 polished 优先，见 KMC p04 run()）
+  { from: 'script-draft-polished', to: 'character-bible' },
+  // P03 → P04：剧本初稿 → 角色设定（fallback 读序：P03.5 degrade 时 P04 读原文）
   { from: 'script-draft', to: 'character-bible' },
   // P04 内部链：角色设定(文字) → 角色设定图(概念参考) → 灰底Turnaround → 换装Turnaround；角色设定 → 声纹设计
   { from: 'character-bible', to: 'character-design-images' },
