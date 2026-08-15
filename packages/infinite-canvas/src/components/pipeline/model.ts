@@ -60,6 +60,9 @@ export const PIPELINE_PHASES: readonly PipelinePhaseDef[] = [
   { sortKey: 11, code: 'P10c', name: '语音审计', group: 'post', phaseIndex: 10, sub: true },
   { sortKey: 12, code: 'P11a', name: '片段预览', group: 'post', phaseIndex: 11 },
   { sortKey: 13, code: 'P11b', name: '片段生成', group: 'post', phaseIndex: 11 },
+  // P11c 视频智能质检（qwen-eye）：sub（共享 P11 lane 的 phaseIndex 11，整数下标
+  // 无法表达插入位，与 P09b/P10a 同款处理）；sortKey 11.5 精确表达 p11b→p11c→p12。
+  { sortKey: 11.5, code: 'P11c', name: '视频质检', group: 'post', phaseIndex: 11, sub: true },
   { sortKey: 14, code: 'P12', name: '合成', group: 'post', phaseIndex: 12 },
   { sortKey: 15, code: 'P13', name: '交付', group: 'post', phaseIndex: 13 },
   { sortKey: 16, code: 'P14', name: '质量审计', group: 'post', phaseIndex: 14 },
@@ -465,6 +468,9 @@ export const KMC_SLOT_REGISTRY: readonly KmcSlotEntry[] = [
   { phaseCode: 'P10c', inputs: ['voice-clips', 'shot-list'], outputs: ['voice-audit'] },
   { phaseCode: 'P11a', inputs: ['shot-list', 'scene-images', 'character-assets', 'voice-clips', 'shot-timeline', 'storyboard-board'], outputs: ['preview-clips'] },
   { phaseCode: 'P11b', inputs: ['preview-clips'], outputs: ['video-clips', 'take-log'] },
+  // P11c 视频智能质检（qwen-eye）：读 video-clips + shot-list（SPEC 字段），
+  // 写 video-qc（per_shot 判定 + summary；advisory，P14 聚合，P12 不读）。
+  { phaseCode: 'P11c', inputs: ['video-clips', 'shot-list'], outputs: ['video-qc'] },
   { phaseCode: 'P12',  inputs: ['video-clips', 'voice-clips', 'style-vector'], outputs: ['master-timeline', 'audio-stems', 'foley-stems', 'bgm-tracks'] },
   { phaseCode: 'P13',  inputs: ['master-timeline', 'audio-stems', 'color-intent', 'transition-design'], outputs: ['master-mp4', 'delivery-package'] },
   { phaseCode: 'P14',  inputs: ['master-mp4'],                           outputs: ['quality-audit'] },
@@ -600,6 +606,10 @@ export const DAG_NODES: readonly DagNodeDef[] = [
   // ── P11b 片段生成（正式渲染，预览锁定后执行） ──
   { id: 'video-clips', label: '片段生成', phaseCode: 'P11b', phaseIndex: 11, group: 'post',
     match: { phaseIndex: 11, stage: 'video' }, expectedCount: 'dynamic' },
+  // ── P11c 视频质检（qwen-eye 两段式判定，advisory micro-gate） ──
+  // canvas sync 写入 a-video-qc 节点（script 类型单节点）；idIncludes 区分同 lane。
+  { id: 'video-qc', label: '视频质检', phaseCode: 'P11c', phaseIndex: 11, group: 'post', dim: true,
+    match: { phaseIndex: 11, idIncludes: 'video-qc' }, expectedCount: 1 },
   // ── P12 合成（post） ──
   { id: 'master-timeline', label: '主时间轴', phaseCode: 'P12', phaseIndex: 12, group: 'post',
     match: { phaseIndex: 12 }, expectedCount: 1 },
@@ -728,6 +738,12 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   // P11a → P11b：片段预览锁定后，prompt/关键帧数据直接传递给片段生成
   // 片段生成不再从其他创作节点读取——所有数据通过片段预览传递
   { from: 'preview-clips', to: 'video-clips' },
+  // P11b → P11c：最终视频 → 视频质检（qwen-eye 读 video-clips + shot-list SPEC）
+  { from: 'video-clips', to: 'video-qc' },
+  { from: 'shot-list', to: 'video-qc' },
+  // P11c → P12：质检完成后才进时间线合成（顺序门控；video-qc slot 本身
+  // 不被 P12 消费，advisory 结果由 P14 聚合）
+  { from: 'video-qc', to: 'master-timeline' },
   // P12：视频片段 → 主时间轴
   { from: 'video-clips', to: 'master-timeline' },
   { from: 'audio-mix', to: 'master-timeline' },
@@ -1055,6 +1071,9 @@ export function validateDagEdges(): string[] {
   const GATE_EDGES = new Set<string>([
     'shot-audit|storyboard-board',      // P09b → P09c（白模分镜板在审计后顺序执行）
     'storyboard-board|voice-clips',     // P09c → P10（白模板 degrade-tolerant，顺序门控不阻塞）
+    // P11c → P12：PHASE_REGISTRY depends_on 顺序门控（p12a depends_on p11c）。
+    // video-qc slot 是 advisory，P12 不消费它（fail 汇总由 P14 聚合）。
+    'video-qc|master-timeline',
   ])
   // 前端建模边：DAG 刻意表达比 KMC slot 粒度更细的依赖（KMC 未单列对应 slot）→ 豁免并记录原因。
   const DESIGN_INTENT_EDGES = new Map<string, string>([
