@@ -1059,6 +1059,11 @@ export function validateDagEdges(): string[] {
   // 前端建模边：DAG 刻意表达比 KMC slot 粒度更细的依赖（KMC 未单列对应 slot）→ 豁免并记录原因。
   const DESIGN_INTENT_EDGES = new Map<string, string>([
     ['scene-images|iframe-generation', '条件帧按所选场景生成；KMC P11 INPUT_SLOTS 未单列 scene-images（原 scene-selection 节点已合并）'],
+    // P03.5 打磨剧本 → P04 角色设定：KMC p04 run() 读序是 polished 优先、
+    // script-draft fallback（P03.5 degrade 时两者内容相同）。registry 的 P04
+    // INPUT_SLOTS 保持 script-draft 单值以维持 P03 lineage，故这条运行时
+    // 读序边走 design-intent 豁免。
+    ['script-draft-polished|character-bible', 'P04 运行时读序优先 script-draft-polished（KMC p04 run()），registry INPUT_SLOTS 保持 script-draft 维持 lineage'],
   ])
 
   for (const e of DAG_EDGES) {
