@@ -1,4 +1,4 @@
-// @db-hash 46169422bdc50208f68a22f85653450d
+// @db-hash aba25a7befda53af6b58e34f8499044f
 //该文件由脚本自动生成，请勿手动修改
 
 export interface canvas_branches {
@@ -71,6 +71,39 @@ export interface canvas_variant_groups {
   'updated_at': number;
   'variant_node_ids'?: string | null;
   'winner_node_id'?: string | null;
+}
+export interface cinema_knowledge {
+  'alternative_recommendations'?: string | null;
+  'category': string;
+  'created_at'?: string | null;
+  'extra_data'?: string | null;
+  'id'?: number;
+  'key_name': string;
+  'key_type': string;
+  'primary_recommendation'?: string | null;
+  'priority'?: number | null;
+  'prompt_tokens'?: string | null;
+  'rationale'?: string | null;
+  'related_camera_moves'?: string | null;
+  'related_composition'?: string | null;
+  'related_duration_max'?: number | null;
+  'related_duration_min'?: number | null;
+  'related_emotions'?: string | null;
+  'related_pacing'?: string | null;
+  'related_shot_scales'?: string | null;
+  'source_file'?: string | null;
+  'source_section'?: string | null;
+  'speed_words'?: string | null;
+  'tags'?: string | null;
+  'updated_at'?: string | null;
+}
+export interface cinema_usage_stats {
+  'episode_id'?: string | null;
+  'id'?: number;
+  'knowledge_id': number;
+  'selected_at'?: string | null;
+  'selected_field'?: string | null;
+  'shot_id'?: string | null;
 }
 export interface kv_assetFeedback {
   'assetId': string;
@@ -219,6 +252,16 @@ export interface o_artStyle {
   'label'?: string | null;
   'name'?: string | null;
   'prompt'?: string | null;
+}
+export interface o_asset_history {
+  'action'?: string | null;
+  'assetId': number;
+  'changes'?: string | null;
+  'createTime'?: number | null;
+  'id'?: number;
+  'projectId'?: number | null;
+  'snapshot'?: string | null;
+  'source'?: string | null;
 }
 export interface o_assets {
   'assetsId'?: number | null;
@@ -432,6 +475,8 @@ export interface DB {
   "canvas_links": canvas_links;
   "canvas_nodes": canvas_nodes;
   "canvas_variant_groups": canvas_variant_groups;
+  "cinema_knowledge": cinema_knowledge;
+  "cinema_usage_stats": cinema_usage_stats;
   "kv_assetFeedback": kv_assetFeedback;
   "kv_audit": kv_audit;
   "kv_canvasEvent": kv_canvasEvent;
@@ -446,6 +491,7 @@ export interface DB {
   "o_agentDeploy": o_agentDeploy;
   "o_agentWorkData": o_agentWorkData;
   "o_artStyle": o_artStyle;
+  "o_asset_history": o_asset_history;
   "o_assets": o_assets;
   "o_assets2Storyboard": o_assets2Storyboard;
   "o_assetsRole2Audio": o_assetsRole2Audio;

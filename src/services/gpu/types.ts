@@ -30,7 +30,7 @@ export type ServiceStartMethod =
   | { type: "docker"; containerName: string; image: string; runArgs: string[]; envVars: Record<string, string>; volumes: Record<string, string> }
   | { type: "docker-start"; containerName: string }
   | { type: "docker-stop"; containerName: string }
-  | { type: "script"; command: string; args: string[]; cwd?: string }
+  | { type: "script"; command: string; args: string[]; cwd?: string; timeoutMs?: number }
   | { type: "http-ready"; url: string; timeoutMs: number }
   | { type: "internal"; init: string };
 
@@ -49,7 +49,7 @@ export interface ServiceProfile {
   /** 优先级 (0=最高, 5=最低) */
   priority: ServicePriority;
   /** 服务类型 */
-  category: "comfyui" | "tts" | "training" | "other";
+  category: "comfyui" | "tts" | "training" | "llm" | "other";
   /** 启动方式 */
   start: ServiceStartMethod | ServiceStartMethod[];
   /** 停止方式 (默认和 start 相反, 可覆盖) */

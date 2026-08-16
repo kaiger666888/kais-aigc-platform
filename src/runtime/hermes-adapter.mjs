@@ -215,6 +215,78 @@ export async function callViaHermes(prompt, options = {}) {
   }
 }
 
+// ─── Local LLM 就绪保障 (Qwen3.8-27B 串行调度) ─────────────
+
+const LOCAL_LLM_HOSTS = ['127.0.0.1:8125', 'localhost:8125'];
+const LOCAL_LLM_HEALTH_URL = 'http://127.0.0.1:8125/health';
+const LLM_ALLOCATE_URL = 'http://127.0.0.1:10588/api/production/llm/allocate';
+
+/** 并发去重: 多个 callLLM 同时发现不健康时共享同一个拉起 promise */
+let _ensureLocalLlmPromise = null;
+
+async function _isLocalLlmHealthy() {
+  try {
+    const resp = await fetch(LOCAL_LLM_HEALTH_URL, { signal: AbortSignal.timeout(3000) });
+    return resp.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function _ensureLocalLlmOnce(apiBase) {
+  if (await _isLocalLlmHealthy()) return;
+
+  // 通过 KAP GpuScheduler 拉起 (kap-llm.sh start 内部自带最长 240s 就绪等待)
+  let allocated = false;
+  try {
+    const resp = await fetch(LLM_ALLOCATE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ caller: 'hermes-adapter:callLLM' }),
+      signal: AbortSignal.timeout(320000), // 覆盖脚本 240s + 余量
+    });
+    const json = await resp.json().catch(() => null);
+    allocated = resp.ok && json?.code === 200 && json?.data?.granted === true;
+    if (!allocated) {
+      throw new Error(`allocate 失败: HTTP ${resp.status} ${JSON.stringify(json).substring(0, 300)}`);
+    }
+  } catch (err) {
+    throw new Error(`本地 Qwen3.8-27B 不可用且调度器无法拉起（GPU 被渲染任务锁定）。请稍后重试或手动 bash /opt/qwen-llm/kap-llm.sh start q3。调度器详情: ${err.message}`);
+  }
+
+  // allocate 成功后重试 /health (最长再等 10s)
+  const deadline = Date.now() + 10000;
+  while (Date.now() < deadline) {
+    if (await _isLocalLlmHealthy()) return;
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  throw new Error(`本地 Qwen3.8-27B 调度器已拉起 (${apiBase}) 但 /health 10s 内未就绪`);
+}
+
+/**
+ * 若 OPENAI_BASE_URL 指向本地 llama.cpp (:8125), 保证其健康后再发起调用。
+ * 云 API 直接放行; 拉起失败抛明确错误 (绝不静默返回空串)。
+ */
+async function ensureLocalLlm(apiBase) {
+  let isLocal = false;
+  try {
+    const u = new URL(apiBase);
+    isLocal = LOCAL_LLM_HOSTS.includes(u.host);
+  } catch {
+    return; // 无法解析的 base 按原行为直连
+  }
+  if (!isLocal) return;
+
+  if (_ensureLocalLlmPromise) {
+    await _ensureLocalLlmPromise; // 复用在途拉起, 避免并发 allocate
+    return;
+  }
+  _ensureLocalLlmPromise = _ensureLocalLlmOnce(apiBase).finally(() => {
+    _ensureLocalLlmPromise = null;
+  });
+  await _ensureLocalLlmPromise;
+}
+
 /**
  * 智能路由 LLM 调用
  * 优先走 Hermes（仅 text-only），不可用或 multimodal 时降级到直连 ZHIPU API。
@@ -259,6 +331,9 @@ export async function callLLM(arg1, arg2) {
   if (options.responseFormat === 'json' || options.response_format === 'json') {
     body.response_format = { type: 'json_object' };
   }
+
+  // 本地 Qwen3.8-27B: 先确保服务健康 (可能被渲染驱逐, 走 GpuScheduler 拉起)
+  await ensureLocalLlm(apiBase);
 
   const res = await fetch(`${apiBase}/chat/completions`, {
     method: 'POST',

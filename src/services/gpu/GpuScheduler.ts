@@ -106,6 +106,20 @@ export function getRegisteredServices(): ServiceProfile[] {
       healthTimeoutMs: 30_000,
       idleTimeoutMs: 30 * 60 * 1000, // 30min idle 后释放
     },
+    // Qwen3.8-27B local LLM — GPU 1 (3090), 串行调度 (渲染高峰时可被驱逐让位)
+    {
+      id: "qwen-llm",
+      name: "Qwen3.8-27B LLM (llama.cpp)",
+      gpuId: 1,
+      vramEstMb: 15_500, // Q3 共存档实测 14.4GB + 余量
+      priority: 2, // 高于 comfyui(0)/tts(1), 低于 lora-trainer(3); 常驻低频服务, 渲染时让位
+      category: "llm",
+      start: { type: "script", command: "bash", args: ["/opt/qwen-llm/kap-llm.sh", "start", "q3"], timeoutMs: 300_000 },
+      stop: { type: "script", command: "bash", args: ["/opt/qwen-llm/kap-llm.sh", "stop"] },
+      healthUrl: "http://127.0.0.1:8125/health",
+      healthTimeoutMs: 300_000, // 模型加载 1-2 分钟; waitForHealthy 每 5s 轮询
+      idleTimeoutMs: 30 * 60 * 1000, // 30min 空闲释放
+    },
   ];
 }
 
@@ -234,7 +248,7 @@ export class GpuScheduler {
           await execFileAsync("docker", ["start", step.containerName], { timeout: 30_000 });
           break;
         case "script":
-          await execFileAsync(step.command, step.args, { timeout: 30_000, cwd: step.cwd });
+          await execFileAsync(step.command, step.args, { timeout: step.timeoutMs ?? 30_000, cwd: step.cwd });
           break;
         case "http-ready":
           // Wait for URL to be reachable
@@ -304,7 +318,20 @@ export class GpuScheduler {
 
     // Already running + healthy with correct variant?
     if (state.status === "healthy" && state.variantId === (req.variantId || null)) {
-      return { granted: true, serviceId: req.serviceId, variantId: state.variantId, accessUrl: profile.healthUrl, scheduledMs: Date.now() - startTime };
+      // Verify real liveness — in-process state can be stale (external stop / crash / reboot)
+      if (profile.healthUrl) {
+        let alive = false;
+        try { await axios.get(profile.healthUrl, { timeout: 3_000 }); alive = true; } catch { /* stale */ }
+        if (!alive) {
+          console.warn(`[GpuScheduler] ${req.serviceId} memory state "healthy" but health check failed — falling through to restart`);
+          state.status = "stopped";
+          this.mirrorService(req.serviceId, state);
+        } else {
+          return { granted: true, serviceId: req.serviceId, variantId: state.variantId, accessUrl: profile.healthUrl, scheduledMs: Date.now() - startTime };
+        }
+      } else {
+        return { granted: true, serviceId: req.serviceId, variantId: state.variantId, accessUrl: profile.healthUrl, scheduledMs: Date.now() - startTime };
+      }
     }
 
     // Acquire GPU lock via store (atomic cross-process when Redis-backed)

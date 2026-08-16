@@ -171,12 +171,77 @@ function buildWorkflow(body: z.infer<typeof SpeakSchema>): Record<string, unknow
 
 // ─── ComfyUI Helpers ────────────────────────────────────────────────────────
 
+/**
+ * 结构化引擎错误（KMC 侧 tts_engine 按 kind 机判降级 vs fail-fast，
+ * 见 docs/kmc-tts-error-contract.md）。
+ * 包装进 KAP 标准 {code, data, message} 响应格式的 data 字段。
+ */
+function engineError(
+  kind: "engine_unavailable" | "synthesis_failed",
+  detail: string,
+  extra: Record<string, unknown> = {},
+) {
+  return {
+    error: {
+      kind,
+      engine: "qwen_tts",
+      detail,
+      ...extra,
+    },
+  };
+}
+
+/** ComfyUI fetch 网络层失败（连不上/超时）判定 */
+function isNetworkFailure(err: any): boolean {
+  const msg = String(err?.message || err?.cause?.message || err || "");
+  return (
+    err?.name === "TypeError" ||
+    err?.name === "AbortError" ||
+    err?.code === "ECONNREFUSED" ||
+    err?.code === "ETIMEDOUT" ||
+    err?.code === "UND_ERR_CONNECT_TIMEOUT" ||
+    /fetch failed|network|ECONNREFUSED|ETIMEDOUT|timeout/i.test(msg)
+  );
+}
+
+/** submitPrompt 前探测 object_info，确认所需节点已注册（engine gate） */
+async function checkNodeRegistered(nodeType: string): Promise<boolean> {
+  try {
+    const resp = await fetch(`${TTS_CONFIG.comfyuiUrl}/object_info`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!resp.ok) return false;
+    const data = (await resp.json()) as Record<string, unknown>;
+    return nodeType in data;
+  } catch {
+    return false;
+  }
+}
+
+/** 本 mode 对应的必需节点类型 */
+function requiredNodeType(mode: TtsMode): string {
+  switch (mode) {
+    case "voice_design": return TTS_CONFIG.NODE_TYPES.VOICE_DESIGN;
+    case "voice_clone": return TTS_CONFIG.NODE_TYPES.VOICE_CLONE;
+    case "custom_voice": return TTS_CONFIG.NODE_TYPES.CUSTOM_VOICE;
+  }
+}
+
+class ComfyUiNetworkError extends Error {
+  constructor(msg: string) { super(msg); this.name = "ComfyUiNetworkError"; }
+}
+
 async function submitPrompt(workflow: Record<string, unknown>): Promise<string> {
-  const resp = await fetch(`${TTS_CONFIG.comfyuiUrl}/prompt`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt: workflow }),
-  });
+  let resp: Response;
+  try {
+    resp = await fetch(`${TTS_CONFIG.comfyuiUrl}/prompt`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: workflow }),
+    });
+  } catch (err: any) {
+    throw new ComfyUiNetworkError(`ComfyUI unreachable (${TTS_CONFIG.comfyuiUrl}): ${err?.message || err}`);
+  }
   if (!resp.ok) {
     const txt = await resp.text().catch(() => "");
     throw new Error(`ComfyUI prompt rejected (${resp.status}): ${txt.slice(0, 500)}`);
@@ -242,16 +307,36 @@ router.post("/", async (req, res) => {
     }
 
     const workflow = buildWorkflow(body);
+
+    // ─── Preflight: 引擎节点注册探测（engine gate，矩阵 #2 KAP 侧）───
+    // 未注册 → 503 engine_unavailable（KMC 侧应 fail-fast 修引擎，不走 delegate 重试）
+    const nodeType = requiredNodeType(body.mode as TtsMode);
+    if (!(await checkNodeRegistered(nodeType))) {
+      return res.status(503).json(error(
+        `node ${nodeType} not registered in ComfyUI`,
+        engineError("engine_unavailable", `node ${nodeType} not registered in ComfyUI (plugin dir missing or import failed)`, {
+          node_type: nodeType,
+          comfyui_url: TTS_CONFIG.comfyuiUrl,
+        }),
+      ));
+    }
+
     const promptId = await submitPrompt(workflow);
     const result = await pollUntilDone(promptId);
 
     if (result.status === "error") {
-      return res.status(500).json(error(`TTS failed: ${result.error}`));
+      return res.status(500).json(error(
+        `TTS failed: ${result.error}`,
+        engineError("synthesis_failed", result.error || "unknown workflow error", { prompt_id: promptId }),
+      ));
     }
 
     const audioInfo = extractAudioPath(result.outputs || {});
     if (!audioInfo) {
-      return res.status(500).json(error("TTS completed but no audio output found"));
+      return res.status(500).json(error(
+        "TTS completed but no audio output found",
+        engineError("synthesis_failed", "workflow succeeded but no audio output node found", { prompt_id: promptId }),
+      ));
     }
 
     const localPath = path.join(TTS_CONFIG.outputDir, audioInfo.filename);
@@ -267,10 +352,24 @@ router.post("/", async (req, res) => {
     }));
   } catch (err: any) {
     if (err.issues) {
-      // Zod error
+      // Zod error — 请求本身不合法
       return res.status(400).json(error(err.issues.map((i: any) => i.message).join("; ")));
     }
-    return res.status(500).json(error(err.message || "Invalid request"));
+    if (err instanceof ComfyUiNetworkError || isNetworkFailure(err)) {
+      // 网络层失败（ComfyUI 不可达/超时）→ 502 engine_unavailable。
+      // 旧版把 "fetch failed" 折成 400/500 语义错位（分析报告 C.1 实测复现）。
+      return res.status(502).json(error(
+        err.message || "ComfyUI unreachable",
+        engineError("engine_unavailable", err.message || String(err), {
+          comfyui_url: TTS_CONFIG.comfyuiUrl,
+        }),
+      ));
+    }
+    // 其余（workflow 被 ComfyUI 拒绝等）→ 500 synthesis_failed
+    return res.status(500).json(error(
+      err.message || "Invalid request",
+      engineError("synthesis_failed", err.message || String(err)),
+    ));
   }
 });
 
