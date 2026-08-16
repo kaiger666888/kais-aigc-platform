@@ -145,3 +145,5 @@ data/*.db-shm
 # but auto-generated reports under .planning/reports/ are scratch)
 .planning/reports/
 workflows/ltx-2.3/shot-timeline-ep01-output/
+.env.bak-*
+.env.local
