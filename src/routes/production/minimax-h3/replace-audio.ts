@@ -550,6 +550,7 @@ export async function pollComfyuiCompletion(
   comfyuiUrl: string,
   promptId: string,
   timeoutMs: number = 600_000,
+  opts: { orphanCleanup?: boolean } = {},
 ): Promise<{ ok: true; outputs: any } | { ok: false; error: string }> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -576,6 +577,20 @@ export async function pollComfyuiCompletion(
       // network hiccup, keep polling
     }
     await new Promise((r) => setTimeout(r, 3_000));
+  }
+  if (opts.orphanCleanup) {
+    // 超时弃单 → 尽力删 ComfyUI 队列 pending 孤儿 (POST /queue {"delete":[pid]};
+    // DELETE method 405, ComfyUI 契约是 POST)。已 running 的删不掉 — 记 log 提示。
+    try {
+      const resp = await axios.post(`${comfyuiUrl}/queue`, { delete: [promptId] }, { timeout: 5_000 });
+      if (resp.status === 200) {
+        console.log(`[h3] orphan cleanup: deleted pending prompt ${promptId} from ComfyUI queue (poll budget ${(timeoutMs / 1000).toFixed(0)}s exhausted)`);
+      } else {
+        console.warn(`[h3] orphan cleanup: ComfyUI /queue delete responded ${resp.status} for ${promptId} — possible orphan`);
+      }
+    } catch (err: any) {
+      console.warn(`[h3] orphan cleanup failed for ${promptId} (${err?.message || err}) — possible orphan holding VRAM`);
+    }
   }
   return { ok: false, error: "polling timeout" };
 }

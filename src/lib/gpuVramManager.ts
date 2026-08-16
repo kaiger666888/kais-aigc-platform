@@ -303,11 +303,30 @@ function defaultGpuIndex(): number {
 }
 
 /**
+ * withGpuQueue 计时元数据 (2026-08-16 P10 双重超时根因修复)。
+ *
+ * 事故: 队列等待 677s 侵占了下游所有预算 — KAP pollTimeout 从 submit 起算没问题,
+ * 但 KMC 客户端 360s < 排队+作业总时长 → ReadTimeout; 且 poll 弃单后 ComfyUI 侧
+ * 任务继续跑成孤儿。修复原则: **排队等待不计入作业预算** — 调用方用 queueWaitMs
+ * 把 poll/客户端预算等量延长 (pollUntilDone(pid, queueWaitMs))。
+ */
+export interface GpuQueueResult<T> {
+  data: T;
+  /** 排队 + vram_retry 总耗时 — fn 开始前消耗的等待, 不属于作业本身预算 */
+  queueWaitMs: number;
+  /** fn 实际执行时长 (提交 + 轮询等) */
+  heldMs: number;
+}
+
+/**
  * 全局引擎队列 — 把「显存预检 + 提交 + 等完成」包进同 GPU 全局互斥锁。
  *
  * 同 GPU 上所有重型引擎互斥: 后来者排队等待 (可观测 log), 而不是 fail-fast 崩管线。
  * fn 内部的长时间轮询 (ComfyUI 作业 ≤45min) 会一直持有锁 — 这是设计意图: 占着
  * 显存的作业没结束前, 别的引擎不该装载。
+ *
+ * fn 收到 queueWaitMs 实参 (本次排队+vram_retry 实测耗时) — 轮询类调用方应把
+ * 自身 poll 预算延长 queueWaitMs, 避免「排队成功 → 预算耗尽被判超时」。
  *
  * @param engineKey  ENGINE_VRAM_REQUIREMENTS 键 (qwen_tts/minimax_h3/music3/...)
  * @param fn         锁内执行的动作 (提交 + 等结果完成; 纯代理类=HTTP 返回即完成)
@@ -315,11 +334,11 @@ function defaultGpuIndex(): number {
  * @param opts.comfyuiUrl ComfyUI 基地址 (传给 ensureVram 做 /free 驱逐; 可省略)
  * @param opts.skipVram   跳过显存预检 (调用方已自行预检过时用)
  */
-export async function withGpuQueue<T>(
+export async function withGpuQueueTimed<T>(
   engineKey: string,
-  fn: () => Promise<T>,
+  fn: (queueWaitMs: number) => Promise<T>,
   opts: { gpuIndex?: number; comfyuiUrl?: string; skipVram?: boolean } = {},
-): Promise<T> {
+): Promise<GpuQueueResult<T>> {
   const gpuIndex = opts.gpuIndex ?? defaultGpuIndex();
 
   // ── 防死锁: 同请求嵌套获取 → 放行内层 (外层已持有该 GPU 的锁) ──
@@ -335,11 +354,14 @@ export async function withGpuQueue<T>(
     console.warn(
       `[gpuQueue] nested withGpuQueue("${engineKey}") inside an outer GPU${gpuIndex} holder — passing through (outer lock already serializes)`,
     );
-    return fn();
+    const nestedStart = Date.now();
+    const data = await fn(0);
+    return { data, queueWaitMs: 0, heldMs: Date.now() - nestedStart };
   }
 
   const lock = getGpuLock(gpuIndex);
   const enqueuedAt = Date.now();
+  let vramRetryWaitedMs = 0;
 
   // ── 排队 (FIFO): 无人持锁直接拿, 否则挂到等待队列尾部 ──
   const position = lock.holder ? lock.waiters.length + 1 : 0;
@@ -441,6 +463,7 @@ export async function withGpuQueue<T>(
               `[gpuQueue] vram_retry ${engineKey} GPU${gpuIndex}: free ${err.freeMiB}MiB < need ${err.requiredMiB}MiB, retry in ${backoff / 1000}s (waited ${(waitedMs / 1000).toFixed(0)}s/${QUEUE_TIMEOUT_MS / 1000}s)`,
             );
             await new Promise((r) => setTimeout(r, backoff));
+            vramRetryWaitedMs += backoff;
           }
         }
         if (lastErr) {
@@ -459,11 +482,28 @@ export async function withGpuQueue<T>(
       }
 
       // ── 锁内: 执行作业 (提交 + 等完成) ──
-      return await fn();
+      // queueWaitMs = 锁等待 + vram_retry 等待 — fn 的下游轮询预算按此延长
+      const queueWaitMs = waitMs + vramRetryWaitedMs;
+      const fnStart = Date.now();
+      const data = await fn(queueWaitMs);
+      return { data, queueWaitMs, heldMs: Date.now() - fnStart };
     } finally {
       release();
     }
   });
+}
+
+/**
+ * 向后兼容签名 — 13 处既有调用点 (flux/music3/sa3/ace/indextts2/rtx-vsr/...) 不动。
+ * 与 withGpuQueueTimed 同一把锁同一套语义, 只是丢弃计时元数据。
+ */
+export async function withGpuQueue<T>(
+  engineKey: string,
+  fn: () => Promise<T>,
+  opts: { gpuIndex?: number; comfyuiUrl?: string; skipVram?: boolean } = {},
+): Promise<T> {
+  const { data } = await withGpuQueueTimed(engineKey, () => fn(), opts);
+  return data;
 }
 
 // ─── B5a. 向后兼容: withEngineLock 委托 withGpuQueue ────────────────────────

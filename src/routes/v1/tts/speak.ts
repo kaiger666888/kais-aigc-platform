@@ -12,12 +12,16 @@
  *   track=zh|en|bilingual → mode=voice_clone (如有 ref_audio) 或 custom_voice
  *   track=clone           → mode=voice_clone
  *
+ * 异步模式 (async:true 或 header X-KAP-Async:1, 2026-08-16):
+ *   提交成功即 202 {prompt_id, queue_wait_ms, status_url} — 不等轮询完成。
+ *   客户端两段式: GET /api/v1/tts/status/:promptId 轮询到 success 拿音频 URL。
+ *
  * Response: { audio_path, audio_url, mode, service }
  */
 import express, { Router } from "express";
 import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
-import { VramInsufficientError, withGpuQueue } from "@/lib/gpuVramManager";
+import { VramInsufficientError, withGpuQueueTimed } from "@/lib/gpuVramManager";
 import path from "path";
 import { TTS_CONFIG, PRESET_SPEAKERS, type TtsMode } from "./config";
 
@@ -51,6 +55,11 @@ const SpeakSchema = z.object({
   temperature: z.number().min(0.1).max(2.0).optional(),
   repetition_penalty: z.number().min(1.0).max(2.0).optional(),
   unload_model_after_generate: z.boolean().optional().default(false),
+
+  // 异步两段式 (2026-08-16): true → 提交成功即 202 {prompt_id, queue_wait_ms},
+  // 客户端轮询 GET /api/v1/tts/status/:promptId (等价 header X-KAP-Async: 1)。
+  // 单请求超时不再约束「排队+作业」总时长 (P10 双重超时根因)。
+  async: z.boolean().optional(),
 
   // 旧 CosyVoice/GPT-SoVITS 参数兼容（忽略，不影响功能）
   ref_audio_path: z.string().optional(),
@@ -251,12 +260,22 @@ async function submitPrompt(workflow: Record<string, unknown>): Promise<string> 
   return data.prompt_id;
 }
 
-async function pollUntilDone(promptId: string): Promise<{
+/**
+ * 轮询 ComfyUI history 直到完成。
+ *
+ * @param extraBudgetMs 排队等待补偿 (withGpuQueueTimed 的 queueWaitMs) — 排队
+ *   不计入作业预算 (2026-08-16 P10 双重超时根因): poll 预算 = pollTimeoutMs + 排队耗时。
+ *   超时弃单前尽力 POST /queue {"delete":[promptId]} 清理 pending 孤儿
+ *   (21:48 事故: KAP 300s 弃单但 ComfyUI 21:54 实际成功, 孤儿继续占显存)。
+ */
+async function pollUntilDone(promptId: string, extraBudgetMs = 0): Promise<{
   status: "success" | "error";
   outputs?: Record<string, any>;
   error?: string;
+  timedOut?: boolean;
 }> {
-  const deadline = Date.now() + TTS_CONFIG.pollTimeoutMs;
+  const budgetMs = TTS_CONFIG.pollTimeoutMs + extraBudgetMs;
+  const deadline = Date.now() + budgetMs;
   while (Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, TTS_CONFIG.pollIntervalMs));
     try {
@@ -273,7 +292,31 @@ async function pollUntilDone(promptId: string): Promise<{
       }
     } catch { /* keep trying */ }
   }
-  return { status: "error", error: `Timeout after ${TTS_CONFIG.pollTimeoutMs / 1000}s` };
+  await cleanupOrphanPrompt(promptId, budgetMs);
+  return { status: "error", error: `Timeout after ${budgetMs / 1000}s`, timedOut: true };
+}
+
+/**
+ * 超时弃单后的孤儿清理 — 尽力删除 ComfyUI 队列中的 pending 任务。
+ * POST /queue {"delete":[promptId]} (注意: DELETE method 是 405, ComfyUI 契约是 POST)。
+ * 已 running 的任务 delete 无效 (ComfyUI 会在跑完后保留产物) — 记 log 提示可能孤儿。
+ */
+async function cleanupOrphanPrompt(promptId: string, budgetMs: number): Promise<void> {
+  try {
+    const resp = await fetch(`${TTS_CONFIG.comfyuiUrl}/queue`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ delete: [promptId] }),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (resp.ok) {
+      console.log(`[tts] orphan cleanup: deleted pending prompt ${promptId} from ComfyUI queue (poll budget ${budgetMs / 1000}s exhausted)`);
+    } else {
+      console.warn(`[tts] orphan cleanup: ComfyUI /queue delete responded ${resp.status} for ${promptId} — task may be running; possible orphan`);
+    }
+  } catch (err) {
+    console.warn(`[tts] orphan cleanup failed for ${promptId} (${err instanceof Error ? err.message : err}) — possible orphan holding VRAM`);
+  }
 }
 
 function extractAudioPath(outputs: Record<string, any>): {
@@ -322,23 +365,31 @@ router.post("/", async (req, res) => {
       ));
     }
 
-    // ─── GPU 全局串行队列 (gpuVramManager withGpuQueue, 2026-08-16 二期) ───
+    // ─── GPU 全局串行队列 (gpuVramManager withGpuQueueTimed, 2026-08-16) ───
     // 跨引擎互斥 (TTS/H3/music3/qwen_eye 共享 GPU1 锁), 排队等待而非 fail-fast
     // (P10 事故根因: TTS 预检放行后 qwen-eye 拉起吃掉 14.7G → TTS 合成时崩)。
     // 排队超时 (KAP_GPU_QUEUE_TIMEOUT_MS, 默认 30min) 才抛 vram_insufficient。
+    //
+    // 双重超时修复 (21:48 事故): queueWaitMs (排队+vram_retry) 不计入作业预算 —
+    // poll 预算 = pollTimeoutMs + queueWaitMs。async 模式下提交成功即 202 返回,
+    // 客户端改走 GET /api/v1/tts/status/:promptId 两段式轮询。
+    const isAsync = body.async === true || req.header("X-KAP-Async") === "1";
     let promptId: string;
-    let result: { status: "success" | "error"; outputs?: Record<string, any>; error?: string };
+    let queueWaitMs = 0;
+    let result: { status: "success" | "error"; outputs?: Record<string, any>; error?: string } | null;
     try {
-      const out = await withGpuQueue(
+      const out = await withGpuQueueTimed(
         "qwen_tts",
-        async () => {
+        async (waitedMs) => {
           const pid = await submitPrompt(workflow);
-          return { promptId: pid, result: await pollUntilDone(pid) };
+          if (isAsync) return { promptId: pid, result: null };
+          return { promptId: pid, result: await pollUntilDone(pid, waitedMs) };
         },
         { gpuIndex: 1, comfyuiUrl: TTS_CONFIG.comfyuiUrl },
       );
-      promptId = out.promptId;
-      result = out.result;
+      promptId = out.data.promptId;
+      queueWaitMs = out.queueWaitMs;
+      result = out.data.result;
     } catch (err) {
       if (err instanceof VramInsufficientError) {
         return res.status(503).json(error(
@@ -352,6 +403,17 @@ router.post("/", async (req, res) => {
       }
       throw err;
     }
+
+    // ─── 异步模式: 提交成功即 202, 不等 poll (客户端两段式轮询 status 端点) ───
+    if (isAsync && result === null) {
+      return res.status(202).json(success({
+        prompt_id: promptId,
+        queue_wait_ms: queueWaitMs,
+        mode: body.mode,
+        status_url: `/api/v1/tts/status/${promptId}`,
+      }));
+    }
+    result = result!;
 
     if (result.status === "error") {
       return res.status(500).json(error(

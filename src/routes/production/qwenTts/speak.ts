@@ -16,7 +16,7 @@
 import express from "express";
 import path from "path";
 import { success, error } from "@/lib/responseFormat";
-import { VramInsufficientError, withGpuQueue } from "@/lib/gpuVramManager";
+import { VramInsufficientError, withGpuQueue, withGpuQueueTimed } from "@/lib/gpuVramManager";
 import {
   QWEN_TTS_CONFIG,
   QWEN_TTS_DEFAULTS,
@@ -62,6 +62,10 @@ interface SpeakBody {
   temperature?: number;
   repetition_penalty?: number;
   unload_model_after_generate?: boolean;
+
+  /** 异步两段式 (2026-08-16): true → 提交成功即 202 {prompt_id, queue_wait_ms},
+   * 客户端轮询 GET /api/production/qwenTts/status/:promptId (等价 header X-KAP-Async:1) */
+  async?: boolean;
 }
 
 interface BatchBody {
@@ -232,13 +236,20 @@ async function submitPrompt(workflow: Record<string, unknown>): Promise<string> 
   return data.prompt_id;
 }
 
-/** 轮询直到完成或超时 */
-async function pollUntilDone(promptId: string): Promise<{
+/**
+ * 轮询直到完成或超时。
+ *
+ * @param extraBudgetMs 排队等待补偿 (withGpuQueueTimed 的 queueWaitMs) — 排队
+ *   不计入作业预算 (2026-08-16 P10 双重超时根因): poll 预算 = pollTimeoutMs + 排队耗时。
+ *   超时弃单前尽力 POST /queue {"delete":[promptId]} 清理 pending 孤儿。
+ */
+async function pollUntilDone(promptId: string, extraBudgetMs = 0): Promise<{
   status: "success" | "error";
   outputs?: Record<string, unknown>;
   error?: string;
 }> {
-  const deadline = Date.now() + QWEN_TTS_CONFIG.pollTimeoutMs;
+  const budgetMs = QWEN_TTS_CONFIG.pollTimeoutMs + extraBudgetMs;
+  const deadline = Date.now() + budgetMs;
   const interval = QWEN_TTS_CONFIG.pollIntervalMs;
 
   while (Date.now() < deadline) {
@@ -267,7 +278,31 @@ async function pollUntilDone(promptId: string): Promise<{
     }
   }
 
-  return { status: "error", error: `Timeout after ${QWEN_TTS_CONFIG.pollTimeoutMs / 1000}s` };
+  await cleanupOrphanPrompt(promptId, budgetMs);
+  return { status: "error", error: `Timeout after ${budgetMs / 1000}s` };
+}
+
+/**
+ * 超时弃单后的孤儿清理 — 尽力删除 ComfyUI 队列中的 pending 任务。
+ * POST /queue {"delete":[promptId]} (DELETE method 是 405, ComfyUI 契约是 POST)。
+ * 已 running 的任务 delete 无效 — 记 log 提示可能孤儿占显存。
+ */
+async function cleanupOrphanPrompt(promptId: string, budgetMs: number): Promise<void> {
+  try {
+    const resp = await fetch(`${QWEN_TTS_CONFIG.comfyuiUrl}/queue`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ delete: [promptId] }),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (resp.ok) {
+      console.log(`[qwen-tts] orphan cleanup: deleted pending prompt ${promptId} from ComfyUI queue (poll budget ${budgetMs / 1000}s exhausted)`);
+    } else {
+      console.warn(`[qwen-tts] orphan cleanup: ComfyUI /queue delete responded ${resp.status} for ${promptId} — task may be running; possible orphan`);
+    }
+  } catch (err) {
+    console.warn(`[qwen-tts] orphan cleanup failed for ${promptId} (${err instanceof Error ? err.message : err}) — possible orphan holding VRAM`);
+  }
 }
 
 /** 从 ComfyUI 输出提取音频文件路径 */
@@ -372,6 +407,7 @@ router.post("/speak", async (req: Request, res: Response) => {
         speaker: (req as any).body?.speaker,
         model_choice: (req as any).body?.model_choice,
         language: (req as any).body?.language,
+        async: (req as any).body?.async === true || (req as any).body?.async === "true",
         seed: (req as any).body?.seed ? parseInt((req as any).body.seed) : undefined,
         top_p: (req as any).body?.top_p ? parseFloat((req as any).body.top_p) : undefined,
         top_k: (req as any).body?.top_k ? parseInt((req as any).body.top_k) : undefined,
@@ -403,23 +439,32 @@ router.post("/speak", async (req: Request, res: Response) => {
     // Build & submit workflow
     const workflow = buildWorkflow(body);
 
-    // ─── GPU 全局串行队列 (gpuVramManager withGpuQueue, 2026-08-16 二期) ───
+    // ─── GPU 全局串行队列 (gpuVramManager withGpuQueueTimed, 2026-08-16) ───
     // 跨引擎互斥 (TTS/H3/music3/qwen_eye 共享 GPU1 锁), 排队等待而非 fail-fast;
     // 排队超时 (默认 30min) 才抛 vram_insufficient。
     // 锁粒度到「提交+等完成」: 轮询期持锁, 防止其它引擎趁隙装载挤爆显存。
+    //
+    // 双重超时修复 (21:48 事故): queueWaitMs 不计入作业预算 — poll 预算 =
+    // pollTimeoutMs + queueWaitMs。async 模式下提交成功即 202 返回。
+    const isAsync =
+      (body as { async?: boolean }).async === true ||
+      req.header("X-KAP-Async") === "1";
     let promptId: string;
-    let result: { status: "success" | "error"; outputs?: Record<string, unknown>; error?: string };
+    let queueWaitMs = 0;
+    let result: { status: "success" | "error"; outputs?: Record<string, unknown>; error?: string } | null;
     try {
-      const out = await withGpuQueue(
+      const out = await withGpuQueueTimed(
         "qwen_tts",
-        async () => {
+        async (waitedMs) => {
           const pid = await submitPrompt(workflow);
-          return { promptId: pid, result: await pollUntilDone(pid) };
+          if (isAsync) return { promptId: pid, result: null };
+          return { promptId: pid, result: await pollUntilDone(pid, waitedMs) };
         },
         { gpuIndex: 1, comfyuiUrl: QWEN_TTS_CONFIG.comfyuiUrl },
       );
-      promptId = out.promptId;
-      result = out.result;
+      promptId = out.data.promptId;
+      queueWaitMs = out.queueWaitMs;
+      result = out.data.result;
     } catch (err) {
       if (err instanceof VramInsufficientError) {
         return res.status(503).json(error(err.message, {
@@ -432,6 +477,17 @@ router.post("/speak", async (req: Request, res: Response) => {
       }
       throw err;
     }
+
+    // ─── 异步模式: 提交成功即 202, 客户端轮询 GET /qwen-tts/status/:promptId ───
+    if (isAsync && result === null) {
+      return res.status(202).json(success({
+        prompt_id: promptId,
+        queue_wait_ms: queueWaitMs,
+        mode: body.mode,
+        status_url: `/api/production/qwenTts/status/${promptId}`,
+      }));
+    }
+    result = result!;
 
     if (result.status === "error") {
       return res.status(500).json(error(`Synthesis failed: ${result.error}`));
@@ -516,15 +572,17 @@ router.post("/batch", async (req: Request, res: Response) => {
         const lastNode = Object.keys(workflow).length.toString();
         (workflow[lastNode] as any).inputs.filename_prefix = `qwents_batch_${ts}_${idx}`;
 
-        // 批量同样走 GPU 全局串行队列 (每条提交前逐条入队, 排队等待而非 fail-fast)
-        const { promptId, result } = await withGpuQueue(
+        // 批量同样走 GPU 全局串行队列 (每条提交前逐条入队, 排队等待而非 fail-fast);
+        // queueWaitMs 同样不计入 poll 预算 (双重超时修复)
+        const timed = await withGpuQueueTimed(
           "qwen_tts",
-          async () => {
+          async (waitedMs) => {
             const pid = await submitPrompt(workflow);
-            return { promptId: pid, result: await pollUntilDone(pid) };
+            return { promptId: pid, result: await pollUntilDone(pid, waitedMs) };
           },
           { gpuIndex: 1, comfyuiUrl: QWEN_TTS_CONFIG.comfyuiUrl },
         );
+        const { promptId, result } = timed.data;
 
         if (result.status === "error") {
           results.push({ id: item.id, status: "error", error: result.error });
