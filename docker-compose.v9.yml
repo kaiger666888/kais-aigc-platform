@@ -7,7 +7,9 @@
 #   - 3090 职责: 视频生成(Wan 2.2/LTX)、3D(TRELLIS2)、FLUX、TRELLIS2 抽卡预览
 #   - 3060Ti 职责: 放大(4x)、背景移除(RMBG)、SDXL 预处理、轻量推理
 #   - 共享模型库 /data/models/comfyui (只读), 共享缓存, 输出按引擎隔离
-#   - 增量节点通过 /data/workspace/comfyui-incremental-nodes 挂载
+#   - 增量节点通过 /data/workspace/comfyui-incremental-nodes 挂载:
+#     LTXVideo / TRELLIS2 / AIIA / kaola-IndexTTS2 / facerestore_cf / Licon-MSR /
+#     PromptRelay / ltx_foley_v2a / minimax-h3-audio-T8 / ComfyUI-QwenTTS
 #   - 碎片容器全部清理, 统一到 compose 管理
 #
 # 架构:
@@ -98,7 +100,14 @@ services:
       # T8 套件 (MiniMaxH3AudioConditioningT8 等) 同样只暴露 comfy_entrypoint, 无 NODE_CLASS_MAPPINGS →
       # kais-incremental 装载器认不出 (2026-08-14 排查: T8 档全 400 missing_node_type) → 独立挂载为顶层 custom_node
       - /data/workspace/comfyui-incremental-nodes/minimax-h3-audio-T8:/root/ComfyUI/custom_nodes/minimax-h3-audio-T8
+      # QwenTTS (AILab 版, 注册 AILab_Qwen3TTS* 节点 — KAP v1/production TTS 路由依赖这些名字)。
+      # 2026-08-15 ep-demo-pixar P10 事故根因: 该节点+venv+patches 原本只活在容器可写层,
+      # 容器重建即全灭 (分析报告 C.2) → docker cp 入卷持久化。qwen_tts 的 transformers-4.57.6
+      # 6 patches 由 install-qwen-tts-deps.sh 幂等维护 (挂在下方 user-scripts)。
+      - /data/workspace/comfyui-incremental-nodes/ComfyUI-QwenTTS:/root/ComfyUI/custom_nodes/ComfyUI-QwenTTS
       - /data/workspace/comfyui-incremental-nodes/scripts/fix-kornia.sh:/root/user-scripts/pre-start.sh
+      - /data/workspace/comfyui-incremental-nodes/scripts/install-qwen-tts-deps.sh:/root/user-scripts/install-qwen-tts-deps.sh
+      - /data/workspace/comfyui-incremental-nodes/scripts/pre-start-qwen-tts.sh:/root/user-scripts/pre-start-qwen-tts.sh
       - /data/workspace/comfyui-incremental-nodes/scripts/install-insightface.sh:/root/user-scripts/install-insightface.sh
       - /data/workspace/comfyui-incremental-nodes/scripts/install-training-deps.sh:/root/user-scripts/install-training-deps.sh
       - /data/workspace/comfyui-incremental-nodes/scripts/install-aiia-deps.sh:/root/user-scripts/install-aiia-deps.sh
