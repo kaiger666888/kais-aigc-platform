@@ -458,6 +458,18 @@ PHASE_FIELDS: dict[str, dict[str, dict[str, Any]]] = {
             "zod_type": "string",
             "required": True
         },
+        "shot_type_camel": {
+            "python_key": "shot_type",
+            "canvas_key": "shotType",
+            "zod_type": "string",
+            "required": False
+        },
+        "duration_sec_camel": {
+            "python_key": "duration_sec",
+            "canvas_key": "durationS",
+            "zod_type": "number",
+            "required": False
+        },
         "duration_sec": {
             "python_key": "duration_sec",
             "canvas_key": "duration_sec",

@@ -72,7 +72,10 @@ export default router.post(
       return res.status(200).send(success());
     } catch (err) {
       console.error("[v2/canvas/save] 保存画布失败:", err);
-      return res.status(500).send(error("保存画布失败"));
+      // B-6: 带 err.message（对齐 import-from-dir.ts / sync-assets.ts 口径）
+      // —— KMC 盲退避 3 次后降级 envelope，无诊断信息的 500 让根因不可查。
+      const message = err instanceof Error ? err.message : String(err);
+      return res.status(500).send(error(`保存画布失败: ${message}`));
     }
   },
 );

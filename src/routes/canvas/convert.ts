@@ -51,9 +51,15 @@ export default router.post(
 
       if (assetIds.length === 0) {
         // Pipeline 创建的项目可能没写 o_scriptAssets，退而查项目下所有资产
+        // F-3: 必须按 episodesId 过滤——否则同项目其它集的首尾帧/资产混入
+        // 当前集（StoryboardTimeline extraFrameShots 跨集泄漏）。OR 兼容
+        // 历史 Notion 资产（episodesId 可能为 NULL，不属于任何集）。
         const fallbackAssets = await u.db("o_assets")
           .where("projectId", projectId)
-          .whereNull("assetsId");
+          .whereNull("assetsId")
+          .andWhere((qb: any) => {
+            qb.where("episodesId", episodesId).orWhereNull("episodesId");
+          });
         assetIds = fallbackAssets.map((a: any) => a.id);
       }
 

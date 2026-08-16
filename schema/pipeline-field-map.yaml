@@ -388,6 +388,21 @@ phases:
         canvas_key: shot_type
         zod_type: string
         required: true
+      # A-3: camelCase canvas_key（前端 flowgraph-v3 migrate 白名单读
+      # d.shotType / d.durationS）。python_key 仍指向 snake 源字段；映射层
+      # 只在 canvas_key 缺席时补写（canvas_sync._apply_schema_mappings
+      # `ckey in data` 跳过），snake 原键由 passthrough 保留——Gate B 与
+      # canvasAssetSchema.ts:64-73 仍读 duration_sec/shot_id，两者共存。
+      shot_type_camel:
+        python_key: shot_type
+        canvas_key: shotType
+        zod_type: string
+        required: false
+      duration_sec_camel:
+        python_key: duration_sec
+        canvas_key: durationS
+        zod_type: number
+        required: false
       duration_sec:
         python_key: duration_sec
         canvas_key: duration_sec

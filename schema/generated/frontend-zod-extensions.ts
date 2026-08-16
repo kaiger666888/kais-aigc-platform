@@ -141,6 +141,14 @@ export const YAML_OPTIONAL_FIELDS: Record<string, YamlOptionalField[]> = {
     {
       "key": "ltxPrompt",
       "zodType": "string"
+    },
+    {
+      "key": "shotType",
+      "zodType": "string"
+    },
+    {
+      "key": "durationS",
+      "zodType": "number"
     }
   ],
   "audio": [

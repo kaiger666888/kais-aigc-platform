@@ -167,7 +167,10 @@ router.patch(
   validateFields({
     projectId: z.number(),
     episodesId: z.number(),
-    updates: z.record(z.string(), z.any()),
+    // B-5: 开放 record 允许写任意 state / 改 type 出枚举，会持续制造
+    // "下次全量 save-v2 就 400" 的死循环脏数据。收紧为 nodeInputSchema
+    // 的 partial 视图（枚举字段按枚举校验）。
+    updates: nodeInputSchema.partial(),
   }),
   async (req, res) => {
     const { projectId, episodesId, updates } = req.body;
