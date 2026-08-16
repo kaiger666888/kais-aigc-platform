@@ -375,3 +375,92 @@ export async function testSpeakV2Preserved(): Promise<TestResult[]> {
 }
 
 // (helper removed — shadowing global JSON broke JSON.stringify)
+
+// ─── T6: app 级挂载路由测试 (P0 修复: speak 挂载根路径兼容) ──────────────────
+//
+// 背景 (2026-08-17 Hermes 实测): router.ts 挂载 `app.use("/api/production/
+// indextts2/speak", router)` + `router.post("/speak")` → 真实路径是
+// `/api/production/indextts2/speak/speak`; 单路径 POST 真实部署 404。上面
+// T4/T5 直接调 router.handle 只覆盖路由内相对路径, 挂载拓扑从未被验证
+// (假绿)。此 suite 从 app 级挂载 (与 router.ts 相同的 app.use 形态) 走
+// 真实 HTTP — supertest 未安装, 用 node:http + ephemeral port。
+//
+// 断言 (不真合成): 两种路径 POST JSON {version:"2.5", text} → 都进
+// v2.5 JSON 分支 → 400 "requires 'ref_audio'" (不再是 404)。
+
+import http from "http";
+
+interface HttpResponse {
+  status: number;
+  body: string;
+}
+
+function postJson(port: number, path: string, body: unknown): Promise<HttpResponse> {
+  return new Promise((resolve, reject) => {
+    const payload = JSON.stringify(body);
+    const req = http.request(
+      {
+        host: "127.0.0.1",
+        port,
+        path,
+        method: "POST",
+        headers: { "content-type": "application/json", "content-length": Buffer.byteLength(payload) },
+      },
+      (res) => {
+        let data = "";
+        res.on("data", (chunk: string) => { data += chunk; });
+        res.on("end", () => resolve({ status: res.statusCode ?? 0, body: data }));
+      },
+    );
+    req.on("error", reject);
+    req.write(payload);
+    req.end();
+  });
+}
+
+export async function testSpeakDualPathAppMount(): Promise<TestResult[]> {
+  const results: TestResult[] = [];
+  await installGpuQueueBypass();
+
+  const { default: speakRouter } = await import("../speak");
+  const app = express();
+  app.use(express.json());
+  // 与 src/router.ts 相同的挂载形态 — 这正是被验证的对象
+  app.use("/api/production/indextts2/speak", speakRouter);
+
+  const server = http.createServer(app);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const port = (server.address() as { port: number }).port;
+
+  try {
+    // 单路径 (修复前真实部署 404 的那条)
+    const single = await postJson(port, "/api/production/indextts2/speak",
+      { version: "2.5", text: "x" });
+    check(results, single.status === 400,
+      "app 挂载级: POST /api/production/indextts2/speak → 400 (进 v2.5 分支, 不再 404)",
+      `status=${single.status} body=${single.body.slice(0, 200)}`);
+    check(results, /ref_audio/.test(single.body),
+      "单路径响应体含 ref_audio 校验消息 (v2.5 JSON 分支活着)",
+      single.body.slice(0, 200));
+
+    // 双路径 (语义路径, KMC engine 实际调用形态)
+    const dual = await postJson(port, "/api/production/indextts2/speak/speak",
+      { version: "2.5", text: "x" });
+    check(results, dual.status === 400,
+      "app 挂载级: POST /api/production/indextts2/speak/speak → 400 (v2.5 分支)",
+      `status=${dual.status} body=${dual.body.slice(0, 200)}`);
+    check(results, /ref_audio/.test(dual.body),
+      "双路径响应体含 ref_audio 校验消息",
+      dual.body.slice(0, 200));
+
+    // 反例: 挂载点下未知子路径仍 404 (双挂载没有吞掉整个命名空间)
+    const unknown = await postJson(port, "/api/production/indextts2/speak/nope",
+      { version: "2.5", text: "x" });
+    check(results, unknown.status === 404,
+      "未知子路径 /speak/nope 仍 404 (挂载根兼容未引入通配吞噬)",
+      `status=${unknown.status}`);
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+  return results;
+}

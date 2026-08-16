@@ -22,6 +22,7 @@ import {
   testVoiceDesignValidation,
   testSpeakV25Branch,
   testSpeakV2Preserved,
+  testSpeakDualPathAppMount,
 } from "../src/routes/production/indextts2/__tests__/indextts25.test";
 
 interface TestResult {
@@ -39,6 +40,7 @@ async function main(): Promise<void> {
     ["voice-design 请求校验", testVoiceDesignValidation],
     ["speak v2.5 分支 (multipart 代理)", testSpeakV25Branch],
     ["speak version=2 legacy 保留", testSpeakV2Preserved],
+    ["speak 单/双路径 app 级挂载", testSpeakDualPathAppMount],
   ];
 
   for (const [label, fn] of suites) {

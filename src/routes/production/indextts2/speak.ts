@@ -413,7 +413,8 @@ async function speakV25Json(body: SpeakBody, res: Response): Promise<Response> {
 // ─── Routes ─────────────────────────────────────────────────────────────────
 
 /**
- * POST /api/production/indextts2/speak
+ * POST /api/production/indextts2/speak/speak   (router 挂载点 + 路由名叠加)
+ * POST /api/production/indextts2/speak         (挂载根直达 — 单路径兼容)
  *
  * Body (JSON):
  *   { text, ref_audio, mode?, temperature?, top_k?, top_p?, use_random? }
@@ -429,7 +430,7 @@ async function speakV25Json(body: SpeakBody, res: Response): Promise<Response> {
  *     {code:200, data:{audio_path, audio_url, ...}} (v1/tts 风格)。
  *   - version=2: 旧 ComfyUI IndexTTS-2 节点路径, 全保留 (legacy)。
  */
-router.post("/speak", async (req: Request, res: Response) => {
+async function speakHandler(req: Request, res: Response): Promise<Response> {
   try {
     let body: SpeakBody;
 
@@ -530,7 +531,12 @@ router.post("/speak", async (req: Request, res: Response) => {
   } catch (err: any) {
     return res.status(500).json(error(err.message || "Internal error"));
   }
-});
+}
+
+// 同一 handler 双挂载: 语义路径 /speak (真实路径 .../speak/speak) + 挂载根 "/"
+// (Express 精确匹配, 单路径 .../speak 直达)。双路径都通, 客户端不再踩 404。
+router.post("/speak", speakHandler);
+router.post("/", speakHandler);
 
 /**
  * POST /api/production/indextts2/batch
