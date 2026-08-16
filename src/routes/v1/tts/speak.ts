@@ -17,6 +17,7 @@
 import express, { Router } from "express";
 import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
+import { ensureVram, VramInsufficientError, withEngineLock } from "@/lib/gpuVramManager";
 import path from "path";
 import { TTS_CONFIG, PRESET_SPEAKERS, type TtsMode } from "./config";
 
@@ -177,7 +178,7 @@ function buildWorkflow(body: z.infer<typeof SpeakSchema>): Record<string, unknow
  * 包装进 KAP 标准 {code, data, message} 响应格式的 data 字段。
  */
 function engineError(
-  kind: "engine_unavailable" | "synthesis_failed",
+  kind: "engine_unavailable" | "synthesis_failed" | "vram_insufficient",
   detail: string,
   extra: Record<string, unknown> = {},
 ) {
@@ -321,7 +322,26 @@ router.post("/", async (req, res) => {
       ));
     }
 
-    const promptId = await submitPrompt(workflow);
+    // ─── Preflight: 显存预检 + 引擎互斥 (gpuVramManager, 2026-08-16) ───
+    // free < 8GB 时先 /free 驱逐 ComfyUI 缓存, 仍不足则 fail-fast (vram_insufficient),
+    // 不让任务进队列饿死到轮询超时 (P10 事故: GPU1 多进程分占, TTS 实测 361-374s)。
+    try {
+      await ensureVram("qwen_tts", 1, TTS_CONFIG.comfyuiUrl);
+    } catch (err) {
+      if (err instanceof VramInsufficientError) {
+        return res.status(503).json(error(
+          err.message,
+          engineError("vram_insufficient", err.message, {
+            freeMiB: err.freeMiB,
+            requiredMiB: err.requiredMiB,
+            gpuIndex: err.gpuIndex,
+          }),
+        ));
+      }
+      throw err;
+    }
+
+    const promptId = await withEngineLock("qwen_tts", () => submitPrompt(workflow));
     const result = await pollUntilDone(promptId);
 
     if (result.status === "error") {

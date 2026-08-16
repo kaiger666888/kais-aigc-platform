@@ -19,8 +19,14 @@ export const INDEXTTS2_CONFIG = {
   outputDir: process.env.INDEXTTS2_OUTPUT_DIR || "/mnt/agents/output/gpu1",
   /** 轮询间隔 */
   pollIntervalMs: 1500,
-  /** 轮询超时（首次加载模型约 30-60s，推理约 5-15s） */
-  pollTimeoutMs: 180_000, // 3 min
+  /**
+   * 轮询超时（env: INDEXTTS2_POLL_TIMEOUT_MS，默认 300s）。
+   * 与 ComfyUI 共享 GPU1 时同样存在 dynamic VRAM offload 拖慢问题
+   * (参照 qwenTts 2026-08-16 实测 ~6min), 旧默认 180s 偏紧。
+   */
+  pollTimeoutMs: process.env.INDEXTTS2_POLL_TIMEOUT_MS
+    ? parseInt(process.env.INDEXTTS2_POLL_TIMEOUT_MS, 10)
+    : 300_000,
 };
 
 export const INDEXTTS2_DEFAULTS = {

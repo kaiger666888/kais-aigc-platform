@@ -16,6 +16,7 @@
 import express from "express";
 import path from "path";
 import { success, error } from "@/lib/responseFormat";
+import { ensureVram, VramInsufficientError, withEngineLock } from "@/lib/gpuVramManager";
 import {
   QWEN_TTS_CONFIG,
   QWEN_TTS_DEFAULTS,
@@ -401,7 +402,25 @@ router.post("/speak", async (req: Request, res: Response) => {
 
     // Build & submit workflow
     const workflow = buildWorkflow(body);
-    const promptId = await submitPrompt(workflow);
+
+    // ─── Preflight: 显存预检 + 引擎互斥 (gpuVramManager, 2026-08-16) ───
+    // 不足先 /free 驱逐, 仍不足 fail-fast (vram_insufficient), 不进队列盲等超时。
+    try {
+      await ensureVram("qwen_tts", 1, QWEN_TTS_CONFIG.comfyuiUrl);
+    } catch (err) {
+      if (err instanceof VramInsufficientError) {
+        return res.status(503).json(error(err.message, {
+          kind: "vram_insufficient",
+          engine: "qwen_tts",
+          freeMiB: err.freeMiB,
+          requiredMiB: err.requiredMiB,
+          gpuIndex: err.gpuIndex,
+        }));
+      }
+      throw err;
+    }
+
+    const promptId = await withEngineLock("qwen_tts", () => submitPrompt(workflow));
 
     // Poll for result
     const result = await pollUntilDone(promptId);
@@ -489,7 +508,11 @@ router.post("/batch", async (req: Request, res: Response) => {
         const lastNode = Object.keys(workflow).length.toString();
         (workflow[lastNode] as any).inputs.filename_prefix = `qwents_batch_${ts}_${idx}`;
 
-        const promptId = await submitPrompt(workflow);
+        // 批量同样走显存预检 + 互斥 (每条提交前逐条检查)
+        await ensureVram("qwen_tts", 1, QWEN_TTS_CONFIG.comfyuiUrl).catch((err) => {
+          if (err instanceof VramInsufficientError) throw err;
+        });
+        const promptId = await withEngineLock("qwen_tts", () => submitPrompt(workflow));
         const result = await pollUntilDone(promptId);
 
         if (result.status === "error") {

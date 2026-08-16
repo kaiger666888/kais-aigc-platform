@@ -22,8 +22,15 @@ export const TTS_CONFIG = {
   outputDir: process.env.QWEN_TTS_OUTPUT_DIR || "/mnt/agents/output/gpu1",
   /** 轮询间隔 */
   pollIntervalMs: 1500,
-  /** 轮询超时（1.7B 首次加载 ~60-90s, 推理 ~5-20s） */
-  pollTimeoutMs: 300_000, // 5 min
+  /**
+   * 轮询超时（env: QWEN_TTS_POLL_TIMEOUT_MS，默认 600s）。
+   * 2026-08-16 实测: 冷模型加载 + GPU1 多进程分占下 ComfyUI v0.31 dynamic VRAM
+   * 频繁 offload/重载, TTS 节点实际执行 ~361-374s, 旧默认 300s 必超时误判
+   * (ComfyUI 侧任务实际完成, KAP 侧已报失败)。
+   */
+  pollTimeoutMs: process.env.QWEN_TTS_POLL_TIMEOUT_MS
+    ? parseInt(process.env.QWEN_TTS_POLL_TIMEOUT_MS, 10)
+    : 600_000,
 
   /** 引擎元数据 */
   engine: {

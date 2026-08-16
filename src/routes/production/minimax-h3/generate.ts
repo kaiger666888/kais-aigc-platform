@@ -68,6 +68,7 @@ import axios from "axios";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { success, error } from "@/lib/responseFormat";
+import { ensureVram, VramInsufficientError, withEngineLock } from "@/lib/gpuVramManager";
 import { validateFields } from "@/middleware/middleware";
 import {
   H3_CONFIG,
@@ -915,11 +916,31 @@ export default router.post(
     let localH3VideoPath: string | null = null;
 
     try {
-      const comfyRes = await axios.post(
-        `${H3_CONFIG.comfyuiUrl}/prompt`,
-        { prompt: h3Wf },
-        { timeout: 30_000, validateStatus: (s: number) => s < 500 },
-      );
+      // ─── Preflight: 显存预检 (gpuVramManager, 2026-08-16) ───
+      // H3 需 ~18GB; GPU1 被 TTS/VD/qwen-eye 分占时先 /free 驱逐, 仍不足则
+      // fail-fast (vram_insufficient), 不让 34GB int8 权重进队列反复 offload 龟速。
+      try {
+        await ensureVram("minimax_h3", 1, H3_CONFIG.comfyuiUrl);
+      } catch (err) {
+        if (err instanceof VramInsufficientError) {
+          safeUnlink(localTtsAudio);
+          return res.status(503).send(error(err.message, {
+            kind: "vram_insufficient",
+            engine: "minimax_h3",
+            freeMiB: err.freeMiB,
+            requiredMiB: err.requiredMiB,
+            gpuIndex: err.gpuIndex,
+          }));
+        }
+        throw err;
+      }
+
+      const comfyRes = await withEngineLock("minimax_h3", () =>
+        axios.post(
+          `${H3_CONFIG.comfyuiUrl}/prompt`,
+          { prompt: h3Wf },
+          { timeout: 30_000, validateStatus: (s: number) => s < 500 },
+        ));
       if (comfyRes.status !== 200) {
         safeUnlink(localTtsAudio);
         return res
