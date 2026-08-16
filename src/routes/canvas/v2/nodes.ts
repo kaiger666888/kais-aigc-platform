@@ -192,6 +192,18 @@ router.patch(
       }
 
       const merged = { ...node, ...updates } as FlowNodeV2;
+      // B-5 残留（2026-08-16 审计 #8）：partial 校验只保证 updates 自身
+      // 合法，但 merged 结果可能是「合法 updates + 非法存量 data」——
+      // 例如给 audio 节点 PATCH type=script 之外的任意字段后 data 仍缺
+      // filePath。这类行落库后下次全量 save / save-v2 整图 400（死循环
+      // 脏数据）。对齐 POST 的同款门：merged 后跑 validateNodeData，
+      // 不合法 → 400 拒绝本 PATCH，不落库。
+      const mergedError = validateNodeData(merged.type, merged.data || {});
+      if (mergedError) {
+        return res.status(400).send(error(
+          `节点 ${nodeId} 合并后结构化参数不完整: ${mergedError}`,
+        ));
+      }
       await upsertNode({ projectId, episodesId }, merged);
       await touchMeta({ projectId, episodesId });
 

@@ -102,7 +102,10 @@ export default router.post(
       return res.status(200).send(success());
     } catch (err) {
       console.error("[canvas:save] 保存画布失败:", err);
-      return res.status(500).send(error("保存画布失败"));
+      // B-6 对齐（2026-08-16 审计 #8）：save-v2 已带 err.message，v1 恰是
+      // 前端实际保存入口——裸消息让 500 根因不可查。同口径补上。
+      const message = err instanceof Error ? err.message : String(err);
+      return res.status(500).send(error(`保存画布失败: ${message}`));
     }
   },
 );
