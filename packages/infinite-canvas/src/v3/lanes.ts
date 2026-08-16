@@ -110,7 +110,8 @@ export function classifyNode(input: NodeClassInput): NodeClass | null {
     return { modality: 'image', subClass: 'character' }
   }
   if (mod === 'video') {
-    if (phaseIndex === 13 || assetType === 'delivery' || /\bmaster\b/i.test(id)) {
+    // P13 成片 lane（KMC W6 phaseIndex=16，2026-08-16 P0-2 对齐）
+    if (phaseIndex === 16 || assetType === 'delivery' || /\bmaster\b/i.test(id)) {
       return { modality: 'video', subClass: 'master' }
     }
     return { modality: 'video', subClass: 'shot' }

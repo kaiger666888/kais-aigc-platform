@@ -316,12 +316,17 @@ export const NODE_SCHEMA: Record<string, StructuredField[]> = {
 /** 创作阶段分组（后端 PHASE_DEF_MAP.phaseGroup 的前端固化镜像，配色用）。 */
 export type PhaseGroup = 'research' | 'story' | 'production' | 'post'
 
-/** phaseIndex → 分组（无 sidecar 时的兜底分组与配色依据）。 */
+/** phaseIndex → 分组（无 sidecar 时的兜底分组与配色依据）。
+ * 对齐 KMC W6 编码（canvas_sync._PHASE_INDEX_MAP，2026-08-16 P0-2）：
+ * p09b/p09c=10（production 微门）、p10=11 / p10c=12 / p10b=13(注销)、
+ * p11*=14、p12*=15、p13=16、p14=17、p15=18。 */
 export const PHASE_GROUPS: Record<number, PhaseGroup> = {
   1: 'research', 2: 'research',
   3: 'story', 4: 'story', 5: 'story',
   6: 'production', 7: 'production', 8: 'production', 9: 'production',
-  10: 'post', 11: 'post', 12: 'post', 13: 'post', 14: 'post',
+  10: 'production',  // p09b/p09c micro-gates（W6）
+  11: 'post', 12: 'post', 13: 'post', 14: 'post',
+  15: 'post', 16: 'post', 17: 'post', 18: 'post',
 }
 
 /**

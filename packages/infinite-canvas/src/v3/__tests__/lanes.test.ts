@@ -43,10 +43,10 @@ describe('classifyNode（模态 × 功能子类）', () => {
       .toEqual({ modality: 'image', subClass: 'storyboard' })
   })
 
-  it('视频：phase13/delivery/master → 总视频；其余 → 分镜视频', () => {
-    expect(classifyNode({ id: 'a-S1_01', stage: 'video', modality: 'video', phaseIndex: 11, raw: { assetType: 'video', shot_id: 'S1_01' } }))
+  it('视频：P13(W6 phaseIndex=16)/delivery/master → 总视频；其余 → 分镜视频', () => {
+    expect(classifyNode({ id: 'a-S1_01', stage: 'video', modality: 'video', phaseIndex: 14, raw: { assetType: 'video', shot_id: 'S1_01' } }))
       .toEqual({ modality: 'video', subClass: 'shot' })
-    expect(classifyNode({ id: 'a-master_mp4', stage: 'composite', modality: 'video', phaseIndex: 13, raw: { assetType: 'delivery' } }))
+    expect(classifyNode({ id: 'a-master_mp4', stage: 'composite', modality: 'video', phaseIndex: 16, raw: { assetType: 'delivery' } }))
       .toEqual({ modality: 'video', subClass: 'master' })
   })
 
@@ -62,7 +62,7 @@ describe('classifyNode（模态 × 功能子类）', () => {
   it('modality 缺省时按 stage 兜底；无法判定 → null', () => {
     expect(classifyNode({ id: 'x', stage: 'script', raw: { assetType: 'topic' } }))
       .toEqual({ modality: 'text', subClass: 'hook' })
-    expect(classifyNode({ id: 'x', stage: 'video', phaseIndex: 11, raw: {} }))
+    expect(classifyNode({ id: 'x', stage: 'video', phaseIndex: 14, raw: {} }))
       .toEqual({ modality: 'video', subClass: 'shot' })
     expect(classifyNode({ id: 'x', raw: {} })).toBeNull()
   })

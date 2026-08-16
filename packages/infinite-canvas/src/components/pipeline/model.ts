@@ -38,35 +38,43 @@ export interface PipelinePhaseDef {
 
 /**
  * KMC pipeline PHASE_REGISTRY 的前端固化镜像（17 阶段）。
- * 顺序即依赖链（线性 depends_on）。phaseIndex 与图节点 phaseIndex 对齐用于数据匹配；
- * P09b/P10c/P10b 为 gate 子阶段（shot_audit / voice_audit / rapid_preview），
- * 复用主阶段 phaseIndex 但 sub=true → 仅作流水线节点展示，不重复计入资产。
+ * 顺序即依赖链（线性 depends_on）。phaseIndex 与图节点 phaseIndex 对齐用于数据匹配
+ * （KMC canvas_sync._PHASE_INDEX_MAP 是唯一真相源，W6 起 sub 阶段也各有唯一
+ * phaseIndex，见 KMC W6 注释）；P09b/P10c 为 gate 子阶段
+ * （shot_audit / voice_audit），sub=true → 仅作流水线节点展示，不重复计入资产。
  */
 export const PIPELINE_PHASES: readonly PipelinePhaseDef[] = [
   { sortKey: 1, code: 'P01', name: '选题/钩子', group: 'research', phaseIndex: 1 },
   { sortKey: 2, code: 'P02', name: '大纲', group: 'research', phaseIndex: 2 },
   { sortKey: 3, code: 'P03', name: '剧本审计', group: 'story', phaseIndex: 3 },
   // P03.5 86ke 戏剧事件打磨：sub（共享 P03 lane 的 phaseIndex 3，整数下标无法表达 3.5，
-  // 与 P09b/P10a 同款处理）；sortKey 是 number，3.5 可精确表达插入位。
+  // 与 P09b 同款处理）；sortKey 是 number，3.5 可精确表达插入位。
   { sortKey: 3.5, code: 'P03.5', name: '戏剧事件打磨', group: 'story', phaseIndex: 3, sub: true },
   { sortKey: 4, code: 'P04', name: '角色设计', group: 'story', phaseIndex: 4 },
   { sortKey: 5, code: 'P06', name: '时空剧本', group: 'production', phaseIndex: 6 },
   { sortKey: 6, code: 'P07', name: '场景图生成', group: 'production', phaseIndex: 7 },
   { sortKey: 7, code: 'P08', name: '场景选择', group: 'production', phaseIndex: 8, sub: true },
   { sortKey: 8, code: 'P09', name: '分镜拆解', group: 'production', phaseIndex: 9 },
-  { sortKey: 9, code: 'P09b', name: '镜头审计', group: 'production', phaseIndex: 9, sub: true },
-  { sortKey: 10, code: 'P10', name: '语音合成', group: 'post', phaseIndex: 10, sub: true },
-  { sortKey: 10.25, code: 'P10a', name: '时间线推导', group: 'post', phaseIndex: 10, sub: true },
-  { sortKey: 11, code: 'P10c', name: '语音审计', group: 'post', phaseIndex: 10, sub: true },
-  { sortKey: 12, code: 'P11a', name: '片段预览', group: 'post', phaseIndex: 11 },
-  { sortKey: 13, code: 'P11b', name: '片段生成', group: 'post', phaseIndex: 11 },
-  // P11c 视频智能质检（qwen-eye）：sub（共享 P11 lane 的 phaseIndex 11，整数下标
-  // 无法表达插入位，与 P09b/P10a 同款处理）；sortKey 11.5 精确表达 p11b→p11c→p12。
-  { sortKey: 11.5, code: 'P11c', name: '视频质检', group: 'post', phaseIndex: 11, sub: true },
-  { sortKey: 14, code: 'P12', name: '合成', group: 'post', phaseIndex: 12 },
-  { sortKey: 15, code: 'P13', name: '交付', group: 'post', phaseIndex: 13 },
-  { sortKey: 16, code: 'P14', name: '质量审计', group: 'post', phaseIndex: 14 },
-  { sortKey: 17, code: 'P15', name: '反馈', group: 'post', phaseIndex: 15 },
+  // ── KMC W6 编码对齐（canvas_sync._PHASE_INDEX_MAP，2026-08-16 P0-2）──
+  // W6 (commit 8445666, 2026-08-06) 起 KMC 给每个 phase 唯一 phaseIndex：
+  // p09b=10 / p10=11 / p10c=12 / p10b=13(已注销) / p11*=14 / p12*=15 /
+  // p13=16 / p14=17 / p15=18。前端此前仍是旧编码（P10→10 … P15→15），
+  // 导致 index10 的 voice 节点被 P10 卡片吃掉、p09b/p09c 错点亮 P10 卡片、
+  // p11b 之后全部错位。此处逐条对齐 KMC 唯一真相源；sub 阶段共享主阶段
+  // lane 的语义由 sub=true 保留（不重复计资产）。
+  { sortKey: 9, code: 'P09b', name: '镜头审计', group: 'production', phaseIndex: 10, sub: true },
+  { sortKey: 10, code: 'P10', name: '语音合成', group: 'post', phaseIndex: 11 },
+  { sortKey: 10.25, code: 'P10a', name: '时间线推导', group: 'post', phaseIndex: 11, sub: true },
+  { sortKey: 11, code: 'P10c', name: '语音审计', group: 'post', phaseIndex: 12, sub: true },
+  { sortKey: 12, code: 'P11a', name: '片段预览', group: 'post', phaseIndex: 14 },
+  { sortKey: 13, code: 'P11b', name: '片段生成', group: 'post', phaseIndex: 14 },
+  // P11c 视频智能质检（qwen-eye）：sub（共享 P11 lane 的 phaseIndex 14，整数下标
+  // 无法表达插入位，与 P09b 同款处理）；sortKey 11.5 精确表达 p11b→p11c→p12。
+  { sortKey: 11.5, code: 'P11c', name: '视频质检', group: 'post', phaseIndex: 14, sub: true },
+  { sortKey: 14, code: 'P12', name: '合成', group: 'post', phaseIndex: 15 },
+  { sortKey: 15, code: 'P13', name: '交付', group: 'post', phaseIndex: 16 },
+  { sortKey: 16, code: 'P14', name: '质量审计', group: 'post', phaseIndex: 17 },
+  { sortKey: 17, code: 'P15', name: '反馈', group: 'post', phaseIndex: 18 },
 ]
 
 /** 分组展示顺序 + 中文名。 */
@@ -587,62 +595,62 @@ export const DAG_NODES: readonly DagNodeDef[] = [
     match: { phaseIndex: 9, idIncludes: 'shot_list' }, expectedCount: 'dynamic' },
   // P09c 白模分镜板（替代原 e-konte-sheets）：dreamina i2i clay-render maquette 分镜板整图。
   // dreamina 不可用时降级写空 slot 不阻塞下游，故非 dim 弱节点。
-  { id: 'storyboard-board', label: '白模分镜板', phaseCode: 'P09c', phaseIndex: 9, group: 'production',
-    match: { phaseIndex: 9, idPrefix: 'a-storyboard_sheet-' }, expectedCount: 'dynamic' },
+  { id: 'storyboard-board', label: '白模分镜板', phaseCode: 'P09c', phaseIndex: 10, group: 'production',
+    match: { phaseIndex: 10, idPrefix: 'a-storyboard_sheet-' }, expectedCount: 'dynamic' },
   // P09c 分镜板质检（qwen-eye advisory）：canvas sync 写 a-storyboard-qc 单节点。
-  { id: 'storyboard-qc', label: '分镜板质检', phaseCode: 'P09c', phaseIndex: 9, group: 'production', dim: true,
-    match: { phaseIndex: 9, idIncludes: 'storyboard-qc' }, expectedCount: 1 },
+  { id: 'storyboard-qc', label: '分镜板质检', phaseCode: 'P09c', phaseIndex: 10, group: 'production', dim: true,
+    match: { phaseIndex: 10, idIncludes: 'storyboard-qc' }, expectedCount: 1 },
   { id: 'transition-design', label: '转场设计', phaseCode: 'P09', phaseIndex: 9, group: 'production',
     match: { phaseIndex: 9, idIncludes: 'transition_design' }, expectedCount: 'dynamic' },
   // ── P09b 镜头审计（production gate） ──
-  { id: 'shot-audit', label: '镜头审计', phaseCode: 'P09b', phaseIndex: 9, group: 'production', dim: true,
-    match: { phaseIndex: 9, idIncludes: 'shot-audit' }, expectedCount: 'dynamic' },
+  { id: 'shot-audit', label: '镜头审计', phaseCode: 'P09b', phaseIndex: 10, group: 'production', dim: true,
+    match: { phaseIndex: 10, idIncludes: 'shot-audit' }, expectedCount: 'dynamic' },
   // ── P10 语音合成（post） ──
-  { id: 'voice-clips', label: '语音片段', phaseCode: 'P10', phaseIndex: 10, group: 'post',
-    match: { phaseIndex: 10, idIncludes: 'voice_clips' }, expectedCount: 'dynamic' },
+  { id: 'voice-clips', label: '语音片段', phaseCode: 'P10', phaseIndex: 11, group: 'post',
+    match: { phaseIndex: 11, idIncludes: 'voice_clips' }, expectedCount: 'dynamic' },
   // ── P10a 时间线推导（确定性计算，ffprobe 实测 TTS 时长） ──
-  { id: 'shot-timeline', label: '时间线推导', phaseCode: 'P10a', phaseIndex: 10, group: 'post',
-    match: { phaseIndex: 10, idIncludes: 'shot_timeline' }, expectedCount: 1 },
+  { id: 'shot-timeline', label: '时间线推导', phaseCode: 'P10a', phaseIndex: 11, group: 'post',
+    match: { phaseIndex: 11, idIncludes: 'shot_timeline' }, expectedCount: 1 },
   // ── P11a 片段预览（H3 turbo 快速预览，用于确认画面后锁定创作参数） ──
   // 条件帧生成（首/尾帧变体）：P11a 预览的条件输入之一。
-  { id: 'iframe-generation', label: '条件帧生成', phaseCode: 'P11a', phaseIndex: 11, group: 'post',
+  { id: 'iframe-generation', label: '条件帧生成', phaseCode: 'P11a', phaseIndex: 14, group: 'post',
     match: { idPrefix: 'a-keyframe-' }, expectedCount: 'dynamic' },
-  { id: 'preview-clips', label: '片段预览', phaseCode: 'P11a', phaseIndex: 11, group: 'post',
-    match: { phaseIndex: 11, stage: 'video', idIncludes: 'preview' }, expectedCount: 'dynamic' },
+  { id: 'preview-clips', label: '片段预览', phaseCode: 'P11a', phaseIndex: 14, group: 'post',
+    match: { phaseIndex: 14, stage: 'video', idIncludes: 'preview' }, expectedCount: 'dynamic' },
   // P11a 预览质检（qwen-eye advisory）：变体首帧 vs shot intent；P14 聚合。
-  { id: 'preview-qc', label: '预览质检', phaseCode: 'P11a', phaseIndex: 11, group: 'post', dim: true,
-    match: { phaseIndex: 11, idIncludes: 'preview-qc' }, expectedCount: 1 },
+  { id: 'preview-qc', label: '预览质检', phaseCode: 'P11a', phaseIndex: 14, group: 'post', dim: true,
+    match: { phaseIndex: 14, idIncludes: 'preview-qc' }, expectedCount: 1 },
   // ── P11b 片段生成（正式渲染，预览锁定后执行） ──
-  { id: 'video-clips', label: '片段生成', phaseCode: 'P11b', phaseIndex: 11, group: 'post',
-    match: { phaseIndex: 11, stage: 'video' }, expectedCount: 'dynamic' },
+  { id: 'video-clips', label: '片段生成', phaseCode: 'P11b', phaseIndex: 14, group: 'post',
+    match: { phaseIndex: 14, stage: 'video' }, expectedCount: 'dynamic' },
   // ── P11c 视频质检（qwen-eye 两段式判定，advisory micro-gate） ──
   // canvas sync 写入 a-video-qc 节点（script 类型单节点）；idIncludes 区分同 lane。
-  { id: 'video-qc', label: '视频质检', phaseCode: 'P11c', phaseIndex: 11, group: 'post', dim: true,
-    match: { phaseIndex: 11, idIncludes: 'video-qc' }, expectedCount: 1 },
+  { id: 'video-qc', label: '视频质检', phaseCode: 'P11c', phaseIndex: 14, group: 'post', dim: true,
+    match: { phaseIndex: 14, idIncludes: 'video-qc' }, expectedCount: 1 },
   // ── P12 合成（post） ──
-  { id: 'master-timeline', label: '主时间轴', phaseCode: 'P12', phaseIndex: 12, group: 'post',
-    match: { phaseIndex: 12 }, expectedCount: 1 },
+  { id: 'master-timeline', label: '主时间轴', phaseCode: 'P12', phaseIndex: 15, group: 'post',
+    match: { phaseIndex: 15 }, expectedCount: 1 },
   // P12 音频混音（对白混音 + BGM + Foley 合成），KMC 产出 audio-stems slot
-  { id: 'audio-mix', label: '音频混音', phaseCode: 'P12', phaseIndex: 12, group: 'post',
-    match: { phaseIndex: 12, idIncludes: 'audio' }, expectedCount: 1 },
+  { id: 'audio-mix', label: '音频混音', phaseCode: 'P12', phaseIndex: 15, group: 'post',
+    match: { phaseIndex: 15, idIncludes: 'audio' }, expectedCount: 1 },
   // P12 BGM 音轨（ACE-Step 引擎生成），KMC 产出 bgm-tracks slot
-  { id: 'bgm-tracks', label: 'BGM音轨', phaseCode: 'P12', phaseIndex: 12, group: 'post',
-    match: { phaseIndex: 12, idIncludes: 'bgm' }, expectedCount: 'dynamic' },
+  { id: 'bgm-tracks', label: 'BGM音轨', phaseCode: 'P12', phaseIndex: 15, group: 'post',
+    match: { phaseIndex: 15, idIncludes: 'bgm' }, expectedCount: 'dynamic' },
   // P12 Foley 音轨（LTX-2.3 Foley LoRA V2A 生成），KMC 产出 foley-stems slot
-  { id: 'foley-stems', label: 'Foley音轨', phaseCode: 'P12', phaseIndex: 12, group: 'post',
-    match: { phaseIndex: 12, idIncludes: 'foley' }, expectedCount: 'dynamic' },
+  { id: 'foley-stems', label: 'Foley音轨', phaseCode: 'P12', phaseIndex: 15, group: 'post',
+    match: { phaseIndex: 15, idIncludes: 'foley' }, expectedCount: 'dynamic' },
   // ── P13 交付（post） ──
-  { id: 'master-mp4', label: '成片', phaseCode: 'P13', phaseIndex: 13, group: 'post',
-    match: { phaseIndex: 13 }, expectedCount: 1 },
+  { id: 'master-mp4', label: '成片', phaseCode: 'P13', phaseIndex: 16, group: 'post',
+    match: { phaseIndex: 16 }, expectedCount: 1 },
   // P13 母带终审（qwen-eye advisory）：五维判定；NEVER gates delivery。
-  { id: 'master-qc', label: '母带终审', phaseCode: 'P13', phaseIndex: 13, group: 'post', dim: true,
-    match: { phaseIndex: 13, idIncludes: 'master-qc' }, expectedCount: 1 },
+  { id: 'master-qc', label: '母带终审', phaseCode: 'P13', phaseIndex: 16, group: 'post', dim: true,
+    match: { phaseIndex: 16, idIncludes: 'master-qc' }, expectedCount: 1 },
   // ── P14 质量审计（post） ──
-  { id: 'quality-audit', label: '质量审计', phaseCode: 'P14', phaseIndex: 14, group: 'post', dim: true,
-    match: { phaseIndex: 14 }, expectedCount: 'dynamic' },
+  { id: 'quality-audit', label: '质量审计', phaseCode: 'P14', phaseIndex: 17, group: 'post', dim: true,
+    match: { phaseIndex: 17 }, expectedCount: 'dynamic' },
   // ── P15 反馈（post） ──
-  { id: 'feedback-loop', label: '反馈闭环', phaseCode: 'P15', phaseIndex: 15, group: 'post', dim: true,
-    match: { phaseIndex: 15 }, expectedCount: 'dynamic' },
+  { id: 'feedback-loop', label: '反馈闭环', phaseCode: 'P15', phaseIndex: 18, group: 'post', dim: true,
+    match: { phaseIndex: 18 }, expectedCount: 'dynamic' },
 ]
 
 /**
