@@ -17,7 +17,7 @@ import express from "express";
 import { promises as fs } from "fs";
 import path from "path";
 import { success, error } from "@/lib/responseFormat";
-import { withGpuQueue } from "@/lib/gpuVramManager";
+import { withGpuQueue, withGpuQueueTimed, VramInsufficientError } from "@/lib/gpuVramManager";
 import { INDEXTTS2_CONFIG, INDEXTTS2_DEFAULTS, NODE_TYPES, SynthMode } from "./config";
 import type { Request, Response } from "express";
 
@@ -225,6 +225,191 @@ async function uploadRefAudio(fileBuffer: Buffer, originalName: string): Promise
   return data.name;
 }
 
+// ─── v2.5 helpers — IndexTTS 2.5 standalone server proxy ────────────────────
+
+/** JSON envelope 响应形状 (v1/tts 风格: {audio_path, audio_url, ...}) */
+async function proxyV25Speak(params: {
+  text: string;
+  lang: string;
+  durationFactor: number;
+  emoText?: string;
+  emoAlpha?: number;
+  refBuffer: Buffer;
+  refFilename: string;
+}): Promise<{ audioBuffer: Buffer; synthTime: number }> {
+  const boundary = `----FormBoundary${Date.now()}${Math.random().toString(36).slice(2)}`;
+  const parts: Buffer[] = [];
+
+  const addField = (name: string, value: string) => {
+    parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`));
+  };
+
+  addField("text", params.text);
+  addField("lang", params.lang);
+  addField("duration_factor", String(params.durationFactor));
+  if (params.emoText) {
+    addField("emo_text", params.emoText);
+    addField("emo_alpha", String(params.emoAlpha ?? 1.0));
+  }
+
+  parts.push(Buffer.from(
+    `--${boundary}\r\nContent-Disposition: form-data; name="ref_audio"; filename="${params.refFilename}"\r\nContent-Type: audio/wav\r\n\r\n`,
+  ));
+  parts.push(params.refBuffer);
+  parts.push(Buffer.from("\r\n"));
+  parts.push(Buffer.from(`--${boundary}--\r\n`));
+
+  const resp = await fetch(`${INDEXTTS2_CONFIG.v25ServerUrl}/api/production/indextts2/speak`, {
+    method: "POST",
+    body: Buffer.concat(parts),
+    headers: { "Content-Type": `multipart/form-data; boundary=${boundary}` },
+  });
+  if (!resp.ok) {
+    const txt = await resp.text().catch(() => "");
+    throw Object.assign(
+      new Error(`IndexTTS 2.5 server error (${resp.status}): ${txt.slice(0, 500)}`),
+      { statusCode: resp.status },
+    );
+  }
+  return {
+    audioBuffer: Buffer.from(await resp.arrayBuffer()),
+    synthTime: parseFloat(resp.headers.get("X-Synthesis-Time") || "0"),
+  };
+}
+
+/**
+ * v2.5 分支 handler — multer 已消费 multipart, 读 req.file.buffer 代理转发。
+ * audio/wav 二进制落盘 v25OutputDir, 返回 JSON envelope (不原样透传二进制,
+ * 客户端统一走 audio_url 下载 — 与 v1/tts 风格一致, KMC engine 好消费)。
+ * 包 withGpuQueue("indextts2") — 与 voice-design.ts 同一把 GPU1 队列锁。
+ */
+async function speakV25(req: any, res: Response): Promise<Response> {
+  const text = req.body?.text;
+  if (!text) return res.status(400).json(error("Missing 'text' field"));
+  if (!req.file) return res.status(400).json(error("v2.5 speak requires multipart 'ref_audio' file"));
+
+  const lang = req.body?.lang || INDEXTTS2_DEFAULTS.defaultLang;
+  const durationFactor = req.body?.duration_factor
+    ? parseFloat(req.body.duration_factor)
+    : INDEXTTS2_DEFAULTS.durationFactor;
+
+  let out: { outFilename: string; synthTime: number; queueWaitMs: number };
+  try {
+    const result = await withGpuQueue(
+      "indextts2",
+      async () => {
+        const synth = await proxyV25Speak({
+          text,
+          lang,
+          durationFactor,
+          emoText: req.body?.emo_text || undefined,
+          emoAlpha: req.body?.emo_alpha ? parseFloat(req.body.emo_alpha) : undefined,
+          refBuffer: req.file.buffer as Buffer,
+          refFilename: req.file.originalname || "ref.wav",
+        });
+        const outFilename = `indextts25_${Date.now()}.wav`;
+        await fs.mkdir(INDEXTTS2_CONFIG.v25OutputDir, { recursive: true });
+        await fs.writeFile(path.join(INDEXTTS2_CONFIG.v25OutputDir, outFilename), synth.audioBuffer);
+        return { outFilename, synthTime: synth.synthTime, queueWaitMs: 0 };
+      },
+      { gpuIndex: 1, comfyuiUrl: INDEXTTS2_CONFIG.comfyuiUrl },
+    );
+    out = result;
+  } catch (err: any) {
+    if (err instanceof VramInsufficientError) {
+      return res.status(503).json(error(err.message, {
+        kind: "vram_insufficient",
+        freeMiB: err.freeMiB,
+        requiredMiB: err.requiredMiB,
+        gpuIndex: err.gpuIndex,
+      }));
+    }
+    return res.status(502).json(error(`IndexTTS 2.5 speak error: ${err.message}`));
+  }
+
+  return res.json(success({
+    version: "2.5",
+    text,
+    lang,
+    synthesis_time_s: out.synthTime,
+    audio_filename: out.outFilename,
+    audio_path: path.join(INDEXTTS2_CONFIG.v25OutputDir, out.outFilename),
+    audio_url: `/oss/tts/${out.outFilename}`,
+  })) as any;
+}
+
+/**
+ * v2.5 JSON 形态 — ref_audio 字段是 {v25ServerUrl} 可达的 URL 或 /oss/ 相对路径。
+ * KMC IndexTTS25Engine 主要走 multipart (design_voice 落盘后的 host ref), 此
+ * JSON 入口供轻量客户端复用已注册的 ref (读本地 oss 目录)。
+ */
+async function speakV25Json(body: SpeakBody, res: Response): Promise<Response> {
+  const refSpec = (body as any).ref_audio as string;
+  if (!refSpec) {
+    return res.status(400).json(error("v2.5 JSON speak requires 'ref_audio' (oss path or http url)"));
+  }
+  let refBuffer: Buffer;
+  try {
+    if (refSpec.startsWith("http://") || refSpec.startsWith("https://")) {
+      const dl = await fetch(refSpec);
+      if (!dl.ok) throw new Error(`ref_audio download failed (${dl.status})`);
+      refBuffer = Buffer.from(await dl.arrayBuffer());
+    } else {
+      // /oss/... 或绝对路径 → 相对 data/oss 解析 (与静态服务同源)
+      const fsPath = refSpec.replace(/^\/oss\//, "").replace(/^\//, "");
+      const abs = path.isAbsolute(refSpec) ? refSpec : path.join(
+        INDEXTTS2_CONFIG.v25OutputDir.replace(/\/tts$/, ""), fsPath,
+      );
+      refBuffer = await fs.readFile(abs);
+    }
+  } catch (err: any) {
+    return res.status(400).json(error(`cannot resolve ref_audio ${refSpec}: ${err.message}`));
+  }
+
+  let out: { outFilename: string; synthTime: number; queueWaitMs: number };
+  try {
+    const result = await withGpuQueue(
+      "indextts2",
+      async () => {
+        const synth = await proxyV25Speak({
+          text: body.text,
+          lang: (body as any).lang || INDEXTTS2_DEFAULTS.defaultLang,
+          durationFactor: (body as any).duration_factor ?? INDEXTTS2_DEFAULTS.durationFactor,
+          emoText: (body as any).emo_text || undefined,
+          refBuffer,
+          refFilename: path.basename(refSpec) || "ref.wav",
+        });
+        const outFilename = `indextts25_${Date.now()}.wav`;
+        await fs.mkdir(INDEXTTS2_CONFIG.v25OutputDir, { recursive: true });
+        await fs.writeFile(path.join(INDEXTTS2_CONFIG.v25OutputDir, outFilename), synth.audioBuffer);
+        return { outFilename, synthTime: synth.synthTime, queueWaitMs: 0 };
+      },
+      { gpuIndex: 1, comfyuiUrl: INDEXTTS2_CONFIG.comfyuiUrl },
+    );
+    out = result;
+  } catch (err: any) {
+    if (err instanceof VramInsufficientError) {
+      return res.status(503).json(error(err.message, {
+        kind: "vram_insufficient",
+        freeMiB: err.freeMiB,
+        requiredMiB: err.requiredMiB,
+        gpuIndex: err.gpuIndex,
+      }));
+    }
+    return res.status(502).json(error(`IndexTTS 2.5 speak error: ${err.message}`));
+  }
+
+  return res.json(success({
+    version: "2.5",
+    text: body.text,
+    lang: (body as any).lang || INDEXTTS2_DEFAULTS.defaultLang,
+    synthesis_time_s: out.synthTime,
+    audio_filename: out.outFilename,
+    audio_path: path.join(INDEXTTS2_CONFIG.v25OutputDir, out.outFilename),
+    audio_url: `/oss/tts/${out.outFilename}`,
+  })) as any;
+}
+
 // ─── Routes ─────────────────────────────────────────────────────────────────
 
 /**
@@ -235,6 +420,14 @@ async function uploadRefAudio(fileBuffer: Buffer, originalName: string): Promise
  *
  * Body (multipart/form-data):
  *   text=...  ref_audio=@file.wav   (自动上传到 ComfyUI)
+ *   version=2.5 (可选, 默认 2.5) → 代理到 IndexTTS 2.5 standalone server
+ *
+ * version 分支 (2026-08-16 Kai 决策, VoiceDesign→IndexTTS2.5 成为唯一链路):
+ *   - version=2.5 (默认): multipart 代理到 {v25ServerUrl}/api/production/
+ *     indextts2/speak (text/lang/duration_factor/ref_audio/emo_text/emo_alpha),
+ *     audio/wav 二进制落盘 v25OutputDir → 返回 JSON envelope
+ *     {code:200, data:{audio_path, audio_url, ...}} (v1/tts 风格)。
+ *   - version=2: 旧 ComfyUI IndexTTS-2 节点路径, 全保留 (legacy)。
  */
 router.post("/speak", async (req: Request, res: Response) => {
   try {
@@ -253,6 +446,13 @@ router.post("/speak", async (req: Request, res: Response) => {
           else resolve();
         });
       });
+
+      // ── version=2.5 分支: 代理 IndexTTS 2.5 standalone server ──
+      // 默认 2.5 (唯一链路决策); 显式 version=2 走下面旧 ComfyUI 路径。
+      const reqVersion = (req as any).body?.version ?? "2.5";
+      if (reqVersion === "2.5") {
+        return await speakV25(req as any, res);
+      }
 
       const text = (req as any).body?.text;
       if (!text) return res.status(400).json(error("Missing 'text' field"));
@@ -282,6 +482,10 @@ router.post("/speak", async (req: Request, res: Response) => {
     } else {
       // JSON body
       body = req.body as SpeakBody;
+      // JSON 形态同样支持 version=2.5 (带 ref_audio 为 v25 server 可达 URL 时)
+      if ((body as any).version === "2.5") {
+        return await speakV25Json(body, res);
+      }
     }
 
     if (!body.text || !body.ref_audio) {

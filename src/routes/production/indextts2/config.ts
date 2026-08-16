@@ -27,6 +27,18 @@ export const INDEXTTS2_CONFIG = {
   pollTimeoutMs: process.env.INDEXTTS2_POLL_TIMEOUT_MS
     ? parseInt(process.env.INDEXTTS2_POLL_TIMEOUT_MS, 10)
     : 300_000,
+  /**
+   * IndexTTS 2.5 standalone server (容器内 venv 隔离, transformers 4.52.1)。
+   * 宿主 /etc/hosts 已配 172.18.0.7 indextts25-server; KAP 跑在宿主机。
+   */
+  v25ServerUrl: process.env.INDEXTTS25_SERVER_URL || "http://indextts25-server:5110",
+  /** Qwen3-TTS VoiceDesign server (容器内 /opt/voicedesign-env) */
+  voiceDesignUrl: process.env.VOICEDESIGN_SERVER_URL || "http://voicedesign-server:5111",
+  /**
+   * IndexTTS 2.5 链路合成产物落盘目录 (映射 /oss/tts 静态服务)。
+   * voice-design 链式合成 + speak v2.5 proxy 都写这里。
+   */
+  v25OutputDir: process.env.INDEXTTS25_OUTPUT_DIR || "/data/workspace/kais-aigc-platform/data/oss/tts",
 };
 
 export const INDEXTTS2_DEFAULTS = {
@@ -46,6 +58,12 @@ export const INDEXTTS2_DEFAULTS = {
   topK: 0, // 0 = 不启用
   topP: 1.0,
   useRandom: false,
+
+  // IndexTTS 2.5 链路默认值 (voice-design.ts / speak.ts v2.5 分支)
+  /** 2.5 语言: ZH|EN|JA|ES|AR */
+  defaultLang: "ZH",
+  /** 2.5 语速因子 0.5-2.0 */
+  durationFactor: 1.0,
 };
 
 /**
