@@ -81,6 +81,8 @@ import {
   H3_LINEART_ANIME,
   H3_PROFILES,
   H3_USE_CASES,
+  H3_SIGMA_INTERP,
+  H3_SIGMA_INTERP_NODES,
   H3_DEFAULT_NEGATIVE,
   alignH3FrameCount,
   checkH3TokenBudget,
@@ -162,6 +164,13 @@ interface H3GenOpts {
    * T8 工作流忽略此字段。
    */
   tespeed?: boolean;
+  /**
+   * 原生链路 sigma 低噪段插值 (ExtendIntermediateSigmas, 2026-08-16)。
+   * true: 注入节点 36, 34.sigmas → [36,0] (15→17 步, 末段跳变减半)。
+   * false/undefined: 不注入, 34.sigmas 直连 [31,0] (Advanced 链 sigma 表与 KSampler 逐位相同)。
+   * 仅 buildH3WorkflowNative 使用; T8 / LightX2V 工作流忽略。
+   */
+  nativeInterp?: boolean;
   /** 负面提示词 (原生链路 KSampler 需占位; T8 忽略) */
   negativePrompt?: string;
 }
@@ -295,6 +304,7 @@ function buildH3WorkflowNative(opts: H3GenOpts): Record<string, any> {
     width, height, length, seed,
     stepsOverride,
     firstFrameFilename, refImageFilenames, filenamePrefix,
+    nativeInterp,
   } = opts;
 
   const isRef2va = mode === "ref2va";
@@ -376,11 +386,17 @@ function buildH3WorkflowNative(opts: H3GenOpts): Record<string, any> {
     },
   };
 
-  // === 采样 (latent_image = ["20", 1] —— ToVideo 条件生成器第二输出 = latent) ===
-  // TESpeed 加速: SigmaShift(21) → TESpeed(35) → KSampler(30)
-  // 仅当 H3_TESPEED.enabled=true 且 opts.tespeed !== false 时插入。
+  // === 采样 (Advanced 链, 2026-08-16 sigma 插值改造; latent_image = ["20", 1]) ===
+  // TESpeed 加速: SigmaShift(21) → TESpeed(35) → BasicScheduler(31)/BasicGuider(33)
+  // KSampler → KSamplerSelect(30) + BasicScheduler(31) + RandomNoise(32) + BasicGuider(33)
+  // + SamplerCustomAdvanced(34)。数学等价性已验证: BasicScheduler 输出与 KSampler 内部
+  // calculate_sigmas 逐位一致; cfg=1.0 下 BasicGuider ≡ KSampler 单 cond。
+  // TESpeed 仅当 H3_TESPEED.enabled=true 且 opts.tespeed !== false 时插入;
   // native-sage profile 传 tespeed=false → 不插入 (SageAttention 全局生效, 无质量损失)。
   const useTespeed = H3_TESPEED.enabled && opts.tespeed !== false;
+  // sigma 低噪段插值 (ExtendIntermediateSigmas 节点 36): H3_SIGMA_INTERP.enabled 总开关
+  // && profile nativeInterp 才注入; 否则 34.sigmas 直连 31 (纯 Advanced 化, sigma 表逐位不变)。
+  const useInterp = H3_SIGMA_INTERP.enabled && nativeInterp === true;
   if (useTespeed) {
     nodes[H3_TESPEED.nodeId] = {
       class_type: H3_TESPEED.classType,
@@ -395,27 +411,54 @@ function buildH3WorkflowNative(opts: H3GenOpts): Record<string, any> {
       },
     };
   }
-  nodes["30"] = {
-    class_type: "KSampler",
+  nodes["30"] = { class_type: "KSamplerSelect", inputs: { sampler_name: samplerName } };
+  nodes["31"] = {
+    class_type: "BasicScheduler",
     inputs: {
       model: useTespeed ? [H3_TESPEED.nodeId, 0] : ["21", 0],
-      positive: ["20", 0],
-      negative: ["16", 0],
-      latent_image: ["20", 1],
-      seed,
-      steps,
-      cfg: H3_CONSTANTS.CFG,
-      sampler_name: samplerName,
       scheduler,
+      steps,
       denoise: H3_DEFAULTS.denoise,
+    },
+  };
+  nodes["32"] = { class_type: "RandomNoise", inputs: { noise_seed: seed } };
+  // H3 CFG-distilled (cfg=1.0) → BasicGuider 单 conditioning 即可, 无需 negative
+  nodes["33"] = {
+    class_type: "BasicGuider",
+    inputs: {
+      model: useTespeed ? [H3_TESPEED.nodeId, 0] : ["21", 0],
+      conditioning: ["20", 0],
+    },
+  };
+  // sigma 低噪段加密 (仅 nativeInterp): 31 的 sigma 表在 σ≤0.65 段每对相邻值间插 1 中点
+  if (useInterp) {
+    nodes[H3_SIGMA_INTERP_NODES.generate] = {
+      class_type: "ExtendIntermediateSigmas",
+      inputs: {
+        sigmas: ["31", 0],
+        steps: H3_SIGMA_INTERP.steps,
+        start_at_sigma: H3_SIGMA_INTERP.startAtSigma,
+        end_at_sigma: H3_SIGMA_INTERP.endAtSigma,
+        spacing: H3_SIGMA_INTERP.spacing,
+      },
+    };
+  }
+  nodes["34"] = {
+    class_type: "SamplerCustomAdvanced",
+    inputs: {
+      noise: ["32", 0],
+      guider: ["33", 0],
+      sampler: ["30", 0],
+      sigmas: useInterp ? [H3_SIGMA_INTERP_NODES.generate, 0] : ["31", 0],
+      latent_image: ["20", 1],   // ToVideo 条件生成器第二输出 = latent
     },
   };
 
   // === 视频解码 ===
-  nodes["40"] = { class_type: "VAEDecode", inputs: { samples: ["30", 0], vae: ["11", 0] } };
+  nodes["40"] = { class_type: "VAEDecode", inputs: { samples: ["34", 0], vae: ["11", 0] } };
 
   // === 音频解码 (合并到视频) ===
-  nodes["41"] = { class_type: "VAEDecodeAudio", inputs: { samples: ["30", 0], vae: ["13", 0] } };
+  nodes["41"] = { class_type: "VAEDecodeAudio", inputs: { samples: ["34", 0], vae: ["13", 0] } };
 
   // === 合并视频 + 音频 ===
   nodes["42"] = {
@@ -739,6 +782,8 @@ export default router.post(
     const turbo = req.body.turbo === "true" || req.body.turbo === true || profile.turbo;
     // tespeed: 原生链路是否插入 TESpeed 节点(35)。native-sage profile 的 tespeed=false → 不插入。
     const tespeed = profile.tespeed !== false;
+    // nativeInterp: sigma 低噪段插值 (native/native-sage profile 为 true, 其余 undefined → 不插值)
+    const nativeInterp = profile.nativeInterp === true;
     const motion = (req.body.motion as string) || useCasePreset?.motion || undefined; // low | medium | high
     // 步数优先级: 显式 steps > motion-based (turbo时) > profile.steps (native profile.steps=null → 按模式默认)
     const h3StepsOverride = req.body.steps
@@ -849,6 +894,7 @@ export default router.post(
       turbo: turbo && !effectiveNative,  // native 链路时 turbo=false
       native: effectiveNative,
       tespeed,
+      nativeInterp,
     };
     // SigmaShift + LoRA 工作流 (无 T8): LightX2V Turbo LoRA v1.0 (lightx2v-4/8) 或
     // LineartAnime LoRA (lineart-anime)。三者共享同一拓扑, 仅 LoRA 配置/steps/shift 不同。

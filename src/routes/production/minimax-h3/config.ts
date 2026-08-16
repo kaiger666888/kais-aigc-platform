@@ -381,6 +381,31 @@ export const H3_NATIVE = {
 } as const;
 
 // ============================================================
+// H3_SIGMA_INTERP —— 官方 ExtendIntermediateSigmas 低噪段加密 (2026-08-16 Kai 批准)
+// ============================================================
+// 根因: 15步 simple+shift12 的 σ≤0.65 低噪精修段只有 2 步, 末步 0.463→0 直接跳零,
+// 高动态镜头末段噪点/边缘毛刺。插值后 15→17 步, 末段最大跳变减半 (0.463→0.231)。
+// 实验记录: Case08 A/B/C 三组, B(插值)视觉胜出, 代价 +10% 时长。
+// skill: h3-sigma-interpolation-extendintermediate
+// ⚠ 仅 Native 链路可用 (KSampler→SamplerCustomAdvanced 改造)。T8 DualClock 自产
+//   sigma 不可外挂; turbo/lightx2v LoRA 低步数训练不可用; production(T8) 不适用。
+export const H3_SIGMA_INTERP = {
+  enabled: true,            // 总开关 (false = 完全不注入, 行为与改动前一致)
+  steps: 2,                 // 每对相邻 sigma 间插 steps-1 个中点 (2 = 插 1 个)
+  startAtSigma: 0.65,       // 只加密 σ≤0.65 的低噪段
+  endAtSigma: 0,
+  spacing: "linear" as const,
+} as const;
+
+// 每条 Native 链路的插值节点 ID (不与现有节点冲突; ref2va 的 35 是 TESpeed 可选槽, 见下)
+export const H3_SIGMA_INTERP_NODES = {
+  generate: "36",   // generate.ts buildH3WorkflowNative
+  ref2va: "36",     // ref2va.ts buildH3Ref2vaWorkflowNative (35 已被 TESpeed 占用)
+  i2va: "36",       // i2va.ts buildH3I2vaWorkflowNative
+  t2va: "36",       // t2va.ts buildH3T2vaWorkflowNative
+} as const;
+
+// ============================================================
 // H3_PROFILES —— 质量/速度 profile 预设 (T8 + native + KMC 搭配方案)
 // ============================================================
 // 配合 KMC 管线的八种生成档位 (调用方也可改用 useCase 分用途入口, 见 H3_USE_CASES):
@@ -402,7 +427,31 @@ export const H3_NATIVE = {
 //                    拓扑 (非 T8)。跳过 Foley (直出 H3 原生音频)。
 // 调用方通过 generate 的 `profile` 入参选择; 显式传 steps 时以 steps 为准 (但 turbo 仍由
 // profile.turbo / turbo 入参决定是否启用 LoRA)。
-export const H3_PROFILES = {
+// nativeInterp 仅 native / native-sage 显式为 true, 其余档位保持 undefined (不插值)。
+export interface H3ProfilePreset {
+  label: string;
+  /** null = 按模式默认 (t2v/i2va=H3_NATIVE.t2vSteps, ref2va=H3_NATIVE.r2vSteps) */
+  steps: number | null;
+  skipFoley: boolean;
+  turbo: boolean;
+  native: boolean;
+  tespeed: boolean;
+  /** sigma 低噪段插值 (ExtendIntermediateSigmas); undefined = 不插值 (preview/turbo/production/lightx2v/lineart) */
+  nativeInterp?: boolean;
+}
+
+// profile 名联合 (显式列出, 使 H3_PROFILES 值类型统一为 H3ProfilePreset 的同时保留字面量键)
+export type H3ProfileName =
+  | "preview"
+  | "turbo"
+  | "production"
+  | "native"
+  | "native-sage"
+  | "lightx2v-4"
+  | "lightx2v-8"
+  | "lineart-anime";
+
+export const H3_PROFILES: Record<H3ProfileName, H3ProfilePreset> = {
   preview: {
     label: "Preview (15-step T8 Dual-Clock, skip Foley)",
     steps: 15,            // T8 实测 15 步已清晰 (旧原生 KSampler 需 50 步)
@@ -434,6 +483,7 @@ export const H3_PROFILES = {
     turbo: false,
     native: true,
     tespeed: true,        // 原生链路插入 TESpeed 节点(35)做额外缓存控制 (可能有质量损失)
+    nativeInterp: true,   // sigma 低噪段插值 (ExtendIntermediateSigmas, 2026-08-16)
   },
   "native-sage": {
     label: "Native-Sage (KSampler + SigmaShift, no TESpeed node; SageAttention global)",
@@ -442,6 +492,7 @@ export const H3_PROFILES = {
     turbo: false,
     native: true,
     tespeed: false,       // 纯原生链路, 不插入 TESpeed 节点 (SageAttention 全局生效, 无质量损失)
+    nativeInterp: true,   // sigma 低噪段插值 (ExtendIntermediateSigmas, 2026-08-16)
   },
   "lightx2v-4": {
     label: "LightX2V v1.0 5-step (768p, shift=6, euler, ~72s render)",
@@ -468,8 +519,6 @@ export const H3_PROFILES = {
     tespeed: false,        // 不插入 TESpeed 节点
   },
 } as const;
-
-export type H3ProfileName = keyof typeof H3_PROFILES;
 
 // ============================================================
 // H3_USE_CASES —— 面向 KMC 的"分用途"入口 (useCase → profile/mode/motion/audioMix)
