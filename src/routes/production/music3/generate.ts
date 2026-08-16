@@ -28,6 +28,7 @@
 import express from "express";
 import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
+import { withGpuQueue } from "@/lib/gpuVramManager";
 import { validateFields } from "@/middleware/middleware";
 import { MUSIC3_CONFIG, MUSIC3_CONSTANTS, MUSIC3_DEFAULTS } from "./config";
 
@@ -115,11 +116,23 @@ export default router.post(
       const duration = req.body.duration ?? MUSIC3_DEFAULTS.duration;
       const seed = req.body.seed ?? MUSIC3_DEFAULTS.seed;
 
-      const submitted = await submitTask({ prompt, lyrics, duration, seed });
-      const taskId = submitted.task_id;
+      // ─── GPU 全局串行队列 (gpuVramManager withGpuQueue, 2026-08-16 二期) ───
+      // Music3 ~22GB (近乎满卡), 与 ComfyUI 各引擎互斥。锁内「提交+同步等待完成」;
+      // 异步模式锁只罩提交 (server 单任务串行, 提交返回即代表 GPU 已排他接管)。
+      const { taskId, finalState } = await withGpuQueue(
+        "music3",
+        async () => {
+          const submitted = await submitTask({ prompt, lyrics, duration, seed });
+          const taskId = submitted.task_id;
+          // 同步模式: 轮询直到完成 (持锁); 异步模式: 只提交
+          const finalState = req.body.wait ? await pollUntilDone(taskId) : null;
+          return { taskId, finalState };
+        },
+        { gpuIndex: 1 },
+      );
 
       // 异步模式: 立即返回 taskId
-      if (!req.body.wait) {
+      if (!finalState) {
         return res.json(
           success(
             {
@@ -133,22 +146,21 @@ export default router.post(
         );
       }
 
-      // 同步模式: 轮询直到完成
-      const st = await pollUntilDone(taskId);
-      if (st.state === "error") {
-        return res.status(500).json(error(`生成失败: ${st.error || "unknown"}`));
+      // 同步模式: 轮询结果已在锁内拿到
+      if (finalState.state === "error") {
+        return res.status(500).json(error(`生成失败: ${finalState.error || "unknown"}`));
       }
       return res.json(
         success(
           {
             taskId,
             status: "completed",
-            audioPath: st.path,
+            audioPath: finalState.path,
             audioUrl: publicFileUrl(taskId),
-            durationSec: st.duration_sec,
-            sampleRate: st.sample_rate,
-            seedUsed: st.seed_used,
-            genSeconds: st.gen_seconds,
+            durationSec: finalState.duration_sec,
+            sampleRate: finalState.sample_rate,
+            seedUsed: finalState.seed_used,
+            genSeconds: finalState.gen_seconds,
           },
           "生成完成",
         ),

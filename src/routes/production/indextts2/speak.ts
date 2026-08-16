@@ -17,6 +17,7 @@ import express from "express";
 import { promises as fs } from "fs";
 import path from "path";
 import { success, error } from "@/lib/responseFormat";
+import { withGpuQueue } from "@/lib/gpuVramManager";
 import { INDEXTTS2_CONFIG, INDEXTTS2_DEFAULTS, NODE_TYPES, SynthMode } from "./config";
 import type { Request, Response } from "express";
 
@@ -289,10 +290,18 @@ router.post("/speak", async (req: Request, res: Response) => {
 
     // Build & submit workflow
     const workflow = buildWorkflow(body);
-    const promptId = await submitPrompt(workflow);
 
-    // Poll for result
-    const result = await pollUntilDone(promptId);
+    // ─── GPU 全局串行队列 (gpuVramManager withGpuQueue, 2026-08-16 二期) ───
+    // IndexTTS-2 (~6GB) 与 TTS/H3/music3/qwen_eye 共享 GPU1 锁, 排队等待而非 fail-fast。
+    // 锁粒度到「提交+等完成」。
+    const { promptId, result } = await withGpuQueue(
+      "indextts2",
+      async () => {
+        const pid = await submitPrompt(workflow);
+        return { promptId: pid, result: await pollUntilDone(pid) };
+      },
+      { gpuIndex: 1, comfyuiUrl: INDEXTTS2_CONFIG.comfyuiUrl },
+    );
 
     if (result.status === "error") {
       return res.status(500).json(error(`Synthesis failed: ${result.error}`));
@@ -358,8 +367,15 @@ router.post("/batch", async (req: Request, res: Response) => {
         const ts = Date.now();
         (workflow["4"] as any).inputs.filename_prefix = `indextts2_batch_${ts}_${results.length}`;
 
-        const promptId = await submitPrompt(workflow);
-        const result = await pollUntilDone(promptId);
+        // 批量同样走 GPU 全局串行队列 (每条逐条入队)
+        const { promptId, result } = await withGpuQueue(
+          "indextts2",
+          async () => {
+            const pid = await submitPrompt(workflow);
+            return { promptId: pid, result: await pollUntilDone(pid) };
+          },
+          { gpuIndex: 1, comfyuiUrl: INDEXTTS2_CONFIG.comfyuiUrl },
+        );
 
         if (result.status === "error") {
           results.push({ id: item.id, status: "error", error: result.error });

@@ -16,7 +16,7 @@
 import express from "express";
 import path from "path";
 import { success, error } from "@/lib/responseFormat";
-import { ensureVram, VramInsufficientError, withEngineLock } from "@/lib/gpuVramManager";
+import { VramInsufficientError, withGpuQueue } from "@/lib/gpuVramManager";
 import {
   QWEN_TTS_CONFIG,
   QWEN_TTS_DEFAULTS,
@@ -403,10 +403,23 @@ router.post("/speak", async (req: Request, res: Response) => {
     // Build & submit workflow
     const workflow = buildWorkflow(body);
 
-    // ─── Preflight: 显存预检 + 引擎互斥 (gpuVramManager, 2026-08-16) ───
-    // 不足先 /free 驱逐, 仍不足 fail-fast (vram_insufficient), 不进队列盲等超时。
+    // ─── GPU 全局串行队列 (gpuVramManager withGpuQueue, 2026-08-16 二期) ───
+    // 跨引擎互斥 (TTS/H3/music3/qwen_eye 共享 GPU1 锁), 排队等待而非 fail-fast;
+    // 排队超时 (默认 30min) 才抛 vram_insufficient。
+    // 锁粒度到「提交+等完成」: 轮询期持锁, 防止其它引擎趁隙装载挤爆显存。
+    let promptId: string;
+    let result: { status: "success" | "error"; outputs?: Record<string, unknown>; error?: string };
     try {
-      await ensureVram("qwen_tts", 1, QWEN_TTS_CONFIG.comfyuiUrl);
+      const out = await withGpuQueue(
+        "qwen_tts",
+        async () => {
+          const pid = await submitPrompt(workflow);
+          return { promptId: pid, result: await pollUntilDone(pid) };
+        },
+        { gpuIndex: 1, comfyuiUrl: QWEN_TTS_CONFIG.comfyuiUrl },
+      );
+      promptId = out.promptId;
+      result = out.result;
     } catch (err) {
       if (err instanceof VramInsufficientError) {
         return res.status(503).json(error(err.message, {
@@ -419,11 +432,6 @@ router.post("/speak", async (req: Request, res: Response) => {
       }
       throw err;
     }
-
-    const promptId = await withEngineLock("qwen_tts", () => submitPrompt(workflow));
-
-    // Poll for result
-    const result = await pollUntilDone(promptId);
 
     if (result.status === "error") {
       return res.status(500).json(error(`Synthesis failed: ${result.error}`));
@@ -508,12 +516,15 @@ router.post("/batch", async (req: Request, res: Response) => {
         const lastNode = Object.keys(workflow).length.toString();
         (workflow[lastNode] as any).inputs.filename_prefix = `qwents_batch_${ts}_${idx}`;
 
-        // 批量同样走显存预检 + 互斥 (每条提交前逐条检查)
-        await ensureVram("qwen_tts", 1, QWEN_TTS_CONFIG.comfyuiUrl).catch((err) => {
-          if (err instanceof VramInsufficientError) throw err;
-        });
-        const promptId = await withEngineLock("qwen_tts", () => submitPrompt(workflow));
-        const result = await pollUntilDone(promptId);
+        // 批量同样走 GPU 全局串行队列 (每条提交前逐条入队, 排队等待而非 fail-fast)
+        const { promptId, result } = await withGpuQueue(
+          "qwen_tts",
+          async () => {
+            const pid = await submitPrompt(workflow);
+            return { promptId: pid, result: await pollUntilDone(pid) };
+          },
+          { gpuIndex: 1, comfyuiUrl: QWEN_TTS_CONFIG.comfyuiUrl },
+        );
 
         if (result.status === "error") {
           results.push({ id: item.id, status: "error", error: result.error });

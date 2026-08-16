@@ -2,6 +2,7 @@ import express from "express";
 import { Router, Request, Response } from "express";
 import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
+import { withGpuQueue } from "@/lib/gpuVramManager";
 import {
   SA3_CONFIG,
   SA3_MODELS,
@@ -266,26 +267,33 @@ export default router.post("/", async (req: Request, res: Response) => {
     // 1. Build and submit workflow
     const { workflow, saveNodeId, nodeSeed } = buildInpaintWorkflow(p, uploadedFilename);
 
-    const submitRes = await fetch(`${comfyuiUrl}/prompt`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: workflow }),
-    });
+    // ─── GPU 全局串行队列 (gpuVramManager withGpuQueue, 2026-08-16 二期) ───
+    // SA3 inpaint (~6GB) 与 TTS/H3/music3/qwen_eye 共享 GPU1 锁; 锁内「提交+轮询到完成」。
+    const { prompt_id, result } = await withGpuQueue(
+      "sa3",
+      async () => {
+        const submitRes = await fetch(`${comfyuiUrl}/prompt`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: workflow }),
+        });
 
-    if (!submitRes.ok) {
-      const body = await submitRes.text();
-      return res
-        .status(502)
-        .send(error(`ComfyUI submit failed (${submitRes.status}): ${body}`));
-    }
+        if (!submitRes.ok) {
+          const body = await submitRes.text();
+          throw new Error(`ComfyUI submit failed (${submitRes.status}): ${body}`);
+        }
 
-    const { prompt_id } = (await submitRes.json()) as { prompt_id: string };
-    if (!prompt_id) {
-      return res.status(502).send(error("ComfyUI returned no prompt_id"));
-    }
+        const { prompt_id } = (await submitRes.json()) as { prompt_id: string };
+        if (!prompt_id) {
+          throw new Error("ComfyUI returned no prompt_id");
+        }
 
-    // 2. Poll until complete
-    const result = await pollUntilComplete(comfyuiUrl, prompt_id);
+        // 2. Poll until complete
+        const result = await pollUntilComplete(comfyuiUrl, prompt_id);
+        return { prompt_id, result };
+      },
+      { gpuIndex: 1, comfyuiUrl },
+    );
 
     if (result.status !== "success" || !result.outputs) {
       return res.status(500).send(error("ComfyUI generation failed"));

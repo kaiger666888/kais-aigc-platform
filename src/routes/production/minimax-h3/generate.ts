@@ -68,7 +68,7 @@ import axios from "axios";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { success, error } from "@/lib/responseFormat";
-import { ensureVram, VramInsufficientError, withEngineLock } from "@/lib/gpuVramManager";
+import { VramInsufficientError, withGpuQueue } from "@/lib/gpuVramManager";
 import { validateFields } from "@/middleware/middleware";
 import {
   H3_CONFIG,
@@ -916,53 +916,51 @@ export default router.post(
     let localH3VideoPath: string | null = null;
 
     try {
-      // ─── Preflight: 显存预检 (gpuVramManager, 2026-08-16) ───
-      // H3 需 ~18GB; GPU1 被 TTS/VD/qwen-eye 分占时先 /free 驱逐, 仍不足则
-      // fail-fast (vram_insufficient), 不让 34GB int8 权重进队列反复 offload 龟速。
-      try {
-        await ensureVram("minimax_h3", 1, H3_CONFIG.comfyuiUrl);
-      } catch (err) {
-        if (err instanceof VramInsufficientError) {
-          safeUnlink(localTtsAudio);
-          return res.status(503).send(error(err.message, {
-            kind: "vram_insufficient",
-            engine: "minimax_h3",
-            freeMiB: err.freeMiB,
-            requiredMiB: err.requiredMiB,
-            gpuIndex: err.gpuIndex,
-          }));
-        }
-        throw err;
-      }
+      // ─── GPU 全局串行队列 (gpuVramManager withGpuQueue, 2026-08-16 二期) ───
+      // 跨引擎互斥 (H3/TTS/music3/qwen_eye 共享 GPU1 锁), 排队等待而非 fail-fast;
+      // H3 需 ~18GB, 锁粒度到「提交+轮询到完成+下载」— 34GB int8 权重驻留期间
+      // 不允许其它引擎装载。排队超时 (默认 30min) 才抛 vram_insufficient。
+      const h3Out = await withGpuQueue(
+        "minimax_h3",
+        async () => {
+          const comfyRes = await axios.post(
+            `${H3_CONFIG.comfyuiUrl}/prompt`,
+            { prompt: h3Wf },
+            { timeout: 30_000, validateStatus: (s: number) => s < 500 },
+          );
+          if (comfyRes.status !== 200) {
+            return { kind: "rejected" as const, detail: JSON.stringify(comfyRes.data) };
+          }
+          const pid = comfyRes.data.prompt_id as string;
 
-      const comfyRes = await withEngineLock("minimax_h3", () =>
-        axios.post(
-          `${H3_CONFIG.comfyuiUrl}/prompt`,
-          { prompt: h3Wf },
-          { timeout: 30_000, validateStatus: (s: number) => s < 500 },
-        ));
-      if (comfyRes.status !== 200) {
-        safeUnlink(localTtsAudio);
-        return res
-          .status(502)
-          .send(error(`ComfyUI rejected H3 prompt: ${JSON.stringify(comfyRes.data)}`));
-      }
-      h3PromptId = comfyRes.data.prompt_id as string;
+          // 轮询等待 H3 完成 (≤45 分钟)
+          // 362帧 ref2va 实测 33 分钟 (模型重加载导致第二轮 124s/step)
+          const poll = await pollComfyuiCompletion(H3_CONFIG.comfyuiUrl, pid, 2_700_000);
+          if (!poll.ok) {
+            return { kind: "poll_failed" as const, promptId: pid, detail: poll.error };
+          }
+          return { kind: "ok" as const, promptId: pid, outputs: poll.outputs };
+        },
+        { gpuIndex: 1, comfyuiUrl: H3_CONFIG.comfyuiUrl },
+      );
 
-      // 轮询等待 H3 完成 (≤45 分钟)
-      // 362帧 ref2va 实测 33 分钟 (模型重加载导致第二轮 124s/step)
-      const poll = await pollComfyuiCompletion(H3_CONFIG.comfyuiUrl, h3PromptId, 2_700_000);
-      if (!poll.ok) {
+      if (h3Out.kind === "rejected") {
         safeUnlink(localTtsAudio);
-        return res.status(502).send(error(`H3 video generation failed: ${poll.error}`, {
+        return res.status(502).send(error(`ComfyUI rejected H3 prompt: ${h3Out.detail}`));
+      }
+      if (h3Out.kind === "poll_failed") {
+        h3PromptId = h3Out.promptId;
+        safeUnlink(localTtsAudio);
+        return res.status(502).send(error(`H3 video generation failed: ${h3Out.detail}`, {
           pipeline: { h3: { mode, promptId: h3PromptId } },
         }));
       }
+      h3PromptId = h3Out.promptId;
 
-      // 下载 H3 视频 (mp4, 内嵌音频)
+      // 下载 H3 视频 (mp4, 内嵌音频) — 锁外下载 (纯 IO, 不占显存)
       localH3VideoPath = path.join(LOCAL_STAGING_DIR, `${h3PromptId}_h3.mp4`);
       tmpPaths.push(localH3VideoPath);
-      const fetched = await downloadVideoFromOutputs(H3_CONFIG.comfyuiUrl, poll.outputs, localH3VideoPath);
+      const fetched = await downloadVideoFromOutputs(H3_CONFIG.comfyuiUrl, h3Out.outputs, localH3VideoPath);
       if (!fetched || !fs.existsSync(localH3VideoPath)) {
         safeUnlink(localTtsAudio);
         for (const p of tmpPaths) safeUnlink(p);
@@ -974,6 +972,15 @@ export default router.post(
       const msg = err.response?.data?.error?.message || err.response?.data?.node_errors || err.message || String(err);
       safeUnlink(localTtsAudio);
       for (const p of tmpPaths) safeUnlink(p);
+      if (err instanceof VramInsufficientError) {
+        return res.status(503).send(error(err.message, {
+          kind: "vram_insufficient",
+          engine: "minimax_h3",
+          freeMiB: err.freeMiB,
+          requiredMiB: err.requiredMiB,
+          gpuIndex: err.gpuIndex,
+        }));
+      }
       return res.status(502).send(error(`H3 generation request failed: ${msg}`, {
         pipeline: { h3: { mode, promptId: h3PromptId } },
       }));

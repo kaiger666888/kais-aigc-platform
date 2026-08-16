@@ -2,6 +2,7 @@ import express from "express";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { success, error } from "@/lib/responseFormat";
+import { withGpuQueue } from "@/lib/gpuVramManager";
 import { ACE_CONFIG } from "./config";
 import { startCallbackTracker } from "./_shared/asyncCallback";
 
@@ -59,35 +60,45 @@ export default router.post("/", async (req, res) => {
   const workflow = buildMinimalWorkflow(p);
 
   try {
-    const submitRes = await fetch(`${comfyuiUrl}/prompt`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: workflow }),
-      signal: AbortSignal.timeout(15_000),
-    });
+    // ─── GPU 全局串行队列 (gpuVramManager withGpuQueue, 2026-08-16 二期) ───
+    // ACE-Step (~7GB) 与 TTS/H3/music3/qwen_eye 共享 GPU1 锁。本端点是异步语义
+    // (提交即返回 202), 锁只罩提交 — 生成期显存占用由 ComfyUI 队列自身串行化,
+    // 后续其它引擎提交时会看到 GPU 被占而在队列里等待。
+    const data = await withGpuQueue(
+      "ace",
+      async () => {
+        const submitRes = await fetch(`${comfyuiUrl}/prompt`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: workflow }),
+          signal: AbortSignal.timeout(15_000),
+        });
 
-    if (!submitRes.ok) {
-      const body = await submitRes.text();
-      return res
-        .status(502)
-        .send(error(`ComfyUI submit failed (${submitRes.status}): ${body.slice(0, 500)}`));
-    }
+        if (!submitRes.ok) {
+          const body = await submitRes.text();
+          throw new Error(`ComfyUI submit failed (${submitRes.status}): ${body.slice(0, 500)}`);
+        }
 
-    const data = (await submitRes.json()) as {
-      prompt_id: string;
-      number: number;
-      node_errors?: any;
-    };
+        const data = (await submitRes.json()) as {
+          prompt_id: string;
+          number: number;
+          node_errors?: any;
+        };
 
-    if (!data.prompt_id) {
-      return res.status(502).send(error("ComfyUI returned no prompt_id"));
-    }
+        if (!data.prompt_id) {
+          throw new Error("ComfyUI returned no prompt_id");
+        }
 
-    if (data.node_errors && Object.keys(data.node_errors).length > 0) {
-      return res
-        .status(400)
-        .send(error(`ComfyUI validation failed: ${JSON.stringify(data.node_errors).slice(0, 800)}`));
-    }
+        if (data.node_errors && Object.keys(data.node_errors).length > 0) {
+          throw Object.assign(
+            new Error(`ComfyUI validation failed: ${JSON.stringify(data.node_errors).slice(0, 800)}`),
+            { statusCode: 400 },
+          );
+        }
+        return data;
+      },
+      { gpuIndex: 1, comfyuiUrl },
+    );
 
     const clientTaskId = p.client_task_id || `ace_${uuidv4().replace(/-/g, "").slice(0, 12)}`;
 
@@ -125,6 +136,9 @@ export default router.post("/", async (req, res) => {
     }));
   } catch (err: any) {
     const msg = err.message || String(err);
+    if (err.statusCode === 400) {
+      return res.status(400).send(error(msg));
+    }
     return res.status(502).send(error(`ComfyUI submit request failed: ${msg}`));
   }
 });

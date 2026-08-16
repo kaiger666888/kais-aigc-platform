@@ -6,6 +6,7 @@ import axios from "axios";
 import FormData from "form-data";
 import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
+import { withGpuQueue } from "@/lib/gpuVramManager";
 import { validateFields } from "@/middleware/middleware";
 
 const router = express.Router();
@@ -255,10 +256,16 @@ export const upscaleBatch = router.post(
       formData.append("scale", String(scale));
       formData.append("quality", quality);
 
-      const vsrResp = await axios.post(`${inst.url}/upscale/batch`, formData, {
-        headers: formData.getHeaders(),
-        timeout: RTX_VSR_CONFIG.timeoutMs,
-      });
+      // ─── GPU 全局串行队列 (withGpuQueue, 2026-08-16 二期) ───
+      // VSR 轻量 (~568MiB) 但 fallback 到 3090 实例时与重型引擎同卡互斥。
+      const vsrResp = await withGpuQueue(
+        "rtx_vsr",
+        () => axios.post(`${inst.url}/upscale/batch`, formData, {
+          headers: formData.getHeaders(),
+          timeout: RTX_VSR_CONFIG.timeoutMs,
+        }),
+        { gpuIndex: 1 },
+      );
 
       // Clean up
       for (const file of files) {
@@ -309,12 +316,18 @@ export const upscaleVideo = router.post(
       formData.append("scale", String(scale));
       formData.append("quality", quality);
 
-      const vsrResp = await axios.post(`${inst.url}/upscale/video`, formData, {
-        headers: formData.getHeaders(),
-        timeout: 300_000, // 5 min for video
-        maxContentLength: Infinity,
-        maxBodyLength: Infinity,
-      });
+      // ─── GPU 全局串行队列 (withGpuQueue, 2026-08-16 二期) ───
+      // 视频逐帧超分 (秒级~分钟级); fallback 到 3090 实例时与重型引擎同卡互斥。
+      const vsrResp = await withGpuQueue(
+        "rtx_vsr",
+        () => axios.post(`${inst.url}/upscale/video`, formData, {
+          headers: formData.getHeaders(),
+          timeout: 300_000, // 5 min for video
+          maxContentLength: Infinity,
+          maxBodyLength: Infinity,
+        }),
+        { gpuIndex: 1 },
+      );
 
       try { fs.unlinkSync(req.file.path); } catch {}
 

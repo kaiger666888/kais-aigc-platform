@@ -20,6 +20,7 @@ import axios from "axios";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { success, error } from "@/lib/responseFormat";
+import { withGpuQueue } from "@/lib/gpuVramManager";
 import { validateFields } from "@/middleware/middleware";
 import { FLUX_CONFIG, FLUX_DEFAULTS, ConsistencyMode, QuantizationMode } from "./config";
 
@@ -434,9 +435,16 @@ router.post("/scene-generate", upload.single("reference_image"), async (req: any
       filenamePrefix,
     });
 
-    // 提交并轮询
-    const promptId = await submitPrompt(workflow);
-    const result = await pollResult(promptId);
+    // ─── GPU 全局串行队列 (gpuVramManager withGpuQueue, 2026-08-16 二期) ───
+    // FLUX (~12GB) 与 TTS/H3/music3/qwen_eye 共享 GPU1 锁; 锁内「提交+轮询到完成」。
+    const { promptId, result } = await withGpuQueue(
+      "flux2",
+      async () => {
+        const promptId = await submitPrompt(workflow);
+        return { promptId, result: await pollResult(promptId) };
+      },
+      { gpuIndex: 1, comfyuiUrl: FLUX_CONFIG.comfyuiUrl },
+    );
 
     // 提取输出图片
     const images: Array<{ filename: string; subfolder: string }> = [];
@@ -521,9 +529,15 @@ router.post("/storyboard", async (req: any, res: any) => {
       filenamePrefix,
     });
 
-    // 提交并轮询
-    const promptId = await submitPrompt(workflow);
-    const result = await pollResult(promptId);
+    // ─── GPU 全局串行队列 (gpuVramManager withGpuQueue, 2026-08-16 二期) ───
+    const { promptId, result } = await withGpuQueue(
+      "flux2",
+      async () => {
+        const promptId = await submitPrompt(workflow);
+        return { promptId, result: await pollResult(promptId) };
+      },
+      { gpuIndex: 1, comfyuiUrl: FLUX_CONFIG.comfyuiUrl },
+    );
 
     // 提取输出图片
     const images: Array<{ filename: string; subfolder: string; scene_id: number }> = [];
