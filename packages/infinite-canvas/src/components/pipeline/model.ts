@@ -2,7 +2,7 @@
  * src/components/pipeline/model.ts — 管线状态机视图的纯数据层。
  *
  * 完全从现有画布数据派生（不引入新后端 API）：
- *  - 管线骨架 = 17 阶段权威注册表（PIPELINE_PHASES，P01–P15 含 P09b/P10b/P10c 子阶段）；
+ *  - 管线骨架 = 17 阶段权威注册表（PIPELINE_PHASES，P01–P15 含 P09b/P10c 子阶段；P10a 已注销移除）；
  *  - 每阶段执行状态 = 该 phaseIndex 下 RF 节点 data.state 聚合（success/failed/running/pending）；
  *  - slot 完成度 = 同阶段资产按 stage 子类分组计数（dynamic 显示 [N files]）；
  *  - 资产三态 = V3 curation（selected/candidate/deprecated/locked）+ 旧 isPrimaryView/curationState 回退；
@@ -64,7 +64,9 @@ export const PIPELINE_PHASES: readonly PipelinePhaseDef[] = [
   // lane 的语义由 sub=true 保留（不重复计资产）。
   { sortKey: 9, code: 'P09b', name: '镜头审计', group: 'production', phaseIndex: 10, sub: true },
   { sortKey: 10, code: 'P10', name: '语音合成', group: 'post', phaseIndex: 11 },
-  { sortKey: 10.25, code: 'P10a', name: '时间线推导', group: 'post', phaseIndex: 11, sub: true },
+  // P10a 时间线推导已随 KMC 2026-08-09 注销移除（ffprobe 内联进 p11a/p11b，
+  // voice↔video 本就 1:1/shot；见 phases/__init__.py 注释）。注销后无节点写入
+  // phaseIndex 11 + shot_timeline，此处保留会让流水线卡片恒 pending。
   { sortKey: 11, code: 'P10c', name: '语音审计', group: 'post', phaseIndex: 12, sub: true },
   { sortKey: 12, code: 'P11a', name: '片段预览', group: 'post', phaseIndex: 14 },
   { sortKey: 13, code: 'P11b', name: '片段生成', group: 'post', phaseIndex: 14 },
@@ -473,10 +475,11 @@ export const KMC_SLOT_REGISTRY: readonly KmcSlotEntry[] = [
   // storyboard-qc (qwen-eye, 2026-08-16): advisory 板面 QC；P14 聚合，无人消费它做门控。
   { phaseCode: 'P09c', inputs: ['shot-list', 'scene-images', 'character-assets'], outputs: ['storyboard-board', 'storyboard-qc'] },
   { phaseCode: 'P10',  inputs: ['shot-list', 'script-draft', 'voice-design'],           outputs: ['voice-clips'] },
-  { phaseCode: 'P10a', inputs: ['shot-list', 'voice-clips'],                             outputs: ['shot-timeline'] },
+  // P10a shot-timeline 已注销（2026-08-09，ffprobe 内联进 p11a/p11b）——条目移除。
   { phaseCode: 'P10c', inputs: ['voice-clips', 'shot-list'], outputs: ['voice-audit'] },
   // preview-qc (qwen-eye, 2026-08-16): advisory 变体首帧 QC；P14 聚合。
-  { phaseCode: 'P11a', inputs: ['shot-list', 'scene-images', 'character-assets', 'voice-clips', 'shot-timeline', 'storyboard-board'], outputs: ['preview-clips', 'preview-qc'] },
+  // P11a inputs：shot-timeline 已除名（P10a 注销后 p11a 自行 ffprobe 实测时长）。
+  { phaseCode: 'P11a', inputs: ['shot-list', 'scene-images', 'character-assets', 'voice-clips', 'storyboard-board'], outputs: ['preview-clips', 'preview-qc'] },
   { phaseCode: 'P11b', inputs: ['preview-clips'], outputs: ['video-clips', 'take-log'] },
   // P11c 视频智能质检（qwen-eye）：读 video-clips + shot-list（SPEC 字段），
   // 写 video-qc（per_shot 判定 + summary；advisory，P14 聚合，P12 不读）。
@@ -537,7 +540,7 @@ export interface DagEdgeDef {
 }
 
 /**
- * DAG 节点清单（27 个 asset-step）。匹配规则基于真实数据
+ * DAG 节点清单（asset-step）。匹配规则基于真实数据
  *（项目 1785508691757 ep1：canvas sync 写入的语义化 id 如 a-turnaround-* /
  *  a-first_last_frames-* / a-shot_list-*，以及 raw 袋 turnaroundType/audioType）。
  * 真实数据缺的阶段（P03/P06/P12/P13）→ 匹配 0 节点 → 显示 pending（规划中）。
@@ -608,9 +611,7 @@ export const DAG_NODES: readonly DagNodeDef[] = [
   // ── P10 语音合成（post） ──
   { id: 'voice-clips', label: '语音片段', phaseCode: 'P10', phaseIndex: 11, group: 'post',
     match: { phaseIndex: 11, idIncludes: 'voice_clips' }, expectedCount: 'dynamic' },
-  // ── P10a 时间线推导（确定性计算，ffprobe 实测 TTS 时长） ──
-  { id: 'shot-timeline', label: '时间线推导', phaseCode: 'P10a', phaseIndex: 11, group: 'post',
-    match: { phaseIndex: 11, idIncludes: 'shot_timeline' }, expectedCount: 1 },
+  // ── P10a 时间线推导 DAG 节点已移除（phase 2026-08-09 注销，恒 pending 僵尸卡片）──
   // ── P11a 片段预览（H3 turbo 快速预览，用于确认画面后锁定创作参数） ──
   // 条件帧生成（首/尾帧变体）：P11a 预览的条件输入之一。
   { id: 'iframe-generation', label: '条件帧生成', phaseCode: 'P11a', phaseIndex: 14, group: 'post',
@@ -738,12 +739,8 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   { from: 'storyboard-board', to: 'voice-clips' },
   // P03 → P10：剧本初稿 → 语音片段（P10 INPUT_SLOTS 含 script-draft）
   { from: 'script-draft', to: 'voice-clips' },
-  // P10 → P10a：语音片段 → 时间线推导（ffprobe 实测 TTS 时长 → 确定性 shot-timeline）
-  { from: 'voice-clips', to: 'shot-timeline' },
-  // P09 → P10a：分镜表 → 时间线推导（读 timeline_breakdown + duration_sec）
-  { from: 'shot-list', to: 'shot-timeline' },
-  // P10a → P11a：时间线推导 → 片段预览（P11a 用 final_duration_sec 作目标时长）
-  { from: 'shot-timeline', to: 'preview-clips' },
+  // P10a shot-timeline 三条边已随节点移除（P10a 2026-08-09 注销）。P10 语音片段
+  // 直接流向 P11a 片段预览（ffprobe 时长实测内联在 p11a/p11b 内完成）。
   // P09 → P11a：分镜表 → 片段预览（prompt/duration/角色/turnaround_path）
   { from: 'shot-list', to: 'preview-clips' },
   // P11a 条件帧生成（多输入汇聚到片段预览）：场景图 + 换装TR + E-Konte
