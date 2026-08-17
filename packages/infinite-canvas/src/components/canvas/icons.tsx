@@ -3,6 +3,8 @@
  *
  *  - ModalityIcon：四模态（text 文档 / image 图片 / audio 波形 / video 播放）。
  *    资产卡的左 3px 边条主权配套图标，色相 = 模态色（P8 色相通道独占）。
+ *  - AssetTypeIcon：assetType 子类型（v1.1 character/prop + v1.2 dialogue/music/sfx），
+ *    模态图标的细化层——几何同词汇，色相仍取模态色（不另开色相通道）。
  *  - EventOpIcon：executor=human → 人形图标；gpu0/gpu1/cloud → 按 op 名映射的 op 族图标
  *    （人机同构 P5：只靠图标区分人/AI，芯片形态一致）。
  *  简洁几何线条，跟随 color 参数着色；不引外部图标库以保画布零运行时依赖。
@@ -10,20 +12,27 @@
 
 export type ModalityIconKind = 'text' | 'image' | 'audio' | 'video'
 
-/** 共用 SVG 外壳（24×24 viewBox，1.8 描边，圆角端点），子节点为具体几何。 */
+/** 共用 SVG 外壳（24×24 viewBox，1.8 描边，圆角端点），子节点为具体几何。
+ *  testId/dataKind 仅作测试锚点（缺省不渲染属性，既有调用方 DOM 不变）。 */
 function SvgIcon({
   size,
   color,
   children,
   fill = 'none',
+  testId,
+  dataKind,
 }: {
   size: number
   color: string
   children: React.ReactNode
   fill?: string
+  testId?: string
+  dataKind?: string
 }): React.ReactElement {
   return (
     <svg
+      data-testid={testId}
+      data-kind={dataKind}
       width={size}
       height={size}
       viewBox="0 0 24 24"
@@ -82,6 +91,78 @@ export function ModalityIcon({
         <SvgIcon size={size} color={color}>
           <rect x="3" y="5" width="18" height="14" rx="2" />
           <path d="m10 9 5 3-5 3z" fill={color} stroke="none" />
+        </SvgIcon>
+      )
+  }
+}
+
+// ─── assetType 子类型图标（canvas-sync v1.1/v1.2 消费端渲染） ────────────────
+
+export type AssetTypeIconKind = 'character' | 'prop' | 'dialogue' | 'music' | 'sfx'
+
+const ASSET_TYPE_ICON_KINDS: readonly string[] = ['character', 'prop', 'dialogue', 'music', 'sfx']
+
+/** raw 袋 assetType 是否命中专属图标 kind（未命中回退纯模态图标，不新增兜底 glyph）。 */
+export function isAssetTypeIconKind(v: unknown): v is AssetTypeIconKind {
+  return typeof v === 'string' && ASSET_TYPE_ICON_KINDS.includes(v)
+}
+
+/**
+ * assetType 子类型图标：模态图标的细化层（不取代模态主权——色相仍取模态色）。
+ *  - character（v1.1）：人形半身，与 EventOpIcon human 同构几何（人机同构 P5 词汇）；
+ *  - prop（v1.1）：扳手（旧 AssetNode typeIcons 中 tool/prop 共用 🔧 的语义延续）；
+ *  - dialogue / music / sfx（v1.2）：气泡 / 连音符 / 扬声器。
+ * 几何延续 SvgIcon 词汇（1.8 描边圆角端点）；渲染于资产卡标题行与缺封面占位。
+ */
+export function AssetTypeIcon({
+  kind,
+  size,
+  color,
+}: {
+  kind: AssetTypeIconKind
+  size: number
+  color: string
+}): React.ReactElement {
+  switch (kind) {
+    case 'character':
+      // 人形半身：圆头 + 肩弧
+      return (
+        <SvgIcon size={size} color={color} testId="asset-type-icon" dataKind={kind}>
+          <circle cx="12" cy="8" r="3.2" />
+          <path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" />
+        </SvgIcon>
+      )
+    case 'prop':
+      // 扳手：工具语义（tool/prop 同族）
+      return (
+        <SvgIcon size={size} color={color} testId="asset-type-icon" dataKind={kind}>
+          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+        </SvgIcon>
+      )
+    case 'dialogue':
+      // 对白气泡：折角气泡 + 两行台词
+      return (
+        <SvgIcon size={size} color={color} testId="asset-type-icon" dataKind={kind}>
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          <path d="M8 8.5h8M8 12h5" />
+        </SvgIcon>
+      )
+    case 'music':
+      // 音乐：连线八分音符（双音符 + 梁）
+      return (
+        <SvgIcon size={size} color={color} testId="asset-type-icon" dataKind={kind}>
+          <path d="M9 18V5l12-2v13" />
+          <circle cx="6" cy="18" r="3" />
+          <circle cx="18" cy="16" r="3" />
+        </SvgIcon>
+      )
+    case 'sfx':
+      // 音效：扬声器锥 + 双层声波
+      return (
+        <SvgIcon size={size} color={color} testId="asset-type-icon" dataKind={kind}>
+          <path d="M11 5 6 9H2v6h4l5 4z" />
+          <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+          <path d="M18.5 5.5a9 9 0 0 1 0 13" />
         </SvgIcon>
       )
   }

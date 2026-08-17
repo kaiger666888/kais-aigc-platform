@@ -14,6 +14,10 @@
  *  - locked 参考（§1.3）：封面 saturate(0.55) brightness(0.9)。
  *  - 溯源通道（给 C 的 P18 接缝）：data.traceState = 'highlighted' | 'dimmed'。
  *  - 视频 hover 200ms 内联播 480p proxy（P15，L2 专属）；audio 24 柱波形 + 播放键。
+ *  - assetType 子类型图标（canvas-sync v1.1 character/prop + v1.2 dialogue/music/sfx）：
+ *    标题行模态图标后追 12px 子类型图标（AssetTypeIcon，色相仍取模态色，P8 不破）；
+ *    缺封面占位的 32px 图标同步替换为子类型图标（无封面对白/音乐/音效子节点的类型信号）。
+ *    权威源 = rawDataByNodeId 穿透袋的 assetType（migrate 不保留新值进 V3 meta）。
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
@@ -29,7 +33,7 @@ import {
   registerNodeBadgesRenderer,
 } from '../canvas/slots'
 import NodeBadgesDefault from '../canvas/NodeBadgesDefault'
-import { ModalityIcon, type ModalityIconKind } from '../canvas/icons'
+import { ModalityIcon, AssetTypeIcon, isAssetTypeIconKind, type ModalityIconKind, type AssetTypeIconKind } from '../canvas/icons'
 import ScoreMiniBar from '../badges/ScoreMiniBar'
 import type { VariantStackData } from '../../v3/adapter'
 import { resolveMediaUrl } from '../../utils/mediaUrl'
@@ -49,6 +53,8 @@ type AssetCardData = {
   thumbnailUrl?: string | null
   filePath?: string | null
   state?: string
+  /** assetType 子类型（legacy 非 graph 路径直挂 data；graph 路径权威 = rawDataByNodeId 袋） */
+  assetType?: string
   /** 语义标签（canvas sync 写入）：📋 概览 / ✅ 已选 / 未选 / 🔄 候选 等 */
   tags?: string[]
 }
@@ -91,6 +97,20 @@ function turnaroundSubtype(raw: Record<string, unknown> | undefined): string | n
   if (tt === 'gray_base') return '灰底'
   if (tt === 'costume') return '换装'
   return null
+}
+
+/**
+ * raw 袋 assetType → 专属子类型图标 kind（canvas-sync v1.1 character/prop +
+ * v1.2 dialogue/music/sfx）。migrate 把 assetType 归一进 V3 meta 枚举时会丢这五个
+ * 新值，故权威源 = rawDataByNodeId 穿透袋（graph 路径）／data.assetType（legacy
+ * 非 graph 路径）。未命中（legacy role/tool/scene、未知值）→ null，回退纯模态图标。
+ */
+function assetTypeKindOf(
+  data: AssetCardData,
+  raw: Record<string, unknown> | undefined,
+): AssetTypeIconKind | null {
+  const v = raw?.assetType ?? data.assetType
+  return isAssetTypeIconKind(v) ? v : null
 }
 
 /** 底行元信息 `#037 · 3.3s`（shot 编号 · 时长；§4.1）。raw 数据缺省时的兜底。 */
@@ -208,13 +228,14 @@ function L0Block({ data }: { data: AssetCardData }) {
 
 // ─── 封面区（L1/L2 共用） ───────────────────────────────────
 
-function Cover({ data, mod, width, height, lod, nodeId }: {
+function Cover({ data, mod, width, height, lod, nodeId, typeKind }: {
   data: AssetCardData
   mod: Modality
   width: number
   height: number
   lod: LodLevel
   nodeId: string
+  typeKind: AssetTypeIconKind | null
 }) {
   const asset = data.v3
   const rawThumb = asset?.media.thumbnail ?? data.thumbnailUrl ?? null
@@ -276,14 +297,17 @@ function Cover({ data, mod, width, height, lod, nodeId }: {
     setVideoPlaying(false)
   }, [])
 
-  // 缺封面 = 常态路径（§4.1：弱色底 + 32px 模态图标 @40%）
+  // 缺封面 = 常态路径（§4.1：弱色底 + 32px 图标 @40%）；assetType 子类型命中时
+  // 用子类型图标替代模态图标（对白/音乐/音效等无封面子节点的类型信号主载体）
   const placeholder = (
     <div style={{
       width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
       background: v3theme.modalityWeak[mod], borderRadius: 4,
     }}>
       <span style={{ opacity: 0.4, display: 'flex' }}>
-        <ModalityIcon kind={mod as ModalityIconKind} size={32} color={v3theme.modality[mod]} />
+        {typeKind
+          ? <AssetTypeIcon kind={typeKind} size={32} color={v3theme.modality[mod]} />
+          : <ModalityIcon kind={mod as ModalityIconKind} size={32} color={v3theme.modality[mod]} />}
       </span>
     </div>
   )
@@ -596,6 +620,8 @@ function AssetCardNodeComponent({ id, data, selected }: NodeProps<AssetCardNodeT
   const coverH = V3_NODE_SIZES.card.coverH
 
   const raw = rawDataByNodeId?.get(id)
+  // assetType 子类型图标 kind（raw 袋权威 / data.assetType legacy 兜底；未命中 = null）
+  const typeKind = assetTypeKindOf(data, raw)
   // title 优先从 raw data 袋的 label 读取（canvas sync 写入的语义化 label，
   // migrate 不保留 label 到 V3 asset schema，但 rawDataByNodeId 存了完整原始 data）
   const title = (raw?.label as string | undefined) ?? (data.label as string | undefined) ?? asset?.phaseName ?? id
@@ -650,6 +676,9 @@ function AssetCardNodeComponent({ id, data, selected }: NodeProps<AssetCardNodeT
         {/* 顶行：模态图标 + 标题（单行截断） */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: isL1 ? 14 : V3_NODE_SIZES.card.titleH - 8, flex: '0 0 auto' }}>
           <ModalityIcon kind={mod as ModalityIconKind} size={12} color={v3theme.modality[mod]} />
+          {/* assetType 子类型图标（v1.1 character/prop + v1.2 dialogue/music/sfx）：
+              模态图标的细化层——色相仍取模态色（P8 色相通道独占），不另开色相 */}
+          {typeKind && <AssetTypeIcon kind={typeKind} size={12} color={v3theme.modality[mod]} />}
           <span
             title={title}
             style={{
@@ -710,7 +739,7 @@ function AssetCardNodeComponent({ id, data, selected }: NodeProps<AssetCardNodeT
           </div>
         )}
         {/* 封面区 */}
-        <Cover data={data} mod={mod} nodeId={id} width={w - V3_NODE_SIZES.card.modBarW - 16} height={isL1 ? 100 - 14 - 28 : coverH} lod={lod} />
+        <Cover data={data} mod={mod} nodeId={id} width={w - V3_NODE_SIZES.card.modBarW - 16} height={isL1 ? 100 - 14 - 28 : coverH} lod={lod} typeKind={typeKind} />
         {/* composite 迷你胶片条（§4.6：宣示「我有内部结构」，点击开右面板 TimelineStructure —— D） */}
         {!isL1 && stage === 'composite' && <Filmstrip asset={asset} />}
         {/* 底行元信息：raw 关键字段 chips 优先，缺省退回 metaLine（shot# · 时长） */}
