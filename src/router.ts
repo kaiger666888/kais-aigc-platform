@@ -56,6 +56,9 @@ import route52 from "./routes/production/minimax-h3/t2va";
 import route53 from "./routes/production/minimax-h3/workflows";
 import route54 from "./routes/production/music3/generate";
 import route55 from "./routes/production/music3/status";
+// m3 = MiniMax-Music3 别名路由 (Kai 决策简称), 薄封装复用 music3 实现
+import routeM3Gen from "./routes/production/m3/generate";
+import routeM3Status from "./routes/production/m3/status";
 import route56 from "./routes/production/postprocess/enhance";
 import route57 from "./routes/production/postprocess/rtx-vsr/index";
 import route58 from "./routes/production/postprocess/seedvr2";
@@ -224,6 +227,9 @@ export default async (app: Express) => {
   app.use("/api/production/minimax-h3/workflows", route53);
   app.use("/api/production/music3/generate", route54);
   app.use("/api/production/music3/status", route55);
+  // m3 别名 ≡ music3 (共享 Router 实例, 别名感知 statusUrl 走 req.baseUrl)
+  app.use("/api/production/m3/generate", routeM3Gen);
+  app.use("/api/production/m3/status", routeM3Status);
   app.use("/api/production/postprocess/enhance", route56);
   app.use("/api/production/postprocess/rtx-vsr", route57);
   app.use("/api/production/postprocess/seedvr2", route58);

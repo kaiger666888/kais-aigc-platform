@@ -7,12 +7,15 @@
  * Music3 不走 ComfyUI (容器无节点), 故本路由是纯 HTTP 代理 + 异步/同步两种语义。
  *
  * Body (JSON):
- *   prompt    : string  (required — 音乐描述: genre / BPM / key / vocal / arrangement)
- *   lyrics    : string  (optional — 歌词, 带 [Verse]/[Chorus] 等结构标签, 各占一行)
- *   duration  : number  (optional — 秒, 1-360, 默认 30)
- *   seed      : number  (optional — -1=随机, 默认 7)
- *   format    : string  (optional — "wav", 当前仅支持 wav)
- *   wait      : boolean (optional — true=同步等待完成; 默认 false=异步返回 taskId)
+ *   prompt              : string  (required — 音乐描述: genre / BPM / key / vocal / arrangement)
+ *   lyrics              : string  (optional — 歌词, 带 [Verse]/[Chorus] 等结构标签, 各占一行)
+ *   duration            : number  (optional — 秒, 1-360, 默认 30)
+ *   seed                : number  (optional — -1=随机, 默认 7)
+ *   num_inference_steps : number  (optional — int 1-100, flow-matching 每 chunk 步数, 默认 30)
+ *   format              : string  (optional — "wav", 当前仅支持 wav)
+ *   wait                : boolean (optional — true=同步等待完成; 默认 false=异步返回 taskId)
+ *
+ * 注: guidance_scale 1.7 是 pipe FrozenDict 冻结配置不可传; 无 negative_prompt 等参数。
  *
  * 异步 (默认, wait=false):
  *   → { taskId, status:"processing", statusUrl, audioUrl }
@@ -52,6 +55,7 @@ async function submitTask(body: {
   lyrics: string;
   duration: number;
   seed: number;
+  num_inference_steps: number;
 }): Promise<{ task_id: string; state: string }> {
   const resp = await fetch(`${MUSIC3_CONFIG.serverUrl}/generate`, {
     method: "POST",
@@ -96,6 +100,7 @@ export default router.post(
     lyrics: z.string().optional(),
     duration: z.coerce.number().min(1).max(MUSIC3_CONSTANTS.MAX_DURATION).optional(),
     seed: z.coerce.number().optional(),
+    num_inference_steps: z.coerce.number().int().min(1).max(MUSIC3_CONSTANTS.MAX_STEPS).optional(),
     format: z.literal("wav").optional(),
     wait: z.coerce.boolean().optional(),
   }),
@@ -115,6 +120,7 @@ export default router.post(
       const lyrics = (req.body.lyrics as string) || "";
       const duration = req.body.duration ?? MUSIC3_DEFAULTS.duration;
       const seed = req.body.seed ?? MUSIC3_DEFAULTS.seed;
+      const numInferenceSteps = req.body.num_inference_steps ?? MUSIC3_DEFAULTS.numInferenceSteps;
 
       // ─── GPU 全局串行队列 (gpuVramManager withGpuQueue, 2026-08-16 二期) ───
       // Music3 ~22GB (近乎满卡), 与 ComfyUI 各引擎互斥。锁内「提交+同步等待完成」;
@@ -122,7 +128,13 @@ export default router.post(
       const { taskId, finalState } = await withGpuQueue(
         "music3",
         async () => {
-          const submitted = await submitTask({ prompt, lyrics, duration, seed });
+          const submitted = await submitTask({
+            prompt,
+            lyrics,
+            duration,
+            seed,
+            num_inference_steps: numInferenceSteps,
+          });
           const taskId = submitted.task_id;
           // 同步模式: 轮询直到完成 (持锁); 异步模式: 只提交
           const finalState = req.body.wait ? await pollUntilDone(taskId) : null;
@@ -138,8 +150,13 @@ export default router.post(
             {
               taskId,
               status: "processing",
-              statusUrl: `/api/production/music3/status/${taskId}`,
+              // req.baseUrl 别名感知: m3 入口返回 /api/production/m3/status/...,
+              // music3 入口返回 /api/production/music3/status/...
+              statusUrl: `${req.baseUrl.replace(/\/generate$/, "")}/status/${taskId}`,
               audioUrl: publicFileUrl(taskId),
+              duration,
+              seed,
+              numInferenceSteps,
             },
             "任务已提交",
           ),
@@ -160,6 +177,7 @@ export default router.post(
             durationSec: finalState.duration_sec,
             sampleRate: finalState.sample_rate,
             seedUsed: finalState.seed_used,
+            numInferenceSteps,
             genSeconds: finalState.gen_seconds,
           },
           "生成完成",

@@ -41,8 +41,11 @@ export const MUSIC3_CONSTANTS = {
   MAX_FRAMES: 9000,         // 最长 9000 acoustic frames
   MAX_DURATION: 360,        // 秒 = 9000 / 25
   MAX_PROMPT_TOKENS: 5000,  // 文本 prompt token 上限
+  MAX_STEPS: 100,           // num_inference_steps 上限 (flow-matching Euler 每 chunk 步数)
   BIT_DEPTH: 16,            // 16-bit
   CHANNELS: 2,              // stereo
+  // ⚠️ guidance_scale = 1.7 是 pipe FrozenDict 冻结配置, __call__ 不接受该参数, 勿暴露。
+  //    亦无 negative_prompt / strength / max_sequence_length 等参数 (实读源码确认)。
 } as const;
 
 // ============================================================
@@ -53,6 +56,8 @@ export const MUSIC3_DEFAULTS = {
   duration: 30,
   /** 随机种子 (-1 = 随机) */
   seed: 7,
+  /** flow-matching Euler 每 chunk 采样步数 (pipe __call__ 默认 30) */
+  numInferenceSteps: 30,
   /** 输出格式 (当前仅 wav; server 始终输出 PCM_16 WAV) */
   format: "wav" as "wav",
 } as const;
