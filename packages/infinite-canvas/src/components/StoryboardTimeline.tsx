@@ -39,6 +39,25 @@ interface AudioTrack {
   text?: string
   /** 播放窗口（[start, end] 秒）— Demucs stem 按分镜片段播放用；P10 轨无窗口（全曲播）。 */
   windowSec?: [number, number]
+  /**
+   * 绝对时间窗起点/终点（秒）—— 波形活动段数据（逆推项目 P10 重建形态）。
+   * 时间是**全片绝对时间**，与分镜行 startSec/endSec 同坐标系：长段（BGM 106.5-135.5s）
+   * 可横跨多个分镜行。两者均为 undefined 时走旧 shotKey 行内挂载（管线项目回归不变）。
+   */
+  startSec?: number
+  endSec?: number
+}
+
+/**
+ * 音轨是否携带绝对时间窗（start_sec/end_sec）→ 竖幅按时间坐标跨镜渲染。
+ * 缺一个字段 / 非有限数 / 零长度即视为无窗（回退 shotKey 行内挂载）。
+ */
+export function hasSpanWindow(track: AudioTrack): boolean {
+  return (
+    typeof track.startSec === 'number' && isFinite(track.startSec) &&
+    typeof track.endSec === 'number' && isFinite(track.endSec) &&
+    track.endSec > track.startSec
+  )
 }
 
 /** Demucs 4-stem（逆推资产集项目 storyboard data.audioStems 穯透）。 */
@@ -455,15 +474,24 @@ export function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<str
     const key = shotKeyFromCandidates(raw.shot_id, raw.label, node.id, filePath)
     if (!key) continue
     dbgAudioMatched++
+    // 波形活动段绝对时间窗（逆推项目重建形态）：有限数才透传，否则保持 undefined
+    // → 竖幅回退旧 shotKey 行内挂载（管线项目行为逐字节不变）。
+    const rawStart = raw.start_sec
+    const rawEnd = raw.end_sec
+    const startSec = typeof rawStart === 'number' && isFinite(rawStart) ? rawStart : undefined
+    const endSec = typeof rawEnd === 'number' && isFinite(rawEnd) ? rawEnd : undefined
     const track: AudioTrack = {
       clipType: (raw.clip_type as string) ?? '',
       audioType: (raw.audio_type as string) ?? (raw.audioType as string) ?? '',
       // speaker 仅人声有意义；'none' / 'null' / 空 视为无
       speaker: normalizeSpeaker(raw.speaker as string),
-      durationS: (raw.duration_sec as number) ?? media?.durationS ?? 0,
+      // duration_sec 缺失时用时间窗宽度兜底（活动段文件即按窗切出，二者等价）
+      durationS: (raw.duration_sec as number) ?? media?.durationS
+        ?? (startSec != null && endSec != null ? endSec - startSec : 0),
       filePath,
       // 对白/旁白原文（voice 节点 raw.text），竖幅对白轨展示截断文字
       text: (raw.text as string) ?? undefined,
+      ...(startSec != null && endSec != null ? { startSec, endSec } : {}),
     }
     const arr = audioByShot.get(key)
     if (arr) arr.push(track)
@@ -1587,6 +1615,100 @@ const TRACK_META = {
   bgm: { bg: 'rgba(203,166,247,0.25)', bgActive: 'rgba(203,166,247,0.45)', border: '#CBA6F7', label: '🎵 BGM' },
 } as const
 
+/** 跨镜条块最小视觉高度（px）—— 极短活动段（<~0.4s）仍可见可点。 */
+export const MIN_SPAN_TRACK_H = 6
+
+/**
+ * 全片绝对时间（秒）→ 竖幅时间轴 y 坐标（px，滚动内容坐标系）的分段线性映射。
+ *
+ * 背景：竖幅行高来自左侧 ShotRow 实测（rowMetrics），**与镜头时长非线性**（行内
+ * prompt/首尾帧内容决定高度），故不能直接 `t × PX_PER_SEC`。改用分镜时间窗
+ * [startSec, endSec] → 行几何 [top, top+height] 的分段线性插值：
+ *   - 段内（t 落在窗 i 内）：行内线性插值；
+ *   - 行间隙（t 在窗 i 末端与窗 i+1 首端之间）：按两侧行边界线性过渡（gap 被邻行
+ *     平分——实测行通常无缝衔接，此为防御性兜底）；
+ *   - 越界（t 在首窗前 / 末窗后）：用相邻段斜率外推（音轨段起点早于首个分镜时仍定位）。
+ *   - 零长度窗（duration 0）：与下一窗共用边界，不参与插值（防除零）。
+ *
+ * shots 必须已按 startSec 升序（extractShots 输出 + 累计求和保证）。
+ * 返回的 timeToY 单调不减，供条块 top/height 计算共用。
+ */
+export function createTimeToY(
+  shots: TimedShot[],
+  metricOf: (i: number) => { top: number; height: number },
+): (t: number) => number {
+  // 折点序列：tBreaks[i] = 窗 i 的 startSec、tBreaks[i+1] = 窗 i 的 endSec …
+  // 逐段构造一次可重用的插值器。
+  const n = shots.length
+  if (n === 0) return () => 0
+  const t0 = shots[0]!.startSec
+  const tEnd = shots[n - 1]!.endSec
+  const y0 = metricOf(0).top
+  const yEnd = metricOf(n - 1).top + metricOf(n - 1).height
+
+  const timeToY = (t: number): number => {
+    if (!isFinite(t)) return y0
+    // 首窗前：用首段斜率外推
+    if (t <= t0) {
+      const g1 = metricOf(0)
+      const d1 = shots[0]!.endSec - shots[0]!.startSec
+      if (d1 > 0) return g1.top + ((t - t0) / d1) * g1.height
+      return g1.top
+    }
+    // 末窗后：用末段斜率外推
+    if (t >= tEnd) {
+      const gN = metricOf(n - 1)
+      const dN = shots[n - 1]!.endSec - shots[n - 1]!.startSec
+      if (dN > 0) return yEnd + ((t - tEnd) / dN) * gN.height
+      return yEnd
+    }
+    // 段内 / 间隙：定位窗 i 为**最后一个 endSec < t 的窗之后继**——
+    // 即 t 严格越过窗 i 的末端才前进。t 恰在边界（t=窗 j 的 start=end）时定位到
+    // 左窗 j（插值退回其行底锚点），不前进到右窗（右窗从自身行顶起算）。
+    let i = 0
+    for (let k = 0; k < n; k++) {
+      if (shots[k]!.endSec < t) i = k + 1
+      else break
+    }
+    if (i >= n) i = n - 1
+    const g = metricOf(i)
+    const gTop = g.top
+    const gBot = g.top + g.height
+    const ws = shots[i]!.startSec
+    const we = shots[i]!.endSec
+    if (t <= we) {
+      // 窗内线性插值（零长度窗退回行顶）
+      if (we - ws <= 0) return gTop
+      return gTop + ((t - ws) / (we - ws)) * g.height
+    }
+    // 间隙：t ∈ (we, shots[i+1].startSec)。左右锚点 = 本行底 / 下一行顶。
+    const gNext = metricOf(i + 1)
+    const tNext = shots[i + 1]!.startSec
+    if (tNext - we <= 0) return gBot
+    return gBot + ((t - we) / (tNext - we)) * (gNext.top - gBot)
+  }
+  return timeToY
+}
+
+/**
+ * 跨镜条块几何：绝对时间窗 [startSec, endSec] → { top, height }。
+ * timeToY 来自 createTimeToY（实测行几何）；无实测时退回时间比例布局。
+ * 高度 = 时间跨度映射，最小 MIN_SPAN_TRACK_H（极短段可见）；顶底都夹进内容区。
+ */
+export function spanTrackGeometry(
+  track: AudioTrack,
+  timeToY: (t: number) => number,
+): { top: number; height: number } {
+  const s = track.startSec ?? 0
+  const e = track.endSec ?? s
+  const top = timeToY(s)
+  const bottom = timeToY(e)
+  return {
+    top: Math.min(top, bottom),
+    height: Math.max(MIN_SPAN_TRACK_H, Math.abs(bottom - top)),
+  }
+}
+
 /** 竖幅各列宽度（header 行与内容列严格对齐；bgm 列 flex 吸收右侧余量）。 */
 const VT_COL = { time: 36, shot: 80, dialogue: 88, ambient: 60, bgm: 60 } as const
 /** stem mini 音轨列宽（4 条竖排小条，仅逆推资产集等有 audioStems 的项目渲染）。 */
@@ -1700,17 +1822,113 @@ function AudioTrackRect({
   )
 }
 
+/**
+ * 跨镜波形活动段条块（波形活动段数据：dialogue 精确时间窗 / ambient / bgm 长段）。
+ * 与 AudioTrackRect 的区别：几何不再夹在单一分镜行内，而是按全片绝对时间窗
+ * [startSec, endSec] 经 timeToY 映射为竖轴区间 —— 高度 = 时间跨度，可贯穿多个
+ * 分镜行（每行一条水平分隔线穿过条块，视觉即「跨镜」）。整段播放：filePath 即按
+ * 窗切出的 wav，直接 onAudioPlay（共享 audio 播放器整段播，无镜窗暂停语义）。
+ * 高度夹到 [MIN_SPAN_TRACK_H, ∞)（极短段 ≥6px 可见可点）。
+ */
+function SpanTrackBar({
+  track,
+  type,
+  index,
+  timeToY,
+  activeAudioPath,
+  onAudioPlay,
+}: {
+  track: AudioTrack
+  type: 'dialogue' | 'ambient' | 'bgm'
+  /** 同列内序号（条块重叠时水平微移，错开可点）。 */
+  index: number
+  timeToY: (t: number) => number
+  activeAudioPath: string | null
+  onAudioPlay: (track: AudioTrack) => void
+}) {
+  const meta = TRACK_META[type]
+  const width = VT_COL[type]
+  const { top, height } = spanTrackGeometry(track, timeToY)
+  // 同列内时间重叠的条块水平错开（活动段数据理论不重叠，防御 UI 退化）
+  const leftShift = index % 2 === 1 ? 6 : 0
+  const isActive = activeAudioPath === track.filePath
+  const label = track.speaker ?? track.audioType ?? track.clipType ?? ''
+  const title = [
+    track.audioType || track.clipType || '音频',
+    track.speaker ? track.speaker : '',
+    `${formatTime(track.startSec ?? 0)}→${formatTime(track.endSec ?? 0)}`,
+    formatDuration(track.durationS),
+  ].filter(Boolean).join(' · ') + (track.text ? `\n${track.text}` : '')
+  return (
+    <button
+      data-testid="vt-span-bar"
+      onClick={(e) => { e.stopPropagation(); onAudioPlay(track) }}
+      title={title}
+      style={{
+        position: 'absolute',
+        top,
+        left: 2 + leftShift,
+        width: width - 6 - leftShift,
+        height,
+        overflow: 'hidden',
+        cursor: 'pointer',
+        padding: height >= 14 ? '2px 14px 2px 5px' : '0 12px 0 3px',
+        borderRadius: 3,
+        textAlign: 'left',
+        background: isActive ? meta.bgActive : meta.bg,
+        border: `1px solid ${meta.border}`,
+        borderLeft: `${isActive ? 3 : 2}px solid ${meta.border}`,
+        color: '#fff',
+      }}
+    >
+      {height >= 14 && (
+        <div style={{
+          fontSize: 9, fontWeight: 600, lineHeight: 1.25,
+          overflow: 'hidden', display: '-webkit-box',
+          WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+          wordBreak: 'break-word',
+        }}>
+          {track.text ? (
+            <>
+              {label && <span style={{ opacity: 0.9 }}>{label}： </span>}
+              {track.text}
+            </>
+          ) : label}
+        </div>
+      )}
+      {height >= 26 && (
+        <span style={{
+          position: 'absolute', bottom: 2, right: 4,
+          fontSize: 8, opacity: 0.75,
+          fontFamily: 'var(--cv-font-mono, monospace)',
+        }}>{formatDuration(track.durationS)}</span>
+      )}
+    </button>
+  )
+}
+
 /** 单条音轨列（对白/环境/BGM）。bgm 列 flex 吸收面板右侧余量。
- *  每条音轨的几何由 metricByNodeId（左侧 ShotRow 实测）提供，保证与分镜行对齐。 */
+ *  两种条块共用本列：
+ *   - spans（波形活动段，有 start_sec/end_sec）：按全片绝对时间坐标跨镜渲染——
+ *     top/height 由 createTimeToY 分段线性映射换算，贯穿多个分镜行（BGM 106.5-135.5s
+ *     跨 13 行不再压缩在起始镜行内）。点击整段播放（文件即按窗切出，无镜窗语义）。
+ *   - items（旧数据，无时间窗）：沿用 AudioTrackRect 的 shotKey 行内挂载，逐字节不变。
+ *  无活动段的行不画任何条块（列背景即空）。 */
 function TrackLane({
   type,
   items,
+  spans,
+  timeToY,
   metricByNodeId,
   activeAudioPath,
   onAudioPlay,
 }: {
   type: 'dialogue' | 'ambient' | 'bgm'
   items: Array<{ shot: TimedShot; track: AudioTrack }>
+  /** 波形活动段条块（绝对时间窗渲染，可跨镜）。 */
+  spans?: AudioTrack[]
+  /** 绝对时间 → y 坐标映射（createTimeToY 产物；spans 非空时必传）。 */
+  timeToY?: (t: number) => number
   metricByNodeId: Map<string, { top: number; height: number }>
   activeAudioPath: string | null
   onAudioPlay: (track: AudioTrack) => void
@@ -1720,6 +1938,17 @@ function TrackLane({
     : { width: VT_COL[type], position: 'relative', flexShrink: 0, zIndex: 1, borderRight: `1px solid ${theme.border.dim}` }
   return (
     <div style={containerStyle}>
+      {spans && timeToY && spans.map((track, i) => (
+        <SpanTrackBar
+          key={`span-${track.filePath}-${i}`}
+          track={track}
+          type={type}
+          index={i}
+          timeToY={timeToY}
+          activeAudioPath={activeAudioPath}
+          onAudioPlay={onAudioPlay}
+        />
+      ))}
       {items.map(({ shot, track }, i) => {
         const g = metricByNodeId.get(shot.node.id) ?? {
           top: shot.startSec * PX_PER_SEC,
@@ -1840,20 +2069,37 @@ function VerticalTimeline({
   // stem 列仅在有 audioStems 数据时渲染（面板相应加宽）
   const hasStems = shots.some((s) => s.audioStems && Object.values(s.audioStems).some(Boolean))
 
-  // 音轨按类别分桶（保留所属 shot）
+  // 音轨按类别分桶；波形活动段（有绝对时间窗）与旧数据（无窗）分流 ——
+  // 前者跨镜渲染（时间坐标），后者保持 shotKey 行内挂载（管线项目回归不变）。
   const buckets = useMemo(() => {
     const dialogue: Array<{ shot: TimedShot; track: AudioTrack }> = []
     const ambient: Array<{ shot: TimedShot; track: AudioTrack }> = []
     const bgm: Array<{ shot: TimedShot; track: AudioTrack }> = []
+    const spanDialogue: AudioTrack[] = []
+    const spanAmbient: AudioTrack[] = []
+    const spanBgm: AudioTrack[] = []
+    const seenSpan = new Set<string>() // filePath 去重：多镜挂载 + 场景级回挂会让同一段重复入桶
     for (const shot of shots) {
       for (const track of shot.audioTracks ?? []) {
         const cls = classifyAudioTrack(track)
-        if (cls === 'dialogue') dialogue.push({ shot, track })
+        if (!cls) continue
+        if (hasSpanWindow(track)) {
+          if (seenSpan.has(track.filePath)) continue // 跨镜段只渲染一次（不被挂载镜数放大）
+          seenSpan.add(track.filePath)
+          if (cls === 'dialogue') spanDialogue.push(track)
+          else if (cls === 'ambient') spanAmbient.push(track)
+          else spanBgm.push(track)
+        } else if (cls === 'dialogue') dialogue.push({ shot, track })
         else if (cls === 'ambient') ambient.push({ shot, track })
         else if (cls === 'bgm') bgm.push({ shot, track })
       }
     }
-    return { dialogue, ambient, bgm }
+    // 活动段按 startSec 排序：视觉沿时间轴自上而下，重叠时 index 错开也稳定
+    const byStart = (a: AudioTrack, b: AudioTrack) => (a.startSec ?? 0) - (b.startSec ?? 0)
+    spanDialogue.sort(byStart)
+    spanAmbient.sort(byStart)
+    spanBgm.sort(byStart)
+    return { dialogue, ambient, bgm, spanDialogue, spanAmbient, spanBgm }
   }, [shots])
 
   const totalSec = shots.length ? shots[shots.length - 1].endSec : 0
@@ -1862,6 +2108,13 @@ function VerticalTimeline({
   const hasMetrics = rowMetrics.length > 0 && rowMetrics.length === shots.length
   const rowTopOf = (i: number) => hasMetrics ? rowMetrics[i]!.top : shots[i]!.startSec * PX_PER_SEC
   const rowHeightOf = (i: number) => hasMetrics ? rowMetrics[i]!.height : Math.max(28, shots[i]!.layoutDur * PX_PER_SEC)
+  // 绝对时间 → y（分段线性；跨镜活动段条块定位用）。行几何或 shots 变化时重建。
+  const timeToY = useMemo(
+    () => createTimeToY(shots, (i) => ({ top: rowTopOf(i), height: rowHeightOf(i) })),
+    // rowTopOf/rowHeightOf 闭包依赖 hasMetrics/rowMetrics/shots
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [shots, hasMetrics, rowMetrics],
+  )
   const metricByNodeId = useMemo(() => {
     const m = new Map<string, { top: number; height: number }>()
     shots.forEach((s, i) => m.set(s.node.id, { top: rowTopOf(i), height: rowHeightOf(i) }))
@@ -2094,10 +2347,11 @@ function VerticalTimeline({
             })}
           </div>
 
-          {/* 三类音轨列（对白 88 / 环境 60 / BGM 60→flex） */}
-          <TrackLane type="dialogue" items={buckets.dialogue} metricByNodeId={metricByNodeId} activeAudioPath={activeAudioPath} onAudioPlay={onAudioPlay} />
-          <TrackLane type="ambient" items={buckets.ambient} metricByNodeId={metricByNodeId} activeAudioPath={activeAudioPath} onAudioPlay={onAudioPlay} />
-          <TrackLane type="bgm" items={buckets.bgm} metricByNodeId={metricByNodeId} activeAudioPath={activeAudioPath} onAudioPlay={onAudioPlay} />
+          {/* 三类音轨列（对白 88 / 环境 60 / BGM 60→flex）。
+              spans=波形活动段跨镜条块（绝对时间坐标）；items=无窗旧数据（shotKey 行内挂载）。 */}
+          <TrackLane type="dialogue" items={buckets.dialogue} spans={buckets.spanDialogue} timeToY={timeToY} metricByNodeId={metricByNodeId} activeAudioPath={activeAudioPath} onAudioPlay={onAudioPlay} />
+          <TrackLane type="ambient" items={buckets.ambient} spans={buckets.spanAmbient} timeToY={timeToY} metricByNodeId={metricByNodeId} activeAudioPath={activeAudioPath} onAudioPlay={onAudioPlay} />
+          <TrackLane type="bgm" items={buckets.bgm} spans={buckets.spanBgm} timeToY={timeToY} metricByNodeId={metricByNodeId} activeAudioPath={activeAudioPath} onAudioPlay={onAudioPlay} />
           {/* Demucs stem mini 音轨列（仅逆推资产集等有 audioStems 的项目渲染） */}
           {hasStems && onStemPlay && (
             <StemLane shots={shots} metricByNodeId={metricByNodeId} activeStem={activeStem ?? null} onStemPlay={onStemPlay} />
