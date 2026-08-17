@@ -159,6 +159,9 @@ async function requestComfyuiFree(comfyuiUrl: string): Promise<boolean> {
  * @param engineKey  ENGINE_VRAM_REQUIREMENTS 键 (未知键用 default 8GB)
  * @param gpuIndex   GPU 索引 (env KAP_VRAM_GPU_INDEX / 默认 1 — GPU1 是生成卡)
  * @param comfyuiUrl ComfyUI 基地址 (用于 /free 驱逐; 空串则跳过驱逐直接判)
+ * @param requireVramMiB 显存需求覆盖 (MiB) — 不传时查 ENGINE_VRAM_REQUIREMENTS。
+ *   供「常驻 server 已占住基线显存, 只需按增量预检」的引擎用 (music3: 模型加载后
+ *   权重经 CPU offload 驻留, 生成峰值增量 ~6GB; 按满卡 22GB 预检会结构性死锁)。
  */
 export async function ensureVram(
   engineKey: string,
@@ -166,8 +169,9 @@ export async function ensureVram(
     ? parseInt(process.env.KAP_VRAM_GPU_INDEX, 10)
     : 1,
   comfyuiUrl?: string,
+  requireVramMiB?: number,
 ): Promise<{ freeMiB: number; requiredMiB: number; evicted: boolean }> {
-  const requiredMiB = ENGINE_VRAM_REQUIREMENTS[engineKey] ?? ENGINE_VRAM_REQUIREMENTS.default;
+  const requiredMiB = requireVramMiB ?? ENGINE_VRAM_REQUIREMENTS[engineKey] ?? ENGINE_VRAM_REQUIREMENTS.default;
 
   // 调试逃生口: KAP_VRAM_SKIP=1 直接放行
   if (process.env.KAP_VRAM_SKIP === "1") {
@@ -333,11 +337,13 @@ export interface GpuQueueResult<T> {
  * @param opts.gpuIndex  GPU 索引 (默认 env KAP_VRAM_GPU_INDEX / 1)
  * @param opts.comfyuiUrl ComfyUI 基地址 (传给 ensureVram 做 /free 驱逐; 可省略)
  * @param opts.skipVram   跳过显存预检 (调用方已自行预检过时用)
+ * @param opts.requireVramMiB 显存需求覆盖 (MiB, 透传 ensureVram) — 常驻 server
+ *   引擎按「生成增量」而非表值预检时用; 不传走 ENGINE_VRAM_REQUIREMENTS
  */
 export async function withGpuQueueTimed<T>(
   engineKey: string,
   fn: (queueWaitMs: number) => Promise<T>,
-  opts: { gpuIndex?: number; comfyuiUrl?: string; skipVram?: boolean } = {},
+  opts: { gpuIndex?: number; comfyuiUrl?: string; skipVram?: boolean; requireVramMiB?: number } = {},
 ): Promise<GpuQueueResult<T>> {
   const gpuIndex = opts.gpuIndex ?? defaultGpuIndex();
 
@@ -442,7 +448,7 @@ export async function withGpuQueueTimed<T>(
         let lastErr: VramInsufficientError | null = null;
         while (Date.now() < deadline) {
           try {
-            await ensureVram(engineKey, gpuIndex, opts.comfyuiUrl);
+            await ensureVram(engineKey, gpuIndex, opts.comfyuiUrl, opts.requireVramMiB);
             lastErr = null;
             break;
           } catch (err) {
@@ -500,7 +506,7 @@ export async function withGpuQueueTimed<T>(
 export async function withGpuQueue<T>(
   engineKey: string,
   fn: () => Promise<T>,
-  opts: { gpuIndex?: number; comfyuiUrl?: string; skipVram?: boolean } = {},
+  opts: { gpuIndex?: number; comfyuiUrl?: string; skipVram?: boolean; requireVramMiB?: number } = {},
 ): Promise<T> {
   const { data } = await withGpuQueueTimed(engineKey, () => fn(), opts);
   return data;

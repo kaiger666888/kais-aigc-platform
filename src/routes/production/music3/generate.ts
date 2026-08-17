@@ -49,6 +49,34 @@ async function serverUp(): Promise<boolean> {
   }
 }
 
+/**
+ * VRAM 预检需求覆盖 (2026-08-17 结构性死锁修复):
+ *
+ * 根因: ENGINE_VRAM_REQUIREMENTS.music3 = 22528MiB (满卡) 是「首次加载」的需求;
+ * 但 music3-server 是常驻进程 —— 模型加载后权重经 MUSIC3_CPU_OFFLOAD 驻留,
+ * server 自身只占 GPU ~256MiB, 生成峰值增量也只需 ~6GB。server 常驻时若仍按
+ * 22528 预检, free 永远 < 22528 (别的进程/残留总占着卡), m3 任务 100% 排队
+ * 1800s 后 vram_insufficient (实证: free 5158MiB < need 22528MiB 死循环)。
+ *
+ * 修正: 锁前查 /health ——
+ *   model_loaded=true  (模型已驻留) → 按增量 6144MiB 预检
+ *   model_loaded=false (server 空载) → 维持表值 22528MiB (首次加载需满卡)
+ *   health 查询失败            → 保守按表值 22528MiB
+ * 覆盖后的预检天然处理「其他引擎占卡」: free < 6GB 仍会排队等待。
+ */
+const MUSIC3_WARM_REQUIRE_VRAM_MIB = 6144; // server 常驻时生成峰值增量 ~6GB
+
+async function resolveRequireVramMiB(): Promise<number | undefined> {
+  try {
+    const r = await fetch(`${MUSIC3_CONFIG.serverUrl}/health`, { signal: AbortSignal.timeout(3000) });
+    if (!r.ok) return undefined; // 查询失败 → 保守按表值
+    const h = (await r.json()) as { model_loaded?: boolean };
+    return h.model_loaded === true ? MUSIC3_WARM_REQUIRE_VRAM_MIB : undefined;
+  } catch {
+    return undefined; // 查询失败 → 保守按表值
+  }
+}
+
 /** 提交生成任务 → 返回 task_id */
 async function submitTask(body: {
   prompt: string;
@@ -125,6 +153,8 @@ export default router.post(
       // ─── GPU 全局串行队列 (gpuVramManager withGpuQueue, 2026-08-16 二期) ───
       // Music3 ~22GB (近乎满卡), 与 ComfyUI 各引擎互斥。锁内「提交+同步等待完成」;
       // 异步模式锁只罩提交 (server 单任务串行, 提交返回即代表 GPU 已排他接管)。
+      // requireVramMiB: server 常驻 (model_loaded) 时按增量 6GB 预检, 否则表值 22528
+      // —— 见 resolveRequireVramMiB 注释 (结构性死锁根因)。
       const { taskId, finalState } = await withGpuQueue(
         "music3",
         async () => {
@@ -140,7 +170,7 @@ export default router.post(
           const finalState = req.body.wait ? await pollUntilDone(taskId) : null;
           return { taskId, finalState };
         },
-        { gpuIndex: 1 },
+        { gpuIndex: 1, requireVramMiB: await resolveRequireVramMiB() },
       );
 
       // 异步模式: 立即返回 taskId
