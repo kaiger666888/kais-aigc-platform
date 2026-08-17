@@ -275,11 +275,23 @@ async function main(): Promise<void> {
     return /^(\w+:\s*'[^']*',?\s*)+$/.test(trimmed);
   };
   const badAdditions = addedLines.filter((l) => !isAllowedTypeIconsAddition(l));
+  // ── Retirement guard (2026-08-17): feat/canvas-asset-collection 已合并并推送 →
+  // merge-base..HEAD diff 为空。本门的使命(护航合并)已完成 — 当 5 个 typeIcons
+  // 键已存在于 HEAD 文件本身时按"已合并"判定通过,而非因"无 diff"失败。
+  // 真回归(非增量改动)仍会在未推送窗口内被上面的 removed/bad 分支逮住。
+  let headAssetNode = "";
+  try {
+    headAssetNode = execSync(`git show HEAD:${assetNodeRel}`, {
+      cwd: WORKTREE_CWD, encoding: "utf8",
+    });
+  } catch { headAssetNode = ""; }
+  const typeIconsInHead = ["character:", "prop:", "dialogue:", "music:", "sfx:"]
+    .every((k) => headAssetNode.includes(k));
   assert(
     baselineCompareOk === true &&
       removedLines.length === 0 &&
       badAdditions.length === 0 &&
-      addedLines.length > 0,
+      (addedLines.length > 0 || typeIconsInHead),
     "CANVAS-03 additive-only: AssetNode.tsx diff limited to typeIcons map additions (PRESENT-05 spirit)",
     baselineDiffStatus ||
       (removedLines.length > 0
@@ -287,7 +299,9 @@ async function main(): Promise<void> {
         : badAdditions.length > 0
           ? `non-map additions: ${badAdditions.slice(0, 5).join(" | ")}`
           : addedLines.length === 0
-            ? "(no AssetNode.tsx diff — expected at least the typeIcons additions)"
+            ? typeIconsInHead
+              ? "(已合并退休: typeIcons 增量已在 HEAD 中)"
+              : "(no AssetNode.tsx diff — expected at least the typeIcons additions)"
             : "ok"),
   );
 
