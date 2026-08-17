@@ -177,6 +177,13 @@ After (目标):
 | `/api/v1/assets/:id` | PATCH | 更新元数据 | Blender edit asset metadata |
 | `/api/v1/assets/project/:projectId` | GET | 列出项目所有资产 | Shotgrid project assets |
 | `/api/v1/assets/:id/variants` | GET | 列出资产的变体 | Unreal Asset Bundles |
+| `/api/v1/assets-registry/project/:projectId` | GET | 项目全量资产清单（**实测落地形态**，上表 `/api/v1/assets/project/...` 设计稿的实际实现） | Shotgrid project assets |
+| `/api/canvas/projects` | POST | 项目列表（空 body；**GET 返回 404**，该端点只收 POST） | 画布项目元数据（含 episodes/nodeCount） |
+
+> 实测注记（2026-08-16，qwen-eye iframe SPEC 审计取证）：资产清单的现行正解是
+> `GET /api/v1/assets-registry/project/:projectId`（响应为 `{code,message,data}` 信封，
+> 先解包再解析）；`GET /api/canvas/projects` 与 `/api/assets?...` 均不存在（404），
+> 项目元数据必须 `POST /api/canvas/projects` 空 body 获取。
 
 ## 4. 迁移策略
 
