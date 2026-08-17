@@ -149,13 +149,27 @@ interface TimedShot extends StoryboardShot {
  * `b`，夹在 `_` 与数字之间；旧正则 `_0*(\d+)` 要求下划线后紧跟数字，遇到 `b` 即失配，
  * 导致所有分镜 shotKey 落空、去重永不触发（同一 shot 的 shot_list/e_konte/transition
  * 三类节点各占一个序号位）。`[a-z]*` 吞掉该字母前缀再取数字。
+ *
+ * 两遍扫描：第一遍对**全部**候选跑 beat 正则（管线项目行为逐字节不变）；仅当全部
+ * miss 时第二遍回退 paddedShotIdOf 场景键（`S001`→`S01`）—— 逆推资产集项目的
+ * shot_id 是纯场景号（无 beat 段），storyboard（`a-shot_list-S001`）与 audio
+ * （`a-aud_S001_dialogue`）两侧同走此回退即可对上（修竖幅三音轨列恒空）。
+ * 场景键零填充 `S{NN}` 与 beat 键 `s{n}_{m}` 形制不同，永不相撞；场景号 >99 时
+ * padStart(2) 仍产 3 位（S100 ≠ S10），亦无碰撞。
  */
-function shotKeyFromCandidates(...candidates: Array<unknown>): string | null {
+export function shotKeyFromCandidates(...candidates: Array<unknown>): string | null {
+  // Pass 1：beat 形式（S01_B01 → s1_1）—— 先扫全候选，任一命中即返回
   for (const c of candidates) {
     if (!c || typeof c !== 'string') continue
     const norm = c.toLowerCase().replace(/\s+/g, '_')
     const m = norm.match(/s0*(\d+)_[a-z]*0*(\d+)/)
     if (m) return `s${m[1]}_${m[2]}`
+  }
+  // Pass 2（回退）：纯场景号（S001 / s12）→ 零填充场景键（S01 / S12）
+  for (const c of candidates) {
+    if (!c || typeof c !== 'string') continue
+    const scene = paddedShotIdOf(c)
+    if (scene) return scene
   }
   return null
 }
@@ -258,7 +272,7 @@ function assetIdOf(
   return null
 }
 
-function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<string, Record<string, unknown>> | null): StoryboardShot[] {
+export function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<string, Record<string, unknown>> | null): StoryboardShot[] {
   if (!graph) return []
 
   // Pass 1：storyboard 节点 → 分镜（保留原逻辑，仅追加帧描述 / shotKey）
