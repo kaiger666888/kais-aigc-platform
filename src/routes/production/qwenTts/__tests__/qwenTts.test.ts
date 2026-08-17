@@ -593,13 +593,18 @@ export async function testAppMountTwoPhase(): Promise<TestResult[]> {
       countReq((c) => c.url.includes("/history/pid-mount-1")) >= 1,
       "status 端点真读 ComfyUI history (非 canned 响应)");
 
-    // 挂载拓扑现状: 单路径根 POST 404 (indextts2 已做根兼容 0cc5d2ab, qwenTts 未做 — 见报告)
+    // 挂载拓扑: 根路径兼容 (照 indextts2 0cc5d2ab 先例双挂载后, 单路径不再是 404)
     const root = await httpReq(port, "POST", "/api/production/qwenTts/speak", {
       mode: "custom_voice", text: "x", async: true,
     });
-    check(results, root.status === 404,
-      "现状记录: 单路径根 POST /qwenTts/speak → 404 (无 indextts2 式根兼容)",
-      `status=${root.status}`);
+    const rootJson = JSON.parse(root.body);
+    check(results, root.status === 202 && rootJson.data?.status_url,
+      "根路径兼容: 单路径 POST /qwenTts/speak → 202 (照 indextts2 先例)",
+      `status=${root.status} body=${root.body.slice(0, 200)}`);
+    const rootSt = await httpReq(port, "GET", rootJson.data?.status_url);
+    check(results, rootSt.status === 200,
+      "根路径 202 的 status_url 也是活路径",
+      `status=${rootSt.status}`);
 
     const unknown = await httpReq(port, "POST", "/api/production/qwenTts/speak/nope", {});
     check(results, unknown.status === 404,

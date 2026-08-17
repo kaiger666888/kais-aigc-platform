@@ -1,13 +1,13 @@
 /**
  * Qwen3-TTS — 声音合成 API
  *
- * POST /api/production/qwen-tts/speak
+ * POST /api/production/qwenTts/speak/speak  (或挂载根直达 /api/production/qwenTts/speak)
  *   统一入口：自动路由到三种模式
  *     - voice_design: 文字描述创建声音
  *     - voice_clone:  参考音频克隆
  *     - custom_voice: 预设说话人
  *
- * POST /api/production/qwen-tts/batch
+ * POST /api/production/qwenTts/speak/batch
  *   批量合成：多段文本共享同一配置
  *
  * 工作流：构建 ComfyUI prompt JSON → 提交 → 轮询 → 返回音频路径
@@ -353,7 +353,8 @@ async function uploadRefAudio(
 // ─── Routes ─────────────────────────────────────────────────────────────────
 
 /**
- * POST /api/production/qwen-tts/speak
+ * POST /api/production/qwenTts/speak/speak   (router 挂载点 + 路由名叠加)
+ * POST /api/production/qwenTts/speak         (挂载根直达 — 单路径兼容)
  *
  * Body (JSON):
  *   { mode, text, instruct?, ref_audio?, ref_text?, speaker?, ... }
@@ -366,7 +367,7 @@ async function uploadRefAudio(
  *   VoiceClone:  { mode: "voice_clone", text: "你好", ref_audio: "ref.wav", ref_text: "参考文本" }
  *   CustomVoice: { mode: "custom_voice", text: "Hello", speaker: "Eric" }
  */
-router.post("/speak", async (req: Request, res: Response) => {
+async function speakHandler(req: Request, res: Response): Promise<Response> {
   try {
     let body: SpeakBody;
 
@@ -515,7 +516,14 @@ router.post("/speak", async (req: Request, res: Response) => {
   } catch (err: any) {
     return res.status(500).json(error(err.message || "Internal error"));
   }
-});
+}
+
+// 同一 handler 双挂载 (照 indextts2 0cc5d2ab 先例): 语义路径 /speak (真实路径
+// .../speak/speak) + 挂载根 "/" (Express 精确匹配, 单路径 .../speak 直达)。
+// 此前单路径 POST /api/production/qwenTts/speak 404 — 与 indextts2 同款挂载
+// 拓扑坑。双路径都通, 客户端不再踩 404。
+router.post("/speak", speakHandler);
+router.post("/", speakHandler);
 
 /**
  * POST /api/production/qwen-tts/batch
