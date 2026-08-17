@@ -37,6 +37,24 @@ interface AudioTrack {
   filePath: string
   /** 对白/旁白原文（仅 voice 节点有；竖幅对白轨展示截断文字用）。 */
   text?: string
+  /** 播放窗口（[start, end] 秒）— Demucs stem 按分镜片段播放用；P10 轨无窗口（全曲播）。 */
+  windowSec?: [number, number]
+}
+
+/** Demucs 4-stem（逆推资产集项目 storyboard data.audioStems 穯透）。 */
+interface AudioStems {
+  vocals?: string
+  drums?: string
+  bass?: string
+  other?: string
+}
+
+/** stem 名 → 展示元信息（颜色对齐 TRACK_META 三轨色系 + 补 drums 独立色）。 */
+const STEM_META: Record<string, { color: string; label: string }> = {
+  vocals: { color: '#89B4FA', label: 'vocals 人声' },
+  drums: { color: '#F9E2AF', label: 'drums 鼓' },
+  bass: { color: '#A6E3A1', label: 'bass 贝斯' },
+  other: { color: '#CBA6F7', label: 'other 其他' },
 }
 
 interface StoryboardShot {
@@ -67,6 +85,21 @@ interface StoryboardShot {
   startFrameDesc?: string
   /** P09 文字尾帧描述（无尾帧图时降级展示）。 */
   endFrameDesc?: string
+  /**
+   * 原片片段（逆推资产集项目）：storyboard data.clipPath（原片 mp4 的 /oss/ 原样路径，
+   * 含全角括号/空格——播放时 encodeURI）+ start_sec/end_sec 片段窗口。
+   * 与 videoUrl（P11 单镜成片）互斥优先：clipPath 走片段播放器（#t=start,end）。
+   */
+  clipPath?: string | null
+  /** 逆推富化键：首帧 jpg 原样路径（keyframe reverse 产物）。 */
+  firstFrameUrl?: string | null
+  /** 逆推富化键：尾帧 jpg 原样路径。 */
+  lastFrameUrl?: string | null
+  /** 原片内片段起止（秒）——clipPath 存在时用于 seek/暂停窗口。 */
+  clipStartSec?: number
+  clipEndSec?: number
+  /** Demucs 4-stem 音轨路径（逆推资产集项目；无则不渲染 stem mini 轨）。 */
+  audioStems?: AudioStems
   /** 规一化 shot 键（s1_1）— 跨 storyboard↔video↔audio 无 link，靠它关联。 */
   shotKey?: string | null
   /** P10 音频轨（每分镜 1–2 条）。 */
@@ -269,6 +302,16 @@ function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<string, Re
       promptFacets: meta.promptMeta,
       startFrameDesc: (raw.start_frame_description as string) ?? undefined,
       endFrameDesc: (raw.end_frame_description as string) ?? undefined,
+      // 逆推资产集：原片片段窗口 + Demucs stems（富化脚本写入；缺席时 undefined → 行为不变）
+      clipPath: typeof raw.clipPath === 'string' && raw.clipPath ? raw.clipPath : undefined,
+      firstFrameUrl: typeof raw.firstFrameUrl === 'string' && raw.firstFrameUrl ? raw.firstFrameUrl : undefined,
+      lastFrameUrl: typeof raw.lastFrameUrl === 'string' && raw.lastFrameUrl ? raw.lastFrameUrl : undefined,
+      clipStartSec: typeof raw.start_sec === 'number' ? raw.start_sec : undefined,
+      clipEndSec: typeof raw.end_sec === 'number' ? raw.end_sec : undefined,
+      audioStems:
+        raw.audioStems && typeof raw.audioStems === 'object'
+          ? (raw.audioStems as AudioStems)
+          : undefined,
       shotKey: shotKeyFromCandidates(raw.shot_id, raw.label, meta.shotId, node.id),
     })
   }
@@ -332,6 +375,11 @@ function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<string, Re
       const lf = lastFrameByShot.get(key)
       if (lf) shot.lastFrame = lf
     }
+
+    // Pass 3.5（逆推资产集）：富化键兜底——本项目无 P11 video / frame_last 节点，
+    // 首尾帧直接取 storyboard data 的 firstFrameUrl / lastFrameUrl（keyframe jpg）。
+    if (!shot.firstFrame && shot.firstFrameUrl) shot.firstFrame = shot.firstFrameUrl
+    if (!shot.lastFrame && shot.lastFrameUrl) shot.lastFrame = shot.lastFrameUrl
 
     // Pass 3 兜底：从 P11 video 节点的 OSS 路径直接构造首尾帧 URL。
     // 磁盘上有成对 first_frames_*/last_frames_* 文件且已生成 .webp 缩略图，
@@ -1071,8 +1119,8 @@ function ShotRow({
             placeholderTag="首帧"
             placeholderText={shot.startFrameDesc}
             width={compact ? 88 : 104}
-            playHint={!firstFrameUrl && !!shot.videoUrl}
-            badge={shot.videoUrl ? (
+            playHint={!firstFrameUrl && (!!shot.videoUrl || !!shot.clipPath)}
+            badge={shot.videoUrl || shot.clipPath ? (
               <div style={{
                 position: 'absolute', top: 3, left: 3,
                 display: 'inline-flex', alignItems: 'center', gap: 2,
@@ -1104,7 +1152,17 @@ function ShotRow({
             placeholderTag="尾帧"
             placeholderText={shot.endFrameDesc}
             width={compact ? 88 : 104}
-            playHint={!!shot.videoUrl}
+            playHint={!!shot.videoUrl || !!shot.clipPath}
+            badge={lastFrameUrl ? (
+              <span style={{
+                position: 'absolute', top: 3, right: 3,
+                padding: '0 4px', borderRadius: 3,
+                background: 'rgba(0,0,0,0.72)', color: '#fff',
+                fontSize: 9, fontWeight: 700, lineHeight: '14px',
+                fontFamily: 'var(--cv-font-mono, monospace)',
+                backdropFilter: 'blur(4px)',
+              }}>尾</span>
+            ) : undefined}
           />
         </div>
       )}
@@ -1283,6 +1341,7 @@ function VideoPlayer({
   portraitHeight,
   fixedWidth,
   onClose,
+  clipWindow,
 }: {
   shotId: string
   videoUrl: string
@@ -1292,10 +1351,18 @@ function VideoPlayer({
   /** portrait 左置时的固定列宽（px）；undefined → landscape flex 列。 */
   fixedWidth?: number
   onClose: () => void
+  /**
+   * 片段窗口 [startSec, endSec]（原片逆推模式）：src 加 #t=start,end 片段锚点 +
+   * timeupdate 兜底（到 end 暂停）。P11 单镜成片无窗口（整片播）。
+   */
+  clipWindow?: [number, number] | null
 }) {
   // <video> 元素的真实时长优先于 storyboard durationS（后者常因 duration_sec 未映射为 0）
   const [realDur, setRealDur] = useState<number | null>(null)
   const isLandscape = mode === 'landscape'
+  const [startSec, endSec] = clipWindow ?? [null, null]
+  // 片段窗口 seek 守卫：loadedmetadata 后只自动 seek 一次（用户拖走进度条不再拽回）
+  const seekedRef = useRef(false)
   // 尺寸：portrait 左置（fixedWidth）优先；其次 landscape flex；最后兜底 portrait 顶部全宽。
   const selfStyle: CSSProperties = fixedWidth != null
     ? { width: fixedWidth, flexShrink: 0, height: '100%', borderRight: `1px solid ${theme.border.default}` }
@@ -1342,13 +1409,25 @@ function VideoPlayer({
       <div style={{ flex: 1, minHeight: 0, padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <video
           key={videoUrl}
-          src={videoUrl}
+          src={startSec != null ? `${videoUrl}#t=${startSec},${endSec ?? ''}` : videoUrl}
           controls
           autoPlay
           playsInline
           onLoadedMetadata={(e) => {
-            const d = (e.currentTarget as HTMLVideoElement).duration
+            const el = e.currentTarget as HTMLVideoElement
+            const d = el.duration
             if (isFinite(d) && d > 0) setRealDur(d)
+            // 片段锚点支持不一（Chromium 忽略 hash）→ metadata 就绪后显式 seek 兜底
+            if (startSec != null && !seekedRef.current && isFinite(startSec)) {
+              seekedRef.current = true
+              try { el.currentTime = startSec } catch { /* 未就绪静默 */ }
+            }
+          }}
+          onTimeUpdate={(e) => {
+            // 到片段末尾暂停（兜底；浏览器片段锚点行为不一）
+            if (endSec != null && isFinite(endSec) && e.currentTarget.currentTime >= endSec) {
+              e.currentTarget.pause()
+            }
           }}
           style={{
             width: '100%', height: '100%', objectFit: 'contain',
@@ -1359,6 +1438,16 @@ function VideoPlayer({
           }}
         />
       </div>
+      {/* 片段窗口标签（原片逆推模式）：显示窗口区间提示 */}
+      {startSec != null && (
+        <div style={{
+          flexShrink: 0, padding: '2px 16px 6px',
+          fontSize: 10, color: theme.text.tertiary,
+          fontFamily: 'var(--cv-font-mono, monospace)',
+        }}>
+          原片片段 {formatTime(startSec)}→{formatTime(endSec ?? startSec)}（播放到此自动暂停）
+        </div>
+      )}
     </div>
   )
 }
@@ -1456,6 +1545,10 @@ interface VerticalTimelineProps {
   rowMetrics: RowMetric[]
   /** 左侧列表内容总高（scrollHeight）—— 让时间轴滚动范围与列表一致。 */
   listContentHeight: number | null
+  /** 当前播放中的 stem 标识（`${nodeId}:${stem}`）；null 无。 */
+  activeStem?: string | null
+  /** stem mini 轨点击 → 共享 audio 片段播放（父组件持有 <audio>）。 */
+  onStemPlay?: (stem: string, filePath: string, windowSec: [number, number], id: string) => void
 }
 
 /** 竖幅时间轴：每秒高度（px）。值小 → 长分镜不至撑爆屏幕，便于纵观全局节奏。 */
@@ -1482,9 +1575,13 @@ const TRACK_META = {
 
 /** 竖幅各列宽度（header 行与内容列严格对齐；bgm 列 flex 吸收右侧余量）。 */
 const VT_COL = { time: 36, shot: 80, dialogue: 88, ambient: 60, bgm: 60 } as const
+/** stem mini 音轨列宽（4 条竖排小条，仅逆推资产集等有 audioStems 的项目渲染）。 */
+const VT_COL_STEMS = 44
 /** 分镜矩形按场景号循环的 4 模态色板（相邻 scene 不同色）。 */
 const VT_SCENE_COLORS = [v3theme.modality.image, v3theme.modality.video, v3theme.modality.audio, v3theme.modality.text] as const
 const VT_PANEL_W = 360
+/** 含 stem 列时的面板总宽（stem 列 44px 追加在 bgm 列后）。 */
+const VT_PANEL_W_STEMS = VT_PANEL_W + VT_COL_STEMS
 const VT_COLLAPSED_W = 44
 
 /** 从 shotId 取场景号（首个数字段），用于分镜矩形交替着色。 */
@@ -1631,6 +1728,79 @@ function TrackLane({
   )
 }
 
+// ─── Demucs stem mini 音轨（逆推资产集：storyboard data.audioStems） ───
+
+/**
+ * stem mini 音轨列：每分镜行右侧并排 4 条竖条（vocals/drums/bass/other），
+ * 高度 ∝ duration_sec 等比（同 AudioTrackRect 的 durH 公式），颜色按 STEM_META 区分。
+ * 点击某条 → onStemPlay(stem, filePath, [start_sec, end_sec]) 共享 audio 片段播放。
+ * 无 audioStems 数据的项目整块不渲染（向后兼容管线产出项目）。
+ */
+function StemLane({
+  shots,
+  metricByNodeId,
+  activeStem,
+  onStemPlay,
+}: {
+  shots: TimedShot[]
+  metricByNodeId: Map<string, { top: number; height: number }>
+  /** 当前播放中的 stem 标识（`${nodeId}:${stem}`）；null 无。 */
+  activeStem: string | null
+  onStemPlay: (stem: string, filePath: string, windowSec: [number, number], id: string) => void
+}) {
+  const stems = ['vocals', 'drums', 'bass', 'other'] as const
+  return (
+    <div style={{
+      width: VT_COL_STEMS, position: 'relative', flexShrink: 0, zIndex: 1,
+      borderRight: `1px solid ${theme.border.dim}`,
+    }}>
+      {shots.map((shot) => {
+        if (!shot.audioStems) return null
+        const g = metricByNodeId.get(shot.node.id) ?? {
+          top: shot.startSec * PX_PER_SEC,
+          height: Math.max(28, shot.layoutDur * PX_PER_SEC),
+        }
+        const durH = Math.max(16, (shot.durationS > 0 ? shot.durationS : MIN_LAYOUT_DUR) * PX_PER_SEC)
+        const height = Math.min(Math.max(18, g.height - 4), durH)
+        return (
+          <div
+            key={`stems-${shot.node.id}`}
+            style={{ position: 'absolute', top: g.top + 2, left: 2, display: 'flex', gap: 2, height }}
+          >
+            {stems.map((stem) => {
+              const fp = shot.audioStems?.[stem]
+              if (!fp) return null
+              const meta = STEM_META[stem]
+              const id = `${shot.node.id}:${stem}`
+              const isActive = activeStem === id
+              const win: [number, number] = [shot.clipStartSec ?? 0, shot.clipEndSec ?? shot.durationS]
+              return (
+                <button
+                  key={stem}
+                  data-testid="vt-stem-rect"
+                  onClick={(e) => { e.stopPropagation(); onStemPlay(stem, fp, win, id) }}
+                  title={`${meta.label} · ${shot.shotId} · ${formatTime(win[0])}→${formatTime(win[1])}`}
+                  style={{
+                    width: (VT_COL_STEMS - 6 - 6) / 4,
+                    height: '100%',
+                    minHeight: 14,
+                    padding: 0,
+                    borderRadius: 2,
+                    cursor: 'pointer',
+                    background: isActive ? `${meta.color}CC` : `${meta.color}55`,
+                    border: `1px solid ${meta.color}`,
+                    transition: 'background 120ms',
+                  }}
+                />
+              )
+            })}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 /**
  * 竖幅时间轴面板（页面右侧固定）。**行高与左侧 ShotRow 实测对齐**：
  *   - 父组件测量每个 ShotRow 的 offsetTop/offsetHeight（rowMetrics）传入；未就绪时回退时间比例。
@@ -1648,9 +1818,13 @@ function VerticalTimeline({
   shotListRef,
   rowMetrics,
   listContentHeight,
+  activeStem,
+  onStemPlay,
 }: VerticalTimelineProps) {
   const [collapsed, setCollapsed] = useState(false)
   const vtScrollRef = useRef<HTMLDivElement>(null)
+  // stem 列仅在有 audioStems 数据时渲染（面板相应加宽）
+  const hasStems = shots.some((s) => s.audioStems && Object.values(s.audioStems).some(Boolean))
 
   // 音轨按类别分桶（保留所属 shot）
   const buckets = useMemo(() => {
@@ -1781,7 +1955,7 @@ function VerticalTimeline({
       data-testid="vertical-timeline"
       style={{
         position: 'relative', // 作为内部 vtScrollRef 的 offsetParent，使 offsetTop = 表头高度
-        width: VT_PANEL_W, height: '100%', flexShrink: 0,
+        width: hasStems ? VT_PANEL_W_STEMS : VT_PANEL_W, height: '100%', flexShrink: 0,
         display: 'flex', flexDirection: 'column',
         background: theme.bg.panel,
         borderLeft: `1px solid ${theme.border.default}`,
@@ -1817,6 +1991,11 @@ function VerticalTimeline({
         <div style={{ ...headerCellStyle, ...colBorder, width: VT_COL.dialogue }}>💬 对白</div>
         <div style={{ ...headerCellStyle, ...colBorder, width: VT_COL.ambient }}>🔊 环境</div>
         <div style={{ ...headerCellStyle, flex: '1 1 auto', minWidth: VT_COL.bgm }}>🎵 BGM</div>
+        {hasStems && (
+          <div style={{ ...headerCellStyle, ...colBorder, width: VT_COL_STEMS, justifyContent: 'center' }} title="Demucs 分离 stems（点击播放分镜片段）">
+            🎚 Stems
+          </div>
+        )}
       </div>
 
       {/* 滚动内容区 —— ref 供滚动同步；position:relative 让行内绝对定位以本区为原点 */}
@@ -1905,6 +2084,10 @@ function VerticalTimeline({
           <TrackLane type="dialogue" items={buckets.dialogue} metricByNodeId={metricByNodeId} activeAudioPath={activeAudioPath} onAudioPlay={onAudioPlay} />
           <TrackLane type="ambient" items={buckets.ambient} metricByNodeId={metricByNodeId} activeAudioPath={activeAudioPath} onAudioPlay={onAudioPlay} />
           <TrackLane type="bgm" items={buckets.bgm} metricByNodeId={metricByNodeId} activeAudioPath={activeAudioPath} onAudioPlay={onAudioPlay} />
+          {/* Demucs stem mini 音轨列（仅逆推资产集等有 audioStems 的项目渲染） */}
+          {hasStems && onStemPlay && (
+            <StemLane shots={shots} metricByNodeId={metricByNodeId} activeStem={activeStem ?? null} onStemPlay={onStemPlay} />
+          )}
         </div>
       </div>
     </div>
@@ -1923,12 +2106,27 @@ export default function StoryboardTimeline() {
   const episodesId = useCanvasStore((s) => s.episodesId)
   const showToast = useCanvasStore((s) => s.showToast)
 
-  // 视频播放器：单击选中带 P11 视频的分镜即加载
-  const [activeVideo, setActiveVideo] = useState<{ shotId: string; videoUrl: string; durationS: number } | null>(null)
+  // 视频播放器：单击选中带 P11 视频的分镜即加载。
+  // clipWindow 仅原片逆推模式（clipPath）携带——P11 单镜成片整片播。
+  const [activeVideo, setActiveVideo] = useState<{
+    shotId: string
+    videoUrl: string
+    durationS: number
+    clipWindow?: [number, number] | null
+  } | null>(null)
   // 左侧播放器区域折叠/展开：折叠时隐藏播放器列、分镜列表占满宽度、点击分镜只高亮选中不自动播放
   const [playerCollapsed, setPlayerCollapsed] = useState(false)
   // 音频 mini 播放器：点击分镜音轨 chip 即加载
   const [activeAudio, setActiveAudio] = useState<AudioTrack | null>(null)
+  // Demucs stem 片段播放（逆推资产集）：单个共享 <audio>，点击 stem mini 轨加载
+  // 对应 wav 的 [start_sec, end_sec] 窗口（currentTime 设 start，timeupdate 到 end 停）。
+  const [activeStem, setActiveStem] = useState<{
+    id: string // `${nodeId}:${stem}` — 激活高亮键
+    stem: string
+    filePath: string // 已 encodeURI 的可播 URL
+    windowSec: [number, number]
+  } | null>(null)
+  const stemAudioRef = useRef<HTMLAudioElement>(null)
   /**
    * 首尾帧三态覆盖表（nodeId → 三态）。本地乐观状态为会话内权威源——点选只改这张表，
    * 不触碰 store.graph（任何 graph 变更都会经 useMemo 重跑 extractShots 全量重建列表 → 闪烁）。
@@ -2192,9 +2390,20 @@ export default function StoryboardTimeline() {
   const selectShot = (shot: StoryboardShot) => {
     const rfNode = nodes.find((n) => n.id === shot.node.id)
     if (rfNode) setSelectedNode(rfNode)
-    // 仅在播放器展开时才自动播放；折叠态只高亮选中
-    if (!playerCollapsed && shot.videoUrl) {
-      setActiveVideo({ shotId: shot.shotId, videoUrl: shot.videoUrl, durationS: shot.durationS })
+    // 仅在播放器展开时才自动播放；折叠态只高亮选中。
+    // 优先 P11 单镜成片（videoUrl）；原片逆推项目走 clipPath 片段窗口（encodeURI——
+    // 片名含全角括号/空格，原样路径会被浏览器截断在首个非法字符）。
+    if (!playerCollapsed) {
+      if (shot.videoUrl) {
+        setActiveVideo({ shotId: shot.shotId, videoUrl: shot.videoUrl, durationS: shot.durationS })
+      } else if (shot.clipPath) {
+        setActiveVideo({
+          shotId: shot.shotId,
+          videoUrl: encodeURI(shot.clipPath),
+          durationS: shot.durationS,
+          clipWindow: [shot.clipStartSec ?? 0, shot.clipEndSec ?? shot.durationS],
+        })
+      }
     }
   }
 
@@ -2203,6 +2412,22 @@ export default function StoryboardTimeline() {
     const rfNode = nodes.find((n) => n.id === shot.node.id)
     if (rfNode) setDetailNode(rfNode)
   }
+
+  // stem mini 轨点击：共享 <audio> 加载 wav（encodeURI——片名含全角括号/空格）并
+  // 在 metadata 就绪后 seek 到窗口起点；timeupdate 由 <audio> 元素 onTimeUpdate 停。
+  const handleStemPlay = useCallback((
+    stem: string,
+    filePath: string,
+    windowSec: [number, number],
+    id: string,
+  ) => {
+    // 再点同一条 → 停止并收起
+    if (activeStem?.id === id) {
+      setActiveStem(null)
+      return
+    }
+    setActiveStem({ id, stem, filePath: encodeURI(filePath), windowSec })
+  }, [activeStem])
 
   // 折叠/展开播放器列（由播放器边缘竖条触发）：折叠时清除当前视频，避免后台继续播放。
   const togglePlayer = useCallback(() => {
@@ -2289,6 +2514,7 @@ export default function StoryboardTimeline() {
       portraitHeight={portraitPlayerH}
       fixedWidth={playerFixedWidth}
       onClose={() => setActiveVideo(null)}
+      clipWindow={activeVideo.clipWindow ?? null}
     />
   ) : null
 
@@ -2420,6 +2646,8 @@ export default function StoryboardTimeline() {
           shotListRef={shotListRef}
           rowMetrics={rowMetrics}
           listContentHeight={listContentHeight}
+          activeStem={activeStem?.id ?? null}
+          onStemPlay={handleStemPlay}
         />
       </div>
 
@@ -2447,6 +2675,59 @@ export default function StoryboardTimeline() {
           <button
             onClick={() => setActiveAudio(null)}
             title="关闭音频"
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              padding: '2px 7px', borderRadius: 3,
+              color: theme.text.tertiary, fontSize: 13, lineHeight: 1,
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* ─── Demucs stem 片段播放器（共享 <audio>；点击 stem mini 轨滑出） ─── */}
+      {activeStem && (
+        <div style={{
+          flexShrink: 0,
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '6px 16px',
+          background: theme.bg.panel,
+          borderTop: `1px solid ${theme.border.default}`,
+        }}>
+          <span style={{ fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', color: STEM_META[activeStem.stem]?.color ?? v3theme.modality.audio }}>
+            🎚 {STEM_META[activeStem.stem]?.label ?? activeStem.stem}
+          </span>
+          <span style={{ fontSize: 10, color: theme.text.tertiary, whiteSpace: 'nowrap', fontFamily: 'var(--cv-font-mono, monospace)' }}>
+            {formatTime(activeStem.windowSec[0])}→{formatTime(activeStem.windowSec[1])}
+          </span>
+          {/* key 含 id：切 stem/切分镜都重挂载 → autoPlay 生效 */}
+          <audio
+            key={activeStem.id}
+            ref={stemAudioRef}
+            src={activeStem.filePath}
+            controls
+            autoPlay
+            onLoadedMetadata={(e) => {
+              // seek 到片段起点（wav 支持 Range，metadata 就绪即可定位）
+              const el = e.currentTarget as HTMLAudioElement
+              const s = activeStem.windowSec[0]
+              if (isFinite(s) && s > 0) {
+                try { el.currentTime = s } catch { /* 未就绪静默 */ }
+              }
+            }}
+            onTimeUpdate={(e) => {
+              // 到片段末尾停（与视频片段窗口同一兜底策略）
+              const end = activeStem.windowSec[1]
+              if (isFinite(end) && e.currentTarget.currentTime >= end) {
+                e.currentTarget.pause()
+              }
+            }}
+            style={{ height: 28, flex: 1, maxWidth: 480, minWidth: 160 }}
+          />
+          <button
+            onClick={() => setActiveStem(null)}
+            title="关闭 stem 播放"
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
               padding: '2px 7px', borderRadius: 3,
