@@ -33,6 +33,8 @@ interface AudioTrack {
   clipType: string // dialogue / ambient / sfx / bgm
   audioType: string // 人声 / 环境音 / 音效 / 背景音乐
   speaker?: string
+  /** 说话人展示名（raw.speaker_label，"说话人0"…）；竖幅对白说话人 lane tooltip 用。 */
+  speakerLabel?: string
   durationS: number
   filePath: string
   /** 对白/旁白原文（仅 voice 节点有；竖幅对白轨展示截断文字用）。 */
@@ -485,6 +487,10 @@ export function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<str
       audioType: (raw.audio_type as string) ?? (raw.audioType as string) ?? '',
       // speaker 仅人声有意义；'none' / 'null' / 空 视为无
       speaker: normalizeSpeaker(raw.speaker as string),
+      // 说话人展示名（"说话人0"…）；仅有效 speaker 时透传
+      speakerLabel: typeof raw.speaker_label === 'string' && raw.speaker_label.trim()
+        ? raw.speaker_label
+        : undefined,
       // duration_sec 缺失时用时间窗宽度兜底（活动段文件即按窗切出，二者等价）
       durationS: (raw.duration_sec as number) ?? media?.durationS
         ?? (startSec != null && endSec != null ? endSec - startSec : 0),
@@ -1284,7 +1290,7 @@ function ShotRow({
                   data-testid="audio-chip"
                   onClick={(e) => { e.stopPropagation(); onAudioPlay?.(track) }}
                   onDoubleClick={(e) => e.stopPropagation()}
-                  title={`${track.audioType || track.clipType || '音频'}${track.speaker ? ' · ' + track.speaker : ''} · ${formatDuration(track.durationS)}`}
+                  title={`${track.audioType || track.clipType || '音频'}${track.speaker ? ' · ' + (track.speakerLabel ?? track.speaker) : ''} · ${formatDuration(track.durationS)}`}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -1301,7 +1307,7 @@ function ShotRow({
                   }}
                 >
                   <span>{audioIcon(track.clipType, track.audioType)}</span>
-                  {track.speaker && <span style={{ fontWeight: 600 }}>{track.speaker}</span>}
+                  {track.speaker && <span style={{ fontWeight: 600 }}>{track.speakerLabel ?? track.speaker}</span>}
                   <span style={{ opacity: 0.85, fontFamily: 'var(--cv-font-mono, monospace)' }}>
                     {formatDuration(track.durationS)}
                   </span>
@@ -1615,6 +1621,27 @@ const TRACK_META = {
   bgm: { bg: 'rgba(203,166,247,0.25)', bgActive: 'rgba(203,166,247,0.45)', border: '#CBA6F7', label: '🎵 BGM' },
 } as const
 
+/**
+ * 对白说话人 sub-lane 色板：现有 dialogue 蓝系（#89B4FA）内取 5 个可分辨变体——
+ * 沿蓝→青→靛的邻近色相推进，保持「同属对白列」的视觉归组，同时 sub-lane 间可辨。
+ * 第 5 个之后（>5 说话人，超出规格）回落基色。
+ */
+export const SPEAKER_LANE_COLORS = ['#89B4FA', '#74C7EC', '#8BE9FD', '#7AA2F7', '#B4BEFE'] as const
+
+/** #RRGGBB → rgba(r,g,b,a)（说话人 lane 背景 alpha 用；非 hex 输入原样返回）。 */
+export function hexToRgba(hex: string, alpha: number): string {
+  const m = hex.match(/^#([0-9a-f]{6})$/i)
+  if (!m) return hex
+  const n = parseInt(m[1]!, 16)
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`
+}
+
+/** 说话人 → lane 色（≤5 按序取板；越界回落 dialogue 基色）。 */
+function speakerLaneColor(speakerIndex: number): string {
+  if (speakerIndex >= 0 && speakerIndex < SPEAKER_LANE_COLORS.length) return SPEAKER_LANE_COLORS[speakerIndex]!
+  return TRACK_META.dialogue.border
+}
+
 /** 跨镜条块最小视觉高度（px）—— 极短活动段（<~0.4s）仍可见可点。 */
 export const MIN_SPAN_TRACK_H = 6
 
@@ -1709,9 +1736,114 @@ export function spanTrackGeometry(
   }
 }
 
+/**
+ * 区间 lane 分配（贪心区间图着色）：把横向重叠的段分进不同 lane，无重叠的复用 lane 0。
+ *
+ * 语义：段 a、b 时间重叠（`b.start < a.end`，严格小于——首尾相接 0-2 / 2-4 不算重叠，
+ * Demucs silencedetect 切段恰好相接，不该被横向推开）时必须异 lane；不重叠可同 lane。
+ * 输入按 start 升序（buckets 已排好；乱序输入先排，稳定性不保证但正确性不变）。
+ *
+ * 贪心策略（等价于经典 interval graph coloring 的最优解）：
+ *   维护每条已开 lane 的「末端时间」laneEnd[lane]；新段从 lane 0 起找第一条
+ *   laneEnd ≤ seg.start 的 lane 复用（往右推平末端）；全部 lane 都没空 → 开新 lane。
+ *   越早的 lane 末端越小，取第一条可容纳的即可（首例可证不会劣于最优）。
+ *
+ * 返回与输入同长的 lane 号数组（0-based）；调用方以 max(lane)+1 作 laneCount 列内等分。
+ * 例外：空输入返回 []；全不重叠时全部 lane 0（laneCount=1 → 满宽，与第一批渲染一致）。
+ */
+export function assignIntervalLanes(
+  spans: Array<{ start: number; end: number }>,
+): number[] {
+  if (spans.length === 0) return []
+  const sorted = spans.map((s, i) => ({ s, i }))
+  sorted.sort((a, b) => a.s.start - b.s.start || a.s.end - b.s.end)
+  const lanes = new Array<number>(spans.length).fill(0)
+  const laneEnd: number[] = [] // 每条 lane 当前最后一段的 end（未开 = -∞）
+  for (const { s, i } of sorted) {
+    let placed = false
+    for (let l = 0; l < laneEnd.length; l++) {
+      if (laneEnd[l]! <= s.start) { laneEnd[l] = s.end; lanes[i] = l; placed = true; break }
+    }
+    if (!placed) { laneEnd.push(s.end); lanes[i] = laneEnd.length - 1 }
+  }
+  return lanes
+}
+
+/**
+ * 对白列说话人 lane 分配：不同 speaker 各占固定 sub-lane（说话人恒定 → 段沿整条
+ * 时间轴在列内横向位置稳定，肉眼可按「列内位置」追踪同一说话人的对话流）。
+ *
+ * - 说话人 lane = spk 自然排序后的序号（spk0 < spk1 < … spk10，非字典序 'spk10'<'spk2'）。
+ *   首个说话人占 lane 0（不浪费左缘）；后续按序号顺延。
+ * - 同一说话人内部仍可能时间重叠（脏数据 / 多说话人投同一 spk）→ 该说话人 lane
+ *   内跑一遍 assignIntervalLanes 做第二级分列，深排在「说话人 lane + 段内偏移」。
+ *   laneCount = 说话人 lane 数与各说话人内部分列数的乘积形态（colOf 公式见下）。
+ * - 无 speaker 字段的对白（回退要求）：全体并入伪组 `'__nospeaker__'` 走纯重叠分列
+ *   （行为 = assignIntervalLanes），与有 speaker 的段之间不做区分（混合出现时对白列
+ *   视为无说话人整体走纯重叠——真实数据不会混，防御两套坐标系打架）。
+ *
+ * 返回每段的 { col（列内横向序号）, cols（列内总列数 → 等分宽度）}。
+ */
+export interface DialogueLaneAssignment {
+  /** 段的横向 sub-lane 序号（0-based；0 = 列左缘）。 */
+  col: number
+  /** 本列 sub-lane 总数（列宽等分依据）。 */
+  cols: number
+}
+
+/** speaker 键自然排序比较器：'spk10' 排在 'spk2' 之后（抽尾部数字，无数字按字典序）。 */
+function compareSpeakerKeys(a: string, b: string): number {
+  const na = a.match(/(\d+)$/)
+  const nb = b.match(/(\d+)$/)
+  if (na && nb) {
+    const diff = Number(na[1]) - Number(nb[1])
+    if (diff !== 0) return diff
+  }
+  return a < b ? -1 : a > b ? 1 : 0
+}
+
+export function assignDialogueLanes(spans: AudioTrack[]): DialogueLaneAssignment[] {
+  if (spans.length === 0) return []
+  const hasAnySpeaker = spans.some((t) => !!t.speaker)
+  // 回退：无任何 speaker 字段 → 纯重叠分列（要求 3：无 speaker 回退）
+  if (!hasAnySpeaker) {
+    const lanes = assignIntervalLanes(spans.map((t) => ({ start: t.startSec ?? 0, end: t.endSec ?? 0 })))
+    const cols = Math.max(...lanes) + 1
+    return lanes.map((l) => ({ col: l, cols }))
+  }
+  // 说话人自然排序（spk2 < spk10）→ 固定 lane 序；无 speaker 段并入伪组排最后
+  const speakers = [...new Set(spans.map((t) => t.speaker).filter(Boolean) as string[])]
+  speakers.sort(compareSpeakerKeys)
+  const groupKeys: Array<string | null> = [...speakers]
+  if (spans.some((t) => !t.speaker)) groupKeys.push(null)
+
+  // 每组组内二级分列：同 speaker 的时间重叠段深排（脏数据防御；正常数据 innerCount=1）
+  // innerOf[i] = 段 i 在其组内的 lane 号；groupCount[key] = 该组占的列数。
+  const innerOf = new Array<number>(spans.length).fill(0)
+  const groupCount = new Map<string | null, number>()
+  for (const key of groupKeys) {
+    const idxs: number[] = []
+    spans.forEach((t, i) => { if ((t.speaker ?? null) === key) idxs.push(i) })
+    if (idxs.length === 0) { groupCount.set(key, 0); continue }
+    const lanes = assignIntervalLanes(idxs.map((i) => ({ start: spans[i]!.startSec ?? 0, end: spans[i]!.endSec ?? 0 })))
+    idxs.forEach((spanIdx, k) => { innerOf[spanIdx] = lanes[k]! })
+    groupCount.set(key, Math.max(...lanes) + 1)
+  }
+  // 组起始列 = 前序各组占用列数累加；总列数 = Σ。
+  const groupBase = new Map<string | null, number>()
+  let acc = 0
+  for (const key of groupKeys) {
+    groupBase.set(key, acc)
+    acc += groupCount.get(key) ?? 0
+  }
+  return spans.map((t, i) => ({
+    col: (groupBase.get(t.speaker ?? null) ?? 0) + innerOf[i]!,
+    cols: acc,
+  }))
+}
+
 /** 竖幅各列宽度（header 行与内容列严格对齐；bgm 列 flex 吸收右侧余量）。 */
-const VT_COL = { time: 36, shot: 80, dialogue: 88, ambient: 60, bgm: 60 } as const
-/** stem mini 音轨列宽（4 条竖排小条，仅逆推资产集等有 audioStems 的项目渲染）。 */
+const VT_COL = { time: 36, shot: 80, dialogue: 88, ambient: 60, bgm: 60 } as const/** stem mini 音轨列宽（4 条竖排小条，仅逆推资产集等有 audioStems 的项目渲染）。 */
 const VT_COL_STEMS = 44
 /** 分镜矩形按场景号循环的 4 模态色板（相邻 scene 不同色）。 */
 const VT_SCENE_COLORS = [v3theme.modality.image, v3theme.modality.video, v3theme.modality.audio, v3theme.modality.text] as const
@@ -1837,25 +1969,44 @@ function SpanTrackBar({
   timeToY,
   activeAudioPath,
   onAudioPlay,
+  lane,
+  laneCount,
+  colorOverride,
 }: {
   track: AudioTrack
   type: 'dialogue' | 'ambient' | 'bgm'
-  /** 同列内序号（条块重叠时水平微移，错开可点）。 */
+  /** 同列内序号（key 用；lane 未传时退回奇偶水平微移，兼容旧调用形态）。 */
   index: number
   timeToY: (t: number) => number
   activeAudioPath: string | null
   onAudioPlay: (track: AudioTrack) => void
+  /** 本条 sub-lane 序号（0-based；与 laneCount 配合做列内横向等分）。 */
+  lane?: number
+  /** 本列 sub-lane 总数（1 = 满宽，与第一批渲染一致）。 */
+  laneCount?: number
+  /** 说话人 lane 色覆盖（对白列；缺省用 TRACK_META 基色）。 */
+  colorOverride?: string
 }) {
   const meta = TRACK_META[type]
   const width = VT_COL[type]
   const { top, height } = spanTrackGeometry(track, timeToY)
-  // 同列内时间重叠的条块水平错开（活动段数据理论不重叠，防御 UI 退化）
-  const leftShift = index % 2 === 1 ? 6 : 0
+  // 列内横向等分：laneCount 路 sub-lane 平分列宽（各留 1px 间隙），条块归属 lane i。
+  // 无 lane 信息（laneCount 未传 / ≤1）→ 满宽 + 旧奇偶微移（第一批行为）。
+  const nLanes = laneCount && laneCount > 1 ? laneCount : 1
+  const laneIdx = Math.min(Math.max(lane ?? 0, 0), nLanes - 1)
+  const laneW = (width - 6) / nLanes
+  const left = 2 + laneIdx * laneW + (nLanes > 1 ? 1 : 0)
+  const barW = laneW - (nLanes > 1 ? 1.5 : 0)
+  const leftShift = nLanes === 1 && index % 2 === 1 ? 6 : 0
   const isActive = activeAudioPath === track.filePath
-  const label = track.speaker ?? track.audioType ?? track.clipType ?? ''
+  const border = colorOverride ?? meta.border
+  const bg = colorOverride
+    ? hexToRgba(colorOverride, isActive ? 0.5 : 0.3)
+    : (isActive ? meta.bgActive : meta.bg)
+  const label = track.speakerLabel ?? track.speaker ?? track.audioType ?? track.clipType ?? ''
   const title = [
     track.audioType || track.clipType || '音频',
-    track.speaker ? track.speaker : '',
+    track.speaker ? (track.speakerLabel ?? track.speaker) : '',
     `${formatTime(track.startSec ?? 0)}→${formatTime(track.endSec ?? 0)}`,
     formatDuration(track.durationS),
   ].filter(Boolean).join(' · ') + (track.text ? `\n${track.text}` : '')
@@ -1867,17 +2018,17 @@ function SpanTrackBar({
       style={{
         position: 'absolute',
         top,
-        left: 2 + leftShift,
-        width: width - 6 - leftShift,
+        left: left + leftShift,
+        width: barW - leftShift,
         height,
         overflow: 'hidden',
         cursor: 'pointer',
         padding: height >= 14 ? '2px 14px 2px 5px' : '0 12px 0 3px',
         borderRadius: 3,
         textAlign: 'left',
-        background: isActive ? meta.bgActive : meta.bg,
-        border: `1px solid ${meta.border}`,
-        borderLeft: `${isActive ? 3 : 2}px solid ${meta.border}`,
+        background: bg,
+        border: `1px solid ${border}`,
+        borderLeft: `${isActive ? 3 : 2}px solid ${border}`,
         color: '#fff',
       }}
     >
@@ -1922,6 +2073,9 @@ function TrackLane({
   metricByNodeId,
   activeAudioPath,
   onAudioPlay,
+  spanLanes,
+  spanLaneCount,
+  spanColors,
 }: {
   type: 'dialogue' | 'ambient' | 'bgm'
   items: Array<{ shot: TimedShot; track: AudioTrack }>
@@ -1932,6 +2086,12 @@ function TrackLane({
   metricByNodeId: Map<string, { top: number; height: number }>
   activeAudioPath: string | null
   onAudioPlay: (track: AudioTrack) => void
+  /** 各 span 的 sub-lane 号（与 spans 同序；横向分列）。 */
+  spanLanes?: number[]
+  /** 本列 sub-lane 总数（列宽等分）。 */
+  spanLaneCount?: number
+  /** 各 span 的颜色覆盖（对白说话人 lane 色；与 spans 同序）。 */
+  spanColors?: Array<string | undefined>
 }) {
   const containerStyle: CSSProperties = type === 'bgm'
     ? { flex: '1 1 auto', minWidth: VT_COL.bgm, position: 'relative', zIndex: 1 }
@@ -1947,6 +2107,9 @@ function TrackLane({
           timeToY={timeToY}
           activeAudioPath={activeAudioPath}
           onAudioPlay={onAudioPlay}
+          lane={spanLanes?.[i]}
+          laneCount={spanLaneCount}
+          colorOverride={spanColors?.[i]}
         />
       ))}
       {items.map(({ shot, track }, i) => {
@@ -2070,7 +2233,8 @@ function VerticalTimeline({
   const hasStems = shots.some((s) => s.audioStems && Object.values(s.audioStems).some(Boolean))
 
   // 音轨按类别分桶；波形活动段（有绝对时间窗）与旧数据（无窗）分流 ——
-  // 前者跨镜渲染（时间坐标），后者保持 shotKey 行内挂载（管线项目回归不变）。
+  // 前者跨镜渲染（时间坐标 + 时间重叠/说话人 sub-lane 分列），后者保持 shotKey 行内
+  // 挂载（管线项目回归不变）。
   const buckets = useMemo(() => {
     const dialogue: Array<{ shot: TimedShot; track: AudioTrack }> = []
     const ambient: Array<{ shot: TimedShot; track: AudioTrack }> = []
@@ -2099,7 +2263,39 @@ function VerticalTimeline({
     spanDialogue.sort(byStart)
     spanAmbient.sort(byStart)
     spanBgm.sort(byStart)
-    return { dialogue, ambient, bgm, spanDialogue, spanAmbient, spanBgm }
+    // ── 时间重叠 / 说话人 sub-lane 分列 ──
+    // 对白列：有 speaker → 每说话人固定 sub-lane（色相区分）；无 → 纯重叠分列。
+    // 环境/BGM 列：区间图着色分列（重叠段横向等分列宽）。
+    const dlgAssign = assignDialogueLanes(spanDialogue)
+    const dlgLanes = dlgAssign.map((a) => a.col)
+    const dlgLaneCount = dlgAssign.length ? dlgAssign[0]!.cols : 1
+    const ambLanes = assignIntervalLanes(spanAmbient.map((t) => ({ start: t.startSec ?? 0, end: t.endSec ?? 0 })))
+    const bgmLanes = assignIntervalLanes(spanBgm.map((t) => ({ start: t.startSec ?? 0, end: t.endSec ?? 0 })))
+    const ambLaneCount = spanAmbient.length ? Math.max(...ambLanes) + 1 : 1
+    const bgmLaneCount = spanBgm.length ? Math.max(...bgmLanes) + 1 : 1
+    // 说话人 → lane 色映射（自然排序后按 SPEAKER_LANE_COLORS 取板）
+    const hasSpeaker = spanDialogue.some((t) => !!t.speaker)
+    let dlgColors: Array<string | undefined> | undefined
+    if (hasSpeaker) {
+      const speakers = [...new Set(spanDialogue.map((t) => t.speaker).filter(Boolean) as string[])]
+      speakers.sort(compareSpeakerKeys)
+      const colorOf = new Map<string, string>()
+      speakers.forEach((sp, i) => colorOf.set(sp, speakerLaneColor(i)))
+      dlgColors = spanDialogue.map((t) => (t.speaker ? colorOf.get(t.speaker) : undefined))
+    }
+    // 说话人图例（轨头 tooltip）：说话人 lane 序 + 颜色 + label
+    const speakerLegend = hasSpeaker
+      ? [...new Set(spanDialogue.map((t) => t.speaker).filter(Boolean) as string[])].sort(compareSpeakerKeys)
+          .map((sp, i) => {
+            const t = spanDialogue.find((x) => x.speaker === sp)
+            return `${i + 1}. ${(t?.speakerLabel ?? sp)}（${speakerLaneColor(i)}）`
+          })
+      : null
+    return {
+      dialogue, ambient, bgm, spanDialogue, spanAmbient, spanBgm,
+      dlgLanes, dlgLaneCount, dlgColors, speakerLegend,
+      ambLanes, ambLaneCount, bgmLanes, bgmLaneCount,
+    }
   }, [shots])
 
   const totalSec = shots.length ? shots[shots.length - 1].endSec : 0
@@ -2255,7 +2451,12 @@ function VerticalTimeline({
       }}>
         <div style={{ ...headerCellStyle, ...colBorder, width: VT_COL.time }}>时间</div>
         <div style={{ ...headerCellStyle, ...colBorder, width: VT_COL.shot }}>分镜</div>
-        <div style={{ ...headerCellStyle, ...colBorder, width: VT_COL.dialogue }}>💬 对白</div>
+        <div
+          style={{ ...headerCellStyle, ...colBorder, width: VT_COL.dialogue }}
+          title={buckets.speakerLegend ? `对白说话人分列（列内从左到右）：\n${buckets.speakerLegend.join('\n')}` : '对白（按时间重叠分列）'}
+        >
+          💬 对白{buckets.speakerLegend ? ` ×${buckets.dlgLaneCount}` : ''}
+        </div>
         <div style={{ ...headerCellStyle, ...colBorder, width: VT_COL.ambient }}>🔊 环境</div>
         <div style={{ ...headerCellStyle, flex: '1 1 auto', minWidth: VT_COL.bgm }}>🎵 BGM</div>
         {hasStems && (
@@ -2348,10 +2549,11 @@ function VerticalTimeline({
           </div>
 
           {/* 三类音轨列（对白 88 / 环境 60 / BGM 60→flex）。
-              spans=波形活动段跨镜条块（绝对时间坐标）；items=无窗旧数据（shotKey 行内挂载）。 */}
-          <TrackLane type="dialogue" items={buckets.dialogue} spans={buckets.spanDialogue} timeToY={timeToY} metricByNodeId={metricByNodeId} activeAudioPath={activeAudioPath} onAudioPlay={onAudioPlay} />
-          <TrackLane type="ambient" items={buckets.ambient} spans={buckets.spanAmbient} timeToY={timeToY} metricByNodeId={metricByNodeId} activeAudioPath={activeAudioPath} onAudioPlay={onAudioPlay} />
-          <TrackLane type="bgm" items={buckets.bgm} spans={buckets.spanBgm} timeToY={timeToY} metricByNodeId={metricByNodeId} activeAudioPath={activeAudioPath} onAudioPlay={onAudioPlay} />
+              spans=波形活动段跨镜条块（绝对时间坐标 + 时间重叠/说话人 sub-lane 分列）；
+              items=无窗旧数据（shotKey 行内挂载）。 */}
+          <TrackLane type="dialogue" items={buckets.dialogue} spans={buckets.spanDialogue} timeToY={timeToY} metricByNodeId={metricByNodeId} activeAudioPath={activeAudioPath} onAudioPlay={onAudioPlay} spanLanes={buckets.dlgLanes} spanLaneCount={buckets.dlgLaneCount} spanColors={buckets.dlgColors} />
+          <TrackLane type="ambient" items={buckets.ambient} spans={buckets.spanAmbient} timeToY={timeToY} metricByNodeId={metricByNodeId} activeAudioPath={activeAudioPath} onAudioPlay={onAudioPlay} spanLanes={buckets.ambLanes} spanLaneCount={buckets.ambLaneCount} />
+          <TrackLane type="bgm" items={buckets.bgm} spans={buckets.spanBgm} timeToY={timeToY} metricByNodeId={metricByNodeId} activeAudioPath={activeAudioPath} onAudioPlay={onAudioPlay} spanLanes={buckets.bgmLanes} spanLaneCount={buckets.bgmLaneCount} />
           {/* Demucs stem mini 音轨列（仅逆推资产集等有 audioStems 的项目渲染） */}
           {hasStems && onStemPlay && (
             <StemLane shots={shots} metricByNodeId={metricByNodeId} activeStem={activeStem ?? null} onStemPlay={onStemPlay} />
@@ -2931,7 +3133,7 @@ export default function StoryboardTimeline() {
           <span style={{ fontSize: 13 }}>{audioIcon(activeAudio.clipType, activeAudio.audioType)}</span>
           <span style={{ fontSize: 11, fontWeight: 600, color: v3theme.modality.audio, whiteSpace: 'nowrap' }}>
             {activeAudio.audioType || activeAudio.clipType || '音频'}
-            {activeAudio.speaker ? ` · ${activeAudio.speaker}` : ''}
+            {activeAudio.speaker ? ` · ${activeAudio.speakerLabel ?? activeAudio.speaker}` : ''}
           </span>
           <audio
             key={activeAudio.filePath}
