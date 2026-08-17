@@ -82,6 +82,8 @@ data/skills/*/images/
 # Phase 3 (canvas-consumer): golden fixture needs a real video.mp4 container
 # so the verify script can exercise ffprobe resolution probing.
 !scripts/fixtures/shot-timeline-ep01/video.mp4
+# Phase 9 (PRESENT-04/05): v1.1 fixture mirrors the ep01 video.mp4 precedent.
+!scripts/fixtures/shot-timeline-v1.1/video.mp4
 *.safetensors
 *.bin
 *.pkl

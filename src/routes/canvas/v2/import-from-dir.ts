@@ -892,10 +892,17 @@ const SHOT_TIMELINE_SENTINEL_KEY = "__shot_timeline_asset__";
  * Phase 3: ShotTimelineAsset schema_version 已知集合.
  *
  * SPEC §4 mandate: consumer 遇未知/更新版本时 graceful-degrade —— warn 后
- * 渲染已知字段,不 reject. 本 phase 仅处理 "1";future major bump 时在此处
- * 加版本分支处理.
+ * 渲染已知字段,不 reject. Phase 9 (PRESENT-04) 起新增 "1.1" 支持
+ * (character/prop registry_snapshot + data.characters/props);未知/future 版本
+ * 仍走 graceful-degrade warn 分支.
+ *
+ * Phase 17 (CONSUMER-01): 新增 "1.2" 支持 —— per-shot dialogue/music/sfx
+ * type:"asset" 子节点经 §7 buildPhaseTree 后处理 emit (gated on
+ * KNOWN_VERSIONS.has("1.2"));audio_semantic.json + speakers.json sidecar
+ * 读取. 仍是 graceful-degrade: 无 1.2 entry 的旧 consumer 静默跳过音频子节点
+ * emission (SPEC §4 兼容契约). MUS-04 instruments 永不 emit (deferred v1.3).
  */
-const SHOT_TIMELINE_KNOWN_VERSIONS = new Set(["1"]);
+const SHOT_TIMELINE_KNOWN_VERSIONS = new Set(["1", "1.1", "1.2"]);
 
 /**
  * 探测 video.mp4 分辨率,合成 video 子节点 `resolution` 字段.
@@ -1068,6 +1075,227 @@ export async function extractShotTimelineArtifacts(
     },
   });
 
+  // ── (d.1) Phase 9 (PRESENT-04): character/prop registry → asset 子节点 ──
+  // v1.1 ShotTimelineAsset 的 cross-shot 角色/道具 registry. 数据源优先级
+  // (D-PRESENT-04-Q4): generator.registry_snapshot 内嵌 (export-time 真相) →
+  // data.characters / data.props 外部文件 (tryReadJSON fallback, 镜像 :962-968).
+  // snapshot 已 confirmed-only (Phase 8 export 时过滤); 外部文件 fallback 额外
+  // filter review_state==="confirmed" 作 defense-in-depth (proposed 条目在
+  // apply 前可能仍躺在外部文件里). 门控 (D-PRESENT-04-Q3): 两者皆缺/空 →
+  // 不 emit 任何 character/prop 节点 (v1.0 ep01 无 registry → 零角色/道具节点).
+  //
+  // §7 caveat (D-PRESENT-04-Q2, load-bearing): canvasType:"asset" 让 buildPhaseTree
+  // 把节点 type 设为 "asset" (:838). 但 assetType 不能经 extra 传 —— buildPhaseTree
+  // 在 :692 用 def.assetType ("delivery" for p13) seed artData.assetType, :724 的
+  // extra-merge guard `if (!(k in artData))` 会静默 drop extra.assetType. 因此必须
+  // (1) 在 buildPhaseTree 之前 push RawArtifact (本块), (2) 在 buildPhaseTree 之后
+  // post-process tree.artifactNodes 覆盖 data.assetType (见 (e.2) 块). 缺一不可.
+  const snapshot = manifest?.generator?.registry_snapshot;
+  type RegistryEntry = {
+    output_key: string;
+    kind: "character" | "prop";
+    name: string;
+    representative_image?: string;
+  };
+  const registryEntries: RegistryEntry[] = [];
+  // WR-04: defense-in-depth — producer guarantees disjoint ID formats
+  // (characters.schema.json ^char_[0-9]{3}$ / props.schema.json ^prop_[0-9]{3}$),
+  // 但 consumer 信任 any-typed registry_snapshot. 跨 list 重复 ID 会让下面的
+  // registryById Map last-write-wins, 静默把 character 节点的 assetType 覆盖成
+  // prop (或反之). 在收集阶段 detect + warn, 把不可达的 mis-classify 显性化.
+  const seenRegistryIds = new Set<string>();
+
+  const collectRegistryEntries = (
+    list: any,
+    kind: "character" | "prop",
+    filterConfirmed: boolean,
+  ): void => {
+    if (!Array.isArray(list)) return;
+    for (const entry of list) {
+      if (!entry || entry.id == null) continue;
+      if (filterConfirmed && entry.review_state !== "confirmed") continue;
+      const idStr = String(entry.id);
+      // IN-01: producer enforces minLength:1 on name (characters/props.schema.json),
+      // 但 consumer 信任 any-typed manifest. 空/缺失 name 会让 label="" 直接违反
+      // asset schema label min(1) (Zod-failing). coerce 到稳定 registry id 兜底,
+      // 保证 label 永远非空. (entry.id == null 上面已 skip, 故 idStr 必非空.)
+      const rawName =
+        entry.name == null || String(entry.name).trim() === ""
+          ? idStr
+          : String(entry.name);
+      if (seenRegistryIds.has(idStr)) {
+        console.warn(
+          `[v2/import] registry id collision: ${idStr} already emitted (now kind=${kind}); registryById is last-write-wins and may mis-classify assetType`,
+        );
+      }
+      seenRegistryIds.add(idStr);
+      const shots: unknown = entry.appearance_shots;
+      const shotCount = Array.isArray(shots) ? shots.length : 0;
+      registryEntries.push({
+        output_key: idStr,
+        kind,
+        name: rawName,
+        representative_image:
+          typeof entry.representative_image === "string"
+            ? entry.representative_image
+            : undefined,
+      });
+      // §7 caveat 「前半段」: push BEFORE buildPhaseTree. output_key 是后续
+      // post-process 的 join key. 故意不设 extra.assetType (会被 :724 drop).
+      artifacts.push({
+        label: rawName,
+        output_key: idStr,
+        canvasType: "asset",
+        name: rawName,
+        description: `${kind}: ${shotCount} shot${shotCount === 1 ? "" : "s"}`,
+      });
+    }
+  };
+
+  if (snapshot && (Array.isArray(snapshot.characters) || Array.isArray(snapshot.props))) {
+    // registry_snapshot 内嵌 (自包含, export-time 已 confirmed-only)——无需再 filter.
+    collectRegistryEntries(snapshot.characters, "character", false);
+    collectRegistryEntries(snapshot.props, "prop", false);
+  } else {
+    // fallback: 外部 data.characters / data.props 文件 (defense-in-depth filter).
+    const charFile = await tryReadJSON(join(workdir, dataPaths.characters ?? "characters.json"));
+    const propFile = await tryReadJSON(join(workdir, dataPaths.props ?? "props.json"));
+    collectRegistryEntries(charFile, "character", true);
+    collectRegistryEntries(propFile, "prop", true);
+  }
+
+  // ── (d.2) Phase 17 (CONSUMER-01): v1.2 audio semantic → per-shot asset 子节点 ──
+  // v1.2 ShotTimelineAsset 的 per-shot 三模态音频语义 (dialogue/music/sfx).
+  // 数据源: data.audio_semantic 外部 JSON (tryReadJSON, mirror :962-968 +
+  // :1161-1164). 门控 (T-17-01 graceful-degrade): 仅当 KNOWN_VERSIONS.has(version)
+  // 时 emit —— 旧 consumer (无 "1.2" entry) 静默跳过, 保持 SPEC §4 兼容契约.
+  // 缺席/空 audio_semantic → 不 emit 任何音频子节点 (mirror v1.0 ep01 graceful).
+  //
+  // Modalities emitted (per shot, gated on non-null modality):
+  //   - dialogue child  ← shot.dialogue (text/events/spk_id 任一非空)
+  //   - music child     ← shot.reproduction.music_gen (text 非空)
+  //   - sfx child       ← shot.sfx (description/events 任一非空)
+  //
+  // NOTE (MUS-04 LOCKED — T-17-02): music modality sub-object is OMITTED in
+  // v1.2 audio_semantic.schema.json (only reproduction.music_gen NL prompt
+  // is the music signal). Tempo/mood/key/VA fields DO NOT EXIST in v1.2.
+  // The music child surfaces ONLY reproduction.music_gen.{text,confidence,
+  // fidelity_disclaimer}. NO instruments field is EVER emitted (case-insensitive
+  // grep `\\binstruments?\\b` on this file MUST return 0 matches; MUS-04
+  // deferred v1.3 per PROJECT.md Key Decisions Row 4).
+  //
+  // §7 caveat (mirror D-PRESENT-04-Q2): canvasType:"asset" → buildPhaseTree sets
+  // type:"asset" (:838). But assetType CANNOT pass via extra —— buildPhaseTree
+  // seeds artData.assetType = def.assetType ("delivery" for p13) at :692, and
+  // the extra-merge guard at :724 (`if (!(k in artData))`) silently drops
+  // extra.assetType. So (1) push RawArtifact BEFORE buildPhaseTree (本块),
+  // (2) post-process tree.artifactNodes AFTER buildPhaseTree to override
+  // data.assetType to "dialogue"/"music"/"sfx" (见 (e.3) 块). 缺一不可.
+  //
+  // filePath for audio children (CR-01 mirror): asset schema (canvasAssetSchema
+  // .ts:23-25,77-83) marks filePath as universalRequired. Audio semantic
+  // children have NO dedicated media file (the actual stems are the existing
+  // vocals/drums/other nodes at :1042-1054). The truthful non-empty filePath
+  // is the master video —— all audio semantic info is derived from analyzing
+  // its audio track. thumbnailUrl deliberately undefined → AssetNode.tsx :127
+  // falls back to typeIcons emoji (💬/🎵/🔊), no broken image preview.
+  type AudioChildEntry = {
+    output_key: string;
+    kind: "dialogue" | "music" | "sfx";
+  };
+  const audioChildEntries: AudioChildEntry[] = [];
+
+  // T-17-01 graceful-degrade gate: emit audio children only when the consumer
+  // recognizes schema_version "1.2". Older consumers (without the 1.2 entry in
+  // SHOT_TIMELINE_KNOWN_VERSIONS) skip emission entirely via this gate — SPEC §4
+  // graceful-degrade contract. `version` is read at :952 above.
+  if (SHOT_TIMELINE_KNOWN_VERSIONS.has(version) && version === "1.2") {
+    const audioSemantic = await tryReadJSON(
+      join(workdir, dataPaths.audio_semantic ?? "audio_semantic.json"),
+    );
+    const audioShots: any[] = Array.isArray(audioSemantic?.shots) ? audioSemantic.shots : [];
+    for (const audioShot of audioShots) {
+      if (!audioShot || audioShot.shot_id == null) continue;
+      const sid = String(audioShot.shot_id);
+
+      // ── dialogue child (when dialogue non-null + has signal) ──
+      const dialogue = audioShot.dialogue;
+      const dialogueHasSignal =
+        dialogue != null &&
+        (typeof dialogue.text === "string" && dialogue.text.length > 0 ||
+          (Array.isArray(dialogue.events) && dialogue.events.length > 0) ||
+          (typeof dialogue.spk_id === "string" && dialogue.spk_id.length > 0));
+      if (dialogueHasSignal) {
+        const dlgText = typeof dialogue.text === "string" ? dialogue.text.slice(0, 200) : "";
+        audioChildEntries.push({ output_key: `audio_dia_${sid}`, kind: "dialogue" });
+        artifacts.push({
+          label: `Shot ${sid} · dialogue`,
+          output_key: `audio_dia_${sid}`,
+          canvasType: "asset",
+          filePath: videoOss ?? videoPath,  // CR-01: universalRequired for asset type
+          description: dlgText || `dialogue (spk: ${dialogue.spk_id ?? "?"})`,
+          extra: {
+            shot_id: sid,
+            modality: "dialogue",
+            emotion: dialogue.emotion ?? null,
+            spk_id: dialogue.spk_id ?? null,
+            dialogue_events: Array.isArray(dialogue.events) ? dialogue.events : [],
+          },
+        });
+      }
+
+      // ── music child (when reproduction.music_gen.text non-empty) ──
+      // v1.2 LOCKED: music modality sub-object OMITTED in schema; only the
+      // reproduction.music_gen NL prompt is the music signal. NO instruments
+      // field (MUS-04 deferred v1.3 — T-17-02 mitigation).
+      const musicGen = audioShot.reproduction?.music_gen;
+      const musicHasSignal =
+        musicGen != null &&
+        typeof musicGen.text === "string" &&
+        musicGen.text.length > 0;
+      if (musicHasSignal) {
+        const musText = musicGen.text.slice(0, 200);
+        audioChildEntries.push({ output_key: `audio_mus_${sid}`, kind: "music" });
+        artifacts.push({
+          label: `Shot ${sid} · music`,
+          output_key: `audio_mus_${sid}`,
+          canvasType: "asset",
+          filePath: videoOss ?? videoPath,
+          description: musText,
+          extra: {
+            shot_id: sid,
+            modality: "music",
+            music_gen_confidence: typeof musicGen.confidence === "number" ? musicGen.confidence : null,
+            music_gen_fidelity: typeof musicGen.fidelity_disclaimer === "string" ? musicGen.fidelity_disclaimer : null,
+          },
+        });
+      }
+
+      // ── sfx child (when sfx.description non-empty OR sfx.events non-empty) ──
+      const sfx = audioShot.sfx;
+      const sfxHasSignal =
+        sfx != null &&
+        ((typeof sfx.description === "string" && sfx.description.length > 0) ||
+          (Array.isArray(sfx.events) && sfx.events.length > 0));
+      if (sfxHasSignal) {
+        const sfxDesc = typeof sfx.description === "string" ? sfx.description.slice(0, 200) : "";
+        audioChildEntries.push({ output_key: `audio_sfx_${sid}`, kind: "sfx" });
+        artifacts.push({
+          label: `Shot ${sid} · sfx`,
+          output_key: `audio_sfx_${sid}`,
+          canvasType: "asset",
+          filePath: videoOss ?? videoPath,
+          description: sfxDesc || `sfx events: ${(Array.isArray(sfx.events) ? sfx.events : []).join(", ")}`,
+          extra: {
+            shot_id: sid,
+            modality: "sfx",
+            sfx_events: Array.isArray(sfx.events) ? sfx.events : [],
+          },
+        });
+      }
+    }
+  }
+
   // ── (e) 调用扩展后的 buildPhaseTree (产出 zone + summary + artifact 三级) ──
   // buildPhaseTree 内部循环会读 art.canvasType 覆盖 (Hook 2),继承所有
   // receiver-side 兼容 shim (extra-merge, SCHEMA_ALIASES, ENUM_NORMALIZERS,
@@ -1081,6 +1309,71 @@ export async function extractShotTimelineArtifacts(
   // 这是哪一支成片. Additive:仅 ShotTimelineAsset 路径走此覆盖.
   if (tree.zoneNode.data) {
     tree.zoneNode.data.label = videoFilename;
+  }
+
+  // ── (e.2) Post-process §7 caveat「后半段」: character/prop assetType 覆盖 ──
+  // buildPhaseTree 对所有 p13 artifact 用 def.assetType="delivery" seed
+  // artData.assetType (:692), extra-merge guard (:724) 静默 drop extra.assetType.
+  // 因此 character/prop 节点的 assetType 必须在 buildPhaseTree 返回后用
+  // data.output_key 作 join key 覆盖为 "character"/"prop" (D-PRESENT-04-Q2).
+  // 同时挂 thumbnailUrl (representative_image → fsToOssUrl 合成 /oss/... URL,
+  // 镜像 audio filePath 合成模式 :1040-1045). 缺此 post-process → 角色/道具节点
+  // 错误渲染 assetType="delivery", AssetNode 退化到 📦 fallback icon (WRONG).
+  // registryEntries 为空时 (v1.0 ep01 无 registry) 此块 no-op, 零行为变化.
+  if (registryEntries.length > 0) {
+    const registryById = new Map(registryEntries.map((e) => [e.output_key, e]));
+    for (const node of tree.artifactNodes) {
+      const data = (node.data ?? {}) as Record<string, any>;
+      const entry = registryById.get(String(data.output_key));
+      if (!entry) continue;
+      data.assetType = entry.kind;  // 覆盖 "delivery" → "character" / "prop"
+      if (entry.representative_image) {
+        // WR-05: defense-in-depth — producer enforces ^(?!.*\.\.) on
+        // representative_image (characters.schema.json / props.schema.json),
+        // 但 consumer 信任 any-typed registry_snapshot. 消费侧再校验: 拒绝含
+        // `..` 或绝对路径的值, 再 join+fsToOssUrl (probe P7 用
+        // "../../etc/passwd" 曾把逃逸绝对路径泄进 thumbnailUrl/filePath).
+        if (
+          entry.representative_image.includes("..") ||
+          entry.representative_image.startsWith("/")
+        ) {
+          console.warn(
+            `[v2/import] refusing suspicious representative_image (path traversal): ${entry.representative_image}`,
+          );
+        } else {
+          const imgAbs = join(workdir, entry.representative_image);
+          const imgOss = fsToOssUrl(imgAbs);
+          const url = imgOss ?? imgAbs;
+          data.thumbnailUrl = url;
+          // CR-01: asset schema (canvasAssetSchema.ts:23-25) 把 filePath 标为
+          // universalRequired —— 所有 media-bearing 节点必填. character/prop 节点
+          // 本质就是 asset 节点, representative_image 即媒体 PNG. 镜像 audio/video
+          // filePath 合成模式 (:1040-1061) 同步写 filePath, 否则 import 路径
+          // (appendAndSync 绕过 Zod) 表面成功, 但下一次 save-v2 HTTP roundtrip
+          // 会对每个 character/prop 节点返回 400 (WR-03 反模式重现).
+          data.filePath = url;
+        }
+      }
+    }
+  }
+
+  // ── (e.3) Post-process §7 caveat「后半段」for v1.2 audio children ──────
+  // Mirror (e.2) pattern for character/prop. buildPhaseTree seeds ALL p13
+  // artifact assetType="delivery" (:692); the extra-merge guard (:724) silently
+  // drops extra.assetType, so audio children's assetType MUST be overridden
+  // here using output_key as the join key. Without this override, dialogue/
+  // music/sfx children would render with assetType="delivery" → AssetNode.tsx
+  // falls back to 📦 icon (WRONG — should be 💬/🎵/🔊 via typeIcons).
+  // audioChildEntries is empty when (a) older consumer (no 1.2 gate), (b) v1.0/
+  // v1.1 asset (no audio_semantic.json), or (c) all modalities null → no-op.
+  if (audioChildEntries.length > 0) {
+    const audioChildById = new Map(audioChildEntries.map((e) => [e.output_key, e]));
+    for (const node of tree.artifactNodes) {
+      const data = (node.data ?? {}) as Record<string, any>;
+      const entry = audioChildById.get(String(data.output_key));
+      if (!entry) continue;
+      data.assetType = entry.kind;  // 覆盖 "delivery" → "dialogue"/"music"/"sfx"
+    }
   }
 
   // ── (f) sequence edges: storyboard 按 shot_id 升序 emit N-1 条 ──────

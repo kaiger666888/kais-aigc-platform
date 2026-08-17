@@ -1,0 +1,28 @@
+{
+  "episode": "sample",
+  "duration": 3.0,
+  "stems": ["vocals", "drums", "bass", "other"],
+  "shots": [
+    {
+      "shot_id": 1,
+      "start_sec": 0.0,
+      "end_sec": 1.5,
+      "duration": 1.5,
+      "energies": {"vocals": 0.05, "drums": 0.01, "bass": 0.0, "other": 0.02},
+      "ratios": {"vocals": 0.6, "drums": 0.1, "bass": 0.0, "other": 0.3},
+      "spectral_centroid": {"vocals": 2000.0, "drums": 3000.0, "bass": 120.0, "other": 5000.0},
+      "dominant_type": "dialogue"
+    },
+    {
+      "shot_id": 2,
+      "start_sec": 1.5,
+      "end_sec": 3.0,
+      "duration": 1.5,
+      "energies": {"vocals": 0.03, "drums": 0.02, "bass": 0.01, "other": 0.04},
+      "ratios": {"vocals": 0.3, "drums": 0.2, "bass": 0.1, "other": 0.4},
+      "spectral_centroid": {"vocals": 1800.0, "drums": 3500.0, "bass": 140.0, "other": 5200.0},
+      "dominant_type": "ambient"
+    }
+  ],
+  "type_distribution": {"dialogue": 1, "ambient": 1}
+}

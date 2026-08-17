@@ -1,0 +1,9 @@
+[
+  {
+    "id": "prop_001",
+    "name": "落叶",
+    "representative_image": "props/prop_001.png",
+    "appearance_shots": [2],
+    "review_state": "confirmed"
+  }
+]
