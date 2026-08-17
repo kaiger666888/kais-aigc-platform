@@ -58,6 +58,7 @@ import {
   H3_NATIVE,
   H3_DEFAULT_NEGATIVE,
   H3_PROFILES,
+  H3_EXPOSED_PROFILES,
   H3_SIGMA_INTERP,
   H3_SIGMA_INTERP_NODES,
   alignH3FrameCount,
@@ -505,12 +506,12 @@ export default router.post(
     const motion = (req.body.motion as string) || undefined; // low | medium | high
     // native: profile=native/native-sage 或显式 native=true
     const rawProfile = ((req.body.profile as string) || "").toLowerCase();
-    // profile 校验: 空字符串 (默认 T8) 或 H3_PROFILES 中的合法 key
-    // (preview | turbo | production | native | native-sage | lightx2v)。
-    if (rawProfile && !(rawProfile in H3_PROFILES)) {
+    // 2026-08-17 API 精简: 只接受白名单 profile (空字符串 = 默认 T8 链路);
+    // 旧全 8 档校验收窄, 未暴露档 400 拒绝 (此前 lightx2v 放行但实际静默跑 T8)。
+    if (rawProfile && !H3_EXPOSED_PROFILES.includes(rawProfile as (typeof H3_EXPOSED_PROFILES)[number])) {
       return res
         .status(400)
-        .send(error(`profile must be one of: ${Object.keys(H3_PROFILES).join(" | ")} (got "${rawProfile}")`));
+        .send(error(`profile must be one of: ${H3_EXPOSED_PROFILES.join(" | ")} (got "${rawProfile}")`));
     }
     const profile = H3_PROFILES[rawProfile as keyof typeof H3_PROFILES];
     const nativeParam = req.body.native === "true" || req.body.native === true || profile?.native === true;

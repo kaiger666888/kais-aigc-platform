@@ -25,6 +25,9 @@ const SKIP_PATTERNS: RegExp[] = [
   /(^|\/)_[^/]+\.ts$/i,            // underscore-prefixed files (e.g. _engine.ts, _simulate.ts) — internal modules
   /(^|\/)shared\.ts$/i,            // shared util modules (e.g. stableaudio/shared.ts) — no default export
   /(^|\/)prompt-guide\.ts$/i,      // doc/guide modules (e.g. stableaudio/prompt-guide.ts) — no default export
+  /(^|\/)__tests__\//i,            // 路由级测试目录 (e.g. indextts2/__tests__/) — 无路由 default export
+  /(^|\/)[^/]+\.test\.ts$/i,       // 测试文件 — 无路由 default export
+  /(^|\/)[^/]+\.spec\.ts$/i,       // 测试文件 — 无路由 default export
 ];
 
 function shouldSkip(routeKey: string): boolean {

@@ -679,13 +679,17 @@ export function mergeAudioAndVideo(
     : "loudnorm=I=-24:TP=-2:LRA=11,volume=0.5";
   if (ttsAudioPath && fs.existsSync(ttsAudioPath)) {
     // 两轨混音: TTS (对白) + ambient (环境音)
+    // ⚠️ amix 必须 duration=longest (2026-08-17 修复): loudnorm + duration=first
+    //    组合会在 ~1.1s 处截断输出 (loudnorm 内部 lookahead flush 使首输入提前 EOF),
+    //    实测 4s TTS + 4.45s ambient 只出 1.12s。longest 语义也更正确: 对白结束后
+    //    环境音延续到视频末尾 (第二步 ffmpeg 的 -shortest 会以视频长度封顶)。
     const mixedAudio = outputPath.replace(/\.mp4$/, "_mixed.aac");
     execSync(
       `ffmpeg -y -i "${ttsAudioPath}" -i "${ambientAudioPath}" ` +
       `-filter_complex ` +
       `"[0:a]loudnorm=I=-16:TP=-1.5:LRA=11[tts];` +
       `[1:a]${ambLoudnorm}[amb];` +
-      `[tts][amb]amix=inputs=2:duration=first:weights=1 1:normalize=0[mix]" ` +
+      `[tts][amb]amix=inputs=2:duration=longest:weights=1 1:normalize=0[mix]" ` +
       `-map "[mix]" -c:a aac -b:a 192k "${mixedAudio}"`,
       { timeout: 120_000 },
     );

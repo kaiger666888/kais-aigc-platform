@@ -64,6 +64,7 @@ import express from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { execSync } from "child_process";
 import axios from "axios";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
@@ -82,6 +83,9 @@ import {
   H3_LINEART_ANIME,
   H3_PROFILES,
   H3_USE_CASES,
+  H3_EXPOSED_PROFILES,
+  H3_EXPOSED_USE_CASES,
+  H3_PREVIEW_MOTION_ROUTES,
   H3_SIGMA_INTERP,
   H3_SIGMA_INTERP_NODES,
   H3_DEFAULT_NEGATIVE,
@@ -89,6 +93,7 @@ import {
   checkH3TokenBudget,
   getTurboSteps,
   type H3UseCasePreset,
+  type H3MotionLevel,
 } from "./config";
 // 复用 replace-audio 的辅助函数 (这些函数仅新增了 export 关键字, 逻辑未变更)
 import {
@@ -703,17 +708,31 @@ export default router.post(
 
     // ── useCase 分用途入口 (KMC 推荐: 一个参数解析 profile/mode/motion/audioMix) ──
     // useCase 仅提供默认值; 调用方显式传 mode/profile/motion/steps/audioMix 仍可覆盖 (显式优先)。
-    // 不传 useCase 时完全向后兼容 (mode 默认 t2va, profile 默认 production)。详见 config.ts H3_USE_CASES。
+    // 2026-08-17 API 精简: 只接受白名单两档 (preview-lock / final-shot); 其余旧档
+    // (broll 等) 定义保留在 config.ts 但 400 拒绝。不传 useCase 时 profile 默认 turbo。
     const rawUseCase = (req.body.useCase as string)?.toLowerCase() || null;
     let useCasePreset: H3UseCasePreset | null = null;
     if (rawUseCase) {
-      if (!(rawUseCase in H3_USE_CASES)) {
+      if (!H3_EXPOSED_USE_CASES.includes(rawUseCase as (typeof H3_EXPOSED_USE_CASES)[number])) {
         return res.status(400).send(error(
-          `useCase must be one of: ${Object.keys(H3_USE_CASES).join(" | ")} (got "${rawUseCase}")`,
+          `useCase must be one of: ${H3_EXPOSED_USE_CASES.join(" | ")} (got "${rawUseCase}")`,
         ));
       }
       useCasePreset = H3_USE_CASES[rawUseCase as keyof typeof H3_USE_CASES];
     }
+
+    // ── motion 解析 + 校验 (preview-lock 路由需要; 显式 > useCase.motion > 默认 medium) ──
+    const motion = (req.body.motion as string) || useCasePreset?.motion || H3_TURBO.defaultMotion;
+    if (!["low", "medium", "high"].includes(motion)) {
+      return res.status(400).send(error(`motion must be one of: low | medium | high (got "${motion}")`));
+    }
+    // 预览档动态路由 (2026-08-17): preview-lock 按 motion 跨拓扑解析 profile+steps
+    //   low→turbo 4步 / medium→turbo 8步 / high→native-sage 15 步。
+    // 显式传 profile/steps 仍可覆盖 (显式优先)。
+    const motionRoute =
+      rawUseCase === "preview-lock"
+        ? H3_PREVIEW_MOTION_ROUTES[motion as H3MotionLevel]
+        : null;
 
     // ── 模式解析 + 校验 (显式 mode > useCase.mode > "t2va") ──
     const rawMode = ((req.body.mode as string) || useCasePreset?.mode || "t2va").toLowerCase();
@@ -763,21 +782,22 @@ export default router.post(
     // H3 视频生成种子 (默认随机); Foley 种子用 LTX 默认 (42)
     const h3Seed = req.body.seed ? Number(req.body.seed) : Math.floor(Math.random() * 2147483647);
 
-    // 采样步数覆盖 (优先级: 显式 steps > motion-based (turbo时) > profile.steps)
-    // profile: "preview" (15步+跳过Foley) | "turbo" (motion-adaptive 4~8步+Turbo LoRA+跳过Foley)
-    //        | "production" (50步 lossless+完整Foley)
-    //        | "native" (原生 KSampler+SigmaShift, t2v/i2va 50步 / ref2va 20步, 非 T8)
-    //        | "lightx2v-4" (LightX2V Turbo LoRA v1.0, 4 步 768p shift=6 / 无 T8, 跳过 Foley)
-    //        | "lightx2v-8" (LightX2V Turbo LoRA v1.0, 8 步 544p shift=12 / 无 T8, 跳过 Foley)
-    //        | "lineart-anime" (LineartAnime LoRA, 20 步 shift=12, line art→anime 上色 / ref2va, 无 T8, 跳过 Foley)
-    const rawProfile = ((req.body.profile as string) || useCasePreset?.profile || "production").toLowerCase();
-    if (![ "preview", "turbo", "production", "native", "native-sage", "lightx2v-4", "lightx2v-8", "lineart-anime" ].includes(rawProfile)) {
+    // 采样步数覆盖 (优先级: 显式 steps > motion 路由(preview-lock) > useCase.steps > motion-based(turbo时) > profile.steps)
+    // 2026-08-17 API 精简: 只接受白名单 profile (turbo | native-sage); 其余旧档定义保留在
+    // config.ts H3_PROFILES 但 400 拒绝。默认 fallback 由 production 改为 turbo (最便宜预览拓扑)。
+    const rawProfile = (
+      (req.body.profile as string) ||
+      motionRoute?.profile ||
+      useCasePreset?.profile ||
+      "turbo"
+    ).toLowerCase();
+    if (!H3_EXPOSED_PROFILES.includes(rawProfile as (typeof H3_EXPOSED_PROFILES)[number])) {
       return res
         .status(400)
-        .send(error(`profile must be one of: preview | turbo | production | native | native-sage | lightx2v-4 | lightx2v-8 | lineart-anime (got "${rawProfile}")`));
+        .send(error(`profile must be one of: ${H3_EXPOSED_PROFILES.join(" | ")} (got "${rawProfile}")`));
     }
     const profile = H3_PROFILES[rawProfile as keyof typeof H3_PROFILES];
-    // native: profile=native/native-sage 或显式 native=true
+    // native: profile=native-sage 或显式 native=true
     const native = req.body.native === "true" || req.body.native === true || profile.native;
     // turbo: profile=turbo 或显式 turbo=true 任一为真即启用 (启用后 steps 由 motion 参数决定)
     const turbo = req.body.turbo === "true" || req.body.turbo === true || profile.turbo;
@@ -785,11 +805,13 @@ export default router.post(
     const tespeed = profile.tespeed !== false;
     // nativeInterp: sigma 低噪段插值 (native/native-sage profile 为 true, 其余 undefined → 不插值)
     const nativeInterp = profile.nativeInterp === true;
-    const motion = (req.body.motion as string) || useCasePreset?.motion || undefined; // low | medium | high
-    // 步数优先级: 显式 steps > motion-based (turbo时) > profile.steps (native profile.steps=null → 按模式默认)
+    // 步数优先级: 显式 steps > preview-lock motion 路由 (4/8/15) > useCase 固化步数 (final-shot 36)
+    //           > motion-based (turbo时) > profile.steps (null → 按模式默认)
     const h3StepsOverride = req.body.steps
       ? Number(req.body.steps)
-      : (turbo && motion ? getTurboSteps(motion) : profile.steps);
+      : motionRoute
+        ? motionRoute.steps
+        : useCasePreset?.steps ?? (turbo && motion ? getTurboSteps(motion) : profile.steps);
 
     // 音频混音策略 (仅 skipFoley=false 档位的 Step3 合并生效): 显式 > useCase.audioMix > "balanced"
     //   balanced          —— TTS I=-16 + 环境音 I=-24 volume=0.5 (默认, 对白与环境音并重)
@@ -799,6 +821,13 @@ export default router.post(
       return res.status(400).send(error(`audioMix must be one of: balanced | dialogue-priority (got "${rawAudioMix}")`));
     }
     const audioMix = rawAudioMix;
+
+    // ── 音频管线模式 (2026-08-17): useCase.audio 覆盖 profile.skipFoley 语义 ──
+    //   full     → 完整 Step2 LTX Foley + Step3 混音 (即使 profile.skipFoley=true, 如 final-shot→native-sage)
+    //   tts-only → 跳 LTX Foley, 但 TTS 与 H3 原生音轨混音 (preview-lock; 修复旧路径静默丢 TTS)
+    //   native / undefined → 沿用 profile.skipFoley (legacy 直出行为)
+    const audioMode = useCasePreset?.audio;
+    const skipFoley = audioMode ? audioMode !== "full" : profile.skipFoley;
 
     // ── 文件入参 ──
     const files = req.files as Record<string, Express.Multer.File[]> | undefined;
@@ -994,41 +1023,63 @@ export default router.post(
     }
 
     // ============================================================
-    // Preview profile 快速返回: H3 原生视频直出 (跳过 Foley / 合并)
+    // 预览快速路径: 跳过 LTX Foley (skipFoley 档)
     // ============================================================
-    // H3 原生 mp4 已内嵌音频。预览档直接交付, 不跑 LTX 环境音替换
-    // (省 5-10min)。TTS 对白文件若有则清理 (预览档不做混音)。
-    if (profile.skipFoley) {
-      // H3 原生视频移到输出目录 (生产路径: outputDir/filenamePrefix_final.mp4;
-      // 预览路径: outputDir/filenamePrefix_h3.mp4)
+    // H3 原生 mp4 已内嵌音频。预览档不跑 LTX 环境音替换 (省 5-10min)。
+    // 2026-08-17 新增 tts-only 模式 (preview-lock): TTS 对白与 H3 原生音轨混音
+    // (旧路径直接删除 ttsAudio 不混音 —— 对白静默丢失, 已修复)。
+    if (skipFoley) {
       const previewOutputPath = path.join(H3_CONFIG.outputDir, `${filenamePrefix}_h3.mp4`);
+      const isTtsOnly = audioMode === "tts-only" && !!localTtsAudio;
+      const deliverPath = isTtsOnly
+        ? path.join(H3_CONFIG.outputDir, `${filenamePrefix}_final.mp4`)
+        : previewOutputPath;
       try {
         fs.mkdirSync(path.dirname(previewOutputPath), { recursive: true });
-        fs.copyFileSync(localH3VideoPath!, previewOutputPath);
+        if (isTtsOnly) {
+          // 抽 H3 原生音轨作 ambient → 复用 mergeAudioAndVideo 两轨混音
+          // (TTS loudnorm I=-16 对白标准 + 原生音轨按 audioMix 压低作背景层)
+          const nativeAudioPath = path.join(LOCAL_STAGING_DIR, `${filenamePrefix}_native_audio.m4a`);
+          tmpPaths.push(nativeAudioPath);
+          execSync(
+            `ffmpeg -y -i "${localH3VideoPath}" -vn -c:a aac -b:a 192k "${nativeAudioPath}"`,
+            { timeout: 60_000 },
+          );
+          mergeAudioAndVideo(localH3VideoPath!, localTtsAudio, nativeAudioPath, deliverPath, audioMix);
+        } else {
+          // 无 TTS (或 audio=native): H3 原生视频直出; TTS 文件清理
+          fs.copyFileSync(localH3VideoPath!, previewOutputPath);
+        }
       } catch (err: any) {
         safeUnlink(localTtsAudio);
         for (const p of tmpPaths) safeUnlink(p);
-        return res.status(502).send(error(`Preview output copy failed: ${err.message}`, {
+        return res.status(502).send(error(`Preview output failed: ${err.message}`, {
           pipeline: { h3: { mode, promptId: h3PromptId } },
         }));
       }
       safeUnlink(localTtsAudio);
       for (const p of tmpPaths) safeUnlink(p);
+      const outName = path.basename(deliverPath);
       return res.status(200).send(
         success({
           status: "completed",
           profile: rawProfile,
           useCase: rawUseCase,
           turbo,
-          videoUrl: `/mnt/agents/output/${filenamePrefix}_h3.mp4`,
-          videoPath: previewOutputPath,
+          audioMode: audioMode ?? "native",
+          videoUrl: `/mnt/agents/output/${outName}`,
+          videoPath: deliverPath,
           pipeline: {
-            h3: { mode, promptId: h3PromptId, videoPath: previewOutputPath },
-            foley: null, // 预览档跳过
+            h3: { mode, promptId: h3PromptId, videoPath: deliverPath },
+            foley: null, // 预览档跳过 LTX Foley
           },
           hasTts: !!ttsAudioFile,
-          note: `T8 Dual-Clock preview${turbo ? " (Turbo, motion-adaptive)" : ""}: H3 native audio, Foley skipped`,
-        }, "H3 preview completed (native audio, Foley skipped)"),
+          note: isTtsOnly
+            ? `Preview (tts-only): TTS dialogue mixed over H3 native audio, LTX Foley skipped`
+            : `Preview${turbo ? " (Turbo, motion-adaptive)" : ""}: H3 native audio, Foley skipped`,
+        }, isTtsOnly
+          ? "H3 preview completed (TTS mixed over native audio, Foley skipped)"
+          : "H3 preview completed (native audio, Foley skipped)"),
       );
     }
 

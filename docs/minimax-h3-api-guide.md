@@ -2,17 +2,35 @@
 
 > 适用于 kais-aigc-platform 内置的 MiniMax H3 视频生成引擎。
 > H3 生成带**原生立体声音频**的视频，一个 forward pass 出视频+音频。
-> 统一同步管线 `POST /generate`（全 8 档 profile + Foley 音频管线）与 KMC 分用途
-> `useCase` 入口见 [h3-generation-paths.md](./h3-generation-paths.md)。
+> 统一同步管线 `POST /generate`（KMC 推荐走 `useCase` 入口）与档位体系详见
+> [h3-generation-paths.md](./h3-generation-paths.md)。
+>
+> **2026-08-17 API 精简**：profile 暴露收窄到白名单 `turbo | native-sage`，
+> useCase 收窄到 `preview-lock | final-shot`，白名单外一律 400；
+> 新增 `GET /workflows` 能力清单。其余档位定义保留（重新开放=改 `H3_EXPOSED_*`）。
 
 ## 端点列表
 
 | 端点 | 方法 | 说明 |
 |---|---|---|
-| `/api/production/minimax-h3/t2va` | POST | 纯文本 → 视频+音频 |
-| `/api/production/minimax-h3/i2va` | POST | 首帧/尾帧 → 视频+音频 |
-| `/api/production/minimax-h3/ref2va` | POST | 参考图/视频/音频 → 视频+音频 |
+| `/api/production/minimax-h3/workflows` | GET | 能力清单：暴露的 useCase/profile/动态路由/分辨率/token 预算 |
+| `/api/production/minimax-h3/generate` | POST | 统一同步管线（≤45min，3 步：H3 视频→Foley→混音）；接受 `useCase`（推荐）或显式 `profile`（白名单内） |
+| `/api/production/minimax-h3/t2va` | POST | 纯文本 → 视频+音频（异步，仅白名单 profile） |
+| `/api/production/minimax-h3/i2va` | POST | 首帧/尾帧 → 视频+音频（异步，仅白名单 profile） |
+| `/api/production/minimax-h3/ref2va` | POST | 参考图/视频/音频 → 视频+音频（异步，仅白名单 profile） |
 | `/api/production/minimax-h3/status/:promptId` | GET | 轮询任务状态 |
+
+## useCase 入口（/generate 推荐）
+
+| useCase | motion | 解析 | 步数 | 音频 |
+|---|---|---|---|---|
+| `preview-lock` | low | turbo (T8) | 4 | tts-only（TTS+H3 原生音轨混音，跳 LTX Foley） |
+| `preview-lock` | medium（默认） | turbo (T8) | 8 | tts-only |
+| `preview-lock` | high | native-sage (Native) | 15 | tts-only |
+| `final-shot` | — | native-sage (Native) @1344×768 | 36 | full（LTX Foley + TTS 混音，audioMix 默认 balanced） |
+
+显式 `profile`/`steps`/`mode`/`motion`/`audioMix` 仍可覆盖 useCase 默认值（显式优先）。
+预留 `final-motion`（连续 motion 专用工作流）未暴露。
 
 ## 四种模式选择
 

@@ -1,6 +1,7 @@
 # MiniMax H3 视频生成路径全景 + KMC 分用途契约
 
-> 2026-08-14 深度调研定稿。真源:`src/routes/production/minimax-h3/config.ts`(模型/profile/useCase)。
+> 2026-08-14 深度调研定稿;**2026-08-17 API 精简更新**(白名单/动态路由/tts-only 混音,见 §3/§6)。
+> 真源:`src/routes/production/minimax-h3/config.ts`(模型/profile/useCase)。
 > 本文回答三个问题:① KAP 里 H3 有几种生成路径;② 每条路径用了什么工作流/插件/LoRA;③ API 层如何分用途暴露给 KMC。
 
 ## 0. 一句话答案
@@ -11,8 +12,9 @@
 
 - **拓扑层(工作流级)**:T8 插件链 / Native KSampler 链 / LightX2V LoRA 链 / LineartAnime LoRA 链 = **4**。
 - **档位层**:`H3_PROFILES` 8 档(见 §3)。
-- KMC 今天只用了其中 2 档(`turbo` + `native`/`native-sage`);`lightx2v-*` / `lineart-anime`
-  是闲置产能,已通过 `useCase` 入口正式开放(见 §6)。
+- **2026-08-17 API 精简**:暴露面收窄到白名单 **2 profile(`turbo`/`native-sage`)× 2 useCase
+  (`preview-lock`/`final-shot`)**,其余档位定义保留但 POST 一律 400;新增 `GET /workflows`
+  能力清单端点。KMC 已同步迁移到 useCase 入口。
 
 ## 1. 底层模型与固化约束
 
@@ -60,21 +62,29 @@ POST /api/production/  ┼─ POST /i2va   (async)          ──→ 仅 T8 + N
 `replace-audio.ts` 是独立的音频替换端点(LTX-2.3 dev int8 + Foley LoRA,`SolidMask=0` 冻结视频
 latent 只采样音频,cfg 2.05 / `euler_ancestral_cfg_pp` / 30 步 / 固定 1280×704)。
 
-## 3. 八档 profile × 拓扑矩阵
+## 3. 八档 profile × 拓扑矩阵(2026-08-17 起分「暴露/内部」两层)
+
+**暴露层(白名单 `H3_EXPOSED_PROFILES`,POST 可用,GET /workflows 可见):**
+
+| # | profile | 拓扑 | 步数 | LoRA | Foley | 定位 |
+|---|---|---|---|---|---|---|
+| 2 | `turbo` ✅ | T8 | 动态 4/8(getTurboSteps) | T8 Turbo(EMA) | 按 useCase(preview-lock=tts-only) | 预览主力 |
+| 5 | `native-sage` ✅ | Native | t2v/i2v 50 / ref2v 20(useCase 可固化 15/36) | — | 按 useCase(preview-high=tts-only,final-shot=full) | 预览高动态 + 成片 |
+
+**内部层(定义保留在 `H3_PROFILES`,POST 传它们 400;重新开放 = 改 `H3_EXPOSED_PROFILES`):**
 
 | # | profile | 拓扑 | 步数 | LoRA | Foley | 定位 | 时长 |
 |---|---|---|---|---|---|---|---|
-| 1 | `preview` | T8 | 15 | — | skip | 最快有质预览 | ~6min |
-| 2 | `turbo` | T8 | 4(动态 4/4/8) | T8 Turbo(EMA) | skip | 极速,运动自适应 | ~3min |
-| 3 | `production` | T8 | 50 | — | full | 最高画质+完整音频管线 | ~20min |
-| 4 | `native` | Native | t2v/i2v 50 / ref2v 20 | — | full | 原生链+TESpeed 节点 | — |
-| 5 | `native-sage` | Native | 同上 | — | skip | 无 TESpeed 节点,SageAttention 全局 | — |
-| 6 | `lightx2v-4` | LightX2V | 5(4+1) | LightX2V v1.0 768p | skip | shift=6 | ~72s |
-| 7 | `lightx2v-8` | LightX2V | 9(8+1) | LightX2V v1.0 544p | skip | shift=12,步数多画质更高 | ~120s |
-| 8 | `lineart-anime` | LineartAnime | 20 | LineartAnime | skip | 线稿→彩色动漫,仅 ref2va | — |
+| 1 | `preview` 🔒 | T8 | 15 | — | skip | 最快有质预览(被 turbo 取代) | ~6min |
+| 3 | `production` 🔒 | T8 | 50 | — | full | 最高画质+完整音频管线 | ~20min |
+| 4 | `native` 🔒 | Native | t2v/i2v 50 / ref2v 20 | — | full | 原生链+TESpeed 节点(有质量损失风险) | — |
+| 6 | `lightx2v-4` 🔒 | LightX2V | 5(4+1) | LightX2V v1.0 768p | skip | shift=6 | ~72s |
+| 7 | `lightx2v-8` 🔒 | LightX2V | 9(8+1) | LightX2V v1.0 544p | skip | shift=12,步数多画质更高 | ~120s |
+| 8 | `lineart-anime` 🔒 | LineartAnime | 20 | LineartAnime | skip | 线稿→彩色动漫,仅 ref2va | — |
 
-动态自适应步数(`getTurboSteps`,motion 参数):low=站立/对白/慢速→4;medium=拥抱/行走→4;
-high=追逐/赛车/打斗→8。
+动态自适应步数(`getTurboSteps`,motion 参数;2026-08-17 调整):low=站立/对白/慢速→4;
+medium=拥抱/行走→**8**(原 4,实测中动态偏软);high=追逐/赛车/打斗→8(直调 turbo 时)。
+preview-lock useCase 下 high 不走 turbo,跳拓扑到 native-sage 15 步(见 §6 路由表)。
 
 ## 4. 每条路径的工作流 / 节点 / LoRA
 
@@ -140,34 +150,42 @@ LoRA(`config.ts` 注册):
 - **LightX2V v1.0**:`minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16` / `…_8step…`(strength 1.0,合并加载)
 - **LineartAnime**:`minimax_h3_lineart_anime_ref2va_comfyui.safetensors`(rank=32,仅 ref2va)
 
-## 6. KMC 分用途契约(2026-08-14 起新增)
+## 6. KMC 分用途契约(2026-08-17 精简重写)
 
-### 现状(改造前)
+### 现状(2026-08-17 迁移后)
 KMC(`kais-hermes-skills/skills/kais-movie-pipeline`)调唯一端点
-`POST /api/production/minimax-h3/generate`,在 **Python 侧私下解析**
-`h3_profile + h3_mode + h3_motion + form_factor + ttsAudio` → 扁平的 `mode×profile`。
-对 KAP 不透明;`lightx2v-*`/`lineart-anime` 无正式入口。
+`POST /api/production/minimax-h3/generate`,发 `useCase`(+`motion`/`ttsAudio`);
+Python 侧的 `h3_profile→profile/turbo/native/tespeed/steps` 平铺解析已删除。
 
-### useCase 入口(新增)
-`generate` 新增一等 `useCase` 参数(config.ts `H3_USE_CASES`),**只提供默认值**;
-显式传 `mode/profile/motion/steps/audioMix` 仍可覆盖(显式优先),完全向后兼容。
+### useCase 入口(暴露 2 档,`H3_EXPOSED_USE_CASES` 白名单)
+`generate` 的一等 `useCase` 参数(config.ts `H3_USE_CASES`)**只提供默认值**;
+显式传 `mode/profile/motion/steps/audioMix` 仍可覆盖(显式优先)。
+白名单外的旧 useCase(broll/keyframe-interp/portrait-dialogue/motion-board/lineart-color)
+POST 一律 400,定义保留在 config.ts。
 
-| useCase | 解析到 profile / mode | 音频 | 对应 KMC 场景 |
-|---|---|---|---|
-| `preview-lock` | turbo / ref2va / motion=medium | skip Foley | P11a 创意锁定预览(~3min) |
-| `final-shot` | native / ref2va | full Foley(balanced) | P11b 成片 |
-| `broll` | production / t2va | full Foley | 纯文本空镜/B-roll |
-| `keyframe-interp` | production / i2va | full Foley | 首尾帧驱动插值镜头 |
-| `portrait-dialogue` | production / ref2va | **dialogue-priority** | 竖屏短剧对白(TTS 压环境音) |
-| `motion-board` | lightx2v-4 / ref2va | skip Foley | 极速运动分镜草稿(~72s) |
-| `lineart-color` | lineart-anime / ref2va | skip Foley | 线稿→彩色动漫上色 |
+| useCase | motion | 路由 → profile / 步数 | 音频 | 场景 |
+|---|---|---|---|---|
+| `preview-lock` | low | turbo (T8) / 4 步 | **tts-only** | P11a 预览:站立/对白/慢速 |
+| `preview-lock` | medium(默认) | turbo (T8) / 8 步 | tts-only | P11a 预览:行走/轻微动作 |
+| `preview-lock` | high | **native-sage (T2) / 15 步** | tts-only | P11a 预览:追逐/打斗(T8 低步崩坏,跳拓扑) |
+| `final-shot` | — | native-sage (T2) / **36 步** @1344×768 | **full**(Foley+TTS) | P11b 成片 |
+| `final-motion`(预留) | — | 待设计 | — | 连续 motion 专用工作流,未暴露 |
 
-`audioMix` 混音策略(`mergeAudioAndVideo`,仅 skipFoley=false 档生效):
+**动态路由表**(`H3_PREVIEW_MOTION_ROUTES`,preview-lock 专用,取代旧 4/4/8 全 T8 映射):
+low→turbo 4 步 / medium→turbo 8 步 / high→native-sage 15 步;显式 `profile`/`steps` 可覆盖。
+
+**音频三态**(2026-08-17 新增,`H3UseCasePreset.audio` 覆盖 `profile.skipFoley` 语义):
+- `full` —— Step2 LTX Foley 环境音 + Step3 TTS 混音(完整管线,final-shot)
+- `tts-only` —— 跳 LTX Foley,TTS 对白与 H3 原生音轨混音(预览档:快且对白不丢)
+- `native` / 不传 useCase —— H3 原生音轨直出(legacy 行为)
+
+`audioMix` 混音策略(`mergeAudioAndVideo`,full 与 tts-only 混音时生效):
 - `balanced`(默认):TTS I=-16 + 环境音 I=-24 volume=0.5
 - `dialogue-priority`:环境音压到 I=-28 volume=0.3(口播/对白绝对优先)
 
-KMC 迁移建议:shot 里保留 `useCase` 字段(如 `preview-lock`/`final-shot`/`portrait-dialogue`),
-删掉 Python 侧的 profile/mode/motion 解析逻辑;需要微调时仍可显式覆盖单参数。
+### 能力发现
+`GET /api/production/minimax-h3/workflows` 返回白名单 useCase(含动态路由表)、
+profile 详情、分辨率预设、token 预算线、预留档位 —— KMC/前端可程序化发现可用工作流。
 
 ## 7. 已知问题与运维注记
 
@@ -185,6 +203,18 @@ KMC 迁移建议:shot 里保留 `useCase` 字段(如 `preview-lock`/`final-shot`
    (零调用、用弃用的 pruned 权重、无 profile/T8/LightX2V),仅作历史参考,勿再用。
 5. `src/routes/v1/storyboard/index.ts` 等处 "p10b" 注释疑与 KMC 现阶段名(P09c?)不一致,
    待跨仓确认后统一修改(本仓无 p09c 佐证,未擅改)。
+6. **已修复(2026-08-17):skipFoley 档静默丢弃 ttsAudio** —— 旧快速路径直接
+   `safeUnlink(ttsAudio)` 返回原生音轨视频,而 KMC 注释预期 "H3 mixes the TTS dialogue",
+   P11b(native-sage)+ttsAudio 的对白实际被丢。新增 `tts-only` 音频模式后由 KAP 统一混音。
+7. **已修复(2026-08-17):thin routes 静默降级** —— `/t2va` `/i2va` 此前不校验 profile,
+   传 `lightx2v-*` 等无对应 builder 的档会静默跑 T8;`/ref2va` 校验全 8 档但 lightx2v 放行后
+   同样静默 T8。现三路由统一 `H3_EXPOSED_PROFILES` 白名单校验,白名单外一律 400。
+8. **已修复(2026-08-17):`mergeAudioAndVideo` amix 截断** —— `loudnorm + amix duration=first`
+   组合使混音在 ~1.1s 处截断(loudnorm lookahead flush 致首输入提前 EOF;实测 4s TTS +
+   4.45s ambient 只出 1.12s,之后数字静音)。改为 `duration=longest`(对白结束后环境音延续,
+   第二步 ffmpeg `-shortest` 以视频长度封顶)。此前未暴露:真实流量从不走混音路径
+   (native-sage skipFoley 直出)。GPU 冒烟验证:turbo low 192s / native-sage high 439s,
+   TTS 全程在场 + 环境床全程。
 
 ## 8. 相关文档
 

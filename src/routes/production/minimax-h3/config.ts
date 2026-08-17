@@ -262,11 +262,12 @@ export const H3_TURBO = {
   nodeId: "14_lora",          // LoraLoaderBypassModelOnly 节点 ID
   loaderClassType: "LoraLoaderBypassModelOnly", // INT8 模型用 bypass (非合并)
   // 动态分级步数策略 (2026-08-08 实测: 高动态4步画面崩坏严重,8步显著改善)
-  // 低/中动态(对白/拥抱/站立): 4步 ~140s, 画质可接受
-  // 高动态(追逐/赛车/打斗):    8步 ~250s, 避免面部/肢体崩坏
+  // 2026-08-17 分档调整: 中动态 4→8 步 (4 步中动态画面偏软); 高动态在 preview-lock
+  // 路由下已跳拓扑到 native-sage 15 步 (见 H3_PREVIEW_MOTION_ROUTES), 此表仅服务
+  // 显式 turbo=true 的直调 (thin routes / generate 平铺参数)。
   motionSteps: {
     low: 4,       // 站立/对白/慢速移动
-    medium: 4,    // 拥抱/行走/轻微动作
+    medium: 8,    // 拥抱/行走/轻微动作 (2026-08-17: 4→8)
     high: 8,      // 追逐/赛车/打斗/快速运动
   },
   defaultMotion: "medium" as const,
@@ -524,39 +525,55 @@ export const H3_PROFILES: Record<H3ProfileName, H3ProfilePreset> = {
 // H3_USE_CASES —— 面向 KMC 的"分用途"入口 (useCase → profile/mode/motion/audioMix)
 // ============================================================
 // KMC 调 POST /generate 时传 useCase 即可, 无需在 Python 侧自行解析 profile/mode/motion。
-// 语义: useCase 只提供默认值; 调用方显式传 mode/profile/motion/steps/audioMix 仍可覆盖 (显式优先),
-//       故与旧调用方 (直接传 profile/mode) 完全向后兼容。
-//   preview-lock      —— P11a 创意锁定预览 (turbo + motion-adaptive + 跳 Foley, ~3min)
-//   final-shot        —— P11b 成片 (native KSampler + 完整 Foley 环境音管线)
-//   broll             —— 纯文本空镜 / B-roll (t2va, 无参考图, full Foley)
-//   keyframe-interp   —— 首尾帧驱动插值镜头 (i2va, full Foley)
-//   portrait-dialogue —— 竖屏短剧对白 (ref2va, TTS 优先混音: 对白压低环境音)
-//   motion-board      —— 极速运动分镜草稿 (lightx2v-4, ~72s, 跳 Foley)
-//   lineart-color     —— 线稿视频 → 彩色动漫上色 (lineart-anime, 仅 ref2va, 跳 Foley)
-// audioMix 仅对 skipFoley=false 的档位生效 (preview-lock/motion-board/lineart-color 直出 H3 原生音频, 不混音)。
+// 语义: useCase 只提供默认值; 调用方显式传 mode/profile/motion/steps/audioMix 仍可覆盖 (显式优先)。
+//
+// 2026-08-17 档位重构 (API 精简): 只暴露主链路两档 (见 H3_EXPOSED_USE_CASES 白名单):
+//   preview-lock —— P11a 创意锁定预览, motion 跨拓扑路由 (见 H3_PREVIEW_MOTION_ROUTES):
+//                   low→turbo 4步 / medium→turbo 8步 / high→native-sage 15步;
+//                   音频 tts-only: 跳 LTX Foley, TTS 对白与 H3 原生环境音混音
+//                   (修复旧 skipFoley 路径静默丢弃 ttsAudio 的 bug)。
+//   final-shot   —— P11b 成片: native-sage 36 步 @1344×768 (默认分辨率), 完整
+//                   LTX Foley 环境音 + TTS 混音管线 (audioMix 默认 balanced)。
+//   final-motion —— (预留, 未暴露) 连续 motion 专用工作流; P09 分镜 schema 已有
+//                   camera_continuity/transition_method/首尾帧链 结构, 待设计。
+// 旧 5 档 (broll/keyframe-interp/portrait-dialogue/motion-board/lineart-color) 定义
+// 保留但不在白名单 —— POST 传它们会 400 (重新开放 = 改 H3_EXPOSED_USE_CASES)。
 export interface H3UseCasePreset {
   label: string;
   profile: H3ProfileName;
   /** 该用途的默认输入模式 (调用方显式传 mode 则覆盖) */
   mode: "t2va" | "i2va" | "ref2va";
-  /** motion 仅 turbo 档有意义 (low/medium/high → getTurboSteps 4/4/8 步) */
+  /** motion 仅 turbo 档有意义 (low/medium/high → 步数/拓扑路由) */
   motion?: "low" | "medium" | "high";
-  /** 音频混音策略 (仅 skipFoley=false 档位的 Step3 合并生效) */
+  /** 音频混音策略 (full 管线 Step3 / tts-only 混音时生效) */
   audioMix?: "balanced" | "dialogue-priority";
+  /** useCase 固化步数 (显式 steps 仍可覆盖); undefined = 沿用 profile/motion 默认 */
+  steps?: number;
+  /**
+   * 音频管线模式 (2026-08-17 新增, 覆盖 profile.skipFoley 语义):
+   *   full     —— Step2 LTX Foley 环境音 + Step3 TTS 混音 (完整管线)
+   *   tts-only —— 跳 LTX Foley, TTS 与 H3 原生音频混音 (预览档: 快且对白不丢)
+   *   native   —— H3 原生音轨直出, 不混音 (旧预览行为, ttsAudio 会被忽略)
+   * undefined = 沿用 profile.skipFoley (legacy 兼容)
+   */
+  audio?: "full" | "tts-only" | "native";
 }
 
 export const H3_USE_CASES = {
   "preview-lock": {
-    label: "P11a 创意锁定预览 (turbo, motion-adaptive, skip Foley, ~3min)",
+    label: "P11a 创意锁定预览 (motion 路由: low→turbo4 / medium→turbo8 / high→native-sage15; TTS-only 混音)",
     profile: "turbo",
     mode: "ref2va",
     motion: "medium",
+    audio: "tts-only",
   },
   "final-shot": {
-    label: "P11b 成片 (native KSampler + 完整 Foley 环境音管线)",
-    profile: "native",
+    label: "P11b 成片 (native-sage 36 步 @1344×768, 完整 Foley + TTS 混音)",
+    profile: "native-sage",
     mode: "ref2va",
     audioMix: "balanced",
+    steps: 36,
+    audio: "full",
   },
   broll: {
     label: "纯文本空镜 / B-roll (t2va, 无参考图, full Foley)",
@@ -589,6 +606,30 @@ export const H3_USE_CASES = {
 } as const satisfies Record<string, H3UseCasePreset>;
 
 export type H3UseCaseName = keyof typeof H3_USE_CASES;
+
+// ============================================================
+// H3_EXPOSED_* —— API 暴露白名单 (2026-08-17 精简决策)
+// ============================================================
+// 只暴露 KMC 主链路两拓扑: turbo (T8+Turbo LoRA) / native-sage (Native KSampler)。
+// 所有 POST 路由 (generate/t2va/i2va/ref2va) 校验 profile 必须在白名单内,
+// 不在则 400 且错误信息只列白名单项; GET /workflows 能力清单也只返回白名单内容。
+// H3_PROFILES / H3_USE_CASES 里的其余档位定义保留不删 —— 重新开放 = 改这两个数组。
+export const H3_EXPOSED_PROFILES: readonly H3ProfileName[] = ["turbo", "native-sage"];
+export const H3_EXPOSED_USE_CASES: readonly H3UseCaseName[] = ["preview-lock", "final-shot"];
+
+// ============================================================
+// H3_PREVIEW_MOTION_ROUTES —— 预览档动态路由 (2026-08-17 新分档)
+// ============================================================
+// preview-lock 按 motion 跨拓扑解析 profile+steps (取代旧 getTurboSteps 4/4/8 全 T8):
+//   low    → turbo      4 步 (T8 Turbo LoRA, 站立/对白/慢速, ~140s)
+//   medium → turbo      8 步 (T8 Turbo LoRA, 行走/轻微动作; 4 步中动态偏软)
+//   high   → native-sage 15 步 (Native KSampler, 追逐/打斗; T8 低步数高动态崩坏, 跳拓扑)
+// 音频统一走 useCase.audio="tts-only"。调用方显式传 profile/steps 仍可覆盖 (显式优先)。
+export const H3_PREVIEW_MOTION_ROUTES: Record<H3MotionLevel, { profile: H3ProfileName; steps: number }> = {
+  low: { profile: "turbo", steps: 4 },
+  medium: { profile: "turbo", steps: 8 },
+  high: { profile: "native-sage", steps: 15 },
+} as const;
 
 // ============================================================
 // H3_RESOLUTION_TABLE —— 分辨率预设表
