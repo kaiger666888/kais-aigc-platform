@@ -207,6 +207,19 @@
   box-shadow: var(--cv-shadow-card-hi) !important;
 }
 
+/* ── LOD≤1 视频卡 ▶ 播放徽章：hover 时缩略图微亮 + 徽章放大（可点暗示） ── */
+.react-flow__node:hover .cv-play-badge-cover {
+  filter: brightness(1.08);
+  transition: filter var(--cv-d-select) var(--cv-e-out);
+}
+.react-flow__node:hover .cv-play-badge {
+  transform: translate(-50%, -50%) scale(1.15);
+  border-color: var(--cv-select, #EDEEF1);
+  transition: transform var(--cv-d-select) var(--cv-e-spring),
+              border-color var(--cv-d-select) var(--cv-e-out);
+}
+.cv-play-badge { transition: transform var(--cv-d-select) var(--cv-e-out), border-color var(--cv-d-select) var(--cv-e-out); }
+
 /* ── 键盘焦点可见（质量底线；仅 :focus-visible，不打扰鼠标点击） ── */
 .cv-search-input { outline: none; }
 .cv-search-input:focus-visible,

@@ -208,12 +208,13 @@ function L0Block({ data }: { data: AssetCardData }) {
 
 // ─── 封面区（L1/L2 共用） ───────────────────────────────────
 
-function Cover({ data, mod, width, height, lod }: {
+function Cover({ data, mod, width, height, lod, nodeId }: {
   data: AssetCardData
   mod: Modality
   width: number
   height: number
   lod: LodLevel
+  nodeId: string
 }) {
   const asset = data.v3
   const rawThumb = asset?.media.thumbnail ?? data.thumbnailUrl ?? null
@@ -249,6 +250,21 @@ function Cover({ data, mod, width, height, lod }: {
 
   const videoSrc = mod === 'video' ? resolveMediaUrl(asset?.media.proxy ?? asset?.media.original ?? data.filePath) : null
   const audioSrc = mod === 'audio' ? resolveMediaUrl(asset?.media.original ?? data.filePath) : null
+
+  // LOD≤1 视频卡显式 ▶ 播放入口：LOD1 hover 内联播放被禁（onEnter 的 lod!==2 早退），
+  // 用户此前只剩「放大到 0.63 / 双击」两条无提示路径。点击 ▶ = 复用 onNodeDoubleClick
+  // 语义（setSelectedNode + setDetailNode）打开右详情面板，内含 controls 播放器；
+  // 不在 LOD1 内联播视频（1000+ 节点画布 16 路视频并发有内存风险）。LOD2 保留 hover 内联播放。
+  const setDetailNode = useCanvasStore((s) => s.setDetailNode)
+  const setSelectedNode = useCanvasStore((s) => s.setSelectedNode)
+  const openDetail = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    const node = useCanvasStore.getState().nodes.find((n) => n.id === nodeId)
+    if (!node) return
+    setSelectedNode(node)
+    setDetailNode(node)
+  }, [nodeId, setDetailNode, setSelectedNode])
+  const showPlayBadge = lod <= 1 && mod === 'video' && !!videoSrc
 
   // L2 视频：hover 200ms 后内联播 480p proxy（P15）
   const onEnter = useCallback(() => {
@@ -304,12 +320,19 @@ function Cover({ data, mod, width, height, lod }: {
     body = <video src={videoSrc} autoPlay muted loop style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 4, filter }} />
   } else if (thumb) {
     body = (
-      <div style={{ position: 'relative', width: '100%', height: '100%', background: v3theme.modalityWeak[mod] }}>
+      <div
+        className={mod === 'video' && showPlayBadge ? 'cv-play-badge-cover' : undefined}
+        style={{ position: 'relative', width: '100%', height: '100%', background: v3theme.modalityWeak[mod] }}
+      >
         <img src={resolveMediaUrl(thumb) ?? undefined} alt="" loading="lazy" onError={() => setThumbFailed(true)} style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: 4, filter }} />
         {mod === 'video' && (
-          <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F2E9D8' }}>
-            <ModalityIcon kind="video" size={24} color="#F2E9D8" />
-          </span>
+          showPlayBadge
+            ? <PlayBadge onClick={openDetail} />
+            : (
+              <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F2E9D8' }}>
+                <ModalityIcon kind="video" size={24} color="#F2E9D8" />
+              </span>
+            )
         )}
       </div>
     )
@@ -323,7 +346,10 @@ function Cover({ data, mod, width, height, lod }: {
     // 用 <video> 取 mp4 首帧兜底（preload=metadata + #t=0.1 媒体片段定位到 0.1s 帧），
     // 叠 ▶ 图标宣示「视频，悬停播放」。比纯模态图标占位信息量大得多。
     body = (
-      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <div
+        className={showPlayBadge ? 'cv-play-badge-cover' : undefined}
+        style={{ position: 'relative', width: '100%', height: '100%' }}
+      >
         <video
           src={`${videoSrc}#t=0.1`}
           preload="metadata"
@@ -334,6 +360,7 @@ function Cover({ data, mod, width, height, lod }: {
         <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F2E9D8' }}>
           <ModalityIcon kind="video" size={24} color="#F2E9D8" />
         </span>
+        {showPlayBadge && <PlayBadge onClick={openDetail} />}
       </div>
     )
   }
@@ -347,6 +374,33 @@ function Cover({ data, mod, width, height, lod }: {
     >
       {body}
     </div>
+  )
+}
+
+/** LOD≤1 视频卡显式 ▶ 播放入口：半透明圆底 + 三角，点击打开右详情面板（controls 播放器）。
+ *  样式沿 WaveformCover 播放键的 v3theme 词汇（overlay 底 + 冷纸白前景 + select 描边）。 */
+function PlayBadge({ onClick }: { onClick: (e: React.MouseEvent) => void }) {
+  return (
+    <button
+      type="button"
+      data-testid="asset-card-play-badge"
+      className="cv-play-badge nodrag nopan"
+      onClick={onClick}
+      aria-label="播放视频（打开详情面板）"
+      title="播放视频"
+      style={{
+        position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
+        width: 28, height: 28, borderRadius: '50%', padding: 0,
+        background: 'var(--cv-bg-overlay, #1E2128)',
+        border: '1px solid var(--cv-line-strong, rgba(255,255,255,0.12))',
+        color: 'var(--cv-text-primary, #EDEEF1)', cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}
+    >
+      <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true" style={{ marginLeft: 1.5, display: 'block', fill: 'currentColor' }}>
+        <path d="M2 1.2 L11 6 L2 10.8 Z" />
+      </svg>
+    </button>
   )
 }
 
@@ -656,7 +710,7 @@ function AssetCardNodeComponent({ id, data, selected }: NodeProps<AssetCardNodeT
           </div>
         )}
         {/* 封面区 */}
-        <Cover data={data} mod={mod} width={w - V3_NODE_SIZES.card.modBarW - 16} height={isL1 ? 100 - 14 - 28 : coverH} lod={lod} />
+        <Cover data={data} mod={mod} nodeId={id} width={w - V3_NODE_SIZES.card.modBarW - 16} height={isL1 ? 100 - 14 - 28 : coverH} lod={lod} />
         {/* composite 迷你胶片条（§4.6：宣示「我有内部结构」，点击开右面板 TimelineStructure —— D） */}
         {!isL1 && stage === 'composite' && <Filmstrip asset={asset} />}
         {/* 底行元信息：raw 关键字段 chips 优先，缺省退回 metaLine（shot# · 时长） */}
