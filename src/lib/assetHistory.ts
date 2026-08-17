@@ -156,11 +156,12 @@ export async function revertAssetToHistory(
   // 执行回退
   await u.db("o_assets").where("id", assetId).update(restored);
 
-  const result: HistoryRecord = {
+  // 行由 where("id", historyId) 命中且列均非空,`.first()` 的可选行类型需要收窄到 HistoryRecord
+  const result = {
     ...target,
     changes: typeof target.changes === "string" ? JSON.parse(target.changes) : target.changes,
     snapshot,
-  };
+  } as HistoryRecord;
 
   return { updated: Object.keys(restored), revertedFrom: result };
 }
