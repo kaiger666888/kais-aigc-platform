@@ -32,7 +32,7 @@ const generateSchema = z.object({
   /** Seed (-1 = random) */
   seed: z.number().int().default(-1),
   /** Checkpoint to use */
-  model: z.enum([...SA3_MODELS]).default("stable_audio_3_medium.safetensors"),
+  model: z.enum([...SA3_MODELS]).default("stable_audio_3_medium_base.safetensors"),
   /** Text encoder */
   text_encoder: z.string().max(200).default("t5gemma_b_b_ul2.safetensors"),
   /** Sampler — auto-selected by model type if not specified */
