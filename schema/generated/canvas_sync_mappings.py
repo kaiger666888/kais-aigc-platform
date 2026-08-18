@@ -355,35 +355,35 @@ PHASE_FIELDS: dict[str, dict[str, dict[str, Any]]] = {
     },
     "p07": {
         "style_composition": {
-            "python_key": "style_vector.composition",
+            "python_key": "composition",
             "canvas_key": "style_composition",
             "zod_type": "number",
             "transform": "coerce_float_0_1",
             "required": False
         },
         "style_color": {
-            "python_key": "style_vector.color",
+            "python_key": "color",
             "canvas_key": "style_color",
             "zod_type": "number",
             "transform": "coerce_float_0_1",
             "required": False
         },
         "style_rhythm": {
-            "python_key": "style_vector.rhythm",
+            "python_key": "rhythm",
             "canvas_key": "style_rhythm",
             "zod_type": "number",
             "transform": "coerce_float_0_1",
             "required": False
         },
         "style_light": {
-            "python_key": "style_vector.light",
+            "python_key": "light_shadow",
             "canvas_key": "style_light",
             "zod_type": "number",
             "transform": "coerce_float_0_1",
             "required": False
         },
         "style_sound": {
-            "python_key": "style_vector.sound",
+            "python_key": "sound",
             "canvas_key": "style_sound",
             "zod_type": "number",
             "transform": "coerce_float_0_1",
@@ -502,6 +502,12 @@ PHASE_FIELDS: dict[str, dict[str, dict[str, Any]]] = {
             "python_key": "speaker",
             "canvas_key": "speaker",
             "zod_type": "string",
+            "required": False
+        },
+        "duration": {
+            "python_key": "duration_sec",
+            "canvas_key": "duration",
+            "zod_type": "number",
             "required": False
         }
     },

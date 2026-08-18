@@ -69,6 +69,20 @@ function buildCanvasNode(
   const assetIdStr = `a-oasset-${asset.id}`;
 
   // Build node.data — the shape the frontend expects
+  // 2026-08-19 审计 #6 修复：description 此前恒为 name（资产中心的 describe
+  // 列被丢弃）；tags 此前用 isPrimaryView 重造（真实 tags 列被丢弃）。
+  // —— describe 优先回填描述；真实 tags 解析后与 selected 标记合并。
+  let realTags: string[] = [];
+  if (asset.tags) {
+    try {
+      const parsed = typeof asset.tags === "string" ? JSON.parse(asset.tags) : asset.tags;
+      if (Array.isArray(parsed)) {
+        realTags = parsed.filter((t: unknown): t is string => typeof t === "string" && !!t);
+      }
+    } catch {
+      // 非 JSON tags 列（历史脏数据）— 忽略，走 selected 标记
+    }
+  }
   const data: Record<string, any> = {
     label: asset.name,
     type: "asset",
@@ -77,10 +91,12 @@ function buildCanvasNode(
     thumbnailUrl: filePath,
     imageUrl: filePath,
     src: filePath,
-    description: asset.name,
+    description: asset.describe || asset.name,
     state: asset.isPrimaryView ? "selected" : "candidate",
     oAssetId: asset.id,
-    tags: asset.isPrimaryView ? ["selected"] : [],
+    tags: asset.isPrimaryView
+      ? Array.from(new Set(["selected", ...realTags]))
+      : realTags,
   };
 
   // Add character-specific fields
@@ -113,6 +129,10 @@ function buildCanvasNode(
   if (meta.model_version) data.modelVersion = meta.model_version;
   if (asset.prompt) data.prompt = asset.prompt;
   if (asset.model) data.model = asset.model;
+  // 2026-08-19 审计 #6：o_image 的 resolution / imageModel 此前 select
+  // 了却不进 node.data — 回填，供详情面板展示生成规格。
+  if (asset.resolution) data.resolution = asset.resolution;
+  if (asset.imageModel) data.imageModel = asset.imageModel;
 
   // Position: place new nodes in a spiral around origin to avoid overlap
   // Use asset.id as seed for deterministic placement
@@ -157,6 +177,7 @@ router.post(
           "a.name",
           "a.type",
           "a.prompt",
+          "a.describe",
           "a.characterId",
           "a.viewAngle",
           "a.isPrimaryView",

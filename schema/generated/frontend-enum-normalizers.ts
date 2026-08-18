@@ -14,7 +14,12 @@ export const SCHEMA_ALIASES: Record<string, Record<string, string>> = {
   },
   "asset": {
     "role": "archetype",
-    "age_range": "ageRange"
+    "age_range": "ageRange",
+    "composition": "style_composition",
+    "color": "style_color",
+    "rhythm": "style_rhythm",
+    "light_shadow": "style_light",
+    "sound": "style_sound"
   },
   "storyboard": {
     "camera_movement": "cameraMovement",
@@ -25,7 +30,8 @@ export const SCHEMA_ALIASES: Record<string, Record<string, string>> = {
     "duration_sec": "durationS"
   },
   "audio": {
-    "audio_type": "audioType"
+    "audio_type": "audioType",
+    "duration_sec": "duration"
   },
   "video": {
     "duration_sec": "duration",

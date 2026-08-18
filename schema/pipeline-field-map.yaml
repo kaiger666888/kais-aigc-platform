@@ -292,32 +292,39 @@ phases:
     canvas_type: asset
     asset_type: scene
     fields:
+      # 2026-08-19 死路修复：python_key 原为点路径 style_vector.composition —
+      # 映射层在每个 artifact 内找嵌套 style_vector 子字典，而生产者（p07
+      # style_vector 输出）把数值键平铺在顶层 → 永远 miss，前端 NODE_SCHEMA
+      # asset 组的五个 style_* 数值条（constants.ts type:'bar' 0-1）全空。
+      # 改为顶层键名；light_shadow 是生产者实际键名（非 light）。
+      # color 无数值源（生产者 color 是描述串）— coerce 守卫（非数值跳过）
+      # 保证不会伪造 0.5，面板该条保持空。
       style_composition:
-        python_key: style_vector.composition
+        python_key: composition
         canvas_key: style_composition
         zod_type: number
         transform: "coerce_float_0_1"
         required: false
       style_color:
-        python_key: style_vector.color
+        python_key: color
         canvas_key: style_color
         zod_type: number
         transform: "coerce_float_0_1"
         required: false
       style_rhythm:
-        python_key: style_vector.rhythm
+        python_key: rhythm
         canvas_key: style_rhythm
         zod_type: number
         transform: "coerce_float_0_1"
         required: false
       style_light:
-        python_key: style_vector.light
+        python_key: light_shadow
         canvas_key: style_light
         zod_type: number
         transform: "coerce_float_0_1"
         required: false
       style_sound:
-        python_key: style_vector.sound
+        python_key: sound
         canvas_key: style_sound
         zod_type: number
         transform: "coerce_float_0_1"
@@ -434,6 +441,15 @@ phases:
         python_key: speaker
         canvas_key: speaker
         zod_type: string
+        required: false
+      # 2026-08-19 音频卡片时长空白修复：旧版 AudioNode 卡片读 camelCase
+      # ``duration``，而音频节点只有 schema 必填的 ``duration_sec``（YAML
+      # p10 此前无 duration 映射，仅 p09/p11 配了驼峰副本）→ 时长列恒空。
+      # 对齐 p11 的 duration_sec→duration 双写。
+      duration:
+        python_key: duration_sec
+        canvas_key: duration
+        zod_type: number
         required: false
 
   p11:

@@ -167,6 +167,10 @@ export const YAML_OPTIONAL_FIELDS: Record<string, YamlOptionalField[]> = {
     {
       "key": "speaker",
       "zodType": "string"
+    },
+    {
+      "key": "duration",
+      "zodType": "number"
     }
   ],
   "video": [
