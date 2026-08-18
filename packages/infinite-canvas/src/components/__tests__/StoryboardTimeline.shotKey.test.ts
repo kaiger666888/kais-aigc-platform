@@ -264,3 +264,71 @@ describe('extractShots 音轨挂载 — 管线项目（beat S01_B01）回归', (
     expect(shots.every((s) => s.audioTracks?.length === 1)).toBe(true)
   })
 })
+
+// ─── extractShots Pass5 首尾帧挂载（时间轴仅展示已选定条件帧） ──
+
+/** 条件帧变体节点（DB 实况形态：a-flf-S01_B01-first-v1，格式 A 四字段齐）。 */
+function flfNode(id: string, shotId: string, frameType: 'first' | 'last', variant: string): AssetNodeV3 {
+  return makeNode(id, { stage: 'keyframe', modality: 'image', meta: { stage: 'keyframe', shotId } })
+}
+
+describe('extractShots 首尾帧挂载 — beat 级条件帧（管线项目）', () => {
+  it('beat 级帧组按 shotKey 精确挂到同 beat 行：不折叠、不改名、不双行', () => {
+    const graph = makeGraph([
+      storyboardNode('a-shot_list-S01_B01', 'S01_B01'),
+      storyboardNode('a-shot_list-S01_B02', 'S01_B02'),
+      flfNode('a-flf-S01_B01-first-v1', 'S01_B01', 'first', 'v1'),
+      flfNode('a-flf-S01_B01-first-v2', 'S01_B01', 'first', 'v2'),
+      flfNode('a-flf-S01_B01-last-v1', 'S01_B01', 'last', 'v1'),
+    ])
+    const raw = new Map<string, Record<string, unknown>>([
+      ['a-shot_list-S01_B01', { shot_id: 'S01_B01' }],
+      ['a-shot_list-S01_B02', { shot_id: 'S01_B02' }],
+      ...['a-flf-S01_B01-first-v1', 'a-flf-S01_B01-first-v2'].map((id, i) => [id, {
+        assetType: 'keyframe', shot_id: 'S01_B01', frame_type: 'first',
+        variant: `v${i + 1}`, groupKey: 'S01_B01_first', filePath: `/oss/p/${id}.png`,
+      }]),
+      ['a-flf-S01_B01-last-v1', {
+        assetType: 'keyframe', shot_id: 'S01_B01', frame_type: 'last',
+        variant: 'v1', groupKey: 'S01_B01_last', filePath: '/oss/p/last.png',
+      }],
+    ] as [string, Record<string, unknown>][])
+
+    const shots = extractShots(graph, raw)
+    // 不双行：两行 storyboard，帧组挂载后不追加合成行
+    expect(shots).toHaveLength(2)
+    const b01 = shots.find((s) => s.shotId === 'S01_B01')
+    const b02 = shots.find((s) => s.shotId === 'S01_B02')
+    expect(b01?.frameVariants?.first).toHaveLength(2)
+    expect(b01?.frameVariants?.last).toHaveLength(1)
+    // beat 行不改名（场景折叠只发生在场景级帧组的回退路径）
+    expect(b01?.shotId).toBe('S01_B01')
+    // 同场景兄弟 beat 不被过滤、不被折叠挂载
+    expect(b02?.frameVariants).toBeUndefined()
+    expect(b02?.shotId).toBe('S01_B02')
+  })
+})
+
+describe('extractShots 首尾帧挂载 — 场景级条件帧（逆推项目回退）', () => {
+  it('场景级帧组挂到该场景第一个 beat 行并改名折叠，废弃子行过滤', () => {
+    const graph = makeGraph([
+      storyboardNode('a-shot_list-S01_B01', 'S01_B01'),
+      storyboardNode('a-shot_list-S01_B02', 'S01_B02'),
+      flfNode('a-flf-S001-first-v1', 'S001', 'first', 'v1'),
+    ])
+    const raw = new Map<string, Record<string, unknown>>([
+      ['a-shot_list-S01_B01', { shot_id: 'S01_B01' }],
+      ['a-shot_list-S01_B02', { shot_id: 'S01_B02' }],
+      ['a-flf-S001-first-v1', {
+        assetType: 'keyframe', shot_id: 'S001', frame_type: 'first',
+        variant: 'v1', groupKey: 'S001_first', filePath: '/oss/p/S001_first_v1.png',
+      }],
+    ])
+
+    const shots = extractShots(graph, raw)
+    // 折叠：S01_B01 → S01 场景行，S01_B02 废弃子行被过滤，无合成行
+    expect(shots).toHaveLength(1)
+    expect(shots[0].shotId).toBe('S01')
+    expect(shots[0].frameVariants?.first).toHaveLength(1)
+  })
+})
