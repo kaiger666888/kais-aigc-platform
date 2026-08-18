@@ -29,6 +29,7 @@ import route25 from "./routes/canvas/v2/sync-assets";
 import route26 from "./routes/canvas/v2/thumbnail/batch";
 import route27 from "./routes/canvas/v2/thumbnail/index";
 import route28 from "./routes/notion-proxy";
+import routeEar from "./routes/production/ear/index";
 import route29 from "./routes/production/flux/flux2Generate";
 import route30 from "./routes/production/flux/kontext-generate/index";
 import route31 from "./routes/production/flux/sceneGenerate";
@@ -200,6 +201,7 @@ export default async (app: Express) => {
   app.use("/api/canvas/v2/thumbnail", route27);
   app.use("/api/canvas/v2/thumbnail/batch", route26);
   app.use("/api/notion-proxy", route28);
+  app.use("/api/production/ear", routeEar);
   app.use("/api/production/flux/flux2Generate", route29);
   app.use("/api/production/flux/kontext-generate", route30);
   app.use("/api/production/flux/sceneGenerate", route31);

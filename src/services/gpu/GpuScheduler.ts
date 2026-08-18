@@ -120,6 +120,22 @@ export function getRegisteredServices(): ServiceProfile[] {
       healthTimeoutMs: 300_000, // 模型加载 1-2 分钟; waitForHealthy 每 5s 轮询
       idleTimeoutMs: 30 * 60 * 1000, // 30min 空闲释放
     },
+    // Qwen3-Omni-30B-A3B audio LLM — GPU 1 (3090), 音频判定引擎 qwen-ear (:8126)。
+    // 与 qwen-llm (qwen-eye) 显存互斥 (13.4~17.9GB + 19.9GB > 24GB): 单卡放不下双驻留,
+    // ensureVram 按 VRAM 需求互相驱逐 — 先到先得, 后到 allocate 踢掉先到。
+    {
+      id: "qwen-ear",
+      name: "Qwen3-Omni-30B-A3B audio LLM (llama.cpp)",
+      gpuId: 1,
+      vramEstMb: 21_500, // Q4_K_M 18.56GB + mmproj-Q8_0 1.33GB + KV/计算余量 (kap-ear.sh NEED_MB 同源)
+      priority: 2, // 与 qwen-llm 同级 (常驻低频判定服务)
+      category: "llm",
+      start: { type: "script", command: "bash", args: ["/opt/qwen-ear/kap-ear.sh", "start"], timeoutMs: 600_000 }, // 脚本内 VRAM 窗口等待 ≤280s + NTFS 冷读 wait_ready ≤300s
+      stop: { type: "script", command: "bash", args: ["/opt/qwen-ear/kap-ear.sh", "stop"], timeoutMs: 60_000 },
+      healthUrl: "http://127.0.0.1:8126/health",
+      healthTimeoutMs: 330_000, // 外层保险 (脚本内 wait_ready 300s 已兜底); 18.6GB NTFS 冷读
+      idleTimeoutMs: 30 * 60 * 1000, // 30min 空闲释放 (与 qwen-llm 同策略)
+    },
   ];
 }
 

@@ -93,6 +93,7 @@ export const ENGINE_VRAM_REQUIREMENTS: Record<string, number> = {
   minimax_h3: 18432, // 18GB (int8 34GB 权重 dynamic VRAM 分段驻留 + VAE)
   flux2: 12288,      // FLUX.2-dev fp8mixed + TE (mistral cpu offload 后 GPU 侧 ~12GB)
   qwen_eye: 14336,   // 14GB (与 vision 引擎预检阈值一致; GpuScheduler qwen-llm vramEst 15.5GB 同源)
+  qwen_ear: 22016,   // 21.5GB (Qwen3-Omni Q4_K_M 18.56G + mmproj 1.33G + 余量; kap-ear.sh NEED_MB 同源) — 3090 近独占, 与 qwen_eye 互斥
   music3: 22528,     // 22GB (MiniMax Music3 diffusers 直装 24.7GB, MUSIC3_CPU_OFFLOAD=1 后 ~22GB, 3090 满卡)
   sa3: 8192,         // Stable Audio 3 Medium (~6GB: DiT + t5gemma TE) + 余量
   ace: 8192,         // ACE-Step v1.5 XL (SFT DiT + qwen TE + VAE, tiled VAE) 实测 ~7GB

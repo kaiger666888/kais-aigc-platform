@@ -24,11 +24,13 @@
 import express from "express";
 import { execFile } from "child_process";
 import { promisify } from "util";
+import axios from "axios";
 import { success, error } from "@/lib/responseFormat";
 import {
   withGpuQueue,
   acquireEngineOccupancy,
   releaseEngineOccupancy,
+  getGpuQueueStatus,
   GPU_QUEUE_DEFAULT_INDEX,
 } from "@/lib/gpuVramManager";
 import { getGpuSchedulerAsync } from "@/services/gpu";
@@ -44,7 +46,19 @@ const QWEN_EYE_MODEL = "Qwen3.8-27B (mmproj VL, llama.cpp :8125)" as const;
 // qwen_eye 在 withGpuQueue 体系内的引擎键 (ENGINE_VRAM_REQUIREMENTS: 14GB)
 const QWEN_EYE_QUEUE_KEY = "qwen_eye";
 
+const EYE_HEALTH_URL = "http://127.0.0.1:8125/health";
+
 const router = express.Router();
+
+/** :8125 健康探测 (3s) — server 在跑的唯一权威判据 */
+async function eyeHealthOk(): Promise<boolean> {
+  try {
+    await axios.get(EYE_HEALTH_URL, { timeout: 3_000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 router.post("/allocate", async (req, res) => {
   const { variantId, caller, autoRelease } = req.body || {};
@@ -54,6 +68,31 @@ router.post("/allocate", async (req, res) => {
   try {
     const scheduler = await getGpuSchedulerAsync();
     const callerId = typeof caller === "string" && caller ? caller : "api:llm/allocate";
+
+    // ─── 幂等/自愈快速路径: GPU1 占位已在 qwen_eye 手上 ───
+    // 2026-08-18 事故实证: qwen_eye 服务级占位残留 11.5h (:8125 已死), 30 个重复
+    // allocate 排在自家占位后永久挂起 (队列锁等待无超时), 连带 sa3/minimax_h3 挨饿。
+    // 占位 + 健康 → 直接 granted; 占位 + 已死 → 残留, 释放唤醒队列再走正常路径。
+    const holder = getGpuQueueStatus().holders[GPU_QUEUE_DEFAULT_INDEX];
+    if (holder?.engine === QWEN_EYE_QUEUE_KEY) {
+      if (await eyeHealthOk()) {
+        // scheduler.allocate 对 healthy 态是快速确认 (刷新 lastRequestAt/idle 钟)
+        const result = await scheduler.allocate({
+          serviceId: LLM_SERVICE_ID,
+          variantId,
+          caller: callerId,
+          autoRelease,
+        });
+        return res.status(200).send(success({
+          ...result,
+          engine: QWEN_EYE_ENGINE,
+          model: QWEN_EYE_MODEL,
+          fastPath: "already-occupied",
+        }));
+      }
+      console.warn("[llm] qwen_eye 服务级占位残留 (:8125 已死) — 自动释放后走正常拉起路径");
+      releaseEngineOccupancy(QWEN_EYE_QUEUE_KEY, GPU_QUEUE_DEFAULT_INDEX);
+    }
 
     // ─── GPU 全局串行队列 (withGpuQueue 体系) ───
     // 排队等 GPU1 轮到 qwen_eye → GpuScheduler 拉起/确认服务 → 拉起成功则
