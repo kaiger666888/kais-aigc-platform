@@ -277,6 +277,47 @@ async function main(): Promise<void> {
     "no name:hero group — image never re-claimed by naming channel",
   );
 
+  // ─── CR-02: duplicate shot_id (same side) across manifest entries ──────
+  console.log("\n=== CR-02: duplicate shot_id manifests → planGroups throws ===");
+  const cr02Images: IngestImageInput[] = [
+    { filePath: `${PROJ}/p11/iframes_S1/f_v1.png`, assetName: "f1" },
+    { filePath: `${PROJ}/p11/iframes_S1/f_v2.png`, assetName: "f2" },
+    { filePath: `${PROJ}/p11/iframes_S2/g_v1.png`, assetName: "g1" },
+    { filePath: `${PROJ}/p11/iframes_S2/g_v2.png`, assetName: "g2" },
+  ];
+  const cr02Manifests: ManifestFrameEntry[] = [
+    { shot_id: "S1_B1", all_first_frames: ["assets/P11/iframes_S1/f_v1.png", "assets/P11/iframes_S1/f_v2.png"] },
+    { shot_id: "S1_B1", all_first_frames: ["assets/P11/iframes_S2/g_v1.png", "assets/P11/iframes_S2/g_v2.png"] },
+  ];
+  let cr02PureThrew = false;
+  let cr02PureMsg = "";
+  try {
+    grouping.planGroups(cr02Images, cr02Manifests);
+  } catch (err: any) {
+    cr02PureThrew = true;
+    cr02PureMsg = String(err?.message ?? err);
+  }
+  assert(
+    cr02PureThrew,
+    "CR-02 regression: colliding groupKeys make planGroups throw (was: two silent groups with one key + cross-linked members)",
+  );
+  assert(
+    cr02PureThrew && /groupKey/.test(cr02PureMsg) && /S1_B1/.test(cr02PureMsg),
+    "CR-02 regression: error names the colliding groupKey",
+    cr02PureMsg,
+  );
+  // No false positive: first+last of the SAME shot are two valid distinct groups
+  const cr02SidesPlan = grouping.planGroups(cr02Images, [
+    { shot_id: "S1_B1", all_first_frames: ["assets/P11/iframes_S1/f_v1.png"] },
+    { shot_id: "S1_B1", all_last_frames: ["assets/P11/iframes_S2/g_v1.png"] },
+  ]);
+  const cr02SideKeys = cr02SidesPlan.groups.map((g) => g.groupKey);
+  assert(
+    cr02SideKeys.includes("shot:S1_B1:first") && cr02SideKeys.includes("shot:S1_B1:last"),
+    "CR-02: same shot_id first+last sides still both plan (no false positive)",
+    JSON.stringify(cr02SideKeys),
+  );
+
   // ─── Standalone passthrough (D-03: 维持现状, no error) ─────────────────
   console.log("\n=== standalone passthrough ===");
   const soloPlan = grouping.planGroups([{ filePath: "/oss/manual/hero.png", assetName: "hero" }]);
@@ -616,6 +657,33 @@ async function main(): Promise<void> {
       cr01CountBefore === cr01CountAfter,
       "CR-01 regression: rejected batch wrote 0 rows (17 batch + 1 compat row unchanged)",
       `before=${cr01CountBefore} after=${cr01CountAfter}`,
+    );
+
+    // ── CR-02 regression: duplicate shot_id manifest batch rolls back clean
+    //    (reviewer repro: two S1_B1/first entries with disjoint frames used
+    //    to commit group 1's members pointing at group 2's primary).
+    let cr02Threw = false;
+    let cr02Msg = "";
+    try {
+      await ingest.ingestImagesPayload(tempDb, {
+        projectId: PROJ_ID,
+        images: cr02Images.map((im) => ({ ...im, assetType: "scene" })),
+        manifests: cr02Manifests,
+      });
+    } catch (err: any) {
+      cr02Threw = true;
+      cr02Msg = String(err?.message ?? err);
+    }
+    assert(
+      cr02Threw,
+      "CR-02 regression: duplicate shot_id manifest batch throws (was: 200 OK + cross-linked groups)",
+    );
+    assert(cr02Threw && /groupKey/.test(cr02Msg), "CR-02 regression: error names the colliding groupKey", cr02Msg);
+    const cr02CountAfter = Number((await tempDb("o_assets").count("* as n").first() as any)?.n ?? 0);
+    assert(
+      cr02CountAfter === cr01CountAfter,
+      "CR-02 regression: rejected batch wrote 0 rows (transaction rolled back)",
+      `actual: ${cr02CountAfter}`,
     );
   } finally {
     await tempDb.destroy();

@@ -60,6 +60,9 @@ export default router.post(
         }),
       )
       .max(100)
+      // CR-02: two entries with the same shot_id (same side) produce colliding
+      // groupKeys that cross-link members onto the wrong primary — reject.
+      .refine((ms) => new Set(ms.map((m) => m.shot_id)).size === ms.length, "manifests 中 shot_id 重复")
       .optional(),
   }),
   async (req, res) => {

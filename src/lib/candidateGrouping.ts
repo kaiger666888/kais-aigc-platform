@@ -17,6 +17,12 @@
  * last frames of one shot are TWO different groups — mirrors getGroupKey's
  * keyframe split in AssetLibrary.tsx) and `name:{base}`.
  *
+ * Duplicate groupKey across manifest entries (same shot_id + side listed
+ * twice) THROWS instead of emitting colliding groups: two plans under one
+ * groupKey would cross-link the first group's members onto the second
+ * group's primary at the service layer, making the API response disagree
+ * with the database (CR-02).
+ *
  * State policy (D-05): ingest writes state='active' only — elimination /
  * archiving is a human action in the asset center. That policy is enforced at
  * the DB-writing service layer (Plan 48-02 ingestAssets.ts), NOT here.
@@ -145,6 +151,20 @@ export function planGroups(
 ): GroupPlanResult {
   const groups: AssetGroupPlan[] = [];
   const claimed = new Set<string>();
+  const usedGroupKeys = new Set<string>();
+  /** Push a group plan, refusing duplicate groupKeys (CR-02): two plans
+   *  under one groupKey would cross-link members onto the wrong primary at
+   *  the service layer (Map last-writer-wins). Fail loud — a concatenated
+   *  kmc manifest listing one shot twice is exactly this shape. */
+  const pushGroup = (plan: AssetGroupPlan): void => {
+    if (usedGroupKeys.has(plan.groupKey)) {
+      throw new Error(
+        `candidateGrouping: groupKey 冲突 ${plan.groupKey} — duplicate shot_id/side across manifest entries (CR-02)`,
+      );
+    }
+    usedGroupKeys.add(plan.groupKey);
+    groups.push(plan);
+  };
 
   // Batch indexes, first occurrence wins. Manifest paths are workdir-relative
   // (assets/P11/iframes_S01_B01/first_frame_v1.png) while ingest filePaths are
@@ -226,7 +246,7 @@ export function planGroups(
         const groupKey = suffix === "first"
           ? `shot:${entry.shot_id}:first`
           : `shot:${entry.shot_id}:last`;
-        groups.push({
+        pushGroup({
           groupKey,
           primaryFilePath: primary.filePath,
           memberFilePaths: members.map((m) => m.filePath),
@@ -285,7 +305,7 @@ export function planGroups(
       if (!characterId) characterId = trMatch[1];
       if (!metaSubtype) metaSubtype = "turnaround_sheet";
     }
-    groups.push({
+    pushGroup({
       groupKey: `name:${base}`,
       primaryFilePath: primary.filePath,
       memberFilePaths: ordered.map((m) => m.filePath),
