@@ -48,6 +48,9 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { AsyncLocalStorage } from "async_hooks";
+// 跨进程门控 (P3-A/D4): 进程内锁之上的 redis mirror/strict 层, 默认 off —
+// 见 gpuQueueCrossProc.ts 头注释。
+import { getQueueGate } from "./gpuQueueCrossProc";
 
 const execFileAsync = promisify(execFile);
 
@@ -320,12 +323,21 @@ function recordEvent(evt: GpuQueueEvent): void {
 /** 每引擎排队计数 (gpu-queue 端点观测用; 值 = 等待锁的该引擎作业数) */
 const waitingByEngine = new Map<string, number>();
 
-function incrementWaiting(engine: string): void {
+function incrementWaiting(engine: string, gpuIndex: number): void {
   waitingByEngine.set(engine, (waitingByEngine.get(engine) ?? 0) + 1);
+  mirrorWaitingToGate(engine, gpuIndex);
 }
 
-function decrementWaiting(engine: string): void {
+function decrementWaiting(engine: string, gpuIndex: number): void {
   waitingByEngine.set(engine, Math.max(0, (waitingByEngine.get(engine) ?? 1) - 1));
+  mirrorWaitingToGate(engine, gpuIndex);
+}
+
+/** 排队计数镜像到跨进程门控 (best-effort, 永不阻塞/抛错) */
+function mirrorWaitingToGate(engine: string, gpuIndex: number): void {
+  void getQueueGate()
+    .then((gate) => gate.mirrorWaiting(gpuIndex, engine, waitingByEngine.get(engine) ?? 0))
+    .catch(() => undefined);
 }
 
 /** 获取锁的先后顺序固定 (按 ENGINE_VRAM_REQUIREMENTS 键排序) — 防多锁场景死锁 */
@@ -457,7 +469,7 @@ function enqueueAcquire(
   }
 
   const position = lock.waiters.length + 1;
-  incrementWaiting(engineKey);
+  incrementWaiting(engineKey, gpuIndex);
   recordEvent({
     at: new Date().toISOString(),
     event: "enqueue",
@@ -482,7 +494,7 @@ function enqueueAcquire(
         if (w.settled) return;
         w.settled = true;
         cleanup();
-        decrementWaiting(engineKey);
+        decrementWaiting(engineKey, gpuIndex);
         lock.holder = { engine: engineKey, acquiredAt: Date.now() };
         resolve();
       },
@@ -492,7 +504,7 @@ function enqueueAcquire(
         cleanup();
         const idx = lock.waiters.indexOf(w);
         if (idx >= 0) lock.waiters.splice(idx, 1);
-        decrementWaiting(engineKey);
+        decrementWaiting(engineKey, gpuIndex);
         reject(err);
       },
     };
@@ -630,6 +642,12 @@ export async function withGpuQueueTimed<T>(
   });
   console.log(`[gpuQueue] acquire ${engineKey} GPU${gpuIndex}${waitMs > 0 ? ` (waited ${(waitMs / 1000).toFixed(1)}s)` : ""}`);
 
+  // ── 跨进程门控 (P3-A/D4): 进程内获锁后过 redis 门 —
+  // mirror 只写镜像+碰撞检测; strict 还要等互斥锁; off no-op。
+  // 门获取失败 (strict 超时) 必须归还进程内锁再抛, 否则队列死锁。
+  const gate = await getQueueGate();
+  const gateStart = Date.now();
+
   // 释放锁 + 唤醒队首 (finally 兜底: fn 抛错/超时也必须释放, 否则永久阻塞后续作业)。
   // 对象身份判断: 若锁已被「转交」给服务级占用 (acquireEngineOccupancy 重写了 holder),
   // 本次 release 是 no-op — 占用由 releaseEngineOccupancy 负责。
@@ -646,6 +664,7 @@ export async function withGpuQueueTimed<T>(
     } else {
       lock.holder = null;
     }
+    gate.release(gpuIndex, engineKey); // best-effort (TTL 兜底), 不抛
     recordEvent({
       at: new Date().toISOString(),
       event: "release",
@@ -655,6 +674,19 @@ export async function withGpuQueueTimed<T>(
     });
     console.log(`[gpuQueue] release ${engineKey} GPU${gpuIndex} (held ${(heldMs / 1000).toFixed(1)}s)`);
   };
+
+  try {
+    // gate 等待上限: 锁等待超时禁用时也要封顶 (异主 xlock 崩溃残留靠 TTL 40min 过期,
+    // 不能让 waiter 无限等 — D1 教训同样适用于跨进程层)
+    const gateDeadline = lockWaitTimeoutMs > 0 ? lockWaitTimeoutMs : 40 * 60 * 1000;
+    await gate.acquire(gpuIndex, engineKey, gateDeadline);
+    if (Date.now() - gateStart > 100) {
+      console.log(`[gpuQueue] crossproc gate ${engineKey} GPU${gpuIndex}: waited ${((Date.now() - gateStart) / 1000).toFixed(1)}s`);
+    }
+  } catch (err) {
+    release(); // 归还进程内锁 (队首 waiter 接管后自己去过门)
+    throw err;
+  }
 
   // AsyncLocalStorage 让 fn 内部再调 withGpuQueue 时能识别嵌套
   return heldGpus.run(new Set([gpuIndex]), async () => {
@@ -926,6 +958,14 @@ export async function acquireEngineOccupancy(
   });
   // enqueueAcquire 的 grant 写的 holder 没有 occupancy 标记 — 补上
   if (lock.holder?.engine === engineKey) lock.holder.occupancy = true;
+  // 跨进程门控 (失败要归还占用再抛, 否则队列死锁)
+  const gate = await getQueueGate();
+  try {
+    await gate.acquire(gpuIndex, engineKey, LOCK_WAIT_TIMEOUT_MS > 0 ? LOCK_WAIT_TIMEOUT_MS : 40 * 60 * 1000);
+  } catch (err) {
+    releaseEngineOccupancy(engineKey, gpuIndex);
+    throw err;
+  }
   recordEvent({
     at: new Date().toISOString(),
     event: "acquire",
@@ -954,6 +994,7 @@ export function releaseEngineOccupancy(engineKey: string, gpuIndex: number = GPU
   } else {
     lock.holder = null;
   }
+  void getQueueGate().then((gate) => gate.release(gpuIndex, engineKey)).catch(() => undefined);
   recordEvent({
     at: new Date().toISOString(),
     event: "release",
