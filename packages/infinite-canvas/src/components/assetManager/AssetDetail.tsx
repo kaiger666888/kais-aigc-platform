@@ -113,6 +113,10 @@ export default function AssetDetail() {
   const nodes = rels.slice(0, 8)
 
   const imgUrl = a.filePath ? resolveMediaUrl(a.filePath) : null
+  // 2026-08-19: 视频资产此前和图共用 <img>（必然 onError → emoji 占位，永远"看不了"）。
+  // 双通道判视频：modality 或扩展名（后者兜住误标类型的资产，如成片被标 voice）。
+  const isVideoMedia =
+    a.modality === 'video' || /\.(mp4|webm|mov|m4v)$/i.test(a.filePath ?? '')
 
   return (
     <div className="am-det">
@@ -120,7 +124,17 @@ export default function AssetDetail() {
         <button className="am-det__back" onClick={closeAssetDetail}>‹ 返回资产库</button>
         <div className="am-det__stage">
           {imgUrl ? (
-            <img className="am-det__big-img" src={imgUrl} alt={a.name} />
+            isVideoMedia ? (
+              <video
+                className="am-det__big-img"
+                src={imgUrl}
+                controls
+                preload="metadata"
+                playsInline
+              />
+            ) : (
+              <img className="am-det__big-img" src={imgUrl} alt={a.name} />
+            )
           ) : (
             <div className="am-det__big" style={cssVars({ filter: `drop-shadow(0 18px 40px rgba(0,0,0,.5))` })}>{a.emoji}</div>
           )}

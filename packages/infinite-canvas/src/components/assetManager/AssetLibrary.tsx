@@ -184,7 +184,41 @@ function Thumb({ item, portraitUrl }: { item: AssetItem; portraitUrl?: string | 
     }
   }
   const url = item.filePath ? resolveMediaUrl(item.filePath) : null
+  // 2026-08-19: 视频资产卡此前走 <img>（必然 onError → emoji，点开详情也只有 <img>），
+  // "资产卡无法播放视频片段"的根因之一。卡上做静音悬停预览（首帧即海报），
+  // 点击卡片仍进详情（openAssetDetail），完整 controls 播放器在 AssetDetail。
+  // 扩展名双通道：兜住误标类型的 mp4 资产（如成片被标 voice）。
+  const isVideoMedia =
+    item.modality === 'video' || /\.(mp4|webm|mov|m4v)$/i.test(item.filePath ?? '')
   if (url && !broken) {
+    if (isVideoMedia) {
+      return (
+        <>
+          <video
+            className="am-card__img"
+            src={url}
+            muted
+            playsInline
+            preload="metadata"
+            onError={() => setBroken(true)}
+            onMouseEnter={(e) => { e.currentTarget.play().catch(() => {}) }}
+            onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0 }}
+          />
+          <span
+            aria-hidden
+            style={{
+              position: 'absolute', right: 7, bottom: 7, zIndex: 2,
+              width: 20, height: 20, borderRadius: '50%',
+              background: 'rgba(0,0,0,.55)', color: '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              pointerEvents: 'none', fontSize: 10,
+            }}
+          >
+            ▶
+          </span>
+        </>
+      )
+    }
     return (
       <img
         className="am-card__img"
