@@ -621,6 +621,41 @@ export async function syncAssetPrimaryForWinner(
   return swapped;
 }
 
+/**
+ * WR-03: demotion-only half of the D-07 swap — used when a selection's
+ * winner maps to NO o_assets row (unmapped canvas node) or its row lives
+ * under a different projectId, so syncAssetPrimaryForWinner can promote
+ * nothing. The previous winner's asset must still LOSE isPrimaryView —
+ * otherwise o_assets keeps a stale primary that canvas no longer endorses
+ * (the registry/canvas truth sources silently diverge). Demotes ONLY the
+ * given ids under the given projectId; promotes nothing; never touches
+ * cross-project rows. Returns the ids whose isPrimaryView actually changed.
+ */
+export async function demoteAssets(
+  trxDb: any,
+  projectId: number,
+  assetIds: number[],
+): Promise<number[]> {
+  const ids = Array.from(
+    new Set((assetIds ?? []).filter((id) => Number.isInteger(id))),
+  );
+  if (ids.length === 0) return [];
+
+  const rows: any[] = await trxDb("o_assets")
+    .where({ projectId })
+    .where("isPrimaryView", 1)
+    .whereIn("id", ids)
+    .select("id");
+  if (rows.length === 0) return [];
+
+  await trxDb("o_assets")
+    .where({ projectId })
+    .where("isPrimaryView", 1)
+    .whereIn("id", ids)
+    .update({ isPrimaryView: 0 });
+  return rows.map((r) => r.id);
+}
+
 // ─── Meta ─────────────────────────────────────────
 
 export async function getMeta(scope: Scope): Promise<{ createdAt: number; updatedAt: number; lastEventId: number } | null> {

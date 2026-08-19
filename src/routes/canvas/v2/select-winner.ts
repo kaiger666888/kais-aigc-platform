@@ -6,6 +6,7 @@ import { db } from "@/utils/db";
 import {
   selectWinnerInGroup,
   syncAssetPrimaryForWinner,
+  demoteAssets,
 } from "@/lib/canvasRelationalStore";
 import { resolveOpenReviewForSelection } from "@/lib/reviewBridge";
 
@@ -81,20 +82,56 @@ router.post(
       // D-07 reverse linkage: swap o_assets isPrimaryView for the group's
       // candidates. Isolated on purpose: a failure here must NOT roll back or
       // fail the canvas selection above.
-      if (result.winnerOAssetId != null) {
-        try {
+      try {
+        if (result.winnerOAssetId != null) {
           result.swappedAssetIds = await syncAssetPrimaryForWinner(
             db,
             projectId,
             result.winnerOAssetId,
             result.memberOAssetIds,
           );
-        } catch (err) {
+          if (result.swappedAssetIds.length === 0 && result.memberOAssetIds.length > 0) {
+            // WR-03: the winner's own o_assets row could not be located under
+            // this project (asset moved projects) — a silent no-op here would
+            // leave the OLD winner's isPrimaryView = 1 forever. Run a
+            // demotion-only pass over the mapped members (winner excluded) so
+            // no stale primary survives, and make the divergence loud.
+            const demoted = await demoteAssets(
+              db,
+              projectId,
+              result.memberOAssetIds.filter((id) => id !== result.winnerOAssetId),
+            );
+            if (demoted.length > 0) {
+              result.swappedAssetIds = demoted;
+              console.warn(
+                `[select-winner] winner 资产行不在项目 ${projectId} 内，已仅降级旧 primary ` +
+                  `(o_assets ${demoted.join(",")}) — canvas 为真值源不回滚，资产中心需人工核对`,
+              );
+            }
+          }
+        } else if (result.memberOAssetIds.length > 0) {
+          // WR-03: the new winner maps to no o_assets row, but the member set
+          // is still known — demote mapped members (promote nothing) so the
+          // previous winner's isPrimaryView does not silently stay 1 while
+          // canvas already moved the winner.
+          result.swappedAssetIds = await demoteAssets(
+            db,
+            projectId,
+            result.memberOAssetIds,
+          );
           console.warn(
-            "[select-winner] o_assets isPrimaryView 置换失败(不回滚 canvas):",
-            err,
+            `[select-winner] winner 节点 ${winnerNodeId} 未映射 o_assets（组 ${groupId}），` +
+              (result.swappedAssetIds.length > 0
+                ? `已降级旧 primary o_assets ${result.swappedAssetIds.join(",")}`
+                : "组内无仍置 primary 的映射成员") +
+              "（canvas 为真值源不回滚）",
           );
         }
+      } catch (err) {
+        console.warn(
+          "[select-winner] o_assets isPrimaryView 置换失败(不回滚 canvas):",
+          err,
+        );
       }
 
       // [49-02] review bridge hook mounts here — SELECT-04: best-effort

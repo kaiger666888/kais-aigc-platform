@@ -64,8 +64,10 @@ async function main(): Promise<void> {
   // ── Export gate (TDD RED pivot: everything below needs these exports) ────
   const hasSelect = typeof store.selectWinnerInGroup === "function";
   const hasSync = typeof store.syncAssetPrimaryForWinner === "function";
+  const hasDemote = typeof store.demoteAssets === "function";
   assert(hasSelect, "SELECT-01: canvasRelationalStore exports selectWinnerInGroup");
   assert(hasSync, "SELECT-01: canvasRelationalStore exports syncAssetPrimaryForWinner");
+  assert(hasDemote, "WR-03: canvasRelationalStore exports demoteAssets (demotion-only pass)");
 
   // ── Source-shape assertion: no string-concatenated UPDATE SQL (T-49-02) ──
   const storeSrc = read("src/lib/canvasRelationalStore.ts");
@@ -74,7 +76,7 @@ async function main(): Promise<void> {
     "T-49-02: no raw 'UPDATE canvas_…' SQL string in canvasRelationalStore.ts (parameterized builders only)",
   );
 
-  if (!hasSelect || !hasSync) {
+  if (!hasSelect || !hasSync || !hasDemote) {
     return summary();
   }
 
@@ -278,6 +280,34 @@ async function main(): Promise<void> {
       "D-07: winner o_assets row does not exist → [] no-op",
     );
 
+    // ── WR-03: demotion-only pass (unmapped / unreachable winner) ──────────
+    console.log("\n=== WR-03 demoteAssets (demotion-only D-07 half) ===");
+    // state here: asset 3 primary (winner), 1/2 demoted. Simulate a stale
+    // old-winner primary on asset 2, then demote the mapped member set.
+    await db("o_assets").where({ id: 2 }).update({ isPrimaryView: 1 });
+    const demotedA = await store.demoteAssets(db, 101, [2, 3]);
+    assert(
+      JSON.stringify(demotedA) === JSON.stringify([2, 3]),
+      "WR-03: demoteAssets demotes every listed primary, returns changed ids",
+      JSON.stringify(demotedA),
+    );
+    const dA2: any = await db("o_assets").where({ id: 2 }).first();
+    const dA3: any = await db("o_assets").where({ id: 3 }).first();
+    assert(
+      dA2.isPrimaryView === 0 && dA3.isPrimaryView === 0,
+      "WR-03: old winner's stale primary demoted to 0 (no silent divergence)",
+    );
+    const demotedB = await store.demoteAssets(db, 101, [4]);
+    assert(
+      Array.isArray(demotedB) && demotedB.length === 0,
+      "WR-03: cross-project asset id (projectId 999) invisible under projectId 101",
+    );
+    const demotedC = await store.demoteAssets(db, 101, []);
+    assert(
+      Array.isArray(demotedC) && demotedC.length === 0,
+      "WR-03: empty id list → [] no-op",
+    );
+
     // ── transaction atomicity: injected mid-transaction failure rolls back ──
     console.log("\n=== SELECT-01 transaction atomicity (no half-writes) ===");
     const g1BeforeFail: any = await db("canvas_variant_groups").where({ id: "g1", project_id: 101, episodes_id: 1 }).first();
@@ -463,6 +493,15 @@ async function main(): Promise<void> {
   ]) {
     await appDb("canvas_nodes").insert(n);
   }
+  // WR-03 fixture: ep-u maps to NO o_assets row (empty data, non-a-oasset id);
+  // group gE3 holds ep-u + the mapped ep-a.
+  await appDb("canvas_nodes").insert({
+    id: "ep-u", project_id: 777, episodes_id: 1, type: "asset", branch_id: "main",
+    phase_index: 11, phase_name: "p11_first_last_frames",
+    position_x: 0, position_y: 0, size_width: 260, size_height: 180,
+    data: JSON.stringify({}), state: "idle", is_winner: 0,
+    variant_group_id: "gE3", created_at: T0, updated_at: T0,
+  });
   const groupRow = (id: string, mode: string) => ({
     id, project_id: 777, episodes_id: 1, phase_index: 11, branch_id: "main",
     variant_node_ids: JSON.stringify(["ep-a", "ep-b"]), winner_node_id: null,
@@ -471,6 +510,11 @@ async function main(): Promise<void> {
   for (const g of [groupRow("gE1", "single"), groupRow("gE2", "multi")]) {
     await appDb("canvas_variant_groups").insert(g);
   }
+  await appDb("canvas_variant_groups").insert({
+    id: "gE3", project_id: 777, episodes_id: 1, phase_index: 11, branch_id: "main",
+    variant_node_ids: JSON.stringify(["ep-u", "ep-a"]), winner_node_id: "ep-a",
+    select_mode: "single", created_at: T0, updated_at: T0,
+  });
 
   const post = (groupId: string, body: unknown) =>
     callEndpoint(routeMod.default, "POST", "/" + groupId + "/select-winner", body);
@@ -542,6 +586,28 @@ async function main(): Promise<void> {
   const egRow2: any = await appDb("canvas_variant_groups").where({ id: "gE1", project_id: 777, episodes_id: 1 }).first();
   emit(egRow2.updated_at === egRowTs, "endpoint: idempotent call wrote nothing (updated_at unchanged)");
 
+  // WR-03 — unmapped winner (ep-u maps to no o_assets row): the OLD winner's
+  // stale isPrimaryView must be demoted, not silently left at 1.
+  await appDb("o_assets").where({ id: 9001 }).update({ isPrimaryView: 1 }); // simulate stale old-winner primary
+  const r200u = await post("gE3", { projectId: 777, episodesId: 1, winnerNodeId: "ep-u" });
+  emit(
+    r200u.status === 200 && !!r200u.payload?.data && r200u.payload.data.applied === true,
+    "endpoint WR-03: unmapped-winner selection → HTTP 200 applied:true",
+    "actual: " + r200u.status,
+  );
+  const a9001b: any = await appDb("o_assets").where({ id: 9001 }).first();
+  const a9002b: any = await appDb("o_assets").where({ id: 9002 }).first();
+  emit(
+    a9001b.isPrimaryView === 0,
+    "endpoint WR-03: OLD winner asset 9001 demoted to 0 (no silent divergence)",
+    "actual: " + a9001b.isPrimaryView,
+  );
+  emit(
+    a9002b.isPrimaryView === 1,
+    "endpoint WR-03: demotion scoped to gE3 members — gE1 winner primary 9002 untouched",
+    "actual: " + a9002b.isPrimaryView,
+  );
+
   await appDb.destroy();
 }
 
@@ -571,6 +637,10 @@ function runEndpointSemantics(): void {
   assert(
     /try\s*\{[\s\S]*?await syncAssetPrimaryForWinner[\s\S]*?\}\s*catch[\s\S]*?console\.warn[\s\S]*?不回滚 canvas/.test(routeSrc),
     "endpoint: syncAssetPrimaryForWinner wrapped in try/catch whose catch only warns (D-07 failure isolation)",
+  );
+  assert(
+    routeSrc.includes("demoteAssets"),
+    "endpoint (WR-03): demotion-only pass present for unmapped/unreachable winners",
   );
   assert(
     routeSrc.indexOf("applied: false") < routeSrc.indexOf("broadcastToProject(projectId"),
