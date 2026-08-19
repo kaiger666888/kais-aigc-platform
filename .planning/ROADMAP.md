@@ -296,7 +296,19 @@ Plans:
   3. Changing selection in the asset center (`handleSelect` → `o_assets.isPrimaryView`) updates the corresponding canvas variant group's winner state, and vice versa — after either side changes selection, the other side shows the same winner on refresh.
   4. A kap-side selection change emits a review resolve carrying `chosen_variant_id` to the review-platform API; kmc's 30s poll picks it up — the next p11b render selects frames per the new winner.
 
-**Plans**: TBD
+**Plans**: 4 plans (Wave 1: select-winner endpoint + transactional store fn + D-07 reverse asset swap; Wave 2 ×3 parallel: kmc review bridge / registry→canvas linkage / frontend wiring)
+
+Plans:
+**Wave 1**
+
+- [ ] 49-01-PLAN.md — SELECT-01 后端端点 (canvasRelationalStore.selectWinnerInGroup 事务化 + select-winner.ts 路由 + D-07 o_assets isPrimaryView 置换 + verify:phase-49 三入口注册/scaffold)
+
+**Wave 2** *(blocked on Wave 1; three plans parallel — zero files_modified overlap)*
+
+- [ ] 49-02-PLAN.md — SELECT-04 kmc review 桥接 (reviewBridge.ts 查 open APPROVING review → approve result.selected + choose:v{N} comment；含已核实的 kmc 轮询协议缺口记录; D-11 双仓库零改动)
+- [ ] 49-03-PLAN.md — SELECT-03 资产中心→画布联动 (canvasAssetLinkage.ts a-oasset-/oAssetId 映射 + registry PATCH isPrimaryView=true 钩子，复用 selectWinnerInGroup; 常态静默跳过)
+- [ ] 49-04-PLAN.md — SELECT-02 前端接线 (canvasApi.selectVariantWinner + canvasStore.selectWinner 双路径乐观/回滚，variantOps prevSnapshot 复用; 零新视觉 D-05 + vitest 行为门)
+
 **UI hint**: yes
 
 ### Phase 50: Historical Backfill + Contract Guards
