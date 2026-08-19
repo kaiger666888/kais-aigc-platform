@@ -584,6 +584,39 @@ async function main(): Promise<void> {
       !voiceRows.some((r) => r.id === 9999),
       "expansion passthrough: whereIn(expand('voice')) does NOT match the role row",
     );
+
+    // ── CR-01 regression: duplicate filePath batch must be rejected, not
+    //    silently corrupt (reviewer repro: [hero.png, hero_v1.png,
+    //    hero_v1.png, hero.png] used to commit a second invisible primary).
+    const cr01CountBefore = Number((await tempDb("o_assets").count("* as n").first() as any)?.n ?? 0);
+    let cr01Threw = false;
+    let cr01Msg = "";
+    try {
+      await ingest.ingestImagesPayload(tempDb, {
+        projectId: PROJ_ID,
+        images: [
+          { filePath: "/oss/manual/hero.png", assetName: "hero", assetType: "character" },
+          { filePath: "/oss/manual/hero_v1.png", assetName: "hero v1", assetType: "character" },
+          { filePath: "/oss/manual/hero_v1.png", assetName: "hero v1 (dup)", assetType: "character" },
+          { filePath: "/oss/manual/hero.png", assetName: "hero (dup)", assetType: "character" },
+        ],
+      });
+    } catch (err: any) {
+      cr01Threw = true;
+      cr01Msg = String(err?.message ?? err);
+    }
+    assert(cr01Threw, "CR-01 regression: duplicate filePath batch throws (was: 200 OK + second primary row)");
+    assert(
+      cr01Threw && /filePath/.test(cr01Msg) && /重复/.test(cr01Msg),
+      "CR-01 regression: error names the offending filePaths",
+      cr01Msg,
+    );
+    const cr01CountAfter = Number((await tempDb("o_assets").count("* as n").first() as any)?.n ?? 0);
+    assert(
+      cr01CountBefore === cr01CountAfter,
+      "CR-01 regression: rejected batch wrote 0 rows (17 batch + 1 compat row unchanged)",
+      `before=${cr01CountBefore} after=${cr01CountAfter}`,
+    );
   } finally {
     await tempDb.destroy();
   }

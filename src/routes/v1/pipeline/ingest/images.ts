@@ -64,6 +64,19 @@ export default router.post(
   }),
   async (req, res) => {
     const { projectId, phase, images, manifests } = req.body;
+
+    // CR-01: duplicate filePaths would plant a second isPrimaryView=1 row the
+    // service's group assertion cannot see — reject up front with the
+    // offending paths (ingestImagesPayload has the same guard for direct /
+    // backfill callers).
+    const paths: string[] = Array.isArray(images)
+      ? images.map((i: { filePath: string }) => i.filePath)
+      : [];
+    const dupPaths = [...new Set(paths.filter((p, i) => paths.indexOf(p) !== i))];
+    if (dupPaths.length > 0) {
+      return res.status(400).send(error("filePath 重复: " + dupPaths.join(", ")));
+    }
+
     try {
       const result = await ingestImagesPayload(u.db, { projectId, phase, images, manifests });
       return res.status(200).send(success(result));

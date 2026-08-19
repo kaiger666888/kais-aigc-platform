@@ -7,8 +7,11 @@
  *
  *   - group members carry assetsId = primary's INTEGER id; primary rows have
  *     assetsId NULL (variants endpoint + /project/:projectId consume this shape)
- *   - exactly one isPrimaryView=true per group, asserted in-transaction so a
- *     violation rolls back the whole batch (D-04 批内保证, T-48-04)
+ *   - exactly one isPrimaryView=true per group, asserted in-transaction
+ *     (scoped to the group's own inserted rows, CR-01) so a violation rolls
+ *     back the whole batch (D-04 批内保证, T-48-04)
+ *   - duplicate filePaths in one batch are rejected up front (CR-01 — they
+ *     would plant a second primary row no id-reference check can see)
  *   - state is ALWAYS 'active' (D-05 — elimination/archiving is a human action
  *     in the asset center; sync-assets.ts filters state='active')
  *   - type is normalized to the canonical vocabulary (role→character, tool→prop,
@@ -88,6 +91,26 @@ export async function ingestImagesPayload(
   if (images.length === 0) {
     return { count: 0, assets: [], groups: [] };
   }
+
+  // CR-01: duplicate filePaths would write two o_assets rows for one path —
+  // a duplicated primary-path row (isPrimaryView=1, assetsId=NULL, id≠primary)
+  // is invisible to any id-reference-scoped check and silently breaks the
+  // exactly-one-primary invariant on disk. Reject the whole batch. The route
+  // pre-checks this for a clean 400; this throw is the direct-call /
+  // Phase-50-backfill backstop.
+  const seenPaths = new Set<string>();
+  const dupPaths: string[] = [];
+  for (const img of images) {
+    if (seenPaths.has(img.filePath)) {
+      if (!dupPaths.includes(img.filePath)) dupPaths.push(img.filePath);
+    } else {
+      seenPaths.add(img.filePath);
+    }
+  }
+  if (dupPaths.length > 0) {
+    throw new Error(`${LOG_PREFIX} filePath 重复: ${dupPaths.join(", ")}`);
+  }
+
   const now = Date.now();
 
   return db.transaction(async (trx) => {
@@ -214,17 +237,30 @@ export async function ingestImagesPayload(
       });
     }
 
-    // 6. D-04 in-transaction assertion: exactly one isPrimaryView=true row per
-    //    group (primary itself + its members). Violation → throw → rollback.
+    // 6. D-04 in-transaction assertion — scoped to the group's OWN inserted
+    //    rows via whereIn(memberAssetIds), NEVER by id-reference (CR-01): a
+    //    duplicated primary row has id≠primary and assetsId=NULL, so it is
+    //    invisible to an (id=primary OR assetsId=primary) scope. Also asserts
+    //    member linkage (CR-02 cross-link backstop): every non-primary group
+    //    row must carry assetsId = the group's actual primary. Violation →
+    //    throw → rollback.
     for (const s of groupSummaries) {
-      const primaryRows: Array<{ id: number }> = await trx("o_assets")
-        .where(function () {
-          this.where("id", s.primaryAssetId).orWhere("assetsId", s.primaryAssetId);
-        })
-        .where("isPrimaryView", 1);
-      if (primaryRows.length !== 1) {
+      const groupRows: Array<{ id: number; assetsId: number | null; isPrimaryView: number }> =
+        await trx("o_assets").whereIn("id", s.memberAssetIds);
+      const primaryRows = groupRows.filter((r) => r.isPrimaryView === 1);
+      const primaryOk =
+        primaryRows.length === 1 && primaryRows[0] !== undefined && primaryRows[0].id === s.primaryAssetId;
+      if (!primaryOk) {
         throw new Error(
-          `${LOG_PREFIX} D-04 violated for group ${s.groupKey}: expected exactly 1 primary, found ${primaryRows.length} — batch rolled back`,
+          `${LOG_PREFIX} D-04 violated for group ${s.groupKey}: expected exactly 1 primary (id ${s.primaryAssetId}), found [${primaryRows.map((r) => r.id).join(",")}] — batch rolled back`,
+        );
+      }
+      const unlinked = groupRows.filter(
+        (r) => r.id !== s.primaryAssetId && r.assetsId !== s.primaryAssetId,
+      );
+      if (unlinked.length > 0) {
+        throw new Error(
+          `${LOG_PREFIX} D-04 violated for group ${s.groupKey}: member ids [${unlinked.map((r) => r.id).join(",")}] not linked to primary id ${s.primaryAssetId} — batch rolled back`,
         );
       }
     }
