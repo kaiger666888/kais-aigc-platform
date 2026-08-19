@@ -3,56 +3,73 @@ import u from "@/utils";
 import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
+import { INGEST_INPUT_ASSET_TYPES } from "@/lib/assetTypes";
+import { ingestImagesPayload } from "@/lib/ingestAssets";
 
 const router = express.Router();
+
+/**
+ * POST /api/v1/pipeline/ingest/images — 候选感知建组 ingest (Phase 48).
+ *
+ * Thin wrapper: schema hardening here, ALL DB policy in
+ * src/lib/ingestAssets.ts (transactional grouping service — also reused by
+ * the Phase 50 backfill). assetType vocabulary comes from the single truth
+ * source @/lib/assetTypes (canonical 11 + legacy role/tool, D-06) — old
+ * payloads {projectId, phase, images:[{filePath, assetName, assetType:
+ * role|scene|tool, prompt, description}]} stay valid by construction.
+ */
+
+/** Reject `..` path segments — filePath is stored and later resolved as an
+ *  OSS media URL (T-48-02 path-traversal guard). */
+const hasNoTraversalSegment = (p: string): boolean => !p.split("/").includes("..");
 
 export default router.post(
   "/",
   validateFields({
     projectId: z.number(),
-    phase: z.string().optional(),
-    images: z.array(
-      z.object({
-        filePath: z.string(),
-        assetName: z.string(),
-        assetType: z.enum(["role", "scene", "tool"]),
-        prompt: z.string().optional(),
-        description: z.string().optional(),
-      }),
-    ),
+    phase: z.string().max(64).optional(),
+    images: z
+      .array(
+        z.object({
+          filePath: z
+            .string()
+            .min(1)
+            .max(1024)
+            .refine(hasNoTraversalSegment, "filePath 不能包含 .. 路径段"),
+          assetName: z.string().min(1).max(512),
+          assetType: z.enum(INGEST_INPUT_ASSET_TYPES),
+          prompt: z.string().max(10000).optional(),
+          description: z.string().max(10000).optional(),
+          characterId: z.string().max(256).optional(),
+          viewAngle: z.string().max(64).optional(),
+          subtype: z.string().max(64).optional(),
+          meta: z.record(z.string(), z.unknown()).optional(),
+        }),
+      )
+      .max(200),
+    manifests: z
+      .array(
+        z.object({
+          shot_id: z.string().min(1).max(64),
+          all_first_frames: z.array(z.string().max(1024)).max(20).optional(),
+          all_last_frames: z.array(z.string().max(1024)).max(20).optional(),
+          selected_first_variant: z.number().int().min(1).max(20).nullable().optional(),
+          selected_last_variant: z.number().int().min(1).max(20).nullable().optional(),
+          first_frame_prompt: z.string().max(10000).optional(),
+          last_frame_prompt: z.string().max(10000).optional(),
+        }),
+      )
+      .max(100)
+      .optional(),
   }),
   async (req, res) => {
-    const { projectId, phase, images } = req.body;
-    const now = Date.now();
-    const results: any[] = [];
-
-    for (let i = 0; i < images.length; i++) {
-      const img = images[i];
-      const imageId = now + i;
-
-      await u.db("o_image").insert({
-        id: imageId,
-        filePath: img.filePath,
-        type: phase || "pipeline",
-        state: "done",
-      });
-
-      const assetId = now + i + images.length;
-      await u.db("o_assets").insert({
-        id: assetId,
-        name: img.assetName,
-        prompt: img.prompt || "",
-        type: img.assetType,
-        describe: img.description || "",
-        projectId,
-        imageId,
-        promptState: "done",
-        startTime: now,
-      });
-
-      results.push({ imageId, assetId });
+    const { projectId, phase, images, manifests } = req.body;
+    try {
+      const result = await ingestImagesPayload(u.db, { projectId, phase, images, manifests });
+      return res.status(200).send(success(result));
+    } catch (err: any) {
+      console.error("[v1/pipeline/ingest/images] ingest 失败:", err);
+      return res.status(500).send(error("ingest 失败: " + err.message));
     }
-
-    res.status(200).send(success({ count: results.length, assets: results }));
   },
 );
