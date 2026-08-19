@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: 候选资产配套 (candidate-asset-completeness)
 status: planning
-last_updated: "2026-08-19T00:48:07.151Z"
+last_updated: "2026-08-19T00:00:00.000Z"
 last_activity: 2026-08-19
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-17)
 
 **Core value:** AI creative production pipeline that runs end-to-end, pluggable across multiple creative workflows via a published skill contract.
-**Current focus:** v1.8 milestone shipped (Phase 39). Canvas + movie-agent V8.6 contract reconciled.
+**Current focus:** v2.1 milestone (candidate-asset-completeness) — roadmap created, Phases 48-50. kmc 候选生成 ↔ kap ingest 建组/选定回写/workflow_phase 配套管道。
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 48 (Ingest Candidate Grouping + Enum Unification + workflow_phase) — not started
 Plan: —
-Status: Defining requirements
-Last activity: 2026-08-19 — Milestone v2.1 started
+Status: Roadmap created — ready for /gsd:plan-phase 48
+Last activity: 2026-08-19 — v2.1 roadmap created (3 phases: 48-50, 12/12 requirements mapped)
 
 ## Performance Metrics
 
@@ -49,6 +49,8 @@ Last activity: 2026-08-19 — Milestone v2.1 started
 
 ### Roadmap Evolution
 
+- **v2.1 roadmap created (2026-08-19):** 3 phases (48-50) derived from 12 requirements across 4 categories (INGEST 4 / SELECT 4 / PHASE 2 / GUARD 2). Serial chain 48→49→50: Phase 48 = o_assets 分组契约源头 (ingest 建组 + assetType 真值源 + workflow_phase 写入); Phase 49 = 选定回写闭环 (select-winner 端点 + 前端接线 + 资产中心联动 + kmc review resolve 桥接); Phase 50 = 存量回填 (与 Phase 47 模式一致) + 契约守护 (GUARD-01/02 + verify-phase-50)。kmc 侧零修改,桥接只读消费 manifest/review 协议。
+- **v2.0 shipped (2026-07-16):** 6 phases (42-47), 12/12 plans. 源端 manifest 契约 + canvas_sync 单路径 + 接收端 schema 严格化 + 文字资产 UI + E2E 契约测试 + 历史 backfill。唯一 deferred: BACKFILL-02 人工抽样签收。
 - **v1.8 kicked off (2026-06-19):** Phase 39 — reconcile master's v1.7 canvas with kais-movie-agent V8.6 (at `/data/workspace/kais-movie-agent/`). Discovered `feature/canvas-v2` (containing `/api/v2/canvas/*` routes + FlowGraphV2 types) had been stranded since merge-base d9c826c — `canvas-client.js` in V8.6 was written against these v2 routes but they never landed on master. Wave 1 merged feature/canvas-v2 → master-side branch with single conflict resolved (useCanvasSocket — kept both event handler sets).
 - **v1.7 shipped (2026-06-18):** 4 phases (35-38), 24/24 requirements satisfied. Tier 1 storyboard metadata + one-click orchestrator + batch execution shipped; Tier 2 storyboard preview landed as placeholder (gold-team IMAGE_DRAW integration deferred to follow-up). Zero backend schema changes — new fields persist via existing JSON blob (`o_agentWorkData.canvasGraph`).
 - **v1.7 roadmap created (2026-06-17):** 4 phases (35-38) derived from 24 requirements across 4 categories (STORYBOARD / ORCHESTRATE / BATCH / CANVAS-PREVIEW). Serial Tier 1 chain 35→36→37; Phase 38 (Tier 2 preview) parallel-safe, depends only on 35.
@@ -124,6 +126,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-19T00:00:00
-Stopped at: v1.8 Phase 39 shipped — 3 waves complete, 10/10 requirements verified, 33/33 verify-phase-39.ts assertions pass. Ready to merge feature/v1.8-canvas-movie-agent-adapt → master.
-Resume: `/gsd:new-milestone` for v1.9 (suggested scope: Run movie-agent V8.6 in Docker via OpenClaw runtime; canvas UI for 13-step pipeline; dreamina CLI subprocess replacing gold-team proxy for image gen).
+Last session: 2026-08-19
+Stopped at: v2.1 roadmap created — Phases 48-50 defined, 12/12 requirements mapped, traceability updated. No plans written yet.
+Resume: `/gsd:plan-phase 48` (ingest 候选建组 — INGEST-01..03 + PHASE-01; the o_assets group-shape contract everything downstream depends on).

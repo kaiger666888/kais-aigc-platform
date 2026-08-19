@@ -12,7 +12,8 @@
 - ✅ **v1.7 Infinite Canvas Storyboard & Orchestration** — Phases 35-38 (shipped 2026-06-18)
 - ✅ **v1.8 Canvas ↔ Movie-Agent V8.6 Adaptation** — Phase 39 (shipped 2026-06-19)
 - ✅ **v1.9 Canvas Sync Reliability** — Phases 40-41 (shipped 2026-06-24)
-- 🚧 **v2.0 Canvas Sync Permanence** — Phases 42-47 (current milestone)
+- ✅ **v2.0 Canvas Sync Permanence** — Phases 42-47 (shipped 2026-07-16)
+- 🚧 **v2.1 候选资产配套 (candidate-asset-completeness)** — Phases 48-50 (current milestone)
 
 ## Phases
 
@@ -26,8 +27,9 @@
 - Integer phases (35-38): v1.7 (shipped)
 - Integer phase (39): v1.8 (shipped)
 - Integer phases (40-41): v1.9 (shipped)
-- Integer phases (42-47): **v2.0 (this milestone — in progress)**
-- Decimal phases (e.g., 35.1): Urgent insertions
+- Integer phases (42-47): v2.0 (shipped)
+- Integer phases (48-50): **v2.1 (this milestone — in progress)**
+- Decimal phases (e.g., 48.1): Urgent insertions
 
 Decimal phases appear between their surrounding integers in numeric order.
 
@@ -80,7 +82,7 @@ Phase 40 joint-debug fixes + Phase 41 append-only event log (`kv_canvasEvent`) +
 
 ---
 
-## 🚧 v2.0 Canvas Sync Permanence (画布同步永久治理) — In Progress
+## ✅ v2.0 Canvas Sync Permanence (画布同步永久治理) — Shipped 2026-07-16
 
 **Milestone Goal:** 永久根治 kais-movie-pipeline → 无限画布自动同步中"资产同步不全 / 结构化参数缺失 / 描述过简不体现文字资产"三联症。通过**源端契约 + 接收端契约 + E2E 回归 + 存量 backfill** 四道闸,让该问题不再回归。
 
@@ -235,17 +237,91 @@ Plans:
 
 - [x] 47-02-PLAN.md — Archive script to scripts/oneoffs/ + deprecation header + README convention + Phase 47 verifier + manual sampling sign-off; covers BACKFILL-02 (deferred to operator), BACKFILL-03
 
+---
+
+## 🚧 v2.1 候选资产配套 (candidate-asset-completeness) — In Progress
+
+**Milestone Goal:** 打通 kmc 冗余候选生成 ↔ kap 无限画布/资产管理中心的配套管道——kmc 产出的 N 候选在 kap 侧自动成组、选定状态双向同步、按 phase 可组织，消除"候选进画布变孤产、kmc 选定结果无人消费"的断裂。
+
+### v2.1 Phases
+
+- [ ] **Phase 48: Ingest Candidate Grouping + Enum Unification + workflow_phase** — ingest 从平铺改建组：候选组 `assetsId`/`isPrimaryView`/`state` 落库契约 + assetType 单一真值源 + 新资产 `workflow_phase` 自动写入
+- [ ] **Phase 49: Selection Write-back (Canvas Endpoint + Asset-Center Linkage + kmc Bridge)** — select-winner 后端端点 + 前端接线 + 资产中心联动 + kmc review resolve 桥接，打通"kap 换选 ↔ kmc 消费"闭环
+- [ ] **Phase 50: Historical Backfill + Contract Guards** — 存量 368 条资产回填建组 + workflow_phase 回填 + 契约测试 + verify-phase-50 汇总守护
+
+**Architecture decisions (v2.1):**
+
+1. **Phase 编号延续 v2.0** (Phase 48+)
+2. **kmc 侧零修改**——桥接只读消费 `assets/P11/iframe-manifest.json` (`variants`/`all_first_frames[]`/`all_last_frames[]`/`selected_first_variant`/`selected_last_variant`)、turnaround `*_v{N}` + canonical 无后缀命名、`.pipeline-assets/hook-candidates.json` (`chosen_variant_id`) + review 协议 `POST /api/v1/reviews`；仅当桥接必需才动 kmc
+3. **ingest 建组是契约源头**——o_assets 分组形状 (`assetsId`/`isPrimaryView`/`state`) 先落定，选定回写 (Phase 49) 与存量回填 (Phase 50) 都依赖它
+4. **assetType 单一真值源**——遵循 v1.6 "删除而非包装" 模式：消灭 `images.ts:18` 与 `assets-registry/index.ts:21` 两套词汇，提供存量值兼容映射
+5. **选定回写走画布层后端端点**——对齐 `docs/canvas-review-integration.md` 方案B + `docs/canvas-next-steps.md:428-545` (Phase 3.2) 规划；前端 `canvasStore.selectWinner` 不再本地乐观 + save-v2 整体落盘
+6. **Backfill 沿用 Phase 47 模式**——dry-run 基线 + `--apply` + DB 备份先行；一次性脚本归档，不进运行时代码；INGEST-04 与 PHASE-02 合流为同一回填脚本
+7. **GUARD 收尾**——延续 v2.0 verify-phase-N 传统，契约测试最后落地守全 milestone 行为 + 双端枚举/词汇映射无 drift
+
+### Phase 48: Ingest Candidate Grouping + Enum Unification + workflow_phase
+
+**Goal**: kmc 产出的候选经 kap ingest 落库后自动成组——每组恰好一个 primary (`isPrimaryView=true`)、其余候选带正确 `state`、assetType 词汇全站统一、`workflow_phase` 非空。这是选定回写与存量回填共同依赖的 o_assets 分组契约源头。
+**Depends on**: Nothing (first v2.1 phase; defines the o_assets candidate-group shape)
+**Requirements**: INGEST-01, INGEST-02, INGEST-03, PHASE-01
+**Repo**: `kais-aigc-platform` (read-only consumption of kmc manifest conventions)
+**Success Criteria** (what must be TRUE):
+
+  1. Ingest a fixture manifest containing `all_first_frames[]`/`all_last_frames[]` (canonical no-suffix + `*_v{N}` turnaround variants): candidates land in `o_assets` sharing one `assetsId` pointing at the primary asset — the flat orphan insert at `src/routes/v1/pipeline/ingest/images.ts:29-54` no longer produces ungrouped rows.
+  2. The candidate named by `selected_first_variant`/`selected_last_variant` lands with `isPrimaryView=true`; every other group member lands `isPrimaryView=false, state='active'`; exactly one primary per group — verifiable by a DB query over the ingested batch.
+  3. `src/routes/v1/pipeline/ingest/images.ts` and `src/routes/v1/assets-registry/index.ts` consume a single assetType truth source; assets ingested with the new vocabulary are filterable via the assets-registry API, and rows holding legacy vocabulary values are still queryable through the compatibility mapping — the two-vocabulary split is gone.
+  4. Assets from a new ingest run carry `workflow_phase` derived from the kmc manifest path `p{NN}`/DAG — a post-ingest query for `workflow_phase IS NULL` over that batch returns 0 rows.
+
+**Plans**: TBD
+
+### Phase 49: Selection Write-back (Canvas Endpoint + Asset-Center Linkage + kmc Bridge)
+
+**Goal**: 用户在画布或资产中心换选 winner 后，选定状态事务化持久化到后端（不再前端本地乐观），并经 review resolve (`chosen_variant_id`) 回写 kmc、被其 30s 轮询消费，影响下一次 p11b 渲染选帧——"kap 换选 ↔ kmc 消费"闭环打通。
+**Depends on**: Phase 48 (selection operates on the candidate-group shape + `isPrimaryView` semantics defined there)
+**Requirements**: SELECT-01, SELECT-02, SELECT-03, SELECT-04
+**Repo**: `kais-aigc-platform` (bridge calls kmc review-platform API `POST /api/v1/reviews`; no kmc code changes)
+**Success Criteria** (what must be TRUE):
+
+  1. Calling the new canvas-level select-winner endpoint persists `canvas_variant_groups.winner_node_id` + the group's `is_winner`/curation node states in one transaction; after a fresh canvas load (`load-v2`), the winner state is still there — selection no longer lives only in frontend memory or a whole-graph `save-v2` flush.
+  2. Frontend `canvasStore.selectWinner` (`packages/infinite-canvas/src/store/canvasStore.ts:524-571`) calls the backend endpoint; when the endpoint fails, the UI rolls back to the `variantOps` prevSnapshot — no "UI shows a new winner but the DB never wrote it" divergence.
+  3. Changing selection in the asset center (`handleSelect` → `o_assets.isPrimaryView`) updates the corresponding canvas variant group's winner state, and vice versa — after either side changes selection, the other side shows the same winner on refresh.
+  4. A kap-side selection change emits a review resolve carrying `chosen_variant_id` to the review-platform API; kmc's 30s poll picks it up — the next p11b render selects frames per the new winner.
+
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 50: Historical Backfill + Contract Guards
+
+**Goal**: 存量 368 条 o_assets 获得与新增资产相同的组织性（候选建组 + `workflow_phase` 非空），且 v2.1 全部行为由自动化契约测试守住——候选分组形状、选定回写链路、双端枚举映射不再回归。
+**Depends on**: Phase 48 + Phase 49 (backfill reuses the ingest grouping logic; guards assert both phases' behaviors)
+**Requirements**: INGEST-04, PHASE-02, GUARD-01, GUARD-02
+**Repo**: `kais-aigc-platform`
+**Success Criteria** (what must be TRUE):
+
+  1. The backfill script (INGEST-04 + PHASE-02 合流为一) runs dry-run first with a baseline report (groups to create / workflow_phase values to write), takes a DB backup before `--apply`, and is idempotent — a second `--apply` run changes 0 rows (Phase 47 backfill pattern).
+  2. After `--apply`, `SELECT count(*) FROM o_assets WHERE workflow_phase IS NULL` drops significantly from the 368-all-empty baseline — remaining NULLs are only rows whose source cannot be derived from manifest/DAG/directory conventions; sampled p04/p07 assets carry the correct phase value.
+  3. The candidate-grouping contract test ingests a fixture manifest and asserts the resulting o_assets shape — group count, exactly one `isPrimaryView=true` per group, `state` value domain, `assetsId` self-consistency (every group member points at a primary that exists in the group) — violations fail the suite.
+  4. `scripts/verify-phase-50.ts` aggregates assertions over INGEST/SELECT/PHASE behaviors + dual-side enum/vocabulary mapping (no drift between ingest and assets-registry), registered in package.json following the v2.0 verify tradition.
+
+**Plans**: TBD
+
 ## Progress
 
-**v2.0 Execution Order (planned):**
+**v2.1 Execution Order (planned):**
 
 ```
-42 (manifest contract) ──┬──► 43 (canvas_sync cleanup)
-                         │
-                         └──► 44 (receiving schema) ──► 45 (text + UI) ──► 46 (E2E + contract tests) ──► 47 (backfill)
+48 (ingest grouping contract) ──► 49 (selection write-back loop) ──► 50 (backfill + guards)
 ```
 
-Phase 42 is the contract source — 43 and 44 can start in parallel after 42 lands. Phase 45 unifies both sides. Phase 46 is the regression gate before Phase 47 mutates historical data.
+Phase 48 is the contract source — the o_assets candidate-group shape that everything downstream consumes. Phase 49 closes the selection loop on top of it. Phase 50 backfills history (needs 48's grouping logic settled) and locks the whole milestone behind contract tests (asserts 48 + 49 behaviors).
+
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 48. Ingest Candidate Grouping + Enum Unification + workflow_phase | v2.1 | 0/? | Not started | - |
+| 49. Selection Write-back (Canvas Endpoint + Asset-Center Linkage + kmc Bridge) | v2.1 | 0/? | Not started | - |
+| 50. Historical Backfill + Contract Guards | v2.1 | 0/? | Not started | - |
+
+**v2.0 (shipped 2026-07-16):**
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -260,6 +336,7 @@ Phase 42 is the contract source — 43 and 44 can start in parallel after 42 lan
 
 | Phase | Milestone | Status | Completed |
 |-------|-----------|--------|-----------|
+| 42-47 | v2.0 Canvas Sync Permanence | ✅ Complete | 2026-07-16 |
 | 28-34 | v1.6 Workflow Skill Contract | ✅ Complete (1 deferred sign-off) | 2026-06-15 |
 | 23-27 | v1.5 Architecture Hardening + Code Hygiene | ✅ Complete | 2026-06-14 |
 | 20-22 | v1.4 Production Verification + Repo Governance | ✅ Partial Complete | 2026-06-13 |

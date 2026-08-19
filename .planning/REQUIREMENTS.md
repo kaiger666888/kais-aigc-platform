@@ -221,6 +221,18 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
+| INGEST-01 | Phase 48 | Pending |
+| INGEST-02 | Phase 48 | Pending |
+| INGEST-03 | Phase 48 | Pending |
+| INGEST-04 | Phase 50 | Pending |
+| SELECT-01 | Phase 49 | Pending |
+| SELECT-02 | Phase 49 | Pending |
+| SELECT-03 | Phase 49 | Pending |
+| SELECT-04 | Phase 49 | Pending |
+| PHASE-01 | Phase 48 | Pending |
+| PHASE-02 | Phase 50 | Pending |
+| GUARD-01 | Phase 50 | Pending |
+| GUARD-02 | Phase 50 | Pending |
 | MANIFEST-01 | Phase 42 | Pending |
 | MANIFEST-02 | Phase 42 | Pending |
 | MANIFEST-03 | Phase 42 | Pending |
@@ -245,9 +257,12 @@
 | BACKFILL-03 | Phase 47 | Pending |
 
 **Coverage:**
+- v2.1 requirements (current): 12 total (INGEST 4 + SELECT 4 + PHASE 2 + GUARD 2)
+- v2.1 mapped to phases: 12 — Phase 48 (INGEST-01..03, PHASE-01), Phase 49 (SELECT-01..04), Phase 50 (INGEST-04, PHASE-02, GUARD-01..02)
+- v2.1 unmapped: 0 ✓
 - v2.0 requirements: 22 total (21 committed + 1 Tier 2)
-- Mapped to phases: 22
-- Unmapped: 0 ✓
+- v2.0 mapped to phases: 22
+- v2.0 unmapped: 0 ✓
 
 Prior milestone traceability:
 - v1.9 SYNC-01..12: Phase 40 + 41 ✓ Shipped
@@ -256,4 +271,4 @@ Prior milestone traceability:
 
 ---
 *Requirements defined: 2026-06-17 (v1.7)*
-*Last updated: 2026-07-15 after v2.0 milestone requirements added*
+*Last updated: 2026-08-19 after v2.1 roadmap created (phases 48-50 mapped)*
