@@ -40,6 +40,7 @@ AI 短剧全链路制作平台，通过 kais-gold-team 统一执行引擎编排 
 - ✓ Pipeline callbacks 解耦 movie-v1 (注册表查询取代硬编码常量) — v1.6
 - ✓ Canvas 节点类型动态化 + FallbackNode 兜底未知类型 — v1.6
 - ✓ movie-v1 install-ready manifest + Skill 作者文档 — v1.6
+- ✓ ingest 候选建组 + assetType 真值源 + workflow_phase 自动写入 (135 断言 verify:phase-48) — v2.1 Phase 48
 
 ## Current Milestone: v2.1 候选资产配套 (candidate-asset-completeness)
 
