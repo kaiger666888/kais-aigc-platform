@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: 候选资产配套 (candidate-asset-completeness)
-status: verifying
-stopped_at: Phase 48 complete (2/2 plans)
-last_updated: "2026-08-19T01:32:24.997Z"
+status: ready_to_plan
+stopped_at: Phase 48 complete (2/2) — ready to discuss Phase 49
+last_updated: 2026-08-19T01:58:33.881Z
 last_activity: 2026-08-19
 progress:
   total_phases: 3
@@ -21,20 +21,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-17)
 
 **Core value:** AI creative production pipeline that runs end-to-end, pluggable across multiple creative workflows via a published skill contract.
-**Current focus:** Phase 48 — Ingest Candidate Grouping + Enum Unification + workflow_phase
+**Current focus:** Phase 49 — selection write back (canvas endpoint + asset center linkage + kmc bridge)
 
 ## Current Position
 
-Phase: 48 (Ingest Candidate Grouping + Enum Unification + workflow_phase) — EXECUTING
-Plan: 2 of 2
-Status: Phase complete — ready for verification
+Phase: 49
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-08-19
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 29 (v1.5 shipped — last fully-executed milestone before v1.7)
+- Total plans completed: 31 (v1.5 shipped — last fully-executed milestone before v1.7)
 - v1.7 shipped 2026-06-18 in single session (4 phases, 4 plans, 0 failures)
 
 **By Phase (v1.7):**
