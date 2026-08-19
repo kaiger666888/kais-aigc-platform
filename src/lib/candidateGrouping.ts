@@ -89,6 +89,18 @@ function stem(p: string): string {
   return dot > 0 ? bn.slice(0, dot) : bn;
 }
 
+/** Path segments (query stripped, empty segments dropped). */
+function segments(p: string): string[] {
+  return p.split("?")[0].split("/").filter((s) => s.length > 0);
+}
+
+/** "parentDir/basename" — the disambiguating key for manifest↔batch matching. */
+function dirBase(p: string): string {
+  const segs = segments(p);
+  const bn = segs[segs.length - 1] ?? "";
+  return segs.length >= 2 ? `${segs[segs.length - 2]}/${bn}` : bn;
+}
+
 // ─── parseVariantName ──────────────────────────────────────────────────────
 
 const VARIANT_RE = /^(.*)_v(\d+)$/;
@@ -134,14 +146,33 @@ export function planGroups(
   const groups: AssetGroupPlan[] = [];
   const claimed = new Set<string>();
 
-  // basename → image, first occurrence wins. Manifest paths are
-  // workdir-relative while ingest filePaths are OSS-style, so manifest↔batch
-  // matching is by basename.
+  // Batch indexes, first occurrence wins. Manifest paths are workdir-relative
+  // (assets/P11/iframes_S01_B01/first_frame_v1.png) while ingest filePaths are
+  // OSS-style (/oss/{proj}/p11/iframes_S01_B01/first_frame_v1.png), so matching
+  // is by basename — BUT kmc shot dirs repeat the SAME frame basenames across
+  // shots (every iframes_{shot} dir holds first_frame_v1.png …), so the parent
+  // directory name disambiguates which shot a batch image belongs to.
   const byBasename = new Map<string, IngestImageInput>();
+  const byDirBase = new Map<string, IngestImageInput>();
   for (const img of images) {
     const bn = basename(img.filePath);
     if (bn && !byBasename.has(bn)) byBasename.set(bn, img);
+    const db = dirBase(img.filePath);
+    if (db && !byDirBase.has(db)) byDirBase.set(db, img);
   }
+
+  /** Resolve a manifest (relative) path to a batch image via parent-dir +
+   *  basename — the shot-dir-disambiguated path (kmc layout). */
+  const resolveByDirBase = (relPath: string): IngestImageInput | undefined => {
+    const segs = segments(relPath);
+    if (segs.length < 2) return undefined;
+    return byDirBase.get(`${segs[segs.length - 2]}/${segs[segs.length - 1]}`);
+  };
+
+  /** Resolve via basename only — for batches whose directory layout differs
+   *  from the manifest (no iframes_{shot} dir preserved). */
+  const resolveByBasename = (relPath: string): IngestImageInput | undefined =>
+    byBasename.get(basename(relPath));
 
   // ─── Channel 1: manifest (claims first, D-03) ──────────────────────────
   if (manifests && Array.isArray(manifests)) {
@@ -156,11 +187,22 @@ export function planGroups(
         const selected = suffix === "first" ? entry.selected_first_variant : entry.selected_last_variant;
         if (!Array.isArray(list) || list.length === 0) continue;
 
-        // members = list paths whose basename is present in the batch
+        // Resolution mode per list: parent-dir+basename (disambiguated) when
+        // the batch preserves the manifest's shot directories at all;
+        // basename-only otherwise. Never mix the two within one list — with
+        // repeated frame basenames across shot dirs, a basename fallback for a
+        // dir-qualified manifest path would steal a sibling shot's file.
+        const useDirBase = list.some(
+          (p) => typeof p === "string" && resolveByDirBase(p) !== undefined,
+        );
+        const resolveImage = (p: string): IngestImageInput | undefined =>
+          useDirBase ? resolveByDirBase(p) : resolveByBasename(p);
+
+        // members = list paths resolved to present, unclaimed batch images
         const members: IngestImageInput[] = [];
         for (const p of list) {
           if (typeof p !== "string") continue;
-          const img = byBasename.get(basename(p));
+          const img = resolveImage(p);
           if (img && !claimed.has(img.filePath)) members.push(img);
         }
         if (members.length < 1) continue;
@@ -169,8 +211,8 @@ export function planGroups(
         // batch) else first present member in list order.
         let primary = members[0];
         if (typeof selected === "number" && Number.isInteger(selected) && selected >= 1 && selected <= list.length) {
-          const selBasename = basename(list[selected - 1]);
-          const selMember = members.find((m) => basename(m.filePath) === selBasename);
+          const selImg = resolveImage(list[selected - 1]);
+          const selMember = selImg ? members.find((m) => m.filePath === selImg.filePath) : undefined;
           if (selMember) primary = selMember;
         }
 
