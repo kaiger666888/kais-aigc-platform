@@ -318,6 +318,29 @@ async function main(): Promise<void> {
     JSON.stringify(cr02SideKeys),
   );
 
+  // ─── WR-01: non-string manifest entry at the selected index ────────────
+  console.log("\n=== WR-01: non-string at selected index no longer crashes ===");
+  const wr01List: any[] = ["assets/P11/iframes_S9_B1/first_frame_v1.png", 42];
+  let wr01Plan: ReturnType<typeof grouping.planGroups> | null = null;
+  let wr01Err = "";
+  try {
+    wr01Plan = grouping.planGroups(
+      [{ filePath: `${PROJ}/p11/iframes_S9_B1/first_frame_v1.png`, assetName: "v1" }],
+      [{ shot_id: "S9_B1", all_first_frames: wr01List, selected_first_variant: 2 }],
+    );
+  } catch (err: any) {
+    wr01Err = String(err?.message ?? err);
+  }
+  assert(!!wr01Plan && wr01Err === "", "WR-01 regression: manifest [str, 42] + selected=2 does not throw", wr01Err);
+  assert(
+    !!wr01Plan
+      && wr01Plan.groups.length === 1
+      && wr01Plan.groups[0] !== undefined
+      && bn(wr01Plan.groups[0].primaryFilePath) === "first_frame_v1.png",
+    "WR-01: unresolved selected index falls back to first present member",
+    wr01Plan ? bn(wr01Plan.groups[0]?.primaryFilePath ?? "") : "no plan",
+  );
+
   // ─── Standalone passthrough (D-03: 维持现状, no error) ─────────────────
   console.log("\n=== standalone passthrough ===");
   const soloPlan = grouping.planGroups([{ filePath: "/oss/manual/hero.png", assetName: "hero" }]);

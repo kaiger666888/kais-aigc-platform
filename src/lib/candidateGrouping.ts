@@ -231,7 +231,12 @@ export function planGroups(
         // batch) else first present member in list order.
         let primary = members[0];
         if (typeof selected === "number" && Number.isInteger(selected) && selected >= 1 && selected <= list.length) {
-          const selImg = resolveImage(list[selected - 1]);
+          // WR-01: the members loop guards non-string entries — this selected-
+          // index resolution must too, or a non-string at that slot crashes
+          // basename()/segments() with "p.split is not a function" and kills
+          // the whole (backfill) batch.
+          const selPath = list[selected - 1];
+          const selImg = typeof selPath === "string" ? resolveImage(selPath) : undefined;
           const selMember = selImg ? members.find((m) => m.filePath === selImg.filePath) : undefined;
           if (selMember) primary = selMember;
         }
