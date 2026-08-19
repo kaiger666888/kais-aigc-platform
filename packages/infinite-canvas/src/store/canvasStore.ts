@@ -582,10 +582,14 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     set({ nodes: outcome.nextNodes })
     setEdges(outcome.nextEdges)
 
-    // 3) 同步更新 (或新建) VariantGroup.winnerNodeId
+    // 3) 同步更新 (或新建) VariantGroup.winnerNodeId（WR-05：syncWinnerToGroups
+    //    返回的是**整个组数组**，必须按 groupId 定位目标组——旧代码取 [0] 拿到的
+    //    是 groups[0]，目标组不在首位时 winnerNodeId 被静默丢弃）
     const existingGroup = variantGroups.find((g) => g.groupId === variantGroupId)
+    const prevGroups = variantGroups // WR-06：乐观写组前拍快照，失败回滚时连同恢复
     if (existingGroup) {
-      const updated = syncWinnerToGroups(variantGroups, variantGroupId, nodeId)[0]
+      const updated = syncWinnerToGroups(variantGroups, variantGroupId, nodeId)
+        .find((g) => g.groupId === variantGroupId)
       if (updated) upsertVariantGroup(updated)
     }
 
@@ -595,7 +599,9 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       showToast(`已选为优胜: ${nodeId}`, 'success')
     } catch (err) {
       const rb = rollbackWinnerSelection(outcome)
-      set({ nodes: rb.nodes })
+      // WR-06：nodes+edges 之外必须同时恢复 variantGroups——否则回滚后 store
+      // 里仍挂着新 winner（“UI 已换选但库里没写”正是 SC-2 要防的不一致）
+      set({ nodes: rb.nodes, variantGroups: prevGroups })
       setEdges(rb.edges)
       showToast(`选定失败已回滚: ${(err as Error).message}`, 'error')
     }

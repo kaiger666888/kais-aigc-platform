@@ -16,6 +16,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { Mock } from 'vitest'
 import type { Node, Edge } from '@xyflow/react'
 import type { AssetNodeV3, FlowGraphV3 } from '@kais/flowgraph-v3'
+import type { VariantGroup } from '../../types/canvas'
+import { asNodeId, asVariantGroupId } from '../../types/canvas'
 
 vi.mock('../../services/canvasApi', () => ({
   approveNode: vi.fn(),
@@ -212,6 +214,46 @@ describe('selectWinner — 旧路径（graph 为空的可变 RF 状态）', () =
     expect(state.edges.find((e) => e.id === 'e-b')?.data?.isInactive).toBe(true)
     expect(apiSelectWinner).toHaveBeenCalledTimes(1)
     expect(toastSpy).toHaveBeenCalledWith(expect.stringContaining('选定失败已回滚'), 'error')
+  })
+
+  // ── WR-05/WR-06 回归：旧路径 variantGroups 精确定位 + 回滚恢复 ──────────
+  /** 两个旧式组，目标组 vg-old 故意放在**第二位**（暴露旧代码 [0] 取错组）。 */
+  function legacyGroups(): VariantGroup[] {
+    const g = (groupId: string, parentNodeId: string, members: string[], winner: string): VariantGroup => ({
+      groupId: asVariantGroupId(groupId),
+      parentNodeId: asNodeId(parentNodeId),
+      variantNodeIds: members.map(asNodeId),
+      winnerNodeId: asNodeId(winner),
+      createdAt: '2026-01-01T00:00:00Z',
+    })
+    return [
+      g('vg-other', 'p-other', ['node-z'], 'node-z'),
+      g('vg-old', 'p', ['node-a', 'node-b'], 'node-a'),
+    ]
+  }
+
+  it('WR-05 成功：目标组不在首位时 variantGroups[].winnerNodeId 仍被更新（旧代码 [0] 取错组）', async () => {
+    resetStore({ nodes: legacyNodes(), edges: legacyEdges(), variantGroups: legacyGroups() })
+    await useCanvasStore.getState().selectWinner('node-b')
+
+    const groups = useCanvasStore.getState().variantGroups
+    expect(groups.find((g) => g.groupId === 'vg-old')?.winnerNodeId).toBe('node-b')
+    // 兄弟组不受牵连
+    expect(groups.find((g) => g.groupId === 'vg-other')?.winnerNodeId).toBe('node-z')
+    expect(apiSelectWinner).toHaveBeenCalledWith(7, 101, 'vg-old', 'node-b')
+  })
+
+  it('WR-06 API 失败：variantGroups 一并回滚（不残留新 winner 的 SC-2 不一致）', async () => {
+    resetStore({ nodes: legacyNodes(), edges: legacyEdges(), variantGroups: legacyGroups() })
+    apiSelectWinner.mockRejectedValueOnce(new Error('HTTP 500'))
+
+    await useCanvasStore.getState().selectWinner('node-b')
+
+    const state = useCanvasStore.getState()
+    expect(state.variantGroups.find((g) => g.groupId === 'vg-old')?.winnerNodeId).toBe('node-a')
+    expect(state.variantGroups.find((g) => g.groupId === 'vg-other')?.winnerNodeId).toBe('node-z')
+    // nodes 回滚照旧成立
+    expect(state.nodes.find((n) => n.id === 'node-a')?.data?.isWinner).toBe(true)
   })
 })
 
