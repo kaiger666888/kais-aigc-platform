@@ -5,20 +5,30 @@
  *
  * Part 1 (Plan 48-01 — pure contract layer):
  *   - INGEST-03: assetTypes.ts truth source — normalizeAssetType /
- *     expandTypesForQuery behaviors + value-for-value registry enum parity
+ *     expandTypesForQuery behaviors + registry enum consumes the truth source
  *   - INGEST-01/02: candidateGrouping.ts — parseVariantName, planGroups both
  *     channels (manifest incl. selected-variant + partial batch + fallback;
  *     naming with/without canonical), manifest-priority, standalone passthrough
  *   - PHASE-01: deriveWorkflowPhase (never guesses — null when underivable)
  *
+ * Part 2 (Plan 48-02 — service behavior on a temp :memory: sqlite):
+ *   - the REAL ingestImagesPayload writes grouped o_assets/o_image rows:
+ *     assetsId=primary integer id, exactly-one-primary per group, state='active'
+ *     everywhere, canonical type normalization, workflow_phase per D-08,
+ *     manifest frame-prompt fallback, o_image back-pointer integrity
+ *   - registry read-side compat: legacy type='role' row found via
+ *     whereIn(expandTypesForQuery('character')); passthrough does not over-match
+ *
  * All assertions import the REAL modules from src/lib (dynamic import) and the
- * kmc-shape fixture from scripts/fixtures/ — no re-implemented copies.
+ * kmc-shape fixture from scripts/fixtures/ — no re-implemented copies. The
+ * temp DB is ":memory:" only — production db2.sqlite is never touched.
  *
  * Run: npm run verify:phase-48
  */
 
 import fs from "node:fs";
 import path from "node:path";
+import knex from "knex";
 // Type-only imports (erased at runtime — behaviors still come from the
 // dynamic imports below, never from re-implemented copies).
 import type { IngestImageInput, ManifestFrameEntry } from "../src/lib/candidateGrouping";
@@ -79,21 +89,20 @@ async function main(): Promise<void> {
     'expandTypesForQuery("bogus") → ["bogus"] (passthrough, no crash)',
   );
 
-  console.log("\n=== INGEST-03: CANONICAL_ASSET_TYPES = registry enum, value-for-value ===");
+  console.log("\n=== INGEST-03: registry enum consumes the truth source (Plan 48-02) ===");
   const registrySrc = read("src/routes/v1/assets-registry/index.ts");
-  const enumMatch = registrySrc.match(/type:\s*z\.enum\(\[([^\]]+)\]\)/);
-  const registryValues = enumMatch
-    ? enumMatch[1].split(",").map((s) => s.trim().replace(/["']/g, "")).filter(Boolean)
-    : [];
-  assert(registryValues.length === 11, `registry enum extracted (${registryValues.length} values)`, registryValues.join(","));
+  assert(
+    /type:\s*z\.enum\(CANONICAL_ASSET_TYPES\)/.test(registrySrc),
+    "registry createSchema type = z.enum(CANONICAL_ASSET_TYPES) — truth source imported (value-for-value by construction)",
+  );
+  assert(
+    !/type:\s*z\.enum\(\[\s*"character"/.test(registrySrc),
+    "registry inline 11-value enum literal is gone (delete-not-wrap)",
+  );
   assert(
     assetTypes.CANONICAL_ASSET_TYPES.length === 11,
     "CANONICAL_ASSET_TYPES has exactly 11 values",
     `actual: ${assetTypes.CANONICAL_ASSET_TYPES.length}`,
-  );
-  assert(
-    JSON.stringify([...assetTypes.CANONICAL_ASSET_TYPES].sort()) === JSON.stringify([...registryValues].sort()),
-    "CANONICAL_ASSET_TYPES set-equals the registry z.enum (no more, no less)",
   );
   assert(
     assetTypes.INGEST_INPUT_ASSET_TYPES.length === 13,
@@ -302,15 +311,292 @@ async function main(): Promise<void> {
     '("4", …) → null (no p prefix — never guesses)',
   );
 
+  // ─── Part 2 (Plan 48-02): ingestImagesPayload on temp :memory: sqlite ──
+  console.log("\n=== Part 2: ingestImagesPayload on temp :memory: sqlite ===");
+  const ingest = await import("../src/lib/ingestAssets");
+  const tempDb = knex({
+    client: "better-sqlite3",
+    connection: { filename: ":memory:" }, // NEVER data/db2.sqlite
+    useNullAsDefault: true,
+  });
+  // Mirror the production DDL column-for-column (src/lib/initDB.ts o_assets /
+  // o_image builders) — same column names/types, primary keys included.
+  await tempDb.schema.createTable("o_assets", (t) => {
+    t.integer("id").notNullable();
+    t.text("uuid");
+    t.text("name");
+    t.text("prompt");
+    t.text("remark");
+    t.text("type");
+    t.text("describe");
+    t.integer("scriptId");
+    t.integer("imageId");
+    t.integer("assetsId");
+    t.integer("projectId");
+    t.integer("flowId");
+    t.integer("startTime");
+    t.string("promptState");
+    t.integer("audioBindState");
+    t.text("characterId");
+    t.string("viewAngle");
+    t.boolean("isPrimaryView").defaultTo(false);
+    t.string("model");
+    t.text("tags");
+    t.string("state").defaultTo("active");
+    t.text("meta");
+    t.integer("createdAt");
+    t.string("createdBy");
+    t.string("skill_id");
+    t.string("workflow_phase");
+    t.primary(["id"]);
+  });
+  await tempDb.schema.createTable("o_image", (t) => {
+    t.integer("id").notNullable();
+    t.text("filePath");
+    t.text("type");
+    t.integer("assetsId");
+    t.text("model");
+    t.text("resolution");
+    t.text("state");
+    t.text("errorReason");
+    t.primary(["id"]);
+  });
+
+  try {
+    // ── Fixture batch: manifest frames + turnaround + scene pair + standalone
+    const PROJ_ID = 1785508691757;
+    const batch: IngestImageInput[] = [
+      // P11 manifest frames (both shots, both sides; assetType 'scene'; NO
+      // prompts of their own → manifest frame prompts must fill in)
+      ...(["v1", "v2", "v3"] as const).map(
+        (v) => ({ filePath: `${PROJ}/p11/iframes_S01_B01/first_frame_${v}.png`, assetName: `S01_B01 first ${v}`, assetType: "scene" }),
+      ),
+      ...(["v1", "v2", "v3"] as const).map(
+        (v) => ({ filePath: `${PROJ}/p11/iframes_S01_B01/last_frame_${v}.png`, assetName: `S01_B01 last ${v}`, assetType: "scene" }),
+      ),
+      ...(["v1", "v2"] as const).map(
+        (v) => ({ filePath: `${PROJ}/p11/iframes_S02_B01/first_frame_${v}.png`, assetName: `S02_B01 first ${v}`, assetType: "scene" }),
+      ),
+      ...(["v1", "v2"] as const).map(
+        (v) => ({ filePath: `${PROJ}/p11/iframes_S02_B01/last_frame_${v}.png`, assetName: `S02_B01 last ${v}`, assetType: "scene" }),
+      ),
+      // P04 turnaround set — canonical + v1..v3, legacy assetType 'role'
+      ...(["", "_v1", "_v2", "_v3"] as const).map(
+        (s) => ({ filePath: `${PROJ}/p04/turnaround_sheets/base_turnaround_chengyu${s}.png`, assetName: `程屿 Turnaround${s || " canonical"}`, assetType: "role" }),
+      ),
+      // Scene pair under /oss/manual/ — naming channel, no canonical
+      { filePath: "/oss/manual/scene_S07_v1.png", assetName: "场景 S07 v1", assetType: "scene" },
+      { filePath: "/oss/manual/scene_S07_v2.png", assetName: "场景 S07 v2", assetType: "scene" },
+      // Standalone — legacy assetType 'tool'
+      { filePath: "/oss/manual/hero.png", assetName: "hero", assetType: "tool" },
+    ];
+    // NOTE: no top-level `phase` — workflow_phase must derive from paths (D-08).
+    const result = await ingest.ingestImagesPayload(tempDb, {
+      projectId: PROJ_ID,
+      images: batch,
+      manifests,
+    });
+
+    // ── Result-level shape
+    assert(result.count === 17, "result.count = 17 (total images)", `actual: ${result.count}`);
+    assert(result.assets.length === 17, "result.assets.length = 17", `actual: ${result.assets.length}`);
+    assert(result.groups.length === 6, "6 groups (4 manifest + turnaround + scene pair)", `actual: ${result.groups.length}`);
+    assert(
+      JSON.stringify(result.groups.map((g) => g.groupKey).sort()) === JSON.stringify([
+        "name:base_turnaround_chengyu", "name:scene_S07",
+        "shot:S01_B01:first", "shot:S01_B01:last",
+        "shot:S02_B01:first", "shot:S02_B01:last",
+      ].sort()),
+      "groupKeys exact set: 2 naming + 4 manifest",
+      JSON.stringify(result.groups.map((g) => g.groupKey)),
+    );
+    assert(
+      result.groups.every((g) => g.memberAssetIds.includes(g.primaryAssetId)),
+      "primaryAssetId is among memberAssetIds for every group",
+    );
+    assert(
+      result.assets.filter((a) => a.isPrimary).length === 6,
+      "exactly 6 result entries flagged isPrimary",
+    );
+
+    // ── DB row counts + o_image shape
+    const assetRows: any[] = await tempDb("o_assets");
+    const imageRows: any[] = await tempDb("o_image");
+    assert(assetRows.length === 17, "o_assets has 17 rows", `actual: ${assetRows.length}`);
+    assert(imageRows.length === 17, "o_image has 17 rows (one per image)", `actual: ${imageRows.length}`);
+    assert(
+      imageRows.every((r) => r.type === "pipeline"),
+      "o_image.type = 'pipeline' when payload.phase absent",
+    );
+    assert(
+      imageRows.every((ir) => assetRows.some((ar) => ar.id === ir.assetsId && ar.imageId === ir.id)),
+      "o_image.assetsId = paired o_assets.id for every row (back-pointer, register_turnaround_b2.py shape)",
+    );
+
+    // ── Group shape on disk (INGEST-01/02, D-01/D-04)
+    const primaries = assetRows.filter((r) => r.isPrimaryView === 1);
+    assert(primaries.length === 6, "exactly 6 rows with isPrimaryView=1 (one per group)", `actual: ${primaries.length}`);
+    assert(
+      primaries.every((p) => p.assetsId == null),
+      "every primary row has assetsId NULL",
+    );
+    const memberRows = assetRows.filter((r) => r.assetsId != null);
+    assert(memberRows.length === 10, "10 non-primary member rows (17 - 6 primaries - 1 standalone)", `actual: ${memberRows.length}`);
+    assert(
+      memberRows.every((m) => m.isPrimaryView !== 1),
+      "no non-primary member carries isPrimaryView=1",
+    );
+    const primaryIdSet = new Set(result.groups.map((g) => g.primaryAssetId));
+    assert(
+      memberRows.every((m) => primaryIdSet.has(m.assetsId)),
+      "every member's assetsId is a group primary id from this batch (self-consistency, no orphans)",
+    );
+    const memberCountByPrimary = new Map<number, number>();
+    for (const m of memberRows) {
+      memberCountByPrimary.set(m.assetsId, (memberCountByPrimary.get(m.assetsId) ?? 0) + 1);
+    }
+    assert(
+      result.groups.every((g) => (memberCountByPrimary.get(g.primaryAssetId) ?? 0) === g.memberAssetIds.length - 1),
+      "per-group on-disk member count = plan members minus primary",
+    );
+
+    // ── state domain (D-05)
+    assert(
+      assetRows.every((r) => r.state === "active"),
+      "all 17 rows state='active' (ingest never writes archived/eliminated)",
+    );
+
+    // ── Primary landing per group (D-04: selected_*_variant > canonical > v1)
+    const expectedPrimaryByGroup: Record<string, string> = {
+      "shot:S01_B01:first": "first_frame_v2.png", // selected_first_variant=2
+      "shot:S01_B01:last": "last_frame_v1.png",   // selected=null → first present
+      "shot:S02_B01:first": "first_frame_v1.png", // selected=null → v1
+      "shot:S02_B01:last": "last_frame_v2.png",   // selected_last_variant=2
+      "name:base_turnaround_chengyu": "base_turnaround_chengyu.png", // canonical
+      "name:scene_S07": "scene_S07_v1.png",       // no canonical → lowest variant
+    };
+    for (const g of result.groups) {
+      const primaryAsset = await tempDb("o_assets").where("id", g.primaryAssetId).first();
+      const primaryImg = await tempDb("o_image").where("id", primaryAsset.imageId).first();
+      const expected = expectedPrimaryByGroup[g.groupKey];
+      assert(
+        bn(primaryImg.filePath) === expected,
+        `${g.groupKey}: primary lands on ${expected}`,
+        `actual: ${bn(primaryImg.filePath)}`,
+      );
+      assert(primaryAsset.isPrimaryView === 1, `${g.groupKey}: primary row isPrimaryView=1`);
+      assert(primaryAsset.assetsId == null, `${g.groupKey}: primary row assetsId NULL`);
+    }
+
+    // ── Type normalization (INGEST-03, D-06)
+    const trAssets: any[] = await tempDb("o_assets as a")
+      .join("o_image as img", "a.imageId", "img.id")
+      .where("img.filePath", "like", "%/turnaround_sheets/%")
+      .select("a.*");
+    assert(trAssets.length === 4, "4 turnaround rows", `actual: ${trAssets.length}`);
+    assert(
+      trAssets.every((r) => r.type === "character"),
+      "input 'role' written as type='character'",
+    );
+    assert(
+      trAssets.every((r) => r.characterId === "chengyu"),
+      "turnaround rows characterId='chengyu'",
+    );
+    assert(
+      trAssets.every((r) => {
+        try { return JSON.parse(r.meta).subtype === "turnaround_sheet"; } catch { return false; }
+      }),
+      "turnaround rows meta JSON contains subtype='turnaround_sheet'",
+    );
+    const heroAsset: any = await tempDb("o_assets as a")
+      .join("o_image as img", "a.imageId", "img.id")
+      .where("img.filePath", "/oss/manual/hero.png")
+      .first("a.*");
+    assert(heroAsset.type === "prop", "input 'tool' written as type='prop'", `actual: ${heroAsset.type}`);
+    assert(
+      heroAsset.assetsId == null && heroAsset.isPrimaryView !== 1,
+      "standalone: assetsId NULL, isPrimaryView=0",
+    );
+    assert(heroAsset.state === "active", "standalone state='active'");
+
+    // ── workflow_phase (PHASE-01, D-08)
+    const nullPhaseRows: any[] = await tempDb("o_assets").whereNull("workflow_phase");
+    assert(
+      nullPhaseRows.length === 3,
+      "workflow_phase NULL = exactly the 3 underivable rows (scene pair + standalone)",
+      `actual: ${nullPhaseRows.length}`,
+    );
+    const p11Rows: any[] = await tempDb("o_assets as a")
+      .join("o_image as img", "a.imageId", "img.id")
+      .where("img.filePath", "like", "%/p11/%")
+      .select("a.workflow_phase");
+    assert(
+      p11Rows.length === 10 && p11Rows.every((r) => r.workflow_phase === "p11"),
+      "10 frame rows workflow_phase='p11' (derived from /p11/ path segment)",
+    );
+    const p04Rows: any[] = await tempDb("o_assets as a")
+      .join("o_image as img", "a.imageId", "img.id")
+      .where("img.filePath", "like", "%/p04/%")
+      .select("a.workflow_phase");
+    assert(
+      p04Rows.length === 4 && p04Rows.every((r) => r.workflow_phase === "p04"),
+      "4 turnaround rows workflow_phase='p04'",
+    );
+
+    // ── Manifest frame-prompt fallback (kmc prompts are the richest source)
+    const s01FirstRows: any[] = await tempDb("o_assets as a")
+      .join("o_image as img", "a.imageId", "img.id")
+      .where("img.filePath", "like", "%/iframes_S01_B01/first_frame_%")
+      .select("a.prompt");
+    const fixtureS01 = manifests[0];
+    assert(
+      !!fixtureS01
+        && s01FirstRows.length === 3
+        && s01FirstRows.every((r) => r.prompt === fixtureS01.first_frame_prompt),
+      "member rows without own prompt take the manifest first_frame_prompt",
+      JSON.stringify(s01FirstRows.map((r) => r.prompt)),
+    );
+
+    // ── Empty payload: no-op, no writes
+    const countBeforeRow: any = await tempDb("o_assets").count("* as n").first();
+    const countBefore = Number(countBeforeRow?.n ?? 0);
+    const emptyResult = await ingest.ingestImagesPayload(tempDb, { projectId: PROJ_ID, images: [] });
+    assert(
+      JSON.stringify(emptyResult) === JSON.stringify({ count: 0, assets: [], groups: [] }),
+      "empty images array → {count:0, assets:[], groups:[]}",
+      JSON.stringify(emptyResult),
+    );
+    const countAfterRow: any = await tempDb("o_assets").count("* as n").first();
+    const countAfter = Number(countAfterRow?.n ?? 0);
+    assert(countBefore === countAfter, "empty payload writes nothing to DB");
+
+    // ── Registry read-side compat (INGEST-03, D-07)
+    await tempDb("o_assets").insert({
+      id: 9999, uuid: "ast-legacy-role-row", name: "legacy role row", type: "role", state: "active",
+    });
+    const compatRows: any[] = await tempDb("o_assets").whereIn("type", assetTypes.expandTypesForQuery("character"));
+    assert(
+      compatRows.some((r) => r.id === 9999),
+      "legacy type='role' row found by whereIn(expandTypesForQuery('character')) — /search compat",
+    );
+    const voiceRows: any[] = await tempDb("o_assets").whereIn("type", assetTypes.expandTypesForQuery("voice"));
+    assert(
+      !voiceRows.some((r) => r.id === 9999),
+      "expansion passthrough: whereIn(expand('voice')) does NOT match the role row",
+    );
+  } finally {
+    await tempDb.destroy();
+  }
+
   // ─── Summary ────────────────────────────────────────────────────────────
   const passed = results.filter((r) => r.pass).length;
   const total = results.length;
-  console.log(`\n=== Summary: ${passed}/${total} assertions passed ===`);
+  console.log(`\n=== Summary: ${passed}/${total} assertions passed (Part 1 + Part 2) ===`);
   if (passed === total) {
-    console.log("✅ Phase 48 Part 1 verification PASSED");
+    console.log("✅ Phase 48 verification PASSED (Part 1 + Part 2)");
     process.exit(0);
   } else {
-    console.log("❌ Phase 48 Part 1 verification FAILED");
+    console.log("❌ Phase 48 verification FAILED");
     process.exit(1);
   }
 
@@ -321,10 +607,3 @@ main().catch((err) => {
   console.error("verify-phase-48.ts crashed:", err);
   process.exit(2);
 });
-
-// ────────────────────────────────────────────────────────────────────────────
-// Part 2 (Plan 48-02): ingest behavior on temp sqlite — route rewrite +
-//   registry compat + o_assets group-shape writes (assetsId/isPrimaryView/
-//   state='active'/workflow_phase) asserted against a throwaway DB.
-//   Placeholder — Plan 48-02 extends this script below this line.
-// ────────────────────────────────────────────────────────────────────────────
