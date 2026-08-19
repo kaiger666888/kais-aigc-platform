@@ -37,6 +37,9 @@
     "verify:phase-46-e2e": "npx tsx scripts/verify-phase-46-e2e.ts",
     "verify:phase-47-backfill": "npx tsx scripts/verify-phase-47-backfill.ts",
     "verify:phase-48": "npx tsx scripts/verify-phase-48.ts",
+    "verify:phase-49": "npx tsx scripts/verify-phase-49.ts",
+    "verify:phase-49-bridge": "npx tsx scripts/verify-phase-49-bridge.ts",
+    "verify:phase-49-linkage": "npx tsx scripts/verify-phase-49-linkage.ts",
     "verify:qwen-tts": "npx tsx scripts/verify-qwen-tts.ts"
   },
   "dependencies": {
