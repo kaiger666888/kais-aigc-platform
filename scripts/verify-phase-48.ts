@@ -378,6 +378,52 @@ async function main(): Promise<void> {
     JSON.stringify(wr03CanonKeys),
   );
 
+  // ─── WR-05: basename-fallback degradation surfaced, not silent ─────────
+  console.log("\n=== WR-05: basename-fallback warnings ===");
+  const wr05Plan = grouping.planGroups(
+    [{ filePath: "/oss/x/flat/first_frame_v1.png", assetName: "f1" }],
+    [
+      { shot_id: "SA", all_first_frames: ["assets/P11/iframes_SA/first_frame_v1.png"] },
+      { shot_id: "SB", all_first_frames: ["assets/P11/iframes_SB/first_frame_v1.png"] },
+    ],
+  );
+  assert(
+    wr05Plan.warnings.length >= 1,
+    "WR-05 regression: skipped/stolen basename-fallback entries produce warnings (was: silent drop)",
+    JSON.stringify(wr05Plan.warnings),
+  );
+  assert(
+    wr05Plan.warnings.some((w) => w.includes("SB")),
+    "WR-05: the skipped sibling entry (SB) is named in a warning",
+  );
+  assert(
+    wr05Plan.groups.length === 1 && wr05Plan.groups[0]?.groupKey === "shot:SA:first",
+    "WR-05: first entry still claims the shared basename (documented kmc behavior, now audible)",
+  );
+  // dirBase mode (dirs preserved) with a partially-absent batch must NOT warn —
+  // absent frames are the normal partial-batch case, not degradation.
+  const partialNoWarn = grouping.planGroups(
+    [
+      { filePath: `${PROJ}/p11/iframes_S01_B01/first_frame_v1.png`, assetName: "v1" },
+      { filePath: `${PROJ}/p11/iframes_S01_B01/first_frame_v3.png`, assetName: "v3" },
+    ],
+    [
+      {
+        shot_id: "S01_B01",
+        all_first_frames: [
+          "assets/P11/iframes_S01_B01/first_frame_v1.png",
+          "assets/P11/iframes_S01_B01/first_frame_v2.png",
+          "assets/P11/iframes_S01_B01/first_frame_v3.png",
+        ],
+      },
+    ],
+  );
+  assert(
+    partialNoWarn.warnings.length === 0,
+    "WR-05: dirBase-mode partial batch stays warning-free (absent frames are normal)",
+    JSON.stringify(partialNoWarn.warnings),
+  );
+
   // ─── Standalone passthrough (D-03: 维持现状, no error) ─────────────────
   console.log("\n=== standalone passthrough ===");
   const soloPlan = grouping.planGroups([{ filePath: "/oss/manual/hero.png", assetName: "hero" }]);

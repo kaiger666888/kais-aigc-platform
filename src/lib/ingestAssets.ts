@@ -117,6 +117,10 @@ export async function ingestImagesPayload(
   return db.transaction(async (trx) => {
     // 1. Group plan (pure contract layer, Plan 48-01)
     const plan = planGroups(images, payload.manifests);
+    // WR-05: basename-fallback degradation is logged, never silent
+    for (const w of plan.warnings) {
+      console.warn(`${LOG_PREFIX} grouping degraded (WR-05): ${w}`);
+    }
 
     // 2. Manifest frame prompts by groupKey — kmc prompts are the richest
     //    description source; used only when the member image has no prompt.

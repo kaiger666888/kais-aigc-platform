@@ -25,6 +25,10 @@
  * group's primary at the service layer, making the API response disagree
  * with the database (CR-02).
  *
+ * Manifest resolution that falls back to basename-only matching surfaces
+ * member loss via GroupPlanResult.warnings (WR-05) — silent mis-attribution
+ * is never OK.
+ *
  * State policy (D-05): ingest writes state='active' only — elimination /
  * archiving is a human action in the asset center. That policy is enforced at
  * the DB-writing service layer (Plan 48-02 ingestAssets.ts), NOT here.
@@ -80,6 +84,11 @@ export interface GroupPlanResult {
   groups: AssetGroupPlan[];
   /** Standalone images — no group, current flat behavior, no error (D-03). */
   ungroupedFilePaths: string[];
+  /** Degradation signals (WR-05): basename-fallback manifest resolution that
+   *  lost members — repeated frame basenames across shot dirs let an earlier
+   *  entry steal a later sibling's files, or skip its group entirely. Silent
+   *  mis-attribution is never OK; callers (route/backfill) log or reject. */
+  warnings: string[];
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -168,6 +177,7 @@ export function planGroups(
 ): GroupPlanResult {
   const groups: AssetGroupPlan[] = [];
   const claimed = new Set<string>();
+  const warnings: string[] = [];
   const usedGroupKeys = new Set<string>();
   /** Push a group plan, refusing duplicate groupKeys (CR-02): two plans
    *  under one groupKey would cross-link members onto the wrong primary at
@@ -235,12 +245,31 @@ export function planGroups(
         const resolveImage = (p: string): IngestImageInput | undefined =>
           useDirBase ? resolveByDirBase(p) : resolveByBasename(p);
 
-        // members = list paths resolved to present, unclaimed batch images
+        // members = list paths resolved to present, unclaimed batch images.
+        // In basename-fallback mode, track WHY a path did not become a member
+        // (WR-05): with every iframes_{shot} dir holding first_frame_v1.png…,
+        // an earlier entry claims the shared basename and later siblings get
+        // skipped — degrade audibly instead of silently.
         const members: IngestImageInput[] = [];
+        let stolen = 0; // resolved to a batch image another group already claimed
+        let absent = 0; // basename not present in the batch at all
         for (const p of list) {
           if (typeof p !== "string") continue;
           const img = resolveImage(p);
-          if (img && !claimed.has(img.filePath)) members.push(img);
+          if (img && !claimed.has(img.filePath)) {
+            members.push(img);
+          } else if (!useDirBase) {
+            if (img) stolen += 1;
+            else absent += 1;
+          }
+        }
+        if (!useDirBase && (stolen > 0 || absent > 0)) {
+          warnings.push(
+            `manifest ${entry.shot_id}:${suffix} degraded in basename-fallback mode: ` +
+              `${members.length}/${list.filter((p) => typeof p === "string").length} paths resolved, ` +
+              `${stolen} claimed by another group, ${absent} not in batch — shot dirs not ` +
+              `preserved, possible mis-attribution (WR-05)`,
+          );
         }
         if (members.length < 1) continue;
 
@@ -349,7 +378,7 @@ export function planGroups(
     .map((img) => img.filePath);
 
   groups.sort((a, b) => (a.groupKey < b.groupKey ? -1 : a.groupKey > b.groupKey ? 1 : 0));
-  return { groups, ungroupedFilePaths };
+  return { groups, ungroupedFilePaths, warnings };
 }
 
 // ─── deriveWorkflowPhase ───────────────────────────────────────────────────
