@@ -2,6 +2,13 @@ import express from "express";
 import { Router, Request, Response } from "express";
 import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
+import {
+  VramInsufficientError,
+  QueueTimeoutError,
+  QueueAbortedError,
+  QueuePurgedError,
+  withGpuQueueTimed,
+} from "@/lib/gpuVramManager";
 import { ACE_CONFIG } from "./config";
 
 const router = express.Router();
@@ -49,8 +56,10 @@ function buildAnalyzerWorkflow(p: z.infer<typeof analyzeSchema>) {
 async function pollUntilComplete(
   comfyuiUrl: string,
   promptId: string,
+  /** 排队等待补偿 (withGpuQueueTimed 的 queueWaitMs) — 排队耗时不计入作业预算 */
+  extraBudgetMs = 0,
 ): Promise<{ status: string; outputs?: any }> {
-  const deadline = Date.now() + POLL_TIMEOUT_MS;
+  const deadline = Date.now() + POLL_TIMEOUT_MS + extraBudgetMs;
   while (Date.now() < deadline) {
     const res = await fetch(`${comfyuiUrl}/history/${promptId}`);
     if (!res.ok) throw new Error(`ComfyUI history error: ${res.status}`);
@@ -87,42 +96,90 @@ export default router.post("/", async (req: Request, res: Response) => {
   const comfyuiUrl = ACE_CONFIG.comfyuiUrl;
   const workflow = buildAnalyzerWorkflow(p);
 
+  // ─── 2026-08-19 收编：GPU 全局串行队列 (gpuVramManager withGpuQueueTimed) ───
+  // 来源 docs/engine-integration-spec.md M2 / docs/gpu-unified-scheduling-plan.md §P2-A。
+  // ACE Music Analyzer 加载完整 SFT 模型 (~7GB, 与 /generate 同 engineKey "ace") —
+  // 此前直提 ComfyUI 绕过队列, 是同卡撞车源。同步语义 (提交+轮询到完成才返回):
+  // 锁罩「提交+轮询」整段; queueWaitMs 不计入轮询预算 (POLL_TIMEOUT_MS +
+  // queueWaitMs, 镜像 minimax-h3/generate.ts 双重超时修复)。
   try {
-    // 1. Submit to ComfyUI
-    const submitRes = await fetch(`${comfyuiUrl}/prompt`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: workflow }),
-    });
+    const { data } = await withGpuQueueTimed(
+      "ace",
+      async (queueWaitMs) => {
+        // 1. Submit to ComfyUI
+        const submitRes = await fetch(`${comfyuiUrl}/prompt`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: workflow }),
+        });
 
-    if (!submitRes.ok) {
-      const body = await submitRes.text();
-      return res.status(502).send(error(`ComfyUI submit failed (${submitRes.status}): ${body}`));
+        if (!submitRes.ok) {
+          const body = await submitRes.text();
+          return { kind: "rejected" as const, detail: `ComfyUI submit failed (${submitRes.status}): ${body}` };
+        }
+
+        const { prompt_id } = (await submitRes.json()) as { prompt_id: string };
+        if (!prompt_id) {
+          return { kind: "rejected" as const, detail: "ComfyUI returned no prompt_id" };
+        }
+
+        // 2. Poll until complete (10 min + 排队补偿)
+        const result = await pollUntilComplete(comfyuiUrl, prompt_id, queueWaitMs);
+
+        if (result.status !== "success" || !result.outputs) {
+          return { kind: "poll_failed" as const, promptId: prompt_id };
+        }
+
+        // 3. Extract analysis results from node 3
+        const analyzerOutput = result.outputs["3"];
+        if (!analyzerOutput) {
+          return { kind: "no_output" as const, promptId: prompt_id };
+        }
+
+        return { kind: "ok" as const, promptId: prompt_id, analysis: analyzerOutput };
+      },
+      { gpuIndex: 1, comfyuiUrl },
+    );
+
+    if (data.kind === "rejected") {
+      return res.status(502).send(error(data.detail));
     }
-
-    const { prompt_id } = (await submitRes.json()) as { prompt_id: string };
-    if (!prompt_id) {
-      return res.status(502).send(error("ComfyUI returned no prompt_id"));
-    }
-
-    // 2. Poll until complete
-    const result = await pollUntilComplete(comfyuiUrl, prompt_id);
-
-    if (result.status !== "success" || !result.outputs) {
+    if (data.kind === "poll_failed") {
       return res.status(500).send(error("ComfyUI analysis failed"));
     }
-
-    // 3. Extract analysis results from node 3
-    const analyzerOutput = result.outputs["3"];
-    if (!analyzerOutput) {
+    if (data.kind === "no_output") {
       return res.status(500).send(error("No analysis output from ComfyUI"));
     }
 
     return res.send(success({
-      task_id: prompt_id,
-      analysis: analyzerOutput,
+      task_id: data.promptId,
+      analysis: data.analysis,
     }));
   } catch (err: any) {
+    if (err instanceof VramInsufficientError) {
+      return res.status(503).send(error(err.message, {
+        kind: "vram_insufficient",
+        engine: "ace",
+        freeMiB: err.freeMiB,
+        requiredMiB: err.requiredMiB,
+        gpuIndex: err.gpuIndex,
+      }));
+    }
+    // 队列类结构化错误: queue_timeout→504 / queue_aborted→499 / queue_purged→503
+    // (镜像 minimax-h3/generate.ts 三联判)
+    if (
+      err instanceof QueueTimeoutError ||
+      err instanceof QueueAbortedError ||
+      err instanceof QueuePurgedError
+    ) {
+      const status =
+        err.kind === "queue_timeout" ? 504 : err.kind === "queue_aborted" ? 499 : 503;
+      return res.status(status).send(error(err.message, {
+        kind: err.kind,
+        engine: err.engine,
+        gpuIndex: err.gpuIndex,
+      }));
+    }
     return res.status(500).send(error(err.message || "Internal server error"));
   }
 });

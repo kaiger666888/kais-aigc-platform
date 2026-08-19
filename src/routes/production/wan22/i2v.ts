@@ -7,6 +7,13 @@ import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
+import {
+  VramInsufficientError,
+  QueueTimeoutError,
+  QueueAbortedError,
+  QueuePurgedError,
+  withGpuQueue,
+} from "@/lib/gpuVramManager";
 import { WAN22_CONFIG, WAN22_DEFAULTS } from "./_shared/config";
 import { buildI2VWorkflow } from "./_shared/workflows";
 
@@ -74,16 +81,59 @@ export default router.post(
       filenamePrefix, crf, highNoiseModel, lowNoiseModel, textEncoder, vae,
     });
 
+    // ─── 2026-08-19 收编：GPU 全局串行队列 (gpuVramManager withGpuQueue) ───
+    // 来源 docs/engine-integration-spec.md M2 / docs/gpu-unified-scheduling-plan.md §P2-A。
+    // Wan2.2 (~12GB, ENGINE_VRAM_REQUIREMENTS.wan22) 与 TTS/H3/music3/qwen_eye 共享
+    // GPU1 锁 — 此前直提 ComfyUI 绕过队列, 是同卡撞车源。异步 taskId 模式: 锁只包
+    // 「提交段」(显存预检/驱逐 + POST /prompt), 作业在 ComfyUI 侧异步跑, 客户端轮询
+    // status 路由。multipart 解析/容器拷贝均在队列外 (不持锁等上传)。
     try {
-      const comfyRes = await axios.post(
-        `${WAN22_CONFIG.comfyuiUrl}/prompt`,
-        { prompt: workflow },
-        { timeout: 30_000, validateStatus: (s: number) => s < 500 },
+      const submitted = await withGpuQueue(
+        "wan22",
+        async () => {
+          const comfyRes = await axios.post(
+            `${WAN22_CONFIG.comfyuiUrl}/prompt`,
+            { prompt: workflow },
+            { timeout: 30_000, validateStatus: (s: number) => s < 500 },
+          );
+          if (comfyRes.status !== 200) {
+            return { kind: "rejected" as const, detail: JSON.stringify(comfyRes.data) };
+          }
+          return { kind: "ok" as const, promptId: comfyRes.data.prompt_id as string };
+        },
+        { gpuIndex: 1, comfyuiUrl: WAN22_CONFIG.comfyuiUrl },
       );
-      if (comfyRes.status !== 200) return res.status(502).send(error(`ComfyUI rejected: ${JSON.stringify(comfyRes.data)}`));
-      const promptId = comfyRes.data.prompt_id;
+
+      if (submitted.kind === "rejected") {
+        return res.status(502).send(error(`ComfyUI rejected: ${submitted.detail}`));
+      }
+      const promptId = submitted.promptId;
       res.status(200).send(success({ promptId, status: "pending", workflowType: "i2v", message: "Wan 2.2 I2V submitted", inputFilename }));
     } catch (err: any) {
+      if (err instanceof VramInsufficientError) {
+        return res.status(503).send(error(err.message, {
+          kind: "vram_insufficient",
+          engine: "wan22",
+          freeMiB: err.freeMiB,
+          requiredMiB: err.requiredMiB,
+          gpuIndex: err.gpuIndex,
+        }));
+      }
+      // 队列类结构化错误: queue_timeout→504 / queue_aborted→499 / queue_purged→503
+      // (镜像 minimax-h3/generate.ts 三联判)
+      if (
+        err instanceof QueueTimeoutError ||
+        err instanceof QueueAbortedError ||
+        err instanceof QueuePurgedError
+      ) {
+        const status =
+          err.kind === "queue_timeout" ? 504 : err.kind === "queue_aborted" ? 499 : 503;
+        return res.status(status).send(error(err.message, {
+          kind: err.kind,
+          engine: err.engine,
+          gpuIndex: err.gpuIndex,
+        }));
+      }
       const msg = err.response?.data?.error?.message || err.response?.data?.node_errors || err.message || String(err);
       res.status(502).send(error(`ComfyUI failed: ${msg}`));
     }

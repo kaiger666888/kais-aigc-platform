@@ -126,6 +126,12 @@ export const ENGINE_VRAM_REQUIREMENTS: Record<string, number> = {
   ace: 8192,         // ACE-Step v1.5 XL (SFT DiT + qwen TE + VAE, tiled VAE) 实测 ~7GB
   rtx_vsr: 4096,     // RTX VSR 插值超分 (~568MiB) — 轻量但同卡互斥; 4GB 含输入缓冲余量
   ltx: 8192,         // LTX-2.3 video (kmc 已退役, 防误调用撞卡收编用)
+  // ── 2026-08-19 接入门禁首批补登记 (docs/engine-integration-spec.md; 此前排查
+  // 只扫了 flux/minimax-h3/ltx 目录, wan/trellis2/postprocess 家族是暴露面盲区) ──
+  wan22: 12288,      // Wan2.2 video (i2v/t2v/fflf/movetrack; 14B 级 ComfyUI 作业)
+  wan21: 8192,       // Wan2.1 scail2 换装/迁移 (VACE 级作业, 未实测按 default 档)
+  trellis2: 8192,    // TRELLIS 3D image-to-3d (ComfyUI 作业)
+  postprocess: 8192, // SeedVR2/seedvrs 超分增强 (postprocess/enhance+seedvr2)
   default: 8192,
 };
 
@@ -147,6 +153,11 @@ export const ENGINE_GPU_INDEX: Record<string, number> = {
   ace: 1,
   rtx_vsr: 1,
   ltx: 1,
+  wan22: 1,
+  wan21: 1,
+  trellis2: 1,
+  postprocess: 1,
+  default: 1,
   // GPU0 (3060Ti 8GB) 候补位 — 登记 lighter 引擎即纳管:
   // comfyui_aux: 0,
 };
