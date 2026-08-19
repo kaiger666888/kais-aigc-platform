@@ -40,6 +40,16 @@
  * at SELECT level (they never even enter the plan) AND guarded inside every
  * UPDATE statement (`state != 'eliminated'`).
  *
+ * WR-01 red line (added post-apply by code review; the production run planned
+ * state writes: 0, so no archived row was ever affected — this future-proofs
+ * the re-run guarantee): state='archived' rows are NEVER state-written.
+ * Archiving is a human action (D-05): an archived row may still participate
+ * in grouping decisions that require NO state change (assetsId /
+ * isPrimaryView / workflow_phase targets), but a group whose chosen primary
+ * is archived is skipped whole and itemized in the report (see the
+ * archivedPrimarySkips plan field) — the backfill never resurrects an
+ * archived row to 'active', and never links members onto an archived primary.
+ *
  * Usage (Phase 47 convention):
  *   npm run backfill:phase-50                                  # dry-run (default): report only, 0 writes
  *   npm run backfill:phase-50 -- --apply --i-backed-up-db      # gated apply
@@ -113,6 +123,13 @@ export interface BackfillPlan {
   groups: BackfillGroup[];
   groupedRows: number;
   standaloneRows: number;
+  /** WR-01: groups whose planGroups-chosen primary row is state='archived'.
+   *  Archiving is a human action — the backfill never writes an archived
+   *  row's state, and a primary must land 'active' (WR-3 apply assertion),
+   *  so these groups are skipped whole (zero grouping writes to any member;
+   *  workflow_phase targets still apply) and itemized here. Their member
+   *  rows are counted in neither groupedRows nor standaloneRows. */
+  archivedPrimarySkips: string[];
   wfFromMeta: number;
   wfFromPath: number;
   wfUnderivable: number;
@@ -217,6 +234,7 @@ export async function planBackfill(db: Knex, dbPath = "data/db2.sqlite"): Promis
   const groups: BackfillGroup[] = [];
   const duplicatePaths = new Set<string>();
   const warnings: string[] = [];
+  const archivedPrimarySkips: string[] = [];
   let noImageId = 0;
   let duplicatePathSkipped = 0;
   let groupedRows = 0;
@@ -256,12 +274,26 @@ export async function planBackfill(db: Knex, dbPath = "data/db2.sqlite"): Promis
     for (const w of plan.warnings) warnings.push(w);
 
     const groupedRowIds = new Set<number>();
+    const archivedSkipRowIds = new Set<number>();
     for (const g of plan.groups) {
       const primaryRow = rowByPath.get(g.primaryFilePath);
       if (!primaryRow) continue; // unreachable (plan built from these inputs) — guarded anyway
       const memberRows = g.memberFilePaths
         .map((fp) => rowByPath.get(fp))
         .filter((r): r is AssetRow => r !== undefined);
+      // WR-01: an archived row is red-lined for STATE writes, and the chosen
+      // primary must land 'active' (WR-3 apply assertion) — a group whose
+      // primary is archived can never converge without un-archiving it, so
+      // the whole group is skipped (no grouping writes for ANY member) and
+      // itemized. The human archive decision outranks the convergence.
+      if (primaryRow.state === "archived") {
+        archivedPrimarySkips.push(
+          `${g.groupKey}: chosen primary row ${primaryRow.id} is state='archived' — ` +
+            `${memberRows.length} row(s) left untouched (grouping would require a state write)`,
+        );
+        for (const m of memberRows) archivedSkipRowIds.add(m.id);
+        continue;
+      }
       const primaryRowId = primaryRow.id;
       const primaryFlipsFrom: number[] = [];
 
@@ -272,7 +304,11 @@ export async function planBackfill(db: Knex, dbPath = "data/db2.sqlite"): Promis
         const targetAssetsId: number | null = isPrimary ? null : primaryRowId;
         if ((m.assetsId ?? null) !== targetAssetsId) getDiff(m.id).assetsId = targetAssetsId;
         if (Number(m.isPrimaryView) !== targetPrimary) getDiff(m.id).isPrimaryView = targetPrimary;
-        if (m.state !== "active") getDiff(m.id).state = "active";
+        // WR-01: never coerce an archived row back to 'active' — archiving is
+        // a human action. Archived members still take the grouping columns
+        // above (no state change required). Any OTHER legacy non-active value
+        // keeps the original normalization-to-active behavior.
+        if (m.state !== "active" && m.state !== "archived") getDiff(m.id).state = "active";
         if (!isPrimary && Number(m.isPrimaryView) === 1) primaryFlipsFrom.push(m.id);
       }
       groups.push({
@@ -283,7 +319,7 @@ export async function planBackfill(db: Knex, dbPath = "data/db2.sqlite"): Promis
       });
     }
     groupedRows += groupedRowIds.size;
-    standaloneRows += inputs.length - groupedRowIds.size;
+    standaloneRows += inputs.length - groupedRowIds.size - archivedSkipRowIds.size;
   }
 
   // workflow_phase targets for EVERY scanned row (grouped, standalone, or
@@ -326,6 +362,7 @@ export async function planBackfill(db: Knex, dbPath = "data/db2.sqlite"): Promis
     groups,
     groupedRows,
     standaloneRows,
+    archivedPrimarySkips,
     wfFromMeta,
     wfFromPath,
     wfUnderivable,
@@ -341,12 +378,13 @@ export async function planBackfill(db: Knex, dbPath = "data/db2.sqlite"): Promis
 /**
  * Execute the plan inside ONE transaction. Every UPDATE carries the D-05 red
  * line (`state != 'eliminated'`) so a row eliminated between plan and apply is
- * a no-op instead of a write. After the updates, the ingestAssets-style
- * per-group assertion runs in-transaction: exactly one isPrimaryView=1 row
- * equal to the planned primary, that primary's state === 'active' (WR-3 — a
- * user-eliminated primary must roll back, never receive linked members), and
- * every member's assetsId === primaryRowId. Any violation throws and rolls
- * back the whole apply.
+ * a no-op instead of a write; any UPDATE that would set the state column also
+ * carries the WR-01 red line (`state != 'archived'`). After the updates, the
+ * ingestAssets-style per-group assertion runs in-transaction: exactly one
+ * isPrimaryView=1 row equal to the planned primary, that primary's state ===
+ * 'active' (WR-3 — a user-eliminated OR user-archived primary must roll back,
+ * never receive linked members), and every member's assetsId === primaryRowId.
+ * Any violation throws and rolls back the whole apply.
  */
 export async function applyBackfill(
   db: Knex,
@@ -361,10 +399,19 @@ export async function applyBackfill(
       if (d.state !== undefined) sets.state = d.state;
       if (d.workflowPhase !== undefined) sets.workflow_phase = d.workflowPhase;
       if (Object.keys(sets).length === 0) continue;
-      const affected = await trx("o_assets")
+      let statement = trx("o_assets")
         .where({ id: d.id })
-        .whereRaw("state != 'eliminated'")
-        .update(sets);
+        .whereRaw("state != 'eliminated'");
+      if (sets.state !== undefined) {
+        // WR-01: the STATE column specifically is red-lined for archived
+        // rows — a row archived between plan and apply keeps its human
+        // decision. The statement no-ops and the planned-vs-executed
+        // MISMATCH in main() then fails loudly. Grouping-only writes never
+        // carry `state`, so archived members still take their planned
+        // assetsId/isPrimaryView/workflow_phase updates untouched by this.
+        statement = statement.whereRaw("state != 'archived'");
+      }
+      const affected = await statement.update(sets);
       executedUpdates += affected;
     }
 
@@ -386,8 +433,8 @@ export async function applyBackfill(
       }
       const primary = groupRows.find((r) => r.id === g.primaryRowId);
       if (!primary || primary.state !== "active") {
-        // WR-3: primary eliminated between plan and apply → rollback, never
-        // link members to an eliminated row.
+        // WR-3: primary eliminated (or archived, WR-01) between plan and
+        // apply → rollback, never link members to a non-active row.
         throw new Error(
           `[backfill:phase-50] group ${g.groupKey}: primary row ${g.primaryRowId} state is ` +
             `'${primary?.state ?? "missing"}' (expected 'active') — transaction rolled back`,
@@ -425,6 +472,9 @@ export function printReport(plan: BackfillPlan, mode: string): void {
   lines.push(`groups planned:               ${plan.groups.length}`);
   lines.push(`rows in groups:               ${plan.groupedRows}`);
   lines.push(`standalone rows (flat, kept): ${plan.standaloneRows}`);
+  lines.push(
+    `archived-primary groups skipped (WR-01): ${plan.archivedPrimarySkips.length}  <- never state-written, members untouched`,
+  );
   lines.push("");
   lines.push("--- planned column writes (diff-only => idempotent by construction) ---");
   lines.push(`assetsId writes:              ${plan.diffs.filter((d) => d.assetsId !== undefined).length}`);
@@ -445,6 +495,11 @@ export function printReport(plan: BackfillPlan, mode: string): void {
     lines.push("");
     lines.push("--- duplicate paths skipped (ambiguous mapping, grouping columns left as-is) ---");
     for (const p of plan.duplicatePaths) lines.push(`  ${p}`);
+  }
+  if (plan.archivedPrimarySkips.length > 0) {
+    lines.push("");
+    lines.push("--- archived-primary groups skipped (WR-01: grouping would require a state write) ---");
+    for (const s of plan.archivedPrimarySkips) lines.push(`  ${s}`);
   }
   lines.push("");
   lines.push(`--- underivable workflow_phase itemization (${plan.wfUnderivable} rows stay NULL) ---`);
