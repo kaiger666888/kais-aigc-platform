@@ -430,6 +430,31 @@ export async function rejectNode(
   await apiCall<void>('/canvas/review/reject', { projectId, episodesId, nodeId, reason }, { cancelToken })
 }
 
+/**
+ * 选定变体组优胜（Phase 49 SELECT-02 / D-04）。
+ *
+ * POST /api/canvas/v2/variant-groups/:groupId/select-winner —— 49-01 端点契约：
+ * body { projectId, episodesId, winnerNodeId }，事务化写
+ * canvas_variant_groups.winner_node_id + 组内 canvas_nodes.is_winner（D-01）；
+ * 重复选定同一 winner → 200 no-op { applied:false }（D-03）。
+ * 错误语义：404 组不存在 / 409 winner 不在组内或非 single 组 / 400 参数校验失败。
+ * 非 2xx 一律抛 ApiError（business/network）——调用方（canvasStore.selectWinner）
+ * 在 catch 里回滚乐观更新，UI 不呈现未持久化的 winner（SC-2）。
+ */
+export async function selectVariantWinner(
+  projectId: number,
+  episodesId: number,
+  groupId: string,
+  winnerNodeId: string,
+  cancelToken?: CancelToken,
+): Promise<void> {
+  await apiCall<void>(
+    `/canvas/v2/variant-groups/${encodeURIComponent(groupId)}/select-winner`,
+    { projectId, episodesId, winnerNodeId },
+    { cancelToken },
+  )
+}
+
 export async function requestNodeScore(
   projectId: number,
   episodesId: number,
