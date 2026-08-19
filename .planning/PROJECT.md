@@ -41,6 +41,7 @@ AI 短剧全链路制作平台，通过 kais-gold-team 统一执行引擎编排 
 - ✓ Canvas 节点类型动态化 + FallbackNode 兜底未知类型 — v1.6
 - ✓ movie-v1 install-ready manifest + Skill 作者文档 — v1.6
 - ✓ ingest 候选建组 + assetType 真值源 + workflow_phase 自动写入 (135 断言 verify:phase-48) — v2.1 Phase 48
+- ✓ 选定回写闭环: select-winner 事务化端点 + 资产中心↔画布双向联动 + review-platform 桥接 (gates 79/63/50 + vitest 172/172) — v2.1 Phase 49; SC-4 kmc 消费侧半环为跨仓库债务 (review-platform 无 chosen_variant_id/词汇不匹配, 已登记)
 
 ## Current Milestone: v2.1 候选资产配套 (candidate-asset-completeness)
 
