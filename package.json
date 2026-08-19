@@ -35,6 +35,7 @@
     "verify:phase-46-contracts": "npm run verify:manifest-contract && npm run verify:import-roundtrip && npm run verify:schema-drift",
     "verify:phase-46-e2e": "npx tsx scripts/verify-phase-46-e2e.ts",
     "verify:phase-47-backfill": "npx tsx scripts/verify-phase-47-backfill.ts",
+    "verify:phase-48": "npx tsx scripts/verify-phase-48.ts",
     "verify:qwen-tts": "npx tsx scripts/verify-qwen-tts.ts"
   },
   "dependencies": {

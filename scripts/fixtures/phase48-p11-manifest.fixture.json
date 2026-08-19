@@ -1,0 +1,42 @@
+[
+  {
+    "shot_id": "S01_B01",
+    "iframe_mode": "paired",
+    "variants": 3,
+    "first_frame_path": "assets/P11/iframes_S01_B01/first_frame_v1.png",
+    "last_frame_path": "assets/P11/iframes_S01_B01/last_frame_v1.png",
+    "all_first_frames": [
+      "assets/P11/iframes_S01_B01/first_frame_v1.png",
+      "assets/P11/iframes_S01_B01/first_frame_v2.png",
+      "assets/P11/iframes_S01_B01/first_frame_v3.png"
+    ],
+    "all_last_frames": [
+      "assets/P11/iframes_S01_B01/last_frame_v1.png",
+      "assets/P11/iframes_S01_B01/last_frame_v2.png",
+      "assets/P11/iframes_S01_B01/last_frame_v3.png"
+    ],
+    "selected_first_variant": 2,
+    "selected_last_variant": null,
+    "first_frame_prompt": "S01_B01 首帧：沈知意双手从画面底部向上伸出，逆光剪影，冷色调",
+    "last_frame_prompt": "S01_B01 尾帧：双手到达画面顶部边缘，指尖即将消失出画，闪白过渡"
+  },
+  {
+    "shot_id": "S02_B01",
+    "iframe_mode": "paired",
+    "variants": 2,
+    "first_frame_path": "assets/P11/iframes_S02_B01/first_frame_v1.png",
+    "last_frame_path": "assets/P11/iframes_S02_B01/last_frame_v1.png",
+    "all_first_frames": [
+      "assets/P11/iframes_S02_B01/first_frame_v1.png",
+      "assets/P11/iframes_S02_B01/first_frame_v2.png"
+    ],
+    "all_last_frames": [
+      "assets/P11/iframes_S02_B01/last_frame_v1.png",
+      "assets/P11/iframes_S02_B01/last_frame_v2.png"
+    ],
+    "selected_first_variant": null,
+    "selected_last_variant": 2,
+    "first_frame_prompt": "S02_B01 首帧：宴会厅全景，水晶灯光暖金色调，红色丝绸前景虚化",
+    "last_frame_prompt": "S02_B01 尾帧：沈知意面部 BCU，双眼完全睁开，瞳孔放大"
+  }
+]
