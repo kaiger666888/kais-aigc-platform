@@ -1397,6 +1397,15 @@ async function migrateSnapshotsToRelational(knex: Knex): Promise<void> {
     return;
   }
 
+  // Fresh-database guard: o_agentWorkData is created LATER in the main
+  // `tables` loop below; on a brand-new DB this query would throw
+  // "no such table" and abort the whole boot before any core table
+  // (o_assets, …) got created (surfaced by Phase 49's isolated-boot verify).
+  if (!(await knex.schema.hasTable("o_agentWorkData"))) {
+    console.log("[迁移] o_agentWorkData 尚未创建（全新数据库），跳过快照迁移");
+    return;
+  }
+
   // Find all canvasGraph snapshots
   const snapshots = await knex("o_agentWorkData")
     .where("key", "canvasGraph")

@@ -14,12 +14,20 @@
  * throwaway temp directory BEFORE the dynamic import so the boot writes an
  * isolated temp file — the production sqlite database is never opened.
  *
+ * Endpoint dispatch (Task 2) runs in a SPAWNED CHILD PROCESS for the same
+ * isolation reason plus a knex pool quirk: sharing one process between the
+ * long-running :memory: store section and the app-db boot leaves the appDb
+ * pool corrupted (insert connections never settle; standalone probe
+ * processes boot + insert fine in ~1.3s). The child generates, runs, and
+ * reports CHILD_RESULT lines this parent folds into the results table.
+ *
  * Run: npm run verify:phase-49   (or: npx tsx scripts/verify-phase-49.ts)
  */
 
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import knex from "knex";
 
 interface TestResult { name: string; pass: boolean; detail?: string; }
@@ -45,6 +53,12 @@ process.chdir(ISOLATION_DIR);
 async function main(): Promise<void> {
   console.log("=== Phase 49 — verify-phase-49.ts (SELECT-01 store behavior) ===\n");
 
+  // Import-order guard: mirror the app's module-graph root (@/utils barrel)
+  // BEFORE anything that transitively imports @/utils/db. Rooting the graph
+  // at canvasRelationalStore instead leaves the barrel's `db` re-export
+  // undefined (circular db.ts ↔ barrel ↔ fixDB CJS evaluation order) and the
+  // isolated boot dies inside fixDB with "u.db is not a function".
+  const utilsBarrel: any = await import("../src/utils");
   const store: any = await import("../src/lib/canvasRelationalStore");
 
   // ── Export gate (TDD RED pivot: everything below needs these exports) ────
@@ -331,7 +345,7 @@ async function main(): Promise<void> {
     );
 
     // ── handler-level endpoint semantics (Plan 49-01 Task 2) ───────────────
-    await runEndpointSemantics(store);
+    runEndpointSemantics();
   } finally {
     await db.destroy();
   }
@@ -340,9 +354,287 @@ async function main(): Promise<void> {
 }
 
 // ─── Endpoint semantics via the real express router (Task 2) ────────────────
-async function runEndpointSemantics(_store: any): Promise<void> {
-  // [49-01 Task 2] handler-level 404/409/400/200 assertions are appended here
-  // when src/routes/canvas/v2/select-winner.ts lands.
+//
+// The live dispatch runs in a SPAWNED CHILD PROCESS. Sharing one process
+// between the long-running :memory: store section above and the app-db boot
+// (src/utils/db import-time IIFE) leaves the appDb knex pool corrupted —
+// insert connections open but never settle (standalone probe processes boot
+// and insert fine in ~1.3s, so the code under test is sound; the corruption
+// is a tsx/isolated-boot environment artifact). The child performs its own
+// mkdtemp/chdir isolation, boots the real db against a temp file, seeds the
+// fixture, dispatches every endpoint case through the real express router,
+// and reports tab-separated CHILD_RESULT lines the parent folds into the
+// shared results table. The generated script is written INSIDE scripts/
+// (tsx only resolves the repo's @/ aliases for files inside the repo tree)
+// and deleted after every run.
+
+const CHILD_SRC = String.raw`
+// GENERATED at runtime by scripts/verify-phase-49.ts — do not commit.
+// Endpoint dispatch for Phase 49 SELECT-01, isolated in a child process.
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
+const REPO_ROOT = path.resolve(__dirname, "..");
+const ISO = fs.mkdtempSync(path.join(os.tmpdir(), "verify-phase-49-ep-"));
+// writeVersion.ts parses package.json from process.cwd() at import time.
+fs.copyFileSync(path.join(REPO_ROOT, "package.json"), path.join(ISO, "package.json"));
+process.chdir(ISO);
+
+function emit(pass: boolean, name: string, detail?: string): void {
+  process.stdout.write("CHILD_RESULT\t" + (pass ? "1" : "0") + "\t" + name + (detail ? "\t" + detail : "") + "\n");
+}
+
+/** Minimal Node-style req/res pair sufficient for an express.Router dispatch. */
+async function callEndpoint(
+  routerFn: any,
+  method: string,
+  urlPath: string,
+  body: unknown,
+): Promise<{ status: number; payload: any }> {
+  const req: any = {
+    method,
+    url: urlPath,
+    headers: {},
+    body,
+    params: {},
+    query: {},
+    socket: { remoteAddress: "127.0.0.1" },
+    connection: { remoteAddress: "127.0.0.1" },
+  };
+  const res: any = {
+    statusCode: 200,
+    headersSent: false,
+    payload: undefined,
+    status(code: number) { this.statusCode = code; return this; },
+    send(payload: any) { this.payload = payload; this.headersSent = true; settle(); return this; },
+    json(payload: any) { this.payload = payload; this.headersSent = true; settle(); return this; },
+    end() { this.headersSent = true; settle(); return this; },
+    setHeader() { return this; },
+    getHeader() { return undefined; },
+    removeHeader() { return this; },
+    write() { return true; },
+    writeHead(code: number) { this.statusCode = code; settle(); return this; },
+  };
+  // A handler that responds via res.send()/json()/end() does NOT call next() —
+  // settle on the FIRST response method instead of waiting for next().
+  let settle: () => void = () => undefined;
+  await new Promise<void>((resolve, reject) => {
+    settle = resolve;
+    routerFn(req, res, (err: any) => (err ? reject(err) : resolve()));
+  });
+  return { status: res.statusCode, payload: res.payload };
+}
+
+async function main(): Promise<void> {
+  // Import-order guard: root the module graph at the @/utils barrel first
+  // (circular db.ts <-> barrel <-> fixDB evaluation order; see parent script).
+  await import("../src/utils");
+  const routeMod: any = await import("../src/routes/canvas/v2/select-winner");
+  const dbMod: any = await import("../src/utils/db");
+  await Promise.race([
+    dbMod.bootReady,
+    new Promise((_, rej) => setTimeout(() => rej(new Error("bootReady timed out after 60s")), 60000)),
+  ]);
+  const appDb = dbMod.db;
+
+  // Fixture inside the isolated app db (full production schema, project 777).
+  const T0 = 1700000000000;
+  // NOTE: batch inserts (knex compound UNION-ALL SELECT) never settle on the
+  // appDb pool in this isolated-boot context — seed row-per-row.
+  for (const row of [
+    { id: 9000, projectId: 777, assetsId: null, isPrimaryView: 1, state: "active" },
+    { id: 9001, projectId: 777, assetsId: 9000, isPrimaryView: 0, state: "active" },
+    { id: 9002, projectId: 777, assetsId: 9000, isPrimaryView: 0, state: "active" },
+  ]) {
+    await appDb("o_assets").insert(row);
+  }
+  const epNode = (id: string, oAssetId: number, groupName: string) => ({
+    id, project_id: 777, episodes_id: 1, type: "asset", branch_id: "main",
+    phase_index: 11, phase_name: "p11_first_last_frames",
+    position_x: 0, position_y: 0, size_width: 260, size_height: 180,
+    data: JSON.stringify({ oAssetId }), state: "idle", is_winner: 0,
+    variant_group_id: groupName, created_at: T0, updated_at: T0,
+  });
+  for (const n of [
+    epNode("ep-a", 9001, "gE1"),
+    epNode("ep-b", 9002, "gE1"),
+    epNode("ep-solo", 9000, "none"),
+  ]) {
+    await appDb("canvas_nodes").insert(n);
+  }
+  const groupRow = (id: string, mode: string) => ({
+    id, project_id: 777, episodes_id: 1, phase_index: 11, branch_id: "main",
+    variant_node_ids: JSON.stringify(["ep-a", "ep-b"]), winner_node_id: null,
+    select_mode: mode, created_at: T0, updated_at: T0,
+  });
+  for (const g of [groupRow("gE1", "single"), groupRow("gE2", "multi")]) {
+    await appDb("canvas_variant_groups").insert(g);
+  }
+
+  const post = (groupId: string, body: unknown) =>
+    callEndpoint(routeMod.default, "POST", "/" + groupId + "/select-winner", body);
+  const okBody = { projectId: 777, episodesId: 1, winnerNodeId: "ep-b" };
+
+  // 404 — group does not exist
+  const r404 = await post("g-unknown", okBody);
+  emit(r404.status === 404, "endpoint: unknown group → HTTP 404", "actual: " + r404.status);
+  emit(
+    !!r404.payload && r404.payload.message === "变体组不存在",
+    "endpoint: 404 payload message = 变体组不存在",
+    JSON.stringify(r404.payload && r404.payload.message),
+  );
+
+  // 409 — winner not in group
+  const r409i = await post("gE1", { ...okBody, winnerNodeId: "ep-solo" });
+  emit(r409i.status === 409, "endpoint: winner outside the group → HTTP 409", "actual: " + r409i.status);
+  emit(
+    !!r409i.payload && r409i.payload.message === "winnerNodeId 不在组内",
+    "endpoint: 409 not-in-group message",
+    JSON.stringify(r409i.payload && r409i.payload.message),
+  );
+
+  // 409 — multi group
+  const r409m = await post("gE2", okBody);
+  emit(r409m.status === 409, "endpoint: select_mode='multi' → HTTP 409", "actual: " + r409m.status);
+  emit(
+    !!r409m.payload && r409m.payload.message === "仅 single 组支持选定",
+    "endpoint: 409 multi message",
+    JSON.stringify(r409m.payload && r409m.payload.message),
+  );
+
+  // 400 — zod validation (missing field / wrong type / oversized id)
+  const r400a = await post("gE1", { projectId: 777, episodesId: 1 });
+  emit(r400a.status === 400, "endpoint: missing winnerNodeId → HTTP 400", "actual: " + r400a.status);
+  const r400b = await post("gE1", { projectId: "777", episodesId: 1, winnerNodeId: "ep-b" });
+  emit(r400b.status === 400, "endpoint: projectId as string → HTTP 400 (T-49-01)", "actual: " + r400b.status);
+  const r400c = await post("gE1", { ...okBody, winnerNodeId: "x".repeat(129) });
+  emit(r400c.status === 400, "endpoint: 129-char winnerNodeId → HTTP 400 (maxLength 128)", "actual: " + r400c.status);
+
+  // 200 — updated selection + D-07 swap inside the endpoint
+  const r200 = await post("gE1", okBody);
+  emit(r200.status === 200, "endpoint: valid selection → HTTP 200", "actual: " + r200.status);
+  emit(
+    !!r200.payload && r200.payload.data && r200.payload.data.applied === true && r200.payload.data.groupId === "gE1",
+    "endpoint: 200 payload { groupId, winnerNodeId, applied: true }",
+    JSON.stringify(r200.payload && r200.payload.data),
+  );
+  const egRow: any = await appDb("canvas_variant_groups").where({ id: "gE1", project_id: 777, episodes_id: 1 }).first();
+  emit(egRow.winner_node_id === "ep-b", "endpoint: DB winner_node_id persisted (= ep-b)", "actual: " + egRow.winner_node_id);
+  const epA: any = await appDb("canvas_nodes").where({ id: "ep-a", project_id: 777, episodes_id: 1 }).first();
+  const epB: any = await appDb("canvas_nodes").where({ id: "ep-b", project_id: 777, episodes_id: 1 }).first();
+  emit(epA.is_winner === 0 && epB.is_winner === 1, "endpoint: DB is_winner false/true persisted");
+  const a9000: any = await appDb("o_assets").where({ id: 9000 }).first();
+  const a9002: any = await appDb("o_assets").where({ id: 9002 }).first();
+  emit(a9002.isPrimaryView === 1, "endpoint D-07: winner asset 9002 isPrimaryView = 1");
+  emit(a9000.isPrimaryView === 0, "endpoint D-07: old primary 9000 demoted to 0");
+
+  // 200 — idempotent re-selection (applied:false, zero writes)
+  await new Promise((r) => setTimeout(r, 8));
+  const egRowTs = egRow.updated_at;
+  const r200i = await post("gE1", okBody);
+  emit(r200i.status === 200, "endpoint: re-select same winner → HTTP 200 (not 409)", "actual: " + r200i.status);
+  emit(
+    !!r200i.payload && r200i.payload.data && r200i.payload.data.applied === false,
+    "endpoint: idempotent payload applied: false",
+    JSON.stringify(r200i.payload && r200i.payload.data),
+  );
+  const egRow2: any = await appDb("canvas_variant_groups").where({ id: "gE1", project_id: 777, episodes_id: 1 }).first();
+  emit(egRow2.updated_at === egRowTs, "endpoint: idempotent call wrote nothing (updated_at unchanged)");
+
+  await appDb.destroy();
+}
+
+let exitCode = 0;
+main().catch((err: any) => {
+  exitCode = 1;
+  console.error("endpoint child crashed:", err);
+  process.stdout.write("CHILD_CRASHED\t" + String(err && err.message ? err.message : err).split("\n")[0] + "\n");
+}).finally(() => {
+  try { fs.rmSync(ISO, { recursive: true, force: true }); } catch { /* best effort */ }
+  process.stdout.write("CHILD_DONE\t" + exitCode + "\n");
+  process.exitCode = exitCode;
+  setTimeout(() => process.exit(exitCode), 500).unref();
+});
+`;
+
+function runEndpointSemantics(): void {
+  console.log("\n=== SELECT-01 endpoint semantics (real router, isolated child process) ===");
+
+  // Source-shape assertions first (cheap, independent of the live dispatch)
+  const routeSrc = read("src/routes/canvas/v2/select-winner.ts");
+  const routerSrc = read("src/router.ts");
+  assert(
+    !routeSrc.includes("assets-registry"),
+    "endpoint: no assets-registry reference in the route file (D-07 loop prevention)",
+  );
+  assert(
+    /try\s*\{[\s\S]*?await syncAssetPrimaryForWinner[\s\S]*?\}\s*catch[\s\S]*?console\.warn[\s\S]*?不回滚 canvas/.test(routeSrc),
+    "endpoint: syncAssetPrimaryForWinner wrapped in try/catch whose catch only warns (D-07 failure isolation)",
+  );
+  assert(
+    routeSrc.indexOf("applied: false") < routeSrc.indexOf("broadcastToProject(projectId"),
+    "endpoint: idempotent branch returns BEFORE any broadcast (code path order)",
+  );
+  assert(
+    routeSrc.includes("[49-02] review bridge hook mounts here"),
+    "endpoint: 49-02 bridge seam comment present",
+  );
+  assert(
+    /import route167 from "\.\/routes\/canvas\/v2\/select-winner"/.test(routerSrc)
+      && /app\.use\("\/api\/canvas\/v2\/variant-groups", route167\)/.test(routerSrc),
+    "router.ts: select-winner mounted at /api/canvas/v2/variant-groups (route167)",
+  );
+
+  // Live dispatch in the spawned child (see the comment block above CHILD_SRC)
+  const childRel = "scripts/.verify-phase-49-endpoint.tmp.ts";
+  const childPath = path.join(REPO_ROOT, childRel);
+  try {
+    fs.writeFileSync(childPath, CHILD_SRC, "utf8");
+    const spawned = spawnSync("npx", ["tsx", childRel], {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+      timeout: 120000,
+      killSignal: "SIGKILL",
+      env: process.env,
+      maxBuffer: 16 * 1024 * 1024,
+    });
+    const childOut = `${spawned.stdout || ""}\n[stderr]\n${spawned.stderr || ""}`;
+    let childDone = false;
+    let childExit: string = spawned.error
+      ? `spawn error: ${spawned.error.message}`
+      : spawned.status === null
+        ? `killed by signal ${spawned.signal ?? "?"} (timeout?)`
+        : String(spawned.status);
+    for (const line of childOut.split("\n")) {
+      if (line.startsWith("CHILD_RESULT\t")) {
+        const parts = line.split("\t");
+        const pass = parts[1] === "1";
+        const name = parts[2] ?? "";
+        const detail = parts.slice(3).join("\t");
+        assert(pass, name, detail || undefined);
+      } else if (line.startsWith("CHILD_DONE\t")) {
+        childDone = true;
+        childExit = line.slice("CHILD_DONE\t".length);
+      }
+    }
+    console.log(`  [endpoint-child] exit=${childExit}`);
+    assert(
+      childDone && childExit === "0",
+      "endpoint: child dispatch completed cleanly (CHILD_DONE 0)",
+      `exit=${childExit}`,
+    );
+    if (!childDone || childExit !== "0") {
+      // surface the child's own diagnostics when it did not finish cleanly
+      for (const line of childOut.split("\n")) {
+        if (line && !line.startsWith("CHILD_RESULT\t") && !line.startsWith("CHILD_DONE\t")) {
+          console.log(`    │ ${line}`);
+        }
+      }
+    }
+  } finally {
+    try { fs.rmSync(childPath, { force: true }); } catch { /* best effort */ }
+  }
 }
 
 // ─── Summary ────────────────────────────────────────────────────────────────

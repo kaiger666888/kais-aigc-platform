@@ -171,6 +171,7 @@ import route163 from "./routes/v1/trellis2/status";
 import route164 from "./routes/v1/tts/health";
 import route165 from "./routes/v1/tts/speak";
 import route166 from "./routes/v1/tts/status";
+import route167 from "./routes/canvas/v2/select-winner";
 
 export default async (app: Express) => {
   app.use("/api/assets/addAssets", route1);
@@ -198,6 +199,7 @@ export default async (app: Express) => {
   app.use("/api/canvas/v2/review-gate", route23);
   app.use("/api/canvas/v2/save-v2", route24);
   app.use("/api/canvas/v2/sync-assets", route25);
+  app.use("/api/canvas/v2/variant-groups", route167);
   app.use("/api/canvas/v2/thumbnail", route27);
   app.use("/api/canvas/v2/thumbnail/batch", route26);
   app.use("/api/notion-proxy", route28);
