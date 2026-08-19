@@ -245,7 +245,7 @@ Plans:
 
 ### v2.1 Phases
 
-- [ ] **Phase 48: Ingest Candidate Grouping + Enum Unification + workflow_phase** — ingest 从平铺改建组：候选组 `assetsId`/`isPrimaryView`/`state` 落库契约 + assetType 单一真值源 + 新资产 `workflow_phase` 自动写入
+- [x] **Phase 48: Ingest Candidate Grouping + Enum Unification + workflow_phase** — ingest 从平铺改建组：候选组 `assetsId`/`isPrimaryView`/`state` 落库契约 + assetType 单一真值源 + 新资产 `workflow_phase` 自动写入 (completed 2026-08-19)
 - [ ] **Phase 49: Selection Write-back (Canvas Endpoint + Asset-Center Linkage + kmc Bridge)** — select-winner 后端端点 + 前端接线 + 资产中心联动 + kmc review resolve 桥接，打通"kap 换选 ↔ kmc 消费"闭环
 - [ ] **Phase 50: Historical Backfill + Contract Guards** — 存量 368 条资产回填建组 + workflow_phase 回填 + 契约测试 + verify-phase-50 汇总守护
 
@@ -281,7 +281,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 48-02-PLAN.md — Wiring (ingestAssets.ts 事务化建组落库 + images.ts 薄路由重写 + assets-registry 读侧旧词兼容 + verify-phase-48 Part 2 temp-sqlite 行为断言); wires INGEST-01/02/03 + PHASE-01 end-to-end
+- [x] 48-02-PLAN.md — Wiring (ingestAssets.ts 事务化建组落库 + images.ts 薄路由重写 + assets-registry 读侧旧词兼容 + verify-phase-48 Part 2 temp-sqlite 行为断言); wires INGEST-01/02/03 + PHASE-01 end-to-end
 
 ### Phase 49: Selection Write-back (Canvas Endpoint + Asset-Center Linkage + kmc Bridge)
 
@@ -326,7 +326,7 @@ Phase 48 is the contract source — the o_assets candidate-group shape that ever
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 48. Ingest Candidate Grouping + Enum Unification + workflow_phase | v2.1 | 1/2 | In Progress|  |
+| 48. Ingest Candidate Grouping + Enum Unification + workflow_phase | v2.1 | 2/2 | Complete   | 2026-08-19 |
 | 49. Selection Write-back (Canvas Endpoint + Asset-Center Linkage + kmc Bridge) | v2.1 | 0/? | Not started | - |
 | 50. Historical Backfill + Contract Guards | v2.1 | 0/? | Not started | - |
 

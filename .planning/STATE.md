@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: 候选资产配套 (candidate-asset-completeness)
-status: executing
-stopped_at: Completed 48-01-PLAN.md (ingest contract layer) — 48-02 next
-last_updated: "2026-08-19T01:20:25.871Z"
+status: verifying
+stopped_at: Phase 48 complete (2/2 plans)
+last_updated: "2026-08-19T01:32:24.997Z"
 last_activity: 2026-08-19
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
-  percent: 50
+  completed_plans: 2
+  percent: 33
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-06-17)
 
 Phase: 48 (Ingest Candidate Grouping + Enum Unification + workflow_phase) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-08-19
 
 ## Performance Metrics
@@ -46,6 +46,7 @@ Last activity: 2026-08-19
 | 37 | 1 | ✅ Shipped |
 | 38 | 1 | ✅ Shipped (Tier 2) |
 | Phase 48 P48-01 | 9 min | 3 tasks | 5 files |
+| Phase 48 P48-02 | 6 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,9 @@ Last activity: 2026-08-19
 - No project test framework — use `verify-phase-*.ts` pattern registered in package.json (Pitfalls B3/B4)
 - [Phase 48]: P48 manifest-batch matching disambiguated by parent-dir+basename (kmc shot dirs repeat frame basenames); resolution mode exclusive per frame-list
 - [Phase 48]: P48 D-05 active-only state policy enforced at Plan 48-02 service layer, not in the pure grouping module
+- [Phase ?]: [Phase 48] P48-02: knex 3.2.5 typings lack andWhereIn — registry /search uses chained .whereIn(expandTypesForQuery()) (identical AND semantics, repo convention)
+- [Phase ?]: [Phase 48] P48-02: ingestImagesPayload takes db as a parameter (never imports @/utils) so Phase 50 backfill + verify scripts inject their own knex; whole batch single transaction with in-trx exactly-one-primary assertion
+- [Phase ?]: [Phase 48] P48-02: verify Part-1 registry-enum assertion now checks truth-source import + literal-gone (Task 2 deleted the inline enum the old regex grepped)
 
 ### Pending Todos
 
@@ -130,6 +134,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-19T01:20:17.800Z
-Stopped at: Completed 48-01-PLAN.md (ingest contract layer: assetTypes truth source + candidateGrouping pure functions + kmc fixture + verify:phase-48 64/64). 48-02 remains.
+Last session: 2026-08-19T01:32:24.989Z
+Stopped at: Phase 48 complete (2/2 plans)
 Resume: `/gsd:execute-phase 48` (Plan 48-02: route rewrite + registry compat — consumes src/lib/assetTypes + candidateGrouping exports, extends verify-phase-48 at the Part 2 marker).
