@@ -7,6 +7,7 @@ import {
   selectWinnerInGroup,
   syncAssetPrimaryForWinner,
 } from "@/lib/canvasRelationalStore";
+import { resolveOpenReviewForSelection } from "@/lib/reviewBridge";
 
 const router = express.Router();
 
@@ -96,7 +97,19 @@ router.post(
         }
       }
 
-      // [49-02] review bridge hook mounts here (fire-and-forget)
+      // [49-02] review bridge hook mounts here — SELECT-04: best-effort
+      // approve of the open (APPROVING) kmc review matching the winner's
+      // phase. Fire-and-forget: never awaited (the response is not blocked)
+      // and the bridge swallows internally; .catch is the second backstop.
+      // The idempotent branch above deliberately does NOT reach this point.
+      void resolveOpenReviewForSelection({
+        projectId,
+        episodesId,
+        groupId,
+        winnerNodeId,
+        variantIndex: result.variantIndex,
+        winnerPhaseName: result.winnerPhaseName,
+      }).catch(() => {});
 
       broadcastToProject(projectId, "variant:selected", {
         projectId,
