@@ -129,6 +129,77 @@ export const ENGINE_VRAM_REQUIREMENTS: Record<string, number> = {
   default: 8192,
 };
 
+// ─── B2b. 引擎 → GPU 归属表 (2026-08-19 P3 / D8 GPU0 纳管) ─────────────────
+//
+// 当前所有过队列的重型引擎都在 GPU1 (3090 生成卡) — 全表默认 1 = 行为不变。
+// 机制先行: 新增 GPU0 引擎 (如 comfyui-aux 类轻作业) 时在此登记 + 路由不传
+// gpuIndex 即自动落到正确卡, 与 defaultGpuIndex() (env 兜底) 解耦。
+
+export const ENGINE_GPU_INDEX: Record<string, number> = {
+  qwen_tts: 1,
+  indextts2: 1,
+  minimax_h3: 1,
+  flux2: 1,
+  qwen_eye: 1,
+  qwen_ear: 1,
+  music3: 1,
+  sa3: 1,
+  ace: 1,
+  rtx_vsr: 1,
+  ltx: 1,
+  // GPU0 (3060Ti 8GB) 候补位 — 登记 lighter 引擎即纳管:
+  // comfyui_aux: 0,
+};
+
+/** 引擎默认 GPU 归属 (未登记 → env KAP_VRAM_GPU_INDEX → 1) */
+export function engineGpuIndex(engineKey: string): number {
+  return ENGINE_GPU_INDEX[engineKey] ?? defaultGpuIndex();
+}
+
+// ─── B2c. 常驻引擎显存登记 (2026-08-19 P3 / D6 常驻占用语义准备) ────────────
+//
+// 结构性缺口: music3/qwen_tts 等常驻 server 在请求间驻留显存, 但队列锁每请求
+// 释放 — ensureVram 只看 nvidia-smi free, 分不清「可驱逐」与「常驻不可驱逐」,
+// 目前靠 requireVramMiB 逐案补丁 (music3 增量 6GB)。
+//
+// 登记表 + 可回收公式 (env KAP_VRAM_RESIDENT_AWARE=1 开启, 默认关):
+//   effectiveFree = nvidia-smi free + Σ 该卡上 evictable 常驻引擎的 residentVramMiB
+// 常驻引擎自身的驱逐 (music3 cpu-offload / ComfyUI /free) 留给后续迁移 —
+// 本期交付接口与公式, 不改默认行为。
+
+export interface ResidentEngineEntry {
+  engine: string;
+  gpuIndex: number;
+  /** 常驻占用显存 (MiB) */
+  residentVramMiB: number;
+  /** true = ensureVram 可把它计入可回收 (有驱逐手段); false = 硬驻留 */
+  evictable: boolean;
+}
+
+const RESIDENT_ENGINES = new Map<string, ResidentEngineEntry>();
+
+export function registerResidentEngine(entry: ResidentEngineEntry): void {
+  RESIDENT_ENGINES.set(entry.engine, entry);
+}
+
+export function unregisterResidentEngine(engine: string): void {
+  RESIDENT_ENGINES.delete(engine);
+}
+
+export function getResidentEngines(): ResidentEngineEntry[] {
+  return Array.from(RESIDENT_ENGINES.values());
+}
+
+/** 该卡上可回收显存 (常驻登记贡献; 默认未开启时恒 0) */
+function evictableResidentMiB(gpuIndex: number): number {
+  if (process.env.KAP_VRAM_RESIDENT_AWARE !== "1") return 0;
+  let sum = 0;
+  for (const entry of RESIDENT_ENGINES.values()) {
+    if (entry.gpuIndex === gpuIndex && entry.evictable) sum += entry.residentVramMiB;
+  }
+  return sum;
+}
+
 // ─── B3. 提交前预检 ─────────────────────────────────────────────────────────
 
 /** 结构化显存不足错误 — 路由层捕获后以 vram_insufficient kind 返回给调用方 */
@@ -218,8 +289,12 @@ export async function ensureVram(
     console.warn(`[gpuVramManager] nvidia-smi returned no GPU${gpuIndex}; skipping preflight for ${engineKey}`);
     return { freeMiB: -1, requiredMiB, evicted: false };
   }
-  if (gpu.freeMiB >= requiredMiB) {
-    console.log(`[gpuVramManager] ok ${engineKey}: need ${requiredMiB}MiB, GPU${gpuIndex} free ${gpu.freeMiB}MiB`);
+  // 可回收常驻贡献 (KAP_VRAM_RESIDENT_AWARE=1 时按登记表计入, 默认 0 — 行为不变)
+  const recyclableMiB = evictableResidentMiB(gpuIndex);
+  if (gpu.freeMiB + recyclableMiB >= requiredMiB) {
+    console.log(
+      `[gpuVramManager] ok ${engineKey}: need ${requiredMiB}MiB, GPU${gpuIndex} free ${gpu.freeMiB}MiB${recyclableMiB > 0 ? ` + evictable resident ${recyclableMiB}MiB` : ""}`,
+    );
     return { freeMiB: gpu.freeMiB, requiredMiB, evicted: false };
   }
 
@@ -236,7 +311,7 @@ export async function ensureVram(
         : 3_000;
       await new Promise((r) => setTimeout(r, waitMs));
       gpu = await check();
-      if (gpu && gpu.freeMiB >= requiredMiB) {
+      if (gpu && gpu.freeMiB + evictableResidentMiB(gpuIndex) >= requiredMiB) {
         console.log(`[gpuVramManager] ok after /free: ${engineKey} GPU${gpuIndex} free ${gpu.freeMiB}MiB`);
         return { freeMiB: gpu.freeMiB, requiredMiB, evicted: true };
       }
@@ -603,7 +678,7 @@ export async function withGpuQueueTimed<T>(
     lockWaitTimeoutMs?: number;
   } = {},
 ): Promise<GpuQueueResult<T>> {
-  const gpuIndex = opts.gpuIndex ?? defaultGpuIndex();
+  const gpuIndex = opts.gpuIndex ?? engineGpuIndex(engineKey);
   const lockWaitTimeoutMs =
     opts.lockWaitTimeoutMs !== undefined ? opts.lockWaitTimeoutMs : LOCK_WAIT_TIMEOUT_MS;
 

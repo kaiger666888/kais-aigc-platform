@@ -140,6 +140,32 @@ check(
   testRun.status !== 0 ? testOut.slice(-500) : undefined,
 );
 
+// ─── 7. P3 架构归一 (D4/D6/D8/D9) ─────────────────────────────────────────
+
+console.log("\n[7] P3 架构归一");
+const crossproc = "src/lib/gpuQueueCrossProc.ts";
+check("跨进程门控模块 (D4)", contains(crossproc, "class RedisGate") && contains(crossproc, "class MemoryGate"));
+check("门控三档 off/mirror/strict", contains(crossproc, '"off" | "mirror" | "strict"'));
+check("gpuVramManager 接线门控", contains(core, "getQueueGate") && contains(core, "gate.acquire"));
+check("ENGINE_GPU_INDEX 归属表 (D8)", contains(core, "ENGINE_GPU_INDEX") && contains(core, "engineGpuIndex(engineKey)"));
+check("常驻引擎登记 (D6 接口)", contains(core, "registerResidentEngine") && contains(core, "KAP_VRAM_RESIDENT_AWARE"));
+check("GpuScheduler D9 裸进程注记", contains(sched, "gpu-kill-external.sh"));
+
+console.log("\n[6b] 跨进程门控单测 gpuQueueCrossProc.test.ts");
+const cpRun = spawnSync(
+  process.execPath,
+  ["--import", "tsx", "--test", "src/lib/__tests__/gpuQueueCrossProc.test.ts"],
+  { cwd: ROOT, encoding: "utf-8", timeout: 120_000 },
+);
+const cpOut = `${cpRun.stdout ?? ""}${cpRun.stderr ?? ""}`;
+const cpPass = /ℹ pass (\d+)/.exec(cpOut);
+const cpFail = /ℹ fail (\d+)/.exec(cpOut);
+check(
+  `门控单测全绿 (pass=${cpPass ? cpPass[1] : 0}, fail=${cpFail ? cpFail[1] : "?"})`,
+  cpRun.status === 0 && cpPass !== null && parseInt(cpPass[1], 10) >= 6,
+  cpRun.status !== 0 ? cpOut.slice(-500) : undefined,
+);
+
 // ─── 汇总 ─────────────────────────────────────────────────────────────────
 
 console.log(

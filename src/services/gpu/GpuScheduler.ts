@@ -41,6 +41,11 @@ const execFileAsync = promisify(execFile);
 export function getRegisteredServices(): ServiceProfile[] {
   return [
     // ComfyUI Primary — GPU 1 (3090), 仅在 VRAM 不足时被踢
+    // ⚠️ 2026-08-19 D9 排查注记: 容器本体在跑 (docker ps 可见), 但宿主机上另存在
+    // 容器外手动拉起的裸 ComfyUI 进程 (python3.13 ./ComfyUI/main.py) — 它们不在
+    // 本注册表管辖内, 生命周期指令 (docker start/stop) 对其无效。裸进程的清除走
+    // killExternalGpuProcesses (gpu-kill-external.sh) 兜底; 新增服务前先确认没有
+    // 重复的手动实例在跑 (docs/gpu-unified-scheduling-plan.md §D9)。
     {
       id: "comfyui-primary",
       name: "ComfyUI Primary",
@@ -54,7 +59,7 @@ export function getRegisteredServices(): ServiceProfile[] {
       healthTimeoutMs: 10_000,
       idleTimeoutMs: 0,
     },
-    // ComfyUI Auxiliary — GPU 0 (3060Ti), 空闲 10min 释放
+    // ComfyUI Auxiliary — GPU 0 (3060Ti), 空闲 10min 释放 (D9 注记同上)
     {
       id: "comfyui-auxiliary",
       name: "ComfyUI Auxiliary",

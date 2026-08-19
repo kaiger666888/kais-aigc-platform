@@ -131,10 +131,25 @@ requireGpuSlot(engineKey)  // 包装 handler：排队 + ensureVram + 信号穿�
 
 ## 4. Phase 3（P2）——架构归一
 
-1. **状态外置 redis（D4）**：StateStore 接口扩展 holders/waiters 原语 + pub/sub 唤醒；dev server 改用独立 gpuIndex 或只读观测。多实例才真正共享一把锁。
-2. **两套锁合并（D5 深层）**：GpuScheduler 的 start/stop/evict 只允许发生在 withGpuQueue 持锁内（llm 路由形状推广为唯一形状）；其 store-lock 降级为内部实现细节。
-3. **常驻引擎占用语义（D6）**：music3 / qwen_tts server / indextts2 容器迁到 occupancy 模型（拉起占位、idle 释放占位+服务）；`ensureVram` 可回收显存 = free + Σ已注册可驱逐占用。淘汰 requireVramMiB 逐案补丁。
-4. **GPU0 纳管（D8）+ 注册表对齐（D9）**：ENGINE_VRAM_REQUIREMENTS 增加 per-engine gpuIndex；comfyui 注册项改为与现实一致的裸进程管理（或容器化）。
+> **2026-08-19 交付状态**（实施记录，见 git log `feat(gpu): P3-*`）：
+
+1. **状态外置 redis（D4）**——✅ 已交付 `src/lib/gpuQueueCrossProc.ts`：off/mirror/strict 三档
+   （默认 off；REDIS_URL 已设默认 mirror；`KAP_GPU_QUEUE_CROSSPROC=strict` 开互斥）。
+   strict = SET NX PX 互斥 + TTL(40min) 心跳续期 + Lua 原子释放 + 门等待 deadline 封顶；
+   提供跨进程**互斥安全**（不承诺全局 FIFO 公平——对 GPU 安全非刚需）。redis 不可达
+   fail-open 降级 off。**启用 strict 前提**：dev tsx 与 prod 均设 REDIS_URL（同机有
+   kais-redis 容器可用）。单测 6 例（两个 MemoryGate 共享 map 模拟双进程）。
+2. **两套锁合并（D5 深层）**——🔶 部分交付：GpuScheduler.release 停服联动已做（P1-B），
+   llm/ear 的「生命周期在持锁内」形状保持范式；**全路由强制 assertion 未做**（收编已
+   由 P2-A 完成 + verify 脚本防回归，startup 硬校验留待需要时再加）。
+3. **常驻引擎占用语义（D6）**——🔶 接口交付：`registerResidentEngine` 登记表 +
+   `KAP_VRAM_RESIDENT_AWARE=1` 可回收公式（effectiveFree = free + Σevictable 常驻）。
+   music3/qwen_tts 的实际迁移（拉起占位/idle 释放）**未做**——涉及服务重启语义，
+   留待独立变更；默认关闭零行为变化。
+4. **GPU0 纳管（D8）+ 注册表对齐（D9）**——🔶 机制交付 + 事实修正：`ENGINE_GPU_INDEX`
+   归属表（全表默认 1 = 零行为变化，登记即纳管 GPU0）；D9 排查修正——comfyui 容器
+   **真实在跑**（docker ps 可见），真问题是**容器外另有裸 ComfyUI 进程**不受注册表
+   管辖（已在注册表加注记，清除走既有 gpu-kill-external.sh 兜底）。
 
 ---
 
