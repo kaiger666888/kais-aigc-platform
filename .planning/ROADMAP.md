@@ -246,7 +246,7 @@ Plans:
 ### v2.1 Phases
 
 - [x] **Phase 48: Ingest Candidate Grouping + Enum Unification + workflow_phase** — ingest 从平铺改建组：候选组 `assetsId`/`isPrimaryView`/`state` 落库契约 + assetType 单一真值源 + 新资产 `workflow_phase` 自动写入 (completed 2026-08-19)
-- [ ] **Phase 49: Selection Write-back (Canvas Endpoint + Asset-Center Linkage + kmc Bridge)** — select-winner 后端端点 + 前端接线 + 资产中心联动 + kmc review resolve 桥接，打通"kap 换选 ↔ kmc 消费"闭环
+- [x] **Phase 49: Selection Write-back (Canvas Endpoint + Asset-Center Linkage + kmc Bridge)** — select-winner 后端端点 + 前端接线 + 资产中心联动 + kmc review resolve 桥接，打通"kap 换选 ↔ kmc 消费"闭环 (completed 2026-08-19)
 - [ ] **Phase 50: Historical Backfill + Contract Guards** — 存量 368 条资产回填建组 + workflow_phase 回填 + 契约测试 + verify-phase-50 汇总守护
 
 **Architecture decisions (v2.1):**
@@ -305,9 +305,9 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1; three plans parallel — zero files_modified overlap)*
 
-- [ ] 49-02-PLAN.md — SELECT-04 kmc review 桥接 (reviewBridge.ts 查 open APPROVING review → approve result.selected + choose:v{N} comment；含已核实的 kmc 轮询协议缺口记录; D-11 双仓库零改动)
-- [ ] 49-03-PLAN.md — SELECT-03 资产中心→画布联动 (canvasAssetLinkage.ts a-oasset-/oAssetId 映射 + registry PATCH isPrimaryView=true 钩子，复用 selectWinnerInGroup; 常态静默跳过)
-- [ ] 49-04-PLAN.md — SELECT-02 前端接线 (canvasApi.selectVariantWinner + canvasStore.selectWinner 双路径乐观/回滚，variantOps prevSnapshot 复用; 零新视觉 D-05 + vitest 行为门)
+- [x] 49-02-PLAN.md — SELECT-04 kmc review 桥接 (reviewBridge.ts 查 open APPROVING review → approve result.selected + choose:v{N} comment；含已核实的 kmc 轮询协议缺口记录; D-11 双仓库零改动)
+- [x] 49-03-PLAN.md — SELECT-03 资产中心→画布联动 (canvasAssetLinkage.ts a-oasset-/oAssetId 映射 + registry PATCH isPrimaryView=true 钩子，复用 selectWinnerInGroup; 常态静默跳过)
+- [x] 49-04-PLAN.md — SELECT-02 前端接线 (canvasApi.selectVariantWinner + canvasStore.selectWinner 双路径乐观/回滚，variantOps prevSnapshot 复用; 零新视觉 D-05 + vitest 行为门)
 
 **UI hint**: yes
 
@@ -339,7 +339,7 @@ Phase 48 is the contract source — the o_assets candidate-group shape that ever
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 48. Ingest Candidate Grouping + Enum Unification + workflow_phase | v2.1 | 2/2 | Complete    | 2026-08-19 |
-| 49. Selection Write-back (Canvas Endpoint + Asset-Center Linkage + kmc Bridge) | v2.1 | 1/4 | In Progress|  |
+| 49. Selection Write-back (Canvas Endpoint + Asset-Center Linkage + kmc Bridge) | v2.1 | 4/4 | Complete   | 2026-08-19 |
 | 50. Historical Backfill + Contract Guards | v2.1 | 0/? | Not started | - |
 
 **v2.0 (shipped 2026-07-16):**
