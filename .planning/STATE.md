@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: 候选资产配套 (candidate-asset-completeness)
-status: executing
-stopped_at: Phase 49 plan 1 of 4 complete (SELECT-01)
-last_updated: "2026-08-19T03:17:29.841Z"
+status: ready_to_plan
+stopped_at: Phase 49 complete (4/4) — ready to discuss Phase 50
+last_updated: 2026-08-19T10:08:22.550Z
 last_activity: 2026-08-19
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 6
-  completed_plans: 3
+  completed_plans: 6
   percent: 33
 ---
 
@@ -21,20 +21,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-17)
 
 **Core value:** AI creative production pipeline that runs end-to-end, pluggable across multiple creative workflows via a published skill contract.
-**Current focus:** Phase 49 — Selection Write-back
+**Current focus:** Phase 50 — historical backfill + contract guards
 
 ## Current Position
 
-Phase: 49 (Selection Write-back) — EXECUTING
-Plan: 2 of 4
-Status: Ready to execute
+Phase: 50
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-08-19
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 31 (v1.5 shipped — last fully-executed milestone before v1.7)
+- Total plans completed: 35 (v1.5 shipped — last fully-executed milestone before v1.7)
 - v1.7 shipped 2026-06-18 in single session (4 phases, 4 plans, 0 failures)
 
 **By Phase (v1.7):**
