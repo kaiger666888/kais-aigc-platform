@@ -340,6 +340,12 @@ PHASE_FIELDS: dict[str, dict[str, dict[str, Any]]] = {
             "zod_type": "string",
             "required": False
         },
+        "video_prompt": {
+            "python_key": "video_prompt",
+            "canvas_key": "videoPrompt",
+            "zod_type": "string",
+            "required": False
+        },
         "shot_type": {
             "python_key": "shot_type",
             "canvas_key": "shot_type",
@@ -449,6 +455,12 @@ PHASE_FIELDS: dict[str, dict[str, dict[str, Any]]] = {
         "ltx_prompt": {
             "python_key": "ltx_prompt",
             "canvas_key": "ltxPrompt",
+            "zod_type": "string",
+            "required": False
+        },
+        "video_prompt": {
+            "python_key": "video_prompt",
+            "canvas_key": "videoPrompt",
             "zod_type": "string",
             "required": False
         },

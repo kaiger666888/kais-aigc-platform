@@ -71,6 +71,10 @@ export const YAML_OPTIONAL_FIELDS: Record<string, YamlOptionalField[]> = {
       "zodType": "string"
     },
     {
+      "key": "videoPrompt",
+      "zodType": "string"
+    },
+    {
       "key": "shot_type",
       "zodType": "string"
     }
@@ -140,6 +144,10 @@ export const YAML_OPTIONAL_FIELDS: Record<string, YamlOptionalField[]> = {
     },
     {
       "key": "ltxPrompt",
+      "zodType": "string"
+    },
+    {
+      "key": "videoPrompt",
       "zodType": "string"
     },
     {

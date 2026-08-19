@@ -277,6 +277,11 @@ phases:
         canvas_key: ltxPrompt
         zod_type: string
         required: false
+      video_prompt:
+        python_key: video_prompt
+        canvas_key: videoPrompt
+        zod_type: string
+        required: false
       shot_type:
         python_key: shot_type
         canvas_key: shot_type
@@ -388,6 +393,11 @@ phases:
       ltx_prompt:
         python_key: ltx_prompt
         canvas_key: ltxPrompt
+        zod_type: string
+        required: false
+      video_prompt:
+        python_key: video_prompt
+        canvas_key: videoPrompt
         zod_type: string
         required: false
       shot_type:

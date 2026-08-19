@@ -10,7 +10,8 @@ export const SCHEMA_ALIASES: Record<string, Record<string, string>> = {
     "camera_movement": "cameraMovement",
     "axis_line": "axisLine",
     "audio_cue": "audioCue",
-    "ltx_prompt": "ltxPrompt"
+    "ltx_prompt": "ltxPrompt",
+    "video_prompt": "videoPrompt"
   },
   "asset": {
     "role": "archetype",
@@ -26,6 +27,7 @@ export const SCHEMA_ALIASES: Record<string, Record<string, string>> = {
     "axis_line": "axisLine",
     "audio_cue": "audioCue",
     "ltx_prompt": "ltxPrompt",
+    "video_prompt": "videoPrompt",
     "shot_type": "shotType",
     "duration_sec": "durationS"
   },

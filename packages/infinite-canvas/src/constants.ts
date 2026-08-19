@@ -267,7 +267,8 @@ export const NODE_SCHEMA: Record<string, StructuredField[]> = {
     { key: 'axisLine', label: '轴线', type: 'enum', options: SHOT_METADATA_LABELS.axisLine },
     { key: 'emotion', label: '情感意图', type: 'text' },
     { key: 'audioCue', label: '声音提示', type: 'text' },
-    { key: 'ltxPrompt', label: '视频生成Prompt', type: 'text' },
+    { key: 'videoPrompt', label: '视频生成Prompt', type: 'text' },
+    { key: 'ltxPrompt', label: '视频生成Prompt(旧字段)', type: 'text' },
   ],
   script: [
     { key: 'mcmahonArc', label: '叙事弧', type: 'enum', options: SCRIPT_METADATA_LABELS.mcmahonArc },
@@ -353,7 +354,7 @@ export const RAW_FIELD_LABELS: Record<string, string> = {
   duration_sec: '时长', duration: '时长', durationS: '时长', resolution: '分辨率',
   fps: '帧率', num_frames: '帧数', total_duration_sec: '总时长',
   // 生成配方
-  ltx_prompt: '生成提示词', ltxPrompt: '生成提示词', prompt: '提示词',
+  ltx_prompt: '生成提示词', ltxPrompt: '生成提示词', video_prompt: '生成提示词', videoPrompt: '生成提示词', prompt: '提示词',
   negative: '反向提示词', negative_prompt: '反向提示词',
   style_prefix: '风格前缀', color_guidance: '色彩引导', color_palette: '色彩',
   seed: '种子', guidance_scale: '引导系数', cfg: 'CFG', steps: '步数',
@@ -389,7 +390,7 @@ export const RAW_FIELD_GROUPS: ReadonlyArray<{ title: string; keys: ReadonlySet<
   { title: '叙事节拍', keys: new Set(['beat', 'snyder_beat', 'shot_intent', 'conflict_intensity', 'intensity', 'emotion', 'mood', 'hook_type', 'hookType', 'premise', 'theme']) },
   { title: '音频', keys: new Set(['speaker', 'audio_path', 'audioPath', 'audio_type', 'audioType', 'sfx_notes', 'dialogue', 'voice', 'music']) },
   { title: '时长与规格', keys: new Set(['duration_sec', 'duration', 'durationS', 'resolution', 'fps', 'num_frames', 'total_duration_sec']) },
-  { title: '生成配方', keys: new Set(['ltx_prompt', 'ltxPrompt', 'negative', 'negative_prompt', 'style_prefix', 'color_guidance', 'color_palette', 'guidance_scale', 'cfg', 'steps', 'model_version']) },
+  { title: '生成配方', keys: new Set(['ltx_prompt', 'ltxPrompt', 'video_prompt', 'videoPrompt', 'negative', 'negative_prompt', 'style_prefix', 'color_guidance', 'color_palette', 'guidance_scale', 'cfg', 'steps', 'model_version']) },
   { title: '审计评分', keys: new Set(['murch_score', 'murchScore', 'audit_grade', 'auditGrade', 'clip_i', 'clipi_target']) },
   { title: '资产描述', keys: new Set(['archetype', 'age_range', 'ageRange', 'asset_type', 'assetType', 'turnaround_sheet', 'tags', 'layers', 'crops', 'view_angle', 'viewAngle']) },
 ]
