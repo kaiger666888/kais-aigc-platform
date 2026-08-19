@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.0
-milestone_name: Canvas Sync Permanence
-status: complete
-stopped_at: v2.0 milestone COMPLETE — all 6 phases shipped (42/43/44/45/46/47). Source contract + sync cleanup + receiver schema + text UI + E2E contract tests + historical backfill all in place. Canvas-sync triad permanently solved via 4-gate strategy. Only deferred item: BACKFILL-02 manual sampling sign-off (operator time at browser).
-last_updated: "2026-07-16T05:00:00.000Z"
-last_activity: 2026-07-24 -- Quick task 260724-jsj: shot-analysis 接入 gold-team v6 排队任务(TaskType.SHOT_ANALYSIS + workflow builder + executor 派发 + route 改薄代理),静态验证通过;待 gold-team redeploy 活测
+milestone: v2.1
+milestone_name: 候选资产配套 (candidate-asset-completeness)
+status: planning
+last_updated: "2026-08-19T00:48:07.151Z"
+last_activity: 2026-08-19
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 12
-  completed_plans: 12
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-06-17)
 
 ## Current Position
 
-Phase: 47 complete (historical-backfill-archival) — final v2.0 phase
-Plan: All 12 v2.0 plans shipped across 6 phases
-Status: v2.0 milestone COMPLETE
-Last activity: 2026-07-24 -- Quick task 260724-jsj: shot-analysis 改成 gold-team v6 排队任务(与 LTX 串行、GPUGuard 管 VRAM)。TaskType.SHOT_ANALYSIS + build_shot_analysis_workflow(driver 逻辑移植)+ executor 自包含派发 _execute_shot_analysis(submit→poll→读 shot JSON)+ route 改 gold-team 薄代理。py_compile/tsc 通过。**待 gold-team 容器 redeploy 才生效**(否则 type=shot_analysis 422)。分支 feat/shot-analysis-goldteam
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-08-19 — Milestone v2.1 started
 
 ## Performance Metrics
 

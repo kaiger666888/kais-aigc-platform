@@ -41,11 +41,27 @@ AI 短剧全链路制作平台，通过 kais-gold-team 统一执行引擎编排 
 - ✓ Canvas 节点类型动态化 + FallbackNode 兜底未知类型 — v1.6
 - ✓ movie-v1 install-ready manifest + Skill 作者文档 — v1.6
 
-## Current Milestone: v2.0 Canvas Sync Permanence (画布同步永久治理)
+## Current Milestone: v2.1 候选资产配套 (candidate-asset-completeness)
+
+**Goal:** 打通 kmc 冗余候选生成 ↔ kap 无限画布/资产管理中心的配套管道——kmc 产出的 N 候选在 kap 侧自动成组、选定状态双向同步、按 phase 可组织,消除"候选进画布变孤产、kmc 选定结果无人消费"的断裂。
+
+**Target features:**
+- **Ingest 候选建组 (P0)** — `src/routes/v1/pipeline/ingest/images.ts` 从平铺改建组:读 kmc `iframe-manifest.json` 的 `all_first_frames[]/selected_first_variant` 与 turnaround `*_v{N}` 命名约定,自动写 `o_assets.assetsId` 分组 + `isPrimaryView` + `state`;统一 assetType 枚举 (`role|scene|tool` vs `character|scene|prop`,ingest `images.ts:18` vs assets-registry `index.ts:21`)
+- **画布选定回写 (P1)** — 落地 `select-winner` 后端端点(现仅前端本地 `canvasStore.selectWinner`);桥接 kmc review 协议 `chosen_variant_id`,让"画布上换选"能回写 kmc 影响下一次 p11b 渲染
+- **workflow_phase 回填 (P2)** — ingest/sync 自动写入 `workflow_phase`(数据源 kmc manifest P01-P13 DAG);存量 368 条回填
+
+**Key context (2026-08-19 双侧调查):**
+- kmc 侧机制:双旋钮 `n_candidates`/`final_candidates`(runner.py:2279-2329),磁盘约定 `assets/P11/iframe-manifest.json`(`variants/all_*_frames/selected_*_variant`)、`.pipeline-assets/hook-candidates.json`(`chosen_variant_id`),人工换选通道 `ReviewPlatformClient → POST /api/v1/reviews`(review_platform.py:69)
+- kap 侧现状:o_assets 三态选定/待选/淘汰**已落地**(`AssetLibrary.tsx:35,782-800` + `assets-registry/index.ts:185`);断点=ingest 平铺不建组、选定结果不被消费、画布层无后端选定端点、workflow_phase 368/368 全空
+- 背景文档:`packages/infinite-canvas/.task-pipeline-asset-gap-analysis.md`、`docs/canvas-review-integration.md`(方案B)、`docs/canvas-next-steps.md` Phase 3.2、`RECON.md:262-266`(前后端 VariantGroup 结构不一致)
+
+## Shipped: v2.0 Canvas Sync Permanence (画布同步永久治理) — 2026-07-16
 
 **Goal:** 永久根治 kais-movie-pipeline → 无限画布自动同步中"资产同步不全 / 结构化参数缺失 / 描述过简"三联症。通过**源端契约 + 接收端契约 + E2E 回归 + 存量 backfill** 四道闸,让该问题不再回归。
 
-**Target features:**
+**Outcome:** 6 phases (42-47) 全部 shipped,12/12 plans。源端 manifest 契约硬化 + canvas_sync 单路径映射 + 接收端 schema 严格化 + 文字资产 UI 完整性 + E2E 契约测试 + 历史 backfill。唯一 deferred:BACKFILL-02 人工抽样签收。
+
+**Target features (delivered):**
 - **源端契约硬化** (`kais-hermes-skills/skills/kais-movie-pipeline/pipeline/phases/_manifest.py`) — 当前 `REQUIRES_CONTENT` 只管 prompt/description;扩展为**全字段契约**:`archetype/role/era/scene_id/shot_id/engine/...` 都必须出现在 manifest `params.*` 中,且 round-trip 到 canvas `node.data`。新增 manifest schema 测试。
 - **canvas_sync.py 精简** (`plugins/kais_aigc/canvas_sync.py`,3409 行) — 拆分/瘦身,删除 legacy 路径,确保 `phase_result → canvas node` 是单一可测的映射路径。
 - **接收端契约硬化** (`src/lib/canvasAssetSchema.ts`) — schema 声明完整字段集;`import-from-dir.ts` 检查 manifest 字段完整性;UI fallback 链路完整。
@@ -264,4 +280,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-15 after v2.0 milestone kickoff*
+*Last updated: 2026-08-19 after v2.1 milestone kickoff*
