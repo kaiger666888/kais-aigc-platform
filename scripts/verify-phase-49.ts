@@ -134,7 +134,7 @@ async function main(): Promise<void> {
       { id: 77, projectId: 101, assetsId: null, isPrimaryView: 0 },// prefix-parsed target (g3)
     ]);
 
-    const node = (id: string, data: Record<string, unknown>, groupName: string, phaseName: string) => ({
+    const node = (id: string, data: Record<string, unknown>, groupName: string | null, phaseName: string) => ({
       id, project_id: SCOPE.projectId, episodes_id: SCOPE.episodesId,
       type: "asset", branch_id: "main", phase_index: 11, phase_name: phaseName,
       position_x: 0, position_y: 0, size_width: 260, size_height: 180,
@@ -277,7 +277,7 @@ async function main(): Promise<void> {
       const failingTrxFor = (trx: any) =>
         new Proxy(trx, {
           apply(t: any, _thisArg: any, args: any[]) {
-            const builder = Reflect.apply(t, t, args);
+            const builder: any = Reflect.apply(t, t, args);
             if (args[0] !== "canvas_nodes") return builder;
             const pb: any = new Proxy(builder, {
               get(b: any, prop: string | symbol) {

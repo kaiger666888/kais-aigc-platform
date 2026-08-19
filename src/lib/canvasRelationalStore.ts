@@ -7,6 +7,12 @@
  *
  * Each node/link is a ROW, not a serialized JSON blob. UPSERT is O(1) per
  * row. Load is a single SELECT — no replay, no O(N²) recompute.
+ *
+ * Winner selection truth source (Phase 49, D-01): the selection is persisted
+ * ONLY in canvas_variant_groups.winner_node_id + canvas_nodes.is_winner. The
+ * node `data` JSON blob is deliberately NOT rewritten on selection — the v3
+ * adapter treats the group-level winnerNodeId as authoritative, and avoiding
+ * the whole-blob rewrite prevents clobbering concurrent data edits.
  */
 
 import { db } from "@/utils/db";
@@ -353,6 +359,266 @@ export async function listVariantGroups(scope: Scope): Promise<VariantGroupV2[]>
     ...(r.winner_node_id && { winnerNodeId: r.winner_node_id }),
     selectMode: r.select_mode ?? "single",
   }));
+}
+
+// ─── Winner Selection (Phase 49 — SELECT-01, D-01/D-03/D-07) ───────────────
+
+/**
+ * Result of a selectWinnerInGroup call. The db handle is a PARAMETER (48-02
+ * "db handle as parameter" decision) so verify scripts and future plans can
+ * inject their own knex instance.
+ */
+export interface SelectWinnerResult {
+  status: "updated" | "idempotent" | "not_found" | "not_in_group" | "multi_mode";
+  groupId: string;
+  winnerNodeId: string;
+  /** 1-based position of the winner inside group.variantNodeIds; 0 unless status is updated/idempotent. */
+  variantIndex: number;
+  /** Winner node phase_name (e.g. "p11_first_last_frames") for the 49-02 review bridge; null when unknown. */
+  winnerPhaseName: string | null;
+  /** o_assets.id the winner node maps to (data.oAssetId, or the a-oasset-<id> prefix); null when unmapped. */
+  winnerOAssetId: number | null;
+  /** All mapped o_assets ids of the group members (winner included when mapped); consumed by the D-07 swap. */
+  memberOAssetIds: number[];
+  /** o_assets ids whose isPrimaryView was swapped by the endpoint (D-07); [] unless the endpoint filled it. */
+  swappedAssetIds: number[];
+}
+
+/** Parse a canvas node `data` JSON column (string or object) defensively. */
+function parseNodeData(raw: unknown): Record<string, any> {
+  if (raw == null) return {};
+  if (typeof raw === "object") return raw as Record<string, any>;
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      return typeof parsed === "object" && parsed !== null ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+/**
+ * Resolve the o_assets id a canvas node maps to (verified_fact 1):
+ * data.oAssetId first (sync-assets.ts writes it), then the `a-oasset-<id>`
+ * node-id prefix. Returns null when the node maps to no asset.
+ */
+function extractOAssetIdFromNode(nodeId: string, data: Record<string, any>): number | null {
+  const raw = data?.oAssetId;
+  if (typeof raw === "number" && Number.isInteger(raw)) return raw;
+  if (typeof raw === "string" && raw !== "" && Number.isInteger(Number(raw))) return Number(raw);
+  if (nodeId.startsWith("a-oasset-")) {
+    const parsed = Number.parseInt(nodeId.slice("a-oasset-".length), 10);
+    if (Number.isInteger(parsed)) return parsed;
+  }
+  return null;
+}
+
+/**
+ * SELECT-01 / D-01 / D-03: transactional winner selection for a variant
+ * group, writing the two truth columns (winner_node_id + is_winner).
+ *
+ * Semantics (order matters — first match short-circuits, no writes on any
+ * non-updated branch):
+ *   not_found    — no canvas_variant_groups row for (scope, groupId)
+ *   multi_mode   — group.select_mode !== "single" (a multi group refuses a
+ *                  single winner instead of corrupting it with one)
+ *   not_in_group — winnerNodeId not inside the group's variant_node_ids
+ *   idempotent   — winner_node_id already equals winnerNodeId → ZERO writes
+ *   updated      — single transaction: ① group.winner_node_id ② per-member
+ *                  canvas_nodes.is_winner (winner=true, siblings=false).
+ *                  Dangling variant_node_ids entries (no canvas_nodes row)
+ *                  are tolerated: is_winner is only written to existing rows.
+ *
+ * The node `data` blob is intentionally untouched (see file header). This
+ * function performs NO o_assets writes — the D-07 swap lives in
+ * syncAssetPrimaryForWinner and must stay outside this transaction so its
+ * failure can never roll back the canvas truth.
+ */
+export async function selectWinnerInGroup(
+  trxDb: any,
+  scope: { projectId: number; episodesId: number },
+  groupId: string,
+  winnerNodeId: string,
+): Promise<SelectWinnerResult> {
+  const groupWhere = {
+    id: groupId,
+    project_id: scope.projectId,
+    episodes_id: scope.episodesId,
+  };
+
+  const reject = (status: SelectWinnerResult["status"]): SelectWinnerResult => ({
+    status,
+    groupId,
+    winnerNodeId,
+    variantIndex: 0,
+    winnerPhaseName: null,
+    winnerOAssetId: null,
+    memberOAssetIds: [],
+    swappedAssetIds: [],
+  });
+
+  const group = await trxDb("canvas_variant_groups").where(groupWhere).first();
+  if (!group) return reject("not_found");
+  if ((group.select_mode ?? "single") !== "single") return reject("multi_mode");
+
+  let variantNodeIds: string[] = [];
+  try {
+    const parsed = group.variant_node_ids ? JSON.parse(group.variant_node_ids) : [];
+    if (Array.isArray(parsed)) variantNodeIds = parsed.filter((id: unknown) => typeof id === "string");
+  } catch {
+    variantNodeIds = [];
+  }
+  const variantIndex = variantNodeIds.indexOf(winnerNodeId) + 1;
+  if (variantIndex === 0) return reject("not_in_group");
+
+  // Read member rows for the derived fields (phase_name + o_assets mapping).
+  // Rows may be missing for dangling variant_node_ids entries — tolerated.
+  const memberRows: any[] = await trxDb("canvas_nodes")
+    .where({ project_id: scope.projectId, episodes_id: scope.episodesId })
+    .whereIn("id", variantNodeIds)
+    .select("id", "data", "phase_name");
+
+  const memberOAssetIds: number[] = [];
+  let winnerPhaseName: string | null = null;
+  let winnerOAssetId: number | null = null;
+  for (const memberId of variantNodeIds) {
+    const row = memberRows.find((r) => r.id === memberId);
+    if (!row) continue;
+    const oAssetId = extractOAssetIdFromNode(row.id, parseNodeData(row.data));
+    if (oAssetId != null && !memberOAssetIds.includes(oAssetId)) memberOAssetIds.push(oAssetId);
+    if (memberId === winnerNodeId) {
+      winnerPhaseName = row.phase_name ?? null;
+      winnerOAssetId = oAssetId;
+    }
+  }
+
+  // D-03: re-selecting the current winner is a no-op — return BEFORE any
+  // UPDATE statement can run.
+  if (group.winner_node_id === winnerNodeId) {
+    return {
+      status: "idempotent",
+      groupId,
+      winnerNodeId,
+      variantIndex,
+      winnerPhaseName,
+      winnerOAssetId,
+      memberOAssetIds,
+      swappedAssetIds: [],
+    };
+  }
+
+  const ts = now();
+  await trxDb.transaction(async (trx: any) => {
+    // ① Group truth column
+    await trx("canvas_variant_groups")
+      .where(groupWhere)
+      .update({ winner_node_id: winnerNodeId, updated_at: ts });
+    // ② Per-member is_winner — all mapped rows exist-or-not; missing rows
+    // simply match nothing (dangling tolerance). Two statements keep every
+    // value parameterized through the knex builder.
+    await trx("canvas_nodes")
+      .where({ project_id: scope.projectId, episodes_id: scope.episodesId })
+      .whereIn("id", variantNodeIds)
+      .update({ is_winner: false, updated_at: ts });
+    await trx("canvas_nodes")
+      .where({
+        id: winnerNodeId,
+        project_id: scope.projectId,
+        episodes_id: scope.episodesId,
+      })
+      .update({ is_winner: true, updated_at: ts });
+  });
+
+  return {
+    status: "updated",
+    groupId,
+    winnerNodeId,
+    variantIndex,
+    winnerPhaseName,
+    winnerOAssetId,
+    memberOAssetIds,
+    swappedAssetIds: [],
+  };
+}
+
+/**
+ * D-07: after a canvas winner selection, swap o_assets.isPrimaryView so the
+ * asset center reflects the same choice. Runs OUTSIDE the selection
+ * transaction — the caller wraps it in try/catch and only warns on failure
+ * (canvas is the truth source of this endpoint; o_assets is downstream).
+ *
+ * Swap scope (T-49-04): same projectId AND (same underlying assetsId family
+ * OR one of the group's member assets). Never touches cross-group or
+ * cross-project rows.
+ *
+ * Returns the ids whose isPrimaryView actually changed.
+ */
+export async function syncAssetPrimaryForWinner(
+  trxDb: any,
+  projectId: number,
+  winnerOAssetId: number | null,
+  memberOAssetIds: number[],
+): Promise<number[]> {
+  if (winnerOAssetId == null) return [];
+
+  const winnerRow = await trxDb("o_assets")
+    .where({ id: winnerOAssetId, projectId })
+    .first();
+  if (!winnerRow) return [];
+
+  const familyAssetsId =
+    winnerRow.assetsId != null ? Number(winnerRow.assetsId) : null;
+  const members = Array.from(
+    new Set((memberOAssetIds ?? []).filter((id) => Number.isInteger(id))),
+  );
+
+  // Demotion candidate scope — same projectId, currently primary, NOT the
+  // winner, and inside the sibling family (shared assetsId / the family
+  // primary's own id) or the explicit member set.
+  const demoteScope = (b: any) => {
+    if (familyAssetsId != null) {
+      b.orWhere("assetsId", familyAssetsId).orWhere("id", familyAssetsId);
+    }
+    if (members.length > 0) {
+      b.orWhereIn("id", members);
+    }
+  };
+
+  // Guard: with no family and no members there is NO sibling scope at all —
+  // demoting "every primary in the project" would be a cross-group attack.
+  if (familyAssetsId == null && members.length === 0) {
+    const changed = winnerRow.isPrimaryView === 1 ? [] : [winnerOAssetId];
+    await trxDb("o_assets")
+      .where({ id: winnerOAssetId, projectId })
+      .update({ isPrimaryView: 1 });
+    return changed;
+  }
+
+  const swapped: number[] = [];
+  await trxDb.transaction(async (trx: any) => {
+    const demoteRows: any[] = await trx("o_assets")
+      .where({ projectId })
+      .where("isPrimaryView", 1)
+      .where("id", "!=", winnerOAssetId)
+      .where(demoteScope)
+      .select("id");
+    if (demoteRows.length > 0) {
+      await trx("o_assets")
+        .where({ projectId })
+        .where("isPrimaryView", 1)
+        .where("id", "!=", winnerOAssetId)
+        .where(demoteScope)
+        .update({ isPrimaryView: 0 });
+      swapped.push(...demoteRows.map((r) => r.id));
+    }
+    await trx("o_assets")
+      .where({ id: winnerOAssetId, projectId })
+      .update({ isPrimaryView: 1 });
+    if (winnerRow.isPrimaryView !== 1) swapped.push(winnerOAssetId);
+  });
+  return swapped;
 }
 
 // ─── Meta ─────────────────────────────────────────
