@@ -76,8 +76,10 @@ async function main(): Promise<void> {
     importErr = String(e?.message ?? e);
   }
   const hasFind = !!linkage && typeof linkage.findCanvasNodeForAsset === "function";
+  const hasFindAll = !!linkage && typeof linkage.findCanvasNodesForAsset === "function";
   const hasApply = !!linkage && typeof linkage.applyRegistrySelectionToCanvas === "function";
   assert(hasFind, "SELECT-03: canvasAssetLinkage exports findCanvasNodeForAsset", importErr ?? undefined);
+  assert(hasFindAll, "WR-04: canvasAssetLinkage exports findCanvasNodesForAsset (all-episodes plural lookup)", importErr ?? undefined);
   assert(hasApply, "SELECT-03: canvasAssetLinkage exports applyRegistrySelectionToCanvas", importErr ?? undefined);
 
   // ── Lib source-shape assertions (threat-model mitigations in the source) ─
@@ -114,7 +116,7 @@ async function main(): Promise<void> {
     "lib: header documents the registry→canvas one-way direction (D-06)",
   );
 
-  if (!hasFind || !hasApply) {
+  if (!hasFind || !hasFindAll || !hasApply) {
     return summary();
   }
 
@@ -218,6 +220,35 @@ async function main(): Promise<void> {
       group("gLm", P, ["a-oasset-6"], "multi", null),
       group("gLj", P, ["node-json-7"], "single", null),
       group("g8x", 202, ["a-oasset-8"], "single", null),
+    ]);
+
+    // WR-04 fixture: asset 12's node exists in episodes 1 AND 2 (canvas_nodes
+    // composite PK allows the same id across episodes); a-oasset-13 is the
+    // incumbent winner of BOTH episodes' groups.
+    const nodeEp = (id: string, episodesId: number, oAssetId: number, groupId: string, isWinner: number) => ({
+      id, project_id: P, episodes_id: episodesId, type: "asset", branch_id: "main",
+      phase_index: 4, phase_name: "p04_character_design",
+      position_x: 0, position_y: 0, size_width: 260, size_height: 180,
+      data: JSON.stringify({ oAssetId }), state: "idle", is_winner: isWinner,
+      variant_group_id: groupId, created_at: T0, updated_at: T0,
+    });
+    await db("o_assets").insert([
+      { id: 12, projectId: P, isPrimaryView: 0 },
+      { id: 13, projectId: P, isPrimaryView: 1 },
+    ]);
+    await db("canvas_nodes").insert([
+      nodeEp("a-oasset-12", 1, 12, "gEp1", 0),
+      nodeEp("a-oasset-12", 2, 12, "gEp2", 0),
+      nodeEp("a-oasset-13", 1, 13, "gEp1", 1),
+      nodeEp("a-oasset-13", 2, 13, "gEp2", 1),
+    ]);
+    await db("canvas_variant_groups").insert([
+      { id: "gEp1", project_id: P, episodes_id: 1, phase_index: 4, branch_id: "main",
+        variant_node_ids: JSON.stringify(["a-oasset-12", "a-oasset-13"]),
+        winner_node_id: "a-oasset-13", select_mode: "single", created_at: T0, updated_at: T0 },
+      { id: "gEp2", project_id: P, episodes_id: 2, phase_index: 4, branch_id: "main",
+        variant_node_ids: JSON.stringify(["a-oasset-12", "a-oasset-13"]),
+        winner_node_id: "a-oasset-13", select_mode: "single", created_at: T0, updated_at: T0 },
     ]);
 
     const groupRow = (id: string, projectId: number) =>
@@ -358,6 +389,43 @@ async function main(): Promise<void> {
     assert(
       gx.winner_node_id === null && gx.updated_at === T0 && nx8.is_winner === 0,
       "(xp) project-202 group/node untouched — an unscoped lookup would have written g8x here",
+    );
+
+    // ── (me) WR-04: one asset, several episodes — ALL groups updated ───────
+    console.log("\n=== WR-04 (me) multi-episode mapping — every episode's group updated ===");
+    threw = false;
+    try {
+      await linkage.applyRegistrySelectionToCanvas(db, 12);
+    } catch (e: any) {
+      threw = true;
+    }
+    assert(!threw, "(me) multi-episode selection resolves without throwing");
+    const gEp1Row: any = await db("canvas_variant_groups").where({ id: "gEp1", project_id: P, episodes_id: 1 }).first();
+    const gEp2Row: any = await db("canvas_variant_groups").where({ id: "gEp2", project_id: P, episodes_id: 2 }).first();
+    assert(
+      gEp1Row.winner_node_id === "a-oasset-12" && gEp2Row.winner_node_id === "a-oasset-12",
+      "(me) BOTH episodes' groups moved the winner to a-oasset-12 (no stale sibling episode)",
+      `ep1=${gEp1Row.winner_node_id} ep2=${gEp2Row.winner_node_id}`,
+    );
+    const n12e1: any = await db("canvas_nodes").where({ id: "a-oasset-12", project_id: P, episodes_id: 1 }).first();
+    const n12e2: any = await db("canvas_nodes").where({ id: "a-oasset-12", project_id: P, episodes_id: 2 }).first();
+    const n13e1: any = await db("canvas_nodes").where({ id: "a-oasset-13", project_id: P, episodes_id: 1 }).first();
+    assert(
+      n12e1.is_winner === 1 && n12e2.is_winner === 1 && n13e1.is_winner === 0,
+      "(me) is_winner flags updated in BOTH episodes (new winner up, incumbent down)",
+    );
+    const f12s: any = await linkage.findCanvasNodeForAsset(db, 12);
+    assert(
+      !!f12s && f12s.episodesId === 1,
+      "(me) singular lookup returns the LOWEST episodes_id deterministically (not scan order)",
+      JSON.stringify(f12s),
+    );
+    const f12p: any = await linkage.findCanvasNodesForAsset(db, 12);
+    assert(
+      Array.isArray(f12p) && f12p.length === 2 &&
+        f12p[0].episodesId === 1 && f12p[1].episodesId === 2,
+      "(me) plural lookup returns ALL refs ordered episodes_id asc",
+      JSON.stringify(f12p),
     );
 
     // ── (err) internal failure is swallowed — never throws outward (T-49-11) ─
