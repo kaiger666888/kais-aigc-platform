@@ -13,6 +13,10 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
 import axios from "axios";
+// 2026-08-19 (docs/gpu-unified-scheduling-plan.md D5): 停服务时联动释放
+// gpuVramManager 的服务级占位 — 此前 idle 超时/GpuScheduler.release 只停服务,
+// 队列占位残留孤儿化 (ep-ccport-test01 p11a 5h 死锁的 D5 因子)。
+import { releaseEngineOccupancy } from "@/lib/gpuVramManager";
 import type {
   GpuDevice,
   ServiceProfile,
@@ -138,6 +142,16 @@ export function getRegisteredServices(): ServiceProfile[] {
     },
   ];
 }
+
+// ─── 服务 ↔ 队列占用映射 (2026-08-19 D5 联动) ─────────────────────────────
+//
+// GpuScheduler 管**服务生命周期** (docker/script 拉停), gpuVramManager 管**队列
+// 占位** — 两层各管各的导致停服务后占位残留。此映射让 release() 停完服务后
+// 顺手解掉对应引擎的队列占位 (releaseEngineOccupancy 幂等: 非持有者 no-op)。
+const SERVICE_TO_QUEUE_ENGINE: Record<string, { engine: string; gpuIndex: number }> = {
+  "qwen-llm": { engine: "qwen_eye", gpuIndex: 1 }, // :8125 ↔ llm 路由的 QWEN_EYE_QUEUE_KEY
+  "qwen-ear": { engine: "qwen_ear", gpuIndex: 1 }, // :8126 ↔ ear 路由
+};
 
 // ─── GPU 设备 ─────────────────────────────────────────
 
@@ -441,6 +455,14 @@ export class GpuScheduler {
       state.variantId = null;
       state.lastTransitionAt = new Date().toISOString();
       this.mirrorService(serviceId, state);
+      // D5 联动: 服务已停 → 队列占位同步解除 (幂等, 未占位时 no-op)。
+      const queueEngine = SERVICE_TO_QUEUE_ENGINE[serviceId];
+      if (queueEngine) {
+        console.log(
+          `[GpuScheduler] service ${serviceId} stopped — releasing queue occupancy for ${queueEngine.engine} GPU${queueEngine.gpuIndex}`,
+        );
+        releaseEngineOccupancy(queueEngine.engine, queueEngine.gpuIndex);
+      }
     }
   }
 
