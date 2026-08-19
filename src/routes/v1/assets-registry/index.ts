@@ -3,6 +3,7 @@ import u from "@/utils";
 import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
+import { CANONICAL_ASSET_TYPES, expandTypesForQuery } from "@/lib/assetTypes";
 
 const router = express.Router();
 
@@ -18,7 +19,7 @@ const router = express.Router();
 const createSchema = z.object({
   uuid: z.string().optional(),
   name: z.string(),
-  type: z.enum(["character", "scene", "prop", "clip", "voice", "video", "storyboard", "script_phase", "outline", "topic", "delivery"]),
+  type: z.enum(CANONICAL_ASSET_TYPES), // 单一真值源 @/lib/assetTypes (INGEST-03)
   prompt: z.string().optional().default(""),
   describe: z.string().optional().default(""),
   projectId: z.number().nullable().optional(),
@@ -119,7 +120,11 @@ router.post("/search", async (req, res) => {
             .orWhere("a.describe", "like", `%${s.query}%`);
       });
     }
-    if (s.type) q = q.andWhere("a.type", s.type);
+    // type 过滤走旧词兼容扩展 (D-07: 存量 DB 行不 UPDATE, 查询侧兼容匹配) —
+    // 搜 character 也命中 legacy type='role' 行, 搜 prop 命中 'tool';
+    // 存量行的词汇回填归 Phase 50。链式 whereIn 即 AND 语义 (knex 3.x typings
+    // 无 andWhereIn, 与 andWhereIn 运行时等价)。
+    if (s.type) q = q.whereIn("a.type", expandTypesForQuery(s.type));
     if (s.projectId !== undefined) {
       if (s.projectId === null) {
         q = q.whereNull("a.projectId");
