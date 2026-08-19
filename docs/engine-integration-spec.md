@@ -8,7 +8,8 @@
 ## 0. 强制机制
 
 ```bash
-npx tsx scripts/verify-engine-integration.ts   # 接入验收门禁，EXIT 0 = 合规
+npm run verify:engine-integration              # 接入验收门禁，EXIT 0 = 合规
+# 等价: npx tsx scripts/verify-engine-integration.ts
 ```
 
 - 新引擎接入的 PR **必须**附本脚本绿色输出
