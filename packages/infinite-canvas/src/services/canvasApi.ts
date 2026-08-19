@@ -54,35 +54,35 @@ async function apiCall<T>(
 ): Promise<T> {
   const { cancelToken, timeout = TIMEOUT_MS } = options ?? {}
 
-  // Create a timeout AbortController
-  const timeoutController = new AbortController()
-  const timeoutId = setTimeout(() => timeoutController.abort(), timeout)
-
-  // Link cancel token signal and timeout signal
-  const signals: AbortSignal[] = [timeoutController.signal]
-  if (cancelToken) signals.push(cancelToken.signal)
-
-  // Combine signals using AbortController
-  const combinedController = new AbortController()
-  const onAbort = () => combinedController.abort()
-  signals.forEach((s) => {
-    if (s.aborted) {
-      combinedController.abort()
-    } else {
-      s.addEventListener('abort', onAbort, { once: true })
-    }
-  })
-
   let lastError: Error | null = null
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    if (combinedController.signal.aborted) {
-      clearTimeout(timeoutId)
-      if (cancelToken?.isCancelled) {
-        throw new ApiError('请求已取消', 'cancelled')
-      }
-      throw new ApiError(`请求超时（${timeout / 1000}秒）`, 'timeout')
+    if (cancelToken?.isCancelled) {
+      throw new ApiError('请求已取消', 'cancelled')
     }
+
+    // WR-07: arm a FRESH timeout per attempt. The old code armed one timeout
+    // controller before the loop and cleared it after attempt 0 — retries
+    // then ran on an abort signal nothing could fire anymore, so a hung
+    // retry fetch never timed out (selectWinner could hang forever with no
+    // rollback, violating SC-2). Total time stays bounded:
+    // (MAX_RETRIES+1) × timeout + backoffs.
+    const attemptTimeout = new AbortController()
+    const tid = setTimeout(() => attemptTimeout.abort(), timeout)
+
+    // Link cancel token signal and this attempt's timeout signal
+    const signals: AbortSignal[] = [attemptTimeout.signal]
+    if (cancelToken) signals.push(cancelToken.signal)
+
+    const combinedController = new AbortController()
+    const onAbort = () => combinedController.abort()
+    signals.forEach((s) => {
+      if (s.aborted) {
+        combinedController.abort()
+      } else {
+        s.addEventListener('abort', onAbort, { once: true })
+      }
+    })
 
     try {
       const res = await fetch(`${API_BASE}${path}`, {
@@ -92,9 +92,15 @@ async function apiCall<T>(
         signal: combinedController.signal,
       })
 
-      clearTimeout(timeoutId)
-
       if (!res.ok) {
+        // WR-07: classify by HTTP status. 4xx is a deterministic business
+        // failure (400 validation / 404 group-missing / 409 multi-mode or
+        // locked) — retrying can never succeed and only delays the user-
+        // facing rollback. 5xx is server-side and retriable like a network
+        // error.
+        if (res.status >= 400 && res.status < 500) {
+          throw new ApiError(`HTTP ${res.status}`, 'business', res.status)
+        }
         throw new ApiError(`HTTP ${res.status}`, 'network', res.status)
       }
 
@@ -110,8 +116,6 @@ async function apiCall<T>(
 
       return json as T
     } catch (err: any) {
-      clearTimeout(timeoutId)
-
       if (cancelToken?.isCancelled) {
         throw new ApiError('请求已取消', 'cancelled')
       }
@@ -120,19 +124,19 @@ async function apiCall<T>(
         if (err.type === 'business') throw err
         lastError = err
       } else if (err.name === 'AbortError') {
-        if (cancelToken?.isCancelled) {
-          throw new ApiError('请求已取消', 'cancelled')
-        }
         throw new ApiError(`请求超时（${timeout / 1000}秒）`, 'timeout')
       } else {
         lastError = new ApiError(err.message || '网络错误', 'network')
       }
 
-      // Retry with exponential backoff for network errors
+      // Retry with exponential backoff for network / 5xx errors
       if (attempt < MAX_RETRIES) {
         const backoff = 1000 * Math.pow(2, attempt)
         await sleep(backoff)
       }
+    } finally {
+      clearTimeout(tid)
+      signals.forEach((s) => s.removeEventListener('abort', onAbort))
     }
   }
 
