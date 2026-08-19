@@ -10,7 +10,7 @@ import {
 import type { SkillNodeTypeDecl, IterationPlan, IterationResult } from '../services/canvasApi'
 import type { FlowBranch, VariantGroup, VariantGroupId } from '../types/canvas'
 import { asNodeId, asVariantGroupId } from '../types/canvas'
-import { approveNode as apiApproveNode, rejectNode as apiRejectNode } from '../services/canvasApi'
+import { approveNode as apiApproveNode, rejectNode as apiRejectNode, selectVariantWinner } from '../services/canvasApi'
 import {
   applyWinnerSelection,
   rollbackWinnerSelection,
@@ -128,7 +128,8 @@ interface CanvasState {
   // 审核操作
   approveNode: (nodeId: string) => Promise<void>
   rejectNode: (nodeId: string, feedback?: string) => Promise<void>
-  selectWinner: (nodeId: string) => void
+  /** 选定变体组优胜（Phase 49 SELECT-02：乐观更新 → POST select-winner → 失败回滚）。 */
+  selectWinner: (nodeId: string) => Promise<void>
 
   // 分支操作
   selectBranchAsMain: (branchId: string) => void
@@ -521,8 +522,13 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       showToast(`驳回失败: ${(err as Error).message}`, 'error')
     }
   },
-  selectWinner: (nodeId) => {
-    const { graph, nodes, edges, variantGroups, setNodes, setEdges, upsertVariantGroup, showToast } = get()
+  selectWinner: async (nodeId) => {
+    const { projectId, episodesId, graph, nodes, edges, variantGroups, setNodes, setEdges, upsertVariantGroup, showToast } = get()
+    // Phase 49 (D-04)：选定即时持久化 —— 无项目上下文时无法落库，早退不给"假成功"
+    if (!projectId || !episodesId) {
+      showToast('缺少项目上下文', 'warning')
+      return
+    }
 
     // canonical 路径：包内 selectVariant 纯函数（P12：winner 选定 + 下游边置灰 + 组 winner 持久化）
     if (graph) {
@@ -530,15 +536,26 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       const groupId = node && node.kind === 'asset' ? node.variantGroupId : undefined
       const group = groupId ? graph.variantGroups.find((g) => g.id === groupId) : undefined
       if (group) {
+        // 拍下 prev 引用：selectVariant 内部 clone，prev 不被改动，可零成本回滚
+        const prevGraph = graph
+        let next: FlowGraphV3
         try {
-          const next = selectVariant(graph, group.id, nodeId)
-          get().setGraph(next, get().warnings)
-          // 注:此处不调后端 — selectWinner 在本地是即时 UI 优先,
-          // 真正的持久化由用户点击 "💾 保存" 触发 (saveCanvasGraph)。
+          // 包内校验（非 single 组 / 悬空 winner / curation:'locked' 成员）同步 throw
+          // → 发生在任何 await 之前：不部分应用、不调 API
+          next = selectVariant(graph, group.id, nodeId)
+        } catch (err) {
+          showToast(`选定失败: ${(err as Error).message}`, 'error')
+          return
+        }
+        get().setGraph(next, get().warnings)
+        // Phase 49 (D-04)：乐观更新已上屏，追加 49-01 端点持久化；失败回滚 prevGraph，
+        // UI 不呈现"已换选但库里没写"的假象（SC-2）
+        try {
+          await selectVariantWinner(projectId, episodesId, group.id, nodeId)
           showToast(`已选为优胜: ${nodeId}`, 'success')
         } catch (err) {
-          // 包内校验失败（locked 组 / 悬空 winner / curation:'locked' 成员）→ 不部分应用
-          showToast(`选定失败: ${(err as Error).message}`, 'error')
+          get().setGraph(prevGraph, get().warnings)
+          showToast(`选定失败已回滚: ${(err as Error).message}`, 'error')
         }
         return
       }
@@ -571,10 +588,17 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       const updated = syncWinnerToGroups(variantGroups, variantGroupId, nodeId)[0]
       if (updated) upsertVariantGroup(updated)
     }
-    // 如果将来接入实时 API,失败时调用 rollbackWinnerSelection(outcome) 把 nodes/edges 恢复。
-    void outcome
-    void rollbackWinnerSelection
-    showToast(`已选为优胜: ${nodeId}`, 'success')
+
+    // 4) Phase 49 (D-04)：即时持久化到 select-winner 端点；失败回滚 prevSnapshot
+    try {
+      await selectVariantWinner(projectId, episodesId, variantGroupId, nodeId)
+      showToast(`已选为优胜: ${nodeId}`, 'success')
+    } catch (err) {
+      const rb = rollbackWinnerSelection(outcome)
+      set({ nodes: rb.nodes })
+      setEdges(rb.edges)
+      showToast(`选定失败已回滚: ${(err as Error).message}`, 'error')
+    }
   },
 
   // 分支操作
