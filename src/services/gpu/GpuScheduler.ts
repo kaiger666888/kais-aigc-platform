@@ -116,17 +116,18 @@ export function getRegisteredServices(): ServiceProfile[] {
       idleTimeoutMs: 30 * 60 * 1000, // 30min idle 后释放
     },
     // Qwen3.8-27B local LLM — GPU 1 (3090), 串行调度 (渲染高峰时可被驱逐让位)
+    // 2026-08-19 起 q4-only: GPU1 串行独占策略, q3 共存档退役 (13.4G 文件已删)。
     {
       id: "qwen-llm",
-      name: "Qwen3.8-27B LLM (llama.cpp)",
+      name: "Qwen3.8-27B LLM (llama.cpp, UD-Q4_K_XL)",
       gpuId: 1,
-      vramEstMb: 15_500, // Q3 共存档实测 14.4GB + 余量
+      vramEstMb: 20_500, // Q4 独占档 17.9G 权重 + 64K ctx 双 slot KV; kap-llm NEED_MB 20500 同源
       priority: 2, // 高于 comfyui(0)/tts(1), 低于 lora-trainer(3); 常驻低频服务, 渲染时让位
       category: "llm",
-      start: { type: "script", command: "bash", args: ["/opt/qwen-llm/kap-llm.sh", "start", "q3"], timeoutMs: 300_000 },
+      start: { type: "script", command: "bash", args: ["/opt/qwen-llm/kap-llm.sh", "start", "q4"], timeoutMs: 600_000 }, // 脚本内 VRAM 窗口等待 ≤280s + q4 NTFS 冷读 wait_ready ≤240s
       stop: { type: "script", command: "bash", args: ["/opt/qwen-llm/kap-llm.sh", "stop"] },
       healthUrl: "http://127.0.0.1:8125/health",
-      healthTimeoutMs: 300_000, // 模型加载 1-2 分钟; waitForHealthy 每 5s 轮询
+      healthTimeoutMs: 360_000, // 外层保险 (脚本内 wait_ready 240s 已兜底); 17.9G NTFS 冷读
       idleTimeoutMs: 30 * 60 * 1000, // 30min 空闲释放
     },
     // Qwen3-Omni-30B-A3B audio LLM — GPU 1 (3090), 音频判定引擎 qwen-ear (:8126)。
