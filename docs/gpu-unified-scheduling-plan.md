@@ -153,6 +153,22 @@ requireGpuSlot(engineKey)  // 包装 handler：排队 + ensureVram + 信号穿�
 
 ---
 
+## 4b. 部署记录（2026-08-19 09:52）
+
+- 代码：`/data/workspace/kais-aigc-platform` master `d874a6b6..8eae67cb`（5 个 feat/test 提交）
+- 验证：tsc EXIT=0；单测 14/14（core 8 + crossproc 6）；`npx tsx scripts/verify-phase-49-core.ts` 全绿
+- **部署拓扑警示**：systemd unit `kais-aigc-platform.service` 的 WorkingDirectory 指向
+  `/home/kai/workspace/kais-aigc-platform`（与 /data 是**两个已分叉的 checkout**）；:10588 真身
+  实为另一会话 08:09 从 /data 手动 nohup 的进程。**重启 unit 不影响真身**。本次实际部署 =
+  队列空闲窗口 `kill 真身` + 同参数重启（`NODE_ENV=production PORT=10588 nohup node
+  data/serve/app.js`，日志 /tmp/kap-10588.gpu49.log，pid 2092920）。
+- 部署后回归：`engineOrder` 含 `ltx`、GET gpu-queue 带 `waiters`/`occupancyWatches`、
+  管理端点无 token 404、ep-ccport-test01 p11b 无感续跑、下一发 minimax_h3 提交走新代码
+  （acquire → vram_retry → 持锁）。
+- 遗留（运维决策，非代码）：① unit 与 /data checkout 的归一（改 WorkingDirectory 或合并
+  两棵树）；② `KAP_ADMIN_TOKEN` 未设置 = 管理面关闭（设 token 即启用）；③ 跨进程 strict
+  档需 REDIS_URL（同机 kais-redis 容器可用）后 `KAP_GPU_QUEUE_CROSSPROC=strict`。
+
 ## 5. 发布 / 回滚 / 兼容
 
 - **发布链**：`npm run build:server`（esbuild → data/serve/app.js）→ `sudo systemctl restart kais-aigc-platform`。**重启即清空队列内存态**——发布窗口选在无在飞 GPU 作业时（查 GET gpu-queue）。
