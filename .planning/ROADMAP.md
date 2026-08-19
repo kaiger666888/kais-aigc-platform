@@ -329,7 +329,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 50-01-PLAN.md — One-off idempotent backfill (scripts/backfill-candidate-groups.ts reusing candidateGrouping pure functions, dry-run default + --i-backed-up-db gate + eliminated red line) + production apply with backup/audit trail; covers INGEST-04, PHASE-02
+- [x] 50-01-PLAN.md — One-off idempotent backfill (scripts/backfill-candidate-groups.ts reusing candidateGrouping pure functions, dry-run default + --i-backed-up-db gate + eliminated red line) + production apply with backup/audit trail; covers INGEST-04, PHASE-02
 
 **Wave 2** *(blocked on Wave 1 — imports backfill exports; package.json overlap)*
 
@@ -349,7 +349,7 @@ Phase 48 is the contract source — the o_assets candidate-group shape that ever
 |-------|-----------|----------------|--------|-----------|
 | 48. Ingest Candidate Grouping + Enum Unification + workflow_phase | v2.1 | 2/2 | Complete    | 2026-08-19 |
 | 49. Selection Write-back (Canvas Endpoint + Asset-Center Linkage + kmc Bridge) | v2.1 | 4/4 | Complete    | 2026-08-19 |
-| 50. Historical Backfill + Contract Guards | v2.1 | 0/2 | Planned | - |
+| 50. Historical Backfill + Contract Guards | v2.1 | 1/2 | In Progress|  |
 
 **v2.0 (shipped 2026-07-16):**
 

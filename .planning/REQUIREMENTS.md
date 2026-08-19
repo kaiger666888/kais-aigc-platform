@@ -16,7 +16,7 @@
 - [x] **INGEST-01**: `src/routes/v1/pipeline/ingest/images.ts` 落库时识别候选组——按 kmc 变体命名约定 (`*_v{N}` 后缀 + canonical 无后缀版本) 或 manifest `all_first_frames[]/all_last_frames[]`, 同组候选写 `o_assets.assetsId` 指向 primary 资产, 不再平铺孤产
 - [x] **INGEST-02**: ingest 读 kmc 选定结果 (`iframe-manifest.json` 的 `selected_first_variant`/`selected_last_variant`) 落 `isPrimaryView=true`; 其余候选 `isPrimaryView=false, state='active'`; 组内 primary 唯一性由 ingest 保证
 - [x] **INGEST-03**: assetType 枚举统一为单一真值源——消灭 `images.ts:18` 的 `role|scene|tool` 与 assets-registry `index.ts:21` 的 `character|scene|prop` 两套词汇; 提供存量值兼容映射
-- [ ] **INGEST-04**: 存量已平铺资产回填建组——一次性幂等脚本 (dry-run 基线 + `--apply` + DB 备份先行, 沿用 Phase 47 backfill 模式)
+- [x] **INGEST-04**: 存量已平铺资产回填建组——一次性幂等脚本 (dry-run 基线 + `--apply` + DB 备份先行, 沿用 Phase 47 backfill 模式)
 
 ### SELECT — 选定回写 (画布层端点 + kmc 桥接)
 
@@ -28,7 +28,7 @@
 ### PHASE — workflow_phase 可组织性
 
 - [x] **PHASE-01**: ingest/sync-assets 路径自动写 `o_assets.workflow_phase` (从 kmc manifest 路径 `p{NN}` / DAG 推导), 新资产不再为空
-- [ ] **PHASE-02**: 存量 o_assets 回填 `workflow_phase` (一次性脚本, 数据源 = manifest/DAG + 目录约定, 与 INGEST-04 回填脚本合流)
+- [x] **PHASE-02**: 存量 o_assets 回填 `workflow_phase` (一次性脚本, 数据源 = manifest/DAG + 目录约定, 与 INGEST-04 回填脚本合流)
 
 ### GUARD — 契约守护
 
@@ -224,13 +224,13 @@
 | INGEST-01 | Phase 48 | Complete |
 | INGEST-02 | Phase 48 | Complete |
 | INGEST-03 | Phase 48 | Complete |
-| INGEST-04 | Phase 50 | Pending |
+| INGEST-04 | Phase 50 | Complete |
 | SELECT-01 | Phase 49 | Complete |
 | SELECT-02 | Phase 49 | Complete |
 | SELECT-03 | Phase 49 | Complete |
 | SELECT-04 | Phase 49 | Complete |
 | PHASE-01 | Phase 48 | Complete |
-| PHASE-02 | Phase 50 | Pending |
+| PHASE-02 | Phase 50 | Complete |
 | GUARD-01 | Phase 50 | Pending |
 | GUARD-02 | Phase 50 | Pending |
 | MANIFEST-01 | Phase 42 | Pending |

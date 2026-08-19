@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: 候选资产配套 (candidate-asset-completeness)
-status: ready_to_plan
-stopped_at: Phase 49 complete (4/4) — ready to discuss Phase 50
-last_updated: 2026-08-19T10:08:22.550Z
+status: executing
+stopped_at: Completed 50-01-PLAN.md (historical backfill applied to production)
+last_updated: "2026-08-19T10:36:04.942Z"
 last_activity: 2026-08-19
 progress:
   total_phases: 3
-  completed_phases: 1
-  total_plans: 6
-  completed_plans: 6
-  percent: 33
+  completed_phases: 2
+  total_plans: 8
+  completed_plans: 7
+  percent: 67
 ---
 
 # Project State
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-17)
 
 **Core value:** AI creative production pipeline that runs end-to-end, pluggable across multiple creative workflows via a published skill contract.
-**Current focus:** Phase 50 — historical backfill + contract guards
+**Current focus:** Phase 50 — Historical Backfill + Contract Guards
 
 ## Current Position
 
-Phase: 50
-Plan: Not started
-Status: Ready to plan
+Phase: 50 (Historical Backfill + Contract Guards) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
 Last activity: 2026-08-19
 
 ## Performance Metrics
@@ -48,6 +48,7 @@ Last activity: 2026-08-19
 | Phase 48 P48-01 | 9 min | 3 tasks | 5 files |
 | Phase 48 P48-02 | 6 min | 3 tasks | 4 files |
 | Phase 49 P01 | 51min | 3 tasks | 8 files |
+| Phase 50 P01 | 9 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,8 @@ Last activity: 2026-08-19
 - [Phase ?]: [Phase 49] D-07 reverse linkage swaps o_assets isPrimaryView via direct knex in warn-only try/catch — never HTTP self-call to assets-registry (49-01)
 - [Phase ?]: [Phase 49] Route mounted as route167 (route28 is notion-proxy); all verify:phase-49* npm entries registered once in 49-01 for wave-2 (49-01)
 - [Phase ?]: [Phase 49] verify gate runs endpoint dispatch in a spawned child process — app-db knex pool never settles inserts when sharing a process with the :memory: store section (49-01)
+- [Phase 50]: 50-01: BL-1 meta.phase -> meta.provenance.phase fallback lands 129 provenance-only rows; pre-existing workflow_phase values never rewritten (backfill writes normalized 2-digit forms only)
+- [Phase 50]: 50-01: production db2.sqlite backfilled (154 groups, 240 member links, 534 wf values, wf NULL 1456->922) in one gated transaction; eliminated 386 rows byte-untouched; second apply 0/0 idempotent
 
 ### Pending Todos
 
@@ -140,6 +143,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-19T03:17:29.833Z
-Stopped at: Phase 49 plan 1 of 4 complete (SELECT-01)
+Last session: 2026-08-19T10:36:04.934Z
+Stopped at: Completed 50-01-PLAN.md (historical backfill applied to production)
 Resume: `/gsd:execute-phase 48` (Plan 48-02: route rewrite + registry compat — consumes src/lib/assetTypes + candidateGrouping exports, extends verify-phase-48 at the Part 2 marker).
