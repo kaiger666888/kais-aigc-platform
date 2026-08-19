@@ -708,6 +708,26 @@ async function main(): Promise<void> {
       "CR-02 regression: rejected batch wrote 0 rows (transaction rolled back)",
       `actual: ${cr02CountAfter}`,
     );
+
+    // ── WR-02 regression: unknown assetType token never passed through raw
+    //    (reviewer repro: assetType "keyframe" used to land verbatim in
+    //    o_assets.type, invisible to expandTypesForQuery forever).
+    const wr02Result = await ingest.ingestImagesPayload(tempDb, {
+      projectId: PROJ_ID,
+      images: [
+        { filePath: "/oss/manual/wr02_keyframe.png", assetName: "wr02", assetType: "keyframe" },
+      ],
+    });
+    assert(wr02Result.count === 1, "WR-02 regression: batch with unknown token still ingests (token → NULL)");
+    const wr02Row: any = await tempDb("o_assets as a")
+      .join("o_image as img", "a.imageId", "img.id")
+      .where("img.filePath", "/oss/manual/wr02_keyframe.png")
+      .first("a.*");
+    assert(
+      wr02Row.type === null,
+      "WR-02 regression: unknown token 'keyframe' written as NULL (was: raw 'keyframe')",
+      `actual: ${JSON.stringify(wr02Row.type)}`,
+    );
   } finally {
     await tempDb.destroy();
   }

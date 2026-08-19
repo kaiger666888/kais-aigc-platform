@@ -15,7 +15,8 @@
  *   - state is ALWAYS 'active' (D-05 — elimination/archiving is a human action
  *     in the asset center; sync-assets.ts filters state='active')
  *   - type is normalized to the canonical vocabulary (role→character, tool→prop,
- *     D-06); route validates first, the ?? fallback keeps data loss at zero
+ *     D-06); unknown tokens are written as NULL + warned, never passed
+ *     through raw (WR-02)
  *   - workflow_phase derived per image, NEVER guessed (D-08): underivable →
  *     NULL + one console.warn per row
  *
@@ -214,12 +215,22 @@ export async function ingestImagesPayload(
         state: "done",
       });
 
+      // D-06 (WR-02): an unknown assetType token is NEVER passed through raw —
+      // write NULL + one warn per row (same null policy as deriveWorkflowPhase
+      // above). Raw passthrough would reintroduce exactly the vocabulary drift
+      // this phase eliminates, and expandTypesForQuery could never find those
+      // junk values again.
+      const normalizedType = normalizeAssetType(img.assetType ?? "");
+      if (normalizedType === null && typeof img.assetType === "string" && img.assetType.length > 0) {
+        console.warn(`${LOG_PREFIX} unknown assetType ${JSON.stringify(img.assetType)}, 写入 null`);
+      }
+
       await trx("o_assets").insert({
         id: e.assetId,
         uuid: `ast-${now.toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
         name: img.assetName,
         prompt,
-        type: normalizeAssetType(img.assetType ?? "") ?? img.assetType ?? null,
+        type: normalizedType,
         describe: img.description || "",
         projectId: payload.projectId,
         imageId: e.imageId,
