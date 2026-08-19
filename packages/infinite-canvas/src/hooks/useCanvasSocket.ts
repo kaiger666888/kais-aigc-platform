@@ -36,6 +36,20 @@ export interface CanvasEventPayload {
   createdAt?: number
 }
 
+/**
+ * Phase 49 (WR-08): broadcast payload of POST /canvas/v2/variant-groups/
+ * :groupId/select-winner (49-01 endpoint, broadcastToProject). Until this
+ * handler existed the event was a dead letter — other tabs/viewers never
+ * learned about a winner selection until a full reload.
+ */
+export interface VariantSelectedPayload {
+  projectId: number
+  episodesId: number
+  groupId: string
+  winnerNodeId: string
+  timestamp: number
+}
+
 interface UseCanvasSocketOptions {
   projectId: number
   episodesId?: number
@@ -49,6 +63,8 @@ interface UseCanvasSocketOptions {
   onReviewApproved?: (nodeId: string) => void
   onReviewRejected?: (nodeId: string, reason?: string) => void
   onGraphSaved?: (payload: { projectId: number; episodesId: number; timestamp: number }) => void
+  /** Phase 49 (WR-08): 他端选定了变体组 winner — 消费方负责回显守卫。 */
+  onVariantSelected?: (payload: VariantSelectedPayload) => void
   // Phase 41 SYNC-10: feature-flagged incremental event subscription
   onCanvasEvent?: (event: CanvasEventPayload) => void
   onCanvasReset?: (info: { lastEventId: number | null }) => void
@@ -68,6 +84,7 @@ export function useCanvasSocket(options: UseCanvasSocketOptions) {
     onReviewApproved,
     onReviewRejected,
     onGraphSaved,
+    onVariantSelected,
     onCanvasEvent,
     onCanvasReset,
   } = options
@@ -83,13 +100,13 @@ export function useCanvasSocket(options: UseCanvasSocketOptions) {
     onNodeStateChange, onNodePreviewUpdate, onNewAsset,
     onOrchestrateStart, onOrchestrateProgress, onOrchestrateDone,
     onBranchCreated, onReviewApproved, onReviewRejected,
-    onGraphSaved, onCanvasEvent, onCanvasReset,
+    onGraphSaved, onVariantSelected, onCanvasEvent, onCanvasReset,
   })
   callbacksRef.current = {
     onNodeStateChange, onNodePreviewUpdate, onNewAsset,
     onOrchestrateStart, onOrchestrateProgress, onOrchestrateDone,
     onBranchCreated, onReviewApproved, onReviewRejected,
-    onGraphSaved, onCanvasEvent, onCanvasReset,
+    onGraphSaved, onVariantSelected, onCanvasEvent, onCanvasReset,
   }
 
   useEffect(() => {
@@ -177,6 +194,14 @@ export function useCanvasSocket(options: UseCanvasSocketOptions) {
     // 全图保存(pipeline 通过 /api/canvas/v2/save-v2 写入)— 触发前端重新加载
     socket.on('graph:saved', (payload: { projectId: number; episodesId: number; timestamp: number }) => {
       callbacksRef.current.onGraphSaved?.(payload)
+    })
+
+    // Phase 49 (WR-08): 他端（其他 tab/用户）选定了变体组 winner。49-01 端点
+    // 一直在广播 variant:selected，但此前无任何客户端消费（死信）——多视图
+    // 同步正是该广播的目的。回显守卫在消费方（本端乐观更新已应用时
+    // group.winnerNodeId 已等于 payload 值 → 跳过）。
+    socket.on('variant:selected', (payload: VariantSelectedPayload) => {
+      callbacksRef.current.onVariantSelected?.(payload)
     })
 
     // Phase 41 SYNC-08: 增量事件 — 仅在 feature flag 开启时生效

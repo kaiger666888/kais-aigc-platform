@@ -12,7 +12,7 @@ import {
   useReactFlow,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { applyLayout } from '@kais/flowgraph-v3'
+import { applyLayout, selectVariant } from '@kais/flowgraph-v3'
 import { FITVIEW_MIN_ZOOM, LodProvider } from '../hooks/useLod'
 
 import AssetNodeComponent from './nodes/AssetNode'
@@ -269,6 +269,27 @@ function CanvasInner() {
         // 重置 health 轮询基线,避免 30 秒后再次触发重复 reload
         lastEventCountRef.current = null
         loadCanvas(projectId, episodesId)
+      }
+    },
+    onVariantSelected: (payload) => {
+      // Phase 49 (WR-08): 他端选定了变体组 winner — 本端画布同步应用。
+      // 守卫① scope：仅当前显示的 project/episode（与 onGraphSaved 一致）；
+      // 守卫② 回显：本端发起的选定已乐观应用（group.winnerNodeId 已等于
+      // payload 值）→ 跳过，避免重复变换/闪烁。
+      if (!projectId || episodesId == null) return
+      if (payload.projectId !== projectId || payload.episodesId !== episodesId) return
+      const st = useCanvasStore.getState()
+      const graph = st.graph
+      if (!graph) return
+      const group = graph.variantGroups.find((g) => g.id === payload.groupId)
+      if (!group) return
+      if (group.winnerNodeId === payload.winnerNodeId) return // 本端回显
+      try {
+        st.applyGraphTransform((g) => selectVariant(g, payload.groupId, payload.winnerNodeId))
+        showToast(`变体组 ${payload.groupId} 已由其他会话选定优胜`, 'info')
+      } catch (err) {
+        // locked/multi 等组态与本地视图不一致 — 不强推，留给下次全量加载收敛
+        console.warn('[FlowCanvas] variant:selected 应用失败(等待下次全量同步):', err)
       }
     },
   })
