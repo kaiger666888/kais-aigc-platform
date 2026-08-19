@@ -272,7 +272,16 @@ Plans:
   3. `src/routes/v1/pipeline/ingest/images.ts` and `src/routes/v1/assets-registry/index.ts` consume a single assetType truth source; assets ingested with the new vocabulary are filterable via the assets-registry API, and rows holding legacy vocabulary values are still queryable through the compatibility mapping — the two-vocabulary split is gone.
   4. Assets from a new ingest run carry `workflow_phase` derived from the kmc manifest path `p{NN}`/DAG — a post-ingest query for `workflow_phase IS NULL` over that batch returns 0 rows.
 
-**Plans**: TBD
+**Plans**: 2 plans (Wave 1: contract layer — truth source + pure grouping functions + fixture + verify Part 1; Wave 2: wiring — ingestImagesPayload service + images.ts route rewrite + registry read-side compat + verify Part 2 temp-DB behavior)
+
+Plans:
+**Wave 1**
+
+- [ ] 48-01-PLAN.md — Contract layer (src/lib/assetTypes.ts 真值源 + src/lib/candidateGrouping.ts 纯建组函数 + kmc fixture + verify-phase-48 Part 1); covers INGEST-01/02/03 + PHASE-01 contracts
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 48-02-PLAN.md — Wiring (ingestAssets.ts 事务化建组落库 + images.ts 薄路由重写 + assets-registry 读侧旧词兼容 + verify-phase-48 Part 2 temp-sqlite 行为断言); wires INGEST-01/02/03 + PHASE-01 end-to-end
 
 ### Phase 49: Selection Write-back (Canvas Endpoint + Asset-Center Linkage + kmc Bridge)
 
@@ -317,7 +326,7 @@ Phase 48 is the contract source — the o_assets candidate-group shape that ever
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 48. Ingest Candidate Grouping + Enum Unification + workflow_phase | v2.1 | 0/? | Not started | - |
+| 48. Ingest Candidate Grouping + Enum Unification + workflow_phase | v2.1 | 0/2 | Not started | - |
 | 49. Selection Write-back (Canvas Endpoint + Asset-Center Linkage + kmc Bridge) | v2.1 | 0/? | Not started | - |
 | 50. Historical Backfill + Contract Guards | v2.1 | 0/? | Not started | - |
 
