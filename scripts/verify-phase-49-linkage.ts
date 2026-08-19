@@ -82,25 +82,31 @@ async function main(): Promise<void> {
 
   // ── Lib source-shape assertions (threat-model mitigations in the source) ─
   const libSrc = read("src/lib/canvasAssetLinkage.ts");
-  assert(!libSrc.includes("@/utils"), "lib: no @/utils import (db handle injected as a parameter)");
+  // Code-only view for the assertions below — the header comment is REQUIRED
+  // to document the loop-prevention design (naming @/utils and the registry
+  // route), so prose mentions must not trip code-shape checks.
+  const libCode = libSrc
+    .replace(/\/\*[\s\S]*?\*\//g, "")   // block comments
+    .replace(/^[ \t]*\/\/.*$/gm, "");   // line comments
+  assert(!libCode.includes("@/utils"), "lib: no @/utils import (db handle injected as a parameter)");
   assert(
-    (libSrc.match(/db\("o_assets"\)/g) || []).length === 1,
+    (libCode.match(/db\("o_assets"\)/g) || []).length === 1,
     "lib: exactly ONE o_assets reference — the read-only projectId lookup",
   );
   assert(
-    !/\.\s*(update|insert|del|delete)\s*\(/.test(libSrc),
+    !/\.\s*(update|insert|del|delete)\s*\(/.test(libCode),
     "lib: no direct write builders — every write delegated to selectWinnerInGroup (o_assets never written)",
   );
   assert(
-    /whereRaw\(\s*"json_extract\(data, '\$\.oAssetId'\) = \?"\s*,\s*\[oAssetId\]\s*\)/.test(libSrc),
+    /whereRaw\(\s*"json_extract\(data, '\$\.oAssetId'\) = \?"\s*,\s*\[oAssetId\]\s*\)/.test(libCode),
     "T-49-10: json_extract fallback binds oAssetId via whereRaw placeholder (no concatenated values)",
   );
   assert(
-    /import\s*\{[^}]*selectWinnerInGroup[^}]*\}\s*from\s*["']\.\/canvasRelationalStore["']/.test(libSrc),
+    /import\s*\{[^}]*selectWinnerInGroup[^}]*\}\s*from\s*["']\.\/canvasRelationalStore["']/.test(libCode),
     "lib: reuses selectWinnerInGroup from ./canvasRelationalStore (selection logic NOT rewritten)",
   );
   assert(
-    !/assets-registry|fetch\s*\(|axios|express/.test(libSrc),
+    !/assets-registry|fetch\s*\(|axios|express/.test(libCode),
     "loop prevention (T-49-13): lib references no registry route and no HTTP client — registry→canvas one-way",
   );
   assert(
