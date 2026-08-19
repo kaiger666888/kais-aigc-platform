@@ -11,6 +11,8 @@ import {
   listEvents,
 } from "@/lib/canvasEventStore";
 import { appendAndSync } from "@/lib/canvasEventStore";
+import { upsertNode, upsertLink, upsertBranch } from "@/lib/canvasRelationalStore";
+import { db } from "@/utils/db";
 import { broadcastToProject } from "@/utils/ws";
 import u from "@/utils";
 import { SCHEMA_ALIASES, ENUM_NORMALIZERS } from "../../../../schema/generated/frontend-enum-normalizers";
@@ -2131,6 +2133,33 @@ export default router.post(
             },
           ],
         });
+      }
+
+      // ── Relational materialization ────────────────────────────────────
+      // load-v2（画布 UI 读取路径）直接 SELECT canvas_nodes/canvas_links，
+      // 不 replay kv_canvasEvent。缺这段时导入的图只落在 event store +
+      // o_agentWorkData snapshot，画布渲染为空（写/读路径分家，2026-08-19
+      // ep02 逆向事故根因）。replace 语义 = 先清 scope 再 upsert；merge 语义
+      // = 仅 upsert 新节点（与上方 merge 去重口径一致）。失败非致命：
+      // event store 仍是权威源，loud log。
+      try {
+        const scope = { projectId, episodesId };
+        if (mode === "replace") {
+          await db.raw("DELETE FROM canvas_nodes WHERE project_id = ? AND episodes_id = ?", [projectId, episodesId]);
+          await db.raw("DELETE FROM canvas_links WHERE project_id = ? AND episodes_id = ?", [projectId, episodesId]);
+        }
+        for (const nd of newNodes) await upsertNode(scope, nd);
+        for (const lk of newLinks) await upsertLink(scope, lk);
+        await upsertBranch(scope, {
+          id: "main",
+          label: "主线",
+          status: "active",
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+        console.log(`[import-from-dir] materialized ${newNodes.length} nodes / ${newLinks.length} links into canvas_nodes/canvas_links (mode=${mode})`);
+      } catch (matErr) {
+        console.error("[import-from-dir] relational materialization failed (non-fatal):", (matErr as Error).message);
       }
 
       broadcastToProject(projectId, "graph:saved", { projectId, episodesId, timestamp: Date.now(), source: "import-from-dir" });
