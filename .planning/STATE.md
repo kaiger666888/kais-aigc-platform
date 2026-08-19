@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: 候选资产配套 (candidate-asset-completeness)
 status: executing
-stopped_at: Phase 48 complete (2/2 plans)
-last_updated: "2026-08-19T02:23:50.333Z"
-last_activity: 2026-08-19 -- Phase 49 planning complete
+stopped_at: Phase 49 plan 1 of 4 complete (SELECT-01)
+last_updated: "2026-08-19T03:17:29.841Z"
+last_activity: 2026-08-19
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 6
-  completed_plans: 2
+  completed_plans: 3
   percent: 33
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-17)
 
 **Core value:** AI creative production pipeline that runs end-to-end, pluggable across multiple creative workflows via a published skill contract.
-**Current focus:** Phase 49 — selection write back (canvas endpoint + asset center linkage + kmc bridge)
+**Current focus:** Phase 49 — Selection Write-back
 
 ## Current Position
 
-Phase: 49
-Plan: Not started
+Phase: 49 (Selection Write-back) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-08-19 -- Phase 49 planning complete
+Last activity: 2026-08-19
 
 ## Performance Metrics
 
@@ -47,6 +47,7 @@ Last activity: 2026-08-19 -- Phase 49 planning complete
 | 38 | 1 | ✅ Shipped (Tier 2) |
 | Phase 48 P48-01 | 9 min | 3 tasks | 5 files |
 | Phase 48 P48-02 | 6 min | 3 tasks | 4 files |
+| Phase 49 P01 | 51min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -84,6 +85,11 @@ Last activity: 2026-08-19 -- Phase 49 planning complete
 - [Phase ?]: [Phase 48] P48-02: knex 3.2.5 typings lack andWhereIn — registry /search uses chained .whereIn(expandTypesForQuery()) (identical AND semantics, repo convention)
 - [Phase ?]: [Phase 48] P48-02: ingestImagesPayload takes db as a parameter (never imports @/utils) so Phase 50 backfill + verify scripts inject their own knex; whole batch single transaction with in-trx exactly-one-primary assertion
 - [Phase ?]: [Phase 48] P48-02: verify Part-1 registry-enum assertion now checks truth-source import + literal-gone (Task 2 deleted the inline enum the old regex grepped)
+- [Phase ?]: Winner truth = winner_node_id + is_winner columns; node data JSON not rewritten (49-01)
+- [Phase ?]: [Phase 49] Idempotent winner re-selection returns 200 applied:false BEFORE D-07 swap and broadcast (D-03, 49-01)
+- [Phase ?]: [Phase 49] D-07 reverse linkage swaps o_assets isPrimaryView via direct knex in warn-only try/catch — never HTTP self-call to assets-registry (49-01)
+- [Phase ?]: [Phase 49] Route mounted as route167 (route28 is notion-proxy); all verify:phase-49* npm entries registered once in 49-01 for wave-2 (49-01)
+- [Phase ?]: [Phase 49] verify gate runs endpoint dispatch in a spawned child process — app-db knex pool never settles inserts when sharing a process with the :memory: store section (49-01)
 
 ### Pending Todos
 
@@ -134,6 +140,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-19T01:32:24.989Z
-Stopped at: Phase 48 complete (2/2 plans)
+Last session: 2026-08-19T03:17:29.833Z
+Stopped at: Phase 49 plan 1 of 4 complete (SELECT-01)
 Resume: `/gsd:execute-phase 48` (Plan 48-02: route rewrite + registry compat — consumes src/lib/assetTypes + candidateGrouping exports, extends verify-phase-48 at the Part 2 marker).

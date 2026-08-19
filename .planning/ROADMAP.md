@@ -301,7 +301,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 49-01-PLAN.md — SELECT-01 后端端点 (canvasRelationalStore.selectWinnerInGroup 事务化 + select-winner.ts 路由 + D-07 o_assets isPrimaryView 置换 + verify:phase-49 三入口注册/scaffold)
+- [x] 49-01-PLAN.md — SELECT-01 后端端点 (canvasRelationalStore.selectWinnerInGroup 事务化 + select-winner.ts 路由 + D-07 o_assets isPrimaryView 置换 + verify:phase-49 三入口注册/scaffold)
 
 **Wave 2** *(blocked on Wave 1; three plans parallel — zero files_modified overlap)*
 
@@ -339,7 +339,7 @@ Phase 48 is the contract source — the o_assets candidate-group shape that ever
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 48. Ingest Candidate Grouping + Enum Unification + workflow_phase | v2.1 | 2/2 | Complete    | 2026-08-19 |
-| 49. Selection Write-back (Canvas Endpoint + Asset-Center Linkage + kmc Bridge) | v2.1 | 0/? | Not started | - |
+| 49. Selection Write-back (Canvas Endpoint + Asset-Center Linkage + kmc Bridge) | v2.1 | 1/4 | In Progress|  |
 | 50. Historical Backfill + Contract Guards | v2.1 | 0/? | Not started | - |
 
 **v2.0 (shipped 2026-07-16):**

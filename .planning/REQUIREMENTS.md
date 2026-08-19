@@ -20,7 +20,7 @@
 
 ### SELECT — 选定回写 (画布层端点 + kmc 桥接)
 
-- [ ] **SELECT-01**: 新增画布层选定后端端点 (对齐 `docs/canvas-review-integration.md` 方案B + `canvas-next-steps.md` Phase 3.2 规划): 持久化 `canvas_variant_groups.winner_node_id` + 组内节点 `is_winner`/curation 状态, 事务化写入
+- [x] **SELECT-01**: 新增画布层选定后端端点 (对齐 `docs/canvas-review-integration.md` 方案B + `canvas-next-steps.md` Phase 3.2 规划): 持久化 `canvas_variant_groups.winner_node_id` + 组内节点 `is_winner`/curation 状态, 事务化写入
 - [ ] **SELECT-02**: 前端 `canvasStore.selectWinner` 改调后端端点 (不再仅本地乐观 + save-v2 整体落盘); 失败回滚复用 `variantOps` prevSnapshot
 - [ ] **SELECT-03**: 资产中心 `handleSelect` 与画布 variant group 联动——`o_assets.isPrimaryView` 变更同步更新对应 canvas 节点 winner 状态 (打通两套选定词汇)
 - [ ] **SELECT-04**: kmc 桥接——kap 侧选定变更生成 review resolve (`chosen_variant_id`), 经 review-platform API 使画布换选可被 kmc 30s 轮询读到, 影响下一次 p11b 渲染选帧
@@ -225,7 +225,7 @@
 | INGEST-02 | Phase 48 | Complete |
 | INGEST-03 | Phase 48 | Complete |
 | INGEST-04 | Phase 50 | Pending |
-| SELECT-01 | Phase 49 | Pending |
+| SELECT-01 | Phase 49 | Complete |
 | SELECT-02 | Phase 49 | Pending |
 | SELECT-03 | Phase 49 | Pending |
 | SELECT-04 | Phase 49 | Pending |
