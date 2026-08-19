@@ -4,6 +4,7 @@ import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
 import { CANONICAL_ASSET_TYPES, expandTypesForQuery } from "@/lib/assetTypes";
+import { applyRegistrySelectionToCanvas } from "@/lib/canvasAssetLinkage";
 
 const router = express.Router();
 
@@ -215,6 +216,18 @@ router.patch("/:id", async (req, res) => {
     }
 
     await u.db("o_assets").where("id", id).update(updates);
+
+    // [49-03 / D-06] 资产中心选定 → 画布组 winner 联动（registry→canvas 单向）。
+    // 只挂 isPrimaryView === true（选定事件）；置 false 是取消选定，不产生新
+    // winner。fire-and-forget（void + .catch）：联动画布的任何失败只 warn，
+    // 绝不影响上面的资产更新与本响应（T-49-11 失败隔离）。反向 canvas→o_assets
+    // 由 select-winner 端点 D-07 直写承担、不经本路由——无递归环（T-49-13）。
+    if (updates.isPrimaryView === true) {
+      void applyRegistrySelectionToCanvas(u.db, id).catch((e: unknown) => {
+        console.warn("[assets-registry] 选定联动画布失败(不影响资产更新):", e);
+      });
+    }
+
     return res.status(200).send(success({ id, updated: Object.keys(updates) }));
   } catch (err: any) {
     console.error("[v1/assets/:id] PATCH 失败:", err);
