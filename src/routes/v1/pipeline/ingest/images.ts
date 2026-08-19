@@ -17,6 +17,12 @@ const router = express.Router();
  * source @/lib/assetTypes (canonical 11 + legacy role/tool, D-06) — old
  * payloads {projectId, phase, images:[{filePath, assetName, assetType:
  * role|scene|tool, prompt, description}]} stay valid by construction.
+ *
+ * Batch caps (WR-04): ≤1000 images / ≤100 manifests per call — sized safely
+ * above known kmc batch shapes (turnaround registers scale with character
+ * count × views, so legacy uncapped payloads up to 1000 stay valid). Larger
+ * runs must chunk; each call is one transaction, so a failure never leaves a
+ * partial group inside one chunk.
  */
 
 /** Reject `..` path segments — filePath is stored and later resolved as an
@@ -46,7 +52,7 @@ export default router.post(
           meta: z.record(z.string(), z.unknown()).optional(),
         }),
       )
-      .max(200),
+      .max(1000),
     manifests: z
       .array(
         z.object({
