@@ -107,6 +107,16 @@ function buildWorkflow(body: SpeakBody): Record<string, unknown> {
   if (mode === SynthMode.EMOTION_VECTOR && body.emotion_vector) {
     synthInputs.emotion_vector = body.emotion_vector;
   }
+  // 防再犯 (2026-08-19 情绪链诊断): legacy ComfyUI 路径的 mode 门控会把
+  // 带 emotion_text 却未设 mode 的请求静默降级为 voice_clone。v2.5 代理
+  // 路径 (proxyV25Speak) 不经此函数、无此问题——本警告只为 legacy 调用方
+  // 排障。见 kais-hermes-skills docs/emotion-chain-repair-plan.md 断点 A。
+  if (body.emotion_text && mode !== SynthMode.EMOTION_TEXT) {
+    console.warn(
+      "[indextts2/speak] emotion_text 收到但 mode=%s — legacy ComfyUI 路径将丢弃情感输入 (需 mode=emotion_text)",
+      mode,
+    );
+  }
 
   // Map mode to node type
   const synthNodeType: Record<string, string> = {
