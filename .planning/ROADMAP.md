@@ -324,7 +324,16 @@ Plans:
   3. The candidate-grouping contract test ingests a fixture manifest and asserts the resulting o_assets shape — group count, exactly one `isPrimaryView=true` per group, `state` value domain, `assetsId` self-consistency (every group member points at a primary that exists in the group) — violations fail the suite.
   4. `scripts/verify-phase-50.ts` aggregates assertions over INGEST/SELECT/PHASE behaviors + dual-side enum/vocabulary mapping (no drift between ingest and assets-registry), registered in package.json following the v2.0 verify tradition.
 
-**Plans**: TBD
+**Plans**: 2 plans (Wave 1: backfill script + gated production apply — INGEST-04+PHASE-02 merged; Wave 2: GUARD contract suite + verify:phase-50 + legacy deprecation headers)
+
+Plans:
+**Wave 1**
+
+- [ ] 50-01-PLAN.md — One-off idempotent backfill (scripts/backfill-candidate-groups.ts reusing candidateGrouping pure functions, dry-run default + --i-backed-up-db gate + eliminated red line) + production apply with backup/audit trail; covers INGEST-04, PHASE-02
+
+**Wave 2** *(blocked on Wave 1 — imports backfill exports; package.json overlap)*
+
+- [ ] 50-02-PLAN.md — GUARD contract suite (fixture→planGroups→landed-shape contract + backfill idempotency/red-line on :memory: + enum no-drift + Phase 48/49 spot invariants + SC-4 WARN) + verify:phase-50 registration + D-12 deprecation headers on 5 manual register_*.py; covers GUARD-01, GUARD-02
 
 ## Progress
 
@@ -340,7 +349,7 @@ Phase 48 is the contract source — the o_assets candidate-group shape that ever
 |-------|-----------|----------------|--------|-----------|
 | 48. Ingest Candidate Grouping + Enum Unification + workflow_phase | v2.1 | 2/2 | Complete    | 2026-08-19 |
 | 49. Selection Write-back (Canvas Endpoint + Asset-Center Linkage + kmc Bridge) | v2.1 | 4/4 | Complete    | 2026-08-19 |
-| 50. Historical Backfill + Contract Guards | v2.1 | 0/? | Not started | - |
+| 50. Historical Backfill + Contract Guards | v2.1 | 0/2 | Planned | - |
 
 **v2.0 (shipped 2026-07-16):**
 
