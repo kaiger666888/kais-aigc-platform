@@ -1,5 +1,31 @@
 # Milestones
 
+## v2.1 候选资产配套 / candidate-asset-completeness (Shipped: 2026-08-19)
+
+**Status:** ✅ Archived
+**Phases:** 48–50 (3 phases) | **Requirements:** 12/12 satisfied
+**Automated assertions:** verify:phase-48 135 · 49 79 · 49-bridge 63 · 49-linkage 50 · 50 114 — 全绿; vitest 172/172; tsc 双根 clean
+
+**Key accomplishments:**
+
+1. **Ingest 候选建组契约源头** — `src/lib/candidateGrouping.ts` (manifest 双通道 + `*_v{N}` 命名通道 + shot-dir 消歧) + `src/lib/ingestAssets.ts` (db 参数化单事务 + 恰一 primary 断言) + `src/lib/assetTypes.ts` 枚举真值源 (role→character/tool→prop 存量兼容)。kmc 冗余生成的候选进 kap 不再平铺孤产。
+2. **选定回写闭环** — `POST /api/canvas/v2/variant-groups/:id/select-winner` 事务化端点 + 前端 `canvasStore.selectWinner` 接后端 (双路径乐观/回滚, prevSnapshot) + 资产中心↔画布双向联动 (`canvasAssetLinkage`, `a-oasset-{id}` 映射) + review-platform approve 桥接 (fail-closed 三重过滤 + 有界分页 + never-throw)。
+3. **生产存量回填** — 1612 行存量: 154 候选组建成 / 240 行挂链 / workflow_phase NULL 1456→922 / eliminated 386 行字节级未动 / 幂等 0/0。完整安全链 (dry-run 默认 → 371MB .backup 先行 → --i-backed-up-db 硬门 → 单事务 → 红线证明)。
+4. **GUARD 契约守护** — verify:phase-50 五节汇总 (GUARD-01 fixture→planGroups→落库形状 / 回填幂等+红线 / 枚举无 drift / 48/49 关键不变量 spot / SC-4 债务 WARN), 手工注册脚本 5 个 DEPRECATED。
+5. **Code-review 修复轮** — 48/49/50 三轮 review 共修 19 findings (含 2 组静默腐化 Critical), 每项带回归断言。
+
+**Stats:**
+
+- Timeline: 1 day (2026-08-19, single session)
+- Git range: 3300db2d^..HEAD · 97 commits · 308 files (+16,119 / −34,078 — 删除主要为里程碑切换归档)
+- Known deferred items at close: ① SC-4 kmc 消费侧半环 (review-platform 无 chosen_variant_id + COMPLETE≠resolved/closed, 跨仓库债务, [49-HUMAN-UAT G-1]) ② HUMAN-UAT 浏览器目检 4 项 (48/49 各 2) ③ WR-10 registry maxId+1 竞态 (pre-existing)
+
+**Archive:**
+- Roadmap: [milestones/v2.1-ROADMAP.md](milestones/v2.1-ROADMAP.md)
+- Requirements: [milestones/v2.1-REQUIREMENTS.md](milestones/v2.1-REQUIREMENTS.md)
+- Audit: [v2.1-MILESTONE-AUDIT.md](v2.1-MILESTONE-AUDIT.md)
+
+---
 ## v1.6 Workflow Skill Contract (Shipped: 2026-06-15)
 
 **Status:** ✅ Archived

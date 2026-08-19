@@ -44,19 +44,12 @@ AI 短剧全链路制作平台，通过 kais-gold-team 统一执行引擎编排 
 - ✓ 选定回写闭环: select-winner 事务化端点 + 资产中心↔画布双向联动 + review-platform 桥接 (gates 79/63/50 + vitest 172/172) — v2.1 Phase 49; SC-4 kmc 消费侧半环为跨仓库债务 (review-platform 无 chosen_variant_id/词汇不匹配, 已登记)
 - ✓ 存量回填 + 契约守护: 154 组/240 行挂链, workflow_phase NULL 1456→922, eliminated 386 字节未动, verify:phase-50 114 断言 — v2.1 Phase 50
 
-## Current Milestone: v2.1 候选资产配套 (candidate-asset-completeness)
+## Shipped: v2.1 候选资产配套 (candidate-asset-completeness) — 2026-08-19
 
-**Goal:** 打通 kmc 冗余候选生成 ↔ kap 无限画布/资产管理中心的配套管道——kmc 产出的 N 候选在 kap 侧自动成组、选定状态双向同步、按 phase 可组织,消除"候选进画布变孤产、kmc 选定结果无人消费"的断裂。
+**Goal:** 打通 kmc 冗余候选生成 ↔ kap 无限画布/资产管理中心的配套管道。
 
-**Target features:**
-- **Ingest 候选建组 (P0)** — `src/routes/v1/pipeline/ingest/images.ts` 从平铺改建组:读 kmc `iframe-manifest.json` 的 `all_first_frames[]/selected_first_variant` 与 turnaround `*_v{N}` 命名约定,自动写 `o_assets.assetsId` 分组 + `isPrimaryView` + `state`;统一 assetType 枚举 (`role|scene|tool` vs `character|scene|prop`,ingest `images.ts:18` vs assets-registry `index.ts:21`)
-- **画布选定回写 (P1)** — 落地 `select-winner` 后端端点(现仅前端本地 `canvasStore.selectWinner`);桥接 kmc review 协议 `chosen_variant_id`,让"画布上换选"能回写 kmc 影响下一次 p11b 渲染
-- **workflow_phase 回填 (P2)** — ingest/sync 自动写入 `workflow_phase`(数据源 kmc manifest P01-P13 DAG);存量 368 条回填
+**Outcome:** 3 phases (48-50), 8 plans, 12/12 requirements。ingest 候选建组契约源头 + assetType 真值源 + select-winner 事务化回写闭环 (前端接线/双向联动/review 桥接) + 生产存量回填 (154 组/240 挂链/wf NULL 1456→922/eliminated 386 未动/幂等 0/0) + verify:phase-50 等 5 个 gate 契约守护。Deferred: SC-4 kmc 消费侧半环 (跨仓库债务)、HUMAN-UAT 浏览器目检 4 项、WR-10 竞态。见 [MILESTONES.md](MILESTONES.md)。
 
-**Key context (2026-08-19 双侧调查):**
-- kmc 侧机制:双旋钮 `n_candidates`/`final_candidates`(runner.py:2279-2329),磁盘约定 `assets/P11/iframe-manifest.json`(`variants/all_*_frames/selected_*_variant`)、`.pipeline-assets/hook-candidates.json`(`chosen_variant_id`),人工换选通道 `ReviewPlatformClient → POST /api/v1/reviews`(review_platform.py:69)
-- kap 侧现状:o_assets 三态选定/待选/淘汰**已落地**(`AssetLibrary.tsx:35,782-800` + `assets-registry/index.ts:185`);断点=ingest 平铺不建组、选定结果不被消费、画布层无后端选定端点、workflow_phase 368/368 全空
-- 背景文档:`packages/infinite-canvas/.task-pipeline-asset-gap-analysis.md`、`docs/canvas-review-integration.md`(方案B)、`docs/canvas-next-steps.md` Phase 3.2、`RECON.md:262-266`(前后端 VariantGroup 结构不一致)
 
 ## Shipped: v2.0 Canvas Sync Permanence (画布同步永久治理) — 2026-07-16
 
@@ -283,4 +276,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-19 after v2.1 milestone kickoff*
+*Last updated: 2026-08-19 after v2.1 milestone complete*
