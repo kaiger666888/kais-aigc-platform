@@ -247,7 +247,7 @@ Plans:
 
 - [x] **Phase 48: Ingest Candidate Grouping + Enum Unification + workflow_phase** — ingest 从平铺改建组：候选组 `assetsId`/`isPrimaryView`/`state` 落库契约 + assetType 单一真值源 + 新资产 `workflow_phase` 自动写入 (completed 2026-08-19)
 - [x] **Phase 49: Selection Write-back (Canvas Endpoint + Asset-Center Linkage + kmc Bridge)** — select-winner 后端端点 + 前端接线 + 资产中心联动 + kmc review resolve 桥接，打通"kap 换选 ↔ kmc 消费"闭环 (completed 2026-08-19)
-- [x] **Phase 50: Historical Backfill + Contract Guards** — 存量 368 条资产回填建组 + workflow_phase 回填 + 契约测试 + verify-phase-50 汇总守护 (completed 2026-08-19)
+- [x] **Phase 50: Historical Backfill + Contract Guards** — 存量 1612 条资产回填建组（实际基线，supersedes gap-analysis 368 旧数） + workflow_phase 回填 + 契约测试 + verify-phase-50 汇总守护 (completed 2026-08-19)
 
 **Architecture decisions (v2.1):**
 
@@ -313,7 +313,7 @@ Plans:
 
 ### Phase 50: Historical Backfill + Contract Guards
 
-**Goal**: 存量 368 条 o_assets 获得与新增资产相同的组织性（候选建组 + `workflow_phase` 非空），且 v2.1 全部行为由自动化契约测试守住——候选分组形状、选定回写链路、双端枚举映射不再回归。
+**Goal**: 存量 1612 条 o_assets（实际基线）获得与新增资产相同的组织性（候选建组 + `workflow_phase` 非空），且 v2.1 全部行为由自动化契约测试守住——候选分组形状、选定回写链路、双端枚举映射不再回归。
 **Depends on**: Phase 48 + Phase 49 (backfill reuses the ingest grouping logic; guards assert both phases' behaviors)
 **Requirements**: INGEST-04, PHASE-02, GUARD-01, GUARD-02
 **Repo**: `kais-aigc-platform`
