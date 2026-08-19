@@ -7,6 +7,7 @@ import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
+import { VramInsufficientError, withGpuQueue } from "@/lib/gpuVramManager";
 import { LTX_CONFIG, LTX_DEFAULTS } from "./config";
 
 const router = express.Router();
@@ -489,17 +490,31 @@ export default router.post(
     });
 
     try {
-      const comfyRes = await axios.post(
-        `${LTX_CONFIG.comfyuiUrl}/prompt`,
-        { prompt: workflow },
-        { timeout: 30_000, validateStatus: (s: number) => s < 500 },
+      // ─── GPU 全局串行队列 (gpuVramManager withGpuQueue, 2026-08-19 收编) ───
+      // 仅 Step 5 的 ComfyUI 提交段过 GPU1 全局锁 (LTX 键); Kimodo BVH / Blender
+      // 渲染 / docker cp 均在队列外 (CPU/IO, 不占显存)。异步 taskId 模式: 作业在
+      // ComfyUI 侧异步跑, 客户端轮询 /status。
+      const submitted = await withGpuQueue(
+        "ltx",
+        async () => {
+          const comfyRes = await axios.post(
+            `${LTX_CONFIG.comfyuiUrl}/prompt`,
+            { prompt: workflow },
+            { timeout: 30_000, validateStatus: (s: number) => s < 500 },
+          );
+          if (comfyRes.status !== 200) {
+            return { kind: "rejected" as const, detail: JSON.stringify(comfyRes.data) };
+          }
+          return { kind: "ok" as const, promptId: comfyRes.data.prompt_id as string };
+        },
+        { gpuIndex: 1, comfyuiUrl: LTX_CONFIG.comfyuiUrl },
       );
 
-      if (comfyRes.status !== 200) {
-        return res.status(502).send(error(`ComfyUI rejected prompt: ${JSON.stringify(comfyRes.data)}`));
+      if (submitted.kind === "rejected") {
+        return res.status(502).send(error(`ComfyUI rejected prompt: ${submitted.detail}`));
       }
 
-      const promptId = comfyRes.data.prompt_id;
+      const promptId = submitted.promptId;
       const actualDuration = ((numFrames - 1) / fps).toFixed(1);
 
       res.status(200).send(success({
@@ -536,6 +551,15 @@ export default router.post(
         },
       }));
     } catch (err: any) {
+      if (err instanceof VramInsufficientError) {
+        return res.status(503).send(error(err.message, {
+          kind: "vram_insufficient",
+          engine: "ltx",
+          freeMiB: err.freeMiB,
+          requiredMiB: err.requiredMiB,
+          gpuIndex: err.gpuIndex,
+        }));
+      }
       const msg = err.response?.data?.error?.message || err.response?.data?.node_errors || err.message || String(err);
       res.status(502).send(error(`ComfyUI request failed: ${msg}`));
     }

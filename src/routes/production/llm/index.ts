@@ -111,7 +111,11 @@ router.post("/allocate", async (req, res) => {
           // 拉起/确认成功 → 持有 GPU1 服务级占用 (幂等: 已持有则 no-op),
           // 直到 /release 或服务被外部停止。withGpuQueue fn 返回即释放本轮锁,
           // acquireEngineOccupancy 在释放前抢先把锁转交给自己 → 队列无缝。
-          await acquireEngineOccupancy(QWEN_EYE_QUEUE_KEY, GPU_QUEUE_DEFAULT_INDEX);
+          // healthUrl: 占用看门狗 (2026-08-19 三期) — :8125 连续失联即自动释放
+          // 占位 (不再等下次 allocate 自愈), 杜绝孤儿占位拖死全引擎排队。
+          await acquireEngineOccupancy(QWEN_EYE_QUEUE_KEY, GPU_QUEUE_DEFAULT_INDEX, {
+            healthUrl: EYE_HEALTH_URL,
+          });
         }
         return result;
       },

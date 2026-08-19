@@ -17,7 +17,14 @@ import express from "express";
 import { promises as fs } from "fs";
 import path from "path";
 import { success, error } from "@/lib/responseFormat";
-import { withGpuQueue, withGpuQueueTimed, VramInsufficientError } from "@/lib/gpuVramManager";
+import {
+  withGpuQueue,
+  withGpuQueueTimed,
+  VramInsufficientError,
+  QueueTimeoutError,
+  QueueAbortedError,
+  QueuePurgedError,
+} from "@/lib/gpuVramManager";
 import { INDEXTTS2_CONFIG, INDEXTTS2_DEFAULTS, NODE_TYPES, SynthMode } from "./config";
 import type { Request, Response } from "express";
 
@@ -283,7 +290,7 @@ async function proxyV25Speak(params: {
  * 客户端统一走 audio_url 下载 — 与 v1/tts 风格一致, KMC engine 好消费)。
  * 包 withGpuQueue("indextts2") — 与 voice-design.ts 同一把 GPU1 队列锁。
  */
-async function speakV25(req: any, res: Response): Promise<Response> {
+async function speakV25(req: any, res: Response, signal?: AbortSignal): Promise<Response> {
   const text = req.body?.text;
   if (!text) return res.status(400).json(error("Missing 'text' field"));
   if (!req.file) return res.status(400).json(error("v2.5 speak requires multipart 'ref_audio' file"));
@@ -312,7 +319,7 @@ async function speakV25(req: any, res: Response): Promise<Response> {
         await fs.writeFile(path.join(INDEXTTS2_CONFIG.v25OutputDir, outFilename), synth.audioBuffer);
         return { outFilename, synthTime: synth.synthTime, queueWaitMs: 0 };
       },
-      { gpuIndex: 1, comfyuiUrl: INDEXTTS2_CONFIG.comfyuiUrl },
+      { gpuIndex: 1, comfyuiUrl: INDEXTTS2_CONFIG.comfyuiUrl, signal },
     );
     out = result;
   } catch (err: any) {
@@ -321,6 +328,21 @@ async function speakV25(req: any, res: Response): Promise<Response> {
         kind: "vram_insufficient",
         freeMiB: err.freeMiB,
         requiredMiB: err.requiredMiB,
+        gpuIndex: err.gpuIndex,
+      }));
+    }
+    // 队列类结构化错误 (2026-08-19 P1): queue_timeout→504 / queue_aborted→499 /
+    // queue_purged→503 — kind 字段供 kmc D-09 降级机判。
+    if (
+      err instanceof QueueTimeoutError ||
+      err instanceof QueueAbortedError ||
+      err instanceof QueuePurgedError
+    ) {
+      const status =
+        err.kind === "queue_timeout" ? 504 : err.kind === "queue_aborted" ? 499 : 503;
+      return res.status(status).json(error(err.message, {
+        kind: err.kind,
+        engine: err.engine,
         gpuIndex: err.gpuIndex,
       }));
     }
@@ -343,7 +365,7 @@ async function speakV25(req: any, res: Response): Promise<Response> {
  * KMC IndexTTS25Engine 主要走 multipart (design_voice 落盘后的 host ref), 此
  * JSON 入口供轻量客户端复用已注册的 ref (读本地 oss 目录)。
  */
-async function speakV25Json(body: SpeakBody, res: Response): Promise<Response> {
+async function speakV25Json(body: SpeakBody, res: Response, signal?: AbortSignal): Promise<Response> {
   const refSpec = (body as any).ref_audio as string;
   if (!refSpec) {
     return res.status(400).json(error("v2.5 JSON speak requires 'ref_audio' (oss path or http url)"));
@@ -384,7 +406,7 @@ async function speakV25Json(body: SpeakBody, res: Response): Promise<Response> {
         await fs.writeFile(path.join(INDEXTTS2_CONFIG.v25OutputDir, outFilename), synth.audioBuffer);
         return { outFilename, synthTime: synth.synthTime, queueWaitMs: 0 };
       },
-      { gpuIndex: 1, comfyuiUrl: INDEXTTS2_CONFIG.comfyuiUrl },
+      { gpuIndex: 1, comfyuiUrl: INDEXTTS2_CONFIG.comfyuiUrl, signal },
     );
     out = result;
   } catch (err: any) {
@@ -393,6 +415,20 @@ async function speakV25Json(body: SpeakBody, res: Response): Promise<Response> {
         kind: "vram_insufficient",
         freeMiB: err.freeMiB,
         requiredMiB: err.requiredMiB,
+        gpuIndex: err.gpuIndex,
+      }));
+    }
+    // 队列类结构化错误 (2026-08-19 P1) — 同 speakV25: 5xx + kind
+    if (
+      err instanceof QueueTimeoutError ||
+      err instanceof QueueAbortedError ||
+      err instanceof QueuePurgedError
+    ) {
+      const status =
+        err.kind === "queue_timeout" ? 504 : err.kind === "queue_aborted" ? 499 : 503;
+      return res.status(status).json(error(err.message, {
+        kind: err.kind,
+        engine: err.engine,
         gpuIndex: err.gpuIndex,
       }));
     }
@@ -431,6 +467,16 @@ async function speakV25Json(body: SpeakBody, res: Response): Promise<Response> {
  *   - version=2: 旧 ComfyUI IndexTTS-2 节点路径, 全保留 (legacy)。
  */
 async function speakHandler(req: Request, res: Response): Promise<Response> {
+  // ── 客户端断连取消 (2026-08-19 P1 路由接入) ──
+  // 排队中客户端断开 → signal 摘除 waiter (QueueAbortedError)。Node ≥16 的
+  // req "close" 在 body 读完即触发, 不能当断连信号; res "close" 且响应未完成才是。
+  // signal 仅排队阶段生效 — 已获锁作业照常跑完。同一请求的 v2.5 分支
+  // (speakV25 / speakV25Json) 共享本 controller。
+  const ac = new AbortController();
+  res.on("close", () => {
+    if (!res.writableFinished) ac.abort();
+  });
+
   try {
     let body: SpeakBody;
 
@@ -452,7 +498,7 @@ async function speakHandler(req: Request, res: Response): Promise<Response> {
       // 默认 2.5 (唯一链路决策); 显式 version=2 走下面旧 ComfyUI 路径。
       const reqVersion = (req as any).body?.version ?? "2.5";
       if (reqVersion === "2.5") {
-        return await speakV25(req as any, res);
+        return await speakV25(req as any, res, ac.signal);
       }
 
       const text = (req as any).body?.text;
@@ -485,7 +531,7 @@ async function speakHandler(req: Request, res: Response): Promise<Response> {
       body = req.body as SpeakBody;
       // JSON 形态同样支持 version=2.5 (带 ref_audio 为 v25 server 可达 URL 时)
       if ((body as any).version === "2.5") {
-        return await speakV25Json(body, res);
+        return await speakV25Json(body, res, ac.signal);
       }
     }
 
@@ -505,7 +551,7 @@ async function speakHandler(req: Request, res: Response): Promise<Response> {
         const pid = await submitPrompt(workflow);
         return { promptId: pid, result: await pollUntilDone(pid) };
       },
-      { gpuIndex: 1, comfyuiUrl: INDEXTTS2_CONFIG.comfyuiUrl },
+      { gpuIndex: 1, comfyuiUrl: INDEXTTS2_CONFIG.comfyuiUrl, signal: ac.signal },
     );
 
     if (result.status === "error") {
@@ -529,6 +575,21 @@ async function speakHandler(req: Request, res: Response): Promise<Response> {
       mode: body.mode || SynthMode.VOICE_CLONE,
     }));
   } catch (err: any) {
+    // 队列类结构化错误 (2026-08-19 P1): queue_timeout→504 / queue_aborted→499 /
+    // queue_purged→503 — kind 字段供 kmc D-09 降级机判。
+    if (
+      err instanceof QueueTimeoutError ||
+      err instanceof QueueAbortedError ||
+      err instanceof QueuePurgedError
+    ) {
+      const status =
+        err.kind === "queue_timeout" ? 504 : err.kind === "queue_aborted" ? 499 : 503;
+      return res.status(status).json(error(err.message, {
+        kind: err.kind,
+        engine: err.engine,
+        gpuIndex: err.gpuIndex,
+      }));
+    }
     return res.status(500).json(error(err.message || "Internal error"));
   }
 }
@@ -558,6 +619,13 @@ router.post("/batch", async (req: Request, res: Response) => {
     }
 
     // Submit all prompts sequentially (avoid GPU OOM)
+    // 客户端断连取消 (2026-08-19 P1): 整批共享一个 signal — 断连后逐条入队即刻
+    // QueueAbortedError, 不再空转剩余条目。res "close" 判据说明见 speakHandler。
+    const ac = new AbortController();
+    res.on("close", () => {
+      if (!res.writableFinished) ac.abort();
+    });
+
     const results: Array<{ id?: string; status: string; audio_url?: string; error?: string }> = [];
 
     for (const item of body.items) {
@@ -584,7 +652,7 @@ router.post("/batch", async (req: Request, res: Response) => {
             const pid = await submitPrompt(workflow);
             return { promptId: pid, result: await pollUntilDone(pid) };
           },
-          { gpuIndex: 1, comfyuiUrl: INDEXTTS2_CONFIG.comfyuiUrl },
+          { gpuIndex: 1, comfyuiUrl: INDEXTTS2_CONFIG.comfyuiUrl, signal: ac.signal },
         );
 
         if (result.status === "error") {
@@ -598,6 +666,22 @@ router.post("/batch", async (req: Request, res: Response) => {
           });
         }
       } catch (err: any) {
+        // 队列类结构化错误 → 中止整批, 5xx + kind 返回 (aborted 时客户端已断仅留痕;
+        // timeout 后续条目同样会超, 继续空转无意义)
+        if (
+          err instanceof QueueTimeoutError ||
+          err instanceof QueueAbortedError ||
+          err instanceof QueuePurgedError
+        ) {
+          const status =
+            err.kind === "queue_timeout" ? 504 : err.kind === "queue_aborted" ? 499 : 503;
+          return res.status(status).json(error(err.message, {
+            kind: err.kind,
+            engine: err.engine,
+            gpuIndex: err.gpuIndex,
+            batch: { processed: results.length, total: body.items.length },
+          }));
+        }
         results.push({ id: item.id, status: "error", error: err.message });
       }
     }

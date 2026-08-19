@@ -29,6 +29,7 @@ import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
+import { withGpuQueueTimed } from "@/lib/gpuVramManager";
 import { FLUX_CONFIG, FLUX_DEFAULTS } from "../config";
 
 const router = express.Router();
@@ -51,9 +52,9 @@ function copyToContainer(localPath: string, containerPath: string) {
   }
 }
 
-async function pollComfyUI(promptId: string): Promise<any> {
+async function pollComfyUI(promptId: string, extraBudgetMs = 0): Promise<any> {
   const startTime = Date.now();
-  while (Date.now() - startTime < FLUX_CONFIG.pollTimeoutMs) {
+  while (Date.now() - startTime < FLUX_CONFIG.pollTimeoutMs + extraBudgetMs) {
     await new Promise((r) => setTimeout(r, FLUX_CONFIG.pollIntervalMs));
     const resp = await axios.get(`${FLUX_CONFIG.comfyuiUrl}/history/${promptId}`);
     const hist = resp.data;
@@ -244,16 +245,26 @@ router.post(
         filenamePrefix,
       });
 
-      // 3. 提交到 ComfyUI
-      const submitResp = await axios.post(
-        `${FLUX_CONFIG.comfyuiUrl}/prompt`,
-        { prompt: workflow },
-        { headers: { "Content-Type": "application/json" }, timeout: 30_000 }
-      );
-      const promptId = submitResp.data.prompt_id;
-
-      // 4. 轮询结果
-      const outputs = await pollComfyUI(promptId);
+      // 3+4. ─── GPU 全局串行队列 (gpuVramManager withGpuQueueTimed, 2026-08-19 收编) ───
+      // Kontext 与 FLUX.1/FLUX.2 共用 ComfyUI (engineKey=flux2, ~12GB 级, 撞车主力)
+      // — 此前直提绕过队列。锁内「提交+轮询到完成」; queueWaitMs 不计入轮询预算
+      // (镜像 minimax-h3/generate.ts)。参考图上传 (docker cp) 在队列外; 图片下载
+      // (纯 IO) 也在锁外。
+      const outputs = (
+        await withGpuQueueTimed(
+          "flux2",
+          async (queueWaitMs) => {
+            const submitResp = await axios.post(
+              `${FLUX_CONFIG.comfyuiUrl}/prompt`,
+              { prompt: workflow },
+              { headers: { "Content-Type": "application/json" }, timeout: 30_000 }
+            );
+            // 4. 轮询结果 (排队等待 queueWaitMs 等量延长预算)
+            return await pollComfyUI(submitResp.data.prompt_id, queueWaitMs);
+          },
+          { gpuIndex: 1, comfyuiUrl: FLUX_CONFIG.comfyuiUrl },
+        )
+      ).data;
 
       // 5. 收集输出图片
       const images: { url: string; filename: string }[] = [];

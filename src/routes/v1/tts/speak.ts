@@ -21,7 +21,13 @@
 import express, { Router } from "express";
 import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
-import { VramInsufficientError, withGpuQueueTimed } from "@/lib/gpuVramManager";
+import {
+  VramInsufficientError,
+  QueueTimeoutError,
+  QueueAbortedError,
+  QueuePurgedError,
+  withGpuQueueTimed,
+} from "@/lib/gpuVramManager";
 import path from "path";
 import { TTS_CONFIG, PRESET_SPEAKERS, type TtsMode } from "./config";
 
@@ -187,7 +193,13 @@ function buildWorkflow(body: z.infer<typeof SpeakSchema>): Record<string, unknow
  * 包装进 KAP 标准 {code, data, message} 响应格式的 data 字段。
  */
 function engineError(
-  kind: "engine_unavailable" | "synthesis_failed" | "vram_insufficient",
+  kind:
+    | "engine_unavailable"
+    | "synthesis_failed"
+    | "vram_insufficient"
+    | "queue_timeout"
+    | "queue_aborted"
+    | "queue_purged",
   detail: string,
   extra: Record<string, unknown> = {},
 ) {
@@ -365,6 +377,15 @@ router.post("/", async (req, res) => {
       ));
     }
 
+    // ── 客户端断连取消 (2026-08-19 P1 路由接入) ──
+    // 排队中客户端断开 → signal 摘除 waiter (QueueAbortedError)。Node ≥16 的
+    // req "close" 在 body 读完即触发, 不能当断连信号; res "close" 且响应未完成才是。
+    // signal 仅排队阶段生效 — 已获锁作业照常跑完。
+    const ac = new AbortController();
+    res.on("close", () => {
+      if (!res.writableFinished) ac.abort();
+    });
+
     // ─── GPU 全局串行队列 (gpuVramManager withGpuQueueTimed, 2026-08-16) ───
     // 跨引擎互斥 (TTS/H3/music3/qwen_eye 共享 GPU1 锁), 排队等待而非 fail-fast
     // (P10 事故根因: TTS 预检放行后 qwen-eye 拉起吃掉 14.7G → TTS 合成时崩)。
@@ -385,7 +406,7 @@ router.post("/", async (req, res) => {
           if (isAsync) return { promptId: pid, result: null };
           return { promptId: pid, result: await pollUntilDone(pid, waitedMs) };
         },
-        { gpuIndex: 1, comfyuiUrl: TTS_CONFIG.comfyuiUrl },
+        { gpuIndex: 1, comfyuiUrl: TTS_CONFIG.comfyuiUrl, signal: ac.signal },
       );
       promptId = out.data.promptId;
       queueWaitMs = out.queueWaitMs;
@@ -398,6 +419,23 @@ router.post("/", async (req, res) => {
             freeMiB: err.freeMiB,
             requiredMiB: err.requiredMiB,
             gpuIndex: err.gpuIndex,
+          }),
+        ));
+      }
+      // 队列类结构化错误 (2026-08-19 P1): queue_timeout→504 / queue_aborted→499
+      // (客户端已断, 状态码仅留痕) / queue_purged→503 — kind 供 KMC 降级机判。
+      if (
+        err instanceof QueueTimeoutError ||
+        err instanceof QueueAbortedError ||
+        err instanceof QueuePurgedError
+      ) {
+        const status =
+          err.kind === "queue_timeout" ? 504 : err.kind === "queue_aborted" ? 499 : 503;
+        return res.status(status).json(error(
+          err.message,
+          engineError(err.kind, err.message, {
+            gpuIndex: err.gpuIndex,
+            ...(err instanceof QueueTimeoutError ? { waitedMs: err.waitedMs } : {}),
           }),
         ));
       }

@@ -7,6 +7,7 @@ import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
+import { VramInsufficientError, withGpuQueue, withGpuQueueTimed } from "@/lib/gpuVramManager";
 import { LTX_CONFIG, LTX_DEFAULTS, LTX_POSE, LTX_MSR_V2, LTX_MSR_LAST_FRAME, LTX_MSR_FIRST_FRAME, LTX_MSR_FOLEY, AudioStrategy, AUDIO_STRATEGY_INFO } from "./config";
 
 const router = express.Router();
@@ -885,16 +886,31 @@ export async function executeFiveStagePipeline(opts: FiveStageOpts): Promise<{
     firstFrameIdx: opts.firstFrameIdx,
   });
 
-  const stage2Res = await axios.post(
-    `${LTX_CONFIG.comfyuiUrl}/prompt`,
-    { prompt: stage2Workflow },
-    { timeout: 30_000, validateStatus: (s: number) => s < 500 },
-  );
-  if (stage2Res.status !== 200) {
-    throw new Error(`Stage 2 ComfyUI rejected: ${JSON.stringify(stage2Res.data).slice(0, 500)}`);
-  }
-  const stage2PromptId: string = stage2Res.data.prompt_id;
-  const stage2Poll = await pollComfyUi(stage2PromptId, { pollTimeoutMs: 900_000 });
+  // ─── GPU 全局串行队列 (gpuVramManager withGpuQueueTimed, 2026-08-19 收编) ───
+  // LTX 与 H3/TTS/music3/qwen_eye 共享 GPU1 锁 — 此前直提 ComfyUI 绕过队列。
+  // Stage 2/3 各自把「提交+轮询到完成」包一段锁; 中间的下载/ffmpeg 混音 (CPU)
+  // 在锁外。queueWaitMs 不计入轮询预算 (900s + queueWaitMs, 镜像 minimax-h3/generate.ts)。
+  const stage2Out = (
+    await withGpuQueueTimed(
+      "ltx",
+      async (queueWaitMs) => {
+        const stage2Res = await axios.post(
+          `${LTX_CONFIG.comfyuiUrl}/prompt`,
+          { prompt: stage2Workflow },
+          { timeout: 30_000, validateStatus: (s: number) => s < 500 },
+        );
+        if (stage2Res.status !== 200) {
+          throw new Error(`Stage 2 ComfyUI rejected: ${JSON.stringify(stage2Res.data).slice(0, 500)}`);
+        }
+        const promptId: string = stage2Res.data.prompt_id;
+        const poll = await pollComfyUi(promptId, { pollTimeoutMs: 900_000 + queueWaitMs });
+        return { promptId, poll };
+      },
+      { gpuIndex: 1, comfyuiUrl: LTX_CONFIG.comfyuiUrl },
+    )
+  ).data;
+  const stage2PromptId: string = stage2Out.promptId;
+  const stage2Poll = stage2Out.poll;
   if (stage2Poll.status !== "success") {
     throw new Error(`Stage 2 failed: ${stage2Poll.error}`);
   }
@@ -923,16 +939,27 @@ export async function executeFiveStagePipeline(opts: FiveStageOpts): Promise<{
     stage3Ambient: true,
   });
 
-  const stage3Res = await axios.post(
-    `${LTX_CONFIG.comfyuiUrl}/prompt`,
-    { prompt: stage3Workflow },
-    { timeout: 30_000, validateStatus: (s: number) => s < 500 },
-  );
-  if (stage3Res.status !== 200) {
-    throw new Error(`Stage 3 ComfyUI rejected: ${JSON.stringify(stage3Res.data).slice(0, 500)}`);
-  }
-  const stage3PromptId: string = stage3Res.data.prompt_id;
-  const stage3Poll = await pollComfyUi(stage3PromptId, { pollTimeoutMs: 900_000 });
+  const stage3Out = (
+    await withGpuQueueTimed(
+      "ltx",
+      async (queueWaitMs) => {
+        const stage3Res = await axios.post(
+          `${LTX_CONFIG.comfyuiUrl}/prompt`,
+          { prompt: stage3Workflow },
+          { timeout: 30_000, validateStatus: (s: number) => s < 500 },
+        );
+        if (stage3Res.status !== 200) {
+          throw new Error(`Stage 3 ComfyUI rejected: ${JSON.stringify(stage3Res.data).slice(0, 500)}`);
+        }
+        const promptId: string = stage3Res.data.prompt_id;
+        const poll = await pollComfyUi(promptId, { pollTimeoutMs: 900_000 + queueWaitMs });
+        return { promptId, poll };
+      },
+      { gpuIndex: 1, comfyuiUrl: LTX_CONFIG.comfyuiUrl },
+    )
+  ).data;
+  const stage3PromptId: string = stage3Out.promptId;
+  const stage3Poll = stage3Out.poll;
   if (stage3Poll.status !== "success") {
     throw new Error(`Stage 3 failed: ${stage3Poll.error}`);
   }
@@ -1146,13 +1173,28 @@ export async function executeFoleyPipeline(opts: FoleyOpts): Promise<{
     firstFrameStrength: opts.firstFrameStrength,
     firstFrameIdx: opts.firstFrameIdx,
   });
-  const videoRes = await axios.post(
-    `${LTX_CONFIG.comfyuiUrl}/prompt`, { prompt: videoWorkflow },
-    { timeout: 30_000, validateStatus: (s: number) => s < 500 },
-  );
-  if (videoRes.status !== 200) throw new Error(`Foley Step1 (v1 video) ComfyUI rejected: ${JSON.stringify(videoRes.data).slice(0, 500)}`);
-  const videoPromptId: string = videoRes.data.prompt_id;
-  const videoPoll = await pollComfyUi(videoPromptId, { pollTimeoutMs: 900_000 });
+  // ─── GPU 全局串行队列 (gpuVramManager withGpuQueueTimed, 2026-08-19 收编) ───
+  // 同 5stage: Step1(v1 视频)与 Step3(Foley V2A)各自把「提交+轮询到完成」包
+  // 一段 GPU1 全局锁 (ltx 键), 中间的 ffmpeg 剥画面/docker cp 在锁外。
+  // queueWaitMs 不计入轮询预算 (900s + queueWaitMs, 镜像 minimax-h3/generate.ts)。
+  const videoOut = (
+    await withGpuQueueTimed(
+      "ltx",
+      async (queueWaitMs) => {
+        const videoRes = await axios.post(
+          `${LTX_CONFIG.comfyuiUrl}/prompt`, { prompt: videoWorkflow },
+          { timeout: 30_000, validateStatus: (s: number) => s < 500 },
+        );
+        if (videoRes.status !== 200) throw new Error(`Foley Step1 (v1 video) ComfyUI rejected: ${JSON.stringify(videoRes.data).slice(0, 500)}`);
+        const promptId: string = videoRes.data.prompt_id;
+        const poll = await pollComfyUi(promptId, { pollTimeoutMs: 900_000 + queueWaitMs });
+        return { promptId, poll };
+      },
+      { gpuIndex: 1, comfyuiUrl: LTX_CONFIG.comfyuiUrl },
+    )
+  ).data;
+  const videoPromptId: string = videoOut.promptId;
+  const videoPoll = videoOut.poll;
   if (videoPoll.status !== "success") throw new Error(`Foley Step1 (v1 video) failed: ${videoPoll.error}`);
   const videoFile = findOutputVideo(videoPoll.outputs!) || findOutputFallback(videoPrefix);
   if (!videoFile) throw new Error("Foley Step1 (v1 video) produced no video output");
@@ -1168,13 +1210,24 @@ export async function executeFoleyPipeline(opts: FoleyOpts): Promise<{
   const foleyPrefix = `${opts.filenamePrefix}_foley`;
   const foleyPrompt = opts.foleyPrompt || LTX_MSR_FOLEY.defaultPrompt;
   const foleyWorkflow = buildFoleyWorkflow({ videoInputFilename: foleyInputName, foleyPrompt, filenamePrefix: foleyPrefix });
-  const foleyRes = await axios.post(
-    `${LTX_CONFIG.comfyuiUrl}/prompt`, { prompt: foleyWorkflow },
-    { timeout: 30_000, validateStatus: (s: number) => s < 500 },
-  );
-  if (foleyRes.status !== 200) throw new Error(`Foley Step3 (V2A) ComfyUI rejected: ${JSON.stringify(foleyRes.data).slice(0, 500)}`);
-  const foleyPromptId: string = foleyRes.data.prompt_id;
-  const foleyPoll = await pollComfyUi(foleyPromptId, { pollTimeoutMs: 900_000 });
+  const foleyOut = (
+    await withGpuQueueTimed(
+      "ltx",
+      async (queueWaitMs) => {
+        const foleyRes = await axios.post(
+          `${LTX_CONFIG.comfyuiUrl}/prompt`, { prompt: foleyWorkflow },
+          { timeout: 30_000, validateStatus: (s: number) => s < 500 },
+        );
+        if (foleyRes.status !== 200) throw new Error(`Foley Step3 (V2A) ComfyUI rejected: ${JSON.stringify(foleyRes.data).slice(0, 500)}`);
+        const promptId: string = foleyRes.data.prompt_id;
+        const poll = await pollComfyUi(promptId, { pollTimeoutMs: 900_000 + queueWaitMs });
+        return { promptId, poll };
+      },
+      { gpuIndex: 1, comfyuiUrl: LTX_CONFIG.comfyuiUrl },
+    )
+  ).data;
+  const foleyPromptId: string = foleyOut.promptId;
+  const foleyPoll = foleyOut.poll;
   if (foleyPoll.status !== "success") throw new Error(`Foley Step3 (V2A) failed: ${foleyPoll.error}`);
   const foleyFile = findOutputVideo(foleyPoll.outputs!) || findOutputFallback(foleyPrefix);
   if (!foleyFile) throw new Error("Foley Step3 (V2A) produced no video output");
@@ -1562,15 +1615,26 @@ async function submitWorkflow(params: MSRParams, audioMode: string, seed: number
     msrLoraVersion: params.msrLoraVersion, relayWeight: params.relayWeight,
     audioMode, customAudioFilename: params.customAudioFilename, dialogueEndTime: params.dialogueEndTime,
   });
-  const comfyRes = await axios.post(
-    `${LTX_CONFIG.comfyuiUrl}/prompt`,
-    { prompt: workflow },
-    { timeout: 30_000, validateStatus: (s: number) => s < 500 },
+  // ─── GPU 全局串行队列 (gpuVramManager withGpuQueue, 2026-08-19 收编) ───
+  // LTX 与 H3/TTS/music3/qwen_eye 共享 GPU1 锁 — 此前直提 ComfyUI 绕过队列,
+  // 是同卡撞车源。POST / 异步 taskId 模式: 锁只包「提交段」(显存预检/驱逐 +
+  // POST /prompt); /verified 的「提交+轮询」由外层 withGpuQueueTimed 统一持锁
+  // (此处在锁内嵌套调用会自动 pass-through, 不重复排队)。
+  return withGpuQueue(
+    "ltx",
+    async () => {
+      const comfyRes = await axios.post(
+        `${LTX_CONFIG.comfyuiUrl}/prompt`,
+        { prompt: workflow },
+        { timeout: 30_000, validateStatus: (s: number) => s < 500 },
+      );
+      if (comfyRes.status !== 200) {
+        throw new MSRValidationError(502, `ComfyUI rejected prompt: ${JSON.stringify(comfyRes.data)}`);
+      }
+      return comfyRes.data.prompt_id as string;
+    },
+    { gpuIndex: 1, comfyuiUrl: LTX_CONFIG.comfyuiUrl },
   );
-  if (comfyRes.status !== 200) {
-    throw new MSRValidationError(502, `ComfyUI rejected prompt: ${JSON.stringify(comfyRes.data)}`);
-  }
-  return comfyRes.data.prompt_id as string;
 }
 
 /** POST /verified 的 regen 循环 */
@@ -1589,9 +1653,22 @@ async function runVerifiedRegenLoop(
     const outputFilename = `${params.outputFilename}_attempt${attempt}`;
     const filenamePrefix = params.outputDir ? `${params.outputDir}/${outputFilename}` : outputFilename;
 
-    const promptId = await submitWorkflow(params, audioMode, currentSeed, filenamePrefix);
-
-    const poll = await pollComfyUi(promptId, { pollTimeoutMs: opts.pollTimeoutMs });
+    // ─── GPU 全局串行队列 (gpuVramManager withGpuQueueTimed, 2026-08-19 收编) ───
+    // /verified 为同步长轮询路由: 锁粒度 = 「提交+轮询到完成」, 下载/BGM 检测在
+    // 锁外 (每个 attempt 重新排队)。queueWaitMs 不计入轮询预算 (pollTimeoutMs +
+    // queueWaitMs, 镜像 minimax-h3/generate.ts); 锁内嵌套的 submitWorkflow 自动
+    // pass-through, 不重复排队。
+    const { promptId, poll } = (
+      await withGpuQueueTimed(
+        "ltx",
+        async (queueWaitMs) => {
+          const promptId = await submitWorkflow(params, audioMode, currentSeed, filenamePrefix);
+          const poll = await pollComfyUi(promptId, { pollTimeoutMs: opts.pollTimeoutMs + queueWaitMs });
+          return { promptId, poll };
+        },
+        { gpuIndex: 1, comfyuiUrl: LTX_CONFIG.comfyuiUrl },
+      )
+    ).data;
     if (poll.status !== "success") {
       attempts.push({ attempt, promptId, seed: currentSeed, status: "error", error: poll.error });
       return { status: 502, body: error(`Generation failed (attempt ${attempt}): ${poll.error}`) };
@@ -1841,6 +1918,15 @@ router.post(
       const promptId = await submitWorkflow(params, mode, params.seed, filenamePrefix);
       return res.status(200).send(formatSinglePassResponse(params, mode, promptId, conflict));
     } catch (err: any) {
+      if (err instanceof VramInsufficientError) {
+        return res.status(503).send(error(err.message, {
+          kind: "vram_insufficient",
+          engine: "ltx",
+          freeMiB: err.freeMiB,
+          requiredMiB: err.requiredMiB,
+          gpuIndex: err.gpuIndex,
+        }));
+      }
       const status = err instanceof MSRValidationError ? err.status : 502;
       const msg = err.response?.data?.error?.message || err.response?.data?.node_errors || err.message || String(err);
       res.status(status).send(error(msg));
@@ -1952,6 +2038,15 @@ router.post(
       });
       return res.status(result.status).send(result.body);
     } catch (err: any) {
+      if (err instanceof VramInsufficientError) {
+        return res.status(503).send(error(err.message, {
+          kind: "vram_insufficient",
+          engine: "ltx",
+          freeMiB: err.freeMiB,
+          requiredMiB: err.requiredMiB,
+          gpuIndex: err.gpuIndex,
+        }));
+      }
       const status = err instanceof MSRValidationError ? err.status : 502;
       const msg = err.response?.data?.error?.message || err.response?.data?.node_errors || err.message || String(err);
       res.status(status).send(error(msg));

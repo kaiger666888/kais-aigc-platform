@@ -31,7 +31,12 @@
 import express from "express";
 import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
-import { withGpuQueue } from "@/lib/gpuVramManager";
+import {
+  withGpuQueue,
+  QueueTimeoutError,
+  QueueAbortedError,
+  QueuePurgedError,
+} from "@/lib/gpuVramManager";
 import { validateFields } from "@/middleware/middleware";
 import { MUSIC3_CONFIG, MUSIC3_CONSTANTS, MUSIC3_DEFAULTS } from "./config";
 
@@ -150,6 +155,15 @@ export default router.post(
       const seed = req.body.seed ?? MUSIC3_DEFAULTS.seed;
       const numInferenceSteps = req.body.num_inference_steps ?? MUSIC3_DEFAULTS.numInferenceSteps;
 
+      // ── 客户端断连取消 (2026-08-19 P1 路由接入) ──
+      // 排队中客户端断开 → signal 摘除 waiter (QueueAbortedError)。Node ≥16 的
+      // req "close" 在 body 读完即触发, 不能当断连信号; res "close" 且响应未完成才是。
+      // signal 仅排队阶段生效 — 已获锁作业照常跑完。
+      const ac = new AbortController();
+      res.on("close", () => {
+        if (!res.writableFinished) ac.abort();
+      });
+
       // ─── GPU 全局串行队列 (gpuVramManager withGpuQueue, 2026-08-16 二期) ───
       // Music3 ~22GB (近乎满卡), 与 ComfyUI 各引擎互斥。锁内「提交+同步等待完成」;
       // 异步模式锁只罩提交 (server 单任务串行, 提交返回即代表 GPU 已排他接管)。
@@ -170,7 +184,7 @@ export default router.post(
           const finalState = req.body.wait ? await pollUntilDone(taskId) : null;
           return { taskId, finalState };
         },
-        { gpuIndex: 1, requireVramMiB: await resolveRequireVramMiB() },
+        { gpuIndex: 1, requireVramMiB: await resolveRequireVramMiB(), signal: ac.signal },
       );
 
       // 异步模式: 立即返回 taskId
@@ -214,6 +228,21 @@ export default router.post(
         ),
       );
     } catch (err: any) {
+      // 队列类结构化错误 (2026-08-19 P1): queue_timeout→504 / queue_aborted→499 /
+      // queue_purged→503 — kind 字段供 kmc D-09 降级机判。
+      if (
+        err instanceof QueueTimeoutError ||
+        err instanceof QueueAbortedError ||
+        err instanceof QueuePurgedError
+      ) {
+        const status =
+          err.kind === "queue_timeout" ? 504 : err.kind === "queue_aborted" ? 499 : 503;
+        return res.status(status).json(error(err.message, {
+          kind: err.kind,
+          engine: err.engine,
+          gpuIndex: err.gpuIndex,
+        }));
+      }
       return res.status(500).json(error(err.message || "Internal error"));
     }
   },

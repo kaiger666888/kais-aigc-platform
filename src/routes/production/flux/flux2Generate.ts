@@ -20,6 +20,7 @@ import { execSync } from "child_process";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { success, error } from "@/lib/responseFormat";
+import { withGpuQueueTimed } from "@/lib/gpuVramManager";
 import { FLUX_CONFIG, FLUX2_DEFAULTS, QuantizationMode } from "./config";
 
 const router = express.Router();
@@ -184,9 +185,9 @@ async function submitPrompt(workflow: Record<string, any>): Promise<string> {
   return res.data.prompt_id;
 }
 
-async function pollResult(promptId: string): Promise<any> {
+async function pollResult(promptId: string, extraBudgetMs = 0): Promise<any> {
   const start = Date.now();
-  while (Date.now() - start < FLUX_CONFIG.pollTimeoutMs) {
+  while (Date.now() - start < FLUX_CONFIG.pollTimeoutMs + extraBudgetMs) {
     const res = await axios.get(
       `${FLUX_CONFIG.comfyuiUrl}/history/${promptId}`,
       { timeout: 10_000 }
@@ -301,8 +302,20 @@ router.post("/scene-generate", async (req: any, res: any) => {
       useCompile: params.use_compile,
     });
 
-    const promptId = await submitPrompt(workflow);
-    const result = await pollResult(promptId);
+    // ─── GPU 全局串行队列 (gpuVramManager withGpuQueueTimed, 2026-08-19 收编) ───
+    // FLUX.2 (~12GB) 与 TTS/H3/music3/qwen_eye 共享 GPU1 锁 — 此前直提 ComfyUI
+    // 绕过队列, 是同卡撞车源。锁内「提交+轮询到完成」; queueWaitMs 不计入轮询
+    // 预算 (pollTimeoutMs + queueWaitMs, 镜像 minimax-h3/generate.ts 做法)。
+    const { promptId, result } = (
+      await withGpuQueueTimed(
+        "flux2",
+        async (queueWaitMs) => {
+          const promptId = await submitPrompt(workflow);
+          return { promptId, result: await pollResult(promptId, queueWaitMs) };
+        },
+        { gpuIndex: 1, comfyuiUrl: FLUX_CONFIG.comfyuiUrl },
+      )
+    ).data;
 
     // 提取输出图片
     const images: Array<{ filename: string; subfolder: string }> = [];

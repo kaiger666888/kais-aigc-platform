@@ -20,7 +20,12 @@ import axios from "axios";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { success, error } from "@/lib/responseFormat";
-import { withGpuQueue } from "@/lib/gpuVramManager";
+import {
+  withGpuQueue,
+  QueueTimeoutError,
+  QueueAbortedError,
+  QueuePurgedError,
+} from "@/lib/gpuVramManager";
 import { validateFields } from "@/middleware/middleware";
 import { FLUX_CONFIG, FLUX_DEFAULTS, ConsistencyMode, QuantizationMode } from "./config";
 
@@ -435,6 +440,15 @@ router.post("/scene-generate", upload.single("reference_image"), async (req: any
       filenamePrefix,
     });
 
+    // ── 客户端断连取消 (2026-08-19 P1 路由接入) ──
+    // 排队中客户端断开 → signal 摘除 waiter (QueueAbortedError)。Node ≥16 的
+    // req "close" 在 body 读完即触发, 不能当断连信号; res "close" 且响应未完成才是。
+    // signal 仅排队阶段生效 — 已获锁作业照常跑完。
+    const ac = new AbortController();
+    res.on("close", () => {
+      if (!res.writableFinished) ac.abort();
+    });
+
     // ─── GPU 全局串行队列 (gpuVramManager withGpuQueue, 2026-08-16 二期) ───
     // FLUX (~12GB) 与 TTS/H3/music3/qwen_eye 共享 GPU1 锁; 锁内「提交+轮询到完成」。
     const { promptId, result } = await withGpuQueue(
@@ -443,7 +457,7 @@ router.post("/scene-generate", upload.single("reference_image"), async (req: any
         const promptId = await submitPrompt(workflow);
         return { promptId, result: await pollResult(promptId) };
       },
-      { gpuIndex: 1, comfyuiUrl: FLUX_CONFIG.comfyuiUrl },
+      { gpuIndex: 1, comfyuiUrl: FLUX_CONFIG.comfyuiUrl, signal: ac.signal },
     );
 
     // 提取输出图片
@@ -472,6 +486,21 @@ router.post("/scene-generate", upload.single("reference_image"), async (req: any
   } catch (err: any) {
     if (err instanceof z.ZodError) {
       return res.status(400).json(error("VALIDATION_ERROR", (err as any).errors));
+    }
+    // 队列类结构化错误 (2026-08-19 P1): queue_timeout→504 / queue_aborted→499 /
+    // queue_purged→503 — kind 字段供 kmc D-09 降级机判。
+    if (
+      err instanceof QueueTimeoutError ||
+      err instanceof QueueAbortedError ||
+      err instanceof QueuePurgedError
+    ) {
+      const status =
+        err.kind === "queue_timeout" ? 504 : err.kind === "queue_aborted" ? 499 : 503;
+      return res.status(status).json(error(err.message, {
+        kind: err.kind,
+        engine: err.engine,
+        gpuIndex: err.gpuIndex,
+      }));
     }
     res.status(500).json(error("SCENE_GEN_FAILED", err.message));
   }
@@ -529,6 +558,12 @@ router.post("/storyboard", async (req: any, res: any) => {
       filenamePrefix,
     });
 
+    // ── 客户端断连取消 (2026-08-19 P1) — 判据说明见 /scene-generate ──
+    const ac = new AbortController();
+    res.on("close", () => {
+      if (!res.writableFinished) ac.abort();
+    });
+
     // ─── GPU 全局串行队列 (gpuVramManager withGpuQueue, 2026-08-16 二期) ───
     const { promptId, result } = await withGpuQueue(
       "flux2",
@@ -536,7 +571,7 @@ router.post("/storyboard", async (req: any, res: any) => {
         const promptId = await submitPrompt(workflow);
         return { promptId, result: await pollResult(promptId) };
       },
-      { gpuIndex: 1, comfyuiUrl: FLUX_CONFIG.comfyuiUrl },
+      { gpuIndex: 1, comfyuiUrl: FLUX_CONFIG.comfyuiUrl, signal: ac.signal },
     );
 
     // 提取输出图片
@@ -575,6 +610,20 @@ router.post("/storyboard", async (req: any, res: any) => {
   } catch (err: any) {
     if (err instanceof z.ZodError) {
       return res.status(400).json(error("VALIDATION_ERROR", (err as any).errors));
+    }
+    // 队列类结构化错误 (2026-08-19 P1) — 同 /scene-generate: 5xx + kind
+    if (
+      err instanceof QueueTimeoutError ||
+      err instanceof QueueAbortedError ||
+      err instanceof QueuePurgedError
+    ) {
+      const status =
+        err.kind === "queue_timeout" ? 504 : err.kind === "queue_aborted" ? 499 : 503;
+      return res.status(status).json(error(err.message, {
+        kind: err.kind,
+        engine: err.engine,
+        gpuIndex: err.gpuIndex,
+      }));
     }
     res.status(500).json(error("STORYBOARD_FAILED", err.message));
   }

@@ -102,7 +102,11 @@ router.post("/allocate", async (req, res) => {
         if (result.granted) {
           // 拉起成功 → 服务级占用 (幂等), 直到 /release 或服务被外部停止。
           // 外层 withGpuQueue 返回时锁已转交本占用 → release 变 no-op。
-          await acquireEngineOccupancy(QWEN_EAR_QUEUE_KEY, GPU_QUEUE_DEFAULT_INDEX);
+          // healthUrl: 占用看门狗 (2026-08-19 三期) — :8126 连续失联即自动释放
+          // 占位, 同 llm 路由 (孤儿占位拖死排队的兜底前置化)。
+          await acquireEngineOccupancy(QWEN_EAR_QUEUE_KEY, GPU_QUEUE_DEFAULT_INDEX, {
+            healthUrl: EAR_HEALTH_URL,
+          });
         }
         return result;
       },

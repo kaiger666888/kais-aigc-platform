@@ -16,7 +16,14 @@
 import express from "express";
 import path from "path";
 import { success, error } from "@/lib/responseFormat";
-import { VramInsufficientError, withGpuQueue, withGpuQueueTimed } from "@/lib/gpuVramManager";
+import {
+  VramInsufficientError,
+  QueueTimeoutError,
+  QueueAbortedError,
+  QueuePurgedError,
+  withGpuQueue,
+  withGpuQueueTimed,
+} from "@/lib/gpuVramManager";
 import {
   QWEN_TTS_CONFIG,
   QWEN_TTS_DEFAULTS,
@@ -440,6 +447,15 @@ async function speakHandler(req: Request, res: Response): Promise<Response> {
     // Build & submit workflow
     const workflow = buildWorkflow(body);
 
+    // ── 客户端断连取消 (2026-08-19 P1 路由接入) ──
+    // 排队中客户端断开 → signal 摘除 waiter (QueueAbortedError)。Node ≥16 的
+    // req "close" 在 body 读完即触发, 不能当断连信号; res "close" 且响应未完成才是。
+    // signal 仅排队阶段生效 — 已获锁作业照常跑完。
+    const ac = new AbortController();
+    res.on("close", () => {
+      if (!res.writableFinished) ac.abort();
+    });
+
     // ─── GPU 全局串行队列 (gpuVramManager withGpuQueueTimed, 2026-08-16) ───
     // 跨引擎互斥 (TTS/H3/music3/qwen_eye 共享 GPU1 锁), 排队等待而非 fail-fast;
     // 排队超时 (默认 30min) 才抛 vram_insufficient。
@@ -461,7 +477,7 @@ async function speakHandler(req: Request, res: Response): Promise<Response> {
           if (isAsync) return { promptId: pid, result: null };
           return { promptId: pid, result: await pollUntilDone(pid, waitedMs) };
         },
-        { gpuIndex: 1, comfyuiUrl: QWEN_TTS_CONFIG.comfyuiUrl },
+        { gpuIndex: 1, comfyuiUrl: QWEN_TTS_CONFIG.comfyuiUrl, signal: ac.signal },
       );
       promptId = out.data.promptId;
       queueWaitMs = out.queueWaitMs;
@@ -473,6 +489,21 @@ async function speakHandler(req: Request, res: Response): Promise<Response> {
           engine: "qwen_tts",
           freeMiB: err.freeMiB,
           requiredMiB: err.requiredMiB,
+          gpuIndex: err.gpuIndex,
+        }));
+      }
+      // 队列类结构化错误 (2026-08-19 P1): queue_timeout→504 / queue_aborted→499 /
+      // queue_purged→503 — kind 字段供 kmc D-09 降级机判。
+      if (
+        err instanceof QueueTimeoutError ||
+        err instanceof QueueAbortedError ||
+        err instanceof QueuePurgedError
+      ) {
+        const status =
+          err.kind === "queue_timeout" ? 504 : err.kind === "queue_aborted" ? 499 : 503;
+        return res.status(status).json(error(err.message, {
+          kind: err.kind,
+          engine: err.engine,
           gpuIndex: err.gpuIndex,
         }));
       }
@@ -553,6 +584,13 @@ router.post("/batch", async (req: Request, res: Response) => {
     }
 
     // Submit all prompts sequentially (avoid GPU OOM)
+    // 客户端断连取消 (2026-08-19 P1): 整批共享一个 signal — 断连后逐条入队即刻
+    // QueueAbortedError, 不再空转剩余条目。res "close" 判据说明见 /speak handler。
+    const ac = new AbortController();
+    res.on("close", () => {
+      if (!res.writableFinished) ac.abort();
+    });
+
     const results: Array<{
       id?: string;
       status: string;
@@ -588,7 +626,7 @@ router.post("/batch", async (req: Request, res: Response) => {
             const pid = await submitPrompt(workflow);
             return { promptId: pid, result: await pollUntilDone(pid, waitedMs) };
           },
-          { gpuIndex: 1, comfyuiUrl: QWEN_TTS_CONFIG.comfyuiUrl },
+          { gpuIndex: 1, comfyuiUrl: QWEN_TTS_CONFIG.comfyuiUrl, signal: ac.signal },
         );
         const { promptId, result } = timed.data;
 
@@ -603,6 +641,22 @@ router.post("/batch", async (req: Request, res: Response) => {
           });
         }
       } catch (err: any) {
+        // 队列类结构化错误 → 中止整批, 5xx + kind 返回 (aborted 时客户端已断仅留痕;
+        // timeout 后续条目同样会超, 继续空转无意义)
+        if (
+          err instanceof QueueTimeoutError ||
+          err instanceof QueueAbortedError ||
+          err instanceof QueuePurgedError
+        ) {
+          const status =
+            err.kind === "queue_timeout" ? 504 : err.kind === "queue_aborted" ? 499 : 503;
+          return res.status(status).json(error(err.message, {
+            kind: err.kind,
+            engine: err.engine,
+            gpuIndex: err.gpuIndex,
+            batch: { processed: results.length, total: body.items.length },
+          }));
+        }
         results.push({ id: item.id, status: "error", error: err.message });
       }
     }

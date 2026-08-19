@@ -69,7 +69,13 @@ import axios from "axios";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { success, error } from "@/lib/responseFormat";
-import { VramInsufficientError, withGpuQueueTimed } from "@/lib/gpuVramManager";
+import {
+  VramInsufficientError,
+  QueueTimeoutError,
+  QueueAbortedError,
+  QueuePurgedError,
+  withGpuQueueTimed,
+} from "@/lib/gpuVramManager";
 import { validateFields } from "@/middleware/middleware";
 import {
   H3_CONFIG,
@@ -944,6 +950,16 @@ export default router.post(
     let h3PromptId: string | null = null;
     let localH3VideoPath: string | null = null;
 
+    // ── 客户端断连取消 (2026-08-19 P1 路由接入) ──
+    // 排队中客户端断开 → AbortSignal 摘除 waiter (QueueAbortedError), 不留幽灵
+    // 等待者占队。注意: Node ≥16 的 req "close" 在 body 读完即触发 (实测与 req-end
+    // 同毫秒), 不能当断连信号; res "close" 且响应未完成才是真断连。
+    // signal 仅排队阶段生效 — 已获锁的 GPU 作业照常跑完。
+    const ac = new AbortController();
+    res.on("close", () => {
+      if (!res.writableFinished) ac.abort();
+    });
+
     try {
       // ─── GPU 全局串行队列 (gpuVramManager withGpuQueueTimed, 2026-08-16) ───
       // 跨引擎互斥 (H3/TTS/music3/qwen_eye 共享 GPU1 锁), 排队等待而非 fail-fast;
@@ -976,7 +992,7 @@ export default router.post(
           }
           return { kind: "ok" as const, promptId: pid, outputs: poll.outputs };
         },
-        { gpuIndex: 1, comfyuiUrl: H3_CONFIG.comfyuiUrl },
+        { gpuIndex: 1, comfyuiUrl: H3_CONFIG.comfyuiUrl, signal: ac.signal },
       );
       const h3Result = h3Out.data;
 
@@ -1014,6 +1030,21 @@ export default router.post(
           engine: "minimax_h3",
           freeMiB: err.freeMiB,
           requiredMiB: err.requiredMiB,
+          gpuIndex: err.gpuIndex,
+        }));
+      }
+      // 队列类结构化错误 (2026-08-19 P1): queue_timeout→504 / queue_aborted→499
+      // (客户端已断, 状态码仅留痕) / queue_purged→503 — kind 字段供 kmc D-09 降级机判。
+      if (
+        err instanceof QueueTimeoutError ||
+        err instanceof QueueAbortedError ||
+        err instanceof QueuePurgedError
+      ) {
+        const status =
+          err.kind === "queue_timeout" ? 504 : err.kind === "queue_aborted" ? 499 : 503;
+        return res.status(status).send(error(err.message, {
+          kind: err.kind,
+          engine: err.engine,
           gpuIndex: err.gpuIndex,
         }));
       }
