@@ -215,8 +215,8 @@ async function main(): Promise<void> {
   ];
   const namingPlan = grouping.planGroups(namingImages);
   assert(namingPlan.groups.length === 2, "2 naming groups (turnaround family + scene family)", `actual: ${namingPlan.groups.length}`);
-  const trGroup = namingPlan.groups.find((g) => g.groupKey === "name:base_turnaround_chengyu");
-  assert(!!trGroup, "groupKey name:base_turnaround_chengyu");
+  const trGroup = namingPlan.groups.find((g) => g.groupKey === "name:turnaround_sheets/base_turnaround_chengyu");
+  assert(!!trGroup, "groupKey name:turnaround_sheets/base_turnaround_chengyu (dir-aware, WR-03)");
   assert(
     !!trGroup && bn(trGroup.primaryFilePath) === "base_turnaround_chengyu.png",
     "canonical no-suffix file present → primary = canonical",
@@ -236,8 +236,8 @@ async function main(): Promise<void> {
     "turnaround base → metaSubtype=turnaround_sheet (register_turnaround_b2.py shape)",
     trGroup?.metaSubtype,
   );
-  const sceneGroup = namingPlan.groups.find((g) => g.groupKey === "name:scene_S07");
-  assert(!!sceneGroup, "groupKey name:scene_S07");
+  const sceneGroup = namingPlan.groups.find((g) => g.groupKey === "name:manual/scene_S07");
+  assert(!!sceneGroup, "groupKey name:manual/scene_S07 (dir-aware, WR-03)");
   assert(
     !!sceneGroup && bn(sceneGroup.primaryFilePath) === "scene_S07_v1.png",
     "no canonical → primary = lowest variant number (v1)",
@@ -250,7 +250,7 @@ async function main(): Promise<void> {
     { filePath: `${PROJ}/p04/turnaround_sheets/base_turnaround_chengyu_v1.png`, assetName: "v1", characterId: "custom-id" },
     { filePath: `${PROJ}/p04/turnaround_sheets/base_turnaround_chengyu_v2.png`, assetName: "v2" },
   ]);
-  const inputCharGroup = inputCharPlan.groups.find((g) => g.groupKey === "name:base_turnaround_chengyu");
+  const inputCharGroup = inputCharPlan.groups.find((g) => g.groupKey === "name:turnaround_sheets/base_turnaround_chengyu");
   assert(
     !!inputCharGroup && inputCharGroup.characterId === "custom-id",
     "member input characterId wins over name-derived",
@@ -339,6 +339,43 @@ async function main(): Promise<void> {
       && bn(wr01Plan.groups[0].primaryFilePath) === "first_frame_v1.png",
     "WR-01: unresolved selected index falls back to first present member",
     wr01Plan ? bn(wr01Plan.groups[0]?.primaryFilePath ?? "") : "no plan",
+  );
+
+  // ─── WR-03: same stem in different directories never merges ────────────
+  console.log("\n=== WR-03: dir-aware naming channel ===");
+  const wr03Plan = grouping.planGroups([
+    { filePath: "/oss/projA/p04/turnaround_sheets/hero_v1.png", assetName: "a1" },
+    { filePath: "/oss/projA/p04/turnaround_sheets/hero_v2.png", assetName: "a2" },
+    { filePath: "/oss/projB/p09/fanart/hero_v1.png", assetName: "b1" },
+    { filePath: "/oss/projB/p09/fanart/hero_v2.png", assetName: "b2" },
+  ]);
+  assert(
+    wr03Plan.groups.length === 2,
+    "WR-03 regression: same stem in two dirs → 2 groups (was: 1 merged cross-dir group)",
+    `actual: ${wr03Plan.groups.length}`,
+  );
+  assert(
+    wr03Plan.groups.every((g) => g.memberFilePaths.length === 2),
+    "WR-03: each dir-family keeps its own 2 members (no cross-family assetsId links)",
+  );
+  const wr03Keys = wr03Plan.groups.map((g) => g.groupKey).sort();
+  assert(
+    JSON.stringify(wr03Keys) === JSON.stringify(["name:fanart/hero", "name:turnaround_sheets/hero"]),
+    "WR-03: naming groupKeys are parent-disambiguated",
+    JSON.stringify(wr03Keys),
+  );
+  // Canonical only claims variants from its OWN directory (WR-03 minimal
+  // requirement from the review): cross-dir variant forms its own group.
+  const wr03Canon = grouping.planGroups([
+    { filePath: "/oss/projA/sheets/hero.png", assetName: "canonical in A" },
+    { filePath: "/oss/projA/sheets/hero_v1.png", assetName: "a1" },
+    { filePath: "/oss/projB/other/hero_v2.png", assetName: "b2" },
+  ]);
+  const wr03CanonKeys = wr03Canon.groups.map((g) => g.groupKey).sort();
+  assert(
+    JSON.stringify(wr03CanonKeys) === JSON.stringify(["name:other/hero", "name:sheets/hero"]),
+    "WR-03: canonical joins only same-directory variants",
+    JSON.stringify(wr03CanonKeys),
   );
 
   // ─── Standalone passthrough (D-03: 维持现状, no error) ─────────────────
@@ -467,7 +504,7 @@ async function main(): Promise<void> {
     assert(result.groups.length === 6, "6 groups (4 manifest + turnaround + scene pair)", `actual: ${result.groups.length}`);
     assert(
       JSON.stringify(result.groups.map((g) => g.groupKey).sort()) === JSON.stringify([
-        "name:base_turnaround_chengyu", "name:scene_S07",
+        "name:turnaround_sheets/base_turnaround_chengyu", "name:manual/scene_S07",
         "shot:S01_B01:first", "shot:S01_B01:last",
         "shot:S02_B01:first", "shot:S02_B01:last",
       ].sort()),
@@ -536,8 +573,8 @@ async function main(): Promise<void> {
       "shot:S01_B01:last": "last_frame_v1.png",   // selected=null → first present
       "shot:S02_B01:first": "first_frame_v1.png", // selected=null → v1
       "shot:S02_B01:last": "last_frame_v2.png",   // selected_last_variant=2
-      "name:base_turnaround_chengyu": "base_turnaround_chengyu.png", // canonical
-      "name:scene_S07": "scene_S07_v1.png",       // no canonical → lowest variant
+      "name:turnaround_sheets/base_turnaround_chengyu": "base_turnaround_chengyu.png", // canonical
+      "name:manual/scene_S07": "scene_S07_v1.png", // no canonical → lowest variant
     };
     for (const g of result.groups) {
       const primaryAsset = await tempDb("o_assets").where("id", g.primaryAssetId).first();

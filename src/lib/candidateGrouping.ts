@@ -15,7 +15,9 @@
  *
  * groupKey formats: `shot:{shot_id}:first` / `shot:{shot_id}:last` (first and
  * last frames of one shot are TWO different groups — mirrors getGroupKey's
- * keyframe split in AssetLibrary.tsx) and `name:{base}`.
+ * keyframe split in AssetLibrary.tsx) and `name:{parentDir}/{base}` — the
+ * naming channel is dir-aware (WR-03), so same-stem families in different
+ * directories never merge.
  *
  * Duplicate groupKey across manifest entries (same shot_id + side listed
  * twice) THROWS instead of emitting colliding groups: two plans under one
@@ -105,6 +107,21 @@ function dirBase(p: string): string {
   const segs = segments(p);
   const bn = segs[segs.length - 1] ?? "";
   return segs.length >= 2 ? `${segs[segs.length - 2]}/${bn}` : bn;
+}
+
+/** "parentDir/stem" — the naming channel's dir-aware key (WR-03): same-stem
+ *  families in different directories (p04 turnaround_sheets vs p09 fanart)
+ *  must never merge into one group. Rootless paths key by bare stem. */
+function parentStem(p: string): string {
+  const segs = segments(p);
+  return segs.length >= 2 ? `${segs[segs.length - 2]}/${stem(p)}` : stem(p);
+}
+
+/** "parentDir/base" — same key shape for a variant file keyed by its PARSED
+ *  base (stem minus _v{N}), so it lines up with the canonical's parentStem. */
+function parentBase(p: string, base: string): string {
+  const segs = segments(p);
+  return segs.length >= 2 ? `${segs[segs.length - 2]}/${base}` : base;
 }
 
 // ─── parseVariantName ──────────────────────────────────────────────────────
@@ -264,33 +281,39 @@ export function planGroups(
   }
 
   // ─── Channel 2: naming convention, only for unclaimed images ───────────
+  // Keyed by parentDir+stem (WR-03): the manifest channel disambiguates by
+  // parent directory, and the naming channel must too — grouping by bare stem
+  // would merge unrelated same-named families across skill output dirs
+  // (p04 turnarounds vs p09 fanart) into one wrong group.
   const unclaimed = images.filter((img) => !claimed.has(img.filePath));
 
-  // Canonical (no-suffix) candidates among unclaimed images, by stem.
-  const canonicalByStem = new Map<string, IngestImageInput>();
+  // Canonical (no-suffix) candidates among unclaimed images, by parent+stem.
+  const canonicalByKey = new Map<string, IngestImageInput>();
   for (const img of unclaimed) {
     if (parseVariantName(img.filePath)) continue; // variants are not canonical
-    const s = stem(img.filePath);
-    if (s && !canonicalByStem.has(s)) canonicalByStem.set(s, img);
+    const key = parentStem(img.filePath);
+    if (key && !canonicalByKey.has(key)) canonicalByKey.set(key, img);
   }
 
-  // Variant members grouped by base.
-  const variantsByBase = new Map<string, IngestImageInput[]>();
+  // Variant members grouped by parent+base.
+  const variantsByKey = new Map<string, IngestImageInput[]>();
   for (const img of unclaimed) {
     const pv = parseVariantName(img.filePath);
     if (!pv) continue;
-    const arr = variantsByBase.get(pv.base);
+    const key = parentBase(img.filePath, pv.base);
+    const arr = variantsByKey.get(key);
     if (arr) arr.push(img);
-    else variantsByBase.set(pv.base, [img]);
+    else variantsByKey.set(key, [img]);
   }
 
-  for (const [base, members] of variantsByBase) {
+  for (const [key, members] of variantsByKey) {
+    const base = key.split("/").pop() ?? key; // stem carries no "/"
     const sorted = [...members].sort((a, b) => {
       const va = parseVariantName(a.filePath)?.variant ?? 0;
       const vb = parseVariantName(b.filePath)?.variant ?? 0;
       return va - vb;
     });
-    const canonical = canonicalByStem.get(base);
+    const canonical = canonicalByKey.get(key);
     const primary = canonical ?? sorted[0];
     const ordered = canonical ? [canonical, ...sorted] : sorted;
     for (const m of ordered) claimed.add(m.filePath);
@@ -311,7 +334,7 @@ export function planGroups(
       if (!metaSubtype) metaSubtype = "turnaround_sheet";
     }
     pushGroup({
-      groupKey: `name:${base}`,
+      groupKey: `name:${key}`,
       primaryFilePath: primary.filePath,
       memberFilePaths: ordered.map((m) => m.filePath),
       ...(characterId ? { characterId } : {}),
