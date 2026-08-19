@@ -251,6 +251,26 @@ async function main(): Promise<void> {
         winner_node_id: "a-oasset-13", select_mode: "single", created_at: T0, updated_at: T0 },
     ]);
 
+    // WR-09 fixture: gLk contains a curation:'locked' member (data blob) —
+    // the registry linkage must respect the §11 guard the client enforces.
+    await db("o_assets").insert([
+      { id: 14, projectId: P, isPrimaryView: 0 },
+      { id: 15, projectId: P, isPrimaryView: 1 },
+    ]);
+    await db("canvas_nodes").insert([
+      { ...nodeEp("a-oasset-14", 1, 14, "gLk", 0) },
+      { id: "a-oasset-15", project_id: P, episodes_id: 1, type: "asset", branch_id: "main",
+        phase_index: 4, phase_name: "p04_character_design",
+        position_x: 0, position_y: 0, size_width: 260, size_height: 180,
+        data: JSON.stringify({ oAssetId: 15, curation: "locked" }), state: "idle",
+        is_winner: 1, variant_group_id: "gLk", created_at: T0, updated_at: T0 },
+    ]);
+    await db("canvas_variant_groups").insert({
+      id: "gLk", project_id: P, episodes_id: 1, phase_index: 4, branch_id: "main",
+      variant_node_ids: JSON.stringify(["a-oasset-14", "a-oasset-15"]),
+      winner_node_id: "a-oasset-15", select_mode: "single", created_at: T0, updated_at: T0,
+    });
+
     const groupRow = (id: string, projectId: number) =>
       db("canvas_variant_groups").where({ id, project_id: projectId, episodes_id: E }).first();
     const nodeRow = (id: string, projectId: number) =>
@@ -426,6 +446,22 @@ async function main(): Promise<void> {
         f12p[0].episodesId === 1 && f12p[1].episodesId === 2,
       "(me) plural lookup returns ALL refs ordered episodes_id asc",
       JSON.stringify(f12p),
+    );
+
+    // ── (lk) WR-09: locked-member group — linkage info-skips, zero writes ──
+    console.log("\n=== WR-09 (lk) locked-member group → linkage skip ===");
+    threw = false;
+    try {
+      await linkage.applyRegistrySelectionToCanvas(db, 14);
+    } catch (e: any) {
+      threw = true;
+    }
+    assert(!threw, "(lk) locked group selection resolves without throwing");
+    const gLkRow: any = await db("canvas_variant_groups").where({ id: "gLk", project_id: P, episodes_id: 1 }).first();
+    const n14: any = await db("canvas_nodes").where({ id: "a-oasset-14", project_id: P, episodes_id: 1 }).first();
+    assert(
+      gLkRow.winner_node_id === "a-oasset-15" && gLkRow.updated_at === T0 && n14.is_winner === 0,
+      "(lk) locked group untouched — registry linkage cannot bypass the client §11 guard",
     );
 
     // ── (err) internal failure is swallowed — never throws outward (T-49-11) ─

@@ -369,7 +369,7 @@ export async function listVariantGroups(scope: Scope): Promise<VariantGroupV2[]>
  * inject their own knex instance.
  */
 export interface SelectWinnerResult {
-  status: "updated" | "idempotent" | "not_found" | "not_in_group" | "multi_mode";
+  status: "updated" | "idempotent" | "not_found" | "not_in_group" | "multi_mode" | "locked";
   groupId: string;
   winnerNodeId: string;
   /** 1-based position of the winner inside group.variantNodeIds; 0 unless status is updated/idempotent. */
@@ -425,6 +425,13 @@ function extractOAssetIdFromNode(nodeId: string, data: Record<string, any>): num
  *   multi_mode   — group.select_mode !== "single" (a multi group refuses a
  *                  single winner instead of corrupting it with one)
  *   not_in_group — winnerNodeId not inside the group's variant_node_ids
+ *   locked       — WR-09: some member's parsed data.curation === 'locked'.
+ *                  Mirrors the client's selectVariant §11 guard: a group
+ *                  containing a reference-locked member can never be
+ *                  overwritten by a selection — including via the direct
+ *                  API or the registry→canvas linkage, which never pass
+ *                  through the client. Rejected BEFORE idempotency (the
+ *                  client throws on ANY select of a locked group).
  *   idempotent   — winner_node_id already equals winnerNodeId → ZERO writes
  *   updated      — single transaction: ① group.winner_node_id ② per-member
  *                  canvas_nodes.is_winner (winner=true, siblings=false).
@@ -483,16 +490,22 @@ export async function selectWinnerInGroup(
   const memberOAssetIds: number[] = [];
   let winnerPhaseName: string | null = null;
   let winnerOAssetId: number | null = null;
+  let lockedMemberId: string | null = null;
   for (const memberId of variantNodeIds) {
     const row = memberRows.find((r) => r.id === memberId);
     if (!row) continue;
-    const oAssetId = extractOAssetIdFromNode(row.id, parseNodeData(row.data));
+    const data = parseNodeData(row.data);
+    if (lockedMemberId === null && data?.curation === "locked") {
+      lockedMemberId = memberId; // WR-09: §11 reference-lock, see docstring
+    }
+    const oAssetId = extractOAssetIdFromNode(row.id, data);
     if (oAssetId != null && !memberOAssetIds.includes(oAssetId)) memberOAssetIds.push(oAssetId);
     if (memberId === winnerNodeId) {
       winnerPhaseName = row.phase_name ?? null;
       winnerOAssetId = oAssetId;
     }
   }
+  if (lockedMemberId !== null) return reject("locked");
 
   // D-03: re-selecting the current winner is a no-op — return BEFORE any
   // UPDATE statement can run.

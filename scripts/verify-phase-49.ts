@@ -165,6 +165,7 @@ async function main(): Promise<void> {
       node("node-x", {}, "g3", "p04_character_design"),          // id NOT a-oasset-*; no oAssetId
       node("a-oasset-77", { label: "prefix only" }, "g3", "p04_character_design"), // prefix-mapped
       node("node-solo", {}, null, "manual_sync"),                 // exists but in no group
+      node("node-locked", { curation: "locked" }, "g4", "p11_first_last_frames"), // WR-09
     ]);
     const group = (id: string, members: string[], mode: string, winner: string | null) => ({
       id, project_id: SCOPE.projectId, episodes_id: SCOPE.episodesId,
@@ -177,6 +178,7 @@ async function main(): Promise<void> {
       group("g1", ["node-a", "node-b", "node-c"], "single", null), // node-c dangling
       group("g2", ["node-a", "node-b"], "multi", null),
       group("g3", ["node-x", "a-oasset-77"], "single", "node-x"),
+      group("g4", ["node-a", "node-locked"], "single", null),     // WR-09 locked-member group
     ]);
 
     // ── updated: select node-b in g1 ───────────────────────────────────────
@@ -239,6 +241,24 @@ async function main(): Promise<void> {
     assert(g2Row.winner_node_id === null && g2Row.updated_at === T0, "multi_mode: rejected group row untouched (no writes)");
     const wrongScope = await store.selectWinnerInGroup(db, { projectId: 202, episodesId: 1 }, "g1", "node-a");
     assert(wrongScope.status === "not_found", "not_found: same group id under a different scope is invisible (composite PK honored)");
+
+    // ── locked (WR-09): curation:'locked' member refuses every selection ──
+    console.log("\n=== WR-09 locked-member guard (§11 reference-lock, server-side) ===");
+    const aBeforeLock: any = await db("canvas_nodes").where({ id: "node-a", project_id: 101, episodes_id: 1 }).first();
+    const rLock = await store.selectWinnerInGroup(db, SCOPE, "g4", "node-a");
+    assert(
+      rLock.status === "locked",
+      "locked (WR-09): group containing a curation:'locked' member refuses the selection",
+      `actual: ${rLock.status}`,
+    );
+    const g4Row: any = await db("canvas_variant_groups").where({ id: "g4", project_id: 101, episodes_id: 1 }).first();
+    const aAfterLock: any = await db("canvas_nodes").where({ id: "node-a", project_id: 101, episodes_id: 1 }).first();
+    assert(
+      g4Row.updated_at === T0 &&
+        aAfterLock.is_winner === aBeforeLock.is_winner &&
+        aAfterLock.updated_at === aBeforeLock.updated_at,
+      "locked (WR-09): ZERO writes — group row and member node untouched",
+    );
 
     // ── a-oasset- prefix fallback (verified_fact 1 reverse mapping) ────────
     console.log("\n=== SELECT-01 oAssetId prefix fallback ===");
@@ -515,6 +535,19 @@ async function main(): Promise<void> {
     variant_node_ids: JSON.stringify(["ep-u", "ep-a"]), winner_node_id: "ep-a",
     select_mode: "single", created_at: T0, updated_at: T0,
   });
+  // WR-09 fixture: gE4 contains a curation:'locked' member.
+  await appDb("canvas_nodes").insert({
+    id: "ep-lock", project_id: 777, episodes_id: 1, type: "asset", branch_id: "main",
+    phase_index: 11, phase_name: "p11_first_last_frames",
+    position_x: 0, position_y: 0, size_width: 260, size_height: 180,
+    data: JSON.stringify({ curation: "locked" }), state: "idle", is_winner: 0,
+    variant_group_id: "gE4", created_at: T0, updated_at: T0,
+  });
+  await appDb("canvas_variant_groups").insert({
+    id: "gE4", project_id: 777, episodes_id: 1, phase_index: 11, branch_id: "main",
+    variant_node_ids: JSON.stringify(["ep-a", "ep-lock"]), winner_node_id: null,
+    select_mode: "single", created_at: T0, updated_at: T0,
+  });
 
   const post = (groupId: string, body: unknown) =>
     callEndpoint(routeMod.default, "POST", "/" + groupId + "/select-winner", body);
@@ -606,6 +639,24 @@ async function main(): Promise<void> {
     a9002b.isPrimaryView === 1,
     "endpoint WR-03: demotion scoped to gE3 members — gE1 winner primary 9002 untouched",
     "actual: " + a9002b.isPrimaryView,
+  );
+
+  // 409 — WR-09: locked-member group refuses selection server-side
+  const r409l = await post("gE4", { projectId: 777, episodesId: 1, winnerNodeId: "ep-a" });
+  emit(
+    r409l.status === 409,
+    "endpoint WR-09: locked-member group → HTTP 409 (client §11 guard mirrored server-side)",
+    "actual: " + r409l.status,
+  );
+  emit(
+    !!r409l.payload && r409l.payload.message === "组含 curation:'locked' 成员，不可选定",
+    "endpoint WR-09: 409 locked message",
+    JSON.stringify(r409l.payload && r409l.payload.message),
+  );
+  const gE4Row: any = await appDb("canvas_variant_groups").where({ id: "gE4", project_id: 777, episodes_id: 1 }).first();
+  emit(
+    gE4Row.winner_node_id === null && gE4Row.updated_at === T0,
+    "endpoint WR-09: locked group row untouched (zero writes)",
   );
 
   await appDb.destroy();

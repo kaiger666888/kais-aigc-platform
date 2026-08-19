@@ -31,7 +31,8 @@ const router = express.Router();
  *
  * body: { projectId: number, episodesId: number, winnerNodeId: string }
  * → 200 { groupId, winnerNodeId, applied: true|false }
- * → 404 group not found | 409 winner outside the group / select_mode != single
+ * → 404 group not found | 409 winner outside the group / select_mode != single /
+ *   409 group contains a curation:'locked' member (WR-09)
  */
 const selectWinnerSchema = z.object({
   projectId: z.number(),
@@ -69,6 +70,14 @@ router.post(
         return res
           .status(409)
           .send(error("仅 single 组支持选定", { groupId, selectMode: "multi" }));
+      }
+      if (result.status === "locked") {
+        // WR-09: mirror the client's selectVariant §11 guard server-side —
+        // a group containing a curation:'locked' member can never be
+        // overwritten, not even via the direct API or the registry linkage.
+        return res
+          .status(409)
+          .send(error("组含 curation:'locked' 成员，不可选定", { groupId }));
       }
       if (result.status === "idempotent") {
         // D-03: re-selecting the current winner carries no new information —
