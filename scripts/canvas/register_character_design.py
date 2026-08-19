@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+# [DEPRECATED — Phase 50, 2026-08-19]
+# Manual historical registration tool — kept as historical evidence per
+# decision D-12 (never deleted). Do NOT use for new registrations; do NOT
+# cron. New assets flow through the Phase 48 candidate-aware ingest route
+# POST /api/v1/pipeline/ingest/images (src/routes/v1/pipeline/ingest/images.ts),
+# which lands candidate groups (member assetsId -> primary, exactly-one
+# isPrimaryView) + workflow_phase automatically.
 """
 register_character_design.py — 把 24 张角色设定图（概念设计图 v1/v2/v3）同步到 canvas_nodes。
 

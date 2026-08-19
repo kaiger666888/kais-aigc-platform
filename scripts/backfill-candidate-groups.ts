@@ -6,6 +6,25 @@
  * groups (member assetsId → primary row id, exactly one isPrimaryView=1 per
  * group) and workflow_phase values derived from meta/meta.provenance/path.
  *
+ * [APPLIED AND ARCHIVED — do not run again]
+ *
+ * This backfill has been applied and archived — do not run again; kept for
+ * audit/reproducibility (Phase 47 archive semantics). The --apply gate below
+ * (backup flag) remains as the mechanical backstop.
+ *
+ * APPLIED 2026-08-19 (Plan 50-01, production run):
+ *   - planned 538 changes → executed 538/538 in ONE transaction; idempotency
+ *     re-run: 0 planned / 0 executed
+ *   - 154 candidate groups formed (121 multi-row + 33 single-variant whose
+ *     lone row became its own primary); 240 member rows linked via assetsId
+ *   - 534 workflow_phase values backfilled (237 from meta incl. nested
+ *     meta.provenance.phase, 297 from path); pre-existing values never touched
+ *   - 386 eliminated rows byte-untouched (D-05 red line, snapshot-diff proven)
+ *
+ * Pre-apply backup: data/db2-backup-pre-phase-50.sqlite (gitignored).
+ * Audit trail: .planning/phases/50-historical-backfill-contract-guards/
+ *   backfill-baseline-dryrun.txt / backfill-apply-log.txt / backfill-post-run-verify.txt
+ *
  * NEVER add this to cron, app startup, or any runtime path — it is a repair
  * tool for rows ingested BEFORE Phase 48. The live path for all new data is
  * the Phase 48 ingest route (src/routes/v1/pipeline/ingest/images.ts →
