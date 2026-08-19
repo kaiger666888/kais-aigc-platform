@@ -5,8 +5,8 @@
  * Asserts the kap → review-platform resolve bridge (src/lib/reviewBridge.ts —
  * resolveOpenReviewForSelection) against a LOCAL node:http mock of the
  * review-platform API bound to 127.0.0.1 on a random port. The real service
- * is never contacted (isolation requirement — this file must contain no
- * ":8090" literal).
+ * is never contacted (isolation requirement — this file deliberately
+ * contains no literal pointing at the real review-platform address/port).
  *
  * Mock surface (mirrors the verified platform contract):
  *   GET  /api/v1/reviews             → { data: { items, next_cursor, has_more } }
@@ -316,6 +316,30 @@ async function main(): Promise<void> {
   );
   assert(rf.log.warns.length >= 1, "(f) timeout is warn-logged (swallowed exception)");
   assert(gets().length === 1, "(f) the GET was attempted before the abort");
+
+  // ── select-winner route wiring (Task 2) ──────────────────────────────────
+  console.log("\n=== select-winner route wiring (fire-and-forget mount) ===");
+  const routeSrc = read("src/routes/canvas/v2/select-winner.ts");
+  assert(
+    routeSrc.includes("resolveOpenReviewForSelection"),
+    "route: bridge call present in select-winner.ts",
+  );
+  assert(
+    /void\s+resolveOpenReviewForSelection\(/.test(routeSrc),
+    "route: call is void-prefixed — the response never awaits the bridge (T-49-06)",
+  );
+  assert(
+    /resolveOpenReviewForSelection\([\s\S]*?\}\)\s*\.catch\(/.test(routeSrc),
+    "route: call carries a .catch backstop",
+  );
+  assert(
+    routeSrc.indexOf("applied: false") < routeSrc.indexOf("void resolveOpenReviewForSelection"),
+    "route: idempotent branch (applied:false) returns BEFORE the bridge call — idempotent path never bridges",
+  );
+  assert(
+    routeSrc.indexOf("await syncAssetPrimaryForWinner") < routeSrc.indexOf("void resolveOpenReviewForSelection"),
+    "route: bridge fires at the 49-01 seam, after the D-07 o_assets swap",
+  );
 
   return finish();
 }
