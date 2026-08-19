@@ -51,6 +51,9 @@ interface MockConfig {
   items: MockReviewItem[];
   approveStatus: number;
   hangGet: boolean;
+  /** WR-02: when set, serve page-by-page keyed by the `cursor` query param
+   *  (page 0 = no cursor). Overrides `items`. */
+  pages?: MockReviewItem[][];
 }
 let mockConfig: MockConfig = { items: [], approveStatus: 200, hangGet: false };
 const requests: Array<{ method: string; url: string; body?: string }> = [];
@@ -67,6 +70,26 @@ const server = http.createServer((req, res) => {
     if (req.method === "GET") {
       if (mockConfig.hangGet) return; // never respond → client AbortSignal.timeout
       res.writeHead(200, { "Content-Type": "application/json" });
+      if (mockConfig.pages) {
+        // Paginated envelope: cursor = page index; next_cursor points at the
+        // next page while has_more is true (mirrors the platform envelope).
+        const u = new URL(req.url ?? "/", "http://mock.local");
+        const rawCursor = u.searchParams.get("cursor");
+        const idx = rawCursor == null || rawCursor === "" ? 0 : Number.parseInt(rawCursor, 10);
+        const pageIdx =
+          Number.isInteger(idx) && idx >= 0 && idx < mockConfig.pages.length ? idx : 0;
+        const hasMore = pageIdx + 1 < mockConfig.pages.length;
+        res.end(
+          JSON.stringify({
+            data: {
+              items: mockConfig.pages[pageIdx],
+              next_cursor: hasMore ? String(pageIdx + 1) : null,
+              has_more: hasMore,
+            },
+          }),
+        );
+        return;
+      }
       res.end(
         JSON.stringify({ data: { items: mockConfig.items, next_cursor: null, has_more: false } }),
       );
@@ -128,9 +151,17 @@ async function main(): Promise<void> {
     `${(bridgeSrc.match(/AbortSignal\.timeout/g) ?? []).length} found`,
   );
   assert(
-    (bridgeSrc.match(/startsWith\(phaseToken\)/g) ?? []).length >= 2,
-    "bridge lib: BOTH candidate filters visible (type + content_ref phase segment)",
+    (bridgeSrc.match(/startsWith\(phaseToken\)/g) ?? []).length === 0,
+    "bridge lib (WR-01): NO prefix startsWith(phaseToken) filter remains — exact leading p\\d+ token equality only",
     `${(bridgeSrc.match(/startsWith\(phaseToken\)/g) ?? []).length} startsWith(phaseToken) found`,
+  );
+  assert(
+    bridgeSrc.includes("ep${params.episodesId}") && bridgeSrc.includes("String(params.episodesId)"),
+    "bridge lib (CR-01): episode scoping compares both `ep{N}` and bare `{N}` content_ref forms",
+  );
+  assert(
+    bridgeSrc.includes("MAX_LIST_PAGES") && bridgeSrc.includes("next_cursor"),
+    "bridge lib (WR-02): bounded next_cursor pagination present",
   );
   assert(
     bridgeSrc.includes("choose:v${"),
@@ -227,7 +258,7 @@ async function main(): Promise<void> {
 
   // (b) exactly one match → approve POST with choose:v2 + selected=[2]
   console.log("\n=== (b) exactly one match → approve with choose:v2 + selected=[2] ===");
-  const rb = await runCase({ items: [approving(7, "p11a0", "ep03/p11a0")] });
+  const rb = await runCase({ items: [approving(7, "p11a0", "ep7/p11a0")] });
   assert(!rb.threw, "(b) one hit: resolves without throw", rb.throwMsg);
   assert(posts().length === 1, "(b) exactly one approve POST", `${posts().length}`);
   assert(
@@ -256,7 +287,7 @@ async function main(): Promise<void> {
 
   // (c) type does not match the phase token → filtered out, no POST
   console.log("\n=== (c) type filter: 'p04x' vs token 'p11' → no POST ===");
-  const rc = await runCase({ items: [approving(9, "p04x", "ep03/p04x")] });
+  const rc = await runCase({ items: [approving(9, "p04x", "ep7/p04x")] });
   assert(!rc.threw, "(c) type mismatch: resolves without throw", rc.throwMsg);
   assert(posts().length === 0, "(c) type 'p04x' ≠ token 'p11' → NO approve POST");
   assert(
@@ -266,17 +297,17 @@ async function main(): Promise<void> {
 
   // (c2) type matches but content_ref phase segment does not → filtered out
   console.log("\n=== (c2) content_ref filter: phase segment 'p04z' vs token 'p11' → no POST ===");
-  const rc2 = await runCase({ items: [approving(10, "p11b2", "ep03/p04z")] });
+  const rc2 = await runCase({ items: [approving(10, "p11b2", "ep7/p04z")] });
   assert(!rc2.threw, "(c2) content_ref mismatch: resolves without throw", rc2.throwMsg);
   assert(
     posts().length === 0,
-    "(c2) type matches but content_ref 'ep03/p04z' phase ≠ p11 → NO approve POST (double filter)",
+    "(c2) type matches but content_ref 'ep7/p04z' phase ≠ p11 → NO approve POST (double filter)",
   );
 
   // (d) two matches → ambiguity guard, no POST
   console.log("\n=== (d) two matches → ambiguity guard, no POST ===");
   const rd = await runCase({
-    items: [approving(7, "p11a0", "ep03/p11a0"), approving(8, "p11a1", "ep03/p11a1")],
+    items: [approving(7, "p11a0", "ep7/p11a0"), approving(8, "p11a1", "ep7/p11a1")],
   });
   assert(!rd.threw, "(d) ambiguity: resolves without throw", rd.throwMsg);
   assert(
@@ -288,7 +319,7 @@ async function main(): Promise<void> {
   // (e) approve 409 → treated as resolved-elsewhere, warn + no throw
   console.log("\n=== (e) approve 409 → resolved-elsewhere, warn + no throw ===");
   const re = await runCase(
-    { items: [approving(7, "p11a0", "ep03/p11a0")], approveStatus: 409 },
+    { items: [approving(7, "p11a0", "ep7/p11a0")], approveStatus: 409 },
   );
   assert(!re.threw, "(e) 409: resolves without throw (已被别处 resolve)", re.throwMsg);
   assert(posts().length === 1, "(e) the approve POST was attempted");
@@ -300,7 +331,7 @@ async function main(): Promise<void> {
   // (e2) approve non-2xx → warn, no throw
   console.log("\n=== (e2) approve 500 → warn, no throw ===");
   const re2 = await runCase(
-    { items: [approving(7, "p11a0", "ep03/p11a0")], approveStatus: 500 },
+    { items: [approving(7, "p11a0", "ep7/p11a0")], approveStatus: 500 },
   );
   assert(!re2.threw, "(e2) non-2xx approve: resolves without throw", re2.throwMsg);
   assert(re2.log.warns.length >= 1, "(e2) non-2xx approve is warn-logged");
@@ -316,6 +347,77 @@ async function main(): Promise<void> {
   );
   assert(rf.log.warns.length >= 1, "(f) timeout is warn-logged (swallowed exception)");
   assert(gets().length === 1, "(f) the GET was attempted before the abort");
+
+  // (g) CR-01: a phase-matching gate from ANOTHER episode must never be approved
+  console.log("\n=== (g) wrong-episode gate (CR-01) → fail closed, no POST ===");
+  const rg = await runCase({ items: [approving(21, "p11a0", "ep-OTHER/p11a0")] });
+  assert(!rg.threw, "(g) foreign episode: resolves without throw", rg.throwMsg);
+  assert(
+    posts().length === 0,
+    "(g) content_ref episode 'ep-OTHER' ≠ episodesId 7 → NO approve POST",
+  );
+  assert(
+    rg.log.infos.some((m) => m.includes("无挂起 gate")),
+    "(g) foreign-episode gate is indistinguishable from zero-hit (fail closed)",
+  );
+  assert(
+    rg.log.warns.length === 0,
+    "(g) wrong-episode skip stays info-level (a foreign gate is not OUR ambiguity)",
+  );
+
+  // (g2) CR-01 positive: the bare-numeric episode form "7/p11a0" also matches
+  console.log("\n=== (g2) bare episode id form '7/p11a0' matches episodesId 7 ===");
+  const rg2 = await runCase({ items: [approving(22, "p11a0", "7/p11a0")] });
+  assert(
+    posts().length === 1 && posts()[0].url === "/api/v1/reviews/22/approve",
+    "(g2) bare episode id form '7/p11a0' → approve POST (both id forms accepted)",
+    `${posts().length} posts`,
+  );
+
+  // (h) WR-01: token 'p1' must not prefix-collide with gate 'p11a0'
+  console.log("\n=== (h) phase-token prefix collision (WR-01) → no POST ===");
+  const rh = await runCase(
+    { items: [approving(23, "p11a0", "ep7/p11a0")] },
+    { winnerPhaseName: "p1_tone" },
+  );
+  assert(!rh.threw, "(h) p1_tone selection: resolves without throw", rh.throwMsg);
+  assert(
+    posts().length === 0,
+    "(h) token 'p1' vs gate 'p11a0' → NO approve POST (exact boundary match)",
+  );
+
+  // (i) WR-02: the matching gate sits beyond page 1 — next_cursor must be followed
+  console.log("\n=== (i) multi-page list (WR-02) → next_cursor followed ===");
+  const filler = Array.from({ length: 3 }, (_, k) => approving(100 + k, "p04z", `ep7/p04z-${k}`));
+  const ri = await runCase({ pages: [filler, [approving(7, "p11a0", "ep7/p11a0")]] });
+  assert(!ri.threw, "(i) paginated list: resolves without throw", ri.throwMsg);
+  assert(gets().length === 2, "(i) two GETs issued — next_cursor followed to page 2", `${gets().length}`);
+  const iUrls = gets().map((r) => new URL(r.url, "http://mock.local"));
+  assert(
+    iUrls.length === 2 && iUrls[1].searchParams.get("cursor") === "1",
+    "(i) page-2 GET carries cursor=1 (page-1 next_cursor)",
+    iUrls.length === 2 ? String(iUrls[1].searchParams.get("cursor")) : "n/a",
+  );
+  assert(
+    posts().length === 1 && posts()[0].url === "/api/v1/reviews/7/approve",
+    "(i) page-2 gate approved (would be MISSED by the old first-page-only read)",
+  );
+
+  // (i2) WR-02: pagination is bounded — an unbounded list fails closed, no POST
+  console.log("\n=== (i2) list longer than the page bound → fail closed ===");
+  const manyPages = Array.from({ length: 12 }, () => [] as MockReviewItem[]);
+  const ri2 = await runCase({ pages: manyPages });
+  assert(!ri2.threw, "(i2) truncated list: resolves without throw", ri2.throwMsg);
+  assert(posts().length === 0, "(i2) >10 pages with has_more still true → NO approve POST");
+  assert(
+    gets().length === 10,
+    "(i2) pagination bounded at 10 GETs (MAX_LIST_PAGES)",
+    `${gets().length}`,
+  );
+  assert(
+    ri2.log.warns.some((m) => m.includes("页")),
+    "(i2) truncation is warn-logged",
+  );
 
   // ── select-winner route wiring (Task 2) ──────────────────────────────────
   console.log("\n=== select-winner route wiring (fire-and-forget mount) ===");

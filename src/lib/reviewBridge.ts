@@ -16,12 +16,21 @@
  *     an error. `result` is stored atomically into
  *     `metadata_json.review_result` and the terminal state is COMPLETE.
  *     Platform-side auth was removed (no token in transit).
- *  2. `GET /api/v1/reviews?status=&type=&source=&limit=` has NO content_ref
- *     filter parameter — candidates must be filtered CLIENT-SIDE from
- *     `data.items[]`. Envelope: `{ data: { items, next_cursor, has_more } }`.
+ *  2. `GET /api/v1/reviews?status=&type=&source=&limit=&cursor=` has NO
+ *     content_ref filter parameter — candidates must be filtered CLIENT-SIDE
+ *     from `data.items[]`. Envelope: `{ data: { items, next_cursor,
+ *     has_more } }`; `limit` truncates, so the bridge paginates via
+ *     next_cursor (WR-02, bounded to MAX_LIST_PAGES).
  *  3. kmc submits reviews as source_system="kais-movie-agent" with
  *     content_ref=`${episodeId}/${phase}` (e.g. "ep03/p11a0", phase = the
  *     segment after the last "/") and type=gate_id.
+ *  4. Candidate scoping (CR-01/WR-01) is fail-closed on ALL dimensions:
+ *     the content_ref episode segment must equal `ep${episodesId}` or the
+ *     bare `${episodesId}`, and the leading `p<digits>` run of BOTH the gate
+ *     type and the content_ref phase segment must EQUAL the derived phase
+ *     token — a phase-matching gate of ANOTHER episode, or a prefix
+ *     collision (`p1` vs `p11a0`), is a mismatch and is skipped. A missed
+ *     bridge is benign; a wrong approve is not.
  *
  * DOCUMENTED PROTOCOL GAP (frozen by D-11 — kmc AND kais-review-platform are
  * both read-only this phase):
@@ -86,6 +95,16 @@ function derivePhaseToken(winnerPhaseName: string | null | undefined): string | 
   return head.length > 0 ? head : null;
 }
 
+/** Leading `p<digits>` run of a gate type / content_ref phase segment,
+ *  lowercased ("p11a0" → "p11", "p1_x" → "p1"). null when the string does
+ *  not start with p+digits. WR-01: candidate matching compares THIS token
+ *  for equality — never a prefix `startsWith`, which let a `p1_tone`
+ *  selection collide with gate `p11a0` / `p10_*`. */
+function leadingPhaseToken(value: string): string | null {
+  const m = /^p\d+/.exec(value.trim().toLowerCase());
+  return m === null ? null : m[0];
+}
+
 /**
  * Best-effort resolve of the open (APPROVING) kmc review matching the canvas
  * winner's phase. NEVER throws — the whole body is wrapped, any error is
@@ -111,30 +130,81 @@ export async function resolveOpenReviewForSelection(
       return;
     }
 
-    // 1. Query open reviews (APPROVING) from the kmc source system.
-    const qs = new URLSearchParams({
-      source: "kais-movie-agent",
-      status: "APPROVING",
-      limit: "100",
-    });
-    const listResp = await fetchImpl(`${baseUrl}/api/v1/reviews?${qs.toString()}`, {
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-    if (!listResp.ok) {
-      logger.warn(`${LOG_PREFIX} 查询 open review 失败: HTTP ${listResp.status}`);
+    // 1. Query open reviews (APPROVING) from the kmc source system. WR-02:
+    //    `limit` truncates the list — follow next_cursor/has_more so a busy
+    //    queue cannot push the real gate off page 1. The loop is BOUNDED
+    //    (MAX_LIST_PAGES): exhausting it with has_more still true means the
+    //    candidate list is unusable → warn + skip (fail closed) instead of
+    //    approving from a partial list.
+    const MAX_LIST_PAGES = 10;
+    const items: ReviewListItem[] = [];
+    let cursor: string | null = null;
+    let truncated = false;
+    for (let page = 0; page < MAX_LIST_PAGES; page++) {
+      const qs = new URLSearchParams({
+        source: "kais-movie-agent",
+        status: "APPROVING",
+        limit: "100",
+      });
+      if (cursor !== null) qs.set("cursor", cursor);
+      const listResp = await fetchImpl(`${baseUrl}/api/v1/reviews?${qs.toString()}`, {
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      if (!listResp.ok) {
+        logger.warn(`${LOG_PREFIX} 查询 open review 失败: HTTP ${listResp.status}`);
+        return;
+      }
+      const body = (await listResp.json()) as {
+        data?: { items?: ReviewListItem[]; next_cursor?: unknown; has_more?: unknown };
+      };
+      const pageItems = Array.isArray(body?.data?.items) ? body.data.items : [];
+      items.push(...pageItems);
+      if (body?.data?.has_more !== true) break;
+      const rawCursor = body?.data?.next_cursor;
+      const nextCursor =
+        typeof rawCursor === "number" && Number.isFinite(rawCursor)
+          ? String(rawCursor)
+          : typeof rawCursor === "string" && rawCursor !== ""
+            ? rawCursor
+            : null;
+      if (nextCursor === null || page === MAX_LIST_PAGES - 1) {
+        // has_more but no cursor to follow, or page bound reached — the list
+        // is truncated and cannot be trusted for a single-candidate approve.
+        truncated = true;
+        break;
+      }
+      cursor = nextCursor;
+    }
+    if (truncated) {
+      logger.warn(
+        `${LOG_PREFIX} open review 列表超过 ${MAX_LIST_PAGES} 页（或平台未回 next_cursor）` +
+          `，列表不完整，放弃桥接（宁可漏过不可错批）`,
+      );
       return;
     }
-    const body = (await listResp.json()) as { data?: { items?: ReviewListItem[] } };
-    const items = Array.isArray(body?.data?.items) ? body.data.items : [];
 
     // 2. Client-side candidate filter (the platform has no content_ref
-    //    filter param): BOTH the gate type AND the content_ref phase segment
-    //    (after the last "/") must start with the phase token.
+    //    filter param). ALL THREE dimensions must match, fail closed:
+    //    a. gate type — leading `p<digits>` EQUAL to the phase token (WR-01:
+    //       no prefix matching, `p1` must never collide with `p11a0`);
+    //    b. content_ref episode segment — EQUAL to `ep${episodesId}` or the
+    //       bare `${episodesId}` (CR-01: a phase-matching gate belonging to
+    //       ANOTHER episode/project is exactly the wrong-approve hazard;
+    //       both id forms accepted until the kmc content_ref format is
+    //       frozen). A gate whose episode cannot be verified is a mismatch;
+    //    c. content_ref phase segment (after the last "/") — same exact
+    //       token equality as (a).
+    const episodeIds = new Set<string>([`ep${params.episodesId}`, String(params.episodesId)]);
     const candidates = items.filter((item) => {
-      if (typeof item.type !== "string" || !item.type.startsWith(phaseToken)) return false;
-      if (typeof item.content_ref !== "string") return false;
-      const phaseSegment = item.content_ref.slice(item.content_ref.lastIndexOf("/") + 1);
-      return phaseSegment.startsWith(phaseToken);
+      if (typeof item.type !== "string" || typeof item.content_ref !== "string") return false;
+      if (leadingPhaseToken(item.type) !== phaseToken) return false;
+      const ref = item.content_ref;
+      const slash = ref.lastIndexOf("/");
+      if (slash < 0) return false;
+      const episodeSegment = ref.slice(0, slash);
+      const phaseSegment = ref.slice(slash + 1);
+      if (!episodeIds.has(episodeSegment)) return false;
+      return leadingPhaseToken(phaseSegment) === phaseToken;
     });
 
     if (candidates.length === 0) {
