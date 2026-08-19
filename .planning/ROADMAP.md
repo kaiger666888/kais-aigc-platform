@@ -349,7 +349,7 @@ Phase 48 is the contract source — the o_assets candidate-group shape that ever
 |-------|-----------|----------------|--------|-----------|
 | 48. Ingest Candidate Grouping + Enum Unification + workflow_phase | v2.1 | 2/2 | Complete    | 2026-08-19 |
 | 49. Selection Write-back (Canvas Endpoint + Asset-Center Linkage + kmc Bridge) | v2.1 | 4/4 | Complete    | 2026-08-19 |
-| 50. Historical Backfill + Contract Guards | v2.1 | 2/2 | Complete   | 2026-08-19 |
+| 50. Historical Backfill + Contract Guards | v2.1 | 2/2 | Complete    | 2026-08-19 |
 
 **v2.0 (shipped 2026-07-16):**
 
