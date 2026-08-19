@@ -42,7 +42,7 @@ function richTextToText(rt: any[] | undefined): string {
 
 /** 调用后端代理拉取页面目录树。 */
 async function fetchPages(projectId: number): Promise<{ mainPageId: string; title: string; pages: DocPage[] }> {
-  const resp = await fetch(`/api/notion/pages?projectId=${projectId}`)
+  const resp = await fetch(`/api/notion-proxy/pages?projectId=${projectId}`)
   const json = await resp.json()
   if (!resp.ok || json.code !== 200) throw new Error(json.message || `HTTP ${resp.status}`)
   return json.data
@@ -50,7 +50,7 @@ async function fetchPages(projectId: number): Promise<{ mainPageId: string; titl
 
 /** 调用后端代理拉取页面 block 树。 */
 async function fetchPageContent(pageId: string, forceRefresh = false): Promise<DocContent> {
-  const url = `/api/notion/page/${pageId}${forceRefresh ? '?forceRefresh=1' : ''}`
+  const url = `/api/notion-proxy/page/${pageId}${forceRefresh ? '?forceRefresh=1' : ''}`
   const resp = await fetch(url, { method: 'POST' })
   const json = await resp.json()
   if (!resp.ok || json.code !== 200) throw new Error(json.message || `HTTP ${resp.status}`)
