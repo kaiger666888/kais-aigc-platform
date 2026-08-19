@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: 候选资产配套 (candidate-asset-completeness)
 status: executing
-stopped_at: v2.1 roadmap created — Phases 48-50 defined, 12/12 requirements mapped, traceability updated. No plans written yet.
-last_updated: "2026-08-19T01:09:28.787Z"
-last_activity: 2026-08-19 -- Phase 48 planning complete
+stopped_at: Completed 48-01-PLAN.md (ingest contract layer) — 48-02 next
+last_updated: "2026-08-19T01:20:25.871Z"
+last_activity: 2026-08-19
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 2
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 50
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-17)
 
 **Core value:** AI creative production pipeline that runs end-to-end, pluggable across multiple creative workflows via a published skill contract.
-**Current focus:** v2.1 milestone (candidate-asset-completeness) — roadmap created, Phases 48-50. kmc 候选生成 ↔ kap ingest 建组/选定回写/workflow_phase 配套管道。
+**Current focus:** Phase 48 — Ingest Candidate Grouping + Enum Unification + workflow_phase
 
 ## Current Position
 
-Phase: 48 (Ingest Candidate Grouping + Enum Unification + workflow_phase) — not started
-Plan: —
+Phase: 48 (Ingest Candidate Grouping + Enum Unification + workflow_phase) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-08-19 -- Phase 48 planning complete
+Last activity: 2026-08-19
 
 ## Performance Metrics
 
@@ -45,6 +45,7 @@ Last activity: 2026-08-19 -- Phase 48 planning complete
 | 36 | 1 | ✅ Shipped |
 | 37 | 1 | ✅ Shipped |
 | 38 | 1 | ✅ Shipped (Tier 2) |
+| Phase 48 P48-01 | 9 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -77,6 +78,8 @@ Last activity: 2026-08-19 -- Phase 48 planning complete
 - Node type IDs are namespaced `<skill_id>::<type>` (Pitfalls A3)
 - TS ESM/CJS interop: standalone `.ts` script pattern, not `tsx -e` (Pitfalls B5)
 - No project test framework — use `verify-phase-*.ts` pattern registered in package.json (Pitfalls B3/B4)
+- [Phase 48]: P48 manifest-batch matching disambiguated by parent-dir+basename (kmc shot dirs repeat frame basenames); resolution mode exclusive per frame-list
+- [Phase 48]: P48 D-05 active-only state policy enforced at Plan 48-02 service layer, not in the pure grouping module
 
 ### Pending Todos
 
@@ -127,6 +130,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-19
-Stopped at: v2.1 roadmap created — Phases 48-50 defined, 12/12 requirements mapped, traceability updated. No plans written yet.
-Resume: `/gsd:plan-phase 48` (ingest 候选建组 — INGEST-01..03 + PHASE-01; the o_assets group-shape contract everything downstream depends on).
+Last session: 2026-08-19T01:20:17.800Z
+Stopped at: Completed 48-01-PLAN.md (ingest contract layer: assetTypes truth source + candidateGrouping pure functions + kmc fixture + verify:phase-48 64/64). 48-02 remains.
+Resume: `/gsd:execute-phase 48` (Plan 48-02: route rewrite + registry compat — consumes src/lib/assetTypes + candidateGrouping exports, extends verify-phase-48 at the Part 2 marker).

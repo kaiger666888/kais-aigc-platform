@@ -277,7 +277,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 48-01-PLAN.md — Contract layer (src/lib/assetTypes.ts 真值源 + src/lib/candidateGrouping.ts 纯建组函数 + kmc fixture + verify-phase-48 Part 1); covers INGEST-01/02/03 + PHASE-01 contracts
+- [x] 48-01-PLAN.md — Contract layer (src/lib/assetTypes.ts 真值源 + src/lib/candidateGrouping.ts 纯建组函数 + kmc fixture + verify-phase-48 Part 1); covers INGEST-01/02/03 + PHASE-01 contracts
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -326,7 +326,7 @@ Phase 48 is the contract source — the o_assets candidate-group shape that ever
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 48. Ingest Candidate Grouping + Enum Unification + workflow_phase | v2.1 | 0/2 | Not started | - |
+| 48. Ingest Candidate Grouping + Enum Unification + workflow_phase | v2.1 | 1/2 | In Progress|  |
 | 49. Selection Write-back (Canvas Endpoint + Asset-Center Linkage + kmc Bridge) | v2.1 | 0/? | Not started | - |
 | 50. Historical Backfill + Contract Guards | v2.1 | 0/? | Not started | - |
 
