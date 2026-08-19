@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: 候选资产配套 (candidate-asset-completeness)
-status: executing
+status: verifying
 stopped_at: Completed 50-01-PLAN.md (historical backfill applied to production)
-last_updated: "2026-08-19T10:36:04.942Z"
+last_updated: "2026-08-19T10:44:30.511Z"
 last_activity: 2026-08-19
 progress:
   total_phases: 3
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-06-17)
 
 Phase: 50 (Historical Backfill + Contract Guards) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-08-19
 
 ## Performance Metrics
@@ -49,6 +49,7 @@ Last activity: 2026-08-19
 | Phase 48 P48-02 | 6 min | 3 tasks | 4 files |
 | Phase 49 P01 | 51min | 3 tasks | 8 files |
 | Phase 50 P01 | 9 min | 2 tasks | 5 files |
+| Phase 50 P02 | 4 min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -93,6 +94,7 @@ Last activity: 2026-08-19
 - [Phase ?]: [Phase 49] verify gate runs endpoint dispatch in a spawned child process — app-db knex pool never settles inserts when sharing a process with the :memory: store section (49-01)
 - [Phase 50]: 50-01: BL-1 meta.phase -> meta.provenance.phase fallback lands 129 provenance-only rows; pre-existing workflow_phase values never rewritten (backfill writes normalized 2-digit forms only)
 - [Phase 50]: 50-01: production db2.sqlite backfilled (154 groups, 240 member links, 534 wf values, wf NULL 1456->922) in one gated transaction; eliminated 386 rows byte-untouched; second apply 0/0 idempotent
+- [Phase 50]: 50-02: GUARD-01/GUARD-02 locked as verify:phase-50 — the v2.1 final gate; contract suite drives the real planBackfill/applyBackfill on :memory: (never re-implemented), Phase 48/49 covered by spot invariants not re-runs, SC-4 debt as one WARN line (D-11), manual register scripts deprecated not deleted (D-12) — Import-identity + spot-invariant pattern keeps the aggregate gate maintainable: one verify script, zero logic copies, forced-failure sanity proves the gate can fail
 
 ### Pending Todos
 
@@ -143,6 +145,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-19T10:36:04.934Z
+Last session: 2026-08-19T10:44:18.334Z
 Stopped at: Completed 50-01-PLAN.md (historical backfill applied to production)
 Resume: `/gsd:execute-phase 48` (Plan 48-02: route rewrite + registry compat — consumes src/lib/assetTypes + candidateGrouping exports, extends verify-phase-48 at the Part 2 marker).

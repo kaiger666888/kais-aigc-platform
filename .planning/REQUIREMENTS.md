@@ -32,8 +32,8 @@
 
 ### GUARD — 契约守护
 
-- [ ] **GUARD-01**: 候选分组契约测试——ingest 对 fixture manifest 产出的 o_assets 形状断言 (组数 / 组内 isPrimaryView 唯一 / state 值域 / assetsId 自洽)
-- [ ] **GUARD-02**: `verify-phase-N` 汇总脚本 (延续 v2.0 verify 传统)——断言 INGEST/SELECT/PHASE 行为 + 双端枚举/词汇映射无 drift
+- [x] **GUARD-01**: 候选分组契约测试——ingest 对 fixture manifest 产出的 o_assets 形状断言 (组数 / 组内 isPrimaryView 唯一 / state 值域 / assetsId 自洽)
+- [x] **GUARD-02**: `verify-phase-N` 汇总脚本 (延续 v2.0 verify 传统)——断言 INGEST/SELECT/PHASE 行为 + 双端枚举/词汇映射无 drift
 
 ## v2.0 Requirements — Canvas Sync Permanence (画布同步永久治理)
 
@@ -231,8 +231,8 @@
 | SELECT-04 | Phase 49 | Complete |
 | PHASE-01 | Phase 48 | Complete |
 | PHASE-02 | Phase 50 | Complete |
-| GUARD-01 | Phase 50 | Pending |
-| GUARD-02 | Phase 50 | Pending |
+| GUARD-01 | Phase 50 | Complete |
+| GUARD-02 | Phase 50 | Complete |
 | MANIFEST-01 | Phase 42 | Pending |
 | MANIFEST-02 | Phase 42 | Pending |
 | MANIFEST-03 | Phase 42 | Pending |
