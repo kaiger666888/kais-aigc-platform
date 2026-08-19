@@ -13,7 +13,10 @@
  *   :memory: stock drives the REAL planBackfill/applyBackfill from
  *   scripts/backfill-candidate-groups.ts — apply → 0-diff re-plan →
  *   0-update re-apply, eliminated row byte-untouched, D-04 meta/meta
- *   .provenance phase priority, duplicate-path skip.
+ *   .provenance phase priority, duplicate-path skip, pre-existing
+ *   workflow_phase never rewritten (WR-02), archived-row state red line
+ *   (WR-01: archived member groups with no state change; archived-primary
+ *   family skipped whole + itemized).
  * Section 3 — Vocabulary no-drift (D-08/D-09 ③): assetTypes truth source
  *   consumed by identity (imports, never literal copies); legacy alias table
  *   has no orphans in either direction.
@@ -286,6 +289,8 @@ async function main(): Promise<void> {
     isPrimaryView: number;
     assetsId: number | null;
     meta: string | null;
+    /** WR-02: pre-existing workflow_phase value (omitted → seeded NULL). */
+    workflowPhase?: string;
   }
   const seeds: SeedRow[] = [
     // p04 family: canonical + v1..v3, assetsId all NULL, isPrimaryView mixed 1/1/1/0
@@ -309,6 +314,18 @@ async function main(): Promise<void> {
     // physical file — deterministically skipped from grouping and reported
     { id: 12, filePath: "/oss/1/p09/boards/twin_ref.png", state: "active", isPrimaryView: 0, assetsId: null, meta: null },
     { id: 13, filePath: "/oss/1/p09/boards/twin_ref.png", state: "active", isPrimaryView: 0, assetsId: null, meta: null },
+    // (v) WR-02: pre-existing workflow_phase the backfill would derive
+    // DIFFERENTLY (/p08/ path → 'p08') — the invariant says NEVER rewrite it
+    { id: 14, filePath: "/oss/1/p08/sheets/locked.png", state: "active", isPrimaryView: 0, assetsId: null, meta: null, workflowPhase: "p08_custom" },
+    // (vi) WR-01/WR-02: archived member of the p07 v-only family — grouping
+    // needs NO state change, so it joins (assetsId/isPrimaryView only) and
+    // its state='archived' must survive applyBackfill untouched
+    { id: 15, filePath: "/oss/1/p07/sheets/env_v4.png", state: "archived", isPrimaryView: 0, assetsId: null, meta: null },
+    // (vii) WR-01: family whose planGroups-chosen primary (the canonical,
+    // row 16) is archived — grouping WOULD need a state write, so the whole
+    // group is skipped + itemized and neither row is grouped/linked
+    { id: 16, filePath: "/oss/1/p06/sheets/board.png", state: "archived", isPrimaryView: 0, assetsId: null, meta: null },
+    { id: 17, filePath: "/oss/1/p06/sheets/board_v1.png", state: "active", isPrimaryView: 0, assetsId: null, meta: null },
   ];
   const stockDb = await makeMemoryDb();
   try {
@@ -325,7 +342,7 @@ async function main(): Promise<void> {
         isPrimaryView: s.isPrimaryView,
         state: s.state,
         meta: s.meta,
-        workflow_phase: null,
+        workflow_phase: s.workflowPhase ?? null,
         createdAt: 1,
         createdBy: "seed",
       });
@@ -333,20 +350,20 @@ async function main(): Promise<void> {
     const eliminatedBefore: any = await stockDb("o_assets").where("id", 8).first();
 
     const plan1 = await planBackfill(stockDb, ":memory:");
-    assert(plan1.totalRows === 13, "seeded stock: 13 o_assets rows counted first (D-06)", `actual: ${plan1.totalRows}`);
+    assert(plan1.totalRows === 17, "seeded stock: 17 o_assets rows counted first (D-06)", `actual: ${plan1.totalRows}`);
     assert(plan1.excludedEliminated === 1, "1 eliminated row excluded at SELECT level (D-05 — never planned)");
-    assert(plan1.scanned === 12, "12 non-eliminated rows scanned", `actual: ${plan1.scanned}`);
+    assert(plan1.scanned === 16, "16 non-eliminated rows scanned", `actual: ${plan1.scanned}`);
     assert(
       plan1.groups.length === 2,
-      "2 groups planned (p04 canonical family + p07 v-only family)",
+      "2 groups planned (p04 canonical family + p07 v-only family) — the p06 board family is NOT planned: its canonical primary is archived (WR-01 skip)",
       `actual: ${plan1.groups.length} — ${JSON.stringify(plan1.groups.map((g) => g.groupKey))}`,
     );
-    assert(plan1.standaloneRows === 3, "3 standalone rows (refboard + wav + readme)", `actual: ${plan1.standaloneRows}`);
+    assert(plan1.standaloneRows === 4, "4 standalone rows (refboard + wav + readme + locked)", `actual: ${plan1.standaloneRows}`);
     assert(plan1.diffs.length > 0, "planned diffs > 0 before apply");
-    assert(plan1.diffs.length === 11, "11 diff rows planned (grouping 6 rows + wf-only 5 rows)", `actual: ${plan1.diffs.length}`);
+    assert(plan1.diffs.length === 14, "14 diff rows planned (grouping 7 rows + wf-only 7 rows)", `actual: ${plan1.diffs.length}`);
     assert(
-      plan1.diffs.filter((d) => d.assetsId !== undefined).length === 5,
-      "5 member assetsId writes planned (3 hero + 2 env)",
+      plan1.diffs.filter((d) => d.assetsId !== undefined).length === 6,
+      "6 member assetsId writes planned (3 hero + 2 env + 1 archived env member — its state column is NOT written)",
       `actual: ${plan1.diffs.filter((d) => d.assetsId !== undefined).length}`,
     );
     const heroGroup = plan1.groups.find((g) => g.groupKey === "name:sheets/hero");
@@ -365,8 +382,34 @@ async function main(): Promise<void> {
       `skipped=${plan1.duplicatePathSkipped} paths=${JSON.stringify(plan1.duplicatePaths)}`,
     );
     assert(plan1.wfFromMeta === 2, "wf attribution: 2 values from meta (p05_x + nested p10_voice)", `actual: ${plan1.wfFromMeta}`);
-    assert(plan1.wfFromPath === 9, "wf attribution: 9 values from path", `actual: ${plan1.wfFromPath}`);
+    assert(plan1.wfFromPath === 12, "wf attribution: 12 values from path (incl. archived rows 15/16/17 — wf needs no state change)", `actual: ${plan1.wfFromPath}`);
     assert(plan1.wfUnderivable === 1, "wf attribution: 1 underivable row stays NULL", `actual: ${plan1.wfUnderivable}`);
+    assert(plan1.wfAlreadySet === 1, "wf idempotency: row 14's pre-existing workflow_phase counted as already-set — NEVER rewritten", `actual: ${plan1.wfAlreadySet}`);
+    assert(
+      plan1.diffs.filter((d) => d.state !== undefined).length === 0,
+      "WR-01: zero state writes planned — archived seeds (rows 15, 16) are never coerced to 'active'",
+      `actual: ${plan1.diffs.filter((d) => d.state !== undefined).length}`,
+    );
+    assert(
+      plan1.archivedPrimarySkips.length === 1 &&
+        plan1.archivedPrimarySkips[0].includes("name:sheets/board") &&
+        plan1.archivedPrimarySkips[0].includes("row 16"),
+      "WR-01: the archived-primary board family is skipped whole and itemized",
+      JSON.stringify(plan1.archivedPrimarySkips),
+    );
+    const envGroup = plan1.groups.find((g) => g.groupKey === "name:sheets/env");
+    assert(
+      !!envGroup && envGroup.primaryRowId === 5 && envGroup.memberRowIds.length === 4 && envGroup.memberRowIds.includes(15),
+      "WR-01: archived member (row 15) still participates in its family grouping (active primary row 5, 4 members — no state change required)",
+      JSON.stringify(envGroup?.memberRowIds ?? []),
+    );
+    const boardDiffs = plan1.diffs.filter((d) => d.id === 16 || d.id === 17);
+    assert(
+      boardDiffs.length === 2 &&
+        boardDiffs.every((d) => d.assetsId === undefined && d.isPrimaryView === undefined && d.state === undefined),
+      "WR-01: skipped board rows get workflow_phase targets ONLY — zero grouping/state columns planned",
+      JSON.stringify(boardDiffs),
+    );
 
     const { executedUpdates } = await applyBackfill(stockDb, plan1);
     assert(
@@ -420,6 +463,35 @@ async function main(): Promise<void> {
     assert(
       dupRows.every((r) => r.assetsId == null && Number(r.isPrimaryView) === 0),
       "duplicate-path rows still ungrouped after apply (grouping columns untouched)",
+    );
+    const lockedRow: any = await stockDb("o_assets").where("id", 14).first();
+    assert(
+      lockedRow.workflow_phase === "p08_custom",
+      "wf idempotency: pre-existing workflow_phase 'p08_custom' NOT rewritten to the path-derived 'p08'",
+      `actual: ${JSON.stringify(lockedRow.workflow_phase)}`,
+    );
+    const archivedMemberRow: any = await stockDb("o_assets").where("id", 15).first();
+    assert(
+      archivedMemberRow.state === "archived",
+      "WR-01: archived family member keeps state='archived' after apply (never resurrected to 'active')",
+      `actual: ${JSON.stringify(archivedMemberRow.state)}`,
+    );
+    assert(
+      archivedMemberRow.assetsId === 5 && Number(archivedMemberRow.isPrimaryView) === 0 && archivedMemberRow.workflow_phase === "p07",
+      "WR-01: archived member still grouped — assetsId → active primary 5, isPrimaryView 0, workflow_phase 'p07' (grouping with no state change)",
+      `assetsId=${JSON.stringify(archivedMemberRow.assetsId)} isPrimaryView=${archivedMemberRow.isPrimaryView} wf=${JSON.stringify(archivedMemberRow.workflow_phase)}`,
+    );
+    const archivedPrimaryRow: any = await stockDb("o_assets").where("id", 16).first();
+    assert(
+      archivedPrimaryRow.state === "archived" && archivedPrimaryRow.assetsId == null && Number(archivedPrimaryRow.isPrimaryView) === 0,
+      "WR-01: archived would-be primary (row 16) never promoted, never linked, state preserved",
+      JSON.stringify({ state: archivedPrimaryRow.state, assetsId: archivedPrimaryRow.assetsId, isPrimaryView: archivedPrimaryRow.isPrimaryView }),
+    );
+    const boardSiblingRow: any = await stockDb("o_assets").where("id", 17).first();
+    assert(
+      boardSiblingRow.state === "active" && boardSiblingRow.assetsId == null && Number(boardSiblingRow.isPrimaryView) === 0,
+      "WR-01: active sibling (row 17) NOT linked onto the archived primary — the group is skipped whole",
+      JSON.stringify({ state: boardSiblingRow.state, assetsId: boardSiblingRow.assetsId, isPrimaryView: boardSiblingRow.isPrimaryView }),
     );
   } finally {
     await stockDb.destroy();
