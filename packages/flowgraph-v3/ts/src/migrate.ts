@@ -342,6 +342,19 @@ function planNode(v2: FlowNodeV2, warnings: string[]): NodePlan {
           executor: 'gpu0',
           orphanEligible: true,
         };
+      if (at === 'mix')
+        // P12b 混音母带（pairwise 两步混成 master）。EventOp 'mix' 属「组装」
+        // 段；stage 'mix' 有专属泳道（lanes.ts 混音）/STAGE_ORDER(8)/zod。
+        // 此前 audioType='mix' 落不到任何分支 → 默认 voice/tts，混音资产
+        // 被错标进对白泳道。
+        return {
+          stage: 'mix',
+          modality: 'audio',
+          scope: 'episode',
+          op: 'mix',
+          executor: 'gpu0',
+          orphanEligible: true,
+        };
       if (at !== 'voice')
         warnings.push(
           `节点 ${v2.id}: audioType "${String(at)}" 无法判定，默认 voice/tts（待与旧库对齐）`,

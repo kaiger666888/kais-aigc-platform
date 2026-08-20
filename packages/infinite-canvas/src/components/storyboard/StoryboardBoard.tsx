@@ -380,7 +380,7 @@ export default function StoryboardBoard() {
         ) : error ? (
           <Empty text={`加载失败：${error}`} />
         ) : scenes.length === 0 ? (
-          <Empty text="暂无分镜板数据（等待 P10b 快速预览产出）" />
+          <Empty text="暂无分镜板数据 — 分镜板由 p09c 产出后同步到画布；跑完管线或检查画布同步后刷新" />
         ) : (
           scenes.map((sc, i) => (
             <SceneSection key={sc.scene_id || i} scene={sc} defaultOpen={i === 0} />

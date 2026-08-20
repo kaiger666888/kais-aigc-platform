@@ -475,9 +475,15 @@ export function inferSubtype(d: AssetDetail): AssetSubtype {
   if (d.type === 'audio') {
     if (metaSub === 'foley_stem') return 'foley_stem'
     if (metaSub === 'bgm_track') return 'bgm_track'
+    // P12b 混音产物：meta.subtype 标记（audio_stems/mix/ambient）或名称/标签
+    // 线索 —— 此前一律落 unknown，树「混音音轨」永远 count=0。
+    if (metaSub === 'audio_stems' || metaSub === 'mix') return 'audio_stems'
+    if (metaSub === 'ambient') return 'foley_stem' // 环境底床归 Foley 类（与 sfx→foley 同语义）
     const tags = (d.tags || '').toLowerCase()
-    if (tags.includes('foley')) return 'foley_stem'
+    const nm = (d.name || '').toLowerCase()
+    if (tags.includes('foley') || tags.includes('ambient') || tags.includes('环境')) return 'foley_stem'
     if (tags.includes('bgm')) return 'bgm_track'
+    if (tags.includes('mix') || nm.includes('master') || nm.includes('混音')) return 'audio_stems'
     return 'unknown'
   }
 

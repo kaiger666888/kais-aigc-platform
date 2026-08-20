@@ -24,16 +24,16 @@ import { convertProjectData } from '../../services/canvasApi'
 import { inferSubtype } from './assetManagerData'
 import type { FlowGraphV3 } from '@kais/flowgraph-v3'
 
-/** 一条 TTS 对白（来自 P10 voice_clips 节点）。 */
+/** 一条 TTS 对白（来自 P10 voice_clips 节点）/ 一条音频轨（P12b stems）。 */
 interface DialogueClip {
   nodeId: string
   /** 分镜标识（S01_B04）。 */
   shotId: string
-  /** 说话人 ID（拼音，如 shenzhiyi）。 */
+  /** 说话人 ID（拼音，如 shenzhiyi）；stems 模式 = 音轨类型中文名（分组键）。 */
   speaker: string
   /** 角色 ID（通常同 speaker）。 */
   characterId: string
-  /** 对白原文。 */
+  /** 对白原文；stems 模式 = 轨描述（"BGM 音轨 · 温情 · 92 BPM"）。 */
   text: string
   /** 情感标签（坚定 / 中性 …）。 */
   emotion: string
@@ -45,13 +45,47 @@ interface DialogueClip {
   filePath: string
 }
 
+export type DialoguePanelMode = 'dialogue' | 'stems'
+
+/** stems 模式的轨类型判定：canvas-sync 展开标记（clip_type）优先，audioType 兜底。 */
+function stemKindOf(raw: Record<string, unknown>): { key: string; label: string } | null {
+  const ct = raw.clip_type as string | undefined
+  const at = raw.audioType as string | undefined
+  if (ct === 'bgm' || at === 'bgm') return { key: 'bgm', label: 'BGM 音轨' }
+  if (ct === 'sfx' || at === 'foley') return { key: 'foley', label: '环境音效' }
+  if (ct === 'voice_mix') return { key: 'voice_mix', label: '人声合轨' }
+  if (ct === 'mix' || at === 'mix') return { key: 'mix', label: '混音母带' }
+  return null
+}
+
 /**
- * 从 { nodeId, raw } 列表抽取对白片段（clip_type='dialogue' 且有 text）。
+ * 从 { nodeId, raw } 列表抽取对白片段（clip_type='dialogue' 且有 text），
+ * 或 stems 模式抽取音频轨（P12b bgm/sfx/voice_mix/mix）。
  * store graph 与 convert 两条路径共用此纯函数。
  */
-function clipsFromRaw(entries: Array<{ id: string; raw: Record<string, unknown> }>): DialogueClip[] {
+function clipsFromRaw(
+  entries: Array<{ id: string; raw: Record<string, unknown> }>,
+  mode: DialoguePanelMode = 'dialogue',
+): DialogueClip[] {
   const out: DialogueClip[] = []
   for (const { id, raw } of entries) {
+    if (mode === 'stems') {
+      const kind = stemKindOf(raw)
+      const filePath = (raw.filePath as string) ?? (raw.audio_path as string) ?? ''
+      if (!kind || !filePath) continue
+      out.push({
+        nodeId: id,
+        shotId: (raw.shot_id as string) ?? (raw.label as string) ?? '',
+        speaker: kind.label,
+        characterId: '',
+        text: String(raw.description ?? kind.label),
+        emotion: '',
+        durationSec: typeof raw.duration_sec === 'number' ? raw.duration_sec : 0,
+        engine: (raw.engine as string) ?? '',
+        filePath,
+      })
+      continue
+    }
     if (raw.clip_type !== 'dialogue') continue
     const text = raw.text as string | undefined
     if (!text || !String(text).trim()) continue
@@ -71,15 +105,26 @@ function clipsFromRaw(entries: Array<{ id: string; raw: Record<string, unknown> 
   return out
 }
 
-/** 从 store graph + rawDataByNodeId 抽取对白片段。 */
+/** 从 store graph + rawDataByNodeId 抽取对白片段 / 音频轨。 */
 function extractClipsFromGraph(
   graph: FlowGraphV3 | null,
   rawDataByNodeId: Map<string, Record<string, unknown>> | null,
+  mode: DialoguePanelMode = 'dialogue',
 ): DialogueClip[] {
   if (!graph) return []
   return clipsFromRaw(
     graph.nodes.map((n) => ({ id: n.id, raw: rawDataByNodeId?.get(n.id) ?? {} })),
+    mode,
   )
+}
+
+/** stems 模式的左栏分组 emoji（按轨类型中文名）。 */
+function stemEmojiOf(label: string): string {
+  if (label.includes('BGM')) return '🎵'
+  if (label.includes('环境')) return '🔊'
+  if (label.includes('人声')) return '🗣️'
+  if (label.includes('混音')) return '🎚️'
+  return '🎧'
 }
 
 /** 自然排序比较器（S01_B04 < S02_B02 < S10_B01）。 */
@@ -100,7 +145,7 @@ function stripCharNameSuffix(raw: string): string {
 
 // ─── 单行内联回放（自带 <audio>，圆形播放/暂停按钮 + 进度条 + 时长） ───────
 
-function DialogueRow({ clip, speakerName }: { clip: DialogueClip; speakerName: string }) {
+function DialogueRow({ clip, speakerName, quote = true }: { clip: DialogueClip; speakerName: string; quote?: boolean }) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [playing, setPlaying] = useState(false)
   const [progress, setProgress] = useState(0) // 0~1
@@ -228,14 +273,14 @@ function DialogueRow({ clip, speakerName }: { clip: DialogueClip; speakerName: s
           )}
         </div>
 
-        {/* 对白原文 */}
+        {/* 对白原文 / 轨描述 */}
         <div style={{
           fontSize: 13.5,
           lineHeight: 1.7,
           color: 'var(--cv-text-primary)',
           marginBottom: audioUrl ? 8 : 0,
         }}>
-          “{clip.text}”
+          {quote ? `“${clip.text}”` : clip.text}
         </div>
 
         {/* 进度条 */}
@@ -283,7 +328,7 @@ function DialogueRow({ clip, speakerName }: { clip: DialogueClip; speakerName: s
 
 // ─── 主组件 ──────────────────────────────────────────────
 
-export default function DialoguePanel() {
+export default function DialoguePanel({ mode = 'dialogue' }: { mode?: DialoguePanelMode }) {
   const graph = useCanvasStore((s) => s.graph)
   const rawDataByNodeId = useCanvasStore((s) => s.rawDataByNodeId)
   const projectId = useCanvasStore((s) => s.projectId)
@@ -292,8 +337,8 @@ export default function DialoguePanel() {
 
   // 1) store graph 抽取
   const storeClips = useMemo(
-    () => extractClipsFromGraph(graph, rawDataByNodeId),
-    [graph, rawDataByNodeId],
+    () => extractClipsFromGraph(graph, rawDataByNodeId, mode),
+    [graph, rawDataByNodeId, mode],
   )
 
   // 2) store 无对白 → 回退 convert API（与 StoryboardTimeline extraFrameShots 同手法）
@@ -311,6 +356,7 @@ export default function DialoguePanel() {
             id: n.id,
             raw: (n.data as Record<string, unknown>) ?? {},
           })),
+          mode,
         )
         if (!cancelled && clips.length > 0) setExtraClips(clips)
       } catch {
@@ -318,7 +364,7 @@ export default function DialoguePanel() {
       }
     })()
     return () => { cancelled = true }
-  }, [hasStoreClips, projectId, episodesId])
+  }, [hasStoreClips, projectId, episodesId, mode])
 
   const clips = useMemo<DialogueClip[]>(() => {
     const all = hasStoreClips ? storeClips : extraClips
@@ -394,36 +440,41 @@ export default function DialoguePanel() {
   if (clips.length === 0) {
     return (
       <div className="am-empty">
-        本项目暂无对白资产。<br />
-        运行管线 P10（语音 TTS）后，voice_clips 对白节点会自动出现在此处。
+        {mode === 'stems' ? (
+          <>本项目暂无音频轨资产。<br />
+            运行管线 P12b（音频合成）后，BGM / 环境音效 / 人声合轨 / 混音母带会自动出现在此处。</>
+        ) : (
+          <>本项目暂无对白资产。<br />
+            运行管线 P10（语音 TTS）后，voice_clips 对白节点会自动出现在此处。</>
+        )}
       </div>
     )
   }
 
   return (
     <div className="am-scene" style={{ gridTemplateColumns: '220px 1fr' }}>
-      {/* 左栏：说话角色分组 */}
+      {/* 左栏：说话角色分组 / 音轨类型分组 */}
       <aside className="am-scene__list">
         <div className="am-head" style={{ padding: '0 4px 8px' }}>
-          角色 · {speakers.length}
+          {mode === 'stems' ? '音轨类型' : '角色'} · {speakers.length}
         </div>
 
-        {/* 全部对白入口 */}
+        {/* 全部入口 */}
         <div
           className={`am-scene-card ${showingAll ? 'is-on' : ''}`}
           onClick={() => setSelectedSpeaker('__all__')}
-          title="按镜头顺序展示全部对白"
+          title={mode === 'stems' ? '展示全部音频轨' : '按镜头顺序展示全部对白'}
         >
           <div className="am-scene-card__ic" style={{ background: 'var(--cv-mod-audio-weak)' }}>
-            <span style={{ fontSize: 18 }}>🎙️</span>
+            <span style={{ fontSize: 18 }}>{mode === 'stems' ? '🎚️' : '🎙️'}</span>
           </div>
           <div>
-            <b>全部对白</b>
+            <b>{mode === 'stems' ? '全部音轨' : '全部对白'}</b>
             <span>{clips.length} 条 · {formatDuration(totalDur)}</span>
           </div>
         </div>
 
-        {/* 各说话人 */}
+        {/* 各说话人 / 各轨类型 */}
         {speakers.map((s) => (
           <div
             key={s.id}
@@ -440,7 +491,7 @@ export default function DialoguePanel() {
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
                 />
               ) : (
-                <span style={{ fontSize: 18 }}>🗣️</span>
+                <span style={{ fontSize: 18 }}>{stemEmojiOf(s.name)}</span>
               )}
             </div>
             <div>
@@ -451,31 +502,36 @@ export default function DialoguePanel() {
         ))}
       </aside>
 
-      {/* 右栏：对白列表 */}
+      {/* 右栏：列表 */}
       <div className="am-scene__main">
         {/* 头部 */}
         <div className="am-scene__head">
-          <h1>{showingAll ? '全部对白' : (speakers.find((s) => s.id === selectedSpeaker)?.name ?? '对白管理')}</h1>
+          <h1>{showingAll
+            ? (mode === 'stems' ? '全部音轨' : '全部对白')
+            : (speakers.find((s) => s.id === selectedSpeaker)?.name ?? (mode === 'stems' ? '音频轨' : '对白管理'))}</h1>
           <span className="am-badge">{visibleClips.length} 条</span>
           <span className="am-det__sub" style={{ fontFamily: 'var(--cv-font-mono)' }}>
             {formatDuration(visibleClips.reduce((s, c) => s + c.durationSec, 0))}
           </span>
         </div>
         <div className="am-scene__hint">
-          TTS 对白资产 · P10 voice_clips
+          {mode === 'stems'
+            ? 'P12b audio_stems · BGM / 环境音效 / 人声合轨 / 混音母带'
+            : 'TTS 对白资产 · P10 voice_clips'}
           {engineLabel && ` · 引擎 ${engineLabel}`}
-          {!showingAll && selectedSpeaker && selectedSpeaker !== speakerNameMap.get(selectedSpeaker) && (
+          {mode === 'dialogue' && !showingAll && selectedSpeaker && selectedSpeaker !== speakerNameMap.get(selectedSpeaker) && (
             <> · 说话人 ID <code style={{ fontFamily: 'var(--cv-font-mono)' }}>{selectedSpeaker}</code></>
           )}
         </div>
 
-        {/* 对白卡片列表 */}
+        {/* 卡片列表 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
           {visibleClips.map((clip) => (
             <DialogueRow
               key={clip.nodeId}
               clip={clip}
               speakerName={speakerNameMap.get(clip.speaker || clip.characterId) ?? clip.speaker}
+              quote={mode === 'dialogue'}
             />
           ))}
         </div>

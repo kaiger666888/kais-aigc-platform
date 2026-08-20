@@ -434,6 +434,7 @@ export default function AssetLibrary() {
     | { type: 'shot'; id: string }
     | { type: 'subtype'; id: AssetSubtype }
     | { type: 'dialogue' }
+    | { type: 'audio_stems' }
     | null
   const [levelFilter, setLevelFilter] = useState<AssetLevel | null>(null)
   const [entityFilter, setEntityFilter] = useState<EntityFilter>(null)
@@ -750,6 +751,28 @@ export default function AssetLibrary() {
     return n
   }, [graph, rawDataByNodeId])
 
+  // 管线产出 · 音频轨数（P12b audio_stems 展开：bgm/sfx/voice_mix/mix 的
+  // graph audio 节点）。与 DialoguePanel(mode='stems') 同源同判定 —— 树上
+  // 「混音音轨」条目的计数来源（stems 不进 assets-registry）。
+  const graphStemCount = useMemo(() => {
+    if (!graph) return 0
+    let n = 0
+    for (const node of graph.nodes) {
+      const raw = rawDataByNodeId?.get(node.id) ?? {}
+      const ct = raw.clip_type as string | undefined
+      const at = raw.audioType as string | undefined
+      const isStem = ct === 'bgm' || ct === 'sfx' || ct === 'voice_mix' || ct === 'mix'
+        || at === 'bgm' || at === 'foley' || at === 'mix'
+      if (!isStem) continue
+      const fp = (raw.filePath as string) ?? (raw.audio_path as string) ?? ''
+      if (!fp) continue
+      n++
+    }
+    return n
+  }, [graph, rawDataByNodeId])
+  // 注册表 subtype 行与 graph 节点理论上指同一文件，取大者防双计。
+  const audioStemsTotal = Math.max(sub('audio_stems'), graphStemCount)
+
   // 各层级 section 计数（仅统计归属本 section 的资产）
   const showCount = sub('character_concept') + sub('turnaround_sheet') + sub('turnaround_view')
   // 场景级 = 场景设定图(③)（三视角已废弃，不再计入）
@@ -762,7 +785,7 @@ export default function AssetLibrary() {
   const pipelineCount =
     sub('spatio_temporal_script') + sub('shot_list') + sub('e_konte') +
     sub('voice_clips') + sub('rapid_preview') + sub('video_clips') +
-    sub('master_timeline') + sub('audio_stems') + sub('master_mp4') +
+    sub('master_timeline') + audioStemsTotal + sub('master_mp4') +
     sub('delivery_package')
 
   // ── 层级树 subtype 条目渲染辅助 ──
@@ -1209,7 +1232,19 @@ export default function AssetLibrary() {
               {renderSubtypeNode('rapid_preview', true)}
               {renderSubtypeNode('video_clips', true)}
               {renderSubtypeNode('master_timeline', true)}
-              {renderSubtypeNode('audio_stems', true)}
+              {/* 混音音轨（P12b audio_stems 展开：BGM/环境音效/人声合轨/混音母带）——
+                  graph audio 节点，非 assets-registry 资产。点击在主区域展开音轨列表
+                  （复用 DialoguePanel mode='stems'，与对白同款播放器）。 */}
+              <button
+                className={`am-tree-node am-tree-node--child ${entityFilter?.type === 'audio_stems' ? 'is-on' : ''}`}
+                onClick={() => {
+                  setLevelFilter(null); setEntityFilter({ type: 'audio_stems' })
+                  setTypeFilter(null); setTagFilter(null)
+                }}
+              >
+                <span className="am-tree-node__ic">🎚️</span>混音音轨
+                <span className="am-tree-node__n">{audioStemsTotal}</span>
+              </button>
               {renderSubtypeNode('master_mp4', true)}
               {renderSubtypeNode('delivery_package')}
             </div>
@@ -1222,6 +1257,9 @@ export default function AssetLibrary() {
         {entityFilter?.type === 'dialogue' ? (
           // 对白视图：复用 DialoguePanel（P10 voice_clips，非 assets-registry 资产）
           <DialoguePanel />
+        ) : entityFilter?.type === 'audio_stems' ? (
+          // 音轨视图：P12b audio_stems 展开的 BGM/环境音效/人声合轨/混音母带（graph 节点）
+          <DialoguePanel mode="stems" />
         ) : (
           <>
         <div className="am-lib__toolbar">

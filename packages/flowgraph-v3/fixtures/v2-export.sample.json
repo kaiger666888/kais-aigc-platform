@@ -13,8 +13,14 @@
       "branchId": "br_main",
       "phaseIndex": 1,
       "phaseName": "script",
-      "position": { "x": 320, "y": 100 },
-      "size": { "width": 240, "height": 160 },
+      "position": {
+        "x": 320,
+        "y": 100
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
       "state": "success",
       "data": {
         "prompt": "雨夜，林晚站在天台边缘，手机里是最后一条未发送的语音。",
@@ -29,8 +35,14 @@
       "branchId": "br_main",
       "phaseIndex": 2,
       "phaseName": "storyboard",
-      "position": { "x": 640, "y": 200 },
-      "size": { "width": 240, "height": 160 },
+      "position": {
+        "x": 640,
+        "y": 200
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
       "state": "success",
       "data": {
         "filePath": "/assets/sb/shot-001.png",
@@ -49,8 +61,14 @@
       "branchId": "br_main",
       "phaseIndex": 2,
       "phaseName": "storyboard",
-      "position": { "x": 640, "y": 360 },
-      "size": { "width": 240, "height": 160 },
+      "position": {
+        "x": 640,
+        "y": 360
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
       "state": "success",
       "data": {
         "filePath": "/assets/sb/shot-002.png",
@@ -65,8 +83,14 @@
       "branchId": "br_main",
       "phaseIndex": 4,
       "phaseName": "video",
-      "position": { "x": 1320, "y": 400 },
-      "size": { "width": 240, "height": 160 },
+      "position": {
+        "x": 1320,
+        "y": 400
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
       "state": "success",
       "data": {
         "filePath": "/assets/video/shot-001.mp4",
@@ -86,8 +110,14 @@
       "branchId": "br_main",
       "phaseIndex": 4,
       "phaseName": "video",
-      "position": { "x": 1320, "y": 560 },
-      "size": { "width": 240, "height": 160 },
+      "position": {
+        "x": 1320,
+        "y": 560
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
       "state": "success",
       "data": {
         "filePath": "/assets/video/shot-002.mp4",
@@ -103,8 +133,14 @@
       "branchId": "br_main",
       "phaseIndex": 4,
       "phaseName": "video",
-      "position": { "x": 1320, "y": 720 },
-      "size": { "width": 240, "height": 160 },
+      "position": {
+        "x": 1320,
+        "y": 720
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
       "state": "success",
       "data": {
         "filePath": "/assets/video/shot-003_v1.mp4",
@@ -121,8 +157,14 @@
       "branchId": "br_main",
       "phaseIndex": 4,
       "phaseName": "video",
-      "position": { "x": 1360, "y": 720 },
-      "size": { "width": 240, "height": 160 },
+      "position": {
+        "x": 1360,
+        "y": 720
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
       "state": "success",
       "data": {
         "filePath": "/assets/video/shot-003_v2.mp4",
@@ -139,8 +181,14 @@
       "branchId": "br_main",
       "phaseIndex": 4,
       "phaseName": "video",
-      "position": { "x": 1400, "y": 720 },
-      "size": { "width": 240, "height": 160 },
+      "position": {
+        "x": 1400,
+        "y": 720
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
       "state": "success",
       "data": {}
     },
@@ -150,8 +198,14 @@
       "branchId": "br_main",
       "phaseIndex": 5,
       "phaseName": "voice",
-      "position": { "x": 1600, "y": 500 },
-      "size": { "width": 240, "height": 160 },
+      "position": {
+        "x": 1600,
+        "y": 500
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
       "state": "success",
       "data": {
         "filePath": "/assets/voice/shot-001.wav",
@@ -169,8 +223,14 @@
       "branchId": "br_main",
       "phaseIndex": 6,
       "phaseName": "foley",
-      "position": { "x": 1600, "y": 600 },
-      "size": { "width": 240, "height": 160 },
+      "position": {
+        "x": 1600,
+        "y": 600
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
       "state": "success",
       "data": {
         "filePath": "/assets/foley/shot-001.wav",
@@ -186,8 +246,14 @@
       "branchId": "br_main",
       "phaseIndex": 7,
       "phaseName": "bgm",
-      "position": { "x": 1600, "y": 700 },
-      "size": { "width": 240, "height": 160 },
+      "position": {
+        "x": 1600,
+        "y": 700
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
       "state": "success",
       "data": {
         "filePath": "/assets/bgm/ep101_theme.wav",
@@ -198,13 +264,41 @@
       }
     },
     {
+      "id": "n_audio_mix",
+      "type": "audio",
+      "branchId": "br_main",
+      "phaseIndex": 8,
+      "phaseName": "mix",
+      "position": {
+        "x": 1900,
+        "y": 700
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
+      "state": "success",
+      "data": {
+        "filePath": "/assets/mix/ep101_master.wav",
+        "audioType": "mix",
+        "prompt": "pairwise 两步混音终产物",
+        "seed": 8811
+      }
+    },
+    {
       "id": "n_orphan_bgm",
       "type": "audio",
       "branchId": "br_main",
       "phaseIndex": 7,
       "phaseName": "bgm",
-      "position": { "x": 1600, "y": 860 },
-      "size": { "width": 240, "height": 160 },
+      "position": {
+        "x": 1600,
+        "y": 860
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
       "state": "success",
       "data": {
         "filePath": "/assets/bgm/legacy_unknown.wav",
@@ -217,8 +311,14 @@
       "branchId": "br_main",
       "phaseIndex": 0,
       "phaseName": "P04 角色",
-      "position": { "x": 0, "y": 0 },
-      "size": { "width": 240, "height": 160 },
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
       "state": "success",
       "data": {
         "filePath": "/assets/role/nvzhu.png",
@@ -231,8 +331,14 @@
       "branchId": "br_main",
       "phaseIndex": 0,
       "phaseName": "P07 风格",
-      "position": { "x": 0, "y": 200 },
-      "size": { "width": 240, "height": 160 },
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
       "state": "success",
       "data": {
         "filePath": "/assets/lora/cinematic-rain.safetensors",
@@ -243,8 +349,14 @@
       "id": "n_ref_01",
       "type": "reference",
       "branchId": "br_main",
-      "position": { "x": 480, "y": 40 },
-      "size": { "width": 240, "height": 160 },
+      "position": {
+        "x": 480,
+        "y": 40
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
       "state": "success",
       "data": {}
     },
@@ -254,8 +366,14 @@
       "branchId": "br_main",
       "phaseIndex": 4,
       "phaseName": "video",
-      "position": { "x": 1680, "y": 400 },
-      "size": { "width": 240, "height": 160 },
+      "position": {
+        "x": 1680,
+        "y": 400
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
       "state": "success",
       "data": {
         "filePath": "/assets/video/shot-001_4k.mp4",
@@ -269,8 +387,14 @@
       "branchId": "br_main",
       "phaseIndex": 4,
       "phaseName": "video",
-      "position": { "x": 1920, "y": 400 },
-      "size": { "width": 240, "height": 160 },
+      "position": {
+        "x": 1920,
+        "y": 400
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
       "state": "success",
       "data": {
         "filePath": "/assets/video/shot-001_4k_face.mp4",
@@ -284,8 +408,14 @@
       "branchId": "br_main",
       "phaseIndex": 9,
       "phaseName": "master-timeline",
-      "position": { "x": 2240, "y": 900 },
-      "size": { "width": 240, "height": 160 },
+      "position": {
+        "x": 2240,
+        "y": 900
+      },
+      "size": {
+        "width": 240,
+        "height": 160
+      },
       "state": "success",
       "data": {
         "filePath": "/assets/composite/ep101_v1.mp4",
@@ -297,24 +427,121 @@
     }
   ],
   "links": [
-    { "id": "vl_01", "source": "n_script_01", "target": "n_sb_01", "dataType": "causal" },
-    { "id": "vl_02", "source": "n_sb_01", "target": "n_video_01", "dataType": "causal" },
-    { "id": "vl_03", "source": "n_sb_02", "target": "n_video_02", "dataType": "causal" },
-    { "id": "vl_04", "source": "n_sb_01", "target": "n_sb_02", "dataType": "sequence" },
-    { "id": "vl_05", "source": "n_video_01", "target": "n_upscale_01", "dataType": "causal" },
-    { "id": "vl_06", "source": "n_upscale_01", "target": "n_face_01", "dataType": "causal" },
-    { "id": "vl_07", "source": "n_sb_01", "target": "n_cand_a", "dataType": "causal" },
-    { "id": "vl_08", "source": "n_sb_01", "target": "n_cand_b", "dataType": "causal" },
-    { "id": "vl_09", "source": "n_cand_a", "target": "n_var_01", "dataType": "variant" },
-    { "id": "vl_10", "source": "n_cand_b", "target": "n_var_01", "dataType": "variant" },
-    { "id": "vl_11", "source": "n_asset_role", "target": "n_ref_01", "dataType": "causal" },
-    { "id": "vl_12", "source": "n_ref_01", "target": "n_cand_a", "dataType": "causal" },
-    { "id": "vl_13", "source": "n_asset_role", "target": "n_video_02", "dataType": "ensure_reference_link" },
-    { "id": "vl_14", "source": "n_audio_voice", "target": "n_master_01", "dataType": "causal" },
-    { "id": "vl_15", "source": "n_video_01", "target": "n_master_01", "dataType": "causal" },
-    { "id": "vl_16", "source": "n_cand_a", "target": "n_master_01", "dataType": "causal" },
-    { "id": "vl_17", "source": "n_cand_b", "target": "n_master_01", "dataType": "causal" },
-    { "id": "vl_18", "source": "n_sb_01", "target": "n_audio_voice", "dataType": "reference", "isExplore": true }
+    {
+      "id": "vl_01",
+      "source": "n_script_01",
+      "target": "n_sb_01",
+      "dataType": "causal"
+    },
+    {
+      "id": "vl_02",
+      "source": "n_sb_01",
+      "target": "n_video_01",
+      "dataType": "causal"
+    },
+    {
+      "id": "vl_03",
+      "source": "n_sb_02",
+      "target": "n_video_02",
+      "dataType": "causal"
+    },
+    {
+      "id": "vl_04",
+      "source": "n_sb_01",
+      "target": "n_sb_02",
+      "dataType": "sequence"
+    },
+    {
+      "id": "vl_05",
+      "source": "n_video_01",
+      "target": "n_upscale_01",
+      "dataType": "causal"
+    },
+    {
+      "id": "vl_06",
+      "source": "n_upscale_01",
+      "target": "n_face_01",
+      "dataType": "causal"
+    },
+    {
+      "id": "vl_07",
+      "source": "n_sb_01",
+      "target": "n_cand_a",
+      "dataType": "causal"
+    },
+    {
+      "id": "vl_08",
+      "source": "n_sb_01",
+      "target": "n_cand_b",
+      "dataType": "causal"
+    },
+    {
+      "id": "vl_09",
+      "source": "n_cand_a",
+      "target": "n_var_01",
+      "dataType": "variant"
+    },
+    {
+      "id": "vl_10",
+      "source": "n_cand_b",
+      "target": "n_var_01",
+      "dataType": "variant"
+    },
+    {
+      "id": "vl_11",
+      "source": "n_asset_role",
+      "target": "n_ref_01",
+      "dataType": "causal"
+    },
+    {
+      "id": "vl_12",
+      "source": "n_ref_01",
+      "target": "n_cand_a",
+      "dataType": "causal"
+    },
+    {
+      "id": "vl_13",
+      "source": "n_asset_role",
+      "target": "n_video_02",
+      "dataType": "ensure_reference_link"
+    },
+    {
+      "id": "vl_14",
+      "source": "n_audio_voice",
+      "target": "n_master_01",
+      "dataType": "causal"
+    },
+    {
+      "id": "vl_15",
+      "source": "n_video_01",
+      "target": "n_master_01",
+      "dataType": "causal"
+    },
+    {
+      "id": "vl_16",
+      "source": "n_cand_a",
+      "target": "n_master_01",
+      "dataType": "causal"
+    },
+    {
+      "id": "vl_17",
+      "source": "n_cand_b",
+      "target": "n_master_01",
+      "dataType": "causal"
+    },
+    {
+      "id": "vl_18",
+      "source": "n_sb_01",
+      "target": "n_audio_voice",
+      "dataType": "reference",
+      "isExplore": true
+    }
   ],
-  "branches": [{ "id": "br_main", "name": "main", "createdAt": 1753200000000 }]
+  "branches": [
+    {
+      "id": "br_main",
+      "name": "main",
+      "createdAt": 1753200000000
+    }
+  ]
 }

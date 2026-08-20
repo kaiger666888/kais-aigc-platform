@@ -117,6 +117,14 @@ export default function AssetDetail() {
   // 双通道判视频：modality 或扩展名（后者兜住误标类型的资产，如成片被标 voice）。
   const isVideoMedia =
     a.modality === 'video' || /\.(mp4|webm|mov|m4v)$/i.test(a.filePath ?? '')
+  // 2026-08-19(二): 音频资产（声纹/TTS/BGM/环境音/混音）此前同样喂 <img> →
+  // 碎图。听感资产的第一诉求是"能播"：type/modality 或音频扩展名
+  // （后者兜住混音母带/BGM 这类类型标注缺失的行）。视频优先级更高
+  //（master.mp4 是"含音轨的视频"，应按视频播）。
+  const isAudioMedia = !isVideoMedia && (
+    a.modality === 'audio' || a.type === 'voice' || a.type === 'audio'
+    || /\.(wav|mp3|flac|ogg|m4a|aac)$/i.test(a.filePath ?? '')
+  )
 
   return (
     <div className="am-det">
@@ -132,6 +140,14 @@ export default function AssetDetail() {
                 preload="metadata"
                 playsInline
               />
+            ) : isAudioMedia ? (
+              <div className="am-det__audio" style={{
+                width: '100%', maxWidth: 420, padding: '26px 14px',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
+              }}>
+                <div style={{ fontSize: 44, lineHeight: 1, opacity: 0.85 }}>{a.emoji || '🎧'}</div>
+                <audio src={imgUrl} controls preload="metadata" style={{ width: '100%' }} />
+              </div>
             ) : (
               <img className="am-det__big-img" src={imgUrl} alt={a.name} />
             )

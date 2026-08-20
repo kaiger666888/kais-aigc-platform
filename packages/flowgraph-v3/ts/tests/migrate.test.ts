@@ -84,6 +84,14 @@ describe('§14 映射表逐行', () => {
     expect(event(graph, 'evt_n_audio_bgm').op).toBe('bgm_gen');
   });
 
+  it("type:'audio' + audioType:'mix' → stage:mix（P12b 混音母带，不再错标 voice）", () => {
+    const a = asset(graph, 'n_audio_mix');
+    expect(a.stage).toBe('mix');
+    expect(a.modality).toBe('audio');
+    expect(a.meta).toMatchObject({ stage: 'mix' });
+    expect(event(graph, 'evt_n_audio_mix').op).toBe('mix');
+  });
+
   it("type:'asset'（P04 角色 / P07 风格）→ scope:'global' 第 0 列", () => {
     const role = asset(graph, 'n_asset_role');
     expect(role.scope).toBe('global');
