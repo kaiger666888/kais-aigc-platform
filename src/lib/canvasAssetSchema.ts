@@ -54,7 +54,7 @@ export const assetDataSchemas: Record<string, z.ZodSchema> = {
     ...universalRequired,
     shot_id: z.string().min(1, "audio node requires shot_id"),
     engine: z.string().min(1, "audio node requires engine (e.g. ChatTTS)"),
-    duration_sec: z.number().positive("audio node requires duration_sec > 0"),
+    duration_sec: z.number().min(0, "audio node requires duration_sec >= 0 (0 = engine did not report)"),
     // Optional but expected:
     text: z.string().optional(),
     clip_type: z.string().optional(),
@@ -65,7 +65,7 @@ export const assetDataSchemas: Record<string, z.ZodSchema> = {
     ...universalRequired,
     shot_id: z.string().min(1, "video node requires shot_id"),
     engine: z.string().min(1, "video node requires engine (e.g. ltx)"),
-    duration_sec: z.number().positive("video node requires duration_sec > 0"),
+    duration_sec: z.number().min(0, "video node requires duration_sec >= 0 (0 = engine did not report)"),
     resolution: z.string().min(1, "video node requires resolution (e.g. 1280x704)"),
     // Optional but expected:
     codec: z.string().optional(),
@@ -98,7 +98,7 @@ export const assetDataSchemas: Record<string, z.ZodSchema> = {
     label: z.string().min(1, "storyboard node requires label"),
     shot_id: z.string().min(1, "storyboard node requires shot_id"),
     shot_type: z.string().min(1, "storyboard requires shot_type (e.g. WS, CU)"),
-    duration_sec: z.number().positive("storyboard requires duration_sec > 0"),
+    duration_sec: z.number().min(0, "storyboard requires duration_sec >= 0 (0 = engine did not report)"),
     // The storyboard may not have a rendered image yet (pre-production)
     filePath: z.string().optional(),
     // Optional but expected structured params:
