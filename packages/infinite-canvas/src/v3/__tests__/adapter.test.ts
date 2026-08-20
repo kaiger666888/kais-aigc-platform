@@ -216,6 +216,69 @@ describe('adaptV2Graph：_recon V2 结构合成 payload', () => {
 
 // ─── 2. 残缺 payload 不崩 + warnings ───
 
+describe('adaptV2Graph：Gate B 降级恢复 + audit 接纳（2026-08-19）', () => {
+  it('type=script + data._original_type=video → 恢复 video stage，media.original 可播', () => {
+    const { graph } = adaptV2Graph({
+      meta: { projectId: 1, episodesId: 2 },
+      nodes: [
+        {
+          // canvas-sync Gate B 降级产物（duration_sec=0 曾被 falsy 误杀）
+          id: 'a-video_clips-S01_B01', type: 'script', branchId: 'br_main',
+          phaseIndex: 14, phaseName: 'p11b_final_render', state: 'success',
+          data: {
+            label: 'S01_B01', description: 'S01_B01',
+            _original_type: 'video',
+            filePath: '/oss/pipeline/611772d2/S01_B01.mp4',
+            shot_id: 'S01_B01', engine: 'h3', duration_sec: 0,
+            resolution: '768x1344',
+          },
+        },
+      ],
+      links: [],
+      branches: [],
+    })
+    const asset = graph.nodes.find((n) => n.id === 'a-video_clips-S01_B01')
+    expect(asset).toBeDefined()
+    expect(asset && asset.kind === 'asset' ? asset.stage : undefined).toBe('video')
+    expect(asset && asset.kind === 'asset' ? asset.media.original : undefined)
+      .toBe('/oss/pipeline/611772d2/S01_B01.mp4')
+  })
+
+  it('_original_type 仅在四种媒体类型内恢复；其它值保持 script', () => {
+    const { graph } = adaptV2Graph({
+      meta: { projectId: 1, episodesId: 2 },
+      nodes: [
+        {
+          id: 'n_fake', type: 'script', branchId: 'br_main', state: 'success',
+          data: { _original_type: 'hologram', description: 'x', prompt: 'y' },
+        },
+      ],
+      links: [],
+      branches: [],
+    })
+    const asset = graph.nodes.find((n) => n.id === 'n_fake')
+    expect(asset && asset.kind === 'asset' ? asset.stage : undefined).toBe('script')
+  })
+
+  it("type='audit'（p06 物理预检等）→ script 资产保留，不再整节点丢弃", () => {
+    const { graph, warnings } = adaptV2Graph({
+      meta: { projectId: 1, episodesId: 2 },
+      nodes: [
+        {
+          id: 'p06_blackboard/physics-precheck-report', type: 'audit',
+          branchId: 'br_main', phaseIndex: 6, state: 'success',
+          data: { description: '物理预检：3 处疑似穿帮', prompt: '报告' },
+        },
+      ],
+      links: [],
+      branches: [],
+    })
+    const ids = new Set(graph.nodes.map((n) => n.id))
+    expect(ids.has('p06_blackboard/physics-precheck-report')).toBe(true)
+    expect(warnings.some((w) => w.includes("type 'audit'"))).toBe(false)
+  })
+})
+
 describe('adaptV2Graph：残缺 payload（P22 消费端宽松）', () => {
   it('完全垃圾输入 → 空图 + warnings，不 throw', () => {
     expect(() => adaptV2Graph(null)).not.toThrow()

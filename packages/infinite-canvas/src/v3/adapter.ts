@@ -105,6 +105,11 @@ function normalizeNodeType(t: unknown, nodeId: string, warn: Warn): string | nul
       // P8：泳道由资产 stage 派生，zone/phase 分区节点在 V3 无实体，布局引擎接管分区语义。
       warn(`节点 ${nodeId}: type '${t}' 在 V3 无实体（泳道/分区由 stage 派生，P8），跳过`)
       return null
+    case 'audit':
+      // p06 物理预检报告等审计产物（manifest 侧未知 type 放行写入 OSS
+      // manifest.json）。画布语义 = 文本报告 → script，不再整节点丢弃
+      //（丢弃 = backfill 路径下审计产出从画布静默消失）。
+      return 'script'
     case 'suggestion':
       // V3 无 suggestion 实体（AI 建议不建仓，P3 三实体分权）。
       warn(`节点 ${nodeId}: type 'suggestion' 在 V3 无实体，跳过`)
@@ -132,11 +137,25 @@ function normalizeNode(raw: unknown, warn: Warn): FlowNodeV2 | null {
     return null
   }
   try {
-    const type = normalizeNodeType(n.type, id, warn)
+    let type = normalizeNodeType(n.type, id, warn)
     if (!type) return null
-    const data = (n.data != null && typeof n.data === 'object'
+    const rawData = (n.data != null && typeof n.data === 'object'
       ? { ...(n.data as Record<string, unknown>) }
-      : {}) as NonNullable<FlowNodeV2['data']>
+      : {})
+    // ── Gate B 降级恢复（2026-08-19）─────────────────────────────
+    // canvas-sync 的 Gate B 守卫在必填字段缺失时把媒体节点降级 script 并写
+    // data._original_type（此前 falsy 判断连 duration_sec=0 都误杀 ——
+    // ep-ccport-test01 一跑 37 个节点降级：生产视频/成片在画布上变文本卡，
+    // 无封面、不能播、不进视频泳道）。降级节点的 filePath 仍在、媒体可播：
+    // 恢复原类型按原模态渲染。服务端 schema 已放行 0 时长 + 守卫只对真缺失
+    // 降级后，该标记不再新增；此处纯为历史降级数据兜底。
+    const degradedFrom = rawData['_original_type']
+    if (type === 'script'
+      && (degradedFrom === 'video' || degradedFrom === 'audio'
+        || degradedFrom === 'storyboard' || degradedFrom === 'asset')) {
+      type = degradedFrom
+    }
+    const data = rawData as NonNullable<FlowNodeV2['data']>
 
     // orchestrator 裁定：叙事线 timeline（1975/2000/2025/dream/flashback）在 V3
     // storyboard meta 判别联合（strict）中无合法槽位——不私建字段，进 warnings 待宪法补位。
