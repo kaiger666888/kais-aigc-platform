@@ -768,17 +768,20 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       return false
     }
     const exists = graph.nodes.some((n) => n.id === v3Node.id)
-    const nextRaw = new Map(rawDataByNodeId)
-    nextRaw.set(v3Node.id, raw)
     if (exists) {
-      console.warn('[canvasStore] addNodeFromSocket: 节点已存在(重播),仅刷新 rawData', v3Node.id)
-      set({ rawDataByNodeId: nextRaw })
+      console.warn('[canvasStore] addNodeFromSocket: 节点已存在(重播),忽略', v3Node.id)
       return false
     }
-    set({
-      graph: { ...graph, nodes: [...graph.nodes, { ...v3Node, position }] },
-      rawDataByNodeId: nextRaw,
-    })
+    // 经 setGraph 全量重建派生缓存(rfNodes/edges/phaseCatalog)——直接 set
+    // graph 会让 store.nodes/useLayout 渲染链看不到新节点;setGraph 的
+    // rawDataByNodeId 从 V3 重建(shot_id 等原始字段会丢),注入 raw 补回。
+    get().setGraph(
+      { ...graph, nodes: [...graph.nodes, { ...v3Node, position }] },
+      get().warnings,
+    )
+    set((state) => ({
+      rawDataByNodeId: new Map(state.rawDataByNodeId ?? undefined).set(v3Node.id, raw),
+    }))
     return true
   },
 

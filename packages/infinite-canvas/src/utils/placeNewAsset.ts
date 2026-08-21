@@ -4,7 +4,7 @@
  * 两模式:事件源旁(anchor='source',+24/−16 右上偏移,4px 网格)与视口中心
  * (anchor='center',8px 网格)。非有限输入一律防御性走 center 分支
  * (T-55-02:payload.position 伪造/NaN 不得散布)。纯函数无随机数
- * ——随机散布反模式(LAYOUT.NEW_NODE_*)的替代者。
+ * ——随机散布反模式(旧 LAYOUT 常量,55-07 已删)的替代者。
  */
 
 export interface PlaceNewAssetOptions {

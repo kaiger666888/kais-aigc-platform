@@ -10,10 +10,20 @@ import './theme/tokens.css' // Step 5 设计 tokens（--cv-* 全局变量）
 // Test mode hook — 当 URL 含 ?testMode=1 时,挂载 store 控制接口到 window。
 // 用于 Playwright 测试在不依赖 React Flow 复杂 selection 模型的前提下驱动状态。
 // 仅在显式 testMode 下激活,production bundle 默认 noop。
+function paneFlowCenter(v: { x: number; y: number; zoom: number }): { x: number; y: number } {
+  // RF pane 中心(非 window 中心——顶栏偏移;与 FlowCanvas 的
+  // screenToFlowPosition 同基准,桥内放置/断言必须一致)
+  const pane = document.querySelector('.react-flow')
+  const rect = pane?.getBoundingClientRect()
+  const cx = rect ? rect.left + rect.width / 2 : window.innerWidth / 2
+  const cy = rect ? rect.top + rect.height / 2 : window.innerHeight / 2
+  return { x: (cx - v.x) / v.zoom, y: (cy - v.y) / v.zoom }
+}
+
 function getLiveViewportSafeCenter(): { x: number; y: number } {
   const v = getLiveViewport()
   if (v == null || !Number.isFinite(v.zoom) || v.zoom <= 0) return { x: 0, y: 0 }
-  return { x: (window.innerWidth / 2 - v.x) / v.zoom, y: (window.innerHeight / 2 - v.y) / v.zoom }
+  return paneFlowCenter(v)
 }
 
 if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('testMode')) {
@@ -28,6 +38,9 @@ if (typeof window !== 'undefined' && new URLSearchParams(window.location.search)
     // 暴露本地 socket.io-client —— e2e 用它监听 WebSocket 事件，替代不可靠的
     // 浏览器侧 CDN dynamic import（沙箱环境浏览器常无法访问 cdn.socket.io）。
     io,
+    // 55-07:canonical graph 只读桥(placement 断言读 graph 节点 position——
+    // rfNodes 的 position 是布局缓存,经 layoutFlowGraph 重算,非放置决策)。
+    getGraph: () => useCanvasStore.getState().graph,
     // 55-04 (W2 裁决):新资产落点 e2e 断言桥——55-07 消费。
     // getViewCenter 读 FlowCanvas live 视口 getter(非 store 镜像——镜像仅
     // setGraph 载入且逐平移写会触发全量重布,已被证伪);换算与
@@ -35,10 +48,9 @@ if (typeof window !== 'undefined' && new URLSearchParams(window.location.search)
     getViewCenter: (): { x: number; y: number } | null => {
       const v = getLiveViewport()
       if (v == null || !Number.isFinite(v.zoom) || v.zoom <= 0) return null
-      return {
-        x: (window.innerWidth / 2 - v.x) / v.zoom,
-        y: (window.innerHeight / 2 - v.y) / v.zoom,
-      }
+      // RF pane 中心(非 window 中心——顶栏 48px 偏移;screenToFlowPosition
+      // 同样以 pane 为原点,桥与 placeNewAsset 必须同基准)
+      return paneFlowCenter(v)
     },
     // 与 FlowCanvas onNewAsset 同一位置决策顺序与 canonical 写回防线
     // (addNodeFromSocket:zod 同源校验 + id 查重 + warn 早退),不绕过。

@@ -79,7 +79,7 @@ export const V3_LAYOUT = {
  * ⚠️ tokens §2.4 裁决：SCRIPT/ASSET/SB/VIDEO/AUDIO_* 手工网格分区**已废止**——
  * V3 由「拓扑分层 × 泳道 × 第 0 列 × role 分流」布局引擎接管（包内 layoutFlowGraph
  * + useLayout 桥接，泳道几何见 V3_LAYOUT）。保留仅为 legacy 非 graph 路径编译兼容，
- * 新代码禁止引用；CONTEXT_MENU/NEW_NODE 等交互偏移保留。
+ * 新代码禁止引用；CONTEXT_MENU 交互偏移保留(新资产落点走 placeNewAsset)。
  */
 export const LAYOUT = {
   /** 剧本节点起始位置 @deprecated V3 布局引擎接管 */
@@ -100,11 +100,8 @@ export const LAYOUT = {
   AUDIO_START_Y: 1100,
   /** 右键添加节点的偏移量 */
   CONTEXT_MENU_ADD_OFFSET_X: 400,
-  /** 新建资产节点随机位置范围 */
-  NEW_NODE_X_MIN: 400,
-  NEW_NODE_X_RANGE: 600,
-  NEW_NODE_Y_MIN: 50,
-  NEW_NODE_Y_RANGE: 400,
+  // 55-07:新建节点随机散布常量已删(55-04 引用清零;有界落点 =
+  // utils/placeNewAsset,视口中心 8px 网格 / 事件源旁 4px 网格)。
 } as const
 
 /** 视口常量 */

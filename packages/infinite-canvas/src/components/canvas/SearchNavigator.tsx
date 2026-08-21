@@ -45,10 +45,24 @@ function str(v: unknown): string | null {
  * (video_prompt/ltx_prompt),大小写不敏感子串;shot 节点按 sceneNumOf
  * 分组升序,非 shot 归「其他资产」末组;>200 截断。不 mutate 输入。
  */
+type RawBag = Record<string, unknown>
+
+/** raw 袋读取:兼容 Map(store)与 Record(直构)两种形状。 */
+function rawOf(
+  rawDataByNodeId: Map<string, RawBag> | Record<string, RawBag> | null | undefined,
+  id: string,
+): RawBag {
+  if (rawDataByNodeId == null) return {}
+  const v = typeof (rawDataByNodeId as Map<string, RawBag>).get === 'function'
+    ? (rawDataByNodeId as Map<string, RawBag>).get(id)
+    : (rawDataByNodeId as Record<string, RawBag>)[id]
+  return v ?? {}
+}
+
 export function deriveSearchResults(
   nodes: Array<{ id: string; data?: Record<string, unknown> }>,
   query: string,
-  rawDataByNodeId?: Record<string, Record<string, unknown>> | null,
+  rawDataByNodeId?: Map<string, RawBag> | Record<string, RawBag> | null,
 ): SearchResult {
   const q = query.trim().toLowerCase()
   if (q === '') return { groups: [], truncated: false }
@@ -60,7 +74,7 @@ export function deriveSearchResults(
 
   for (const node of nodes) {
     const data = node.data ?? {}
-    const raw = rawDataByNodeId?.[node.id] ?? {}
+    const raw = rawOf(rawDataByNodeId, node.id)
     const shotId = str(data.shot_id) ?? str(raw.shot_id)
     const label =
       str(data.label) ?? shotId ?? str(data.name) ?? node.id
@@ -137,13 +151,13 @@ export default function SearchNavigator({ open, onClose, initialQuery = '' }: {
   )
 
   const result = useMemo(
-    () => deriveSearchResults(flatNodes, query, rawDataByNodeId as unknown as Record<string, Record<string, unknown>> | null),
+    () => deriveSearchResults(flatNodes, query, rawDataByNodeId),
     [flatNodes, query, rawDataByNodeId],
   )
 
   // 打开态无输入:全部分组骨架(全部 shot 节点按场景分组——空格查询的退化路径)
   const browse = useMemo(
-    () => (query.trim() === '' ? deriveSearchResults(flatNodes, ' ', rawDataByNodeId as unknown as Record<string, Record<string, unknown>> | null) : null),
+    () => (query.trim() === '' ? deriveSearchResults(flatNodes, ' ', rawDataByNodeId) : null),
     [flatNodes, query, rawDataByNodeId],
   )
   const effective = query.trim() === '' ? browse : result

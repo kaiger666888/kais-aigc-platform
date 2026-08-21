@@ -636,6 +636,12 @@ function CanvasInner() {
   // 守卫(Pitfall 7):输入框/文本域/可编辑元素聚焦时不劫持;modal 开启早退。
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // 导航器开着时 Esc 全局可关(焦点可能在导航器外的输入框,组件内
+      // onKeyDown 收不到——window 层兜底;导航器内部 Esc 会先 stopPropagation)。
+      if (e.key === 'Escape' && searchNavOpen) {
+        setSearchNavOpen(false)
+        return
+      }
       if (e.key !== '/' || searchNavOpen) return
       const t = e.target as HTMLElement | null
       if (t != null && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
