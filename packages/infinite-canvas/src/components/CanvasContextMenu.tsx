@@ -1,5 +1,5 @@
 import { useState, type JSX } from 'react'
-import type { AssetNodeData, StoryboardNodeData, VideoNodeData } from '../types/canvas'
+import type { AssetNodeData } from '../types/canvas'
 import { executeNode, requestNodeScore, orchestrateCanvas, saveCanvasGraph } from '../services/canvasApi'
 import { submitScail2Replace, submitScail2Transfer, pollScail2UntilDone, fetchBlobFromUrl } from '../services/scail2Api'
 import { useCanvasStore } from '../store/canvasStore'
@@ -73,30 +73,8 @@ export default function CanvasContextMenu({
     }])
     onClose()
   }
-
-  const handleAddStoryboard = () => {
-    const id = `storyboard-${Date.now()}`
-    const data: StoryboardNodeData = {
-      label: '新分镜', type: 'storyboard', storyboardId: 0, duration: 3,
-      prompt: '', filePath: null, thumbnailUrl: null, state: 'idle', linkedAssetIds: [],
-    }
-    setNodes((nds) => [...nds, {
-      id, type: 'storyboard', position: { x: x + LAYOUT.CONTEXT_MENU_ADD_OFFSET_X, y }, data,
-    }])
-    onClose()
-  }
-
-  const handleAddVideo = () => {
-    const id = `video-${Date.now()}`
-    const data: VideoNodeData = {
-      label: '新视频', type: 'video', videoId: 0,
-      filePath: null, thumbnailUrl: null, state: 'idle',
-    }
-    setNodes((nds) => [...nds, {
-      id, type: 'video', position: { x: x + LAYOUT.CONTEXT_MENU_ADD_OFFSET_X, y }, data,
-    }])
-    onClose()
-  }
+  // WRITE-02/WRITE-04：Script/Storyboard/Video/Audio 旧类型节点的 add-node 处理器已整体移除
+  //（nodeTypes 全部路由 AssetCardNode，旧节点类型不可创建；legacy 类型本体由 51-04 删除）。
 
   // 【资产↔画布交叉联动】画布节点 → 资产库详情：
   // 节点 id 形如 `asset-{numericId}`，从 useRealAssets 模块级缓存查 uuid 后 openAssetDetail + 切 assets 视图。
@@ -267,7 +245,8 @@ export default function CanvasContextMenu({
             // 把输出作为新视频节点加到 canvas，紧挨原节点右侧
             const newId = `video-scail2-${mode}-${Date.now()}`
             const label = mode === 'replace' ? 'SCAIL2 替换' : 'SCAIL2 迁移'
-            const newData: VideoNodeData = {
+            // plain object（去 legacy 类型注解，运行时行为不变）
+            const newData = {
               label, type: 'video', videoId: 0,
               filePath: url, thumbnailUrl: null, state: 'idle',
             }
@@ -295,8 +274,6 @@ export default function CanvasContextMenu({
 
   items.push(
     { label: '添加资产节点', icon: '👤', action: handleAddAsset },
-    { label: '添加分镜节点', icon: '🎬', action: handleAddStoryboard },
-    { label: '添加视频节点', icon: '🎥', action: handleAddVideo },
   )
 
   return (
