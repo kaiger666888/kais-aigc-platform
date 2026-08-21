@@ -332,3 +332,67 @@ describe('extractShots 首尾帧挂载 — 场景级条件帧（逆推项目回�
     expect(shots[0].frameVariants?.first).toHaveLength(1)
   })
 })
+
+// ─── extractShots 55-02 增强:videoPrompt + referencedAssets ─────────────
+
+function globalAssetNode(id: string, over: Partial<AssetNodeV3>): AssetNodeV3 {
+  return makeNode(id, { stage: 'global', scope: 'global', ...over })
+}
+
+describe('extractShots 55-02 — videoPrompt 与引用回查', () => {
+  it('raw.video_prompt 优先;仅 ltx_prompt 时取之;皆无 → undefined', () => {
+    const graph = makeGraph([
+      storyboardNode('a-shot_list-S01_B01', 'S01_B01'),
+      storyboardNode('a-shot_list-S01_B02', 'S01_B02'),
+      storyboardNode('a-shot_list-S01_B03', 'S01_B03'),
+    ])
+    const raw = new Map<string, Record<string, unknown>>([
+      ['a-shot_list-S01_B01', { shot_id: 'S01_B01', video_prompt: 'v 提示', ltx_prompt: 'l 提示' }],
+      ['a-shot_list-S01_B02', { shot_id: 'S01_B02', ltx_prompt: 'l 提示' }],
+      ['a-shot_list-S01_B03', { shot_id: 'S01_B03' }],
+    ])
+    const shots = extractShots(graph, raw)
+    const byId = new Map(shots.map((s) => [s.shotId, s]))
+    expect(byId.get('S01_B01')?.videoPrompt).toBe('v 提示')
+    expect(byId.get('S01_B02')?.videoPrompt).toBe('l 提示')
+    expect(byId.get('S01_B03')?.videoPrompt).toBeUndefined()
+  })
+
+  it('global character 节点名匹配 shot.characters → thumbnail 回查命中;无匹配 null', () => {
+    const graph = makeGraph([
+      storyboardNode('a-shot_list-S01_B01', 'S01_B01'),
+      globalAssetNode('g-char-1', { meta: { stage: 'global', assetType: 'role' } }),
+    ])
+    const raw = new Map<string, Record<string, unknown>>([
+      ['a-shot_list-S01_B01', { shot_id: 'S01_B01', characters: ['林小鱼', '未知角色'] }],
+      ['g-char-1', { assetType: 'character', characterCanonical: '林小鱼', thumbnailUrl: '/oss/thumbs/lin.png' }],
+    ])
+    const shots = extractShots(graph, raw)
+    const refs = shots[0]?.referencedAssets
+    expect(refs?.characters).toHaveLength(2)
+    expect(refs?.characters[0]).toEqual({ name: '林小鱼', thumbnail: '/oss/thumbs/lin.png' })
+    expect(refs?.characters[1]).toEqual({ name: '未知角色', thumbnail: null })
+  })
+
+  it('global scene 节点按 scene_id 名回查命中;查不到 → scenes 空数组', () => {
+    const graph = makeGraph([
+      storyboardNode('a-shot_list-S02_B01', 'S02_B01'),
+      globalAssetNode('g-scene-1', { meta: { stage: 'global', assetType: 'scene' } }),
+    ])
+    const raw = new Map<string, Record<string, unknown>>([
+      ['a-shot_list-S02_B01', { shot_id: 'S02_B01', scene_id: '雨夜小巷', characters: ['林小鱼'] }],
+      ['g-scene-1', { assetType: 'scene', name: '雨夜小巷', thumbnailUrl: '/oss/thumbs/alley.png' }],
+    ])
+    const shots = extractShots(graph, raw)
+    expect(shots[0]?.referencedAssets?.scenes).toEqual([{ name: '雨夜小巷', thumbnail: '/oss/thumbs/alley.png' }])
+  })
+
+  it('无 global 节点且 shot 无 characters/scene → referencedAssets undefined', () => {
+    const graph = makeGraph([storyboardNode('a-shot_list-S01_B01', 'S01_B01')])
+    const raw = new Map<string, Record<string, unknown>>([
+      ['a-shot_list-S01_B01', { shot_id: 'S01_B01' }],
+    ])
+    const shots = extractShots(graph, raw)
+    expect(shots[0]?.referencedAssets).toBeUndefined()
+  })
+})

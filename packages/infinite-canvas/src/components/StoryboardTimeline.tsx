@@ -25,6 +25,7 @@ import type { AssetNodeV3, FlowGraphV3 } from '@kais/flowgraph-v3'
 import { UiIcon } from './canvas/icons'
 import { convertProjectData } from '../services/canvasApi'
 import { fetchProjectAssets } from './assetManager/useRealAssets'
+import { SCENE_COLORS as VT_SCENE_COLORS, sceneNumOf, sceneColorOf, formatTotalDuration } from '../utils/sceneGrouping'
 
 // ─── 类型 ──────────────────────────────────────────────
 
@@ -78,7 +79,7 @@ const STEM_META: Record<string, { color: string; label: string }> = {
   other: { color: '#CBA6F7', label: 'other 其他' },
 }
 
-interface StoryboardShot {
+export interface StoryboardShot {
   node: AssetNodeV3
   shotId: string
   durationS: number
@@ -125,6 +126,13 @@ interface StoryboardShot {
   shotKey?: string | null
   /** P10 音频轨（每分镜 1–2 条）。 */
   audioTracks?: AudioTrack[]
+  /** 视频生成 prompt(raw.video_prompt ?? raw.ltx_prompt 白名单穿透;缺失 undefined)。 */
+  videoPrompt?: string
+  /** 引用回查(scope='global' 资产名字索引):角色/场景名 + 缩略图;两数组皆空 undefined。 */
+  referencedAssets?: {
+    characters: Array<{ name: string; thumbnail: string | null }>
+    scenes: Array<{ name: string; thumbnail: string | null }>
+  }
   /**
    * P11 首尾帧变体（phase_name='p11_first_last_frames'）：每组 v1/v2/v3 三张并排，
    * 用户点选最佳变体（三态：选定 ★ / 待选 ○ / 淘汰 ✕）。首帧尾帧各一组。
@@ -322,6 +330,8 @@ export function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<str
 
     // prompt 来源优先级：content > raw.prompt > promptMeta facets
     const promptText = node.content ?? (raw.prompt as string) ?? undefined
+    // 55-02:视频生成 prompt(镜头卡「画面提示」;video_prompt 优先,ltx_prompt 兜底)
+    const videoPromptRaw = (raw.video_prompt as string) ?? (raw.ltx_prompt as string)
 
     // shotId 显示优化：meta.shotId 可能是冗长的 asset ID，
     // 尝试从 label 中提取更短的显示名
@@ -340,6 +350,7 @@ export function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<str
       composition,
       pacing,
       promptText,
+      videoPrompt: typeof videoPromptRaw === 'string' && videoPromptRaw ? videoPromptRaw : undefined,
       promptFacets: meta.promptMeta,
       startFrameDesc: (raw.start_frame_description as string) ?? undefined,
       endFrameDesc: (raw.end_frame_description as string) ?? undefined,
@@ -707,6 +718,41 @@ export function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<str
 
   // 按 shotId 排序（自然排序：S01, S02, ..., S10）
   shots.sort((a, b) => a.shotId.localeCompare(b.shotId, undefined, { numeric: true, sensitivity: 'base' }))
+  // Pass 5（55-02 引用回查）：scope='global' 资产建角色/场景两张名字索引
+  // (名字口径与 ShotTree 全局栏同源),shot 的 characters/scene 候选逐名回查
+  // 缩略图。纯派生降级:角色查不到保留名字 thumbnail=null;场景查不到空数组;
+  // 两数组皆空不产生 referencedAssets(空对象零噪音)。
+  {
+    const str = (v: unknown): string | null => (typeof v === 'string' && v.length > 0 ? v : null)
+    const charIdx = new Map<string, string | null>()
+    const sceneIdx = new Map<string, string | null>()
+    for (const node of graph.nodes) {
+      if (node.kind !== 'asset' || node.scope !== 'global') continue
+      const raw = rawDataByNodeId?.get(node.id) ?? {}
+      const name = str(raw.characterCanonical) ?? str(raw.characterId) ?? str(raw.name) ?? str(raw.label)
+      if (!name) continue
+      const thumb = str(raw.thumbnailUrl) ?? node.media.thumbnail ?? null
+      const assetType = str(raw.assetType) ?? str((node.meta as { assetType?: unknown }).assetType)
+      // 角色域双词汇:kmc 侧 'character'(canvas_sync)与前端 meta 'role'
+      //(GlobalStageMeta 联合)同义;两者都进角色索引。
+      if (assetType === 'character' || assetType === 'role') charIdx.set(name, thumb)
+      else if (assetType === 'scene') sceneIdx.set(name, thumb)
+    }
+    for (const shot of shots) {
+      const raw = rawDataByNodeId?.get(shot.node.id) ?? {}
+      const chars = Array.isArray(raw.characters)
+        ? (raw.characters as unknown[]).filter((c): c is string => typeof c === 'string' && c.length > 0)
+        : []
+      // 场景名候选:scene_id / scene 字段优先,无则「场景 N」(sceneNumOf 数字段)
+      const candidates = [str(raw.scene_id), str(raw.scene), `场景 ${sceneNumOf(shot.shotId)}`]
+      const sceneName = candidates.find((n) => n != null && sceneIdx.has(n))
+      const characters = chars.map((name) => ({ name, thumbnail: charIdx.get(name) ?? null }))
+      const scenes = sceneName != null ? [{ name: sceneName, thumbnail: sceneIdx.get(sceneName) ?? null }] : []
+      if (characters.length === 0 && scenes.length === 0) continue
+      shot.referencedAssets = { characters, scenes }
+    }
+  }
+
   return shots
 }
 
@@ -1759,26 +1805,11 @@ export function assignDialogueLanes(spans: AudioTrack[]): DialogueLaneAssignment
 /** 竖幅各列宽度（header 行与内容列严格对齐；bgm 列 flex 吸收右侧余量）。 */
 const VT_COL = { time: 36, shot: 80, dialogue: 88, ambient: 60, bgm: 60 } as const/** stem mini 音轨列宽（4 条竖排小条，仅逆推资产集等有 audioStems 的项目渲染）。 */
 const VT_COL_STEMS = 44
-/** 分镜矩形按场景号循环的 4 模态色板（相邻 scene 不同色）。 */
-const VT_SCENE_COLORS = [v3theme.modality.image, v3theme.modality.video, v3theme.modality.audio, v3theme.modality.text] as const
+// 场景色板/场景号/时长口径已迁移 ../utils/sceneGrouping(55-02 binding 4 单源)。
 const VT_PANEL_W = 360
 /** 含 stem 列时的面板总宽（stem 列 44px 追加在 bgm 列后）。 */
 const VT_PANEL_W_STEMS = VT_PANEL_W + VT_COL_STEMS
 const VT_COLLAPSED_W = 44
-
-/** 从 shotId 取场景号（首个数字段），用于分镜矩形交替着色。 */
-function sceneNumOf(shotId: string): number {
-  const m = shotId.match(/s?0*(\d+)/i)
-  return m ? Number(m[1]) : 0
-}
-
-/** 累计总时长 → MM:SS（标题栏显示）。 */
-function formatTotalDuration(sec: number): string {
-  if (!isFinite(sec) || sec <= 0) return '00:00'
-  const m = Math.floor(sec / 60)
-  const s = Math.round(sec % 60)
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-}
 
 /**
  * 单条音轨矩形（对白/环境/BGM 共用）。绝对定位到所属 shot 行的实测几何（baseTop/spanHeight），
@@ -2402,8 +2433,7 @@ function VerticalTimeline({
             {shots.map((shot, i) => {
               const top = rowTopOf(i)
               const height = Math.max(20, rowHeightOf(i))
-              const sceneIdx = Math.max(0, sceneNumOf(shot.shotId) - 1) % VT_SCENE_COLORS.length
-              const color = VT_SCENE_COLORS[sceneIdx]
+              const color = sceneColorOf(sceneNumOf(shot.shotId))
               const selected = shot.node.id === selectedNodeId
               const thumb = resolveMediaUrl(shot.firstFrame ?? shot.thumbnail)
               return (

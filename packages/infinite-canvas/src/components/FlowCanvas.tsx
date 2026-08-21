@@ -53,6 +53,7 @@ import StoryboardTimeline from './StoryboardTimeline'
 import AssetManager from './assetManager/AssetManager'
 import PipelineStateMachine from './PipelineStateMachine'
 import StoryboardBoard from './storyboard/StoryboardBoard'
+import SceneShotBrowser from './SceneShotBrowser'
 import { useLayout } from '../hooks/useLayout'
 import { canvasStateKey, loadCanvasState, useCanvasPersistence } from '../hooks/useCanvasPersistence'
 import { useNavHistory, type NavSnapshot } from '../hooks/useNavHistory'
@@ -798,6 +799,9 @@ function CanvasInner() {
             <ViewModeButton active={viewMode === 'storyboard_board'} onClick={() => handleSetViewMode('storyboard_board')}>
               <UiIcon kind="layout" size={13} />分镜板
             </ViewModeButton>
+            <ViewModeButton active={viewMode === 'scene_shots'} onClick={() => handleSetViewMode('scene_shots')}>
+              <UiIcon kind="film" size={13} />分镜浏览
+            </ViewModeButton>
           </div>
 
           {/* 应用级历史导航：后退 / 前进（全局功能，恢复完整应用状态） */}
@@ -862,6 +866,8 @@ function CanvasInner() {
           />
         ) : viewMode === 'storyboard_board' ? (
           <StoryboardBoard />
+        ) : viewMode === 'scene_shots' ? (
+          <SceneShotBrowser />
         ) : (
         <>
         <EventChipClickContext.Provider value={handleEventChipClick}>
