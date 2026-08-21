@@ -445,11 +445,196 @@ async function main(): Promise<void> {
   );
   fs.rmSync(childPath, { force: true });
 
-  // ═══ S3 — FILLED-BY-53-04: select-winner extension + queue ═══════════════
-  console.log("\n=== S3 select-winner extension + retry queue (FILLED-BY-53-04 placeholder) ===");
+  // ═══ S3 — VAR-03 kap half: select-winner extension + retry queue (53-04)═══
+  console.log("\n=== S3 select-winner extension + retry queue (53-04) ===");
   const selfSrc = read("scripts/verify-phase-53.ts");
-  // FILLED-BY-53-04: frameSlot params + manifest hook + queue table asserts.
-  assert(selfSrc.includes("FILLED-BY-53-04"), "S3: FILLED-BY-53-04 marker present (section reserved)");
+  const wb: any = await import("../src/lib/writebackQueue");
+  const mw: any = await import("../src/lib/manifestWriteback");
+
+  // ── S3a 队列机制(:memory:)──
+  const memQ = knexMod.default({ client: "sqlite3", connection: { filename: ":memory:" }, useNullAsDefault: true });
+  await memQ.schema.createTable("canvas_writeback_queue", (t: any) => {
+    t.increments("id").primary();
+    t.integer("project_id").notNullable();
+    t.integer("episodes_id").notNullable();
+    t.string("action", 32).notNullable();
+    t.text("payload").notNullable();
+    t.string("state", 16).notNullable().defaultTo("pending");
+    t.integer("attempts").notNullable().defaultTo(0);
+    t.integer("max_attempts").notNullable().defaultTo(8);
+    t.bigInteger("next_attempt_at").notNullable();
+    t.text("last_error");
+    t.bigInteger("created_at").notNullable();
+    t.bigInteger("updated_at").notNullable();
+  });
+  const t0q = Date.now();
+  await wb.enqueueWriteback(memQ, { projectId: 1, episodesId: 1, action: "manifest_writeback", payload: { x: 1 } });
+  let rowQ = await memQ("canvas_writeback_queue").first();
+  assert(rowQ?.state === "pending" && rowQ?.attempts === 0, "S3a-1: enqueue → pending attempts=0", JSON.stringify(rowQ?.state));
+  assert(
+    Math.abs(rowQ?.next_attempt_at - (t0q + 30000)) < 5000,
+    "S3a-2: next_attempt_at ≈ now+30s",
+    String(rowQ?.next_attempt_at - t0q),
+  );
+  // make it due now, drain with always-failing handler
+  await memQ("canvas_writeback_queue").update({ next_attempt_at: t0q - 1 });
+  await wb.drainOnce(memQ, async () => false);
+  rowQ = await memQ("canvas_writeback_queue").first();
+  assert(rowQ?.attempts === 1 && rowQ?.state === "pending", "S3a-3: 1st failure → attempts=1 pending", JSON.stringify(rowQ));
+  assert(
+    Math.abs(rowQ?.next_attempt_at - (Date.now() + 60000)) < 5000,
+    "S3a-4: backoff 2^1 → +60s",
+    String(rowQ?.next_attempt_at - Date.now()),
+  );
+  // exhaust to terminal failed (7 more failures)
+  for (let i = 0; i < 7; i++) {
+    await memQ("canvas_writeback_queue").update({ next_attempt_at: Date.now() - 1 });
+    await wb.drainOnce(memQ, async () => false);
+  }
+  rowQ = await memQ("canvas_writeback_queue").first();
+  assert(rowQ?.state === "failed" && rowQ?.attempts === 8, "S3a-5: exhausted → terminal failed (max_attempts=8)", JSON.stringify(rowQ));
+  const dueAfter = await memQ("canvas_writeback_queue").where({ state: "pending" }).where("next_attempt_at", "<=", Date.now());
+  assert(dueAfter.length === 0, "S3a-6: failed rows never selected again");
+  // serial by id: two pending rows processed in id order
+  await memQ("canvas_writeback_queue").del();
+  await wb.enqueueWriteback(memQ, { projectId: 1, episodesId: 1, action: "manifest_writeback", payload: { n: 1 } });
+  await wb.enqueueWriteback(memQ, { projectId: 1, episodesId: 1, action: "g15_waive", payload: { n: 2 } });
+  await memQ("canvas_writeback_queue").update({ next_attempt_at: Date.now() - 1 });
+  const order: number[] = [];
+  const serial = await wb.drainOnce(memQ, async (r: any) => { order.push(r.id); return true; });
+  assert(serial.processed === 2 && serial.delivered === 2 && order[0] < order[1], "S3a-7: serial drain by id, both done", JSON.stringify({ serial, order }));
+
+  // ── S3b hook 隔离(never-throws + 字段映射)──(清场:S3a 残留行不计数)
+  await memQ("canvas_writeback_queue").del();
+  let hookThrew = false;
+  try {
+    await mw.enqueueManifestWriteback({ projectId: 1, episodesId: 1, groupId: "g", winnerNodeId: "w", variantIndex: 2 }, { getTransport: () => null, db: memQ });
+  } catch { hookThrew = true; }
+  const rowsNull = await memQ("canvas_writeback_queue").select("*");
+  assert(!hookThrew && rowsNull.length === 0, "S3b-1: transport=null → resolves, NO queue row (channel-closed ≠ failure)", JSON.stringify(rowsNull.length));
+  let hookThrew2 = false;
+  try {
+    await mw.enqueueManifestWriteback({ projectId: 1, episodesId: 1, groupId: "g", winnerNodeId: "w", variantIndex: 2 }, {
+      getTransport: () => { throw new Error("boom"); },
+      db: memQ,
+    });
+  } catch { hookThrew2 = true; }
+  assert(!hookThrew2, "S3b-2: throwing transport resolver → still resolves (never-throws)");
+  let hookThrew3 = false;
+  try {
+    await mw.enqueueManifestWriteback({ projectId: 1, episodesId: 1, groupId: "g", winnerNodeId: "w", variantIndex: 2 }, {
+      getTransport: () => ({ writeSelection: async () => { throw new Error("delivery down"); } }),
+      db: memQ,
+    });
+  } catch { hookThrew3 = true; }
+  const rowsFail = await memQ("canvas_writeback_queue").select("*");
+  assert(!hookThrew3 && rowsFail.length === 1 && rowsFail[0]?.state === "pending", "S3b-3: failing delivery → 1 pending queue row, still resolves", JSON.stringify(rowsFail.length));
+  const targets: any[] = [];
+  const okTransport = { writeSelection: async (_p: any, target: any) => { targets.push(target); } };
+  await mw.enqueueManifestWriteback({ projectId: 1, episodesId: 1, groupId: "g", winnerNodeId: "w", variantIndex: 3, frameSlot: "first" }, { getTransport: () => okTransport, db: memQ });
+  await mw.enqueueManifestWriteback({ projectId: 1, episodesId: 1, groupId: "g", winnerNodeId: "w", variantIndex: 4, frameSlot: "last" }, { getTransport: () => okTransport, db: memQ });
+  await mw.enqueueManifestWriteback({ projectId: 1, episodesId: 1, groupId: "g", winnerNodeId: "w", variantIndex: 5 }, { getTransport: () => okTransport, db: memQ });
+  assert(
+    JSON.stringify(targets) === JSON.stringify([
+      { field: "selected_first_variant", value: 3 },
+      { field: "selected_last_variant", value: 4 },
+      { field: "chosen_variant_id", value: 5 },
+    ]),
+    "S3b-4: D-11 field mapping first/last/none + 1-based value",
+    JSON.stringify(targets),
+  );
+  const rowsAfterOk = await memQ("canvas_writeback_queue").select("*");
+  assert(rowsAfterOk.length === 1, "S3b-5: successful direct writes never enqueue", JSON.stringify(rowsAfterOk.length));
+
+  // ── S3d drain 重放闭环(先失败一次再成功)──
+  await memQ("canvas_writeback_queue").update({ next_attempt_at: Date.now() - 1 });
+  const replayFail = { writeSelection: async () => { throw new Error("still down"); } };
+  await wb.drainOnce(memQ, (r: any) => mw.replayManifestWriteback(r, replayFail));
+  let replayRow = await memQ("canvas_writeback_queue").first();
+  assert(replayRow?.attempts === 1 && replayRow?.state === "pending", "S3d-1: replay failure increments attempts");
+  await memQ("canvas_writeback_queue").update({ next_attempt_at: Date.now() - 1 });
+  const replayOk = { writeSelection: async () => { /* idempotent success */ } };
+  await wb.drainOnce(memQ, (r: any) => mw.replayManifestWriteback(r, replayOk));
+  replayRow = await memQ("canvas_writeback_queue").first();
+  assert(replayRow?.state === "done", "S3d-2: retry with working transport → done (replay closure)", JSON.stringify(replayRow?.state));
+  await memQ.destroy();
+
+  // ── S3c 端点集成(spawn 子进程 dispatch,绝不与 :memory: 段同进程)──
+  console.log("\n=== S3c select-winner endpoint integration (spawned child dispatch) ===");
+  const CHILD53_04 = [
+    'import fs from "node:fs";',
+    'import os from "node:os";',
+    'import path from "node:path";',
+    'const REPO_ROOT = "' + REPO_ROOT.replace(/"/g, '\\"') + '";',
+    'const ISO = fs.mkdtempSync(path.join(os.tmpdir(), "verify-phase-53-sw-"));',
+    'fs.copyFileSync(path.join(REPO_ROOT, "package.json"), path.join(ISO, "package.json"));',
+    'process.chdir(ISO);',
+    'function emit(pass, name, detail) { process.stdout.write("CHILD_RESULT\\t" + (pass ? "1" : "0") + "\\t" + name + (detail ? "\\t" + detail : "") + "\\n"); }',
+    'async function callEndpoint(routerFn, method, urlPath, body) {',
+    '  const req = { method, url: urlPath, headers: {}, body, params: {}, query: {}, socket: { remoteAddress: "127.0.0.1" }, connection: { remoteAddress: "127.0.0.1" } };',
+    '  const res = { statusCode: 200, headersSent: false, payload: undefined,',
+    '    status(c) { this.statusCode = c; return this; },',
+    '    send(p) { this.payload = p; this.headersSent = true; settle(); return this; },',
+    '    json(p) { this.payload = p; this.headersSent = true; settle(); return this; },',
+    '    end() { this.headersSent = true; settle(); },',
+    '    setHeader() {}, getHeader() { return undefined; }, removeHeader() {}, write() { return true; }, writeHead(c) { this.statusCode = c; settle(); } };',
+    '  let settle = () => undefined;',
+    '  await new Promise((resolve, reject) => { settle = resolve; routerFn(req, res, (err) => (err ? reject(err) : resolve())); });',
+    '  return { status: res.statusCode, payload: res.payload };',
+    '}',
+    'async function main() {',
+    '  await import("../src/utils");',
+    '  const routeMod = await import("../src/routes/canvas/v2/select-winner");',
+    '  const dbMod = await import("../src/utils/db");',
+    '  await Promise.race([dbMod.bootReady, new Promise((_, rej) => setTimeout(() => rej(new Error("bootReady timeout")), 60000))]);',
+    '  const db = dbMod.db;',
+    '  const T0 = 1700000000000;',
+    '  const P = 999, E = 1, GID = "cand:shot:shot_epZ:first";',
+    '  await db("canvas_variant_groups").insert({ id: GID, project_id: P, episodes_id: E, phase_index: 0, branch_id: "main",',
+    '    variant_node_ids: JSON.stringify(["sw-a", "sw-b"]), winner_node_id: null, select_mode: "single", created_at: T0, updated_at: T0 });',
+    '  const node = (id) => ({ id, project_id: P, episodes_id: E, type: "asset", branch_id: "main", phase_index: 11, phase_name: "p11",',
+    '    position_x: 0, position_y: 0, size_width: 260, size_height: 180, data: JSON.stringify({}), state: "idle", is_winner: 0,',
+    '    variant_group_id: GID, created_at: T0, updated_at: T0 });',
+    '  await db("canvas_nodes").insert(node("sw-a"));',
+    '  await db("canvas_nodes").insert(node("sw-b"));',
+    '  const queueCount = async () => (await db("canvas_writeback_queue").where({ project_id: P, episodes_id: E }).count("* as c"))[0].c;',
+    '  const r1 = await callEndpoint(routeMod.default, "POST", "/" + GID + "/select-winner",',
+    '    { projectId: P, episodesId: E, winnerNodeId: "sw-a", frameSlot: "first", source: "p11a0_flf" });',
+    '  emit(r1.status === 200 && r1?.payload?.data?.applied === true, "S3c-1: POST with frameSlot/source → 200 applied:true",',
+    '       JSON.stringify({ status: r1.status, applied: r1?.payload?.data?.applied }));',
+    '  const q1 = await queueCount();',
+    '  const r2 = await callEndpoint(routeMod.default, "POST", "/" + GID + "/select-winner",',
+    '    { projectId: P, episodesId: E, winnerNodeId: "sw-a" });',
+    '  const q2 = await queueCount();',
+    '  emit(r2.status === 200 && r2?.payload?.data?.applied === false, "S3c-2: same winner again → applied:false (idempotent branch)",',
+    '       JSON.stringify({ status: r2.status, applied: r2?.payload?.data?.applied }));',
+    '  emit(q1 === q2, "S3c-3: idempotent branch triggers NO queue row (Pitfall 5)", JSON.stringify({ q1, q2 }));',
+    '  const r3 = await callEndpoint(routeMod.default, "POST", "/" + GID + "/select-winner",',
+    '    { projectId: P, episodesId: E, winnerNodeId: "sw-b" });',
+    '  emit(r3.status === 200 && r3?.payload?.data?.applied === true, "S3c-4: legacy POST without frameSlot/source → 200 (backward compatible)",',
+    '       JSON.stringify({ status: r3.status, applied: r3?.payload?.data?.applied }));',
+    '  emit(q2 === (await queueCount()), "S3c-5: transport unconfigured → zero queue rows across all selections", String(await queueCount()));',
+    '}',
+    'main().then(() => process.exit(0), (err) => { console.error("child crashed:", err); process.exit(2); });',
+  ].join("\n");
+  const childPath2 = path.join(REPO_ROOT, "scripts", ".verify-phase-53-child2.tmp.ts");
+  fs.writeFileSync(childPath2, CHILD53_04);
+  const spawned2 = spawnSync("npx", ["tsx", "scripts/.verify-phase-53-child2.tmp.ts"], {
+    cwd: REPO_ROOT, encoding: "utf8", timeout: 120000,
+  });
+  const childResults2 = (spawned2.stdout || "")
+    .split("\n")
+    .filter((l) => l.startsWith("CHILD_RESULT\t"))
+    .map((l) => l.split("\t"));
+  for (const [_, passRaw, name, detail] of childResults2) {
+    assert(passRaw === "1", `S3c(child): ${name}`, detail);
+  }
+  assert(
+    childResults2.length >= 5 && spawned2.status === 0,
+    "S3c: spawned select-winner dispatch produced all child assertions (exit 0)",
+    spawned2.status == null ? "child timeout/crash" : `exit=${spawned2.status}, lines=${childResults2.length}, tail=${(spawned2.stderr || "").slice(-300)}`,
+  );
+  fs.rmSync(childPath2, { force: true });
 
   // ═══ S4 — FILLED-BY-53-07: wall wiring (G15 uses S4 per plan map) ════════
   console.log("\n=== S4 variant wall / G15 wiring (FILLED-BY-53-07 placeholder) ===");
