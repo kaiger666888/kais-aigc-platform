@@ -7,7 +7,10 @@
  *    （T-51-03-03：不残留悬空 winner 引用/空组）；
  *  c. 持久化：经统一 saveCanvasGraph（save-v2，51-01 通道，不新增 delete 端点），
  *     payload 为 FlowGraphV2 wire 形状（meta.version==='2'）且节点集无被删 id；
- *  d. 失败回滚：mock reject → prevGraph 整体恢复 + error toast（approveNode 同款范式）。
+ *  d. 失败回滚：mock reject → 被删实体（节点/links/组）外科式插回当前图 + error toast
+ *     （W1 修复：approveNode 同款 field-level restore 语义，不整图还原 prevGraph）；
+ *  e. 并发写入回归（W1）：await 期间落入的 canonical 写入（applySocketNodeState）
+ *     在回滚后存活，且被删节点同时被恢复。
  *
  * canvasApi 整模块被 mock（零真实网络）；serializeGraphToV2 走真实实现
  *（payload 形状是被测对象）。fixture 图 rawDataByNodeId === null（退化路径，
@@ -172,7 +175,7 @@ describe('deleteNode — canonical 图变换 + save-v2 持久化', () => {
     expect(wire.links.some((l) => l.source === 'node-c' || l.target === 'node-c')).toBe(false)
   })
 
-  it('d. 持久化失败：prevGraph 整体回滚 + error toast', async () => {
+  it('d. 持久化失败：被删节点/links/组外科式恢复 + error toast', async () => {
     const prev = fixtureGraph()
     resetStore({ graph: prev })
     apiSaveCanvasGraph.mockRejectedValueOnce(new Error('HTTP 500'))
@@ -180,10 +183,42 @@ describe('deleteNode — canonical 图变换 + save-v2 持久化', () => {
     await useCanvasStore.getState().deleteNode('node-c')
 
     const graph = useCanvasStore.getState().graph
-    // 节点 / 边 / 组全部恢复（prevGraph 引用级还原）
+    // 节点 / 边 / 组全部按原位恢复
     expect(graph?.nodes.map((n) => n.id)).toEqual(['node-a', 'node-b', 'node-c'])
     expect(graph?.links.map((l) => l.id)).toEqual(['l-ac', 'l-cb', 'l-ab'])
     expect(graph?.variantGroups.find((g) => g.id === 'vg-solo')).toBeDefined()
+    expect(toastSpy).toHaveBeenCalledWith(expect.stringContaining('删除失败已回滚'), 'error')
+  })
+
+  it('e. W1 回归：await 期间的并发 canonical 写入在回滚后存活，被删节点同时恢复', async () => {
+    resetStore({ graph: fixtureGraph() })
+    // 手工控制 save 的 reject 时机：让删除乐观上屏后、持久化 resolve 前
+    // 插入一笔并发 canonical 写入（socket node:state 落在另一节点上）
+    let rejectSave!: (err: Error) => void
+    apiSaveCanvasGraph.mockImplementationOnce(
+      () => new Promise<void>((_, rej) => { rejectSave = rej }),
+    )
+
+    const pending = useCanvasStore.getState().deleteNode('node-c')
+    // 删除已乐观上屏
+    expect(useCanvasStore.getState().graph?.nodes.map((n) => n.id)).toEqual(['node-a', 'node-b'])
+
+    // 并发写入：node-b 状态推进 + node-a 缩略图（applySocketNodeState/Preview 通道）
+    useCanvasStore.getState().applySocketNodeState('node-b', 'running', 42)
+    useCanvasStore.getState().applySocketNodePreview('node-a', '/thumbs/node-a.png')
+
+    rejectSave(new Error('HTTP 500'))
+    await pending
+
+    const graph = useCanvasStore.getState().graph
+    // 被删节点 + 触及 links + 组恢复
+    expect(graph?.nodes.map((n) => n.id)).toEqual(['node-a', 'node-b', 'node-c'])
+    expect(graph?.links.map((l) => l.id)).toEqual(['l-ac', 'l-cb', 'l-ab'])
+    expect(graph?.variantGroups.find((g) => g.id === 'vg-solo')).toBeDefined()
+    // 并发 canonical 写入未被回滚抹掉（W1：整图还原 prevGraph 时这两笔会丢失）
+    expect(graph?.nodes.find((n) => n.id === 'node-b')?.state).toBe('running')
+    const nodeA = graph?.nodes.find((n) => n.id === 'node-a')
+    expect(nodeA?.kind === 'asset' ? nodeA.media.thumbnail : null).toBe('/thumbs/node-a.png')
     expect(toastSpy).toHaveBeenCalledWith(expect.stringContaining('删除失败已回滚'), 'error')
   })
 })

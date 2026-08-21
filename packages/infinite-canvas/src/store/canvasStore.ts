@@ -4,6 +4,7 @@ import {
   selectVariant,
   markStaleDownstream,
   type FlowGraphV3,
+  type FlowLinkV3,
   type VariantGroupV3,
   type ReviewStatus as ReviewStatusV3,
   type AssetNodeV3,
@@ -142,7 +143,7 @@ interface CanvasState {
   approveNode: (nodeId: string) => Promise<void>
   rejectNode: (nodeId: string, feedback?: string) => Promise<void>
   /** WRITE-02：删除节点 —— canonical 图变换（节点 + 触及 links + variantGroups 清理）
-   *  → save-v2 统一持久化（不新增 delete 端点），失败回滚 prevGraph + error toast。 */
+   *  → save-v2 统一持久化（不新增 delete 端点），失败外科式回滚（被删实体插回当前图）+ error toast。 */
   deleteNode: (nodeId: string) => Promise<void>
   /** 选定变体组优胜（Phase 49 SELECT-02：乐观更新 → POST select-winner → 失败回滚）。 */
   selectWinner: (nodeId: string) => Promise<void>
@@ -294,6 +295,69 @@ function withReviewStatus(graph: FlowGraphV3, nodeId: string, rs: ReviewStatusV3
 function graphReviewStatusOf(graph: FlowGraphV3, nodeId: string): ReviewStatusV3 | undefined {
   const n = graph.nodes.find((x) => x.id === nodeId)
   return n && n.kind === 'asset' ? n.reviewStatus : undefined
+}
+
+/** deleteNode 外科式回滚快照：只拍被删除的实体 + 原位索引，不拍整图。 */
+interface DeleteSnapshot {
+  node: FlowGraphV3['nodes'][number]
+  nodeIdx: number
+  touchedLinks: Array<{ link: FlowLinkV3; idx: number }>
+  touchedGroups: Array<{ group: VariantGroupV3; idx: number }>
+}
+
+/**
+ * 外科式回滚（W1）：把 deleteNode 移除的节点/links/组成员资格插回**当前** graph，
+ * 保留 await 期间落入的并发 canonical 写入（socket state/preview、updateAssetMeta、
+ * variant:selected）——approveNode/rejectNode 的 field-level restore 同款语义。
+ * 守卫：期间同名 id 重现 / link 端点已消失 / 组被并发改写时，以当前图为准不覆盖。
+ */
+function reinsertDeleted(graph: FlowGraphV3, snap: DeleteSnapshot): FlowGraphV3 {
+  // 节点：期间若同 id 节点已重现（并发创建），以当前为准
+  let nodes = graph.nodes
+  if (!nodes.some((n) => n.id === snap.node.id)) {
+    nodes = nodes.slice()
+    nodes.splice(Math.min(snap.nodeIdx, nodes.length), 0, snap.node)
+  }
+  const nodeIds = new Set(nodes.map((n) => n.id))
+
+  // links：id 未重现且两端点在当前图中存活才插回（期间可能有其他删除）
+  let links = graph.links
+  for (const { link, idx } of snap.touchedLinks) {
+    if (links.some((l) => l.id === link.id)) continue
+    if (!nodeIds.has(link.source) || !nodeIds.has(link.target)) continue
+    links = links.slice()
+    links.splice(Math.min(idx, links.length), 0, link)
+  }
+
+  // variantGroups：组仍在 → 补回成员/winner；组因清空被删 → 按存活成员重建插回
+  let variantGroups = graph.variantGroups
+  for (const { group, idx } of snap.touchedGroups) {
+    const curIdx = variantGroups.findIndex((g) => g.id === group.id)
+    if (curIdx !== -1) {
+      const cur = variantGroups[curIdx]
+      const needMember = !cur.variantNodeIds.includes(snap.node.id)
+      // winner 还原：原 winner 是被删节点且当前无 winner 才补回；
+      // 期间若有新的 winner 选定（并发 variant:selected），以当前为准
+      const restoreWinner = group.winnerNodeId === snap.node.id && cur.winnerNodeId === undefined
+      if (needMember || restoreWinner) {
+        const next: VariantGroupV3 = {
+          ...cur,
+          variantNodeIds: needMember ? [...cur.variantNodeIds, snap.node.id] : cur.variantNodeIds,
+        }
+        if (restoreWinner) next.winnerNodeId = snap.node.id
+        variantGroups = variantGroups.slice()
+        variantGroups[curIdx] = next
+      }
+    } else {
+      const alive = group.variantNodeIds.filter((id) => nodeIds.has(id))
+      if (alive.length === 0) continue
+      const next: VariantGroupV3 = { ...group, variantNodeIds: alive }
+      if (next.winnerNodeId && !alive.includes(next.winnerNodeId)) delete next.winnerNodeId
+      variantGroups = variantGroups.slice()
+      variantGroups.splice(Math.min(idx, variantGroups.length), 0, next)
+    }
+  }
+  return { ...graph, nodes, links, variantGroups }
 }
 
 // ─── WRITE-03 canonical 回写（Phase 51-02） ───
@@ -665,10 +729,13 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       showToast(`驳回失败: ${(err as Error).message}`, 'error')
     }
   },
-  // 删除 —— approveNode 同款范式：快照 prevGraph → canonical 变换乐观上屏 →
-  // save-v2 统一持久化 → 失败回滚 prevGraph + error toast。
+  // 删除 —— approveNode 同款范式：快照被删实体 → canonical 变换乐观上屏 →
+  // save-v2 统一持久化 → 失败外科式回滚（reinsertDeleted 插回当前图）+ error toast。
   // 图变换含三道清理（T-51-03-03）：触及该节点的 links；节点是组 winner 清
   // winnerNodeId；组成员清空则删整组（不残留悬空引用/空组）。
+  // W1（51-REVIEW）：回滚必须针对当时的 CURRENT graph 做插回，不得整图还原
+  // prevGraph——否则 await 期间落入的并发 canonical 写入（socket state/preview、
+  // updateAssetMeta、variant:selected）会被静默抹掉。
   deleteNode: async (nodeId) => {
     const { projectId, episodesId, graph, rawDataByNodeId, showToast } = get()
     if (!graph || !graph.nodes.some((n) => n.id === nodeId)) return
@@ -677,7 +744,19 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       return
     }
 
-    const prevGraph = graph
+    // 外科式回滚快照：只拍被删除的实体 + 原位索引（不拍整图）
+    const nodeIdx = graph.nodes.findIndex((n) => n.id === nodeId)
+    const snapshot: DeleteSnapshot = {
+      node: graph.nodes[nodeIdx],
+      nodeIdx,
+      touchedLinks: graph.links
+        .map((l, idx) => ({ link: l, idx }))
+        .filter(({ link }) => link.source === nodeId || link.target === nodeId),
+      touchedGroups: graph.variantGroups
+        .map((g, idx) => ({ group: g, idx }))
+        .filter(({ group }) => group.variantNodeIds.includes(nodeId) || group.winnerNodeId === nodeId),
+    }
+
     get().applyGraphTransform((g) => ({
       ...g,
       nodes: g.nodes.filter((n) => n.id !== nodeId),
@@ -700,7 +779,14 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       await saveCanvasGraph(projectId, episodesId, serializeGraphToV2(cur, rawDataByNodeId))
       showToast(`已删除节点: ${nodeId}`, 'success')
     } catch (err) {
-      get().setGraph(prevGraph, get().warnings)
+      const cur = get().graph
+      if (cur) {
+        // 外科式回滚：把被删实体插回当前图，保留 await 期间的并发写入
+        get().applyGraphTransform((g) => reinsertDeleted(g, snapshot))
+      } else {
+        // 兜底：graph 在 await 期间被整体清空，只能整图还原
+        get().setGraph(graph, get().warnings)
+      }
       showToast(`删除失败已回滚: ${(err as Error).message}`, 'error')
     }
   },
