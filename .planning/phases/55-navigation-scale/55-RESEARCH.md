@@ -1,6 +1,7 @@
 # Phase 55: 画布导航与规模 (Navigation & Scale) - Research
 
 **Researched:** 2026-08-21
+**Revised:** 2026-08-21（checker revision W3：Open Questions / Assumptions Log 补 RESOLVED 指针——全部决议落在 55-01..55-07 plans）
 **Domain:** React Flow 画布导航/注册表对齐/LOD/分支 UI（packages/infinite-canvas 前端 + 少量 kap 后端 zone 表）
 **Confidence:** HIGH（纯代码库研究——所有关键结论均直接读源码/跑脚本验证，无外部库引入）
 
@@ -36,6 +37,7 @@ None — 讨论未超出 phase 范围。(分镜层级/LOD+落点/分支 UI 三�
 | NAV-04 | 新资产节点落点修正——落在当前视口中心或事件源旁，不再随机坐标 | 随机散布唯一源头（onNewAsset handler）、socket payload 形状错配、事件源可得性（regen 调用点）、viewport API（§NAV-04） |
 | NAV-05 | LOD 默认可读——fitView 后默认档提升到 keyFields 可读，或记忆每泳道缩放 | useLod 全文、keyFields L2-only 渲染、持久化 localStorage patch 语义、PhaseColumns pointer-events:none 现状（§NAV-05） |
 | NAV-06 | 分支 UI 接通——复活/重写 BranchPanel 消费既有 branches store 与 selectBranchAsMain | 旧 BranchPanel git 档案、store/REST/V3 lossy shim 全链路、持久化缺口（§NAV-06） |
+
 </phase_requirements>
 
 ## Summary
@@ -83,7 +85,7 @@ Phase 55 是纯 kap 侧（packages/infinite-canvas + 少量 src/routes/canvas �
 
 ### Alternatives Considered
 | Instead of | Could Use | Tradeoff |
-|------------|-----------|----------|
+|------------|-----------|-----------|
 | 自建结果列表导航器 | cmdk 等命令面板库 | 引入新依赖违反最小化；93 镜规模自建简单列表足够（catppuccin 主题内联样式是仓库惯例） |
 | localStorage 泳道 zoom 记忆 | graph.meta（服务端持久化） | localStorage 已有 P17 语义且 key 按集隔离，零后端改动；meta 方案跨设备但动 save-v2 契约，超范围 |
 
@@ -403,33 +405,39 @@ selectBranchAsMain: (branchId) => {
 - `StoryboardBoard` 数据源 p10b JSON（phase 已注销）
 - `placeAssetOnCanvas`（canvasApi:1073-1080）TODO 空壳——资产中心「放置」非真实流，NAV-04 不必覆盖
 
-## Assumptions Log
+## Assumptions Log (A1–A5 RESOLVED 2026-08-21)
 
-| # | Claim | Section | Risk if Wrong |
-|---|-------|---------|---------------|
-| A1 | 「93 镜/34160px」真实项目图在生产库而非 dev db2（dev 库实测最大 storyboard 数 40，无 post-W6 编号图） | Summary/NAV-01 | 断言 fixture 须从生产/运行中服务导出；若 dev 库即全部数据，「全量导入」断言需先造数据 |
-| A2 | p11a0 建议以 sub=true 并入 P11a lane 展示（而非独立 23rd 条目）——依据是其 advisory micro-gate 语义与 P09b/P11c 先例，非用户明示 | NAV-01/Pitfall 2 | 若用户想单列，注册表条目数与展示形态变化（低风险） |
-| A3 | 存量 pre-W6 图不做 backfill、靠 fallback zone 承接（成功标准口径=「导入后」）——依据 D-03 措辞推断，用户未明示 | NAV-01/Pitfall 1 | 若用户预期旧图也全对齐，需追加 Phase-50 式迁移计划（工作量 +1 plan） |
-| A4 | 搜索索引范围建议 label/shot_id/prompt 摘要 + raw 关键字段（CONTEXT 列为 planner 定） | NAV-03 | 索引过宽拖慢 93 镜过滤（客户端 300+ 节点遍历仍 <10ms，低风险） |
-| A5 | NAV-06 status 真相建议走 REST 合并（V2 事件存储）而非扩 V3 schema——最小改动推断 | NAV-06/Pitfall 4 | 若选 V3 扩展则动 flowgraph-v3 包 + zod 契约（范围扩大） |
+| # | Claim | Section | Risk if Wrong | Resolution |
+|---|-------|---------|---------------|------------|
+| A1 | 「93 镜/34160px」真实项目图在生产库而非 dev db2（dev 库实测最大 storyboard 数 40，无 post-W6 编号图） | Summary/NAV-01 | 断言 fixture 须从生产/运行中服务导出；若 dev 库即全部数据，「全量导入」断言需先造数据 | (RESOLVED) → 55-03 Task 3 以合成 22-phaseIndex fixture 作自动化镜像（零依赖生产库）；生产全量导入的「未映射区为空」断言归 55-VALIDATION Manual-Only 表（UAT 领取） |
+| A2 | p11a0 建议以 sub=true 并入 P11a lane 展示（而非独立 23rd 条目）——依据是其 advisory micro-gate 语义与 P09b/P11c 先例，非用户明示 | NAV-01/Pitfall 2 | 若用户想单列，注册表条目数与展示形态变化（低风险） | (RESOLVED) → 55-01 phaseRegistry 以 sub:true 折叠 p11a0 入 P11a lane（55-03 后端 PHASE_DEF_MAP 消费同语义）——落地如建议 |
+| A3 | 存量 pre-W6 图不做 backfill、靠 fallback zone 承接（成功标准口径=「导入后」）——依据 D-03 措辞推断，用户未明示 | NAV-01/Pitfall 1 | 若用户预期旧图也全对齐，需追加 Phase-50 式迁移计划（工作量 +1 plan） | (RESOLVED) → 不 backfill（ROADMAP orchestrator ruling，见 Open Questions Q1）；55-03 Task 3 反向对照用例（phaseIndex 99 → 1 未映射）锁定兜底承接 + 断言口径限定「导入后」 |
+| A4 | 搜索索引范围建议 label/shot_id/prompt 摘要 + raw 关键字段（CONTEXT 列为 planner 定） | NAV-03 | 索引过宽拖慢 93 镜过滤（客户端 300+ 节点遍历仍 <10ms，低风险） | (RESOLVED) → 55-04 Task 1 deriveSearchResults 落地：data.label/shot_id/prompt/description + raw.video_prompt/ltx_prompt 穿透 + 200 条截断保护 |
+| A5 | NAV-06 status 真相建议走 REST 合并（V2 事件存储）而非扩 V3 schema——最小改动推断 | NAV-06/Pitfall 4 | 若选 V3 扩展则动 flowgraph-v3 包 + zod 契约（范围扩大） | (RESOLVED) → 55-06 走 V2 事件流：PATCH branch_upsert → branch:updated 回放 applyBranchUpsert 合并 status，不动 flowgraph-v3 schema |
 
-## Open Questions
+## Open Questions (RESOLVED 2026-08-21)
+
+> 全部四个开放问题已在 plan 期裁决并落到具体 plan/task；以下保留原研究记录 + 逐条 RESOLVED 指针。
 
 1. **存量 pre-W6 图是否 backfill？**
    - What we know: dev db2 全部图是旧编号；新注册表下其 10-13 档节点落「未映射」。
    - What's unclear: 用户预期「旧项目打开也对」还是「新导入对即可」。
    - Recommendation: 默认不 backfill（D-03 fallback 承接 + 断言限定新导入）；在 plan 里留一个显式 checkpoint 让用户裁决（A3）。
+   - **(RESOLVED) → 55-03（A3）**：不 backfill——ROADMAP orchestrator ruling 确认；存量图走 D-03 fallback zone 承接，断言口径限定「导入后」。落地于 55-03 Task 3（合成 22-phase fixture 零未映射 + 反向对照 99→1 未映射）；无需用户 checkpoint。
 2. **NAV-02 两级浏览的宿主形态**（CONTEXT 列为 discretion）
    - What we know: 三处既有积木（StoryboardTimeline 3028 行重 / StoryboardBoard 两级但数据源陈旧 / ShotTree 轻树无卡片）。
    - What's unclear: 用户想要的「镜头卡信息密度」落在哪里（画布内 vs 独立面板 vs 增强左树）。
    - Recommendation: graph 派生数据 + ShotTree 增强为「树+镜头卡预览」或独立 SceneShotPanel；StoryboardBoard 视觉模式复用、数据源弃用（Pitfall 6）。前端设计纪律要求先出信息架构设计步。
+   - **(RESOLVED) → 55-02**：独立面板 SceneShotBrowser——graph 派生（extractShots 增强 videoPrompt/referencedAssets）+ ViewModeButton viewMode='scene_shots' 进入；场景口径统一 sceneNumOf；StoryboardBoard 视觉模式复用、数据源弃用（Pitfall 6 遵守）。
 3. **NAV-05 混合方案的具体交互**
    - What we know: 纯提下限不可行（0.6 下 34160px 图只见 ~2% 宽度）；泳道记忆 + 列聚焦可行（PhaseColumns 需加交互）。
    - What's unclear: 「聚焦本阶段」affordance 放哪（列头点击 vs 左树 vs 工具栏）。
    - Recommendation: PhaseColumns 列头可点击（zoom 记忆恢复）+ ShotTree 场景行聚焦作为并列入口；默认 fitView 行为完全不动。
+   - **(RESOLVED) → 55-05**：PhaseColumns 列头可点「聚焦本阶段」（laneZoom 记忆恢复，下限 0.6）+ ShotTree 场景行聚焦并列入口；默认 fitView 行为与 FITVIEW_MIN_ZOOM=0.4 完全不动（LOD 红线测试钉死）。
 4. **`node:created` payload 统一方向**（server `{node}` vs client `{nodeId,data}`）
    - What we know: 现状错配；该事件只在 POST /nodes 与 /nodes/batch 新增时广播。
    - Recommendation: client 适配 server `{node}`（后端零改动优先），handler 重写为 canonical 写回。
+   - **(RESOLVED) → 55-04**：client 适配 server `{node}`（后端零改动）——55-04 Task 3：useCanvasSocket payload 修正 + adaptV2Node 节点级提炼 + addNodeFromSocket canonical 写回（幂等 + 有界落点）。
 
 ## Environment Availability
 
@@ -458,7 +466,7 @@ selectBranchAsMain: (branchId) => {
 
 ### Phase Requirements → Test Map
 | Req ID | Behavior | Test Type | Automated Command | File Exists? |
-|--------|----------|-----------|-------------------|-------------|
+|--------|----------|-----------|-------------------|--------------|
 | NAV-01 | 契约：kap 22-phase 镜像 ≡ khs _PHASE_INDEX_MAP（+ZONE_PHASES 归组/顺序） | contract | `npx tsx scripts/verify-phase-55.ts` | ❌ Wave 0（模式复制 verify-schema-drift.ts） |
 | NAV-01 | 未映射兜底：未知 phaseIndex → fallback 条目 + warn，不 throw | unit | `npx vitest run src/components/pipeline` | ❌ Wave 0（derivePipelineModels extras 扩展测试） |
 | NAV-01 | 导入断言：新导入图无未映射节点 | integration（vitest + db fixture） | `npx vitest run src/v3/__tests__/adapter.test.ts -t phase` | 部分（adapter.test.ts 在，断言新增） |
