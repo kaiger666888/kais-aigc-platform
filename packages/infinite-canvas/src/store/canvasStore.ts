@@ -6,6 +6,8 @@ import {
   type FlowGraphV3,
   type VariantGroupV3,
   type ReviewStatus as ReviewStatusV3,
+  type AssetNodeV3,
+  type NodeState,
 } from '@kais/flowgraph-v3'
 import type { SkillNodeTypeDecl, IterationPlan, IterationResult } from '../services/canvasApi'
 import type { FlowBranch, VariantGroup, VariantGroupId } from '../types/canvas'
@@ -124,6 +126,16 @@ interface CanvasState {
   // Phase 37 — 多选节点 ID (用于批量执行)
   selectedNodeIds: string[]
   setSelectedNodeIds: (ids: string[]) => void
+
+  // ─── WRITE-03 canonical 回写 action（Phase 51-02）───
+  // MetaEditor / socket node:state / node:preview 的写入方全部经 applyGraphTransform
+  // 写 store.graph，派生 RF 缓存只由 graphToViewModel 重建、永不反向覆盖。
+  /** MetaRenderer 专用：对目标资产节点 asset.meta 做字段级 patch（空值 undefined/null/'' = 删字段）。 */
+  updateAssetMeta: (nodeId: string, patch: Record<string, unknown>) => void
+  /** socket node:state：归一后落 canonical 节点 state；progress 保持派生缓存 ephemeral。 */
+  applySocketNodeState: (nodeId: string, state: string, progress?: number) => void
+  /** socket node:preview：thumbnailUrl 写 asset.media.thumbnail。 */
+  applySocketNodePreview: (nodeId: string, thumbnailUrl: string) => void
 
   // 审核操作
   approveNode: (nodeId: string) => Promise<void>
@@ -278,6 +290,46 @@ function withReviewStatus(graph: FlowGraphV3, nodeId: string, rs: ReviewStatusV3
 function graphReviewStatusOf(graph: FlowGraphV3, nodeId: string): ReviewStatusV3 | undefined {
   const n = graph.nodes.find((x) => x.id === nodeId)
   return n && n.kind === 'asset' ? n.reviewStatus : undefined
+}
+
+// ─── WRITE-03 canonical 回写（Phase 51-02） ───
+
+/**
+ * 各 stage 的 meta 可 patch 字段白名单——对齐 flowgraph-v3 zod strict 判别联合
+ *（assetStageMetaSchema 各分支 shape，去掉 stage 判别字段本身）。
+ * 非法 key 忽略 + console.warn（不 throw），保证写出的 meta 仍是合法联合成员。
+ */
+const META_PATCHABLE_KEYS: Record<string, ReadonlySet<string>> = {
+  script: new Set(['hookType', 'hookIntensity', 'premise', 'emotion']),
+  storyboard: new Set(['shotId', 'shotType', 'cameraMovement', 'framing', 'composition', 'pacing', 'durationS', 'promptMeta']),
+  keyframe: new Set(['shotId']),
+  video: new Set(['shotId', 'observedEndState', 'murchGrade']),
+  voice: new Set(['shotId', 'emotion', 'speaker']),
+  foley: new Set(['shotId', 'emotion', 'speaker']),
+  bgm: new Set(['shotId', 'emotion', 'speaker']),
+  global: new Set(['assetType', 'archetype', 'viewAngle']),
+  mix: new Set(),
+  composite: new Set(['edlRef']),
+}
+
+/** socket node:state 归一表——与 v3/adapter.ts normalizeNodeState 同一张表。 */
+function normalizeSocketNodeState(v: string): NodeState | null {
+  switch (v) {
+    case 'pending':
+    case 'running':
+    case 'success':
+    case 'failed':
+      return v
+    case 'error':
+    case 'skipped':
+      return 'failed'
+    case 'cached':
+      return 'success'
+    case 'idle':
+      return 'pending'
+    default:
+      return null
+  }
 }
 
 export const useCanvasStore = create<CanvasState>((set, get) => ({
@@ -446,6 +498,93 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   // Phase 37 — 多选
   selectedNodeIds: [],
   setSelectedNodeIds: (ids) => set({ selectedNodeIds: ids }),
+
+  // ─── WRITE-03 canonical 回写 action（Phase 51-02）───
+  // graph === null 或节点不存在时静默早退（console.warn，不 throw）——
+  // socket 事件可能在图加载完成前到达。
+  updateAssetMeta: (nodeId, patch) => {
+    const { graph } = get()
+    if (!graph) {
+      console.warn(`[canvasStore] updateAssetMeta: graph 为空，忽略 ${nodeId}`)
+      return
+    }
+    const target = graph.nodes.find((n) => n.id === nodeId)
+    if (!target || target.kind !== 'asset') {
+      console.warn(`[canvasStore] updateAssetMeta: 资产节点 ${nodeId} 不存在，忽略`)
+      return
+    }
+    get().applyGraphTransform((g) => ({
+      ...g,
+      nodes: g.nodes.map((n) => {
+        if (n.id !== nodeId || n.kind !== 'asset') return n
+        const allowed = META_PATCHABLE_KEYS[n.meta.stage] ?? new Set<string>()
+        const meta: Record<string, unknown> = { ...n.meta }
+        for (const [key, value] of Object.entries(patch)) {
+          if (key === 'stage' || !allowed.has(key)) {
+            console.warn(`[canvasStore] updateAssetMeta: 非法 meta key "${key}"（stage=${n.meta.stage}），忽略`)
+            continue
+          }
+          // 空值 = 删除字段（「未设置」清空语义）
+          if (value === undefined || value === null || value === '') delete meta[key]
+          else meta[key] = value
+        }
+        return { ...n, meta: meta as AssetNodeV3['meta'] }
+      }),
+    }))
+  },
+  applySocketNodeState: (nodeId, state, progress) => {
+    // progress：V3 strict 判别联合无 progress 槽位，瞬态运行时量不持久化——
+    // 保持派生缓存 ephemeral 通道（下一次 transform 重建时自然丢弃），不塞 meta。
+    // 注意必须在 canonical transform 之后写：setGraph 会重建派生缓存，先写会被冲掉。
+    const applyProgressEphemeral = () => {
+      if (progress == null) return
+      get().setNodes((nds) =>
+        nds.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, progress } } : n)),
+      )
+    }
+    const { graph } = get()
+    if (!graph) {
+      console.warn(`[canvasStore] applySocketNodeState: graph 为空，忽略 ${nodeId} state=${state}`)
+      applyProgressEphemeral()
+      return
+    }
+    if (!graph.nodes.some((n) => n.id === nodeId)) {
+      console.warn(`[canvasStore] applySocketNodeState: 节点 ${nodeId} 不存在，忽略`)
+      applyProgressEphemeral()
+      return
+    }
+    const normalized = normalizeSocketNodeState(state)
+    if (normalized == null) {
+      console.warn(`[canvasStore] applySocketNodeState: 未知 state "${state}"（${nodeId}），忽略`)
+      applyProgressEphemeral()
+      return
+    }
+    get().applyGraphTransform((g) => ({
+      ...g,
+      nodes: g.nodes.map((n) => (n.id === nodeId ? { ...n, state: normalized } : n)),
+    }))
+    applyProgressEphemeral()
+  },
+  applySocketNodePreview: (nodeId, thumbnailUrl) => {
+    const { graph } = get()
+    if (!graph) {
+      console.warn(`[canvasStore] applySocketNodePreview: graph 为空，忽略 ${nodeId}`)
+      return
+    }
+    const target = graph.nodes.find((n) => n.id === nodeId)
+    if (!target || target.kind !== 'asset') {
+      console.warn(`[canvasStore] applySocketNodePreview: 资产节点 ${nodeId} 不存在，忽略`)
+      return
+    }
+    get().applyGraphTransform((g) => ({
+      ...g,
+      nodes: g.nodes.map((n) =>
+        n.id === nodeId && n.kind === 'asset'
+          ? { ...n, media: { ...n.media, thumbnail: thumbnailUrl } }
+          : n,
+      ),
+    }))
+  },
 
   // 审核 — 乐观更新 + API 调用 + 失败回滚。
   // canonical 路径：graph 上纯函数变换（reviewStatus 落 V3 资产节点）→ setGraph 重建派生；
