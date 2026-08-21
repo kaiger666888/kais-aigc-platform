@@ -32,6 +32,8 @@ import IterationPanel from './IterationPanel'
 import LoadingOverlay from './LoadingOverlay'
 // C/D 层接线（SPEC-step5 C/D）：变体墙(53-02 取代 Picker 主体,store 协议保留)、事件参数 popover、溯源高亮、C 角标/牌堆注册。
 import VariantWall from './variants/VariantWall'
+import G15TriagePanel from './g15/G15TriagePanel'
+import { useG15TriageStore } from './g15/g15TriageStore'
 import EventParamsPopover from './eventParams/EventParamsPopover'
 import { useVariantPickerStore } from './variants/variantPickerStore'
 import './variants/registerCInteractions'
@@ -174,6 +176,11 @@ function CanvasInner() {
   const showToast = useCanvasStore((s) => s.showToast)
   const toasts = useCanvasStore((s) => s.toasts)
   const dismissToast = useCanvasStore((s) => s.dismissToast)
+
+  // 53-07:G15 分诊待处置数(工具栏徽章;fixture/Wave B 数据源同通道)
+  const g15Rows = useG15TriageStore((s) => s.rows)
+  const g15RowState = useG15TriageStore((s) => s.rowState)
+  const g15Pending = g15Rows.filter((r) => g15RowState[r.shotId] == null).length
   const selectWinner = useCanvasStore((s) => s.selectWinner)
 
   // 视图模式切换：画布 / 时间轴
@@ -896,6 +903,12 @@ function CanvasInner() {
               <UiIcon kind="fit" />适配
             </ToolbarButton>
             <ToolbarButton
+              onClick={() => useG15TriageStore.getState().setOpen(true)}
+              title="G15 失败镜头分诊工作台"
+            >
+              🩹失败镜头{g15Pending > 0 ? ` ${g15Pending}` : ''}
+            </ToolbarButton>
+            <ToolbarButton
               onClick={handleOrchestrate}
               disabled={orchestration.status === 'running' || !projectId || nodes.length === 0}
               accent
@@ -1007,6 +1020,7 @@ function CanvasInner() {
         <NodeDetailPanel node={detailNode} onClose={() => setDetailNode(null)} />
         <VariantWall />
         {iteration.panelOpen && <IterationPanel />}
+        <G15TriagePanel />
         </>
         )}
       </div>

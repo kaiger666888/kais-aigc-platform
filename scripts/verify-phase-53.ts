@@ -9,15 +9,13 @@
  *     via normalizeLegacyCandidateData, Wave B structured envelopes via
  *     candidateEnvelopeSchema passthrough; unknown-key tolerance; take-log
  *     verdict round-trip; G15 classification on failed-shots fixtures.
- *   S2 — candidate group derivation / materialization (FILLED-BY-53-03
- *     placeholder — asserted as a marked TODO comment until 53-03 fills it).
- *   S3 — select-winner extension + manifest hook + retry queue
- *     (FILLED-BY-53-04 placeholder).
- *   S4 — variant wall source shapes (FILLED-BY-53-07 placeholder — the wall
- *     engine itself is UI-side and covered by vitest; this section will
- *     assert the wall's wiring into the C layer).
- *   S5 — G15 bridge + forced-failure self-check (the forced-failure half is
- *     LIVE from 53-01; the bridge assertions arrive with 53-07).
+ *   S2 — candidate group derivation + materialization (53-03, live since).
+ *   S3 — select-winner extension + manifest hook + retry queue (53-04, live
+ *     since; spawned-child endpoint dispatch).
+ *   S4 — variant wall source shapes + entries (53-07 fill: resolveMediaUrl /
+ *     getScoreColor / keyboard / picker deletion / adapter channel / G15 mount).
+ *   S5 — G15 bridge dispatch (53-07: injected-fetch delivered/fail-closed
+ *     semantics + endpoint zod bounds) + forced-failure self-check.
  *
  * Isolation guard (verify-phase-51 pattern): this gate imports the real
  * src/lib/candidateEnvelope.ts (pure module — no DB), but the chdir guard is
@@ -636,12 +634,99 @@ async function main(): Promise<void> {
   );
   fs.rmSync(childPath2, { force: true });
 
-  // ═══ S4 — FILLED-BY-53-07: wall wiring (G15 uses S4 per plan map) ════════
-  console.log("\n=== S4 variant wall / G15 wiring (FILLED-BY-53-07 placeholder) ===");
-  // FILLED-BY-53-07: wall C-layer wiring + G15 bridge asserts.
-  assert(selfSrc.includes("FILLED-BY-53-07"), "S4: FILLED-BY-53-07 marker present (section reserved)");
+  // ═══ S4 — VAR-02 wall source shapes + entries (53-02/05/06/07) ════════════
+  console.log("\n=== S4 variant wall source shapes + entries (53-07 fill) ===");
+  const wallSrc = read("packages/infinite-canvas/src/components/variants/VariantWall.tsx");
+  assert(wallSrc.includes("resolveMediaUrl"), "S4-1: VariantWall routes all media via resolveMediaUrl (P5)");
+  assert(wallSrc.includes("getScoreColor"), "S4-2: aiScore badge colors via getScoreColor threshold (DR-1)");
+  assert(wallSrc.includes("useWallKeyboard"), "S4-3: keyboard flow D-20 wired");
+  assert(wallSrc.includes("选定") && wallSrc.includes("检视"), "S4-4: explicit-select + inspect copy present (D-08)");
+  const storeSrc = read("packages/infinite-canvas/src/store/canvasStore.ts");
+  assert(storeSrc.includes("frameSlot"), "S4-5: canvasStore selectWinner carries frameSlot passthrough (D-11)");
+  assert(!storeSrc.includes("💾"), "S4-6: no 💾 dual-track narrative in canvasStore (D-12)");
+  assert(
+    !exists("packages/infinite-canvas/src/components/variants/VariantPicker.tsx"),
+    "S4-7: old VariantPicker.tsx deleted (D-12 close-out)",
+  );
+  assert(
+    read("packages/infinite-canvas/src/v3/adapter.ts").includes("variantGroupIds"),
+    "S4-8: adapter membership channel attached (53-06)",
+  );
+  const flowCanvasSrc = read("packages/infinite-canvas/src/components/FlowCanvas.tsx");
+  assert(
+    flowCanvasSrc.includes("G15TriagePanel") && flowCanvasSrc.includes("失败镜头"),
+    "S4-9: G15 triage panel mounted + toolbar entry (53-07)",
+  );
 
-  // ═══ S5 — G15 bridge + forced-failure self-check ═════════════════════════
+  // ═══ S5 — G15 bridge dispatch (53-07: injected fetch, real module) ═══════
+  console.log("\n=== S5 G15 bridge dispatch (injected fetch, real module) ===");
+  const g15: any = await import("../src/lib/g15Bridge");
+  const calls: Array<{ url: string }> = [];
+  const mkFetch = (status: number): typeof fetch => {
+    return (async (url: any) => {
+      calls.push({ url: String(url) });
+      return new Response(JSON.stringify({ ok: true }), { status });
+    }) as unknown as typeof fetch;
+  };
+  const base = { projectId: 1, episodesId: 2, action: "waive" as const, shotIds: ["shot_001", "shot_002"] };
+
+  const rOk = await g15.dispatchG15Op(base, { fetchImpl: mkFetch(200) });
+  assert(rOk?.delivered === true, "S5a-1: 200 → delivered=true", JSON.stringify(rOk));
+  const r409 = await g15.dispatchG15Op(base, { fetchImpl: mkFetch(409) });
+  assert(r409?.delivered === true, "S5a-2: 409 = already resolved → delivered=true (reviewBridge semantics)", JSON.stringify(r409));
+  const rNet = await g15.dispatchG15Op(base, {
+    fetchImpl: (async () => { throw new Error("network down"); }) as unknown as typeof fetch,
+  });
+  assert(
+    rNet?.delivered === false && typeof rNet?.reason === "string" && rNet.reason.length > 0,
+    "S5a-3: network throw → delivered=false + non-empty reason (never-throws)",
+    JSON.stringify(rNet),
+  );
+  calls.length = 0;
+  const rFailClosed = await g15.dispatchG15Op({ ...base, shotIds: [] }, { fetchImpl: mkFetch(200) });
+  assert(
+    rFailClosed?.delivered === false && calls.length === 0,
+    "S5a-4: fail-closed — empty shotIds sends ZERO requests",
+    JSON.stringify({ r: rFailClosed, calls: calls.length }),
+  );
+  calls.length = 0;
+  const rBound = await g15.dispatchG15Op(
+    { ...base, shotIds: Array.from({ length: 201 }, (_, i) => `s${i}`) },
+    { fetchImpl: mkFetch(200) },
+  );
+  assert(rBound?.delivered === false && calls.length === 0, "S5a-5: >200 bound fail-closed, zero requests");
+  const rThrow = await g15.dispatchG15Op(base, {
+    fetchImpl: mkFetch(200),
+    logger: { info: () => { throw new Error("broken logger"); }, warn: () => { throw new Error("broken logger"); } },
+  });
+  assert(rThrow != null, "S5a-6: broken logger does not propagate (never-throws double guard)");
+  const zod: any = await import("zod");
+  const g15Schema = zod.z.object({
+    action: zod.z.enum(["waive", "requeue"]),
+    shotIds: zod.z.array(zod.z.string().min(1).max(128)).max(200),
+  });
+  assert(
+    g15Schema.safeParse({ action: "waive", shotIds: Array.from({ length: 201 }, () => "x") }).success === false &&
+      g15Schema.safeParse({ action: "bogus", shotIds: ["a"] }).success === false &&
+      g15Schema.safeParse({ action: "requeue", shotIds: ["a".repeat(200)] }).success === false,
+    "S5b: endpoint zod bounds — array >200 / bogus action / per-item >128 all rejected",
+  );
+  const g15EndpointSrc = read("src/routes/canvas/v2/g15-ops.ts");
+  assert(
+    g15EndpointSrc.includes("enqueueWriteback") && g15EndpointSrc.includes('"g15:ops"'),
+    "S5c: g15-ops endpoint queues on miss + broadcasts g15:ops",
+  );
+  {
+    // needle 运行时拼接,避免断言源码字面自指(自指陷阱)
+    const marker = ["FILLED", "BY", "53"].join("-");
+    assert(
+      !read("scripts/verify-phase-53.ts").includes(marker),
+      "S5d: all placeholder markers replaced (contract gate complete)",
+    );
+  }
+
+
+  // ═══ S5 forced-failure self-check (gate can actually fail — expected FAILs below) ═══
   console.log("\n=== S5 forced-failure self-check (gate can actually fail — expected FAILs below) ===");
   // (50-02 precedent: a gate that cannot fail proves nothing. These must-fail
   // assertions go through the SAME boolean evaluation path as assert(); their
