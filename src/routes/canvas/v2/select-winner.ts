@@ -9,6 +9,13 @@ import {
   demoteAssets,
 } from "@/lib/canvasRelationalStore";
 import { resolveOpenReviewForSelection } from "@/lib/reviewBridge";
+import { candidateSourceSchema } from "@/lib/candidateEnvelope";
+import {
+  enqueueManifestWriteback,
+  getManifestTransport,
+  replayManifestWriteback,
+} from "@/lib/manifestWriteback";
+import { ensureDrainStarted, drainOnce } from "@/lib/writebackQueue";
 
 const router = express.Router();
 
@@ -38,7 +45,29 @@ const selectWinnerSchema = z.object({
   projectId: z.number(),
   episodesId: z.number(),
   winnerNodeId: z.string().min(1).max(128), // T-49-01: no oversized ids into the DB
+  // 53-04 VAR-03: G13 首尾分选参数面(D-11)——两字段均可选,缺省行为与
+  // Phase 49 逐字节一致(向后兼容)。source 为候选 5 源 enum(53-01 契约)。
+  frameSlot: z.enum(["first", "last"]).optional(),
+  source: candidateSourceSchema.optional(),
 });
+
+// 53-04 D-10:回写队列消费者(进程内单例 30s 串行 drain)。transport 为 null
+// 时 drain 回调直接空转(processed 0),不误标 failed——通道未开通 ≠ 故障。
+let drainBooted = false;
+function bootWritebackDrain(): void {
+  if (drainBooted) return;
+  drainBooted = true;
+  void (async () => {
+    const { db } = await import("@/utils/db");
+    ensureDrainStarted(db, async (d) => {
+      const transport = getManifestTransport();
+      if (transport == null) return; // 通道未开通——空转
+      await drainOnce(d, (row) => replayManifestWriteback(row, transport));
+    });
+  })().catch(() => {
+    drainBooted = false; // boot 失败允许下次重试
+  });
+}
 
 router.post(
   "/:groupId/select-winner",
@@ -47,7 +76,7 @@ router.post(
     if (!parse.success) {
       return res.status(400).send(error("参数校验失败", parse.error.issues));
     }
-    const { projectId, episodesId, winnerNodeId } = parse.data;
+    const { projectId, episodesId, winnerNodeId, frameSlot, source } = parse.data;
     const groupId = req.params.groupId;
 
     try {
@@ -155,6 +184,22 @@ router.post(
         winnerNodeId,
         variantIndex: result.variantIndex,
         winnerPhaseName: result.winnerPhaseName,
+      }).catch(() => {});
+
+      // [53-04] manifest writeback hook — VAR-03 kap half (D-09 same-slot
+      // extension, D-10 best-effort, D-11 first/last field mapping). Same
+      // discipline as the bridge above: void + never-throws internally +
+      // .catch backstop. Idempotent branch above does NOT reach here either
+      // (Pitfall 5 — re-selecting the current winner carries no new info).
+      bootWritebackDrain();
+      void enqueueManifestWriteback({
+        projectId,
+        episodesId,
+        groupId,
+        winnerNodeId,
+        variantIndex: result.variantIndex,
+        frameSlot,
+        source,
       }).catch(() => {});
 
       broadcastToProject(projectId, "variant:selected", {
