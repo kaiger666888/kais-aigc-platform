@@ -198,6 +198,10 @@ function CanvasInner() {
   const [activeChip, setActiveChip] = useState<EventChipClickInfo | null>(null)
   const handleEventChipClick = useCallback((info: EventChipClickInfo) => setActiveChip(info), [])
 
+  // WRITE-03（Phase 51-02）：socket 写回走 store canonical action，不再直改派生缓存
+  const applySocketNodeState = useCanvasStore((s) => s.applySocketNodeState)
+  const applySocketNodePreview = useCanvasStore((s) => s.applySocketNodePreview)
+
   // Health-poll baseline ref — 必须在 useCanvasSocket 之前声明,
   // 以便 onGraphSaved 回调里能重置基线避免双触发 reload。
   const lastEventCountRef = useRef<number | null>(null)
@@ -206,22 +210,10 @@ function CanvasInner() {
     // fixture 模式绕过 socket（SPEC A.3：静态预览/离线开发不连后端）
     projectId: fixtureMode ? 0 : (projectId ?? 0),
     onNodeStateChange: (nodeId: string, state: NodeState, progress?: number) => {
-      setNodes((nds) =>
-        (nds as any[]).map((n) =>
-          n.id === nodeId
-            ? { ...n, data: { ...n.data, state, ...(progress != null && { progress }) } }
-            : n,
-        ),
-      )
+      applySocketNodeState(nodeId, state, progress)
     },
     onNodePreviewUpdate: (nodeId: string, thumbnailUrl: string) => {
-      setNodes((nds) =>
-        (nds as any[]).map((n) =>
-          n.id === nodeId
-            ? { ...n, data: { ...n.data, thumbnailUrl } }
-            : n,
-        ),
-      )
+      applySocketNodePreview(nodeId, thumbnailUrl)
     },
     onNewAsset: (nodeId: string, data: Record<string, unknown>) => {
       setNodes((nds) => [...(nds as any[]), {
