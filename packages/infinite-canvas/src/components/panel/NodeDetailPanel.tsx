@@ -9,12 +9,13 @@
  * 契约（phase35 e2e 不退化）：根 data-testid="detail-panel"、✕ 关闭、detail/feedback/iteration 三 tab、
  * storyboard「镜头意图」4 select（MetaRenderer 内）。Props={node,onClose} 签名不变。
  */
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import type { Node } from '@xyflow/react'
-import type { AssetNodeV3, AIScore, StaleInfo, NodeState } from '@kais/flowgraph-v3'
+import type { AssetNodeV3, EventNodeV3, AIScore, StaleInfo, NodeState } from '@kais/flowgraph-v3'
 import { theme, v3theme, getScoreColor } from '../../theme/catppuccin'
 import { RAW_FIELD_LABELS, RAW_FIELD_NOISE, RAW_FIELD_GROUPS } from '../../constants'
 import { useCanvasStore } from '../../store/canvasStore'
+import { executeNode } from '../../services/canvasApi'
 import { triggerStaleCascade } from '../../hooks/useStale'
 import FileViewer from '../FileViewer'
 import ScoreRadar from './ScoreRadar'
@@ -154,6 +155,7 @@ function AssetDetail({ asset, node, onImageClick }: { asset: AssetNodeV3; node: 
       <CurationBadge curation={asset.curation} />
       <MetaRenderer asset={asset} node={node} />
       <ShotIntentSection raw={raw} />
+      <PromptSection asset={asset} />
       <RawDataSection nodeId={node.id} />
       <ReviewSection asset={asset} node={node} />
       <ScoreSection aiScore={asset.aiScore} />
@@ -573,6 +575,129 @@ function DimBar({ label, value }: { label: string; value: number }) {
         <div style={{ width: `${pct}%`, height: '100%', background: getScoreColor(value) }} />
       </div>
       <span style={{ color: theme.text.primary, fontFamily: 'var(--cv-font-mono, monospace)', minWidth: 28, textAlign: 'right' }}>{pct}</span>
+    </div>
+  )
+}
+
+/**
+ * Prompt 编辑区（REGEN-01，52-03）：反查产生事件（event→asset role:'output' 边），
+ * 编辑 evt.params.prompt（P4：配方唯一合法存放处）。
+ * 保存 = persistEventParams（52-01：乐观写 canonical + save-v2 + 失败回滚 + toast 全在 store）；
+ * 重生成 = executeNode 复用 /canvas/execute 通道（52-02 extra 契约）。
+ *
+ * 地雷 #4 裁定：重生成 nodeId 用产出资产 id 而非 evt_* id——持久化 V2 blob 无 evt_* 节点，
+ * 传 eventId 时 simulate readNode 为 null，且 node:state 回写只更新不可见 canonical 事件节点，
+ * 画布资产卡无 running/success 反馈、stale 清除链（52-01 applySocketNodeState）不生效。
+ * eventId 仅用于 canonical 写回（persistEventParams）。
+ *
+ * 边缘 case（research Task 2 实证矩阵）：落选变体（候选事件被删并入 winner variantRecipes）
+ * 与无产生事件的资产（fixture 手造图）→ 整块只读，保存/重生成 disabled（地雷 #5）；
+ * import 种子事件可编辑（prompt 初始空，语义=补配方后重抽，放行）；
+ * 多产生事件取第一条 + console.warn，不阻塞。
+ */
+function PromptSection({ asset }: { asset: AssetNodeV3 }) {
+  const graph = useCanvasStore((s) => s.graph)
+  const projectId = useCanvasStore((s) => s.projectId)
+  const episodesId = useCanvasStore((s) => s.episodesId)
+  const showToast = useCanvasStore((s) => s.showToast)
+  const persistEventParams = useCanvasStore((s) => s.persistEventParams)
+
+  // 反查产生事件（唯一正道）：graph.links role:'output' && target===asset.id → source 事件
+  const evt = useMemo<EventNodeV3 | null>(() => {
+    if (!graph) return null
+    const producingIds = graph.links.filter((l) => l.role === 'output' && l.target === asset.id).map((l) => l.source)
+    const evts = graph.nodes.filter((n): n is EventNodeV3 => n.kind === 'event' && producingIds.includes(n.id))
+    if (evts.length > 1) console.warn(`[PromptSection] ${asset.id} 有 ${evts.length} 个产生事件，取第一条（link 序）`)
+    return evts[0] ?? null
+  }, [graph, asset.id])
+
+  const canonicalPrompt = evt?.params.prompt ?? ''
+  const [draft, setDraft] = useState(canonicalPrompt)
+  const [saving, setSaving] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  // 切换节点/产生事件、或 canonical prompt 变化（保存成功 / 失败回滚）时重置草稿
+  useEffect(() => { setDraft(canonicalPrompt) }, [evt?.id, canonicalPrompt])
+
+  if (!graph) return null
+
+  // ── 只读态：无产生事件（落选变体 / fixture 手造图）──
+  if (!evt) {
+    const hint = asset.variantGroupId
+      ? '落选变体配方已并入主事件 variantRecipes，不可单独编辑'
+      : '无产生事件，prompt 不可编辑'
+    return (
+      <div data-testid="prompt-section">
+        <SectionLabel>Prompt</SectionLabel>
+        <div style={{ padding: '8px 12px', borderRadius: 8, background: theme.bg.input, border: `1px dashed ${theme.border.subtle}`, color: theme.text.disabled, fontSize: 12, lineHeight: 1.6 }}>
+          {hint}
+        </div>
+      </div>
+    )
+  }
+
+  const dirty = draft !== canonicalPrompt
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await persistEventParams(evt.id, { prompt: draft })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleRegenerate = async () => {
+    // 缺项目上下文 → toast 早退（deleteNode 店级范式）
+    if (!projectId || !episodesId) {
+      showToast('缺少项目上下文', 'warning')
+      return
+    }
+    setSubmitting(true)
+    try {
+      // nodeId = 资产 id（地雷 #4 裁定，见组件头注释）；eventId 仅用于 canonical 写回
+      await executeNode(projectId, episodesId, asset.id, asset.stage, {
+        prompt: canonicalPrompt,
+        params: { ...evt.params, prompt: canonicalPrompt },
+      })
+      // HTTP 200 即提交成功；running/success 反馈交给既有 node:state socket 链，不在此等待
+      showToast('已提交重生成', 'success')
+    } catch (err) {
+      showToast(`重生成提交失败: ${(err as Error).message}`, 'error')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div data-testid="prompt-section">
+      <SectionLabel>Prompt</SectionLabel>
+      <textarea
+        data-testid="prompt-textarea"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        rows={4}
+        placeholder={evt.op === 'import' ? '（导入资产暂无 prompt，可在此补配方后重抽）' : ''}
+        style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', background: theme.bg.input, border: `1px solid ${theme.border.default}`, borderRadius: 8, padding: 10, color: theme.text.primary, fontSize: 12, lineHeight: 1.6, fontFamily: 'inherit' }}
+      />
+      <div style={{ display: 'flex', gap: 8, marginTop: 8, marginBottom: 4 }}>
+        <button
+          data-testid="prompt-save"
+          onClick={() => { void handleSave() }}
+          disabled={!dirty || saving}
+          style={{ padding: '4px 14px', borderRadius: 6, border: 'none', fontSize: 12, fontWeight: 600, cursor: !dirty || saving ? 'default' : 'pointer', background: dirty && !saving ? theme.node.script : theme.bg.surface, color: dirty && !saving ? theme.text.onAccent : theme.text.disabled }}
+        >
+          {saving ? '保存中…' : '保存'}
+        </button>
+        <button
+          data-testid="prompt-regenerate"
+          onClick={() => { void handleRegenerate() }}
+          disabled={dirty || submitting}
+          title={dirty ? '请先保存，再重生成（防半编辑误触发）' : '以当前配方重新生成'}
+          style={{ padding: '4px 14px', borderRadius: 6, border: 'none', fontSize: 12, fontWeight: 600, cursor: dirty || submitting ? 'default' : 'pointer', background: !dirty && !submitting ? v3theme.signal.running : theme.bg.surface, color: !dirty && !submitting ? theme.text.onAccent : theme.text.disabled }}
+        >
+          {submitting ? '提交中…' : '重生成'}
+        </button>
+      </div>
     </div>
   )
 }
