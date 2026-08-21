@@ -1,4 +1,9 @@
 #!/usr/bin/env tsx
+// [DEPRECATED — Phase 51, 2026-08-21]
+// ADAPT-03 的 v1Routes 清单已过时：v1 /api/canvas/save 在 Phase 51 (WRITE-01) 删除，
+// 重跑本脚本会在该断言失败（路由表其余多处亦随版本演进过时）。
+// 保留作历史证据（verify-phase-50 D-12 先例：deprecated not deleted，仅注释插入）。
+// 当前保存通路由 npm run verify:phase-51 守门。
 /**
  * verify-phase-39.ts — Phase 39 (Canvas ↔ Movie-Agent V8.6 Adaptation) verification.
  *

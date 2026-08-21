@@ -276,7 +276,36 @@ async function syncCanvasGraph(projectId, filePath) {
     }
   }
 
-  await apiPost('/api/canvas/save', { projectId, episodesId: 1, graph });
+  // Phase 51 (2026-08-21): v1 /api/canvas/save 路由已删除（WRITE-01 一次性切换）。
+  // 改打 save-v2，并在客户端做 v1 → v2 归一化（镜像被删路由原服务端归一逻辑）。
+  // 注意：管线实时同步主通道是 khs2 侧 canvas_sync.py（本脚本的 canvas_graph 为手动路径）。
+  const now = Date.now();
+  const v1Nodes = graph.nodes || [];
+  const v1Links = graph.links || graph.edges || [];
+  const v2Graph = {
+    meta: { version: '2', projectId, episodesId: 1, createdAt: now, updatedAt: now },
+    nodes: v1Nodes.map((n) => ({
+      id: n.id,
+      type: n.type || 'script',
+      branchId: n.branchId || (n.data && n.data.branchId) || 'main',
+      phaseIndex: n.phaseIndex ?? 0,
+      phaseName: n.phaseName ?? (n.data && n.data.phaseName) ?? '',
+      position: n.position || { x: 0, y: 0 },
+      size: n.size || { width: 260, height: 180 },
+      data: n.data || {},
+      state: n.state || (n.data && n.data.state) || 'idle',
+    })),
+    links: v1Links.map((l) => ({
+      id: l.id,
+      source: l.source,
+      target: l.target,
+      branchId: l.branchId || 'main',
+      dataType: l.dataType || l.type || 'text',
+    })),
+    branches: [{ id: 'main', label: '主线', status: 'active', createdAt: now, updatedAt: now }],
+    variantGroups: [],
+  };
+  await apiPost('/api/canvas/v2/save-v2', { projectId, episodesId: 1, graph: v2Graph });
   console.log(`🖼️ 画布FlowGraph同步成功 (${registered} 个新资产已注册)`);
 }
 

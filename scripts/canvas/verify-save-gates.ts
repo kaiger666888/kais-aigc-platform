@@ -1,4 +1,9 @@
 #!/usr/bin/env tsx
+// [DEPRECATED — Phase 51, 2026-08-21]
+// v1 /api/canvas/save 路由已在 Phase 51 (WRITE-01) 删除，本脚本第一节
+// (v1 save.ts 双校验门) 读取的 src/routes/canvas/save.ts 已不存在，直接运行会 throw。
+// 保留作历史证据（verify-phase-50 D-12 先例：deprecated not deleted，仅注释插入）。
+// v1 save 的继任契约门：npm run verify:phase-51（S1 保存通道 + S2 删除不复活集成断言）。
 /**
  * verify-save-gates.ts — 2026-08-16 审计 #8 收口验证（v1 save + PATCH merged 门）。
  *
