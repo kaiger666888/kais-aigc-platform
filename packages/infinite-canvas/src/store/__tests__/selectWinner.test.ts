@@ -155,7 +155,7 @@ describe('selectWinner — graph 路径（canonical FlowGraphV3）', () => {
     expect(curationOf(graph, 'node-b')).toBe('selected')
     expect(curationOf(graph, 'node-a')).toBe('deprecated')
     expect(apiSelectWinner).toHaveBeenCalledTimes(1)
-    expect(apiSelectWinner).toHaveBeenCalledWith(7, 101, 'vg-1', 'node-b')
+    expect(apiSelectWinner).toHaveBeenCalledWith(7, 101, 'vg-1', 'node-b', undefined, undefined)
     expect(toastSpy).toHaveBeenCalledWith('已选为优胜: node-b', 'success')
   })
 
@@ -185,75 +185,43 @@ describe('selectWinner — graph 路径（canonical FlowGraphV3）', () => {
   })
 })
 
-describe('selectWinner — 旧路径（graph 为空的可变 RF 状态）', () => {
-  it('成功：isWinner 置位 + 恰调一次 API', async () => {
-    resetStore({ nodes: legacyNodes(), edges: legacyEdges() })
-    await useCanvasStore.getState().selectWinner('node-b')
-
-    const nodes = useCanvasStore.getState().nodes
-    expect(nodes.find((n) => n.id === 'node-b')?.data?.isWinner).toBe(true)
-    expect(nodes.find((n) => n.id === 'node-a')?.data?.isWinner).toBe(false)
-    expect(apiSelectWinner).toHaveBeenCalledTimes(1)
-    expect(apiSelectWinner).toHaveBeenCalledWith(7, 101, 'vg-old', 'node-b')
-    expect(toastSpy).toHaveBeenCalledWith('已选为优胜: node-b', 'success')
+describe('selectWinner — frameSlot 透传（53-05 / D-11 前端半部）', () => {
+  it("opts.frameSlot:'first' → API 第 6 参收到 'first'", async () => {
+    resetStore({ graph: fixtureGraph('single') })
+    await useCanvasStore.getState().selectWinner('node-b', { frameSlot: 'first' })
+    expect(apiSelectWinner).toHaveBeenCalledWith(7, 101, 'vg-1', 'node-b', undefined, 'first')
   })
 
-  it('API 失败：nodes+edges 恢复 prevSnapshot（旧 winner isWinner=true、旧边态还原）', async () => {
-    const originalNodes = legacyNodes()
-    const originalEdges = legacyEdges()
-    resetStore({ nodes: originalNodes, edges: originalEdges })
-    apiSelectWinner.mockRejectedValueOnce(new Error('HTTP 500'))
-
+  it('不传 opts → API 第 5/6 参 undefined（向后兼容）', async () => {
+    resetStore({ graph: fixtureGraph('single') })
     await useCanvasStore.getState().selectWinner('node-b')
+    expect(apiSelectWinner).toHaveBeenCalledWith(7, 101, 'vg-1', 'node-b', undefined, undefined)
+  })
 
-    const state = useCanvasStore.getState()
-    expect(state.nodes.find((n) => n.id === 'node-a')?.data?.isWinner).toBe(true)
-    expect(state.nodes.find((n) => n.id === 'node-b')?.data?.isWinner).toBe(false)
-    // 边回滚：node-a 边恢复 active，node-b 边回到 inactive（prevSnapshot 引用整体还原）
-    expect(state.edges.find((e) => e.id === 'e-a')?.data?.isInactive).toBe(false)
-    expect(state.edges.find((e) => e.id === 'e-b')?.data?.isInactive).toBe(true)
-    expect(apiSelectWinner).toHaveBeenCalledTimes(1)
+  it('frameSlot 透传时 API 失败仍回滚 prevGraph + error toast（回滚回归）', async () => {
+    resetStore({ graph: fixtureGraph('single') })
+    apiSelectWinner.mockRejectedValueOnce(new Error('HTTP 500'))
+    await useCanvasStore.getState().selectWinner('node-b', { frameSlot: 'last' })
+    const graph = useCanvasStore.getState().graph
+    expect(graph?.variantGroups[0]?.winnerNodeId).toBe('node-a')
     expect(toastSpy).toHaveBeenCalledWith(expect.stringContaining('选定失败已回滚'), 'error')
   })
+})
 
-  // ── WR-05/WR-06 回归：旧路径 variantGroups 精确定位 + 回滚恢复 ──────────
-  /** 两个旧式组，目标组 vg-old 故意放在**第二位**（暴露旧代码 [0] 取错组）。 */
-  function legacyGroups(): VariantGroup[] {
-    const g = (groupId: string, parentNodeId: string, members: string[], winner: string): VariantGroup => ({
-      groupId: asVariantGroupId(groupId),
-      parentNodeId: asNodeId(parentNodeId),
-      variantNodeIds: members.map(asNodeId),
-      winnerNodeId: asNodeId(winner),
-      createdAt: '2026-01-01T00:00:00Z',
-    })
-    return [
-      g('vg-other', 'p-other', ['node-z'], 'node-z'),
-      g('vg-old', 'p', ['node-a', 'node-b'], 'node-a'),
-    ]
-  }
-
-  it('WR-05 成功：目标组不在首位时 variantGroups[].winnerNodeId 仍被更新（旧代码 [0] 取错组）', async () => {
-    resetStore({ nodes: legacyNodes(), edges: legacyEdges(), variantGroups: legacyGroups() })
-    await useCanvasStore.getState().selectWinner('node-b')
-
-    const groups = useCanvasStore.getState().variantGroups
-    expect(groups.find((g) => g.groupId === 'vg-old')?.winnerNodeId).toBe('node-b')
-    // 兄弟组不受牵连
-    expect(groups.find((g) => g.groupId === 'vg-other')?.winnerNodeId).toBe('node-z')
-    expect(apiSelectWinner).toHaveBeenCalledWith(7, 101, 'vg-old', 'node-b')
-  })
-
-  it('WR-06 API 失败：variantGroups 一并回滚（不残留新 winner 的 SC-2 不一致）', async () => {
-    resetStore({ nodes: legacyNodes(), edges: legacyEdges(), variantGroups: legacyGroups() })
-    apiSelectWinner.mockRejectedValueOnce(new Error('HTTP 500'))
-
-    await useCanvasStore.getState().selectWinner('node-b')
-
-    const state = useCanvasStore.getState()
-    expect(state.variantGroups.find((g) => g.groupId === 'vg-old')?.winnerNodeId).toBe('node-a')
-    expect(state.variantGroups.find((g) => g.groupId === 'vg-other')?.winnerNodeId).toBe('node-z')
-    // nodes 回滚照旧成立
-    expect(state.nodes.find((n) => n.id === 'node-a')?.data?.isWinner).toBe(true)
+describe('selectWinner — legacy RF 路径废弃（53-05 / D-12）', () => {
+  it('graph 为 null：console.warn 早退、不调任何 API、不 throw、状态不变', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    resetStore({ nodes: legacyNodes(), edges: legacyEdges() })
+    let threw = false
+    try {
+      await useCanvasStore.getState().selectWinner('node-b')
+    } catch { threw = true }
+    expect(threw).toBe(false)
+    expect(apiSelectWinner).not.toHaveBeenCalled()
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('legacy RF selectWinner 已废弃'))
+    // RF 状态零变更（无本地写路径）
+    expect(useCanvasStore.getState().nodes).toEqual(legacyNodes())
+    warnSpy.mockRestore()
   })
 })
 
