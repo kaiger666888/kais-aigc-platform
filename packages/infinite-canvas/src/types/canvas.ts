@@ -63,15 +63,6 @@ export type CanvasNodeType =
 
 // ─── 自定义节点数据（带索引签名以兼容 React Flow v12） ──────────
 
-/** 剧本节点数据 */
-export interface ScriptNodeData {
-  [key: string]: unknown
-  label: string
-  type: 'script'
-  content: string
-  state: NodeState
-}
-
 /** 资产节点数据 */
 export interface AssetNodeData {
   [key: string]: unknown
@@ -98,69 +89,6 @@ export interface AssetNodeData {
   viewGroup?: string
   /** 是否为主视图（同一角色的代表视图） */
   isPrimaryView?: boolean
-}
-
-/** 分镜节点数据 */
-export interface StoryboardNodeData {
-  [key: string]: unknown
-  label: string
-  type: 'storyboard'
-  storyboardId: number
-  duration: number
-  prompt: string
-  filePath: string | null
-  thumbnailUrl: string | null
-  state: NodeState
-  linkedAssetIds: number[]
-  /** Phase 35 — 镜头意图元数据 */
-  cameraMovement?: CameraMovement
-  framing?: Framing
-  composition?: Composition
-  pacing?: Pacing
-  reviewStatus?: ReviewStatus
-  aiScore?: AIScore | null
-  isWinner?: boolean
-  routingDecision?: RoutingDecision
-  variantGroupId?: string
-  variantIndex?: number
-}
-
-/** 视频节点数据 */
-export interface VideoNodeData {
-  [key: string]: unknown
-  label: string
-  type: 'video'
-  videoId: number
-  filePath: string | null
-  thumbnailUrl: string | null
-  state: NodeState
-  duration?: number
-  reviewStatus?: ReviewStatus
-  aiScore?: AIScore | null
-  isWinner?: boolean
-  routingDecision?: RoutingDecision
-  variantGroupId?: string
-  variantIndex?: number
-  /** 多对一引用：视频引用的资产 ID 列表（通过 ref-input handle 接入） */
-  linkedAssetIds?: number[]
-}
-
-/** 音频节点数据 */
-export interface AudioNodeData {
-  [key: string]: unknown
-  label: string
-  type: 'audio'
-  audioId: number
-  filePath?: string | null
-  thumbnailUrl?: string | null
-  state: NodeState
-  duration?: number
-  reviewStatus?: ReviewStatus
-  aiScore?: AIScore | null
-  isWinner?: boolean
-  routingDecision?: RoutingDecision
-  variantGroupId?: string
-  variantIndex?: number
 }
 
 /** 分支状态 */
