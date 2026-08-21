@@ -49,14 +49,14 @@ function fakeVideo(duration: number, startAt = 0): FakeVideo {
 
 describe('wallTransport — DR-5 同播主时钟', () => {
   it('1. play 后 tick 按 delta 累加并驱动全部 video 到 masterTime % span', () => {
-    const a = fakeVideo(10)
-    const b = fakeVideo(8)
+    const a = fakeVideo(10, 5) // 起点远离 target,确保触发硬 seek 被驱动
+    const b = fakeVideo(8, 5)
     const t = createMasterTransport([a, b])
     t.play()
-    t.tickForTest(100)
-    t.tickForTest(200) // delta 100ms
+    t.tickForTest(100) // 首帧锚定
+    t.tickForTest(200) // delta 100ms → masterTime = 0.1
     expect(t.masterTime).toBeCloseTo(0.1, 5)
-    // span = min(10, 8) = 8 → target = 0.1
+    // span = min(10, 8) = 8 → target = 0.1;|5-0.1| > 120ms → 硬 seek 到 0.1
     expect(a.currentTime).toBeCloseTo(0.1, 5)
     expect(b.currentTime).toBeCloseTo(0.1, 5)
     t.dispose()
@@ -69,10 +69,11 @@ describe('wallTransport — DR-5 同播主时钟', () => {
     t.play()
     const aBefore = a.seekCount
     const bBefore = b.seekCount
-    t.tickForTest(100) // target = 0
+    t.tickForTest(100) // 首帧锚定
+    t.tickForTest(200) // masterTime = 0.1 → target = 0.1
     expect(a.seekCount).toBe(aBefore) // 阈值内不赋值
     expect(b.seekCount).toBe(bBefore + 1) // 硬 seek 一次
-    expect(b.currentTime).toBeCloseTo(0, 5)
+    expect(b.currentTime).toBeCloseTo(0.1, 5)
     t.dispose()
   })
 
