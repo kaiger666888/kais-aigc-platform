@@ -75,35 +75,20 @@ const ZONE_WIDTH = 1200;       // Zone node width
 const MAX_COLS = 4;            // Max artifacts per row before wrapping
 
 // ─── Phase definitions (match ZONE_PHASES + _PHASE_TYPE_MAP) ───────────
-// Ordered list: (prefix, label, canvasType, assetType, phaseGroup)
+// ─── Phase 词汇表(55-03 D-04:消费 22-phase 单一注册表,旧 13 条表已删) ──
+// 真值源 = packages/infinite-canvas/src/constants/phaseRegistry(khs 三真相源
+// 契约守护 by verify:phase-55;零外部 import 故双 tsconfig 均可编译)。
+import { PHASE_REGISTRY, type PipelinePhaseDef } from "../../../../packages/infinite-canvas/src/constants/phaseRegistry";
 
-interface PhaseDef {
-  prefix: string;
-  label: string;
-  canvasType: string;   // "script" | "asset" | "storyboard" | "audio" | "video"
-  assetType: string;    // "topic" | "outline" | "character" | "scene" | etc.
-  phaseGroup: string;   // "research" | "story" | "production" | "post"
-}
+type PhaseDef = PipelinePhaseDef;
 
-const PHASE_DEFS: PhaseDef[] = [
-  { prefix: "p01", label: "P01 · 选题+钩子",      canvasType: "script",     assetType: "topic",          phaseGroup: "research" },
-  { prefix: "p02", label: "P02 · 大纲",            canvasType: "script",     assetType: "outline",        phaseGroup: "research" },
-  { prefix: "p03", label: "P03 · 剧本+审计",       canvasType: "script",     assetType: "script_phase",   phaseGroup: "story" },
-  { prefix: "p04", label: "P04 · 角色设计",        canvasType: "asset",      assetType: "character",      phaseGroup: "story" },
-  { prefix: "p05", label: "P05 · 痛点发现",        canvasType: "script",     assetType: "script_phase",   phaseGroup: "story" },
-  { prefix: "p06", label: "P06 · 运镜+终审",       canvasType: "script",     assetType: "script_phase",   phaseGroup: "production" },
-  { prefix: "p07", label: "P07 · 视觉+风格化",     canvasType: "asset",      assetType: "scene",          phaseGroup: "production" },
-  { prefix: "p08", label: "P08 · 场景选择",        canvasType: "asset",      assetType: "scene",          phaseGroup: "production" },
-  { prefix: "p09", label: "P09 · 分镜拆解",        canvasType: "storyboard", assetType: "storyboard",     phaseGroup: "production" },
-  { prefix: "p10", label: "P10 · 语音",            canvasType: "audio",      assetType: "voice",          phaseGroup: "post" },
-  { prefix: "p11", label: "P11 · 视频渲染",        canvasType: "video",      assetType: "video",          phaseGroup: "post" },
-  { prefix: "p12", label: "P12 · 合成",            canvasType: "video",      assetType: "clip",           phaseGroup: "post" },
-  { prefix: "p13", label: "P13 · 交付",            canvasType: "video",      assetType: "delivery",       phaseGroup: "post" },
-];
+/** lane 布局序(sortKey 升序;条目 13 → 22,坐标系不变)。 */
+const PHASE_LANE_ORDER: readonly PhaseDef[] = [...PHASE_REGISTRY].sort((a, b) => a.sortKey - b.sortKey);
 
-// Quick lookup: prefix → PhaseDef
+// Quick lookup: lane/目录前缀 → 注册表条目(p11a0 经 prefix='p11a' 折叠,
+// 与 khs _PHASE_PREFIX_RE 语义一致;p05/p10b/p11/p12 注销不在此表)。
 const PHASE_DEF_MAP: Record<string, PhaseDef> = Object.fromEntries(
-  PHASE_DEFS.map((p) => [p.prefix, p])
+  PHASE_REGISTRY.map((p) => [p.prefix, p]),
 );
 
 // ─── File → Phase mapping ──────────────────────────────────────────────
@@ -111,37 +96,55 @@ const PHASE_DEF_MAP: Record<string, PhaseDef> = Object.fromEntries(
 // Uses longest-prefix match so "p06_input_shots" maps to "p06".
 
 const FILE_TO_PHASE: Array<{ filePrefix: string; phasePrefix: string }> = [
+  // 既有具体条目保留在前部(最长前缀匹配);注销单体(p05/p10b/p11/p12)
+  // 不再映射——未命中走忽略路径。legacy 单体文件名重定向:
+  // p11(视频渲染)→ p11b 最终渲染;p12(合成)→ p12a 时间线合成。
+  { filePrefix: "p10_voice", phasePrefix: "p10" },
+  { filePrefix: "p11_video", phasePrefix: "p11b" },
+  { filePrefix: "p11_prompt", phasePrefix: "p11a" },
+  { filePrefix: "p11a0", phasePrefix: "p11a" },
   { filePrefix: "p01", phasePrefix: "p01" },
   { filePrefix: "p02", phasePrefix: "p02" },
   { filePrefix: "p03", phasePrefix: "p03" },
+  { filePrefix: "p035", phasePrefix: "p035" },
   { filePrefix: "p04", phasePrefix: "p04" },
-  { filePrefix: "p05", phasePrefix: "p05" },
   { filePrefix: "p06", phasePrefix: "p06" },
   { filePrefix: "p07", phasePrefix: "p07" },
   { filePrefix: "p08", phasePrefix: "p08" },
   { filePrefix: "p09", phasePrefix: "p09" },
-  { filePrefix: "p10_voice", phasePrefix: "p10" },
+  { filePrefix: "p09b", phasePrefix: "p09b" },
+  { filePrefix: "p09c", phasePrefix: "p09c" },
   { filePrefix: "p10", phasePrefix: "p10" },
-  { filePrefix: "p11_video", phasePrefix: "p11" },
-  { filePrefix: "p11_prompt", phasePrefix: "p11" },
-  { filePrefix: "p11", phasePrefix: "p11" },
-  { filePrefix: "p12", phasePrefix: "p12" },
+  { filePrefix: "p10c", phasePrefix: "p10c" },
+  { filePrefix: "p11", phasePrefix: "p11b" },
+  { filePrefix: "p11a", phasePrefix: "p11a" },
+  { filePrefix: "p11b", phasePrefix: "p11b" },
+  { filePrefix: "p11c", phasePrefix: "p11c" },
+  { filePrefix: "p12", phasePrefix: "p12a" },
+  { filePrefix: "p12a", phasePrefix: "p12a" },
+  { filePrefix: "p12b", phasePrefix: "p12b" },
   { filePrefix: "p13", phasePrefix: "p13" },
+  { filePrefix: "p14", phasePrefix: "p14" },
+  { filePrefix: "p15", phasePrefix: "p15" },
 ];
 
 // ─── Asset directory → Phase mapping ───────────────────────────────────
 
 const ASSET_DIR_TO_PHASE: Array<{ dirPrefix: string; phasePrefix: string }> = [
+  // 55-03:P12 拆分——合成产物(composite/output)归 p12a(时间线合成承接);
+  // narration/audio/voice 保持 p10(语音域,不误路由 p12b);mix/bgm → p12b。
   { dirPrefix: "scene_images", phasePrefix: "p07" },
   { dirPrefix: "S07",          phasePrefix: "p07" },
   { dirPrefix: "ref_images",   phasePrefix: "p07" },
-  { dirPrefix: "video_clips",  phasePrefix: "p11" },
-  { dirPrefix: "P11",          phasePrefix: "p11" },
+  { dirPrefix: "video_clips",  phasePrefix: "p11b" },
+  { dirPrefix: "P11",          phasePrefix: "p11b" },
   { dirPrefix: "narration",    phasePrefix: "p10" },
   { dirPrefix: "audio",        phasePrefix: "p10" },
   { dirPrefix: "voice",        phasePrefix: "p10" },
-  { dirPrefix: "P12_composite",phasePrefix: "p12" },
-  { dirPrefix: "output",       phasePrefix: "p12" },
+  { dirPrefix: "P12_composite",phasePrefix: "p12a" },
+  { dirPrefix: "output",       phasePrefix: "p12a" },
+  { dirPrefix: "mix",          phasePrefix: "p12b" },
+  { dirPrefix: "bgm",          phasePrefix: "p12b" },
 ];
 
 // ─── Media extensions ──────────────────────────────────────────────────
@@ -624,8 +627,8 @@ function buildPhaseTree(
     throw new Error(`Unknown phase prefix: ${phasePrefix}`);
   }
 
-  // Determine the lane index (0-based) from PHASE_DEFS order
-  const laneIndex = PHASE_DEFS.findIndex((p) => p.prefix === phasePrefix);
+  // Lane index(0-based)仅用于 baseX 布局;phaseIndex 一律取 def.phaseIndex。
+  const laneIndex = PHASE_LANE_ORDER.findIndex((p) => p.prefix === phasePrefix);
   const baseX = laneIndex * ZONE_X_STEP;
 
   const nodes: FlowNodeV2[] = [];
@@ -636,14 +639,15 @@ function buildPhaseTree(
     id: phasePrefix,
     type: "zone" as any,  // "zone" is valid in schema but not in TS NodeType union
     branchId: "main",
-    phaseIndex: laneIndex + 1,
+    // 55-03 binding 8:phaseIndex 取注册表 khs 编号(绝非 laneIndex+1 下标推导)
+    phaseIndex: def.phaseIndex,
     phaseName: def.label,
     position: { x: baseX, y: 0 },
     size: { width: ZONE_WIDTH, height: ZONE_HEIGHT },
     state: "success",
     data: {
       label: def.label,
-      phase: def.phaseGroup,
+      phase: def.group,
       state: "success",
     },
   };
@@ -654,7 +658,7 @@ function buildPhaseTree(
     id: `sum-${phasePrefix}`,
     type: def.canvasType as any,
     branchId: "main",
-    phaseIndex: laneIndex + 1,
+    phaseIndex: def.phaseIndex,
     phaseName: def.label,
     position: { x: baseX, y: SUMMARY_Y },
     size: { width: SUMMARY_WIDTH, height: SUMMARY_HEIGHT },
@@ -839,7 +843,7 @@ function buildPhaseTree(
       // 不设 art.canvasType → ?? 落回 def.canvasType,行为零变化.
       type: (art.canvasType ?? def.canvasType) as any,
       branchId: "main",
-      phaseIndex: laneIndex + 1,
+      phaseIndex: def.phaseIndex,
       phaseName: def.label,
       position: {
         x: baseX + col * ART_COL_SPACING,
@@ -1891,7 +1895,7 @@ async function scanAndBuildTree(
 
   // Build tree for each phase, in PHASE_DEFS order
   const activePhases: string[] = [];
-  for (const def of PHASE_DEFS) {
+  for (const def of PHASE_LANE_ORDER) {
     const artifacts = phaseArtifacts.get(def.prefix);
     if (!artifacts || artifacts.length === 0) continue;
 

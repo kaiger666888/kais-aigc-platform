@@ -6,6 +6,8 @@
  *     （deprecated 无独立节点、事件 chip 26×26、sequence 边 role 在 data）；
  *  4. fixtureSource 两模式加载成功。
  */
+import { PHASE_REGISTRY } from '../../constants/phaseRegistry'
+import { derivePipelineModels } from '../../components/pipeline/model'
 import { describe, it, expect } from 'vitest'
 import { validateFlowGraphV3, checkReferentialIntegrity, type FlowGraphV3 } from '@kais/flowgraph-v3'
 import {
@@ -511,5 +513,83 @@ describe('fixtureSource', () => {
     expect(down.fallbackUsed).toBe(true)
     expect(down.graph.nodes.length).toBe(99)
     expect(validateFlowGraphV3(down.graph).ok).toBe(true)
+  })
+})
+
+// ─── 55-03:22 phaseIndex 合成图零未映射(成功标准 1 fixture 口径) ─────────
+
+describe('phase registry 覆盖：22 phaseIndex 合成 V2 图零未映射（55-03 A1/A3）', () => {
+  function synthetic22PhaseV2() {
+    const nodes: Array<Record<string, unknown>> = []
+    PHASE_REGISTRY.forEach((e, i) => {
+      // 每条目 1 个 asset 节点(phaseIndex = khs 编号)
+      nodes.push({
+        id: `a-${e.khsPrefix}`, type: e.canvasType, branchId: 'br_main',
+        phaseIndex: e.phaseIndex, phaseName: e.khsPrefix,
+        position: { x: i * 300, y: 0 }, size: { width: 240, height: 160 },
+        state: 'success', data: { filePath: `/assets/${e.khsPrefix}/x.png`, assetType: e.assetType },
+      })
+      // 对应 zone 节点:仅 lane 宿主条目出 zone(p11a0 折叠进 p11a lane,
+      // khs canvas_graph 同款现实——每 phaseIndex 恰一个 zone)
+      const isLaneHost = PHASE_REGISTRY.filter((x) => x.phaseIndex === e.phaseIndex)
+        .every((x) => x.sortKey >= e.sortKey)
+      if (isLaneHost) {
+        nodes.push({
+          id: `z-${e.khsPrefix}`, type: 'zone', branchId: 'br_main',
+          phaseIndex: e.phaseIndex, phaseName: e.label,
+          position: { x: i * 300, y: -400 }, size: { width: 240, height: 160 },
+          state: 'success', data: { label: e.label },
+        })
+      }
+    })
+    return {
+      meta: { version: '2', projectId: 7, episodesId: 101, createdAt: '2026-06-01T00:00:00.000Z', updatedAt: '2026-06-01T00:00:00.000Z' },
+      nodes,
+    }
+  }
+
+  it('22 条目全覆盖：零「未映射」+ phaseCatalog zone 胜出逐条一致', () => {
+    const { graph, phaseCatalog } = adaptV2Graph(synthetic22PhaseV2())
+    // zone 被抽进 catalog;asset 22 全保留 + 每资产 1 个 event chip(44 total)
+    // 消费链:V3 → RF 节点壳 → derivePipelineModels
+    const rfNodes = graph.nodes.map((n) => ({
+      id: n.id, type: 'asset', position: { x: 0, y: 0 },
+      data: { v3: n },
+    })) as unknown as Parameters<typeof derivePipelineModels>[0]
+    const models = derivePipelineModels(rfNodes)
+    const unmapped = models.filter((m) => m.def.unmapped === true || m.def.name.includes('未映射'))
+    expect(unmapped).toHaveLength(0)
+    expect(models).toHaveLength(22)
+    // phaseCatalog:zone phaseName 胜出;catalog 按 phaseIndex(lane)键控——
+    // 共 lane 条目(p035/p03、p09b/p09c、p11a0/p11a/p11b/p11c、p12a/p12b)
+    // 断言宿主条目(sortKey 最小者,即 lane 主条目)的 label。
+    const cat = new Map(phaseCatalog.map((c) => [c.index, c]))
+    const laneHost = new Map<number, typeof PHASE_REGISTRY[number]>()
+    for (const e of [...PHASE_REGISTRY].sort((a, b) => a.sortKey - b.sortKey)) {
+      if (!laneHost.has(e.phaseIndex)) laneHost.set(e.phaseIndex, e)
+    }
+    for (const [idx, host] of laneHost) {
+      const hit = cat.get(idx)
+      expect(hit, host.khsPrefix).toBeTruthy()
+      expect(hit?.name, host.khsPrefix).toBe(host.label)
+    }
+    expect(laneHost.size).toBe(new Set(PHASE_REGISTRY.map((e) => e.phaseIndex)).size)
+  })
+
+  it('反向对照：追加 phaseIndex 99 节点 → 唯一「未映射」条目(D-03 兜底承接)', () => {
+    const payload = synthetic22PhaseV2() as { nodes: Array<Record<string, unknown>> }
+    payload.nodes.push({
+      id: 'a-legacy-99', type: 'asset', branchId: 'br_main',
+      phaseIndex: 99, phaseName: 'legacy',
+      position: { x: 9999, y: 0 }, size: { width: 240, height: 160 },
+      state: 'success', data: { filePath: '/assets/legacy/x.png' },
+    })
+    const { graph } = adaptV2Graph(payload)
+    const rfNodes = graph.nodes.map((n) => ({
+      id: n.id, type: 'asset', position: { x: 0, y: 0 },
+      data: { v3: n },
+    })) as unknown as Parameters<typeof derivePipelineModels>[0]
+    const models = derivePipelineModels(rfNodes)
+    expect(models.filter((m) => m.def.unmapped === true)).toHaveLength(1)
   })
 })

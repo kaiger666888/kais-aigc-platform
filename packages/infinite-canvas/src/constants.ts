@@ -314,21 +314,19 @@ export const NODE_SCHEMA: Record<string, StructuredField[]> = {
 // 前端，卡片/详情面板按下列标签·分组·噪音表渲染。字段名以后端 snake_case 为准。
 // ═══════════════════════════════════════════════════════════════
 
-/** 创作阶段分组（后端 PHASE_DEF_MAP.phaseGroup 的前端固化镜像，配色用）。 */
-export type PhaseGroup = 'research' | 'story' | 'production' | 'post'
+// ─── 创作阶段分组(55-03 D-04:由 phaseRegistry 派生,字面量表已删) ──
+// 类型与词汇真值源 = ./phaseRegistry(khs ZONE_PHASES 契约守护,55-01)。
+// 类型与词汇真值源 = ./constants/phaseRegistry(khs 契约守护,55-01)。
+export type { PhaseGroup } from './constants/phaseRegistry'
+import type { PhaseGroup } from './constants/phaseRegistry'
+import { PHASE_REGISTRY } from './constants/phaseRegistry'
 
-/** phaseIndex → 分组（无 sidecar 时的兜底分组与配色依据）。
- * 对齐 KMC W6 编码（canvas_sync._PHASE_INDEX_MAP，2026-08-16 P0-2）：
- * p09b/p09c=10（production 微门）、p10=11 / p10c=12 / p10b=13(注销)、
- * p11*=14、p12*=15、p13=16、p14=17、p15=18。 */
-export const PHASE_GROUPS: Record<number, PhaseGroup> = {
-  1: 'research', 2: 'research',
-  3: 'story', 4: 'story', 5: 'story',
-  6: 'production', 7: 'production', 8: 'production', 9: 'production',
-  10: 'production',  // p09b/p09c micro-gates（W6）
-  11: 'post', 12: 'post', 13: 'post', 14: 'post',
-  15: 'post', 16: 'post', 17: 'post', 18: 'post',
-}
+/** phaseIndex → 分组(注册表派生;无 sidecar 时的兜底分组与配色依据)。
+ * 注销 lane(5/13)不再映射——未注册索引节点走 derivePipelineModels
+ * 「未映射」兜底,消费方 laneGeometry 有 ?? 'production' 兜底。 */
+export const PHASE_GROUPS: Record<number, PhaseGroup> = Object.fromEntries(
+  PHASE_REGISTRY.map((e) => [e.phaseIndex, e.group]),
+)
 
 /**
  * 后端 raw data 字段（snake_case 为主）→ 中文展示标签。

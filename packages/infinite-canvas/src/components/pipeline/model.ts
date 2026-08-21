@@ -2,7 +2,8 @@
  * src/components/pipeline/model.ts — 管线状态机视图的纯数据层。
  *
  * 完全从现有画布数据派生（不引入新后端 API）：
- *  - 管线骨架 = 17 阶段权威注册表（PIPELINE_PHASES，P01–P15 含 P09b/P10c 子阶段；P10a 已注销移除）；
+ *  - 管线骨架 = 22 phase 单一注册表（src/constants/phaseRegistry，khs _PHASE_INDEX_MAP
+ *    契约守护 by verify:phase-55；本文件零内联表——D-04 单源）；
  *  - 每阶段执行状态 = 该 phaseIndex 下 RF 节点 data.state 聚合（success/failed/running/pending）；
  *  - slot 完成度 = 同阶段资产按 stage 子类分组计数（dynamic 显示 [N files]）；
  *  - 资产三态 = V3 curation（selected/candidate/deprecated/locked）+ 旧 isPrimaryView/curationState 回退；
@@ -14,70 +15,21 @@
 import type { Node } from '@xyflow/react'
 import type { AssetNodeV3, Stage } from '@kais/flowgraph-v3'
 import { PHASE_GROUPS, type PhaseGroup } from '../../constants'
+import { PHASE_REGISTRY } from '../../constants/phaseRegistry'
+import type { PipelinePhaseDef } from '../../constants/phaseRegistry'
 
-export type { PhaseGroup }
+export type { PhaseGroup, PipelinePhaseDef }
+
+/** 未映射 warn 去重(索引级;进程生命周期一条)。 */
+const WARNED_UNMAPPED = new Set<number>()
 
 // ─── 阶段执行状态（展示态） ──────────────────────────────────
 export type PhaseExecState = 'completed' | 'running' | 'failed' | 'awaiting_review' | 'pending'
 
-// ─── 管线骨架（权威注册表） ──────────────────────────────────
-export interface PipelinePhaseDef {
-  /** 全局排序键（1..17），决定横向流水线顺序与依赖链。 */
-  sortKey: number
-  /** 阶段码：P01 / P09b …（UI 序号，英文） */
-  code: string
-  /** 中文名 */
-  name: string
-  /** 所属分组 */
-  group: PhaseGroup
-  /** 图数据整数 phaseIndex（子阶段复用主阶段 index；sub=true 不参与资产计数） */
-  phaseIndex: number
-  /** 审计/预览 gate：不承载独立资产槽位 */
-  sub?: boolean
-}
-
-/**
- * KMC pipeline PHASE_REGISTRY 的前端固化镜像（17 阶段）。
- * 顺序即依赖链（线性 depends_on）。phaseIndex 与图节点 phaseIndex 对齐用于数据匹配
- * （KMC canvas_sync._PHASE_INDEX_MAP 是唯一真相源，W6 起 sub 阶段也各有唯一
- * phaseIndex，见 KMC W6 注释）；P09b/P10c 为 gate 子阶段
- * （shot_audit / voice_audit），sub=true → 仅作流水线节点展示，不重复计入资产。
- */
-export const PIPELINE_PHASES: readonly PipelinePhaseDef[] = [
-  { sortKey: 1, code: 'P01', name: '选题/钩子', group: 'research', phaseIndex: 1 },
-  { sortKey: 2, code: 'P02', name: '大纲', group: 'research', phaseIndex: 2 },
-  { sortKey: 3, code: 'P03', name: '剧本审计', group: 'story', phaseIndex: 3 },
-  // P03.5 86ke 戏剧事件打磨：sub（共享 P03 lane 的 phaseIndex 3，整数下标无法表达 3.5，
-  // 与 P09b 同款处理）；sortKey 是 number，3.5 可精确表达插入位。
-  { sortKey: 3.5, code: 'P03.5', name: '戏剧事件打磨', group: 'story', phaseIndex: 3, sub: true },
-  { sortKey: 4, code: 'P04', name: '角色设计', group: 'story', phaseIndex: 4 },
-  { sortKey: 5, code: 'P06', name: '时空剧本', group: 'production', phaseIndex: 6 },
-  { sortKey: 6, code: 'P07', name: '场景图生成', group: 'production', phaseIndex: 7 },
-  { sortKey: 7, code: 'P08', name: '场景选择', group: 'production', phaseIndex: 8, sub: true },
-  { sortKey: 8, code: 'P09', name: '分镜拆解', group: 'production', phaseIndex: 9 },
-  // ── KMC W6 编码对齐（canvas_sync._PHASE_INDEX_MAP，2026-08-16 P0-2）──
-  // W6 (commit 8445666, 2026-08-06) 起 KMC 给每个 phase 唯一 phaseIndex：
-  // p09b=10 / p10=11 / p10c=12 / p10b=13(已注销) / p11*=14 / p12*=15 /
-  // p13=16 / p14=17 / p15=18。前端此前仍是旧编码（P10→10 … P15→15），
-  // 导致 index10 的 voice 节点被 P10 卡片吃掉、p09b/p09c 错点亮 P10 卡片、
-  // p11b 之后全部错位。此处逐条对齐 KMC 唯一真相源；sub 阶段共享主阶段
-  // lane 的语义由 sub=true 保留（不重复计资产）。
-  { sortKey: 9, code: 'P09b', name: '镜头审计', group: 'production', phaseIndex: 10, sub: true },
-  { sortKey: 10, code: 'P10', name: '语音合成', group: 'post', phaseIndex: 11 },
-  // P10a 时间线推导已随 KMC 2026-08-09 注销移除（ffprobe 内联进 p11a/p11b，
-  // voice↔video 本就 1:1/shot；见 phases/__init__.py 注释）。注销后无节点写入
-  // phaseIndex 11 + shot_timeline，此处保留会让流水线卡片恒 pending。
-  { sortKey: 11, code: 'P10c', name: '语音审计', group: 'post', phaseIndex: 12, sub: true },
-  { sortKey: 12, code: 'P11a', name: '片段预览', group: 'post', phaseIndex: 14 },
-  { sortKey: 13, code: 'P11b', name: '片段生成', group: 'post', phaseIndex: 14 },
-  // P11c 视频智能质检（qwen-eye）：sub（共享 P11 lane 的 phaseIndex 14，整数下标
-  // 无法表达插入位，与 P09b 同款处理）；sortKey 11.5 精确表达 p11b→p11c→p12。
-  { sortKey: 11.5, code: 'P11c', name: '视频质检', group: 'post', phaseIndex: 14, sub: true },
-  { sortKey: 14, code: 'P12', name: '合成', group: 'post', phaseIndex: 15 },
-  { sortKey: 15, code: 'P13', name: '交付', group: 'post', phaseIndex: 16 },
-  { sortKey: 16, code: 'P14', name: '质量审计', group: 'post', phaseIndex: 17 },
-  { sortKey: 17, code: 'P15', name: '反馈', group: 'post', phaseIndex: 18 },
-]
+// ─── 管线骨架（22 phase 单一注册表;D-04:零内联表） ───────────
+// 定义真值源 = src/constants/phaseRegistry(khs 三真相源契约守护,55-01);
+// 本 re-export 保持既有导入方零改动。
+export const PIPELINE_PHASES: readonly PipelinePhaseDef[] = PHASE_REGISTRY
 
 /** 分组展示顺序 + 中文名。 */
 export const PHASE_GROUP_ORDER: readonly PhaseGroup[] = ['research', 'story', 'production', 'post']
@@ -379,19 +331,28 @@ export function derivePipelineModels(nodes: Node[]): PhaseModel[] {
     return derivePhase(def, phaseNodes)
   })
 
-  // 注册表外的 phaseIndex → 追加为兜底阶段（按 index 排序插入末尾前）
+  // 注册表外的 phaseIndex → 「未映射」兜底条目(D-03:fail-loud 不崩——
+  // warn 聚合一条/索引,模块级 Set 去重防每帧刷屏;条目可见可点击)。
   const extras = [...byPhase.keys()].filter((idx) => !seen.has(idx)).sort((a, b) => a - b)
   for (const idx of extras) {
     const group = PHASE_GROUPS[idx] ?? 'post'
+    if (!WARNED_UNMAPPED.has(idx)) {
+      WARNED_UNMAPPED.add(idx)
+      console.warn(
+        `[pipeline] 未映射 phaseIndex: ${idx}（${byPhase.get(idx)?.length ?? 0} 节点;` +
+          `存量 pre-W6 图可走此兜底,新导入应为零——见 55-03 A1/A3）`,
+      )
+    }
     models.push(
       derivePhase(
         {
           sortKey: 1000 + idx,
-          code: `P${String(idx).padStart(2, '0')}`,
-          name: `阶段 ${idx}`,
+          code: '未映射',
+          name: `未映射 · ${idx}`,
           group,
           phaseIndex: idx,
-        },
+          unmapped: true,
+        } as PipelinePhaseDef,
         byPhase.get(idx) ?? [],
       ),
     )
