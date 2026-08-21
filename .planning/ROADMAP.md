@@ -20,7 +20,7 @@
 1. **Phase 编号延续 v2.1** (Phase 51+)
 2. **写路径地基最先** — WRITE 是所有画布 UX 深化(REGEN/VAR/GATE 回写)的前提；COORD-01 作为横切约束并入 Phase 51，让"只碰契约/映射层、避让 khs2 v2.4 phases 内部算法"从第一天成为工程纪律
 3. **用户价值流排序** — 地基(51) → 创作闭环(52) → 选片(53) → gate(54) → 导航(55) → 可视化(56) → 门户(57)；同类别需求聚合在同一 phase
-4. **kmc 侧变更限定契约/映射层** — field-map/canvas_sync/manifest schema 允许同步修改(已授权)；VAR-01 涉及 p04/p09 等输出字段映射，排序在中后段且**前置条件: khs2 v2.4 Phase 25 验收完成**；每个涉及 kmc 侧的 plan 开工前检查工作树干净
+4. **kmc 侧变更限定契约/映射层** — field-map/canvas_sync/manifest schema 允许同步修改(已授权)；VAR-01 涉及 p04/p09 等输出字段映射，排序在中后段且**前置条件: khs2 v2.4 Phase 25 验收完成**；每个涉及 kmc 侧的 plan 开工前检查工作树干净。规范全文与 plan 开工 checklist 见 .planning/specs/COORD-01-khs2-parallel-coordination.md
 5. **PORTAL-01 调研型可并行** — Toonflow 替换评估不阻塞任何编码 phase，放 Phase 57 但可与 52-56 并行启动
 6. **破坏性变更允许，无 legacy adapter** — 延续 v1.6/v2.0 决策：废弃 `canvasToFlowGraph` 直接删除而非包装；WRITE-04 死代码清理与 NAV-06 分支 UI 重写协调(先删后建)
 7. **GUARD 收尾传统延续** — 每个 phase 带 verify:phase-N 契约断言，末 phase 汇总守护全 milestone 行为不回归
