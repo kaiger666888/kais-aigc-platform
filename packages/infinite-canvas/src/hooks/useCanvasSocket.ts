@@ -60,7 +60,8 @@ interface UseCanvasSocketOptions {
   episodesId?: number
   onNodeStateChange: (nodeId: string, state: NodeState, progress?: number) => void
   onNodePreviewUpdate: (nodeId: string, thumbnailUrl: string) => void
-  onNewAsset: (nodeId: string, data: Record<string, unknown>) => void
+  /** 55-04:V2 节点袋(server { node } payload 适配);位置决策在 FlowCanvas。 */
+  onNewAsset?: (node: Record<string, unknown>) => void
   onOrchestrateStart?: (payload: OrchestrateStartPayload) => void
   onOrchestrateProgress?: (payload: OrchestrateProgressPayload) => void
   onOrchestrateDone?: (payload: OrchestrateDonePayload) => void
@@ -158,8 +159,13 @@ export function useCanvasSocket(options: UseCanvasSocketOptions) {
     })
 
     // 新资产生成完成
-    socket.on('node:created', (payload: { nodeId: string; data: Record<string, unknown> }) => {
-      callbacksRef.current.onNewAsset(payload.nodeId, payload.data)
+    socket.on('node:created', (payload: { node?: Record<string, unknown> }) => {
+      // 55-04 (Q4):server broadcast 形状是 { node }(nodes.ts upsert 的 V2 节点);
+      // 客户端适配,后端零改动。坏形状静默忽略(warn 归 store 层)。
+      const node = payload?.node
+      if (node != null && typeof node === 'object') {
+        callbacksRef.current.onNewAsset?.(node)
+      }
     })
 
     // 执行进度

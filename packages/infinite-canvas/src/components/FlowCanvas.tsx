@@ -54,6 +54,8 @@ import AssetManager from './assetManager/AssetManager'
 import PipelineStateMachine from './PipelineStateMachine'
 import StoryboardBoard from './storyboard/StoryboardBoard'
 import SceneShotBrowser from './SceneShotBrowser'
+import SearchNavigator from './canvas/SearchNavigator'
+import { placeNewAsset } from '../utils/placeNewAsset'
 import { useLayout } from '../hooks/useLayout'
 import { canvasStateKey, loadCanvasState, useCanvasPersistence } from '../hooks/useCanvasPersistence'
 import { useNavHistory, type NavSnapshot } from '../hooks/useNavHistory'
@@ -115,6 +117,7 @@ function CanvasInner() {
 
   // Phase 45 (TEXT-03) — Tier 2 search filter state.
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchNavOpen, setSearchNavOpen] = useState(false)
 
   const nodes = useCanvasStore((s) => s.nodes)
   const edges = useCanvasStore((s) => s.edges)
@@ -233,13 +236,26 @@ function CanvasInner() {
     onNodePreviewUpdate: (nodeId: string, thumbnailUrl: string) => {
       applySocketNodePreview(nodeId, thumbnailUrl)
     },
-    onNewAsset: (nodeId: string, data: Record<string, unknown>) => {
-      setNodes((nds) => [...(nds as any[]), {
-        id: nodeId,
-        type: 'asset',
-        position: { x: LAYOUT.NEW_NODE_X_MIN + Math.random() * LAYOUT.NEW_NODE_X_RANGE, y: LAYOUT.NEW_NODE_Y_MIN + Math.random() * LAYOUT.NEW_NODE_Y_RANGE },
-        data,
-      }])
+    onNewAsset: (node: Record<string, unknown>) => {
+      // 55-04 (NAV-04):随机散布反模式已删——位置决策:服务端 position 有限
+      // 即用(真相优先);否则视口中心(placeNewAsset 8px 网格,UI-SPEC §6)。
+      // 写回走 canonical addNodeFromSocket(WRITE-03),不再 setNodes 直写。
+      const rawPos = node.position as { x?: unknown; y?: unknown } | undefined
+      const position =
+        rawPos != null && typeof rawPos.x === 'number' && typeof rawPos.y === 'number'
+        && Number.isFinite(rawPos.x) && Number.isFinite(rawPos.y)
+          ? { x: rawPos.x, y: rawPos.y }
+          : placeNewAsset({
+              sourcePosition: null,
+              viewportCenter: reactFlow.screenToFlowPosition({
+                x: window.innerWidth / 2,
+                y: window.innerHeight / 2,
+              }),
+              anchor: 'center',
+            })
+      const nodeId = typeof node.id === 'string' ? node.id : '(unknown)'
+      const added = useCanvasStore.getState().addNodeFromSocket(node, position)
+      if (added) setFocusAssetNodeId(nodeId)
     },
     onOrchestrateStart: (p) => {
       startOrchestration(p.runId, p.total, p.mode)
@@ -386,6 +402,13 @@ function CanvasInner() {
     [reactFlow],
   )
   const navHistory = useNavHistory(getViewport)
+
+  // 55-04:testMode 门控下把 getViewport 挂给模块级 liveViewport(getLiveViewport 桥数据源)。
+  useEffect(() => {
+    if (!new URLSearchParams(window.location.search).has('testMode')) return
+    liveViewport = getViewport
+    return () => { liveViewport = null }
+  }, [getViewport])
 
   // navSkipRef 防止 apply（程序性恢复状态）触发递归 push：
   //  - apply 设置 true → setViewport 动画（duration 300）触发的 onMoveEnd 等回调检查它 → 跳过 push；
@@ -599,6 +622,21 @@ function CanvasInner() {
     }
   }, [projectId, episodesId, orchestration.status, reactFlow, showToast])
 
+  // Phase 55-04 (NAV-03):`/` 全局快捷键打开搜索导航器。
+  // 守卫(Pitfall 7):输入框/文本域/可编辑元素聚焦时不劫持;modal 开启早退。
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== '/' || searchNavOpen) return
+      const t = e.target as HTMLElement | null
+      if (t != null && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+      if (useVariantPickerStore.getState().open || useGateStore.getState().open) return
+      e.preventDefault()
+      setSearchNavOpen(true)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [searchNavOpen])
+
   // Iteration Engine — 切换 panel 显隐 (诊断由 panel 内的「开始诊断」按钮触发)
   const handleIterate = useCallback(() => {
     if (iteration.status === 'idle') {
@@ -632,30 +670,9 @@ function CanvasInner() {
     }
   }, [activeSkillId, setDeclaredNodeTypes, fixtureMode])
 
-  // Phase 45 (TEXT-03) — Tier 2 search filter.
-  // Debounced 200ms; filters visible nodes by case-insensitive substring
-  // match against data.label / data.description / data.prompt.
-  // Visibility-only — non-matched nodes get hidden:true (React Flow standard).
-  // Clearing the input restores all nodes.
-  useEffect(() => {
-    const t = setTimeout(() => {
-      const q = searchQuery.trim().toLowerCase()
-      setNodes((nds) =>
-        nds.map((n) => {
-          const label = (n.data?.label as string) ?? ''
-          const description = (n.data?.description as string) ?? ''
-          const prompt = (n.data?.prompt as string) ?? ''
-          const matches =
-            !q ||
-            label.toLowerCase().includes(q) ||
-            description.toLowerCase().includes(q) ||
-            prompt.toLowerCase().includes(q)
-          return { ...n, hidden: !matches }
-        }),
-      )
-    }, 200)
-    return () => clearTimeout(t)
-  }, [searchQuery, setNodes])
+  // Phase 55-04 (NAV-03):Phase 45 隐藏式搜索过滤已整段删除(Do-Not-Regress 3
+  // ——搜索期间画布节点零隐藏;搜索入口迁移至 `/` SearchNavigator 浮层,
+  // 工具栏输入框保留为打开入口)。
 
   // Health-poll fallback: 如果 socket 事件丢失(graph:saved 未到达),
   // 通过轮询 /api/canvas/v2/health 的 eventCount 变化兜底触发 reload。
@@ -1007,7 +1024,7 @@ function CanvasInner() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="搜索描述 / 标签…"
+                placeholder="搜索描述 / 标签…（按 / 快速打开）"
                 className="cv-search-input"
                 style={{
                   padding: '6px 10px 6px 28px',
@@ -1020,7 +1037,7 @@ function CanvasInner() {
                   boxShadow: 'var(--cv-shadow-card, 0 1px 2px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.04) inset)',
                   transition: 'border-color 120ms var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1))',
                 }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = theme.border.strong }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = theme.border.strong; setSearchNavOpen(true) }}
                 onBlur={(e) => { e.currentTarget.style.borderColor = theme.border.default }}
               />
             </div>
@@ -1073,6 +1090,7 @@ function CanvasInner() {
         {iteration.panelOpen && <IterationPanel />}
         <G15TriagePanel />
         {gateOpen && <GateCenterPanel />}
+        <SearchNavigator open={searchNavOpen} onClose={() => setSearchNavOpen(false)} initialQuery={searchQuery} />
         </>
         )}
       </div>
@@ -1202,6 +1220,14 @@ const errorBarStyle: React.CSSProperties = {
   borderBottom: `1px solid ${theme.chrome.errorBorder}`,
   color: theme.status.rejected,
   fontSize: 12,
+}
+
+// 55-04 (W2 方案 b):testMode 门控的 live 视口 getter——main.tsx 桥
+// getViewCenter 数据源。存 getter(调用时经 reactFlow.getViewport() 取实时值);
+// 生产 bundle 该门不通过,零行为、零 store 写(不触发重布)。
+let liveViewport: (() => { x: number; y: number; zoom: number }) | null = null
+export function getLiveViewport(): { x: number; y: number; zoom: number } | null {
+  return liveViewport?.() ?? null
 }
 
 export default function FlowCanvas() {

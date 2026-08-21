@@ -18,7 +18,7 @@ import { approveNode as apiApproveNode, rejectNode as apiRejectNode, selectVaria
 import { serializeGraphToV2 } from '../v3/serialize'
 import {
 } from './variantOps'
-import { adaptV2Graph, getViewModel, type PhaseCatalogEntry } from '../v3/adapter'
+import { adaptV2Graph, adaptV2Node, getViewModel, type PhaseCatalogEntry } from '../v3/adapter'
 import {
   resolveInitialGraph,
   loadFixtureGraph,
@@ -136,6 +136,8 @@ interface CanvasState {
   applySocketNodeState: (nodeId: string, state: string, progress?: number) => void
   /** socket node:preview：thumbnailUrl 写 asset.media.thumbnail。 */
   applySocketNodePreview: (nodeId: string, thumbnailUrl: string) => void
+  /** 55-04 (WRITE-03):socket node:created 单节点增量 canonical 写回;返回是否新增。 */
+  addNodeFromSocket: (node: Record<string, unknown>, position: { x: number; y: number }) => boolean
   /** Phase 52-01（REGEN-01）：事件配方 canonical 写入同步版——patch 合并进
    *  EventNodeV3.params（P4 配方唯一合法存放处），空值(undefined/null/'')= 删字段；
    *  不持久化（52-04 换 seed 回写用，持久化等下一次保存）。 */
@@ -745,6 +747,35 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
           : n,
       ),
     }))
+  },
+  addNodeFromSocket: (node, position) => {
+    // 55-04 (NAV-04/WRITE-03):单节点增量 canonical 写回。
+    // 绝不动 setNodes/派生缓存;zod 同源宽松校验经 adaptV2Node;
+    // 幂等:同 id 重播只更新 rawData,不重复 append。
+    const adapted = adaptV2Node(node)
+    if (adapted == null) {
+      console.warn('[canvasStore] node:created 无法适配(忽略)', String(node?.id ?? node))
+      return false
+    }
+    const { v3Node, raw } = adapted
+    const { graph, rawDataByNodeId } = get()
+    if (graph == null) {
+      console.warn('[canvasStore] addNodeFromSocket: graph 为空,忽略', v3Node.id)
+      return false
+    }
+    const exists = graph.nodes.some((n) => n.id === v3Node.id)
+    const nextRaw = new Map(rawDataByNodeId)
+    nextRaw.set(v3Node.id, raw)
+    if (exists) {
+      console.warn('[canvasStore] addNodeFromSocket: 节点已存在(重播),仅刷新 rawData', v3Node.id)
+      set({ rawDataByNodeId: nextRaw })
+      return false
+    }
+    set({
+      graph: { ...graph, nodes: [...graph.nodes, { ...v3Node, position }] },
+      rawDataByNodeId: nextRaw,
+    })
+    return true
   },
 
   // 审核 — 乐观更新 + API 调用 + 失败回滚。

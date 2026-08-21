@@ -470,6 +470,36 @@ export interface AdaptResult {
  * 真实后端 V2 payload → FlowGraphV3。绝不 throw（P22）。
  * 已是 V3（meta.version==='3'）时直接校验透传（fixture/未来后端直通）。
  */
+/**
+ * 单节点级 V2 → V3 适配(55-04 / NAV-04:socket node:created 增量写回用;
+ * 整图路径 adaptV2Graph 不可用于单节点)。normalizeNode 宽松归一 +
+ * rawData 袋捕获 + migrateV2toV3 单节点图转换;坏节点返回 null 不 throw
+ * (fail-loud 不崩同源哲学,warn 归调用方)。
+ */
+export function adaptV2Node(rn: unknown): {
+  v3Node: FlowGraphV3['nodes'][number];
+  raw: Record<string, unknown>;
+} | null {
+  const warnings: string[] = []
+  const n = normalizeNode(rn, (m) => warnings.push(m))
+  if (!n) return null
+  const rd = (rn as Record<string, unknown> | null)?.data
+  const raw = rd != null && typeof rd === 'object' ? { ...(rd as Record<string, unknown>) } : {}
+  try {
+    const migrated = migrateV2toV3({
+      meta: { projectId: 0, episodesId: 0, createdAt: 0, updatedAt: 0 },
+      nodes: [n],
+      links: [],
+      branches: [],
+    })
+    const v3Node = migrated.graph.nodes.find((x) => x.id === n.id)
+    if (v3Node == null) return null
+    return { v3Node, raw }
+  } catch {
+    return null
+  }
+}
+
 export function adaptV2Graph(raw: unknown): AdaptResult {
   const warnings: string[] = []
   const warn: Warn = (msg) => warnings.push(msg)
@@ -516,6 +546,7 @@ export function adaptV2Graph(raw: unknown): AdaptResult {
   const phaseCatalog = buildPhaseCatalog(rawNodes)
   // 每节点原始 data 袋：穿透 migrate 白名单之外的字段（卡片/详情面板消费）。
   // 捕获原始 rn.data（normalizeNode 前的完整袋），key = 存活节点 id。
+  // 逐节点归一(normalizeNode;单节点增量消费方走 adaptV2Node 同源路径)。
   const rawDataByNodeId = new Map<string, Record<string, unknown>>()
   const nodes: FlowNodeV2[] = []
   for (const rn of rawNodes) {
