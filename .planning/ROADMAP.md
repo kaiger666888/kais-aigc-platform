@@ -88,7 +88,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 53-06-PLAN.md — 入口改造(adapter 组成员通道/AssetCardNode 徽章)+ 资产中心「去画布选片」+ VariantPicker 删除 (VAR-02/03)
+- [x] 53-06-PLAN.md — 入口改造(adapter 组成员通道/AssetCardNode 徽章)+ 资产中心「去画布选片」+ VariantPicker 删除 (VAR-02/03)
 - [ ] 53-07-PLAN.md — G15 操作桥 + g15-ops 端点 + 分诊面板 + S4/S5 契约门收口 (VAR-04)
 
 ### Phase 54: Gate 中心 (Gate Center + Blocking-State UX)
