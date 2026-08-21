@@ -27,6 +27,18 @@
  *  - event 节点 + role:'output' 边不落盘（折叠语义同 graphToViewModel：event 经 output 边
  *    映射到产出资产，非 output 边端点是 event 则替换为该资产，自环丢弃；与旧 v1
  *    持久化层剔除 evt_* 合成节点的语义一致）。
+ *  - 事件配方反向覆盖（Phase 52-02，地雷 #1 成败手）：event 不落盘，而 reload 时
+ *    migrate §14 只从产出资产 flat data.prompt/seed/engine 重建 EventNodeV3.params——
+ *    序列化必须把产生事件的配方覆盖回产出资产 data 袋（在 {...raw, ...flattenMeta}
+ *    之后覆盖，canonical 事件配方为最终真值），否则 updateEventParams 的编辑
+ *    保存+刷新后无声丢失。窄通道声明（地雷 #3）：§14 只 round-trip
+ *    prompt/seed/engine 三键；steps/cfg/lora/quant 等全配方持久化出范围
+ *    （预存损耗，非本期引入，防 scope creep）。script stage 跳过 prompt 覆盖
+ *    （其真值是 content，flattenMeta 已处理，P4 防两处抄）。
+ *  - stale 上 wire（Phase 52-02，地雷 #2）：asset.stale != null → data.stale
+ *    {since, triggerAssetId, triggerEventId}；服务端 orchestrate 只读持久化 blob，
+ *    stale-success 不跳过（REGEN-03）需要信息源；顺带修复 stale 刷新即丢
+ *    （migrate.ts d.stale 已配套还原）。stale 为 null 不写键（不伪造）。
  *  - link role→dataType（自由字符串，reload 时 migrate 负责 role 推断）；isExplore/isInactive
  *    透传。link refType/sourceHandle 在 V3 链路本就不存活（graphToViewModel 不带）——
  *    现状既有损耗，本序列化器不引入新损耗（地雷 #8）。
@@ -35,7 +47,7 @@
  *  - variantGroups selectMode 'locked'→'single' + warning（地雷 #3：服务端 zod 枚举仅
  *    single|multi，原样序列化会让整图 400；解构集锁定语义仅前端展示层）。
  */
-import type { FlowGraphV3, AssetNodeV3, AssetStageMeta, VariantGroupV3 } from '@kais/flowgraph-v3'
+import type { FlowGraphV3, AssetNodeV3, EventNodeV3, AssetStageMeta, VariantGroupV3 } from '@kais/flowgraph-v3'
 
 // ─── V2 wire 形状（镜像 src/types/flowgraph-v2-schema.ts 服务端 zod 契约） ───
 
@@ -206,6 +218,16 @@ export function serializeGraphToV2(
     if (warningsOut) warningsOut.push(msg)
   }
 
+  // ── 事件配方反向覆盖索引（Phase 52-02，地雷 #1）：assetId → 产生事件 ──
+  // 经 role:'output' 边反查（唯一正道）；资产无产生事件时不在表中 → 不写不伪造。
+  const nodeById = new Map(graph.nodes.map((n) => [n.id, n]))
+  const producingEventByAssetId = new Map<string, EventNodeV3>()
+  for (const l of graph.links) {
+    if (l.role !== 'output' || producingEventByAssetId.has(l.target)) continue
+    const src = nodeById.get(l.source)
+    if (src != null && src.kind === 'event') producingEventByAssetId.set(l.target, src)
+  }
+
   // ── 节点：仅资产节点落盘；event 不落盘（折叠语义），structure 在 V2 无实体同弃 ──
   const nodes: FlowNodeV2Wire[] = []
   const persistedIds = new Set<string>()
@@ -215,6 +237,27 @@ export function serializeGraphToV2(
     // 地雷 #1 防线：rawData 合并为强制公式——audio 必填字段（shot_id/engine/duration_sec）
     // 与白名单外字段的唯一存活地。flattenMeta 在后，canonical meta 覆盖同名字段。
     const data: Record<string, unknown> = { ...raw, ...flattenMeta(n, warn) }
+
+    // 事件配方反向覆盖（Phase 52-02 地雷 #1）：在 {...raw, ...flattenMeta} 之后覆盖，
+    // canonical 事件配方为最终真值。事件 params 无该字段（undefined）时不写不伪造。
+    // 窄通道（地雷 #3）：只 round-trip prompt/seed/engine 三键，steps/cfg/lora/quant
+    // 等全配方持久化出范围。script stage 跳过 prompt（真值是 content，防两处抄）。
+    const producingEvt = producingEventByAssetId.get(n.id)
+    if (producingEvt != null) {
+      const p = producingEvt.params
+      if (n.stage !== 'script' && p.prompt != null) data.prompt = p.prompt
+      if (p.seed != null) data.seed = p.seed
+      if (p.modelVersion != null) data.engine = p.modelVersion
+    }
+    // stale 上 wire（Phase 52-02 地雷 #2）：服务端 orchestrate 只读持久化 blob，
+    // stale-success 不跳过需要信息源；顺带修复 stale 刷新即丢（migrate d.stale 还原）。
+    if (n.stale != null) {
+      data.stale = {
+        since: n.stale.since,
+        triggerAssetId: n.stale.triggerAssetId,
+        triggerEventId: n.stale.triggerEventId,
+      }
+    }
     // filePath/thumbnailUrl 仅在非空时覆盖（不抹 rawData 里的原值；空媒体不伪造字段——
     // 服务端结构化参数 schema 的 filePath 必填由管线数据保证，序列化器不兜底）。
     if (n.media.original != null) data.filePath = n.media.original

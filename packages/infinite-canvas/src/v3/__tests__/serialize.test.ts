@@ -40,6 +40,7 @@ function asset(partial: {
   aiScore?: AssetNodeV3['aiScore']
   curation?: AssetNodeV3['curation']
   variantGroupId?: string
+  stale?: AssetNodeV3['stale']
 }): AssetNodeV3 {
   return {
     kind: 'asset',
@@ -65,7 +66,7 @@ function asset(partial: {
     ...(partial.reviewStatus != null ? { reviewStatus: partial.reviewStatus } : {}),
     ...(partial.aiScore != null ? { aiScore: partial.aiScore } : {}),
     curation: partial.curation ?? 'candidate',
-    stale: null,
+    stale: partial.stale ?? null,
     ...(partial.variantGroupId != null ? { variantGroupId: partial.variantGroupId } : {}),
   }
 }
@@ -287,5 +288,106 @@ describe('serializeGraphToV2', () => {
       id: 'br_main', label: '主线', status: 'active', forkReason: '', createdAt: 900,
     })
     expect(typeof wire.branches[0]!.updatedAt).toBe('number')
+  })
+})
+
+// ─── Phase 52-02：事件配方反向覆盖 + stale wire round-trip ───
+// 断言组：a. 配方反向覆盖（canonical 优先）; b. script stage 例外;
+// c. 不伪造; d. stale 序列化 + adapt∘serialize round-trip 保真(依赖 52-02 Task 2 migrate 还原)。
+
+function evt(id: string, op: EventNodeV3['op'], params: EventNodeV3['params']): EventNodeV3 {
+  return {
+    kind: 'event', id, branchId: 'br_main', phaseIndex: 1, phaseName: 'p',
+    position: { x: 0, y: 0 }, size: { width: 240, height: 160 },
+    state: 'success', op, params, executor: 'gpu0',
+  }
+}
+
+function minimalGraph(nodes: FlowGraphV3['nodes'], links: FlowLinkV3[]): FlowGraphV3 {
+  return {
+    meta: { version: '3', projectId: 1, episodesId: 1, createdAt: 1, updatedAt: 2 },
+    nodes, links,
+    branches: [{ id: 'br_main', name: '主线', createdAt: 1 }],
+    variantGroups: [],
+  }
+}
+
+describe('Phase 52-02: 事件配方反向覆盖 + stale wire (地雷 #1/#2)', () => {
+  it('a. 配方反向覆盖：事件 params 三键覆盖进产出资产 data（canonical 优先于 rawData）', () => {
+    const g = minimalGraph(
+      [
+        asset({ id: 'n_img', stage: 'keyframe', meta: { stage: 'keyframe', shotId: 'shot-001' } }),
+        evt('evt_n_img', 'wan22_i2v', { prompt: '新提示词', seed: 42, modelVersion: 'wan2.2-new' }),
+      ],
+      [{ id: 'l1', source: 'evt_n_img', target: 'n_img', branchId: 'br_main', role: 'output' }],
+    )
+    const raw = new Map([['n_img', { prompt: '旧提示词', seed: 1, engine: 'wan-old', shot_id: 'S01' }]])
+    const w = serializeGraphToV2(g, raw)
+    const node = w.nodes.find((n) => n.id === 'n_img')!
+    expect(node.data.prompt).toBe('新提示词') // canonical 事件配方覆盖 rawData 同名键
+    expect(node.data.seed).toBe(42)
+    expect(node.data.engine).toBe('wan2.2-new')
+    expect(node.data.shot_id).toBe('S01') // 非配方键不动
+    // round-trip：adapt 回来 §14 从 data.prompt/seed/engine 重建事件 params
+    const back = adaptV2Graph(w)
+    const evtBack = back.graph.nodes.find((n) => n.kind === 'event' && n.id === 'evt_n_img')
+    expect(evtBack && evtBack.kind === 'event' ? evtBack.params : null).toMatchObject({
+      prompt: '新提示词', seed: 42, modelVersion: 'wan2.2-new',
+    })
+  })
+
+  it('b. script stage 例外：事件 params.prompt 不覆盖进 data（content 为真值，防两处抄）', () => {
+    const g = minimalGraph(
+      [
+        asset({ id: 'n_sc', stage: 'script', modality: 'text', content: '正文内容', meta: { stage: 'script' } }),
+        evt('evt_n_sc', 'create', { prompt: '配方提示词', seed: 7 }),
+      ],
+      [{ id: 'l1', source: 'evt_n_sc', target: 'n_sc', branchId: 'br_main', role: 'output' }],
+    )
+    const w = serializeGraphToV2(g, null)
+    const node = w.nodes.find((n) => n.id === 'n_sc')!
+    expect(node.data.prompt).toBe('正文内容') // content→data.prompt，未被事件 prompt 覆盖
+    expect(node.data.seed).toBe(7) // seed 覆盖对 script stage 合法（无对应 content 字段）
+  })
+
+  it('c. 不伪造：无产生事件的资产无新增配方键；事件 params 缺字段不写键', () => {
+    const g = minimalGraph(
+      [
+        asset({ id: 'n_orphan', stage: 'keyframe', meta: { stage: 'keyframe', shotId: 'shot-002' } }),
+        asset({ id: 'n_part', stage: 'keyframe', meta: { stage: 'keyframe', shotId: 'shot-003' } }),
+        evt('evt_n_part', 'wan22_i2v', { prompt: '只有 prompt' }), // 无 seed/modelVersion
+      ],
+      [{ id: 'l1', source: 'evt_n_part', target: 'n_part', branchId: 'br_main', role: 'output' }],
+    )
+    const w = serializeGraphToV2(g, null)
+    const orphan = w.nodes.find((n) => n.id === 'n_orphan')!
+    expect(orphan.data.prompt).toBeUndefined()
+    expect(orphan.data.seed).toBeUndefined()
+    expect(orphan.data.engine).toBeUndefined()
+    const part = w.nodes.find((n) => n.id === 'n_part')!
+    expect(part.data.prompt).toBe('只有 prompt')
+    expect(part.data.seed).toBeUndefined() // 事件无 seed → 不伪造
+    expect(part.data.engine).toBeUndefined()
+  })
+
+  it('d. stale round-trip：data.stale 三字段落 wire，adapt∘serialize 往返 asset.stale 保真', () => {
+    const staleInfo = { since: 1724300000000, triggerAssetId: 'n_up', triggerEventId: 'evt_n_up' }
+    const clean = asset({ id: 'n_clean', stage: 'keyframe', meta: { stage: 'keyframe', shotId: 'shot-004' } })
+    const dirty = asset({
+      id: 'n_dirty', stage: 'video', modality: 'video',
+      meta: { stage: 'video', shotId: 'shot-004' }, stale: staleInfo,
+    })
+    const g = minimalGraph([clean, dirty], [])
+    const w = serializeGraphToV2(g, null)
+    const wDirty = w.nodes.find((n) => n.id === 'n_dirty')!
+    expect(wDirty.data.stale).toEqual(staleInfo)
+    const wClean = w.nodes.find((n) => n.id === 'n_clean')!
+    expect(wClean.data.stale).toBeUndefined() // stale null 不写键
+    // round-trip（依赖 52-02 Task 2 migrate d.stale 还原）
+    const back = adaptV2Graph(w)
+    const bDirty = back.graph.nodes.find((n) => n.id === 'n_dirty')
+    expect(bDirty && bDirty.kind === 'asset' ? bDirty.stale : null).toEqual(staleInfo)
+    const bClean = back.graph.nodes.find((n) => n.id === 'n_clean')
+    expect(bClean && bClean.kind === 'asset' ? bClean.stale : undefined).toBeNull()
   })
 })
