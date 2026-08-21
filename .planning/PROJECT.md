@@ -8,6 +8,21 @@ AI 短剧全链路制作平台，通过 kais-gold-team 统一执行引擎编排 
 
 让 AI 短剧制作流程跑通——从角色设计、剧本生成、分镜、视频生成到后期制作的完整管线能够自动执行并产出可交付的成片。
 
+## Current Milestone: v3.0 画布创作体验 (Canvas Creative Experience for kmc)
+
+**Goal:** 以 kmc 22-phase/16-gate 创作流为准绳，系统性修复画布写路径地基，并把"看/选/改/批"四类创作交互在画布 + 平台页面上做到一等公民。
+
+**Target features:**
+- **写路径统一** — 保存/审核/删除全部走 V3 canonical graph，废弃 legacy v1 mapper 绕行与派生缓存直改
+- **prompt 编辑→重生成闭环** — 画布上可编辑 prompt、同配方换 seed 重跑、stale 下游一键重跑
+- **候选对比升级** — 变体墙(评分/prompt/参数/并排大屏)，修复缩略图 resolveMediaUrl
+- **Gate 中心 + 阻塞态呈现** — 16 gate 的 pending/approve/reject/waive 在画布一等化
+- **变体组全链路渲染 + 选优回写** — field-map 补 candidate/variant/winner 字段(kmc 侧同步修改已授权)
+- **画布 UX 深化** — 死代码清理(~2500 行)、zone 表对齐 22 phase、分镜层级浏览、审核分数可视化、角色/场景组视图
+- **平台页面与门户** — Toonflow 替换评估(纳入本期)、页面互链、成片交付(p13)页面
+
+**Key context:** 诊断驱动(三路并行审计 2026-08-21)；Toonflow 26MB 无源码 bundle 纳入替换评估；kmc 仓库(kais-hermes-skills)允许同步修改；版本号 v3.0(画布体验重大重构)。
+
 ## Requirements
 
 ### Validated
