@@ -146,7 +146,7 @@ Phase 53 Wave A 是"接收端先行"的三件套:① kap 侧 candidate envelope 
 | tsx | 既有 devDep | verify-phase-53 脚本运行器 | npm script 注册范式 |
 
 ### Alternatives Considered
-| Instead of | Could Use | Tradeoff |
+| Instead of | Could Use | Trade off |
 |------------|-----------|----------|
 | 自研 rAF 主时钟同步 | hls.js / video 组合同步库 | 引入新依赖且我们是无流本地 mp4 同播;DOM currentTime 足够,不装 |
 | 新表存重试队列 | o_agentWorkData kv JSON | kv 是整串 JSON 重写,无状态机/索引/重放语义 — 见 §DR-4 |
@@ -472,18 +472,23 @@ unknown             — 兜底(展开看原始日志截断)
 | A4 | p03 落选候选今天实际不上画布(`_CANDIDATE_FILES` 仅 p01) — 据 L5456 静态核读,未跑真数据验证 | Current Wire Formats 源 2 | 若实际有其他路径补 p03,envelope fixture 多一份形状,无损 |
 | A5 | `min(duration)` 作为墙时长窗口的体验合理性未用户验证 | DR-5 | 可改 max+黑边或首 take 时长;一行策略改动 |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **manifest 回写通道(Wave B 决,Wave A 只留抽象)**
+> 2026-08-21 planner 复核:三问实质均已解决——Q3 采纳于 53-03;Q1/Q2 按 D-01 路由 Wave B(Wave A 落地点已定)。逐条 Resolution 注明去向。
+
+1. **manifest 回写通道(Wave B 决,Wave A 只留抽象)** — RESOLVED:Wave A 落地 = 53-04;FS vs HTTP 裁定路由 Wave B
    - What we know: kap 后端对 khs workdir 有同机 FS 通道先例(/local-file 白名单覆盖 kais-hermes-skills/runs);review-platform approve 的 `choose:v{N}` 注释是唯一既有机器可读选定通道。
    - What's unclear: 直接写 iframe-manifest.json 与 kmc 重跑的竞态归属(COORD-01 范畴)。
    - Recommendation: Wave A 把 `manifestWriteback` 做成 deps 注入接口(传输实现留空 + fixture),Wave B plan 时定。
-2. **G14 预览"chosen_variant_id" 的 kmc 消费端语义**
+   - Resolution: 53-04 采纳 Recommendation——`ManifestTransport` deps 注入接口 + `getManifestTransport()` 读 KMC_MANIFEST_TRANSPORT(Wave A 无实现返回 null,warn-once 不入队);FS/HTTP 裁定与竞态归属留 Wave B plan(挂接点 getManifestTransport / replayManifestWriteback,53-04-SUMMARY 记录)。
+2. **G14 预览"chosen_variant_id" 的 kmc 消费端语义** — RESOLVED:kmc 消费端核实路由 Wave B;Wave A 参数面已通用化(53-04)
    - What we know: p11a gate payload chosen={variant_id, clip_path, qwen_eye};p01 的 `_creative_hook_selector` 已支持 gate outcome `chosen_variant_id` 覆写(L307-325)。
    - What's unclear: p11a 侧是否有对称的 selector 消费(未核 p11a 全文)。
    - Recommendation: Wave B 核;Wave A 端点参数面按 `source: 'p11a_preview'` + variantIndex 通用化,不锁字段名。
-3. **候选组物化的触发时机**(load 时派生 vs sync 接收时物化)
+   - Resolution: 按 D-01 路由 Wave B——Wave A 已照 Recommendation 落地(53-04:source enum + variantIndex,无 frameSlot 时 target.field = chosen_variant_id 通用化,不锁 G14 字段名);p11a 对称 selector 消费端核实入 Wave B plan。
+3. **候选组物化的触发时机**(load 时派生 vs sync 接收时物化) — RESOLVED:采纳 Recommendation,落地 = 53-03
    - Recommendation: planner 定 — 倾向 load 路径派生 + 确定性 group id(幂等),避免与 khs 重同步(delete-absent)互相清组。
+   - Resolution: 53-03 采纳——load-v2 全量加载路径(无 since)派生 + 确定性幂等 id `cand:{groupKey}` + best-effort try/catch 降级(加载响应不受影响);S2 断言锁幂等与用户组保护,与 khs 重同步互不清组。
 
 ## Environment Availability
 
