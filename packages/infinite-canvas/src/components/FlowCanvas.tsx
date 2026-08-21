@@ -55,6 +55,7 @@ import PipelineStateMachine from './PipelineStateMachine'
 import StoryboardBoard from './storyboard/StoryboardBoard'
 import SceneShotBrowser from './SceneShotBrowser'
 import SearchNavigator from './canvas/SearchNavigator'
+import BranchPanel from './BranchPanel'
 import { placeNewAsset } from '../utils/placeNewAsset'
 import { useLayout } from '../hooks/useLayout'
 import { canvasStateKey, loadCanvasState, useCanvasPersistence } from '../hooks/useCanvasPersistence'
@@ -118,6 +119,7 @@ function CanvasInner() {
   // Phase 45 (TEXT-03) — Tier 2 search filter state.
   const [searchQuery, setSearchQuery] = useState('')
   const [searchNavOpen, setSearchNavOpen] = useState(false)
+  const [branchPanelOpen, setBranchPanelOpen] = useState(false)
 
   const nodes = useCanvasStore((s) => s.nodes)
   const edges = useCanvasStore((s) => s.edges)
@@ -296,6 +298,14 @@ function CanvasInner() {
         lastEventCountRef.current = null
         loadCanvas(projectId, episodesId)
       }
+    },
+    // 55-06 (A5):branch:updated/branch_upsert 事件回流 → status 真相合并
+    // (toLegacyBranches 硬编码 'active' 的运行时修正点,Pitfall 4 方案 b)。
+    onBranchCreated: (branch) => {
+      useCanvasStore.getState().applyBranchUpsert(branch.id, {
+        ...(typeof branch.label === 'string' ? { label: branch.label } : {}),
+        status: branch.status,
+      })
     },
     onGateState: (payload) => {
       // Phase 54 (D-03): gate 中心状态推送。守卫 scope(与 onVariantSelected
@@ -819,6 +829,12 @@ function CanvasInner() {
             <ViewModeButton active={viewMode === 'scene_shots'} onClick={() => handleSetViewMode('scene_shots')}>
               <UiIcon kind="film" size={13} />分镜浏览
             </ViewModeButton>
+            <ToolbarButton
+              onClick={() => setBranchPanelOpen((v) => !v)}
+              title="分支与结局 — 多结局探索与主线切换"
+            >
+              <UiIcon kind="branch" size={13} />分支
+            </ToolbarButton>
           </div>
 
           {/* 应用级历史导航：后退 / 前进（全局功能，恢复完整应用状态） */}
@@ -1090,6 +1106,7 @@ function CanvasInner() {
         {iteration.panelOpen && <IterationPanel />}
         <G15TriagePanel />
         {gateOpen && <GateCenterPanel />}
+        {branchPanelOpen && <BranchPanel onClose={() => setBranchPanelOpen(false)} />}
         <SearchNavigator open={searchNavOpen} onClose={() => setSearchNavOpen(false)} initialQuery={searchQuery} />
         </>
         )}

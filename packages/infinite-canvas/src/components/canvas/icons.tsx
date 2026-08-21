@@ -271,7 +271,7 @@ export function EventOpIcon({
 
 // ─── UI 操作图标（工具栏；stroke = currentColor，跟随按钮文字色） ─────────────
 
-export type UiIconKind = 'save' | 'layout' | 'fit' | 'rocket' | 'iterate' | 'search' | 'graph' | 'film' | 'image' | 'assets' | 'pipeline'
+export type UiIconKind = 'save' | 'layout' | 'fit' | 'rocket' | 'iterate' | 'search' | 'graph' | 'film' | 'image' | 'assets' | 'pipeline' | 'branch'
 
 /** UI 操作图标：线性几何，stroke=currentColor，size 默认 14 匹配 12px 按钮。 */
 export function UiIcon({
@@ -355,6 +355,16 @@ export function UiIcon({
           <circle cx="18" cy="7" r="2" />
           <rect x="9" y="15" width="6" height="5" rx="1" />
           <path d="M8 7h8M12 9v6" />
+        </svg>
+      )
+    case 'branch':
+      // 55-06:分支——二叉分叉意象
+      return (
+        <svg {...common}>
+          <path d="M4 5v14" />
+          <path d="M4 9c5 0 6-3 12-3M4 15c5 0 6 3 12 3" />
+          <circle cx="17" cy="6" r="1.4" />
+          <circle cx="17" cy="18" r="1.4" />
         </svg>
       )
     case 'film':

@@ -12,6 +12,7 @@ import {
   type NodeState,
 } from '@kais/flowgraph-v3'
 import type { SkillNodeTypeDecl, IterationPlan, IterationResult } from '../services/canvasApi'
+import { updateBranch as updateBranchApi } from '../services/canvasApi'
 import type { FlowBranch, VariantGroup, VariantGroupId } from '../types/canvas'
 import { asNodeId, asVariantGroupId } from '../types/canvas'
 import { approveNode as apiApproveNode, rejectNode as apiRejectNode, selectVariantWinner, saveCanvasGraph } from '../services/canvasApi'
@@ -157,7 +158,10 @@ interface CanvasState {
   selectWinner: (nodeId: string, opts?: { frameSlot?: 'first' | 'last' }) => Promise<void>
 
   // 分支操作
-  selectBranchAsMain: (branchId: string) => void
+  /** 55-06 (NAV-06):乐观 + 逐变化分支 REST PATCH + 失败整体回滚(selectWinner 范式)。 */
+  selectBranchAsMain: (branchId: string) => Promise<void>
+  /** 55-06 (A5):V2 事件流 branch_upsert/branch:updated 的 status 真相合并点。 */
+  applyBranchUpsert: (branchId: string, patch: Partial<Pick<FlowBranch, 'label' | 'status'>>) => void
   archiveBranch: (branchId: string) => void
 
   // Toast
@@ -965,22 +969,58 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   },
 
   // 分支操作
-  selectBranchAsMain: (branchId) => {
-    const { branches, updateBranch, showToast } = get()
+  selectBranchAsMain: async (branchId) => {
+    // 55-06 重写:乐观上屏 → 仅对状态实际变化的分支逐个 await REST PATCH
+    // → 任一失败整体回滚(不留半程态,T-55-06)。旧形态(store-only,刷新即丢)
+    // 已删;本地 updateBranch store action 保留给其他消费方。
+    const { branches, projectId, episodesId, showToast } = get()
+    if (projectId == null || episodesId == null) {
+      showToast('缺少项目上下文，无法切换主线', 'error')
+      return
+    }
     const target = branches.find((b) => b.id === branchId)
     if (!target) {
       showToast('分支不存在', 'error')
       return
     }
-    // 将其他 active 分支标记为 archived，目标分支设为 active
-    branches.forEach((b) => {
+    const prevBranches = branches.map((b) => ({ ...b }))
+    const nextStatuses = new Map<string, FlowBranch['status']>()
+    for (const b of branches) {
       if (b.id === branchId) {
-        updateBranch(b.id, { status: 'active' })
+        if (b.status !== 'active') nextStatuses.set(b.id, 'active')
       } else if (b.status === 'active') {
-        updateBranch(b.id, { status: 'archived' })
+        nextStatuses.set(b.id, 'archived')
       }
+    }
+    if (nextStatuses.size === 0) return
+    // 乐观上屏
+    set({
+      branches: branches.map((b) =>
+        nextStatuses.has(b.id) ? { ...b, status: nextStatuses.get(b.id)! } : b,
+      ),
     })
-    showToast(`已升为主线: ${target.label}`, 'success')
+    try {
+      for (const [id, status] of nextStatuses) {
+        await updateBranchApi(projectId, episodesId, id, { status })
+      }
+      showToast(`已升为主线: ${target.label}`, 'success')
+    } catch {
+      set({ branches: prevBranches })
+      showToast('主线切换失败，已恢复原状，请重试', 'error')
+    }
+  },
+  applyBranchUpsert: (branchId, patch) => {
+    // 55-06 (A5/Pitfall 4 方案 b):toLegacyBranches 的 status 硬编码 'active'
+    // 是有损 shim;真实 status 经 branch:updated / branch_upsert 事件在此合并。
+    const { branches } = get()
+    const idx = branches.findIndex((b) => b.id === branchId)
+    if (idx < 0) {
+      console.warn('[canvasStore] applyBranchUpsert: 未知分支 id(忽略)', branchId)
+      return
+    }
+    set({
+      branches: branches.map((b) => (b.id === branchId ? { ...b, ...patch } : b)),
+    })
   },
   archiveBranch: (branchId) => {
     const { branches, updateBranch, showToast } = get()
