@@ -17,9 +17,9 @@ created: 2026-08-21
 
 | Property | Value |
 |----------|-------|
-| **Framework** | vitest ^2.1.9 (packages/infinite-canvas, 包内 `npm test`);kap 契约/集成 = tsx verify 脚本范式(`scripts/verify-phase-54.ts`, node:assert, verify-phase-51/53 同款);khs = pytest 3.12.3(`plugins/review_gates/tests`、`plugins/kais_aigc/tests` 既有);review-platform = pytest(`tests/integration`、`tests/e2e` 既有) |
+| **Framework** | vitest ^2.1.9 (packages/infinite-canvas, 包内 `npm test`);kap 契约/集成 = tsx verify 脚本范式(`scripts/verify-phase-54.ts`, node:assert, verify-phase-51/53 同款)——gateCatalog/foldDisplayState/gateStateService 均在 kap 根 src/lib(服务端折叠 + verify 直读,P7 纪律),由 verify S 节覆盖,**不走包内 vitest**;khs = pytest 3.12.3(`plugins/review_gates/tests`、`plugins/kais_aigc/tests` 既有);review-platform = pytest(`tests/` 既有) |
 | **Config file** | `packages/infinite-canvas/vitest.config.*`(既有);root 无 vitest — 契约测试走 verify 脚本;khs/平台仓 pytest 既有配置 |
-| **Quick run command** | `cd packages/infinite-canvas && npm test` + `npx tsc --noEmit`(<30s);涉 khs 文件加 `python3 -m pytest plugins/review_gates/tests -k <相关>` |
+| **Quick run command** | `cd packages/infinite-canvas && npm test` + `npx tsc --noEmit`(<30s);kap 服务端契约 `npm run verify:phase-54`;涉 khs 文件加 `python3 -m pytest plugins/review_gates/tests -k <相关>` |
 | **Full suite command** | `npm run verify:phase-54`(全 S 节)+ 包内 `npm test` + khs 两 plugin 目录 pytest |
 | **Estimated runtime** | ~180 seconds |
 
@@ -27,7 +27,7 @@ created: 2026-08-21
 
 ## Sampling Rate
 
-- **After every task commit:** 包内 `npm test`(或相关文件 `npx vitest run <file>`)+ `npx tsc --noEmit`;涉 khs/平台文件的 task 加对应 pytest 子集
+- **After every task commit:** 包内 `npm test`(或相关文件 `npx vitest run <file>`)+ `npx tsc --noEmit`;kap 根涉 gateCatalog/gateStateService 的 task 加 `npm run verify:phase-54` 相关 S 节;涉 khs/平台文件的 task 加对应 pytest 子集
 - **After every plan wave:** `npm run verify:phase-54` + khs `python3 -m pytest plugins/review_gates/tests plugins/kais_aigc/tests`
 - **Before `/gsd:verify-work`:** verify:phase-54 全绿 + 活体 SC1 smoke(S-live,需 env 已修)绿 + SC3 全链手工签收(HUMAN-UAT)
 - **Max feedback latency:** 180 seconds
@@ -36,20 +36,22 @@ created: 2026-08-21
 
 ## Per-Task Verification Map
 
-*(Plan/task IDs 前缀 54-NN;具体 task 编号由 PLAN.md 落定后回填核对)*
+*(Task ID 已按 54-01..54-07 PLAN 预落位;54-07-T3 收口时核对映射并按实际结果更新 Status 列)*
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 54-NN-xx | — | — | SC1/GATE-01 | — | gates.yaml 快照 ↔ khs 现值零漂移(js-yaml 逐字段 diff + derive 规则 round-trip + 16 门计数) | contract | `npx tsx scripts/verify-phase-54.ts`(S-catalog) | ❌ W0 | ⬜ pending |
-| 54-NN-xx | — | — | SC1/GATE-01 | — | foldDisplayState 四态折叠全组合枚举(含 legacy 无 decision/AUTO/BLOCK 分支,平台枚举源 app/models/schemas.py L11-37) | unit | `npm test -- foldDisplayState` | ❌ W0 | ⬜ pending |
-| 54-NN-xx | — | — | SC1 | — | 轮询列表解析 + 翻页 + fail-closed content_ref 过滤 + (id+state+version) diff | unit(deps 注入 fetch) | `npm test -- gateStateService` | ❌ W0 | ⬜ pending |
-| 54-NN-xx | — | — | SC1 | V4 | kap gate-state 快照 vs 活体平台列表按折叠表逐条比对 | live smoke | verify-phase-54 S-live(需 env 修复) | ❌ W0 | ⬜ pending |
-| 54-NN-xx | — | — | SC2/GATE-02 | — | blocking 推导(每 episode 最新 pending 门)+ 无阻塞=null | unit | `npm test -- gateStore/blocking` | ❌ W0 | ⬜ pending |
-| 54-NN-xx | — | — | SC2 | — | 新会话快照拉取 + socket `gate:state` 增量 | unit(mock socket) | `npm test -- useCanvasSocket`(既有 test 扩展 gate:state case) | ✅ 扩展 | ⬜ pending |
-| 54-NN-xx | — | — | SC3/GATE-03 | — | khs poller 词汇对齐:COMPLETE + review_result.decision → resolve/write(mock client 返 COMPLETE + review_result) | unit(khs) | `python3 -m pytest plugins/review_gates/tests -k complete` | ❌ W0(khs) | ⬜ pending |
-| 54-NN-xx | — | — | SC3 | — | 平台 approve 恒写 decision / reject 补写 review_result / waive 端点 | integration(平台仓) | 平台仓 `pytest tests/integration`(既有 approve/reject 用例扩展) | ❌ W0(平台仓) | ⬜ pending |
-| 54-NN-xx | — | — | SC3 | V5/V4 | gate-ops 端点:三维 fail-closed 匹配 + 409 幂等成功语义 + zod 边界(action enum/reviewId int/reason 1..500) | integration(spawn 子进程 dispatch) | verify-phase-54 S-ops(49-01 在案模式) | ❌ W0 | ⬜ pending |
-| 全体 | — | — | 全体 | — | forced-failure 自检(契约测试能红:khs gates.yaml 篡改 → S-catalog 红) | contract | verify-phase-54 自检节 | ❌ W0 | ⬜ pending |
+| 54-01-T3 | 54-01 | 1 | SC1/GATE-01 | — | gates.yaml 快照 ↔ khs 现值零漂移(js-yaml 逐字段 diff + derive 规则 round-trip + 16 门计数) | contract | `npm run verify:phase-54`(S-catalog 节,读 kap 根 src/lib/gateCatalog.ts) | ❌ W0 | ⬜ pending |
+| 54-01-T3 | 54-01 | 1 | SC1/GATE-01 | — | foldDisplayState 四态折叠全组合枚举(含 legacy 无 decision/AUTO/BLOCK 分支,平台枚举源 app/models/schemas.py L11-37)——gateCatalog 在 kap 根 src/lib,包内 vitest 不覆盖 | contract(S-fold 节) | `npm run verify:phase-54`(S-fold 节) | ❌ W0 | ⬜ pending |
+| 54-01-T2 | 54-01 | 1 | SC1 前置 | — | 生产 `REVIEW_PLATFORM_URL=http://localhost:8090` 配置 + 平台活体可达(health ok + reviews envelope;S-live 硬前置,RESEARCH §I.2) | config smoke | `grep -n "^REVIEW_PLATFORM_URL=http://localhost:8090$" .env && curl -sf http://localhost:8090/api/v1/health \| grep -o '"status":"ok"'` | ❌ W0 | ⬜ pending |
+| 54-05-T1 | 54-05 | 2 | SC1 | — | 轮询列表解析 + 翻页 fail-closed(MAX_LIST_PAGES=10)+ content_ref 三维等值过滤 + 红线 auto + legacy 别名命中 + diff(id+state+version 签名)不广播/变化广播 + 异常 degrade + **blocking 推导(每 scope 最新 pending 门,无阻塞=null)**——deps 注入 fake fetchImpl/nodesReader/broadcast | contract(S-poller 节,服务端) | `npm run verify:phase-54`(S-poller 节) | ❌ W0 | ⬜ pending |
+| 54-04-T1(54-06-T1 扩展) | 54-04 | 1 | SC2/GATE-02 | — | gateStore.apply 载荷级浅比较去重 + degrade 载荷照常应用 + setOpen/初始态;54-06 扩展 resolveRepresentativeNodeId 三级解析(g-/n-/phaseName token 等值,p1≠p11a0)。服务端 blocking 推导在 S-poller 覆盖,此行仅前端 store 面 | unit(vitest) | `cd packages/infinite-canvas && npm test -- gateStore` | ❌ W0 | ⬜ pending |
+| 54-04-T2 | 54-04 | 1 | SC2 | — | 新会话快照拉取 + socket `gate:state` 增量(挂载注册/事件转发/无回调安全/卸载断开四件套) | unit(mock socket) | `cd packages/infinite-canvas && npm test -- useCanvasSocket`(既有 test 扩展 gate:state case) | ✅ 扩展 | ⬜ pending |
+| 54-03-T1/T2 | 54-03 | 1 | SC3/GATE-03 | — | khs poller 词汇对齐:COMPLETE + review_result.decision → resolve/write(mock client 返 COMPLETE + review_result;waive→approve 映射 + chosen 第三通道) | unit(khs) | `cd /data/workspace/kais-hermes-skills && python3 -m pytest plugins/review_gates/tests/test_poller_complete_state.py -v` | ❌ W0(khs) | ⬜ pending |
+| 54-02-T1/T2 | 54-02 | 1 | SC3 | — | 平台 approve 恒写 decision / reject 补写 review_result / waive 端点 | integration(平台仓) | `cd /data/workspace/kais-review-platform && python3 -m pytest tests/test_approve_reject.py`(快速子集 `-k "decision or waive"`;全量 `python3 -m pytest tests/ -x -q`) | ❌ W0(平台仓) | ⬜ pending |
+| 54-05-T2 | 54-05 | 2 | SC3 | V5/V4 | gate-ops 端点:三维 fail-closed 匹配 + 409 幂等成功语义 + zod 边界(action enum/reviewId int/reason 1..500) | integration(spawn 子进程 dispatch) | `npm run verify:phase-54`(S-ops 节,49-01 在案模式) | ❌ W0 | ⬜ pending |
+| 54-07-T1 | 54-07 | 4 | SC3/GATE-03 | T-54-07-01/02 | GateCenterBlock 操作流:applied:true 行乐观翻转 / 409 already-resolved 行刷新 + 幂等 toast / 异常回滚(mock canvasApi.gateOps;jsdom + react-dom/client,AssetCardNode.playBadge 同法) | unit(vitest,mock gateOps) | `cd packages/infinite-canvas && npm test -- GateCenterBlock` | ❌ W0 | ⬜ pending |
+| 54-05-T3 | 54-05 | 2 | SC1 | V4 | kap gate-state 快照 vs 活体平台列表按折叠表逐条比对(对照表驱动,防活体漂移误报) | live smoke | `npm run verify:phase-54`(S-live 节,需 env 已修) | ❌ W0 | ⬜ pending |
+| 全体 | — | — | 全体 | — | forced-failure 自检(契约测试能红:内存中变异 yaml → S-catalog 红,不写 khs 文件) | contract | `npm run verify:phase-54`(S-forced-fail 节) | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -57,10 +59,10 @@ created: 2026-08-21
 
 ## Wave 0 Requirements
 
-- [ ] `packages/infinite-canvas/src/lib/gateCatalog.ts`(+ `foldDisplayState` 纯函数)——SC1 单元与契约测试地基
-- [ ] `scripts/verify-phase-54.ts` 骨架(S-catalog/S-live/S-ops 分节)+ `verify:phase-54` npm script 注册
-- [ ] khs `plugins/review_gates/tests/test_poller_complete_state.py`(R3 用例,先行红)
-- [ ] env 修复:生产 `REVIEW_PLATFORM_URL` 指向可达地址(localhost:8090 直连活体 OK;RESEARCH §I.2)——S-live 硬前置
+- [ ] `src/lib/gateCatalog.ts`(**kap 根** src/lib——服务端折叠 + verify 脚本直读,P7 纪律;+ `foldDisplayState` 纯函数)——SC1 契约测试地基(54-01-T1)
+- [ ] `scripts/verify-phase-54.ts` 骨架(S-catalog/S-fold/S-forced-fail 实节 + S-live/S-ops/S-poller 占位链)+ `verify:phase-54` npm script 注册(54-01-T3)
+- [ ] khs `plugins/review_gates/tests/test_poller_complete_state.py`(R3 用例,先行红,54-03-T1)
+- [ ] env 修复:生产 `REVIEW_PLATFORM_URL` 指向可达地址(localhost:8090 直连活体 OK;RESEARCH §I.2)——S-live 硬前置(54-01-T2)
 
 ---
 

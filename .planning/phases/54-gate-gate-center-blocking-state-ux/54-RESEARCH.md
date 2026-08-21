@@ -489,18 +489,21 @@ export function foldDisplayState(
 | A4 | 豁免用 signal.locked 冷灰作展示色 | §F.3 | 纯视觉,设计检查步可改(备选 overlay2),零结构风险 |
 | A5 | Phase 53 执行将在 54 动工前完成 G15 面板/嵌入位(53-01..07 PLAN 已在) | §F.2 | 若未完成:54 按 D-13 协议自建带 seam 的 gate 面板(见 Q1),不阻塞 |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Phase 53 执行进度与嵌入位时序**
    - What we know:53-01..53-07 PLAN 已写(53-07 含 G15TriagePanel/g15Bridge/g15-ops);STATE.md 当前在 Phase 52 执行中
    - What's unclear:53 面板落地时 54 是否已开工
    - Recommendation:planner 把"复用 G15 嵌入位"写成条件任务——53 已交付则接入,未交付则按 D-13 协议自建 seam;两者 UI 形态一致(工作台列表),零返工
+   - **RESOLVED(planner 采纳)**:已落为 54-07-T2 条件 seam 任务——执行时探测 packages/infinite-canvas/src/components/g15/ 目录,g15 缺席则按 D-13 协议自建(双导出 seam)零返工;自建路线不依赖 53 交付
 2. **存量 2 条 APPROVING 活体 review 的处置**
    - What we know:ep-ccport-test01 的 p11c/p13 门 2026-08-19 起挂起;R1 只对新决策生效
    - Recommendation:验收期用新面板对这两条真实放行一次(天然 SC3 活体用例);legacy 折叠分支已兜底显示
+   - **RESOLVED(planner 采纳)**:legacy 折叠分支兜底显示已入 54-01-T1 foldDisplayState(S-fold 锁表防回归);存量 2 条 APPROVING 的真实放行落为 54-07-T3 / HUMAN-UAT 活体用例(天然 SC3 验收)
 3. **route77(/api/proxy/reviewPlatform)浏览器裸暴露面是否收紧**
    - What we know:平台 auth 已摘除,proxy 让浏览器可直写平台
    - Recommendation:本期不动(超范围),登记为后续 quick task 候选
+   - **RESOLVED(登记后续)**:route77 本期不动(超范围;54-04 明确不新增 route77 使用);登记为后续 quick task 候选
 
 ## Sources
 
