@@ -22,6 +22,7 @@ import type { Modality } from '../../theme/catppuccin'
 import { v3theme, theme, getScoreColor } from '../../theme/cattpuccin'
 import { useVariantPickerStore } from './variantPickerStore'
 import { useCanvasStore } from '../../store/canvasStore'
+import { frameSlotOfGroup, nextReviewGroup, prevReviewGroup } from '../../store/variantOps'
 import { triggerStaleCascade } from '../../hooks/useStale'
 import { resolveMediaUrl } from '../../utils/mediaUrl'
 import { createMasterTransport, type MasterTransport } from './wallTransport'
@@ -52,6 +53,7 @@ export default function VariantWall(): React.ReactElement | null {
   const open = useVariantPickerStore((s) => s.open)
   const wall = useVariantPickerStore((s) => s.wall)
   const close = useVariantPickerStore((s) => s.close)
+  const openWallByGroup = useVariantPickerStore((s) => s.openWallByGroup)
   const graph = useCanvasStore((s) => s.graph)
   const rfNodes = useCanvasStore((s) => s.nodes)
   const selectWinner = useCanvasStore((s) => s.selectWinner)
@@ -137,13 +139,14 @@ export default function VariantWall(): React.ReactElement | null {
     }
   }, [])
 
-  // 墙开/换组时重置检视与播放态
+  // 墙开/换组时重置检视与播放态(串行下一镜切组同走此路径,D-17)
   useEffect(() => {
     if (!active) return
     setInspectIdx(0)
     setPlaying(false)
     setPlayhead(0)
-    transportRef.current?.setSolo(null)
+    transportRef.current?.seek(0)
+    transportRef.current?.setSolo(0) // 检视第一张卡
   }, [active, group?.id])
 
   // playhead UI 镜像:播放期间 rAF 节流刷新(~15fps 足够人眼平滑)
@@ -195,13 +198,38 @@ export default function VariantWall(): React.ReactElement | null {
     }
   }
 
+  const [reviewDone, setReviewDone] = useState(false)
   const confirmSelection = useCallback(
     async (nodeId: string) => {
-      await selectWinner(nodeId)
+      // D-11:frameSlot 只从组键后缀推导(frameSlotOfGroup),不信任 UI 输入
+      await selectWinner(nodeId, { frameSlot: frameSlotOfGroup(group?.id ?? '') })
       triggerStaleCascade([nodeId]) // store 路径不自带级联(53-02 interfaces)
+      // D-17:选定后自动下一待审组(默认跳已选);审完显示终态不关墙
+      const next = nextReviewGroup(graph, group?.id ?? '')
+      if (next) {
+        openWallByGroup(next.id)
+        setReviewDone(false)
+      } else {
+        setReviewDone(true)
+      }
     },
-    [selectWinner],
+    [selectWinner, graph, group?.id, openWallByGroup],
   )
+
+  const gotoNext = useCallback(() => {
+    const next = nextReviewGroup(graph, group?.id ?? '', { includeSelected: true })
+    if (next) {
+      openWallByGroup(next.id)
+      setReviewDone(false)
+    }
+  }, [graph, group?.id, openWallByGroup])
+  const gotoPrev = useCallback(() => {
+    const prev = prevReviewGroup(graph, group?.id ?? '')
+    if (prev) {
+      openWallByGroup(prev.id)
+      setReviewDone(false)
+    }
+  }, [graph, group?.id, openWallByGroup])
 
   useWallKeyboard(
     active,
@@ -211,8 +239,8 @@ export default function VariantWall(): React.ReactElement | null {
         const c = candidates[inspectIdx]
         if (c) void confirmSelection(c.nodeId)
       },
-      onNextGroup: () => { /* 53-05 接通串行下一镜(D-17/D-18) */ },
-      onPrevGroup: () => { /* 53-05 */ },
+      onNextGroup: gotoNext, // D-17/D-18 串行下一镜(手动可越已选)
+      onPrevGroup: gotoPrev,
       onTogglePlay: togglePlay,
       onClose: close,
     },
@@ -279,12 +307,31 @@ export default function VariantWall(): React.ReactElement | null {
           <span style={{ color: theme.text.secondary, fontSize: 11, fontFamily: 'var(--cv-font-mono, monospace)' }}>
             {candidates.length} takes{spanSec > 0 ? ` · ${spanSec.toFixed(1)}s` : ''}
           </span>
+          {(() => {
+            const slot = frameSlotOfGroup(group?.id ?? '')
+            return slot ? (
+              <span style={{
+                fontSize: 10, padding: '1px 6px', borderRadius: 4,
+                background: v3theme.modalityWeak.image, color: theme.text.secondary, fontWeight: 600,
+              }}>
+                {slot === 'first' ? '首帧' : '尾帧'}
+              </span>
+            ) : null
+          })()}
+          {reviewDone && (
+            <span style={{ color: v3theme.signal.approved, fontSize: 11 }}>本 phase 审完 ✓</span>
+          )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button onClick={togglePlay} data-testid="wall-sync-play" style={btnStyle(playing)}>
             {playing ? '⏸ 同播' : '▶ 同播'}
           </button>
-          <button disabled title="53-05 接通串行下一镜" style={{ ...btnStyle(false), opacity: 0.45, cursor: 'not-allowed' }}>
+          <button
+            onClick={gotoNext}
+            disabled={nextReviewGroup(graph, group?.id ?? '', { includeSelected: true }) == null}
+            title="下一个变体组(可越过已选定)"
+            style={btnStyle(false)}
+          >
             下一镜 →
           </button>
           <button onClick={close} style={closeBtnStyle}>✕</button>
