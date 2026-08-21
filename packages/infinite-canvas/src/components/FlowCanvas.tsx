@@ -23,6 +23,7 @@ import LaneBands from './canvas/LaneBands'
 import PhaseColumns from './canvas/PhaseColumns'
 import Legend from './canvas/Legend'
 import GateTodoChip from './canvas/GateTodoChip'
+import GateCenterPanel from './gate/GateCenterPanel'
 import ShotTree from './canvas/ShotTree'
 import { EventChipClickContext, type EventChipClickInfo } from './canvas/eventChipBus'
 import CanvasEdgeComponent from './edges/CanvasEdge'
@@ -124,6 +125,11 @@ function CanvasInner() {
   // Phase 54 (54-06): 阻塞 phase 列索引 = blocking 代表节点的 phaseIndex
   // (selector 订阅 gateStore,勿在列渲染内每帧扫描;派生列由 median 投影)。
   const gateBlocking = useGateStore((s) => s.snapshot?.blocking ?? null)
+  const gateOpen = useGateStore((s) => s.open)
+  // badge 数 = pending 门数(display==='pending' 且有 reviewId);0 不显示徽章
+  const gatePendingCount = useGateStore(
+    (s) => (s.snapshot?.gates ?? []).filter((g) => g.display === 'pending' && g.reviewId != null).length,
+  )
   const loadInitialGraph = useCanvasStore((s) => s.loadInitialGraph)
   const applyGraphTransform = useCanvasStore((s) => s.applyGraphTransform)
 
@@ -942,6 +948,12 @@ function CanvasInner() {
               🩹失败镜头{g15Pending > 0 ? ` ${g15Pending}` : ''}
             </ToolbarButton>
             <ToolbarButton
+              onClick={() => useGateStore.getState().setOpen(!gateOpen)}
+              title="Gate 中心 — 16 道审核门状态与决策"
+            >
+              ⚖️Gate 中心{gatePendingCount > 0 ? ` ${gatePendingCount}` : ''}
+            </ToolbarButton>
+            <ToolbarButton
               onClick={handleOrchestrate}
               disabled={orchestration.status === 'running' || !projectId || nodes.length === 0}
               accent
@@ -1054,6 +1066,7 @@ function CanvasInner() {
         <VariantWall />
         {iteration.panelOpen && <IterationPanel />}
         <G15TriagePanel />
+        {gateOpen && <GateCenterPanel />}
         </>
         )}
       </div>
