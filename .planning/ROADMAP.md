@@ -10,7 +10,7 @@
 - [x] **Phase 51: 写路径地基统一 (Canonical Write Path + Coordination Guard)** — 保存/审核/删除/socket 回写全部切到 V3 canonical graph + ~2500 行死代码清理 + khs2 v2.4 横切冲突约束落地 (completed 2026-08-21)
 - [ ] **Phase 52: 生成-迭代闭环 (Prompt Edit → Regenerate Loop)** — 详情面板 prompt 编辑一键重生成 + 换 seed 重跑 + stale 下游重跑链 + 面板交互优化
 - [x] **Phase 53: 候选变体契约与选片 (Variant Contract + Picker Upgrade)** — field-map 补 candidate/variant/winner 字段 + VariantPicker 升级 + 选优回写 manifest + 失败镜头批量操作 (completed 2026-08-21)
-- [ ] **Phase 54: Gate 中心 (Gate Center + Blocking-State UX)** — 16 gate 状态接入 + 画布阻塞态一等呈现 + approve/reject/waive 画布内闭环
+- [x] **Phase 54: Gate 中心 (Gate Center + Blocking-State UX)** — 16 gate 状态接入 + 画布阻塞态一等呈现 + approve/reject/waive 画布内闭环
 - [ ] **Phase 55: 画布导航与规模 (Navigation & Scale)** — zone 表对齐 22 phase + 分镜层级浏览 + 搜索导航器 + 落点修正 + LOD 可读 + 分支 UI 接通
 - [ ] **Phase 56: 创作环节可视化 (Creative Visualization)** — 审核分数雷达图/角标 + 角色场景组视图 + 配音审核工作台
 - [ ] **Phase 57: 平台页面与门户 (Portal & Delivery Pages)** — Toonflow 替换评估 + 四套前端互链 + p13 成片交付页 + manifest taxonomy 重对齐
