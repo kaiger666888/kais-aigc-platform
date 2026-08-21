@@ -100,9 +100,41 @@ function derivePhaseToken(winnerPhaseName: string | null | undefined): string | 
  *  not start with p+digits. WR-01: candidate matching compares THIS token
  *  for equality — never a prefix `startsWith`, which let a `p1_tone`
  *  selection collide with gate `p11a0` / `p10_*`. */
-function leadingPhaseToken(value: string): string | null {
+export function leadingPhaseToken(value: string): string | null {
   const m = /^p\d+/.exec(value.trim().toLowerCase());
   return m === null ? null : m[0];
+}
+
+export interface EpisodePhaseCandidate {
+  type?: unknown
+  content_ref?: unknown
+}
+
+/**
+ * 三维 fail-closed 候选过滤(Phase 54-01 抽取导出,gateStateService 与
+ * gate-ops 共用):
+ *   a. item.type 的 leading phase token 与 phaseToken **等值**(WR-01:绝不
+ *      前缀匹配——p1 与 p11a0 必须互斥);
+ *   b. content_ref episode segment(最后一个 "/" 之前)∈ episodeRefs;
+ *   c. content_ref phase segment 的 leading token 与 phaseToken 等值。
+ * 任何字段非 string → false(missed 是良性,wrong 不是)。
+ */
+export function filterEpisodePhaseCandidates<T extends EpisodePhaseCandidate>(
+  items: T[],
+  episodeRefs: Set<string>,
+  phaseToken: string,
+): T[] {
+  return items.filter((item) => {
+    if (typeof item.type !== "string" || typeof item.content_ref !== "string") return false;
+    if (leadingPhaseToken(item.type) !== phaseToken) return false;
+    const ref = item.content_ref;
+    const slash = ref.lastIndexOf("/");
+    if (slash < 0) return false;
+    const episodeSegment = ref.slice(0, slash);
+    const phaseSegment = ref.slice(slash + 1);
+    if (!episodeRefs.has(episodeSegment)) return false;
+    return leadingPhaseToken(phaseSegment) === phaseToken;
+  });
 }
 
 /**
@@ -195,17 +227,7 @@ export async function resolveOpenReviewForSelection(
     //    c. content_ref phase segment (after the last "/") — same exact
     //       token equality as (a).
     const episodeIds = new Set<string>([`ep${params.episodesId}`, String(params.episodesId)]);
-    const candidates = items.filter((item) => {
-      if (typeof item.type !== "string" || typeof item.content_ref !== "string") return false;
-      if (leadingPhaseToken(item.type) !== phaseToken) return false;
-      const ref = item.content_ref;
-      const slash = ref.lastIndexOf("/");
-      if (slash < 0) return false;
-      const episodeSegment = ref.slice(0, slash);
-      const phaseSegment = ref.slice(slash + 1);
-      if (!episodeIds.has(episodeSegment)) return false;
-      return leadingPhaseToken(phaseSegment) === phaseToken;
-    });
+    const candidates = filterEpisodePhaseCandidates(items, episodeIds, phaseToken ?? "");
 
     if (candidates.length === 0) {
       logger.info(`${LOG_PREFIX} 无挂起 gate，跳过桥接（常态）`);
