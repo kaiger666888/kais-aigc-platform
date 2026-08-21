@@ -1,10 +1,11 @@
 ---
 phase: 55
 slug: navigation-scale
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-08-21
+reviewed_at: 2026-08-21
 ---
 
 # Phase 55 — UI Design Contract（画布导航与规模）
