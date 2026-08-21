@@ -279,6 +279,31 @@ describe('adaptV2Graph：Gate B 降级恢复 + audit 接纳（2026-08-19）', ()
   })
 })
 
+describe('adaptV2Graph：error→failed 状态归一（51-01 伴随修复，地雷 #2）', () => {
+  it("state='error' → 'failed'，不产生未知状态 warning；success/running/pending 回归不变", () => {
+    const { graph, warnings } = adaptV2Graph({
+      meta: { projectId: 1, episodesId: 2 },
+      nodes: [
+        { id: 'n_err', type: 'video', branchId: 'br_main', state: 'error', data: {} },
+        { id: 'n_ok', type: 'video', branchId: 'br_main', state: 'success', data: {} },
+        { id: 'n_run', type: 'video', branchId: 'br_main', state: 'running', data: {} },
+        { id: 'n_pend', type: 'video', branchId: 'br_main', state: 'pending', data: {} },
+      ],
+      links: [],
+      branches: [],
+    })
+    const byId = new Map(graph.nodes.map((n) => [n.id, n]))
+    // 失败节点保存-重载往返状态守恒（serializeGraphToV2 的 failed→error 逆映射）
+    expect(byId.get('n_err')?.state).toBe('failed')
+    // 既有映射回归
+    expect(byId.get('n_ok')?.state).toBe('success')
+    expect(byId.get('n_run')?.state).toBe('running')
+    expect(byId.get('n_pend')?.state).toBe('pending')
+    // 不再落 default→success + 未知状态 warning
+    expect(warnings.some((w) => w.includes('n_err') && w.includes('无法识别'))).toBe(false)
+  })
+})
+
 describe('adaptV2Graph：残缺 payload（P22 消费端宽松）', () => {
   it('完全垃圾输入 → 空图 + warnings，不 throw', () => {
     expect(() => adaptV2Graph(null)).not.toThrow()

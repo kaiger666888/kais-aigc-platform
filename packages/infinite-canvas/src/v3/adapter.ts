@@ -69,6 +69,9 @@ function toMs(v: unknown): number | null {
  *  cached → 'success'（§2.5：缓存命中即有效产物，非 stale——stale 由迁移默认 null 满足）
  *  skipped → 'failed'（编排跳过的节点按失败侧归类，UI 沿用 failed 通道展示）
  *  idle → 'pending'（V2 前端枚举余值，V3 无 idle）
+ *  error → 'failed'（51-01 伴随修复，地雷 #2：error 是 V3 failed 的 V2 落盘形态
+ *    ——serializeGraphToV2 的 failed→error 逆映射；缺此分支时 error 落 default→success，
+ *    已保存的失败节点重载后复活为 success）
  */
 function normalizeNodeState(v: unknown, nodeId: string, warn: Warn): FlowNodeV2['state'] {
   switch (v) {
@@ -77,6 +80,8 @@ function normalizeNodeState(v: unknown, nodeId: string, warn: Warn): FlowNodeV2[
     case 'success':
     case 'failed':
       return v
+    case 'error':
+      return 'failed'
     case 'cached':
       return 'success'
     case 'skipped':
