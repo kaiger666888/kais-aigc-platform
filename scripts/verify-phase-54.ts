@@ -348,6 +348,83 @@ async function runSopsSection(): Promise<void> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// S-live — 10588 kap 折叠 vs 8090 平台直查 对照(54-05 Task 3)
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function runSliveSection(): Promise<void> {
+  console.log("=== S-live: 10588 活体对照(对照驱动,防活体漂移误报) ===");
+  const scopeParam = process.env.GATE_LIVE_SCOPE ?? "1787033533354:1";
+  const [projectIdStr, episodesIdStr] = scopeParam.split(":");
+  const projectId = Number(projectIdStr);
+  const episodesId = Number(episodesIdStr);
+  const kapResp = await fetch(
+    `http://localhost:10588/api/canvas/v2/gate-state?projectId=${projectId}&episodesId=${episodesId}`,
+    { signal: AbortSignal.timeout(15000) },
+  );
+  const kapJson = (await kapResp.json()) as { code: number; data: any };
+  const snap = kapJson.data ?? {};
+  assert(kapResp.status === 200 && Array.isArray(snap.gates) && snap.gates.length === 16, "S-live: 10588 gate-state 200 + 16 门", `status=${kapResp.status} gates=${snap.gates?.length}`);
+  assert(snap.degrade === false, "S-live: degrade=false(平台可达)");
+  assert(Array.isArray(snap.episodeRefs) && snap.episodeRefs.includes("ep-ccport-test01"), "S-live: episodeRefs 含画布探针 ep-ccport-test01", JSON.stringify(snap.episodeRefs));
+
+  const platResp = await fetch("http://localhost:8090/api/v1/reviews/?source=kais-movie-agent&limit=100", {
+    signal: AbortSignal.timeout(10000),
+  });
+  const platJson = (await platResp.json()) as { data?: { items?: PlatformReviewItem[] } };
+  const items = platJson.data?.items ?? [];
+
+  // 独立期望:ep-ccport-test01 的 review → gateId + fold(§E 本地重算)
+  const expected = new Map<string, { display: string; reviewId: number }>();
+  for (const item of items) {
+    const ref = typeof item.content_ref === "string" ? item.content_ref : "";
+    if (!ref.split("/").slice(0, -1).includes("ep-ccport-test01")) continue;
+    const token = fullPhaseTokenOfItemPub(item);
+    if (token == null) continue;
+    const meta = (item.metadata ?? {}) as { review_result?: { decision?: unknown } };
+    const decision = typeof meta.review_result?.decision === "string" ? meta.review_result.decision : undefined;
+    const display = foldDisplayState(String(item.state ?? ""), typeof item.disposition === "string" ? item.disposition : null, decision != null ? { decision } : null);
+    const prev = expected.get(`${token}-gate`);
+    if (prev == null || Number(item.id) > prev.reviewId) {
+      expected.set(`${token}-gate`, { display, reviewId: Number(item.id) });
+    }
+  }
+
+  console.log("  ── 对照表(platform → 期望 fold → kap 实际)──");
+  let allMatch = true;
+  for (const g of snap.gates as Array<{ gateId: string; phaseId: string; display: string; reviewId?: number }>) {
+    if (g.phaseId.includes("_redline_")) continue;
+    const exp = expected.get(g.gateId);
+    const expDisplay = exp?.display ?? "pending";
+    const expReviewId = exp?.reviewId;
+    const ok = g.display === expDisplay && (g.reviewId ?? null) === (expReviewId ?? null);
+    if (!ok) allMatch = false;
+    console.log(`  ${ok ? "OK " : "DRIFT"} ${g.gateId.padEnd(11)} platform=${exp ? `review#${exp.reviewId}` : "无review"} 期望=${expDisplay} kap=${g.display}${g.reviewId != null ? `(#${g.reviewId})` : ""}`);
+  }
+  assert(allMatch, "S-live: 逐门对照一致(直查折叠 vs kap payload)");
+  const pendingWithId = (snap.gates as Array<{ gateId: string; display: string; reviewId?: number }>).filter((g) => g.display === "pending" && g.reviewId != null);
+  const expectedBlocking = pendingWithId.reduce<{ gateId: string; reviewId: number } | null>(
+    (acc, g) => (acc == null || (g.reviewId ?? 0) > acc.reviewId ? { gateId: g.gateId, reviewId: g.reviewId! } : acc), null);
+  const blockingOk = (snap.blocking == null && expectedBlocking == null)
+    || (snap.blocking != null && expectedBlocking != null && snap.blocking.gateId === expectedBlocking.gateId && snap.blocking.reviewId === expectedBlocking.reviewId);
+  assert(blockingOk, "S-live: blocking 与 gates 推导一致", `kap=${JSON.stringify(snap.blocking)} 期望=${JSON.stringify(expectedBlocking)}`);
+  const redlines = (snap.gates as Array<{ phaseId: string; display: string }>).filter((g) => g.phaseId.includes("_redline_"));
+  assert(redlines.length === 3 && redlines.every((g) => g.display === "auto"), "S-live: 红线 3 门 display=auto");
+  const smokeIds = new Set([4, 5]); // 54-02 部署冒烟 review(kap-phase54-smoke)
+  assert(!(snap.gates as Array<{ reviewId?: number }>).some((g) => g.reviewId != null && smokeIds.has(g.reviewId)), "S-live: 冒烟 review(source 过滤)不出现");
+  assert(items.length >= 2, "S-live: 平台直查 kmc 源 review ≥2(活体在案)", String(items.length));
+}
+
+/** fullPhaseTokenOfItem 的 verify 侧独立重算(镜像实现,防同源盲区)。 */
+function fullPhaseTokenOfItemPub(item: PlatformReviewItem): string | null {
+  const type = typeof item.type === "string" ? item.type : null;
+  if (type == null) return null;
+  const legacy = (LEGACY_GATE_ID_TO_PHASE_ID as Record<string, string>)[type];
+  const base = legacy ?? type;
+  const m = /^p\d+[a-z0-9]*/.exec(base.trim().toLowerCase());
+  return m === null ? null : m[0];
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // main
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -434,9 +511,9 @@ async function main(): Promise<void> {
   console.log("");
   await runSopsSection();
 
-  // ═══ S-live — placeholder (54-05 Task 3) ═════════════════════════════════
-  console.log("\n=== S-live: 10588 活体对照 ===");
-  console.log("SKIP: FILLED-BY-54-05-TASK3 (S-live — production restart + live 10588-vs-8090 comparison)");
+  // ═══ S-live — 10588 活体对照(54-05 Task 3,生产重启后) ═══════════════════
+  console.log("");
+  await runSliveSection();
 
   // ═══ Summary ═════════════════════════════════════════════════════════════
   const passed = results.filter((r) => r.pass).length;
@@ -444,7 +521,7 @@ async function main(): Promise<void> {
   const failed = total - passed;
   console.log(`\n=== Summary: ${passed}/${total} assertions passed, FAIL count = ${failed} ===`);
   if (passed === total) {
-    console.log("✅ Phase 54 verification PASSED (S-catalog ✓ S-fold ✓ S-forced-fail ✓ S-poller ✓ S-ops ✓; S-live placeholder)");
+    console.log("✅ Phase 54 verification PASSED (S-catalog ✓ S-fold ✓ S-forced-fail ✓ S-poller ✓ S-ops ✓ S-live ✓)");
     process.exit(0);
   } else {
     for (const r of results.filter((x) => !x.pass)) {
