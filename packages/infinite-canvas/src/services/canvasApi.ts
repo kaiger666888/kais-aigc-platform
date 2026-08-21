@@ -1,5 +1,7 @@
 import type { FlowGraph, FlowBranch, LegacyFlowData, FlowGraphNode } from '../types/canvas'
 import type { FlowGraphV2WireShape } from '../v3/serialize'
+// Phase 54-04: gate:state payload 契约真值源(gateStore)。
+import type { GateStatePayload } from '../store/gateStore'
 
 const API_BASE = '/api'
 const TIMEOUT_MS = 15_000
@@ -491,6 +493,85 @@ export async function g15Ops(
   cancelToken?: CancelToken,
 ): Promise<void> {
   await apiCall<void>('/canvas/v2/g15-ops', { projectId, episodesId, action, shotIds }, { cancelToken })
+}
+
+// ─── Gate 中心(Phase 54-04 GATE-02;54-05 服务端对接) ───────────────────
+
+/** GET /api/canvas/v2/gate-state 响应 = socket payload + episodeRefs 诊断键。 */
+export type GateStateSnapshot = GateStatePayload & { episodeRefs?: string[] }
+
+/**
+ * GET /api/canvas/v2/gate-state — gate 全量快照(socket 断线兜底拉取)。
+ *
+ * 失败返回 null 不抛(fetchCanvasHealth/fetchAssetDetail 同款 GET 先例——
+ * apiCall 仅支持 POST,GET 一律裸 fetch + 超时/cancelToken)。消费方保留
+ * 上一份 snapshot 即可,degrade 态由服务端 payload.degrade 表达。
+ */
+export async function fetchGateState(
+  projectId: number,
+  episodesId: number,
+  cancelToken?: CancelToken,
+): Promise<GateStateSnapshot | null> {
+  const timeoutController = new AbortController()
+  const timeoutId = setTimeout(() => timeoutController.abort(), TIMEOUT_MS)
+  const signals: AbortSignal[] = [timeoutController.signal]
+  if (cancelToken) signals.push(cancelToken.signal)
+  const combinedController = new AbortController()
+  const onAbort = () => combinedController.abort()
+  signals.forEach((s) => {
+    if (s.aborted) combinedController.abort()
+    else s.addEventListener('abort', onAbort, { once: true })
+  })
+  try {
+    const query = `?projectId=${encodeURIComponent(projectId)}&episodesId=${encodeURIComponent(episodesId)}`
+    const res = await fetch(`${API_BASE}/canvas/v2/gate-state${query}`, {
+      method: 'GET',
+      signal: combinedController.signal,
+    })
+    if (!res.ok) return null
+    const json = await res.json()
+    return (json.data as GateStateSnapshot) ?? null
+  } catch {
+    return null
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
+/** gate-ops 幂等结果(P4):applied=false 表示平台侧已处理(409 语义),非错误。 */
+export interface GateOpsResult {
+  applied: boolean
+  cause?: string
+}
+
+/**
+ * POST /api/canvas/v2/gate-ops — 人工门决策(审批/驳回/豁免)。
+ *
+ * 前端不直连审核平台(D-03 拓扑隐藏);kap 服务端桥接到平台
+ * approve/reject/waive 端点(54-02 R1)。幂等语义(P4):平台返回 409
+ * (review 已被处理)→ {applied:false, cause:'already-resolved'}。
+ */
+export async function gateOps(
+  projectId: number,
+  episodesId: number,
+  reviewId: number,
+  action: 'approve' | 'reject' | 'waive',
+  opts?: { reason?: string; selected?: number[] },
+  cancelToken?: CancelToken,
+): Promise<GateOpsResult> {
+  const json = await apiCall<{ data: GateOpsResult }>(
+    '/canvas/v2/gate-ops',
+    {
+      projectId,
+      episodesId,
+      reviewId,
+      action,
+      ...(opts?.reason != null ? { reason: opts.reason } : {}),
+      ...(opts?.selected != null ? { selected: opts.selected } : {}),
+    },
+    { cancelToken },
+  )
+  return json.data
 }
 
 export async function requestNodeScore(

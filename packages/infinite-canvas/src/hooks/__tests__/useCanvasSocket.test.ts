@@ -125,3 +125,94 @@ describe('useCanvasSocket — variant:selected 消费（WR-08）', () => {
     expect(disconnectMock).toHaveBeenCalled()
   })
 })
+
+// ═══════════ Phase 54-04 (D-03): gate:state 消费四件套 ═══════════
+
+function GateProbe(props: { onGateState?: (p: unknown) => void }) {
+  useCanvasSocket({
+    projectId: 7,
+    episodesId: 101,
+    onNodeStateChange: vi.fn(),
+    onNodePreviewUpdate: vi.fn(),
+    onNewAsset: vi.fn(),
+    onGateState: props.onGateState,
+  })
+  return null
+}
+
+const GATE_PAYLOAD = {
+  projectId: 7,
+  episodesId: 101,
+  fetchedAt: 1_726_000_000_000,
+  degrade: false,
+  blocking: { gateId: 'p13-gate', reviewId: 12, phaseId: 'p13_delivery', label: '成片交付' },
+  gates: [
+    { gateId: 'p01-gate', phaseId: 'p01_hook_topic', label: '选题定向', display: 'approve' },
+    { gateId: 'p13-gate', phaseId: 'p13_delivery', label: '成片交付', display: 'pending', reviewId: 12 },
+  ],
+}
+
+describe('useCanvasSocket — gate:state 消费(54-04 D-03)', () => {
+  let container: HTMLDivElement
+  let root: Root
+
+  beforeEach(() => {
+    ;(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+    handlers.clear()
+    vi.clearAllMocks()
+    container = document.createElement('div')
+    document.body.appendChild(container)
+  })
+
+  afterEach(() => {
+    root?.unmount()
+    container.remove()
+  })
+
+  it('挂载即注册 gate:state handler', async () => {
+    await act(async () => {
+      root = createRoot(container)
+      root.render(createElement(GateProbe, {}))
+    })
+    expect(handlers.has('gate:state')).toBe(true)
+    // 既有事件注册不受影响
+    expect(handlers.has('variant:selected')).toBe(true)
+    expect(handlers.has('graph:saved')).toBe(true)
+  })
+
+  it('事件到达 → 原样转发给 onGateState', async () => {
+    const onGateState = vi.fn()
+    await act(async () => {
+      root = createRoot(container)
+      root.render(createElement(GateProbe, { onGateState }))
+    })
+    expect(onGateState).not.toHaveBeenCalled()
+    await act(async () => {
+      handlers.get('gate:state')!(GATE_PAYLOAD)
+    })
+    expect(onGateState).toHaveBeenCalledTimes(1)
+    expect(onGateState).toHaveBeenCalledWith(GATE_PAYLOAD)
+  })
+
+  it('未提供 onGateState 回调时不炸(可选项)', async () => {
+    await act(async () => {
+      root = createRoot(container)
+      root.render(createElement(GateProbe, {}))
+    })
+    await act(async () => {
+      handlers.get('gate:state')!(GATE_PAYLOAD)
+    })
+    // 到这里没抛异常即通过
+  })
+
+  it('卸载时断开 socket(既有行为不回归)', async () => {
+    await act(async () => {
+      root = createRoot(container)
+      root.render(createElement(GateProbe, {}))
+    })
+    await act(async () => {
+      root.unmount()
+    })
+    expect(disconnectMock).toHaveBeenCalled()
+  })
+})

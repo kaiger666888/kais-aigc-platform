@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { io, Socket } from 'socket.io-client'
 import type { NodeState, FlowBranch } from '../types/canvas'
+// Phase 54-04 (D-03): gate:state payload 契约单一真值源在 gateStore
+// (与 54-05 服务端发射逐字段钉死);此处 re-export 供消费方引用。
+import type { GateStatePayload } from '../store/gateStore'
+
+export type { GateStatePayload }
 
 export interface OrchestrateStartPayload {
   runId: string
@@ -65,6 +70,8 @@ interface UseCanvasSocketOptions {
   onGraphSaved?: (payload: { projectId: number; episodesId: number; timestamp: number }) => void
   /** Phase 49 (WR-08): 他端选定了变体组 winner — 消费方负责回显守卫。 */
   onVariantSelected?: (payload: VariantSelectedPayload) => void
+  /** Phase 54 (D-03): gate 中心状态推送,scope 守卫由消费方负责。 */
+  onGateState?: (payload: GateStatePayload) => void
   // Phase 41 SYNC-10: feature-flagged incremental event subscription
   onCanvasEvent?: (event: CanvasEventPayload) => void
   onCanvasReset?: (info: { lastEventId: number | null }) => void
@@ -85,6 +92,7 @@ export function useCanvasSocket(options: UseCanvasSocketOptions) {
     onReviewRejected,
     onGraphSaved,
     onVariantSelected,
+    onGateState,
     onCanvasEvent,
     onCanvasReset,
   } = options
@@ -100,13 +108,13 @@ export function useCanvasSocket(options: UseCanvasSocketOptions) {
     onNodeStateChange, onNodePreviewUpdate, onNewAsset,
     onOrchestrateStart, onOrchestrateProgress, onOrchestrateDone,
     onBranchCreated, onReviewApproved, onReviewRejected,
-    onGraphSaved, onVariantSelected, onCanvasEvent, onCanvasReset,
+    onGraphSaved, onVariantSelected, onGateState, onCanvasEvent, onCanvasReset,
   })
   callbacksRef.current = {
     onNodeStateChange, onNodePreviewUpdate, onNewAsset,
     onOrchestrateStart, onOrchestrateProgress, onOrchestrateDone,
     onBranchCreated, onReviewApproved, onReviewRejected,
-    onGraphSaved, onVariantSelected, onCanvasEvent, onCanvasReset,
+    onGraphSaved, onVariantSelected, onGateState, onCanvasEvent, onCanvasReset,
   }
 
   useEffect(() => {
@@ -202,6 +210,12 @@ export function useCanvasSocket(options: UseCanvasSocketOptions) {
     // group.winnerNodeId 已等于 payload 值 → 跳过）。
     socket.on('variant:selected', (payload: VariantSelectedPayload) => {
       callbacksRef.current.onVariantSelected?.(payload)
+    })
+
+    // Phase 54 (D-03): gate 中心状态推送 — 54-05 服务端 broadcastToProject
+    // ('gate:state') 发射;payload 已是 foldDisplayState 折叠后的展示态。
+    socket.on('gate:state', (payload: GateStatePayload) => {
+      callbacksRef.current.onGateState?.(payload)
     })
 
     // Phase 41 SYNC-08: 增量事件 — 仅在 feature flag 开启时生效
