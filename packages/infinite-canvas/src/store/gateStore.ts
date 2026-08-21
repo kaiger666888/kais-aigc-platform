@@ -109,3 +109,36 @@ export const useGateStore = create<GateStoreState>((set, get) => ({
     set({ snapshot: payload, degrade: payload.degrade })
   },
 }))
+
+// ─── Chip 跳焦三级解析(54-06,SC2) ─────────────────────────────────────────
+
+/** 完整 sub-phase token:与 gateCatalog deriveGateId 同源粒度
+ *  ("p13-gate"→"p13"、"p11a0_iframe_qc"→"p11a0");**等值**比较,
+ *  p1 与 p11a0 互斥(WR-01 同族纪律,禁前缀式匹配)。 */
+function leadingSubToken(value: string): string | null {
+  const m = /^p\d+[a-z0-9]*/.exec(value.trim().toLowerCase())
+  return m === null ? null : m[0]
+}
+
+/**
+ * 阻塞门 → 画布代表节点三级解析(等值,非前缀):
+ *  1. 节点 id === `g-${gateId}`(门组节点);
+ *  2. 节点 id === `n-${phaseId}`(phase 容器节点);
+ *  3. 首个 leadingSubToken(node.phaseName) === leadingSubToken(phaseId) 的节点
+ *     (该 phase 的首资产)。
+ * 三级皆无 → null(调用方只开面板不跳焦,不报错)。
+ */
+export function resolveRepresentativeNodeId(
+  blocking: GateBlocking | null,
+  nodes: Array<{ id: string; phaseName?: string }>,
+): string | null {
+  if (blocking == null) return null
+  const byGate = nodes.find((n) => n.id === `g-${blocking.gateId}`)
+  if (byGate != null) return byGate.id
+  const byPhase = nodes.find((n) => n.id === `n-${blocking.phaseId}`)
+  if (byPhase != null) return byPhase.id
+  const token = leadingSubToken(blocking.phaseId)
+  if (token == null) return null
+  const byPhaseName = nodes.find((n) => leadingSubToken(n.phaseName ?? "") === token)
+  return byPhaseName?.id ?? null
+}

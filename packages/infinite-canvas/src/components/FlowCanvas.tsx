@@ -22,6 +22,7 @@ import EventChipNode from './nodes/EventChipNode'
 import LaneBands from './canvas/LaneBands'
 import PhaseColumns from './canvas/PhaseColumns'
 import Legend from './canvas/Legend'
+import GateTodoChip from './canvas/GateTodoChip'
 import ShotTree from './canvas/ShotTree'
 import { EventChipClickContext, type EventChipClickInfo } from './canvas/eventChipBus'
 import CanvasEdgeComponent from './edges/CanvasEdge'
@@ -44,7 +45,8 @@ import { useCanvasStore, type ViewMode } from '../store/canvasStore'
 import { ToastContainer } from '../hooks/useToast'
 import { serializeGraphToV2 } from '../v3/serialize'
 import { getLayoutedElements } from '../utils/autoLayout'
-import { loadCanvasGraph, saveCanvasGraph, convertProjectData, fetchSkillNodeTypes, orchestrateCanvas, fetchCanvasHealth } from '../services/canvasApi'
+import { loadCanvasGraph, saveCanvasGraph, convertProjectData, fetchSkillNodeTypes, orchestrateCanvas, fetchCanvasHealth, fetchGateState } from '../services/canvasApi'
+import { useGateStore, resolveRepresentativeNodeId } from '../store/gateStore'
 import { useCanvasSocket } from '../hooks/useCanvasSocket'
 import StoryboardTimeline from './StoryboardTimeline'
 import AssetManager from './assetManager/AssetManager'
@@ -119,6 +121,9 @@ function CanvasInner() {
   const onNodesChange = useCanvasStore((s) => s.onNodesChange)
   const onEdgesChange = useCanvasStore((s) => s.onEdgesChange)
   const graph = useCanvasStore((s) => s.graph)
+  // Phase 54 (54-06): 阻塞 phase 列索引 = blocking 代表节点的 phaseIndex
+  // (selector 订阅 gateStore,勿在列渲染内每帧扫描;派生列由 median 投影)。
+  const gateBlocking = useGateStore((s) => s.snapshot?.blocking ?? null)
   const loadInitialGraph = useCanvasStore((s) => s.loadInitialGraph)
   const applyGraphTransform = useCanvasStore((s) => s.applyGraphTransform)
 
@@ -269,6 +274,13 @@ function CanvasInner() {
         loadCanvas(projectId, episodesId)
       }
     },
+    onGateState: (payload) => {
+      // Phase 54 (D-03): gate 中心状态推送。守卫 scope(与 onVariantSelected
+      // 同法)——他项目的 payload 不进本端 store(防跨项目串扰)。
+      if (!projectId || episodesId == null) return
+      if (payload.projectId !== projectId || payload.episodesId !== episodesId) return
+      useGateStore.getState().apply(payload)
+    },
     onVariantSelected: (payload) => {
       // Phase 49 (WR-08): 他端选定了变体组 winner — 本端画布同步应用。
       // 守卫① scope：仅当前显示的 project/episode（与 onGraphSaved 一致）；
@@ -302,6 +314,12 @@ function CanvasInner() {
   const loadCanvas = useCallback(async (pid: number, eid: number) => {
     setLoadError(null)
     setProject(pid, eid)
+
+    // Phase 54 (54-06): gate 快照并行拉取——不 await、不阻塞画布首帧;
+    // 失败静默(socket gate:state 增量与 stale 触发的即时拉取会补上)。
+    void fetchGateState(pid, eid)
+      .then((p) => { if (p) useGateStore.getState().apply(p) })
+      .catch(() => {})
 
     await loadInitialGraph(async () => {
       const savedGraph = await loadCanvasGraph(pid, eid)
@@ -796,6 +814,7 @@ function CanvasInner() {
         )}
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {!fixtureMode && <GateTodoChip />}
           {!fixtureMode && (
             <span style={{ color: connected ? theme.status.connected : theme.status.disconnected, fontSize: 11 }}>
               {connected ? '● 已连接' : '○ 未连接'}
@@ -872,7 +891,21 @@ function CanvasInner() {
           <Background color={theme.border.canvas} gap={20} size={1} />
 
           {geometry && <LaneBands geometry={geometry} />}
-          {geometry && geometry.phaseColumns && <PhaseColumns geometry={geometry} />}
+          {geometry && geometry.phaseColumns && (
+            <PhaseColumns
+              geometry={geometry}
+              blockingPhaseIndex={(() => {
+                if (!gateBlocking || !graph) return null
+                const nodes = graph.nodes.map((n) => ({
+                  id: n.id,
+                  phaseName: n.phaseName,
+                  phaseIndex: n.phaseIndex,
+                }))
+                const rep = resolveRepresentativeNodeId(gateBlocking, nodes)
+                return rep != null ? (nodes.find((n) => n.id === rep)?.phaseIndex ?? null) : null
+              })()}
+            />
+          )}
           <Legend />
           <Controls
             position="bottom-left"

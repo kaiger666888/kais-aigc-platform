@@ -19,7 +19,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Modality } from '../../theme/catppuccin'
-import { v3theme, theme, getScoreColor } from '../../theme/cattpuccin'
+import { v3theme, theme, getScoreColor } from '../../theme/catppuccin'
 import { useVariantPickerStore } from './variantPickerStore'
 import { useCanvasStore } from '../../store/canvasStore'
 import { frameSlotOfGroup, nextReviewGroup, prevReviewGroup } from '../../store/variantOps'

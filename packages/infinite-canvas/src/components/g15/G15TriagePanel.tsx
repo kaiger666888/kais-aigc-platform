@@ -10,7 +10,7 @@
  * 重渲二次确认 = 组件内 state(D-14;豁免轻操作免确认——planner 裁定)。
  */
 import { useEffect, useState } from 'react'
-import { v3theme, theme } from '../../theme/cattpuccin'
+import { v3theme, theme } from '../../theme/catppuccin'
 import { useG15TriageStore, type G15Category, type G15Row } from './g15TriageStore'
 import { useCanvasStore } from '../../store/canvasStore'
 import { g15Ops } from '../../services/canvasApi'

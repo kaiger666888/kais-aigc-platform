@@ -12,7 +12,7 @@
  * apply 内部 return(不 set)则零触发。
  */
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useGateStore, type GateStatePayload } from '../gateStore'
+import { useGateStore, resolveRepresentativeNodeId, type GateStatePayload } from '../gateStore'
 
 function makePayload(overrides: Partial<GateStatePayload> = {}): GateStatePayload {
   return {
@@ -103,5 +103,44 @@ describe('gateStore (54-04 GATE-02)', () => {
     expect(useGateStore.getState().open).toBe(true)
     useGateStore.getState().setOpen(false)
     expect(useGateStore.getState().open).toBe(false)
+  })
+})
+
+describe('resolveRepresentativeNodeId(54-06 三级解析)', () => {
+  const blocking = { gateId: 'p13-gate', reviewId: 3, phaseId: 'p13_delivery', label: '成片交付' }
+
+  it('一级:g-{gateId} 节点命中', () => {
+    const nodes = [
+      { id: 'asset-1', phaseName: 'p13_delivery' },
+      { id: 'g-p13-gate' },
+    ]
+    expect(resolveRepresentativeNodeId(blocking, nodes)).toBe('g-p13-gate')
+  })
+
+  it('二级:n-{phaseId} 节点命中(g 级缺席)', () => {
+    const nodes = [
+      { id: 'asset-1', phaseName: 'p13_delivery' },
+      { id: 'n-p13_delivery' },
+    ]
+    expect(resolveRepresentativeNodeId(blocking, nodes)).toBe('n-p13_delivery')
+  })
+
+  it('三级:phaseName token 等值的首资产命中', () => {
+    const nodes = [
+      { id: 'asset-0', phaseName: 'p11c_video_qc' },
+      { id: 'asset-1', phaseName: 'p13_delivery' },
+    ]
+    expect(resolveRepresentativeNodeId(blocking, nodes)).toBe('asset-1')
+  })
+
+  it('token 等值反例:p1 ≠ p11a0(禁前缀互撞)', () => {
+    const nodes = [{ id: 'asset-x', phaseName: 'p1_tone' }]
+    const p11a0 = { gateId: 'p11a0-gate', reviewId: 9, phaseId: 'p11a0_iframe_qc', label: '条件帧门' }
+    expect(resolveRepresentativeNodeId(p11a0, nodes)).toBeNull()
+  })
+
+  it('三级皆无 → null;blocking 为 null → null', () => {
+    expect(resolveRepresentativeNodeId(blocking, [{ id: 'a', phaseName: 'p07_scene_generation' }])).toBeNull()
+    expect(resolveRepresentativeNodeId(null, [{ id: 'g-p13-gate' }])).toBeNull()
   })
 })
