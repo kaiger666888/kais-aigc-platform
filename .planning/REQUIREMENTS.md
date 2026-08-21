@@ -81,4 +81,32 @@
 
 | Requirement | Phase |
 |---|---|
-| (pending roadmap) | — |
+| WRITE-01 | Phase 51 |
+| WRITE-02 | Phase 51 |
+| WRITE-03 | Phase 51 |
+| WRITE-04 | Phase 51 |
+| REGEN-01 | Phase 52 |
+| REGEN-02 | Phase 52 |
+| REGEN-03 | Phase 52 |
+| REGEN-04 | Phase 52 |
+| VAR-01 | Phase 53 (前置: khs2 v2.4 Phase 25 验收完成) |
+| VAR-02 | Phase 53 |
+| VAR-03 | Phase 53 |
+| VAR-04 | Phase 53 |
+| GATE-01 | Phase 54 |
+| GATE-02 | Phase 54 |
+| GATE-03 | Phase 54 |
+| NAV-01 | Phase 55 |
+| NAV-02 | Phase 55 |
+| NAV-03 | Phase 55 |
+| NAV-04 | Phase 55 |
+| NAV-05 | Phase 55 |
+| NAV-06 | Phase 55 |
+| VIZ-01 | Phase 56 |
+| VIZ-02 | Phase 56 |
+| VIZ-03 | Phase 56 |
+| PORTAL-01 | Phase 57 (调研型,可与 52-56 并行) |
+| PORTAL-02 | Phase 57 |
+| PORTAL-03 | Phase 57 |
+| PORTAL-04 | Phase 57 |
+| COORD-01 | Phase 51 (横切约束并入首个 phase) |
