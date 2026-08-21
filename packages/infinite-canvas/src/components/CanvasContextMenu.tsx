@@ -1,6 +1,6 @@
 import { useState, type JSX } from 'react'
 import type { AssetNodeData, StoryboardNodeData, VideoNodeData } from '../types/canvas'
-import { executeNode, approveNode, rejectNode, requestNodeScore, orchestrateCanvas, saveCanvasGraph } from '../services/canvasApi'
+import { executeNode, requestNodeScore, orchestrateCanvas, saveCanvasGraph } from '../services/canvasApi'
 import { submitScail2Replace, submitScail2Transfer, pollScail2UntilDone, fetchBlobFromUrl } from '../services/scail2Api'
 import { useCanvasStore } from '../store/canvasStore'
 import { fetchProjectAssets } from './assetManager/useRealAssets'
@@ -36,6 +36,9 @@ export default function CanvasContextMenu({
   const setEdges = useCanvasStore((s) => s.setEdges)
   const showToast = useCanvasStore((s) => s.showToast)
   const selectWinner = useCanvasStore((s) => s.selectWinner)
+  // WRITE-02：右键审核走 store canonical optimistic 通道（乐观更新 + prevGraph 回滚 + toast 内置于 store action）
+  const storeApproveNode = useCanvasStore((s) => s.approveNode)
+  const storeRejectNode = useCanvasStore((s) => s.rejectNode)
 
   const handleDelete = () => {
     if (!nodeId) return
@@ -145,38 +148,18 @@ export default function CanvasContextMenu({
     onClose()
   }
 
-  const handleApprove = async () => {
+  // WRITE-02：审核写入统一走 store.approveNode/rejectNode（canonical optimistic + 回滚），
+  // 菜单层不再自管乐观更新/回滚/错误提示（与 ReviewActionButtons 消费方式对齐）。
+  const handleApprove = () => {
     if (!nodeId) return
-    setNodes((nds) => nds.map((n) =>
-      n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: 'approved' } } : n
-    ))
     onClose()
-    try {
-      await approveNode(projectId, episodesId, nodeId)
-      showToast('审核通过', 'success')
-    } catch (err: any) {
-      setNodes((nds) => nds.map((n) =>
-        n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: 'pending' } } : n
-      ))
-      showToast(err.message || '审核通过失败', 'error')
-    }
+    void storeApproveNode(nodeId)
   }
 
-  const handleReject = async () => {
+  const handleReject = () => {
     if (!nodeId || !rejectReason.trim()) return
-    setNodes((nds) => nds.map((n) =>
-      n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: 'rejected' } } : n
-    ))
     onClose()
-    try {
-      await rejectNode(projectId, episodesId, nodeId, rejectReason.trim())
-      showToast('已驳回', 'warning')
-    } catch (err: any) {
-      setNodes((nds) => nds.map((n) =>
-        n.id === nodeId ? { ...n, data: { ...n.data, reviewStatus: 'pending' } } : n
-      ))
-      showToast(err.message || '驳回失败', 'error')
-    }
+    void storeRejectNode(nodeId, rejectReason.trim())
   }
 
   const items: MenuItem[] = []
