@@ -75,7 +75,7 @@ Plans:
 **Wave 1**
 
 - [x] 53-01-PLAN.md — 候选信封 zod 契约 + verify-phase-53 骨架(S1) + 双代 fixtures (VAR-01 kap 半部)
-- [ ] 53-02-PLAN.md — 变体墙引擎:wallTransport 同播主时钟 + 键盘流 + 全屏剧场组件 (VAR-02)
+- [x] 53-02-PLAN.md — 变体墙引擎:wallTransport 同播主时钟 + 键盘流 + 全屏剧场组件 (VAR-02)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -103,7 +103,28 @@ Plans:
   2. 管线停在某道 gate 时，画布对应节点/泳道高亮阻塞态，gate 面板列出待决策项，且有待办通知入口——新会话打开画布即可定位当前阻塞门。
   3. 在画布 gate 面板执行 approve/reject/waive 后，kmc 侧 gates.yaml/review-outcomes 被正确回写，kmc 恢复/继续管线时消费到该决策；全程无需 telegram/CLI。
 
-**Plans**: TBD (via /gsd:plan-phase)
+**Plans**: 7 plans (Wave1×4 并行:契约地基/平台R1/khs R2R3/前端地基 → Wave2 服务端轮询+端点 → Wave3 阻塞态UX → Wave4 面板闭环收口)
+
+Plans:
+
+**Wave 1** *(四 plan 并行,零文件交集——跨三仓)*
+
+- [ ] 54-01-PLAN.md — gateCatalog D-02 快照+foldDisplayState D-04+verify:phase-54 骨架+REVIEW_PLATFORM_URL env 修复 (GATE-01)
+- [ ] 54-02-PLAN.md — review-platform R1:approve 恒写 decision/reject 补写 review_result/waive 端点+部署活体冒烟 (GATE-03)
+- [ ] 54-03-PLAN.md — khs R2+R3:query_review_status result 键+poller COMPLETE 词汇对齐+chosen 第三通道(契约层,COORD-01) (GATE-03)
+- [ ] 54-04-PLAN.md — 前端地基:gateStore 独立 store+useCanvasSocket gate:state+canvasApi gateOps/fetchGateState (GATE-02)
+
+**Wave 2** *(blocked on 54-01+54-02)*
+
+- [ ] 54-05-PLAN.md — kap 服务端:gateStateService 20s 轮询+diff+gate:state 广播+gate-state/gate-ops 端点+S-poller/S-ops/S-live (GATE-01/03)
+
+**Wave 3** *(blocked on 54-04+54-05)*
+
+- [ ] 54-06-PLAN.md — 画布阻塞态:GateTodoChip 待办入口+PhaseColumns 阻塞列签名发光+新会话快照接线 (GATE-02)
+
+**Wave 4** *(blocked on 54-06)*
+
+- [ ] 54-07-PLAN.md — Gate 中心面板(420px dock+可内嵌 Block,D-13 seam)+三操作闭环+verify 收口+VALIDATION 回填 (GATE-02/03)
 
 ### Phase 55: 画布导航与规模 (Navigation & Scale)
 
