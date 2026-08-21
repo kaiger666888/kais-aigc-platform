@@ -109,7 +109,7 @@ Plans:
 
 **Wave 1** *(四 plan 并行,零文件交集——跨三仓)*
 
-- [ ] 54-01-PLAN.md — gateCatalog D-02 快照+foldDisplayState D-04+verify:phase-54 骨架+REVIEW_PLATFORM_URL env 修复 (GATE-01)
+- [x] 54-01-PLAN.md — gateCatalog D-02 快照+foldDisplayState D-04+verify:phase-54 骨架+REVIEW_PLATFORM_URL env 修复 (GATE-01)
 - [ ] 54-02-PLAN.md — review-platform R1:approve 恒写 decision/reject 补写 review_result/waive 端点+部署活体冒烟 (GATE-03)
 - [ ] 54-03-PLAN.md — khs R2+R3:query_review_status result 键+poller COMPLETE 词汇对齐+chosen 第三通道(契约层,COORD-01) (GATE-03)
 - [ ] 54-04-PLAN.md — 前端地基:gateStore 独立 store+useCanvasSocket gate:state+canvasApi gateOps/fetchGateState (GATE-02)
