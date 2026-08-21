@@ -42,6 +42,7 @@
     "verify:phase-49-linkage": "npx tsx scripts/verify-phase-49-linkage.ts",
     "verify:phase-50": "npx tsx scripts/verify-phase-50.ts",
     "verify:phase-51": "npx tsx scripts/verify-phase-51.ts",
+    "verify:phase-53": "npx tsx scripts/verify-phase-53.ts",
     "backfill:phase-50": "npx tsx scripts/backfill-candidate-groups.ts",
     "verify:qwen-tts": "npx tsx scripts/verify-qwen-tts.ts"
   },

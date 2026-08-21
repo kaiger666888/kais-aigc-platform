@@ -1,0 +1,7 @@
+{
+  "failures": [
+    { "shot_id": "shot_031", "error": "delegate timeout after 900s — p11b render exceeded budget", "timestamp": "2026-08-21T11:00:00Z", "run_id": "run-ep01-0042" },
+    { "shot_id": "shot_036", "error": "schema validation failed: missing duration field in output manifest", "timestamp": "2026-08-21T11:05:00Z", "run_id": "run-ep01-0042" },
+    { "shot_id": "shot_049", "error": "render crashed: CUDA error at frame 218/362", "timestamp": "2026-08-21T11:10:00Z", "run_id": "run-ep01-0042" }
+  ]
+}

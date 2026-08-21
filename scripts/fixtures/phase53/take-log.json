@@ -1,0 +1,9 @@
+{
+  "takes": [
+    { "take_n": 1, "shot_id": "shot_027", "changed_variable": "seed", "seed": 5150, "verdict": "keep", "evidence": "构图稳定,运动线完整", "timestamp": "2026-08-21T10:00:00Z" },
+    { "take_n": 2, "shot_id": "shot_027", "changed_variable": "lighting", "seed": 5151, "verdict": "fix_in_post", "evidence": "轻微过曝,后期可压", "timestamp": "2026-08-21T10:05:00Z" },
+    { "take_n": 3, "shot_id": "shot_031", "changed_variable": "camera", "seed": 5152, "verdict": "edit", "evidence": "节奏拖沓,剪辑可救", "timestamp": "2026-08-21T10:10:00Z" },
+    { "take_n": 4, "shot_id": "shot_031", "changed_variable": "prompt", "seed": 5153, "verdict": "re_roll", "evidence": "物理不合理,手部穿模", "timestamp": "2026-08-21T10:15:00Z" },
+    { "take_n": 5, "shot_id": "shot_044", "changed_variable": "structure", "seed": 5154, "verdict": "rewrite", "evidence": "叙事断层,需回改分镜", "timestamp": "2026-08-21T10:20:00Z" }
+  ]
+}

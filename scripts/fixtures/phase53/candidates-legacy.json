@@ -1,0 +1,54 @@
+[
+  {
+    "label": "shot_012 first v1",
+    "assetType": "keyframe",
+    "frame_type": "first",
+    "variant": "v1",
+    "groupKey": "shot_012_first",
+    "shot_id": "shot_012",
+    "filePath": "/oss/kmc/ep01/P11/shot_012_first_v1.png",
+    "generation_prompt": "雨夜巷战,主角拔刀,低角度仰拍,霓虹反光湿地",
+    "isPrimaryView": true,
+    "curationState": "active",
+    "state": "success",
+    "tags": ["★ 选定"],
+    "description": "G13 条件帧 shot_012 首帧 v1 — iframe-qc 选定"
+  },
+  {
+    "label": "shot_012 first v2",
+    "assetType": "keyframe",
+    "frame_type": "first",
+    "variant": "v2",
+    "groupKey": "shot_012_first",
+    "shot_id": "shot_012",
+    "filePath": "/oss/kmc/ep01/P11/shot_012_first_v2.png",
+    "generation_prompt": "雨夜巷战,主角拔刀,平视构图,雨丝前景",
+    "isPrimaryView": false,
+    "curationState": "active",
+    "state": "success",
+    "tags": ["○ 待选"],
+    "description": "G13 条件帧 shot_012 首帧 v2 — 待选"
+  },
+  {
+    "label": "shot_012 last v1",
+    "assetType": "keyframe",
+    "frame_type": "last",
+    "variant": "v1",
+    "groupKey": "shot_012_last",
+    "shot_id": "shot_012",
+    "filePath": "/oss/kmc/ep01/P11/shot_012_last_v1.png",
+    "generation_prompt": "雨夜巷战收尾,刀光划过,俯拍全景",
+    "isPrimaryView": true,
+    "curationState": "active",
+    "state": "success",
+    "tags": ["★ 选定"],
+    "description": "G13 条件帧 shot_012 尾帧 v1 — iframe-qc 选定"
+  },
+  {
+    "id": "variant-2",
+    "label": "变体 2",
+    "selected": false,
+    "description": "hook 文案:开场三秒冷开场,主角雨夜独行遭遇伏击",
+    "data": { "hook_strength": 0.72, "frame_breakdown_3sec": "0-1s 空镜雨巷 / 1-3s 脚步声渐近" }
+  }
+]
