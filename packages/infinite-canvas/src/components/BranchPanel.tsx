@@ -4,7 +4,7 @@
  * 多结局探索两段式:预览(非破坏——他支节点压暗 --cv-dim-opacity 0.25,再点
  * /Esc 复原,不落库)→ 升为主线(内联二次确认 3s → selectBranchAsMain
  * 乐观+REST PATCH+失败回滚)。消费 store.branches;旧版(7ec2e605 档案)
- * 的假删除(rejected 状态伪装)不复刻。
+ * 的假删除(以驳回状态伪装删除)不复刻。
  *
  * 色彩限定(UI-SPEC Color):Accent 冷白只出现在主线徽章与主按钮;Destructive
  * 玫只出现在确认态文字;其余 token-only。
