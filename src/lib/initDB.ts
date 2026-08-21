@@ -1356,6 +1356,30 @@ export default async (knex: Knex, forceInit: boolean = false): Promise<void> => 
         table.primary(["project_id", "episodes_id"]);
       },
     },
+    {
+      // 53-04 DR-4: 出站回写重试队列(manifest 回写 / G15 豁免·重渲共用)。
+      // action: manifest_writeback | g15_waive | g15_requeue (53-07 复用后两值)
+      // state:  pending | done | failed
+      name: "canvas_writeback_queue",
+      builder: (table) => {
+        table.increments("id").primary();
+        table.integer("project_id").notNullable();
+        table.integer("episodes_id").notNullable();
+        table.string("action", 32).notNullable();
+        table.text("payload").notNullable();
+        table.string("state", 16).notNullable().defaultTo("pending");
+        table.integer("attempts").notNullable().defaultTo(0);
+        table.integer("max_attempts").notNullable().defaultTo(8);
+        table.bigInteger("next_attempt_at").notNullable();
+        table.text("last_error");
+        table.bigInteger("created_at").notNullable();
+        table.bigInteger("updated_at").notNullable();
+        table.index(
+          ["project_id", "episodes_id", "state", "next_attempt_at"],
+          "idx_writeback_queue_due",
+        );
+      },
+    },
   ];
 
   // Migrate old snapshot data to relational tables on first creation
