@@ -466,12 +466,31 @@ export async function selectVariantWinner(
   groupId: string,
   winnerNodeId: string,
   cancelToken?: CancelToken,
+  frameSlot?: 'first' | 'last',
 ): Promise<void> {
   await apiCall<void>(
     `/canvas/v2/variant-groups/${encodeURIComponent(groupId)}/select-winner`,
-    { projectId, episodesId, winnerNodeId },
+    { projectId, episodesId, winnerNodeId, ...(frameSlot ? { frameSlot } : {}) },
     { cancelToken },
   )
+}
+
+/**
+ * G15 失败镜头批量操作(Phase 53-05 预置通道,53-07 面板消费)。
+ *
+ * POST /api/canvas/v2/g15-ops —— 端点由 53-07 落地(waive = reviewBridge 扩展
+ * 语义,requeue = 同桥新 action;D-15 G15 操作桥)。错误语义照
+ * selectVariantWinner 模型:非 2xx 一律抛 ApiError,批量部分失败由端点
+ * 事务语义定义(53-07 契约)。
+ */
+export async function g15Ops(
+  projectId: number,
+  episodesId: number,
+  action: 'waive' | 'requeue',
+  shotIds: string[],
+  cancelToken?: CancelToken,
+): Promise<void> {
+  await apiCall<void>('/canvas/v2/g15-ops', { projectId, episodesId, action, shotIds }, { cancelToken })
 }
 
 export async function requestNodeScore(

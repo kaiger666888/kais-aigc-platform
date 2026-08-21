@@ -43,6 +43,86 @@ export function getVariantMemberStatus(
   return deriveVariantMemberStatus(isWinner, !!group.winnerNodeId)
 }
 
+// ─── 审片流水线纯函数 (Phase 53-05,零 React/IO) ─────────────────
+
+/** 审片排序所需的最小组结构(V3 VariantGroupV3 与 RF VariantGroup 均满足)。 */
+interface ReviewGroupLike {
+  id: string
+  winnerNodeId?: string | null
+}
+
+/**
+ * groupKey → frameSlot 推导(D-11 前端半部)。
+ * 输入为组 id 或 groupKey(均接受,`cand:` 机器前缀自动剥离):
+ * `shot:{sid}:first` → 'first';`:last` → 'last';其余(name: 组/G14 组)
+ * → undefined。frameSlot 只从组键后缀推导,不信任 UI 自由输入
+ * (T-53-05-01:端点 zod enum 是第二道闸)。
+ */
+export function frameSlotOfGroup(groupKeyOrId: string): 'first' | 'last' | undefined {
+  const key = groupKeyOrId.startsWith('cand:') ? groupKeyOrId.slice('cand:'.length) : groupKeyOrId
+  if (key.endsWith(':first')) return 'first'
+  if (key.endsWith(':last')) return 'last'
+  return undefined
+}
+
+/** shot 域排序键:shot 组 (sid 自然序, first<last) 排前,name/其余组排后。 */
+function reviewRank(key: string): [number, string, number] {
+  const m = /^shot:([A-Za-z0-9_-]+):(first|last)$/.exec(key)
+  if (m) return [0, m[1], m[2] === 'first' ? 0 : 1]
+  return [1, key, 0]
+}
+
+function keyOfGroup(id: string): string {
+  return id.startsWith('cand:') ? id.slice('cand:'.length) : id
+}
+
+function orderedReviewGroups<T extends ReviewGroupLike>(
+  groups: T[],
+  includeSelected: boolean,
+): T[] {
+  return [...groups]
+    .filter((g) => includeSelected || !g.winnerNodeId)
+    .sort((a, b) => {
+      const [ta, ka, sa] = reviewRank(keyOfGroup(a.id))
+      const [tb, kb, sb] = reviewRank(keyOfGroup(b.id))
+      if (ta !== tb) return ta - tb
+      // localeCompare 自然序: shot_002 < shot_010 (D-18)
+      const c = ka.localeCompare(kb, undefined, { numeric: true })
+      if (c !== 0) return c
+      return sa - sb
+    })
+}
+
+/**
+ * 下一待审组(D-17 墙内下一镜 / D-18 shot 序 + 跳已选)。
+ * includeSelected 缺省 false 跳过已选定组;true 全列(手动「下一镜」可越)。
+ * 返回 currentGroupId 之后的第一个组;到头 null(审完态,不回绕——审片是
+ * 线性流,planner 裁定)。当前组被过滤时从头找第一个。
+ */
+export function nextReviewGroup<T extends ReviewGroupLike>(
+  graph: { variantGroups: T[] } | null,
+  currentGroupId: string,
+  opts?: { includeSelected?: boolean },
+): T | null {
+  if (!graph) return null
+  const sorted = orderedReviewGroups(graph.variantGroups, opts?.includeSelected ?? false)
+  const idx = sorted.findIndex((g) => g.id === currentGroupId)
+  if (idx < 0) return sorted.length > 0 ? sorted[0] : null
+  return idx + 1 < sorted.length ? sorted[idx + 1] : null
+}
+
+/** 排序序列中的前一个组(←/→ 键盘对称;恒 includeSelected——回看不设限)。 */
+export function prevReviewGroup<T extends ReviewGroupLike>(
+  graph: { variantGroups: T[] } | null,
+  currentGroupId: string,
+): T | null {
+  if (!graph) return null
+  const all = orderedReviewGroups(graph.variantGroups, true)
+  const idx = all.findIndex((g) => g.id === currentGroupId)
+  if (idx <= 0) return null
+  return all[idx - 1]
+}
+
 // ─── 状态变换 (返回新数组,不修改入参) ─────────────────────
 
 /** selectWinner 的纯函数变换 — 同时更新 nodes 和 edges。
