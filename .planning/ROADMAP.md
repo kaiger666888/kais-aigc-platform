@@ -74,7 +74,7 @@
 Plans:
 **Wave 1**
 
-- [ ] 53-01-PLAN.md — 候选信封 zod 契约 + verify-phase-53 骨架(S1) + 双代 fixtures (VAR-01 kap 半部)
+- [x] 53-01-PLAN.md — 候选信封 zod 契约 + verify-phase-53 骨架(S1) + 双代 fixtures (VAR-01 kap 半部)
 - [ ] 53-02-PLAN.md — 变体墙引擎:wallTransport 同播主时钟 + 键盘流 + 全屏剧场组件 (VAR-02)
 
 **Wave 2** *(blocked on Wave 1 completion)*
