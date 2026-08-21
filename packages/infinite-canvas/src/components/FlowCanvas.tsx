@@ -235,6 +235,10 @@ function CanvasInner() {
     onNodeStateChange: (nodeId: string, state: NodeState, progress?: number) => {
       applySocketNodeState(nodeId, state, progress)
     },
+    // 56-01 (D-03):scored → canonical aiScore 写(不进状态机)
+    onNodeScored: (nodeId, aiScore) => {
+      useCanvasStore.getState().applySocketScored(nodeId, aiScore)
+    },
     onNodePreviewUpdate: (nodeId: string, thumbnailUrl: string) => {
       applySocketNodePreview(nodeId, thumbnailUrl)
     },

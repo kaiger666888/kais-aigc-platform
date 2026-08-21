@@ -59,6 +59,8 @@ interface UseCanvasSocketOptions {
   projectId: number
   episodesId?: number
   onNodeStateChange: (nodeId: string, state: NodeState, progress?: number) => void
+  /** 56-01 (D-03):node:state state==='scored' 的 aiScore 载荷转发(评分≠执行态)。 */
+  onNodeScored?: (nodeId: string, aiScore: unknown) => void
   onNodePreviewUpdate: (nodeId: string, thumbnailUrl: string) => void
   /** 55-04:V2 节点袋(server { node } payload 适配);位置决策在 FlowCanvas。 */
   onNewAsset?: (node: Record<string, unknown>) => void
@@ -83,6 +85,7 @@ export function useCanvasSocket(options: UseCanvasSocketOptions) {
     projectId,
     episodesId,
     onNodeStateChange,
+    onNodeScored,
     onNodePreviewUpdate,
     onNewAsset,
     onOrchestrateStart,
@@ -106,13 +109,13 @@ export function useCanvasSocket(options: UseCanvasSocketOptions) {
 
   // 使用 ref 持有回调以避免重连
   const callbacksRef = useRef({
-    onNodeStateChange, onNodePreviewUpdate, onNewAsset,
+    onNodeStateChange, onNodeScored, onNodePreviewUpdate, onNewAsset,
     onOrchestrateStart, onOrchestrateProgress, onOrchestrateDone,
     onBranchCreated, onReviewApproved, onReviewRejected,
     onGraphSaved, onVariantSelected, onGateState, onCanvasEvent, onCanvasReset,
   })
   callbacksRef.current = {
-    onNodeStateChange, onNodePreviewUpdate, onNewAsset,
+    onNodeStateChange, onNodeScored, onNodePreviewUpdate, onNewAsset,
     onOrchestrateStart, onOrchestrateProgress, onOrchestrateDone,
     onBranchCreated, onReviewApproved, onReviewRejected,
     onGraphSaved, onVariantSelected, onGateState, onCanvasEvent, onCanvasReset,
@@ -149,8 +152,14 @@ export function useCanvasSocket(options: UseCanvasSocketOptions) {
     })
 
     // 节点状态变更
-    socket.on('node:state', (payload: { nodeId: string; state: NodeState; progress?: number }) => {
-      callbacksRef.current.onNodeStateChange(payload.nodeId, payload.state, payload.progress)
+    socket.on('node:state', (payload: { nodeId: string; state: string; progress?: number; aiScore?: unknown }) => {
+      // 56-01 (D-03):scored 是评分到达,不是执行态——先于状态归一拦截转发,
+      // 绝不让它流入 normalizeSocketNodeState(会错映射执行态并污染 stale 规则)。
+      if (payload.state === 'scored') {
+        callbacksRef.current.onNodeScored?.(payload.nodeId, payload.aiScore)
+        return
+      }
+      callbacksRef.current.onNodeStateChange(payload.nodeId, payload.state as NodeState, payload.progress)
     })
 
     // 节点预览图更新
@@ -170,7 +179,7 @@ export function useCanvasSocket(options: UseCanvasSocketOptions) {
 
     // 执行进度
     socket.on('execution:progress', (payload: { nodeId: string; state: NodeState; progress: number }) => {
-      callbacksRef.current.onNodeStateChange(payload.nodeId, payload.state, payload.progress)
+      callbacksRef.current.onNodeStateChange(payload.nodeId, payload.state as NodeState, payload.progress)
     })
 
     // Phase 36/37 — 编排事件

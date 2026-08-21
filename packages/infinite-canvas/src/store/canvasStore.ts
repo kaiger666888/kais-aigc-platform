@@ -13,6 +13,7 @@ import {
 } from '@kais/flowgraph-v3'
 import type { SkillNodeTypeDecl, IterationPlan, IterationResult } from '../services/canvasApi'
 import { updateBranch as updateBranchApi } from '../services/canvasApi'
+import { normalizeScore } from '../utils/scoreVocabulary'
 import type { FlowBranch, VariantGroup, VariantGroupId } from '../types/canvas'
 import { asNodeId, asVariantGroupId } from '../types/canvas'
 import { approveNode as apiApproveNode, rejectNode as apiRejectNode, selectVariantWinner, saveCanvasGraph } from '../services/canvasApi'
@@ -137,6 +138,8 @@ interface CanvasState {
   applySocketNodeState: (nodeId: string, state: string, progress?: number) => void
   /** socket node:preview：thumbnailUrl 写 asset.media.thumbnail。 */
   applySocketNodePreview: (nodeId: string, thumbnailUrl: string) => void
+  /** 56-01 (VIZ-01):scored 事件 canonical 写 asset.aiScore——不触碰 state/stale(52-01 红线)。 */
+  applySocketScored: (nodeId: string, aiScore: unknown) => void
   /** 55-04 (WRITE-03):socket node:created 单节点增量 canonical 写回;返回是否新增。 */
   addNodeFromSocket: (node: Record<string, unknown>, position: { x: number; y: number }) => boolean
   /** Phase 52-01（REGEN-01）：事件配方 canonical 写入同步版——patch 合并进
@@ -393,7 +396,7 @@ const META_PATCHABLE_KEYS: Record<string, ReadonlySet<string>> = {
 }
 
 /** socket node:state 归一表——与 v3/adapter.ts normalizeNodeState 同一张表。 */
-function normalizeSocketNodeState(v: string): NodeState | null {
+export function normalizeSocketNodeState(v: string): NodeState | null {
   switch (v) {
     case 'pending':
     case 'running':
@@ -748,6 +751,49 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       nodes: g.nodes.map((n) =>
         n.id === nodeId && n.kind === 'asset'
           ? { ...n, media: { ...n.media, thumbnail: thumbnailUrl } }
+          : n,
+      ),
+    }))
+  },
+  applySocketScored: (nodeId, aiScore) => {
+    // 56-01 (VIZ-01/D-03):评分到达 ≠ 新事实产出——只写 aiScore,state/stale
+    // 零触碰(52-01 语义红线)。防御式解析:overall>1 视为百分制归一(钳制 0-1)。
+    const { graph } = get()
+    if (!graph) {
+      console.warn(`[canvasStore] applySocketScored: graph 为空,忽略 ${nodeId}`)
+      return
+    }
+    const target = graph.nodes.find((n) => n.id === nodeId)
+    if (!target) {
+      console.warn(`[canvasStore] applySocketScored: 节点 ${nodeId} 不存在,忽略`)
+      return
+    }
+    if (target.kind !== 'asset') {
+      console.warn(`[canvasStore] applySocketScored: 非 asset 节点 ${nodeId},忽略`)
+      return
+    }
+    if (aiScore == null || typeof aiScore !== 'object' || Array.isArray(aiScore)) {
+      console.warn(`[canvasStore] applySocketScored: aiScore 非对象,忽略 ${nodeId}`)
+      return
+    }
+    const bag = aiScore as { overall?: unknown; dimensions?: unknown }
+    const rawOverall = typeof bag.overall === 'number' ? bag.overall : 0
+    const overall = normalizeScore(rawOverall, rawOverall > 1 ? 'percent' : 'unit')
+    const dimsIn = (bag.dimensions != null && typeof bag.dimensions === 'object' && !Array.isArray(bag.dimensions)
+      ? bag.dimensions
+      : {}) as Record<string, unknown>
+    const dimensions: Record<string, number> = {}
+    for (const [k, v] of Object.entries(dimsIn)) {
+      if (typeof v === 'number' && Number.isFinite(v)) {
+        const n = normalizeScore(v, v > 1 ? 'percent' : 'unit')
+        dimensions[k] = n
+      }
+    }
+    get().applyGraphTransform((g) => ({
+      ...g,
+      nodes: g.nodes.map((n) =>
+        n.id === nodeId && n.kind === 'asset'
+          ? { ...n, aiScore: { overall, ...(Object.keys(dimensions).length > 0 ? { dimensions } : {}) } }
           : n,
       ),
     }))
