@@ -710,7 +710,22 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     }
     get().applyGraphTransform((g) => ({
       ...g,
-      nodes: g.nodes.map((n) => (n.id === nodeId ? { ...n, state: normalized } : n)),
+      nodes: g.nodes.map((n) =>
+        n.id === nodeId
+          ? {
+              ...n,
+              state: normalized,
+              // REGEN-03（52-01）：running/success 到达 = 重跑已（或正在）产出新事实，
+              // 自动清除该资产节点 stale——与 state 回写同路径，无需新 action。
+              // error/failed（归一后 'failed'）**保留** stale：重跑没产出新事实，
+              // 脏标记不该消（CONTEXT 只授权 running/success，此为 plan 裁定）。
+              // kind === 'asset' 守卫：事件节点无 stale 字段，evt_ id 回写不受影响。
+              ...(n.kind === 'asset' && (normalized === 'running' || normalized === 'success')
+                ? { stale: null }
+                : {}),
+            }
+          : n,
+      ),
     }))
     applyProgressEphemeral()
   },

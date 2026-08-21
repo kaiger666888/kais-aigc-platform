@@ -233,6 +233,76 @@ describe('applySocketNodeState — socket node:state 回写', () => {
 
 // ─── a：applySocketNodePreview ──────────────────────────────
 
+describe('applySocketNodeState — stale 自动清除（52-01 REGEN-03）', () => {
+  const STALE = { since: 999, triggerAssetId: 'a', triggerEventId: 'e1' }
+
+  function staleGraph(): FlowGraphV3 {
+    return {
+      ...fixtureGraph(),
+      nodes: [storyboardNode('node-stale', { stale: { ...STALE } })],
+      links: [],
+    }
+  }
+
+  it("success → stale 清除", () => {
+    resetStore()
+    useCanvasStore.getState().setGraph(staleGraph())
+
+    useCanvasStore.getState().applySocketNodeState('node-stale', 'success')
+
+    expect(assetOf(useCanvasStore.getState().graph, 'node-stale')?.stale).toBeNull()
+  })
+
+  it("running → stale 清除", () => {
+    resetStore()
+    useCanvasStore.getState().setGraph(staleGraph())
+
+    useCanvasStore.getState().applySocketNodeState('node-stale', 'running')
+
+    expect(assetOf(useCanvasStore.getState().graph, 'node-stale')?.stale).toBeNull()
+  })
+
+  it("failed → stale 保留（重跑没产出新事实，脏标记不该消）", () => {
+    resetStore()
+    useCanvasStore.getState().setGraph(staleGraph())
+
+    useCanvasStore.getState().applySocketNodeState('node-stale', 'failed')
+
+    expect(assetOf(useCanvasStore.getState().graph, 'node-stale')?.stale).toEqual(STALE)
+    // error 归一为 failed，同样保留
+    useCanvasStore.getState().applySocketNodeState('node-stale', 'error')
+    expect(assetOf(useCanvasStore.getState().graph, 'node-stale')?.stale).toEqual(STALE)
+  })
+
+  it('transform-survival：stale 清除后无关 transform 不复活 stale', () => {
+    resetStore()
+    useCanvasStore.getState().setGraph(staleGraph())
+    useCanvasStore.getState().applySocketNodeState('node-stale', 'success')
+    expect(assetOf(useCanvasStore.getState().graph, 'node-stale')?.stale).toBeNull()
+
+    useCanvasStore.getState().applyGraphTransform((g) => ({
+      ...g,
+      meta: { ...g.meta, updatedAt: Date.now() },
+    }))
+
+    expect(assetOf(useCanvasStore.getState().graph, 'node-stale')?.stale).toBeNull()
+  })
+
+  it("kind==='asset' 守卫：evt_ 事件节点 state 回写不受影响（无 stale 概念，不 throw）", () => {
+    resetStore()
+    useCanvasStore.getState().setGraph(fixtureGraph())
+
+    expect(() =>
+      useCanvasStore.getState().applySocketNodeState('evt_sb', 'success'),
+    ).not.toThrow()
+    const evt = useCanvasStore.getState().graph?.nodes.find((n) => n.id === 'evt_sb')
+    expect(evt?.state).toBe('success')
+    expect(evt).not.toHaveProperty('stale')
+  })
+})
+
+// ─── a：applySocketNodePreview ──────────────────────────────
+
 describe('applySocketNodePreview — socket node:preview 回写', () => {
   it('thumbnailUrl 写 asset.media.thumbnail + 派生 data.thumbnailUrl 同步', () => {
     resetStore()
