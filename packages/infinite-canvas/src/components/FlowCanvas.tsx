@@ -30,8 +30,8 @@ import ProjectSelector from './ProjectSelector'
 import NodeDetailPanel from './panel/NodeDetailPanel'
 import IterationPanel from './IterationPanel'
 import LoadingOverlay from './LoadingOverlay'
-// C/D 层接线（SPEC-step5 C/D）：变体候选列表、事件参数 popover、溯源高亮、C 角标/牌堆注册。
-import VariantPicker from './variants/VariantPicker'
+// C/D 层接线（SPEC-step5 C/D）：变体墙(53-02 取代 Picker 主体,store 协议保留)、事件参数 popover、溯源高亮、C 角标/牌堆注册。
+import VariantWall from './variants/VariantWall'
 import EventParamsPopover from './eventParams/EventParamsPopover'
 import { useVariantPickerStore } from './variants/variantPickerStore'
 import './variants/registerCInteractions'
@@ -726,7 +726,7 @@ function CanvasInner() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
-      if (useVariantPickerStore.getState().open || activeChip) return
+      if (useVariantPickerStore.getState().open || useVariantPickerStore.getState().wall || activeChip) return
       if (detailNode) { setDetailNode(null); return }
       setSelectedNode(null)
     }
@@ -1005,7 +1005,7 @@ function CanvasInner() {
         <EventParamsPopover anchor={activeChip} onClose={() => setActiveChip(null)} />
         <ShotTree />
         <NodeDetailPanel node={detailNode} onClose={() => setDetailNode(null)} />
-        <VariantPicker />
+        <VariantWall />
         {iteration.panelOpen && <IterationPanel />}
         </>
         )}
