@@ -9,7 +9,7 @@
 
 - [x] **Phase 51: 写路径地基统一 (Canonical Write Path + Coordination Guard)** — 保存/审核/删除/socket 回写全部切到 V3 canonical graph + ~2500 行死代码清理 + khs2 v2.4 横切冲突约束落地 (completed 2026-08-21)
 - [ ] **Phase 52: 生成-迭代闭环 (Prompt Edit → Regenerate Loop)** — 详情面板 prompt 编辑一键重生成 + 换 seed 重跑 + stale 下游重跑链 + 面板交互优化
-- [ ] **Phase 53: 候选变体契约与选片 (Variant Contract + Picker Upgrade)** — field-map 补 candidate/variant/winner 字段 + VariantPicker 升级 + 选优回写 manifest + 失败镜头批量操作
+- [x] **Phase 53: 候选变体契约与选片 (Variant Contract + Picker Upgrade)** — field-map 补 candidate/variant/winner 字段 + VariantPicker 升级 + 选优回写 manifest + 失败镜头批量操作 (completed 2026-08-21)
 - [ ] **Phase 54: Gate 中心 (Gate Center + Blocking-State UX)** — 16 gate 状态接入 + 画布阻塞态一等呈现 + approve/reject/waive 画布内闭环
 - [ ] **Phase 55: 画布导航与规模 (Navigation & Scale)** — zone 表对齐 22 phase + 分镜层级浏览 + 搜索导航器 + 落点修正 + LOD 可读 + 分支 UI 接通
 - [ ] **Phase 56: 创作环节可视化 (Creative Visualization)** — 审核分数雷达图/角标 + 角色场景组视图 + 配音审核工作台
@@ -89,7 +89,7 @@ Plans:
 **Wave 4** *(blocked on Wave 3 completion)*
 
 - [x] 53-06-PLAN.md — 入口改造(adapter 组成员通道/AssetCardNode 徽章)+ 资产中心「去画布选片」+ VariantPicker 删除 (VAR-02/03)
-- [ ] 53-07-PLAN.md — G15 操作桥 + g15-ops 端点 + 分诊面板 + S4/S5 契约门收口 (VAR-04)
+- [x] 53-07-PLAN.md — G15 操作桥 + g15-ops 端点 + 分诊面板 + S4/S5 契约门收口 (VAR-04)
 
 ### Phase 54: Gate 中心 (Gate Center + Blocking-State UX)
 
