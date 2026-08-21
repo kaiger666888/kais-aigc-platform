@@ -41,7 +41,7 @@ import { useTraceHighlight } from '../hooks/useTraceHighlight'
 import type { NodeState } from '../types/canvas'
 import { useCanvasStore, type ViewMode } from '../store/canvasStore'
 import { ToastContainer } from '../hooks/useToast'
-import { canvasToFlowGraph } from '../utils/flowDataMapper'
+import { serializeGraphToV2 } from '../v3/serialize'
 import { getLayoutedElements } from '../utils/autoLayout'
 import { loadCanvasGraph, saveCanvasGraph, convertProjectData, fetchSkillNodeTypes, orchestrateCanvas, fetchCanvasHealth } from '../services/canvasApi'
 import { useCanvasSocket } from '../hooks/useCanvasSocket'
@@ -514,17 +514,24 @@ function CanvasInner() {
 
   const handleSave = useCallback(async () => {
     if (!projectId || !episodesId) return
+    const { graph: canonicalGraph, rawDataByNodeId } = useCanvasStore.getState()
+    if (!canonicalGraph) {
+      // 加载完成前瞬态 / fixture 模式无 canonical graph（地雷 #6）——toast 提示并早退
+      showToast?.('画布尚未加载完成,无法保存', 'warning')
+      return
+    }
     setSaving(true)
     try {
       const viewport = reactFlow.getViewport()
-      const graph = canvasToFlowGraph(nodes as any, edges as any, viewport)
+      // WRITE-01：canonical V3 → FlowGraphV2 正向序列化器 → save-v2 统一保存通道
+      const graph = serializeGraphToV2(canonicalGraph, rawDataByNodeId, viewport)
       await saveCanvasGraph(projectId, episodesId, graph)
-    } catch (err) {
-      console.error('保存失败:', err)
+    } catch (err: any) {
+      showToast?.(err?.message || '保存失败', 'error')
     } finally {
       setSaving(false)
     }
-  }, [nodes, edges, projectId, episodesId, reactFlow, setSaving])
+  }, [projectId, episodesId, reactFlow, setSaving, showToast])
 
   // 自动整理布局：V3 = 包内布局引擎全量重布（position 是计算缓存，宪法 §7；
   // 【优化口】增量只重布脏子图见 useLayout.ts 注释）；非 graph 兜底路径保留 dagre。
@@ -551,10 +558,15 @@ function CanvasInner() {
   const handleOrchestrate = useCallback(async () => {
     if (!projectId || !episodesId) return
     if (orchestration.status === 'running') return
+    const { graph: canonicalGraph, rawDataByNodeId } = useCanvasStore.getState()
+    if (!canonicalGraph) {
+      showToast('画布尚未加载完成,无法编排', 'warning')
+      return
+    }
     try {
-      // 先保存当前画布,确保编排器读到最新数据
+      // 先保存当前画布,确保编排器读到最新数据（WRITE-01：同一 serializeGraphToV2 入口）
       const viewport = reactFlow.getViewport()
-      const graph = canvasToFlowGraph(nodes as any, edges as any, viewport)
+      const graph = serializeGraphToV2(canonicalGraph, rawDataByNodeId, viewport)
       await saveCanvasGraph(projectId, episodesId, graph)
       // 触发编排 (mode='full',不传 nodeIds)
       await orchestrateCanvas(projectId, episodesId)
@@ -562,7 +574,7 @@ function CanvasInner() {
     } catch (err: any) {
       showToast(err.message || '一键成片触发失败', 'error')
     }
-  }, [projectId, episodesId, orchestration.status, nodes, edges, reactFlow, showToast])
+  }, [projectId, episodesId, orchestration.status, reactFlow, showToast])
 
   // Iteration Engine — 切换 panel 显隐 (诊断由 panel 内的「开始诊断」按钮触发)
   const handleIterate = useCallback(() => {

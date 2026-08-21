@@ -1,4 +1,5 @@
 import type { FlowGraph, FlowBranch, LegacyFlowData, FlowGraphNode } from '../types/canvas'
+import type { FlowGraphV2WireShape } from '../v3/serialize'
 
 const API_BASE = '/api'
 const TIMEOUT_MS = 15_000
@@ -318,14 +319,20 @@ export async function updateAsset(
 
 // ─── 画布图（FlowGraph） ──────────────────────────────────
 
-/** 保存画布图（FlowGraph 格式） */
+/**
+ * 保存画布图（V2 格式，走 save-v2 端点）。
+ *
+ * Phase 51 WRITE-01：一次性切换到既有 `/api/canvas/v2/save-v2`（zod 校验 +
+ * 结构化参数强制 + graph:saved 广播），v1 `/canvas/save` 路由已删除。
+ * graph 参数为 serializeGraphToV2 的输出形状（canonical V3 → FlowGraphV2 wire）。
+ */
 export async function saveCanvasGraph(
   projectId: number,
   episodesId: number,
-  graph: FlowGraph,
+  graph: FlowGraphV2WireShape,
   cancelToken?: CancelToken,
 ): Promise<void> {
-  await apiCall<void>('/canvas/save', { projectId, episodesId, graph }, { cancelToken })
+  await apiCall<void>('/canvas/v2/save-v2', { projectId, episodesId, graph }, { cancelToken })
 }
 
 /**

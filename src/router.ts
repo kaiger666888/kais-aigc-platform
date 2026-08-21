@@ -12,7 +12,6 @@ import route8 from "./routes/canvas/projects";
 import route9 from "./routes/canvas/review/approve";
 import route10 from "./routes/canvas/review/reject";
 import route11 from "./routes/canvas/review/score";
-import route12 from "./routes/canvas/save";
 import route13 from "./routes/canvas/storyboardPreview";
 import route14 from "./routes/canvas/v2/branches";
 import route15 from "./routes/canvas/v2/events";
@@ -185,7 +184,6 @@ export default async (app: Express) => {
   app.use("/api/canvas/review/approve", route9);
   app.use("/api/canvas/review/reject", route10);
   app.use("/api/canvas/review/score", route11);
-  app.use("/api/canvas/save", route12);
   app.use("/api/canvas/storyboardPreview", route13);
   app.use("/api/canvas/v2/branches", route14);
   app.use("/api/canvas/v2/events", route15);

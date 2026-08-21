@@ -4,7 +4,7 @@ import { executeNode, approveNode, rejectNode, requestNodeScore, orchestrateCanv
 import { submitScail2Replace, submitScail2Transfer, pollScail2UntilDone, fetchBlobFromUrl } from '../services/scail2Api'
 import { useCanvasStore } from '../store/canvasStore'
 import { fetchProjectAssets } from './assetManager/useRealAssets'
-import { canvasToFlowGraph } from '../utils/flowDataMapper'
+import { serializeGraphToV2 } from '../v3/serialize'
 import { theme } from '../theme/catppuccin'
 import { LAYOUT } from '../constants'
 
@@ -132,8 +132,10 @@ export default function CanvasContextMenu({
       return
     }
     try {
-      // 保存当前画布
-      await saveCanvasGraph(projectId, episodesId, canvasToFlowGraph(nodes as any, edges as any))
+      // 保存当前画布（WRITE-01：canonical V3 → serializeGraphToV2 → save-v2 统一通道）
+      const { graph: canonicalGraph, rawDataByNodeId } = useCanvasStore.getState()
+      if (!canonicalGraph) throw new Error('画布尚未加载完成,无法保存')
+      await saveCanvasGraph(projectId, episodesId, serializeGraphToV2(canonicalGraph, rawDataByNodeId))
       // 触发批量执行 (mode='batch')
       await orchestrateCanvas(projectId, episodesId, ids)
       showToast(`批量执行已触发 (${ids.length} 个节点)`, 'success')
