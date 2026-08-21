@@ -12,8 +12,22 @@
  *  e. 非法 meta key 忽略不 throw；graph === null 时三 action 均静默早退不 throw。
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { AssetNodeV3, FlowGraphV3 } from '@kais/flowgraph-v3'
-import { useCanvasStore } from '../canvasStore'
+import type { Mock } from 'vitest'
+import type { AssetNodeV3, EventNodeV3, FlowGraphV3 } from '@kais/flowgraph-v3'
+
+// persistEventParams 断言需要：canvasApi 整模块 mock（零真实网络，deleteNode.test.ts 同款手法）；
+// serializeGraphToV2 走真实实现（payload 形状是被测对象）。
+vi.mock('../../services/canvasApi', () => ({
+  approveNode: vi.fn(),
+  rejectNode: vi.fn(),
+  selectVariantWinner: vi.fn(),
+  saveCanvasGraph: vi.fn(),
+}))
+
+import { useCanvasStore, type ToastItem } from '../canvasStore'
+import { saveCanvasGraph } from '../../services/canvasApi'
+
+const apiSaveCanvasGraph = vi.mocked(saveCanvasGraph)
 
 // ─── fixture 工厂 ───────────────────────────────────────────
 
@@ -43,11 +57,35 @@ function storyboardNode(id: string, overrides: Partial<AssetNodeV3> = {}): Asset
   }
 }
 
+function eventNode(id: string, overrides: Partial<EventNodeV3> = {}): EventNodeV3 {
+  return {
+    id,
+    kind: 'event',
+    branchId: 'br_main',
+    phaseIndex: 3,
+    phaseName: 'storyboard',
+    position: { x: 0, y: 0 },
+    size: { width: 240, height: 160 },
+    state: 'success',
+    op: 'wan22_i2v',
+    params: { prompt: '原始配方 prompt', seed: 42 },
+    executor: 'gpu0',
+    ...overrides,
+  }
+}
+
 function fixtureGraph(): FlowGraphV3 {
   return {
     meta: { version: '3', projectId: 7, episodesId: 101, createdAt: 1, updatedAt: 1 },
-    nodes: [storyboardNode('node-sb')],
-    links: [],
+    nodes: [
+      storyboardNode('node-sb'),
+      eventNode('evt_sb'),
+      storyboardNode('node-sb2'),
+    ],
+    links: [
+      { id: 'l1', source: 'node-sb', target: 'evt_sb', branchId: 'br_main', role: 'keyframe' },
+      { id: 'l2', source: 'evt_sb', target: 'node-sb2', branchId: 'br_main', role: 'output' },
+    ],
     branches: [{ id: 'br_main', name: '主线' }],
     variantGroups: [],
   }
@@ -205,6 +243,131 @@ describe('applySocketNodePreview — socket node:preview 回写', () => {
     expect(assetOf(useCanvasStore.getState().graph, 'node-sb')?.media.thumbnail).toBe('http://cdn/thumb.png')
     const derived = useCanvasStore.getState().nodes.find((n) => n.id === 'node-sb')
     expect(derived?.data?.thumbnailUrl).toBe('http://cdn/thumb.png')
+  })
+})
+
+// ─── Phase 52-01：updateEventParams / persistEventParams ─────
+
+function eventOf(graph: FlowGraphV3 | null, id: string): EventNodeV3 | undefined {
+  const n = graph?.nodes.find((x) => x.id === id)
+  return n && n.kind === 'event' ? n : undefined
+}
+
+function paramsOf(id: string): Record<string, unknown> {
+  return (eventOf(useCanvasStore.getState().graph, id)?.params ?? {}) as Record<string, unknown>
+}
+
+describe('updateEventParams — 事件配方 canonical 写入（52-01 REGEN-01）', () => {
+  it('写入：event 节点 params.prompt 更新，原 seed 保留', () => {
+    resetStore()
+    useCanvasStore.getState().setGraph(fixtureGraph())
+
+    useCanvasStore.getState().updateEventParams('evt_sb', { prompt: '改写后的 prompt' })
+
+    expect(paramsOf('evt_sb')).toMatchObject({ prompt: '改写后的 prompt', seed: 42 })
+  })
+
+  it('transform-survival：写入后触发无关 applyGraphTransform，值仍在', () => {
+    resetStore()
+    useCanvasStore.getState().setGraph(fixtureGraph())
+    useCanvasStore.getState().updateEventParams('evt_sb', { prompt: '改写后的 prompt' })
+
+    // 无关 transform（恒等改 updatedAt，模拟重建派生缓存的变换）
+    useCanvasStore.getState().applyGraphTransform((g) => ({
+      ...g,
+      meta: { ...g.meta, updatedAt: Date.now() },
+    }))
+
+    expect(paramsOf('evt_sb').prompt).toBe('改写后的 prompt')
+  })
+
+  it("空值语义：patch '' → 键被删除（undefined/null 同理）", () => {
+    resetStore()
+    useCanvasStore.getState().setGraph(fixtureGraph())
+
+    useCanvasStore.getState().updateEventParams('evt_sb', { prompt: '' })
+    expect('prompt' in paramsOf('evt_sb')).toBe(false)
+
+    useCanvasStore.getState().updateEventParams('evt_sb', { seed: undefined })
+    expect('seed' in paramsOf('evt_sb')).toBe(false)
+  })
+
+  it('守卫：graph null / 节点不存在 / kind===\'asset\' 目标 → console.warn 且不写', () => {
+    // graph null
+    resetStore()
+    expect(() =>
+      useCanvasStore.getState().updateEventParams('evt_sb', { prompt: 'x' }),
+    ).not.toThrow()
+    expect(console.warn).toHaveBeenCalled()
+
+    // 节点不存在
+    resetStore()
+    useCanvasStore.getState().setGraph(fixtureGraph())
+    const before = useCanvasStore.getState().graph
+    useCanvasStore.getState().updateEventParams('ghost', { prompt: 'x' })
+    expect(useCanvasStore.getState().graph).toBe(before)
+
+    // kind==='asset' 目标（T-52-01-01 防误传资产 id）
+    useCanvasStore.getState().updateEventParams('node-sb', { prompt: 'x' })
+    expect(useCanvasStore.getState().graph).toBe(before)
+    expect(assetOf(useCanvasStore.getState().graph, 'node-sb')).not.toHaveProperty('params')
+  })
+})
+
+describe('persistEventParams — 持久化 + 失败回滚（52-01，deleteNode 店级范式）', () => {
+  let toastSpy: Mock
+
+  beforeEach(() => {
+    toastSpy = vi.fn()
+    apiSaveCanvasGraph.mockReset()
+    resetStore({
+      projectId: 7,
+      episodesId: 101,
+      rawDataByNodeId: null,
+      toasts: [],
+      showToast: toastSpy as unknown as (message: string, type?: ToastItem['type']) => void,
+    })
+    useCanvasStore.getState().setGraph(fixtureGraph())
+    apiSaveCanvasGraph.mockResolvedValue(undefined)
+    // 兜底证明零真实网络
+    vi.stubGlobal('fetch', vi.fn(() => { throw new Error('真实 fetch 不应被调用（canvasApi 应已 mock）') }))
+  })
+
+  it('成功路径：乐观写入 canonical + saveCanvasGraph 经 serializeGraphToV2 持久化', async () => {
+    await useCanvasStore.getState().persistEventParams('evt_sb', { prompt: '改写后的 prompt' })
+
+    expect(paramsOf('evt_sb').prompt).toBe('改写后的 prompt')
+    expect(apiSaveCanvasGraph).toHaveBeenCalledTimes(1)
+    const [pid, eid, payload] = apiSaveCanvasGraph.mock.calls[0]
+    expect(pid).toBe(7)
+    expect(eid).toBe(101)
+    // graph 参数经 serializeGraphToV2 → V2 wire 形状（event 不落盘，资产节点在）
+    expect((payload as { meta: { version: string } }).meta.version).toBe('2')
+    const wireNodes = (payload as { nodes: Array<{ id: string }> }).nodes
+    expect(wireNodes.some((n) => n.id === 'node-sb2')).toBe(true)
+    expect(wireNodes.some((n) => n.id === 'evt_sb')).toBe(false)
+    expect(toastSpy).not.toHaveBeenCalledWith(expect.stringContaining('失败'), 'error')
+  })
+
+  it('失败路径：mock reject → prevParams 外科式回滚 + error toast（T-52-01-02）', async () => {
+    const prevPrompt = paramsOf('evt_sb').prompt
+    apiSaveCanvasGraph.mockRejectedValue(new Error('network down'))
+
+    await useCanvasStore.getState().persistEventParams('evt_sb', { prompt: '改写后的 prompt' })
+
+    expect(paramsOf('evt_sb').prompt).toBe(prevPrompt)
+    expect(paramsOf('evt_sb').seed).toBe(42)
+    expect(toastSpy).toHaveBeenCalledWith(expect.stringContaining('配方保存失败已回滚'), 'error')
+  })
+
+  it('缺少项目上下文：toast 早退，不写不存（deleteNode L742-745 范式）', async () => {
+    useCanvasStore.setState({ projectId: null, episodesId: null })
+
+    await useCanvasStore.getState().persistEventParams('evt_sb', { prompt: '改写后的 prompt' })
+
+    expect(paramsOf('evt_sb').prompt).toBe('原始配方 prompt')
+    expect(apiSaveCanvasGraph).not.toHaveBeenCalled()
+    expect(toastSpy).toHaveBeenCalledWith('缺少项目上下文', 'warning')
   })
 })
 

@@ -8,6 +8,7 @@ import {
   type VariantGroupV3,
   type ReviewStatus as ReviewStatusV3,
   type AssetNodeV3,
+  type GenerationParams,
   type NodeState,
 } from '@kais/flowgraph-v3'
 import type { SkillNodeTypeDecl, IterationPlan, IterationResult } from '../services/canvasApi'
@@ -138,6 +139,14 @@ interface CanvasState {
   applySocketNodeState: (nodeId: string, state: string, progress?: number) => void
   /** socket node:preview：thumbnailUrl 写 asset.media.thumbnail。 */
   applySocketNodePreview: (nodeId: string, thumbnailUrl: string) => void
+  /** Phase 52-01（REGEN-01）：事件配方 canonical 写入同步版——patch 合并进
+   *  EventNodeV3.params（P4 配方唯一合法存放处），空值(undefined/null/'')= 删字段；
+   *  不持久化（52-04 换 seed 回写用，持久化等下一次保存）。 */
+  updateEventParams: (eventId: string, patch: Partial<GenerationParams>) => void
+  /** Phase 52-01（REGEN-01）：事件配方写入 + save-v2 持久化 + 失败外科式回滚
+   *  prevParams + error toast（deleteNode 店级范式；52-03 PromptSection 保存按钮用）。
+   *  写入方统一在 store——组件不拼 serialize+api（NodeDetailPanel Props 契约不变）。 */
+  persistEventParams: (eventId: string, patch: Partial<GenerationParams>) => Promise<void>
 
   // 审核操作
   approveNode: (nodeId: string) => Promise<void>
@@ -599,6 +608,78 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
         return { ...n, meta: meta as AssetNodeV3['meta'] }
       }),
     }))
+  },
+  // ─── Phase 52-01：事件配方 canonical 写入（REGEN-01，P4 真值唯一合法存放处）───
+  // 范式照 updateAssetMeta：守卫早退（graph null/节点不存在/kind!=='event' →
+  // console.warn 不 throw）→ applyGraphTransform 纯函数映射合并 params。
+  // **不引 key 白名单**：GenerationParams 开放 catchall（types.ts §9 + zod catchall），
+  // op 级扩展字段（variantRecipes/sourcePath…）任意合法。
+  updateEventParams: (eventId, patch) => {
+    const { graph } = get()
+    if (!graph) {
+      console.warn(`[canvasStore] updateEventParams: graph 为空，忽略 ${eventId}`)
+      return
+    }
+    const target = graph.nodes.find((n) => n.id === eventId)
+    if (!target) {
+      console.warn(`[canvasStore] updateEventParams: 事件节点 ${eventId} 不存在，忽略`)
+      return
+    }
+    // T-52-01-01：防误传资产 id——配方只能写事件节点
+    if (target.kind !== 'event') {
+      console.warn(`[canvasStore] updateEventParams: ${eventId} 非事件节点（kind=${target.kind}），忽略`)
+      return
+    }
+    get().applyGraphTransform((g) => ({
+      ...g,
+      nodes: g.nodes.map((n) => {
+        if (n.id !== eventId || n.kind !== 'event') return n
+        const params: Record<string, unknown> = { ...n.params }
+        for (const [key, value] of Object.entries(patch)) {
+          // 空值 = 删除字段（与 updateAssetMeta「未设置」清空语义对齐）
+          if (value === undefined || value === null || value === '') delete params[key]
+          else params[key] = value
+        }
+        return { ...n, params: params as GenerationParams }
+      }),
+    }))
+  },
+  persistEventParams: async (eventId, patch) => {
+    const { projectId, episodesId, graph, rawDataByNodeId, showToast } = get()
+    if (!graph) {
+      console.warn(`[canvasStore] persistEventParams: graph 为空，忽略 ${eventId}`)
+      return
+    }
+    const target = graph.nodes.find((n) => n.id === eventId)
+    if (!target || target.kind !== 'event') {
+      console.warn(`[canvasStore] persistEventParams: 事件节点 ${eventId} 不存在，忽略`)
+      return
+    }
+    if (!projectId || !episodesId) {
+      showToast('缺少项目上下文', 'warning')
+      return
+    }
+
+    // 乐观写 → save-v2 持久化 → 失败外科式回滚 prevParams（deleteNode 店级范式，
+    // T-52-01-02 防半写状态）。prevParams 是 canonical 图内不可变对象引用，安全。
+    const prevParams = target.params
+    get().updateEventParams(eventId, patch)
+    try {
+      const cur = get().graph
+      if (!cur) throw new Error('canonical graph 已清空，无法保存')
+      await saveCanvasGraph(projectId, episodesId, serializeGraphToV2(cur, rawDataByNodeId))
+    } catch (err) {
+      if (get().graph) {
+        // 外科式回滚：只还原该事件 params，保留 await 期间的并发 canonical 写入
+        get().applyGraphTransform((g) => ({
+          ...g,
+          nodes: g.nodes.map((n) =>
+            n.id === eventId && n.kind === 'event' ? { ...n, params: prevParams } : n,
+          ),
+        }))
+      }
+      showToast(`配方保存失败已回滚: ${(err as Error).message}`, 'error')
+    }
   },
   applySocketNodeState: (nodeId, state, progress) => {
     // progress：V3 strict 判别联合无 progress 槽位，瞬态运行时量不持久化——
