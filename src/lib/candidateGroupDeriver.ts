@@ -111,9 +111,13 @@ export function deriveCandidateGroups(nodes: DeriveNode[]): DeriveResult {
   // ── 通道 B:命名(_v{N} + canonical 兄弟在集内)──
   // 先建 filePath 索引供 canonical 兄弟查找
   const filePathIndex = new Set<string>();
+  const filePathOwner = new Map<string, string>();
   for (const node of nodes) {
     const fp = typeof node.data?.filePath === "string" ? (node.data.filePath as string) : null;
-    if (fp) filePathIndex.add(fp);
+    if (fp) {
+      filePathIndex.add(fp);
+      if (!filePathOwner.has(fp)) filePathOwner.set(fp, node.id);
+    }
   }
   for (const node of nodes) {
     if (channelAclaimed.has(node.id)) continue;
@@ -124,8 +128,13 @@ export function deriveCandidateGroups(nodes: DeriveNode[]): DeriveResult {
     const { dir, ext } = splitPath(fp);
     const canonical = dir.length > 0 ? `${dir}/${parsed.base}${ext}` : `${parsed.base}${ext}`;
     if (!filePathIndex.has(canonical)) continue; // canonical 兄弟不在节点集 → 不成组
-    const groupKey = `name:${dir}/${parsed.base}`;
+    // /oss/ 是 kap 媒体根——命名通道 groupKey 相对媒体根(Phase 48 同构)
+    const relDir = dir.startsWith("/oss/") ? dir.slice("/oss/".length) : dir;
+    const groupKey = `name:${relDir}/${parsed.base}`;
     claim(groupKey, node.id, "p03_nbest", false); // 命名通道无 selected 信号
+    // canonical 兄弟本身也是组成员(无后缀原版 = Phase 48 命名通道默认成员)
+    const canonicalOwner = filePathOwner.get(canonical);
+    if (canonicalOwner) claim(groupKey, canonicalOwner, "p03_nbest", false);
   }
 
   // ── 共同规则 → 输出 ──

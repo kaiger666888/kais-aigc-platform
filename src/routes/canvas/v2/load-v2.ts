@@ -9,6 +9,11 @@ import {
   listNodes,
   listLinks,
 } from "@/lib/canvasRelationalStore";
+import {
+  deriveCandidateGroups,
+  materializeCandidateGroups,
+  mergeDerivedGroups,
+} from "@/lib/candidateGroupDeriver";
 
 const router = express.Router();
 
@@ -83,6 +88,26 @@ export default router.post(
           links: changedLinks.map(rowToLink),
           lastEventId: meta?.lastEventId ?? 0,
         }));
+      }
+
+      // Full load only (since === undefined): best-effort candidate-group
+      // materialization (53-03). kmc candidate nodes arrive group-less; derive
+      // cand: groups + persist + merge into the response. Never fails the load.
+      try {
+        const derived = deriveCandidateGroups(
+          graph.nodes.map((n) => ({
+            id: n.id,
+            type: n.type,
+            data: (n.data ?? {}) as Record<string, unknown>,
+          })),
+        );
+        if (derived.groups.length > 0) {
+          const { db } = await import("@/utils/db");
+          await materializeCandidateGroups(db, { projectId, episodesId }, derived.groups);
+          graph.variantGroups = mergeDerivedGroups(graph.variantGroups ?? [], derived) as typeof graph.variantGroups;
+        }
+      } catch (deriveErr) {
+        console.warn("[load-v2] 候选组推导失败(不影响加载):", deriveErr);
       }
 
       return res.status(200).send(success(graph));
