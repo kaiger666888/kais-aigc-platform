@@ -186,7 +186,7 @@ Plans:
   3. p13 成片交付页面可播放 master.mp4、展示交付清单，并提供 G8 终审界面(通过/打回操作回写 kmc gate 状态)。
   4. movie-v1.manifest 的 phase_taxonomy 从 12 阶段重对齐为 22 phase/16 gate，review 点标注真实 gate ID；registry 加载新 manifest 后 phase 查询与画布 zone 词汇一致(drift 断言通过)。
 
-**Plans**: TBD (via /gsd:plan-phase)
+**Plans**: 8 plans (Wave1×3 并行:评估文档/门户壳+navbar+首页/taxonomy 对齐 → Wave2×3 并行:画布深链+topbar 嵌 nav/静态岛注入/交付页版面 → Wave3: G8 终审操作面 → Wave4: 聚合验证 verify-phase-57)
 
 ---
 
