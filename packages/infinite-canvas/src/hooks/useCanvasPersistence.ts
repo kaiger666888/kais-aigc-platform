@@ -20,6 +20,8 @@ export interface PersistedCanvasState {
   selectedNodeId?: string | null
   expandedStacks?: string[]
   expandedTexts?: string[]
+  /** 55-05 (NAV-05):泳道缩放记忆(phaseIndex → 记忆 zoom;列头聚焦恢复,下限 0.6)。 */
+  laneZoom?: Record<number, number>
 }
 
 /** localStorage key（P17：含 projectId+episodesId，集间隔离）。 */

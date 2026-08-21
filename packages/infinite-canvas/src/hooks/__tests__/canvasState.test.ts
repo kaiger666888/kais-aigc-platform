@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { lodLevelForZoom, resolveLodLevel } from '../useLod'
+import { lodLevelForZoom, resolveLodLevel, LOD_L0_MAX, LOD_L1_MAX, LOD_HYSTERESIS, FITVIEW_MIN_ZOOM } from '../useLod'
 import { canvasStateKey, loadCanvasState, saveCanvasState, type StorageLike } from '../useCanvasPersistence'
 
 // ─── LOD 三级 + ±0.03 迟滞（tokens --cv-lod-*；B5） ───
@@ -71,5 +71,42 @@ describe('useCanvasPersistence 纯函数', () => {
     saveCanvasState(canvasStateKey(7, 102), { selectedNodeId: 'b' }, s)
     expect(loadCanvasState(canvasStateKey(7, 101), s).selectedNodeId).toBe('a')
     expect(loadCanvasState(canvasStateKey(7, 102), s).selectedNodeId).toBe('b')
+  })
+})
+
+// ─── 55-05:laneZoom 泳道缩放记忆 + LOD 阈值回归守卫 ─────────────────────
+
+describe('laneZoom 泳道缩放记忆', () => {
+  it('save 后 load 回读 laneZoom[14] === 0.85', () => {
+    const storage = fakeStorage()
+    const key = canvasStateKey(7, 101)
+    saveCanvasState(key, { laneZoom: { 14: 0.85 } }, storage)
+    expect(loadCanvasState(key, storage).laneZoom?.[14]).toBe(0.85)
+  })
+
+  it('patch 语义:其他字段保留,laneZoom 键级合并', () => {
+    const storage = fakeStorage()
+    const key = canvasStateKey(7, 101)
+    saveCanvasState(key, { selectedNodeId: 'a', laneZoom: { 14: 0.85 } }, storage)
+    saveCanvasState(key, { laneZoom: { 14: 0.9, 15: 0.6 } }, storage)
+    const st = loadCanvasState(key, storage)
+    expect(st.selectedNodeId).toBe('a')
+    expect(st.laneZoom).toEqual({ 14: 0.9, 15: 0.6 })
+  })
+
+  it('无 laneZoom 的旧存档 → undefined(向后兼容)', () => {
+    const storage = fakeStorage()
+    const key = canvasStateKey(7, 101)
+    saveCanvasState(key, { selectedNodeId: 'a' }, storage)
+    expect(loadCanvasState(key, storage).laneZoom).toBeUndefined()
+  })
+})
+
+describe('LOD 阈值回归守卫(55-05 binding constraint 2/3)', () => {
+  it('四常量精确相等——任何误改立即红(useLod.ts 权威;tokens.css 镜像漂移本期不动)', () => {
+    expect(LOD_L0_MAX).toBe(0.22)
+    expect(LOD_L1_MAX).toBe(0.6)
+    expect(LOD_HYSTERESIS).toBe(0.03)
+    expect(FITVIEW_MIN_ZOOM).toBe(0.4)
   })
 })

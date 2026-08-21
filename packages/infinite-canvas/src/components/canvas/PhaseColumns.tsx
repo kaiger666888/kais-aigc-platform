@@ -11,10 +11,17 @@
  *  - 带顶阶段标签：`P0X`（分组色）+ 名称（弱色 mono），左对齐 x0，落 global 泳道空旷主区。
  * pointer-events:none 不挡交互；overflow:visible 不裁。
  */
-import { useViewport } from '@xyflow/react'
+import { useEffect, useRef } from 'react'
+import { useViewport, useReactFlow } from '@xyflow/react'
 import type { CanvasGeometry } from './laneGeometry'
 import { V3_LAYOUT } from '../../constants'
 import { v3theme } from '../../theme/catppuccin'
+import { useCanvasStore } from '../../store/canvasStore'
+import { canvasStateKey, loadCanvasState, saveCanvasState } from '../../hooks/useCanvasPersistence'
+
+/** 55-05 (NAV-05/UI-SPEC §3):列头聚焦恢复 zoom 下限 = L2 可读档。 */
+const LANE_FOCUS_ZOOM_MIN = 0.6
+const LANE_FOCUS_ZOOM_MAX = 1.5
 
 const SPAN = 100000
 
@@ -36,8 +43,50 @@ export default function PhaseColumns({
   blockingPhaseIndex?: number | null
 }): React.ReactElement | null {
   const { x, y, zoom } = useViewport()
+  const reactFlow = useReactFlow()
+  const graph = useCanvasStore((s) => s.graph)
+  const projectId = useCanvasStore((s) => s.projectId)
+  const episodesId = useCanvasStore((s) => s.episodesId)
   const { bands, phaseColumns } = geometry
   if (!phaseColumns || phaseColumns.length === 0) return null
+
+  /** 55-05:泳道缩放记忆写入——复用本组件既有 useViewport 订阅(零新增
+   * 订阅者,T-55-REG/Do-Not-Regress 1),节流 ≥1s,主导列 = cx 距视口中心最近。 */
+  const lastLaneZoomSaveRef = useRef(0)
+  useEffect(() => {
+    if (projectId == null || episodesId == null) return
+    const now = Date.now()
+    if (now - lastLaneZoomSaveRef.current < 1000) return
+    const centerFlowX = (window.innerWidth / 2 - x) / zoom
+    let dominant: { index: number; dist: number } | null = null
+    for (const col of phaseColumns) {
+      const dist = Math.abs(col.cx - centerFlowX)
+      if (dominant == null || dist < dominant.dist) dominant = { index: col.index, dist }
+    }
+    if (dominant == null) return
+    lastLaneZoomSaveRef.current = now
+    saveCanvasState(canvasStateKey(projectId, episodesId), {
+      laneZoom: { [dominant.index]: zoom },
+    })
+  }, [zoom, x, phaseColumns, projectId, episodesId])
+
+  /** 55-05:列头聚焦——fitView 列节点 + 恢复记忆 zoom(下限 0.6)。 */
+  const focusColumn = (col: { index: number }) => {
+    const ids = (graph?.nodes ?? [])
+      .filter((n) => n.phaseIndex === col.index)
+      .map((n) => n.id)
+    if (ids.length === 0) return
+    reactFlow.fitView({ nodes: ids.map((id) => ({ id })), duration: 600, maxZoom: LANE_FOCUS_ZOOM_MAX })
+    const key = projectId != null && episodesId != null ? canvasStateKey(projectId, episodesId) : null
+    const remembered = key != null ? loadCanvasState(key).laneZoom?.[col.index] : undefined
+    if (remembered == null) return
+    const restore = Math.min(Math.max(remembered, LANE_FOCUS_ZOOM_MIN), LANE_FOCUS_ZOOM_MAX)
+    // 时序假设:fitView 600ms 动画完成后保持中心、只改 zoom(取简实现)。
+    window.setTimeout(() => {
+      const v = reactFlow.getViewport()
+      reactFlow.setViewport({ ...v, zoom: restore }, { duration: 120 })
+    }, 620)
+  }
 
   const lastBand = bands[bands.length - 1]
   const canvasBottom = lastBand ? lastBand.top + lastBand.height : SPAN
@@ -46,7 +95,6 @@ export default function PhaseColumns({
   return (
     <svg
       data-testid="phase-columns"
-      aria-hidden="true"
       width={1}
       height={1}
       style={{
@@ -120,6 +168,18 @@ export default function PhaseColumns({
             >
               {label}
             </text>
+            {/* 55-05 列头热区:仅列头文字带可点(局部 pointerEvents 反转,列身/节点零遮挡) */}
+            <g
+              role="button"
+              tabIndex={0}
+              aria-label={`聚焦本阶段 ${prefix}`}
+              onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); focusColumn(col) } }}
+              onClick={() => focusColumn(col)}
+              style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+            >
+              <title>聚焦本阶段（恢复上次可读缩放）</title>
+              <rect x={col.x0 + 4} y={headerY - 8} width={Math.max(0, col.x1 - col.x0 - 8)} height={28} fill="transparent" />
+            </g>
           </g>
         )
       })}

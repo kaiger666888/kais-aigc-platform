@@ -13,6 +13,7 @@
  * 浮层式左侧栏（镜像 NodeDetailPanel 的 overlay 风格，不重构 flex）：top 起在工具栏下方，
  * 避开 top-left 工具栏 Panel；可折叠为左缘窄轨。
  */
+import { sceneNumOf, sceneColorOf } from '../../utils/sceneGrouping'
 import { useCallback, useMemo, useState } from 'react'
 import { useReactFlow } from '@xyflow/react'
 import { useCanvasStore } from '../../store/canvasStore'
@@ -36,11 +37,7 @@ interface GlobalItem {
   sub: string
 }
 
-/** shotId → 场景前缀（分隔符 [.\-_/] 前段）；无分隔符返回 null（平铺）。 */
-function scenePrefix(shotId: string): string | null {
-  const m = shotId.match(/^([^.\-_/]+)[.\-_/]/)
-  return m ? m[1] : null
-}
+// 55-05(binding 4 收口):本地场景前缀函数已删,场景口径统一 sceneNumOf(55-02 共享 util)。
 
 /** 景别展示：enum key → 中文，否则原样。 */
 function framingLabel(raw?: string): string {
@@ -87,20 +84,25 @@ function deriveTree(
   shots.sort((a, b) => natCmp(a.shotId, b.shotId))
   globals.sort((a, b) => natCmp(a.label, b.label))
 
-  // 场景分组：前缀 ≥2 种才分组，否则平铺（单场景 header 无意义）
-  const prefixOf = (s: ShotItem) => scenePrefix(s.shotId)
-  const distinct = new Set(shots.map(prefixOf).filter((p): p is string => !!p))
+  // 55-05 场景分组:sceneNumOf 数字段口径(全仓统一,binding 4)。
+  // 场景号 0(无数字段)归平铺;≥2 个不同场景号才分组(单场景 header 无意义)。
+  const sceneNumOfShot = (s: ShotItem) => {
+    const n = sceneNumOf(s.shotId)
+    return n > 0 ? n : 0
+  }
+  const distinct = new Set(shots.map(sceneNumOfShot).filter((n) => n > 0))
   let scenes: SceneGroup[] = []
   if (distinct.size >= 2) {
-    const map = new Map<string, ShotItem[]>()
+    const map = new Map<number, ShotItem[]>()
     for (const s of shots) {
-      const p = prefixOf(s) ?? '其它'
-      if (!map.has(p)) map.set(p, [])
-      map.get(p)!.push(s)
+      const n = sceneNumOfShot(s)
+      if (n === 0) continue // 无场景号 → flatShots 路径(下行为 shots 全量;保持既有单集语义由分组承担)
+      if (!map.has(n)) map.set(n, [])
+      map.get(n)!.push(s)
     }
     scenes = [...map.entries()]
-      .map(([scene, ss]) => ({ scene, shots: ss }))
-      .sort((a, b) => natCmp(a.scene, b.scene))
+      .map(([n, ss]) => ({ scene: String(n), shots: ss }))
+      .sort((a, b) => Number(a.scene) - Number(b.scene))
   }
   return { episodesId: graph.meta.episodesId, scenes, flatShots: scenes.length ? [] : shots, globals }
 }
@@ -129,6 +131,13 @@ export default function ShotTree(): React.ReactElement | null {
   }, [])
 
   // 单击 → 居中 + 选中（驱动溯源高亮，不开右面板），且若右面板已开则自动缩回
+  /** 55-05 (Q3 并列入口):场景行聚焦——fitView 该场景全部 shot 节点(jumpTo 同款时序)。 */
+  const focusScene = (sg: { scene: string; shots: Array<{ id: string }> }) => {
+    const ids = sg.shots.map((s) => s.id)
+    if (ids.length === 0) return
+    reactFlow.fitView({ nodes: ids.map((id) => ({ id })), duration: 600, maxZoom: 1.0 })
+  }
+
   const jumpTo = (nodeId: string) => {
     const rfNode = reactFlow.getNode(nodeId) ?? nodes.find((n) => n.id === nodeId)
     if (rfNode) {
@@ -219,6 +228,20 @@ export default function ShotTree(): React.ReactElement | null {
             count={sg.shots.length}
             collapsed={collapsed.has(`scene:${sg.scene}`)}
             onToggle={() => toggle(`scene:${sg.scene}`)}
+            headerExtra={
+              <span
+                title="聚焦本场景"
+                role="button"
+                tabIndex={0}
+                aria-label={`聚焦本场景 ${sg.scene}`}
+                onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter') focusScene(sg) }}
+                onClick={(e: React.MouseEvent) => { e.stopPropagation(); focusScene(sg) }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer', pointerEvents: 'auto' }}
+              >
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: sceneColorOf(Number(sg.scene)), flexShrink: 0 }} />
+                <span style={{ fontSize: 10, color: theme.text.tertiary }}>◎</span>
+              </span>
+            }
           >
             {sg.shots.map((s) => (
               <TreeItem key={s.id} active={s.id === selectedId}
@@ -279,11 +302,13 @@ export default function ShotTree(): React.ReactElement | null {
 }
 
 /** 可折叠分类头：caret 旋转指示态 + 标题 + 右侧计数。折叠时隐藏子项但保留计数。 */
-function CollapsibleSection({ title, count, collapsed, onToggle, children }: {
+function CollapsibleSection({ title, count, collapsed, onToggle, headerExtra, children }: {
   title: string
   count: number
   collapsed: boolean
   onToggle: () => void
+  /** 55-05:节头右侧附加交互区(场景聚焦入口);不参与折叠 toggle。 */
+  headerExtra?: React.ReactNode
   children: React.ReactNode
 }): React.ReactElement {
   return (
@@ -327,6 +352,7 @@ function CollapsibleSection({ title, count, collapsed, onToggle, children }: {
         </span>
         <span style={{ flex: 1 }}>{title}</span>
         <span style={{ fontFamily: 'var(--cv-font-mono, monospace)', fontSize: 9.5, fontWeight: 500, opacity: 0.7 }}>{count}</span>
+      {headerExtra}
       </button>
       {!collapsed && <div>{children}</div>}
     </div>
