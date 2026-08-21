@@ -406,3 +406,25 @@ export function UiIcon({
       )
   }
 }
+
+// ─── 56-03:眼/耳判官 glyph(线构,stroke=currentColor,verdict 角标内嵌) ──
+
+export function EyeIcon({ size = 14, color }: { size?: number; color?: string }): React.ReactElement {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true"
+      style={color != null ? { color } : undefined}>
+      <path d="M1.5 8C2.8 5.4 5 4 8 4s5.2 1.4 6.5 4C13.2 10.6 11 12 8 12S2.8 10.6 1.5 8Z" stroke="currentColor" strokeWidth="1.2" />
+      <circle cx="8" cy="8" r="2.2" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  )
+}
+
+export function EarIcon({ size = 14, color }: { size?: number; color?: string }): React.ReactElement {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true"
+      style={color != null ? { color } : undefined}>
+      <path d="M11.5 4.5a4.5 4.5 0 1 0 0 7" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M9.2 6.4a2.2 2.2 0 1 0 0 3.2" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  )
+}

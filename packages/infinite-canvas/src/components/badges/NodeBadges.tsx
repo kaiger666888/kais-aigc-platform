@@ -12,8 +12,10 @@ import type { NodeBadgesProps } from '../canvas/slots'
 import { V3_NODE_SIZES } from '../../constants'
 import { v3theme, getScoreColor } from '../../theme/catppuccin'
 import { useStalePulse } from '../../hooks/useStale'
+import { EyeIcon, EarIcon } from '../canvas/icons'
+import { verdictLabel } from '../../utils/scoreVocabulary'
 
-export default function NodeBadges({ nodeId, asset, lod }: NodeBadgesProps): React.ReactElement | null {
+export default function NodeBadges({ nodeId, asset, lod, verdicts }: NodeBadgesProps): React.ReactElement | null {
   // 脉动订阅必须在顶层（Rules of Hooks）；lod===0 早返前先取值。
   const pulsing = useStalePulse((s) => s.pulseIds.includes(nodeId))
   if (lod === 0) return null
@@ -79,6 +81,45 @@ export default function NodeBadges({ nodeId, asset, lod }: NodeBadgesProps): Rea
     )
   }
 
+  // ── 左下 verdict 带(56-03 / VIZ-01):stale 三角贴角不动,verdict 环排其右
+  // (off + tri + 2,planner 终裁消除微重叠;无 stale 时同位稳定不跳)。
+  // 眼在前耳在后;三态形色双编码(D-02),judge 身份不走颜色。
+  let verdictBand: React.ReactNode = null
+  if (verdicts != null && verdicts.length > 0) {
+    const ordered = [...verdicts].sort((a, b) => (a.judge === b.judge ? 0 : a.judge === 'eye' ? -1 : 1))
+    verdictBand = (
+      <span
+        key="verdicts"
+        style={{ position: 'absolute', bottom: off, left: off + badge.tri + 2, display: 'flex', gap: 4 }}
+      >
+        {ordered.map((v, i) => {
+          const ring =
+            v.verdict === 'pass' ? v3theme.signal.approved
+              : v.verdict === 'fail' ? v3theme.signal.rejected
+                : v3theme.signal.running
+          const label = `${v.judge === 'eye' ? '眼审' : '耳审'} ${verdictLabel(v.verdict)}`
+          return (
+            <span key={`${v.judge}-${i}`} title={label} style={{ position: 'relative', width: badge.dot, height: badge.dot, display: 'inline-block' }}>
+              <svg width={badge.dot} height={badge.dot} viewBox="0 0 10 10" aria-label={label} style={{ position: 'absolute', inset: 0, display: 'block' }}>
+                <circle cx="5" cy="5" r="4.6" fill="var(--cv-bg-overlay, #1E2128)" />
+                {v.verdict === 'fail' && (
+                  <circle cx="5" cy="5" r="5.4" fill="none" stroke={ring} strokeOpacity={0.4} strokeWidth={1} />
+                )}
+                <circle
+                  cx="5" cy="5" r="4" fill="none" stroke={ring} strokeWidth={1.5}
+                  strokeDasharray={v.verdict === 'warn' ? '2 1.5' : undefined}
+                />
+              </svg>
+              <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--cv-text-primary, #EDEEF1)' }}>
+                {v.judge === 'eye' ? <EyeIcon size={8} /> : <EarIcon size={8} />}
+              </span>
+            </span>
+          )
+        })}
+      </span>
+    )
+  }
+
   // ── 右下：审核 review ──
   let reviewBadge: React.ReactNode = null
   const reviewColor =
@@ -95,12 +136,13 @@ export default function NodeBadges({ nodeId, asset, lod }: NodeBadgesProps): Rea
     )
   }
 
-  if (!curationBadge && !execBadge && !staleBadge && !reviewBadge) return null
+  if (!curationBadge && !execBadge && !staleBadge && !reviewBadge && !(verdicts != null && verdicts.length > 0)) return null
   return (
     <>
       {curationBadge}
       {execBadge}
       {staleBadge}
+      {verdictBand}
       {reviewBadge}
     </>
   )

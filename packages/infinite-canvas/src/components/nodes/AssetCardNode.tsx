@@ -33,6 +33,8 @@ import {
   getVariantStackHandlers,
   registerNodeBadgesRenderer,
 } from '../canvas/slots'
+import { deriveQcVerdicts } from '../../store/qcVerdict'
+import { ScorePopover } from '../badges/ScorePopover'
 import NodeBadgesDefault from '../canvas/NodeBadgesDefault'
 import { ModalityIcon, AssetTypeIcon, isAssetTypeIconKind, type ModalityIconKind, type AssetTypeIconKind } from '../canvas/icons'
 import ScoreMiniBar from '../badges/ScoreMiniBar'
@@ -622,6 +624,15 @@ function AssetCardNodeComponent({ id, data, selected }: NodeProps<AssetCardNodeT
   const expanded = useCanvasUiStore((s) => (stack ? s.expandedStacks.includes(id) : false))
   // raw data 袋（穿透 migrate 白名单外字段）——必须在所有 early return 之前调 hook（rules of hooks）
   const rawDataByNodeId = useCanvasStore((s) => s.rawDataByNodeId)
+  // 56-03 (VIZ-01):hover mini-雷达(250ms 触发/100ms 消失,独立于视频 hoverTimer)
+  const [radarOpen, setRadarOpen] = useState(false)
+  const radarTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const graph = useCanvasStore((s) => s.graph)
+  const qcVerdicts = useMemo(
+    () => (graph != null && rawDataByNodeId != null ? deriveQcVerdicts(graph, rawDataByNodeId).get(id) ?? [] : []),
+    [graph, rawDataByNodeId, id],
+  )
+  const dimsCount = asset?.aiScore?.dimensions != null ? Object.keys(asset.aiScore.dimensions).length : 0
 
   if (lod === 0) return <L0Block data={data} />
 
@@ -658,6 +669,16 @@ function AssetCardNodeComponent({ id, data, selected }: NodeProps<AssetCardNodeT
       data-node-id={id}
       data-stage={stage}
       className="cv-asset-card"
+      onMouseEnter={() => {
+        if (lod >= 1 && dimsCount >= 3) {
+          if (radarTimer.current) clearTimeout(radarTimer.current)
+          radarTimer.current = setTimeout(() => setRadarOpen(true), 250)
+        }
+      }}
+      onMouseLeave={() => {
+        if (radarTimer.current) clearTimeout(radarTimer.current)
+        radarTimer.current = setTimeout(() => setRadarOpen(false), 100)
+      }}
       style={{
         position: 'relative',
         width: w,
@@ -778,7 +799,8 @@ function AssetCardNodeComponent({ id, data, selected }: NodeProps<AssetCardNodeT
         {/* 任务 2A：底部迷你评分条（overall 大字 + dimensions 迷你水平条） */}
         {showScore && <ScoreMiniBar score={asset?.aiScore} />}
       </div>
-      {asset && <Badges nodeId={id} asset={asset} lod={lod} variant={stage === 'global' ? 'global' : 'full'} />}
+      {asset && <Badges nodeId={id} asset={asset} lod={lod} variant={stage === 'global' ? 'global' : 'full'} verdicts={qcVerdicts} />}
+      {radarOpen && asset?.aiScore != null && dimsCount >= 3 && <ScorePopover aiScore={asset.aiScore} />}
       <Handle type="source" position={Position.Right} style={{ ...hiddenHandle, background: v3theme.modality[mod] }} />
     </div>
   )

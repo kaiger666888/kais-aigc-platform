@@ -20,6 +20,8 @@ export interface NodeBadgesProps {
   lod: LodLevel
   /** 'global' 第 0 列小卡 / 'full' 常规卡（尺寸差异下角标取舍）。 */
   variant: 'global' | 'full'
+  /** 56-03 (VIZ-01)：左下 verdict 带（qcVerdict 派生；内联形状，B 层不依赖 A 层模块）。 */
+  verdicts?: ReadonlyArray<{ judge: 'eye' | 'ear'; verdict: 'pass' | 'warn' | 'fail' }>
 }
 export type NodeBadgesRenderer = ComponentType<NodeBadgesProps>
 
