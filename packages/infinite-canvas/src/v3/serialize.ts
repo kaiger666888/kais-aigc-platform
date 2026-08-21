@@ -25,8 +25,8 @@
  *  - state failed→'error'（V2 枚举无 failed）；reviewStatus/aiScore/curation=='selected'
  *    →顶层 reviewStatus/aiScore/isWinner。
  *  - event 节点 + role:'output' 边不落盘（折叠语义同 graphToViewModel：event 经 output 边
- *    映射到产出资产，非 output 边端点是 event 则替换为该资产，自环丢弃；与现行
- *    flowDataMapper 持久化前剔除 evt_* 合成节点的语义一致）。
+ *    映射到产出资产，非 output 边端点是 event 则替换为该资产，自环丢弃；与旧 v1
+ *    持久化层剔除 evt_* 合成节点的语义一致）。
  *  - link role→dataType（自由字符串，reload 时 migrate 负责 role 推断）；isExplore/isInactive
  *    透传。link refType/sourceHandle 在 V3 链路本就不存活（graphToViewModel 不带）——
  *    现状既有损耗，本序列化器不引入新损耗（地雷 #8）。

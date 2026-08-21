@@ -22,7 +22,7 @@ export const asEdgeId = (s: string): EdgeId => s as EdgeId
 export type NodeState = 'idle' | 'pending' | 'running' | 'success' | 'error' | 'skipped'
 
 /** 审核状态 — 与 v2 zod schema (pending | approved | rejected) 对齐。
- * 旧的 'awaiting_audit' 值在 flowDataMapper 边界被归一化为 'pending'。 */
+ * 旧的 'awaiting_audit' 值已废弃，持久化边界统一归一化为 'pending'。 */
 export type ReviewStatus = 'pending' | 'approved' | 'rejected'
 
 /** Phase 35 — 分镜镜头意图元数据 (借鉴小云雀) */
@@ -281,7 +281,7 @@ export function detectVariantStyle(label: string | undefined): VariantStyleTag |
   return null
 }
 
-/** VariantGroupDetail 的本地 UI 状态机 — 替代散落的 useState */
+/** 变体组详情 UI 的本地状态机 — 替代散落的 useState */
 export type VariantReviewLoadingState = 'idle' | 'approving' | 'rejecting' | 'confirming'
 
 export interface VariantGroupUIState {
@@ -388,8 +388,7 @@ export interface FlowGraph {
  *
  * W5：移除原顶层的 groupId / routingDecision / variantIndex——它们既无独立列，
  * 也无任何顶层读取者（真实用法在 node.data，见各 *NodeData 接口）。progress
- * 保留：flowDataMapper 桥接（canvasToFlowGraph 提升 / flowGraphToCanvas 回写）
- * 仍在使用它。
+ * 保留：progress 为历史 v1 桥接字段，兼容既有数据。
  */
 export interface FlowGraphNode {
   id: string

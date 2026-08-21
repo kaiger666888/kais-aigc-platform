@@ -15,7 +15,6 @@ import '@xyflow/react/dist/style.css'
 import { applyLayout, selectVariant } from '@kais/flowgraph-v3'
 import { FITVIEW_MIN_ZOOM, LodProvider } from '../hooks/useLod'
 
-import AssetNodeComponent from './nodes/AssetNode'
 import FallbackNodeComponent from './nodes/FallbackNode'
 import ZoneNodeComponent from './nodes/ZoneNode'
 import AssetCardNode from './nodes/AssetCardNode'

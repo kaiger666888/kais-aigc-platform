@@ -752,7 +752,7 @@ export function graphToViewModel(graph: FlowGraphV3): ViewModel {
           stale: n.stale,
           ...(n.variantGroupId != null ? { variantGroupId: n.variantGroupId } : {}),
           ...(stack ? { variantStack: stack } : {}),
-          // 旧组件过渡别名（flowDataMapper/节点组件的既有 data 契约）
+          // 旧组件过渡别名（v1 持久化层/节点组件的既有 data 契约）
           label: n.phaseName || n.id,
           type: legacyTypeOfStage(n.stage),
           filePath: n.media.original,
