@@ -28,6 +28,7 @@ export async function loadCanvas(page, opts = {}) {
   await page.request.post('/__mock/reset')
   await page.goto(`/?${params.toString()}`, { waitUntil: 'networkidle' })
 
+  await switchToCanvasView(page)
   await page.waitForSelector('.react-flow__node', { timeout: 15_000 })
   await page.waitForFunction(() => {
     return document.querySelectorAll('.react-flow__node').length > 0
@@ -35,6 +36,14 @@ export async function loadCanvas(page, opts = {}) {
   // 等 testMode hook 挂载
   await page.waitForFunction(() => !!window.__kaisCanvas, { timeout: 5_000 }).catch(() => {})
   await page.waitForTimeout(300)
+}
+
+/**
+ * 切到画布视图（2026-08-02 起默认视图是资产管理中心 viewMode='assets'；
+ * e2e 全部用例观测画布，加载后显式点击导航「画布」，与用户操作等价）。
+ */
+export async function switchToCanvasView(page) {
+  await page.getByRole('button', { name: '画布', exact: true }).click()
 }
 
 /**

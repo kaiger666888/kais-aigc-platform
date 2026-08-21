@@ -1,4 +1,4 @@
-import { test, expect, resetMock, nodeSelector } from '../helpers.mjs'
+import { test, expect, resetMock, nodeSelector, switchToCanvasView } from '../helpers.mjs'
 
 /**
  * Phase 40 — T3: reviewStatus 边界处理
@@ -51,21 +51,22 @@ test.describe('Phase 40 — T3: stale reviewStatus handled at V3 boundary', () =
       variantGroups: [],
     }
 
-    // 注入 stale blob 到 mock 后端的 state
-    await page.request.post(`${baseURL}/api/canvas/save`, {
+    // 注入 stale blob 到 mock 后端的 state（save-v2 是唯一保存通道）
+    await page.request.post(`${baseURL}/api/canvas/v2/save-v2`, {
       data: { projectId: 1, episodesId: 1, graph: staleGraph },
     })
 
     // 加载画布 — V3 边界应丢弃非法 reviewStatus（不崩）
     const params = new URLSearchParams({ projectId: '1', episodesId: '1', testMode: '1' })
     await page.goto(`/?${params.toString()}`, { waitUntil: 'networkidle' })
+    await switchToCanvasView(page)
     await page.waitForSelector('.react-flow__node', { timeout: 15_000 })
 
     // 资产节点正常渲染
     await expect(page.locator(nodeSelector('storyboard-stale'))).toBeVisible()
 
-    // 点开旧节点 — 详情面板正常打开（不出现空白/报错）
-    await page.locator(nodeSelector('storyboard-stale')).click()
+    // 点开旧节点（双击开详情面板）— 详情面板正常打开（不出现空白/报错）
+    await page.locator(nodeSelector('storyboard-stale')).dblclick()
     const detailPanel = page.locator('[data-testid="detail-panel"]')
     await expect(detailPanel).toBeVisible()
   })
@@ -107,12 +108,13 @@ test.describe('Phase 40 — T3: stale reviewStatus handled at V3 boundary', () =
       variantGroups: [],
     }
 
-    await page.request.post(`${baseURL}/api/canvas/save`, {
+    await page.request.post(`${baseURL}/api/canvas/v2/save-v2`, {
       data: { projectId: 1, episodesId: 1, graph: mixedGraph },
     })
 
     const params = new URLSearchParams({ projectId: '1', episodesId: '1', testMode: '1' })
     await page.goto(`/?${params.toString()}`, { waitUntil: 'networkidle' })
+    await switchToCanvasView(page)
     await page.waitForSelector('.react-flow__node', { timeout: 15_000 })
 
     // 通过 store 验证边界处理后的值（绕过 UI 渲染细节）

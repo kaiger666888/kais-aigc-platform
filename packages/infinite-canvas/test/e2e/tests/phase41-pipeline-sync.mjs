@@ -4,8 +4,9 @@ import { test, expect, loadCanvas } from '../helpers.mjs'
  * Phase 41 fix — Pipeline 同步链路
  *
  * 验证:当外部 pipeline 通过 /api/canvas/v2/save-v2 写入并广播 graph:saved
- * 事件时,前端必须自动 reload 画布并显示 toast。前端自己的 saveCanvasGraph
- * 走 legacy /api/canvas/save 不广播此事件,所以无循环重载。
+ * 事件时,前端必须自动 reload 画布并显示 toast。历史上前端自己的保存走 v1
+ * 端点不广播此事件,所以无循环重载；Phase 51-02 起前端保存同样走 save-v2,
+ * 自身保存后也会经 graph:saved 收敛重载（幂等全量加载,无双写）。
  *
  * 修复见 commit eb1a806b:
  *   - useCanvasSocket: 加 onGraphSaved? + socket.on('graph:saved')

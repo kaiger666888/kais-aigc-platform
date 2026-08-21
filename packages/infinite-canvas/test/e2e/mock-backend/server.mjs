@@ -4,7 +4,7 @@
  * 提供以下接口模拟主项目的 canvas 路由:
  *  - GET  /                          → 静态文件 (canvas dist/)
  *  - POST /api/canvas/load           → 读取画布
- *  - POST /api/canvas/save           → 保存画布 (mock 在内存)
+ *  - POST /api/canvas/v2/save-v2     → 保存画布 (mock 在内存,广播 graph:saved)
  *  - POST /api/canvas/convert        → 项目数据转画布 (返回 mock 节点)
  *  - POST /api/canvas/orchestrate    → 一键成片编排 (Phase 36)
  *  - POST /api/canvas/execute        → 单节点执行
@@ -170,15 +170,9 @@ app.post('/api/canvas/v2/load-v2', (req, res) => {
   res.json({ code: 200, data: state.canvas })
 })
 
-app.post('/api/canvas/save', (req, res) => {
-  const { projectId, episodesId, graph } = req.body
-  state.canvas = graph
-  logCall('POST', '/api/canvas/save', { projectId, episodesId, nodeCount: graph?.nodes?.length }, null)
-  res.json({ code: 200, data: null })
-})
-
 // ─── Pipeline sync (Phase 41 fix) ─────────────────────────
 // 模拟 kais-movie-pipeline 通过 /api/canvas/v2/save-v2 全量写入。
+// Phase 51-02 起这也是前端 saveCanvasGraph 的唯一保存通道（v1 save 已删除，契约诚实）。
 // 替换 mock canvas 状态,然后广播 graph:saved 事件 — 与真 backend
 // src/routes/canvas/v2/save-v2.ts:60 的行为对齐。
 app.post('/api/canvas/v2/save-v2', (req, res) => {
@@ -194,7 +188,6 @@ app.post('/api/canvas/v2/save-v2', (req, res) => {
 // Health 端点 mock — 用于前端兜底轮询。返回当前 state.canvas 节点数作为 eventCount。
 app.get('/api/canvas/v2/health', (req, res) => {
   const totalEvents = state.calls.filter((c) => c.path === '/api/canvas/v2/save-v2').length
-    + state.calls.filter((c) => c.path === '/api/canvas/save').length
   res.json({
     code: 200,
     data: {

@@ -42,11 +42,13 @@ test.describe('Phase 38 — Storyboard Preview', () => {
 
   test('PREVIEW-01: storyboard generation event carries the composition prompt', async ({ page }) => {
     await loadCanvas(page)
-    // V3：storyboard 的构图意图 prompt 由其生成事件 evt_storyboard-1 携带（params.prompt）
+    // V3：事件节点折叠为资产间因果边，op 配方挂边中点（P19）；storyboard 的构图意图
+    // prompt 由其生成事件 evt_storyboard-1 携带，经折叠边的 data.eventId/params 观测。
     const evt = await page.evaluate(() => {
-      const n = window.__kaisCanvas?.getNodes?.().find((x) => x.id === 'evt_storyboard-1')
-      return { op: n?.data?.op, prompt: n?.data?.params?.prompt }
+      const e = (window.__kaisCanvas?.getEdges?.() ?? []).find((x) => x.data?.eventId === 'evt_storyboard-1')
+      return { op: e?.data?.op, prompt: e?.data?.params?.prompt }
     })
+    expect(evt.op).toBe('create')
     expect(evt.prompt).toBe('主角进入场景')
   })
 

@@ -34,7 +34,7 @@ npx playwright show-report         # 打开 HTML 报告
 
 `test/e2e/mock-backend/server.mjs` 提供完整的 v1.7 API 模拟:
 
-- **画布持久化:** `POST /api/canvas/load` + `POST /api/canvas/save` — 内存数据库 (`o_agentWorkData` 等价)
+- **画布持久化:** `POST /api/canvas/load` + `POST /api/canvas/v2/save-v2` — 内存数据库 (`o_agentWorkData` 等价)
 - **编排器:** `POST /api/canvas/orchestrate` — 按节点类型拓扑序执行,通过 Socket.IO 推送 `orchestrate:start/progress/done`
 - **批量执行:** 同一个 endpoint 接收 `nodeIds: string[]`,自动切 `mode='batch'`
 - **分镜预览:** `POST /api/canvas/storyboard/preview` — 延迟广播 `node:preview`

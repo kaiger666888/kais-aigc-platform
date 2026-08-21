@@ -1,4 +1,4 @@
-import { test, expect, loadCanvas, nodeSelector, getCalls } from '../helpers.mjs'
+import { test, expect, loadCanvas, nodeSelector, getCalls, switchToCanvasView } from '../helpers.mjs'
 
 /**
  * Phase 36 — 一键成片编排器 (借鉴小云雀的"一键直出视频成片")
@@ -65,8 +65,9 @@ test.describe('Phase 36 — One-Click Film Orchestrator', () => {
   })
 
   test('ORCHESTRATE-01: button disabled when canvas empty (no projectId)', async ({ page }) => {
-    // 直接访问根路径,没有 projectId
+    // 直接访问根路径,没有 projectId（一键成片按钮在画布工具栏，需先切到画布视图）
     await page.goto('/', { waitUntil: 'networkidle' })
+    await switchToCanvasView(page)
     await page.waitForTimeout(800)
     const btn = page.locator('button:has-text("一键成片")')
     await expect(btn).toBeVisible()

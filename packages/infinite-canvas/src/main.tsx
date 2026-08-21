@@ -14,6 +14,7 @@ if (typeof window !== 'undefined' && new URLSearchParams(window.location.search)
     getSelectedNodeIds: () => useCanvasStore.getState().selectedNodeIds,
     getOrchestration: () => useCanvasStore.getState().orchestration,
     getNodes: () => useCanvasStore.getState().nodes,
+    getEdges: () => useCanvasStore.getState().edges,
     showToast: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') =>
       useCanvasStore.getState().showToast(msg, type),
     // 暴露本地 socket.io-client —— e2e 用它监听 WebSocket 事件，替代不可靠的
