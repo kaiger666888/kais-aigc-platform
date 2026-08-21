@@ -2,7 +2,7 @@
  * stale.test.ts — P13 脏传播：级联、sequence 不传播、locked 终点、纯函数。
  */
 import { describe, it, expect } from 'vitest';
-import { markStaleDownstream } from '../src/stale.js';
+import { getDownstreamIds, markStaleDownstream } from '../src/stale.js';
 import type {
   AssetNodeV3,
   EventNodeV3,
@@ -171,5 +171,74 @@ describe('markStaleDownstream（P13）', () => {
     const g = markStaleDownstream(g0, ['a'], 1000); // 必须正常终止（不无限循环）
     expect(staleOf(g, 'a')).toBeNull(); // changed 资产是新事实起点，环上回指也不自标脏
     expect(staleOf(g, 'b')).toEqual({ since: 1000, triggerAssetId: 'a', triggerEventId: 'e1' });
+  });
+});
+
+// ─── getDownstreamIds（52-01 REGEN-03 重跑链下游计算引擎）────
+// 语义：从 nodeId（资产/事件皆可）沿因果边 BFS，只收**资产 id**；
+// sequence / isInactive 边排除（buildCausalIndex 单点保证）；locked 资产
+// 为终点（自身计入结果、不再向下延伸——裁定见实现注释）；visited 防环；
+// nodeId 不存在返回 [] 不 throw。
+describe('getDownstreamIds（52-01）', () => {
+  it('线性链：从 A 得下游资产 [b, c, d]（事件 id 不进结果）', () => {
+    const ids = getDownstreamIds(buildGraph(), 'a');
+    expect(ids).toEqual(['b', 'c', 'd']);
+    expect(ids).not.toContain('e1');
+    expect(ids).not.toContain('a'); // 起点自身不入结果
+  });
+
+  it("role:'sequence' 边不传播（sequence 相连的下游不进结果）", () => {
+    const ids = getDownstreamIds(buildGraph(), 'a');
+    expect(ids).toContain('b');
+    expect(ids).not.toContain('b2'); // b --sequence--> b2 时间序边排除
+  });
+
+  it('isInactive:true 置灰边不传播', () => {
+    const g0 = buildGraph();
+    g0.nodes.push(asset('dep'), asset('sel'));
+    g0.links.push(
+      { id: 'l8', source: 'dep', target: 'e2', branchId: 'br_main', role: 'keyframe', isInactive: true },
+      { id: 'l9', source: 'sel', target: 'e2', branchId: 'br_main', role: 'keyframe' },
+    );
+    expect(getDownstreamIds(g0, 'dep')).toEqual([]); // 置灰边不延伸
+    expect(getDownstreamIds(g0, 'sel')).toEqual(['c', 'd']); // 激活边正常
+  });
+
+  it("curation:'locked' 资产为终点：自身计入结果、不再向下延伸", () => {
+    const g0 = buildGraph();
+    (g0.nodes.find((n) => n.id === 'c') as AssetNodeV3).curation = 'locked';
+    const ids = getDownstreamIds(g0, 'a');
+    expect(ids).toContain('b');
+    expect(ids).toContain('c'); // locked 自身仍是下游资产 → 计入
+    expect(ids).not.toContain('d'); // 不越过 locked 延伸
+  });
+
+  it('有向环防御：不死循环、结果集去重', () => {
+    // 环：a --in--> e1 --output--> b --in--> e2 --output--> a（回指起点）
+    const g0: FlowGraphV3 = {
+      meta: { version: '3', projectId: 1, episodesId: 1, createdAt: 0, updatedAt: 0 },
+      nodes: [asset('a'), evt('e1'), asset('b'), evt('e2')],
+      links: [
+        link('c1', 'a', 'e1', 'prompt_ref'),
+        link('c2', 'e1', 'b', 'output'),
+        link('c3', 'b', 'e2', 'keyframe'),
+        link('c4', 'e2', 'a', 'output'),
+      ],
+      branches: [{ id: 'br_main', name: 'main' }],
+      variantGroups: [],
+    };
+    const ids = getDownstreamIds(g0, 'a'); // 必须正常终止
+    expect(ids).toEqual(['b']);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('事件节点 id 作起点：返回其产出资产的下游链', () => {
+    const ids = getDownstreamIds(buildGraph(), 'e1');
+    expect(ids).toEqual(['b', 'c', 'd']);
+  });
+
+  it('nodeId 不存在返回 []（不 throw）', () => {
+    expect(() => getDownstreamIds(buildGraph(), 'ghost')).not.toThrow();
+    expect(getDownstreamIds(buildGraph(), 'ghost')).toEqual([]);
   });
 });

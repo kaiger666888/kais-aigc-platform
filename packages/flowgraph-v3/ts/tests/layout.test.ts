@@ -14,7 +14,7 @@ import { describe, it, expect } from 'vitest';
 import decomposeJson from '../../fixtures/v3-decompose-import.sample.json';
 import validJson from '../../fixtures/v3-valid.sample.json';
 import { layoutFlowGraph, applyLayout, STAGE_ORDER, type LayoutBox } from '../src/layout.js';
-import type { AssetNodeV3, EventNodeV3, FlowGraphV3, FlowLinkV3 } from '../src/types.js';
+import type { AssetNodeV3, EventNodeV3, FlowGraphV3, FlowLinkV3, FlowNodeV3 } from '../src/types.js';
 
 const OPTS = { colW: 320, laneH: 200, nodeW: 240, gap: 80 };
 

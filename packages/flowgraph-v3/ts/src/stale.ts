@@ -30,20 +30,22 @@ function isAsset(node: FlowNodeV3): node is AssetNodeV3 {
   return node.kind === 'asset';
 }
 
-export function markStaleDownstream(
-  graph: FlowGraphV3,
-  changedAssetIds: string[],
-  now: number,
-): FlowGraphV3 {
-  const next = clone(graph);
-  const nodeById = new Map(next.nodes.map((n) => [n.id, n]));
+/**
+ * 因果边索引（模块私有）——markStaleDownstream 与 getDownstreamIds 共用
+ *（GUARD：零逻辑复制，sequence / isInactive 边排除语义单点维护）。
+ *   assetConsumedByEvents: assetId → 以它为输入的事件 id 集合（asset→event 边）
+ *   eventOutputs:          eventId → 事件产出的资产 id 集合（event→asset 的 output 边）
+ */
+interface CausalIndex {
+  assetConsumedByEvents: Map<string, string[]>;
+  eventOutputs: Map<string, string[]>;
+}
 
-  // 因果边索引（sequence 边与 isInactive 置灰边均排除）：
-  //   assetConsumedByEvents: assetId → 以它为输入的事件 id 集合（asset→event 边）
-  //   eventOutputs:          eventId → 事件产出的资产 id 集合（event→asset 的 output 边）
+function buildCausalIndex(graph: FlowGraphV3): CausalIndex {
+  const nodeById = new Map(graph.nodes.map((n) => [n.id, n]));
   const assetConsumedByEvents = new Map<string, string[]>();
   const eventOutputs = new Map<string, string[]>();
-  for (const link of next.links) {
+  for (const link of graph.links) {
     if (link.role === 'sequence') continue; // P11：不参与因果传播
     // P12×P13：置灰边（非选定变体下游边）不参与脏传播——选定版接管下游，
     // 改 deprecated 变体不许经此边把下游标脏。
@@ -61,6 +63,17 @@ export function markStaleDownstream(
       eventOutputs.set(link.source, list);
     }
   }
+  return { assetConsumedByEvents, eventOutputs };
+}
+
+export function markStaleDownstream(
+  graph: FlowGraphV3,
+  changedAssetIds: string[],
+  now: number,
+): FlowGraphV3 {
+  const next = clone(graph);
+  const nodeById = new Map(next.nodes.map((n) => [n.id, n]));
+  const { assetConsumedByEvents, eventOutputs } = buildCausalIndex(next);
 
   // BFS 级联。队列元素：当前过期事件 + 链条起点（trigger）。
   interface DirtyEvent {
@@ -106,4 +119,54 @@ export function markStaleDownstream(
   }
 
   return next;
+}
+
+/**
+ * REGEN-03（Phase 52-01）：重跑链下游计算引擎。
+ *
+ * 从 nodeId（**资产或事件 id 皆可作起点**）沿因果边 BFS，返回**下游资产 id 集**
+ *（orchestrate nodeIds 只收资产 id，事件 id 不进结果）。
+ *
+ * 语义与 markStaleDownstream 同级（共用 buildCausalIndex，零逻辑复制）：
+ *  - `role:'sequence'` 边与 `isInactive:true` 置灰边不参与（索引已保证）；
+ *  - `curation:'locked'` 资产是传播终点——**自身计入结果**（它仍是下游资产，
+ *    只是不再越过它向下延伸；与 §13「locked 自身不标脏」不冲突：stale 标记
+ *    与下游集合是两个问题）；
+ *  - 有向环（非法输入）防御性终止：visited Set 去重，结果集天然去重；
+ *  - nodeId 不存在返回 []（不 throw；与 store 守卫早退范式对齐）；
+ *  - 纯函数：不 mutate 入参，不做结构化拷贝（只读遍历）。
+ */
+export function getDownstreamIds(graph: FlowGraphV3, nodeId: string): string[] {
+  const nodeById = new Map(graph.nodes.map((n) => [n.id, n]));
+  if (!nodeById.has(nodeId)) return [];
+  const { assetConsumedByEvents, eventOutputs } = buildCausalIndex(graph);
+
+  const visited = new Set<string>([nodeId]); // 起点不入结果；环上回指去重
+  const result = new Set<string>();
+  const queue: string[] = [nodeId];
+
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    const node = nodeById.get(id);
+    if (!node) continue;
+    if (node.kind === 'event') {
+      for (const assetId of eventOutputs.get(id) ?? []) {
+        if (visited.has(assetId)) continue;
+        visited.add(assetId);
+        const asset = nodeById.get(assetId);
+        if (!asset || !isAsset(asset)) continue;
+        result.add(assetId);
+        // §13：locked 资产为终点——自身计入结果，但不越过它继续延伸。
+        if (asset.curation === 'locked') continue;
+        queue.push(assetId);
+      }
+    } else {
+      for (const eventId of assetConsumedByEvents.get(id) ?? []) {
+        if (visited.has(eventId)) continue;
+        visited.add(eventId);
+        queue.push(eventId);
+      }
+    }
+  }
+  return [...result];
 }
