@@ -241,15 +241,213 @@ async function main(): Promise<void> {
     "S1h-2: source enum literals present verbatim",
   );
 
-  // ═══ S2 — FILLED-BY-53-03: candidate group derivation ════════════════════
-  console.log("\n=== S2 candidate group derivation (FILLED-BY-53-03 placeholder) ===");
-  // FILLED-BY-53-03: families → canvas variantGroups materialization asserts.
-  // Until 53-03 lands, only the placeholder marker itself is asserted.
-  const selfSrc = read("scripts/verify-phase-53.ts");
-  assert(selfSrc.includes("FILLED-BY-53-03"), "S2: FILLED-BY-53-03 marker present (section reserved)");
+  // ═══ S2 — VAR-01/VAR-03 前置: 候选组推导/物化(53-03)══════════════════════
+  console.log("\n=== S2 candidate group derivation + materialization (53-03) ===");
+  const deriver: any = await import("../src/lib/candidateGroupDeriver");
+  assert(
+    typeof deriver.deriveCandidateGroups === "function" &&
+      typeof deriver.materializeCandidateGroups === "function" &&
+      typeof deriver.mergeDerivedGroups === "function",
+    "S2: candidateGroupDeriver exports derive/materialize/merge",
+  );
+
+  // ── S2a 推导:legacy a-flf ×3 + 命名通道 ×3 + c-p01 ×1 ──
+  const legacyNodes = (fixture("candidates-legacy.json") as Record<string, unknown>[]).map(
+    (data, i) => ({ id: `legacy-${i}`, type: "asset", data }),
+  );
+  // 补一个 last-v2 使尾帧组达到 2 成员(Pitfall 6 首尾两键断言用)
+  const lastV2 = {
+    id: "legacy-last-v2", type: "asset",
+    data: { ...legacyNodes[2].data, variant: "v2", isPrimaryView: false, tags: ["○ 待选"] },
+  };
+  const namingNodes = [
+    { id: "p04-charA", type: "asset", data: { filePath: "/oss/kmc/P04/charA.png" } },
+    { id: "p04-charA-v1", type: "asset", data: { filePath: "/oss/kmc/P04/charA_v1.png" } },
+    { id: "p04-charA-v2", type: "asset", data: { filePath: "/oss/kmc/P04/charA_v2.png" } },
+  ];
+  const cp01 = { id: "cp01-variant-2", type: "variant", data: legacyNodes[3].data };
+  const deriveInput = [...legacyNodes.slice(0, 3), lastV2, ...namingNodes, cp01];
+  const dr = deriver.deriveCandidateGroups(deriveInput);
+  const groupKeys = dr.groups.map((g: any) => g.groupKey);
+  const first = dr.groups.find((g: any) => g.groupKey === "shot:shot_012:first");
+  const last = dr.groups.find((g: any) => g.groupKey === "shot:shot_012:last");
+  const naming = dr.groups.find((g: any) => g.groupKey === "name:kmc/P04/charA");
+  assert(first != null && first.variantNodeIds.length === 2, "S2a-1: shot:shot_012:first 2 members", JSON.stringify(first?.variantNodeIds));
+  assert(last != null && last.variantNodeIds.length === 2, "S2a-2: shot:shot_012:last 2 members");
+  assert(naming != null && naming.variantNodeIds.length === 3, "S2a-3: name:kmc/P04/charA 3 members (v1+v2+canonical)", JSON.stringify(naming?.variantNodeIds));
+  assert(first?.winnerNodeId === "legacy-0", "S2a-4: first-frame winner = selected member", JSON.stringify(first?.winnerNodeId));
+  assert(!dr.groups.some((g: any) => g.variantNodeIds.includes("cp01-variant-2")), "S2a-5: c-p01 node (empty groupKey) joins no group");
+  assert(!("throw" in dr), "S2a-6: derive never throws on group-less signal");
+
+  // ── S2b 首尾两键(Pitfall 6)──
+  assert(
+    first != null && last != null && first.groupKey !== last.groupKey &&
+      first.id !== last.id,
+    "S2b: first and last frames of one shot are TWO groups (never merged)",
+  );
+
+  // ── S2c 物化幂等(:memory: knex 手建同列表)──
+  const knexMod: any = await import("knex");
+  const mem = knexMod.default({
+    client: "sqlite3",
+    connection: { filename: ":memory:" },
+    useNullAsDefault: true,
+  });
+  await mem.schema.createTable("canvas_variant_groups", (t: any) => {
+    t.string("id", 128).notNullable();
+    t.integer("project_id").notNullable();
+    t.integer("episodes_id").notNullable();
+    t.integer("phase_index").defaultTo(0);
+    t.string("branch_id", 64).defaultTo("main");
+    t.text("variant_node_ids");
+    t.string("winner_node_id", 128);
+    t.string("select_mode", 16).defaultTo("single");
+    t.bigInteger("created_at").notNullable();
+    t.bigInteger("updated_at").notNullable();
+    t.primary(["id", "project_id", "episodes_id"]);
+  });
+  const SCOPE53 = { projectId: 5353, episodesId: 1 };
+  const scopeCols53 = { project_id: SCOPE53.projectId, episodes_id: SCOPE53.episodesId };
+  const m1 = await deriver.materializeCandidateGroups(mem, SCOPE53, dr.groups);
+  assert(m1.created === dr.groups.length && m1.created === 3, "S2c-1: first materialize creates all 3 groups", JSON.stringify(m1));
+  await mem("canvas_variant_groups")
+    .where({ id: first.id, ...scopeCols53 })
+    .update({ winner_node_id: "human-choice" });
+  const m2 = await deriver.materializeCandidateGroups(mem, SCOPE53, dr.groups);
+  const w2 = await mem("canvas_variant_groups").where({ id: first.id, ...scopeCols53 }).first();
+  assert(m2.created === 0, "S2c-2: second materialize creates nothing", JSON.stringify(m2));
+  assert(w2?.winner_node_id === "human-choice", "S2c-3: existing winner NOT overwritten by derive", JSON.stringify(w2?.winner_node_id));
+  const mutated = dr.groups.map((g: any) =>
+    g.id === first.id ? { ...g, variantNodeIds: g.variantNodeIds.slice(0, 1).concat(["legacy-new"]) } : g,
+  );
+  const m3 = await deriver.materializeCandidateGroups(mem, SCOPE53, mutated);
+  const w3 = await mem("canvas_variant_groups").where({ id: first.id, ...scopeCols53 }).first();
+  assert(
+    JSON.parse(w3?.variant_node_ids).includes("legacy-new") &&
+      !JSON.parse(w3?.variant_node_ids).includes("legacy-1"),
+    "S2c-4: member set self-heals to derived reality",
+    String(w3?.variant_node_ids),
+  );
+  assert(w3?.winner_node_id === "human-choice", "S2c-5: winner survives member self-heal");
+
+  // ── S2d 用户组保护 ──
+  await mem("canvas_variant_groups").insert({
+    id: "user-manual-group", project_id: SCOPE53.projectId, episodes_id: SCOPE53.episodesId,
+    phase_index: 0, branch_id: "main", variant_node_ids: JSON.stringify(["keep-me"]),
+    winner_node_id: "keep-winner", select_mode: "single",
+    created_at: 1, updated_at: 1,
+  });
+  await deriver.materializeCandidateGroups(mem, SCOPE53, dr.groups);
+  const userRow = await mem("canvas_variant_groups").where({ id: "user-manual-group" }).first();
+  const allIds: string[] = (await mem("canvas_variant_groups").select("id")).map((r: any) => r.id);
+  assert(
+    userRow?.winner_node_id === "keep-winner" &&
+      JSON.parse(userRow?.variant_node_ids).includes("keep-me"),
+    "S2d-1: non-cand: user group untouched by materialize",
+  );
+  assert(
+    allIds.every((id) => id.startsWith("cand:") || id === "user-manual-group"),
+    "S2d-2: materialize only ever writes cand:-prefixed rows",
+    JSON.stringify(allIds),
+  );
+  await mem.destroy();
+
+  // ── S2e 词表一致(源断言)──
+  const deriverSrc = read("src/lib/candidateGroupDeriver.ts");
+  assert(
+    deriverSrc.includes("shot:") && deriverSrc.includes("name:"),
+    "S2e-1: groupKey vocabulary carries shot: and name: prefixes (Phase 48 word-for-word)",
+  );
+  assert(
+    !deriverSrc.includes("frame:") && !deriverSrc.includes("flf:"),
+    "S2e-2: no invented third groupKey prefix",
+  );
+
+  // ── S2f 端点集成(spawn 子进程 dispatch,49-01 范式)──
+  console.log("\n=== S2f load-v2 endpoint integration (spawned child dispatch) ===");
+  const { spawnSync } = await import("node:child_process");
+  const CHILD_SRC = [
+    'import fs from "node:fs";',
+    'import os from "node:os";',
+    'import path from "node:path";',
+    'const REPO_ROOT = "' + REPO_ROOT.replace(/"/g, '\\"') + '";',
+    'const ISO = fs.mkdtempSync(path.join(os.tmpdir(), "verify-phase-53-ep-"));',
+    'fs.copyFileSync(path.join(REPO_ROOT, "package.json"), path.join(ISO, "package.json"));',
+    'process.chdir(ISO);',
+    'function emit(pass, name, detail) { process.stdout.write("CHILD_RESULT\\t" + (pass ? "1" : "0") + "\\t" + name + (detail ? "\\t" + detail : "") + "\\n"); }',
+    'async function callEndpoint(routerFn, method, urlPath, body) {',
+    '  const req = { method, url: urlPath, headers: {}, body, params: {}, query: {}, socket: { remoteAddress: "127.0.0.1" }, connection: { remoteAddress: "127.0.0.1" } };',
+    '  const res = { statusCode: 200, headersSent: false, payload: undefined,',
+    '    status(c) { this.statusCode = c; return this; },',
+    '    send(p) { this.payload = p; this.headersSent = true; settle(); return this; },',
+    '    json(p) { this.payload = p; this.headersSent = true; settle(); return this; },',
+    '    end() { this.headersSent = true; settle(); },',
+    '    setHeader() {}, getHeader() { return undefined; }, removeHeader() {}, write() { return true; }, writeHead(c) { this.statusCode = c; settle(); } };',
+    '  let settle = () => undefined;',
+    '  await new Promise((resolve, reject) => { settle = resolve; routerFn(req, res, (err) => (err ? reject(err) : resolve())); });',
+    '  return { status: res.statusCode, payload: res.payload };',
+    '}',
+    'async function main() {',
+    '  await import("../src/utils");',
+    '  const routeMod = await import("../src/routes/canvas/v2/load-v2");',
+    '  const dbMod = await import("../src/utils/db");',
+    '  await Promise.race([dbMod.bootReady, new Promise((_, rej) => setTimeout(() => rej(new Error("bootReady timeout")), 60000))]);',
+    '  const db = dbMod.db;',
+    '  const T0 = 1700000000000;',
+    '  const node = (id, data) => ({ id, project_id: 888, episodes_id: 1, type: "asset", branch_id: "main",',
+    '    phase_index: 11, phase_name: "p11", position_x: 0, position_y: 0, size_width: 260, size_height: 180,',
+    '    data: JSON.stringify(data), state: "idle", is_winner: 0, variant_group_id: null, created_at: T0, updated_at: T0 });',
+    '  const flf = (sid, slot, v, sel) => ({ label: sid + " " + slot + " " + v, assetType: "keyframe", frame_type: slot,',
+    '    variant: v, groupKey: sid + "_" + slot, shot_id: sid, filePath: "/oss/kmc/P11/" + sid + "_" + slot + "_" + v + ".png",',
+    '    generation_prompt: "prompt", isPrimaryView: sel, curationState: "active", state: "success",',
+    '    tags: [sel ? "★ 选定" : "○ 待选"] });',
+    '  for (const row of [node("a-flf-epX-first-v1", flf("shot_epX", "first", "v1", true)),',
+    '                     node("a-flf-epX-first-v2", flf("shot_epX", "first", "v2", false)),',
+    '                     node("a-flf-epX-last-v1", flf("shot_epX", "last", "v1", true)),',
+    '                     node("a-flf-epX-last-v2", flf("shot_epX", "last", "v2", false))]) {',
+    '    await db("canvas_nodes").insert(row);',
+    '  }',
+    '  const r1 = await callEndpoint(routeMod.default, "POST", "/", { projectId: 888, episodesId: 1 });',
+    '  const groups1 = r1?.payload?.data?.variantGroups ?? [];',
+    '  const ids1 = groups1.map((g) => g.id);',
+    '  emit(r1.status === 200, "S2f-1: load-v2 responds 200", String(r1.status));',
+    '  emit(ids1.includes("cand:shot:shot_epX:first") && ids1.includes("cand:shot:shot_epX:last"),',
+    '       "S2f-2: response carries cand: first+last groups", JSON.stringify(ids1));',
+    '  const r2 = await callEndpoint(routeMod.default, "POST", "/", { projectId: 888, episodesId: 1 });',
+    '  const ids2 = (r2?.payload?.data?.variantGroups ?? []).map((g) => g.id);',
+    '  emit(ids2.filter((i) => i === "cand:shot:shot_epX:first").length === 1 && ids2.length === ids1.length,',
+    '       "S2f-3: second load idempotent (no group duplication)", JSON.stringify(ids2));',
+    '  const r3 = await callEndpoint(routeMod.default, "POST", "/", { projectId: 888, episodesId: 1, since: T0 + 1 });',
+    '  emit(r3?.payload?.data?.nodes != null && r3?.payload?.data?.variantGroups == null,',
+    '       "S2f-4: since path returns nodes/links shape (no group derivation on incremental)", JSON.stringify(Object.keys(r3?.payload?.data ?? {})));',
+    '}',
+    'main().then(() => process.exit(0), (err) => { console.error("child crashed:", err); process.exit(2); });',
+  ].join("\n");
+  // Child must live INSIDE the repo tree so its relative tsx imports resolve
+  // the same way the parent's do (49-01 spawned-child precedent).
+  const childPath = path.join(REPO_ROOT, "scripts", ".verify-phase-53-child.tmp.ts");
+  fs.writeFileSync(childPath, CHILD_SRC);
+  const spawned = spawnSync("npx", ["tsx", "scripts/.verify-phase-53-child.tmp.ts"], {
+    cwd: REPO_ROOT, encoding: "utf8", timeout: 120000,
+  });
+  const childOut = `${spawned.stdout || ""}\n[stderr]\n${spawned.stderr || ""}`;
+  const childResults = (spawned.stdout || "")
+    .split("\n")
+    .filter((l) => l.startsWith("CHILD_RESULT\t"))
+    .map((l) => l.split("\t"));
+  for (const [_, passRaw, name, detail] of childResults) {
+    assert(passRaw === "1", `S2f(child): ${name}`, detail);
+  }
+  assert(
+    childResults.length >= 4 && spawned.status === 0,
+    "S2f: spawned dispatch produced all child assertions (exit 0)",
+    spawned.status == null ? "child timeout/crash" : `exit=${spawned.status}, lines=${childResults.length}, tail=${childOut.slice(-400)}`,
+  );
+  fs.rmSync(childPath, { force: true });
 
   // ═══ S3 — FILLED-BY-53-04: select-winner extension + queue ═══════════════
   console.log("\n=== S3 select-winner extension + retry queue (FILLED-BY-53-04 placeholder) ===");
+  const selfSrc = read("scripts/verify-phase-53.ts");
   // FILLED-BY-53-04: frameSlot params + manifest hook + queue table asserts.
   assert(selfSrc.includes("FILLED-BY-53-04"), "S3: FILLED-BY-53-04 marker present (section reserved)");
 
