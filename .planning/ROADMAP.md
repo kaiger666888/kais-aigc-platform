@@ -140,7 +140,24 @@ Plans:
   4. 新资产节点落在当前视口中心或事件源旁——断言新节点坐标与视口/源节点距离有界，不再随机散布。
   5. fitView 后默认 LOD 档位下 keyFields 可读(或每泳道缩放记忆生效)；BranchPanel 重写后消费 branches store，执行 selectBranchAsMain 可切换主线并持久化。
 
-**Plans**: TBD (via /gsd:plan-phase)
+**Plans**: 7 plans (3 waves; A1-A5/Q2-Q4 已由 orchestrator 裁决并入 plans)
+
+Plans:
+**Wave 1** *(并行，无文件交集)*
+
+- [ ] 55-01-PLAN.md — 22-phase 单一注册表 phaseRegistry + verify-phase-55 契约测试 (NAV-01, D-01/D-04 镜像)
+- [ ] 55-02-PLAN.md — sceneGrouping 共享口径 + extractShots 增强 + SceneShotBrowser 两级浏览 (NAV-02, UI-SPEC §2)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 55-03-PLAN.md — 消费方迁移:三旧表删除/未映射兜底/import-from-dir phaseIndex 写点修正 (NAV-01, D-03/D-04 + constraint 8)
+- [ ] 55-04-PLAN.md — SearchNavigator 搜索导航器 + onNewAsset 有界落点 canonical 写回 (NAV-03/NAV-04)
+- [ ] 55-05-PLAN.md — PhaseColumns 列头聚焦 + laneZoom 泳道记忆 + ShotTree 口径迁移 (NAV-05, LOD 红线钉死)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 55-06-PLAN.md — BranchPanel 重写 + selectBranchAsMain REST 持久化/回滚 (NAV-06, A5 事件流合并)
+- [ ] 55-07-PLAN.md — e2e phase55-nav 冒烟 + NEW_NODE 死常量清除 + 全 phase 门禁 (NAV-03/04/05 收口)
 
 ### Phase 56: 创作环节可视化 (Creative Visualization)
 
