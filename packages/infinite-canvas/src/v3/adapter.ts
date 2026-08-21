@@ -707,6 +707,21 @@ export function graphToViewModel(graph: FlowGraphV3): ViewModel {
     for (const id of deprecated) foldedIds.add(id)
   }
 
+  // 53-06：全部变体组成员通道（不限 deprecated——kmc 候选组此前无任何牌堆
+  // 可见性,Critical Gap 前端半部）。AssetCardNode 据此渲染组徽章开墙。
+  const membership = new Map<string, { groupIds: string[]; firstGroupSize: number }>()
+  for (const g of graph.variantGroups) {
+    const size = g.variantNodeIds.length + (g.winnerNodeId ? 1 : 0)
+    for (const id of new Set([...g.variantNodeIds, ...(g.winnerNodeId ? [g.winnerNodeId] : [])])) {
+      const cur = membership.get(id)
+      if (cur) {
+        if (!cur.groupIds.includes(g.id)) cur.groupIds.push(g.id)
+      } else {
+        membership.set(id, { groupIds: [g.id], firstGroupSize: size })
+      }
+    }
+  }
+
   // 事件不渲染：asset→event→asset 折叠为 asset→asset 直连因果边。
   // event 节点经其 role:'output' 边映射到产出资产；非 output 边端点是 event 则替换为该资产。
   const eventToAsset = new Map<string, string>() // eventId → 产出 assetId
@@ -732,6 +747,7 @@ export function graphToViewModel(graph: FlowGraphV3): ViewModel {
 
     if (n.kind === 'asset') {
       const stack = stackByWinner.get(n.id)
+      const m = membership.get(n.id)
       rfNodes.push({
         id: n.id,
         type: rfTypeOfAsset(n),
@@ -752,6 +768,7 @@ export function graphToViewModel(graph: FlowGraphV3): ViewModel {
           stale: n.stale,
           ...(n.variantGroupId != null ? { variantGroupId: n.variantGroupId } : {}),
           ...(stack ? { variantStack: stack } : {}),
+          ...(m ? { variantGroupIds: m.groupIds, variantGroupSize: m.firstGroupSize } : {}),
           // 旧组件过渡别名（v1 持久化层/节点组件的既有 data 契约）
           label: n.phaseName || n.id,
           type: legacyTypeOfStage(n.stage),

@@ -26,6 +26,7 @@ import { V3_NODE_SIZES } from '../../constants'
 import { v3theme, type Modality } from '../../theme/catppuccin'
 import { useLodLevel, type LodLevel } from '../../hooks/useLod'
 import { useCanvasUiStore } from '../canvas/canvasUiStore'
+import { useVariantPickerStore } from '../variants/variantPickerStore'
 import { useCanvasStore } from '../../store/canvasStore'
 import {
   getNodeBadgesRenderer,
@@ -47,6 +48,9 @@ type AssetCardData = {
   curation?: AssetNodeV3['curation']
   stale?: AssetNodeV3['stale']
   variantStack?: VariantStackData
+  /** 53-06：全部变体组成员通道（不限 deprecated）——组徽章开墙数据源 */
+  variantGroupIds?: string[]
+  variantGroupSize?: number
   /** C 的 P18 溯源接缝：'highlighted' 祖先链 / 'dimmed' 其余压暗 */
   traceState?: 'highlighted' | 'dimmed'
   // 旧组件过渡别名（非 graph 路径兜底）
@@ -205,7 +209,7 @@ function cardSize(stage: Stage | undefined): { w: number; h: number } {
 function L0Block({ data }: { data: AssetCardData }) {
   const mod = modalityOf(data)
   const stale = data.stale != null
-  const stackCount = data.variantStack?.count ?? 0
+  const stackCount = data.variantStack?.count ?? data.variantGroupSize ?? 0
   return (
     <div data-testid="asset-card-l0" style={{ position: 'relative', width: V3_NODE_SIZES.l0.width, height: V3_NODE_SIZES.l0.height }}>
       <Handle type="target" position={Position.Left} style={hiddenHandle} />
@@ -494,24 +498,32 @@ function pseudoWaveform(seed: string, bars: number): number[] {
 
 // ─── 变体牌堆 chrome（§4.8） ────────────────────────────────
 
-function StackChrome({ stack, cardW, cardH, mod, nodeId, children }: {
-  stack: VariantStackData
+function StackChrome({ stack, cardW, cardH, mod, nodeId, groupIds, groupSize, children }: {
+  stack: VariantStackData | null
   cardW: number
   cardH: number
   mod: Modality
   nodeId: string
+  groupIds?: string[]
+  groupSize?: number
   children: React.ReactNode
 }) {
-  const layers = Math.min(V3_NODE_SIZES.stack.layers, stack.count - 1)
+  const count = stack?.count ?? groupSize ?? 0
+  const layers = Math.min(V3_NODE_SIZES.stack.layers, Math.max(0, count - 1))
   const handlers = getVariantStackHandlers()
   const toggleStack = useCanvasUiStore((s) => s.toggleStack)
   const onToggle = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation()
-      if (handlers.onStackToggle) handlers.onStackToggle(nodeId, stack) // C 接管：候选列表
+      // 53-06：变体组成员通道优先——直接开全屏审片墙（对任何组通用）
+      if (groupIds && groupIds.length > 0) {
+        useVariantPickerStore.getState().openWallByGroup(groupIds[0])
+        return
+      }
+      if (stack && handlers.onStackToggle) handlers.onStackToggle(nodeId, stack) // C 回落：deprecated 牌堆
       else toggleStack(nodeId) // B 默认：扇形展开/收起（P17 折叠持久化）
     },
-    [handlers, nodeId, stack, toggleStack],
+    [handlers, nodeId, stack, toggleStack, groupIds],
   )
   return (
     <div style={{ position: 'relative', width: cardW, height: cardH }}>
@@ -533,12 +545,12 @@ function StackChrome({ stack, cardW, cardH, mod, nodeId, children }: {
       ))}
       {children}
       {/* ×N 计数章（右上外侧；C 的 P12 交互入口） */}
-      {stack.count > 1 && (
+      {count > 1 && (
         <button
           data-testid="variant-stack-count"
-          data-stack-group-id={stack.groupId}
+          data-stack-group-id={stack?.groupId ?? groupIds?.[0]}
           onClick={onToggle}
-          title={`${stack.count} 个候选（P12 变体牌堆）`}
+          title={`${count} 个候选（点击开审片墙）`}
           style={{
             position: 'absolute', top: -6, right: -28,
             width: V3_NODE_SIZES.stack.countSize, height: V3_NODE_SIZES.stack.countSize,
@@ -549,7 +561,7 @@ function StackChrome({ stack, cardW, cardH, mod, nodeId, children }: {
             cursor: 'pointer', zIndex: 4, padding: 0,
           }}
         >
-          ×{stack.count}
+          ×{count}
         </button>
       )}
     </div>
@@ -773,10 +785,20 @@ function AssetCardNodeComponent({ id, data, selected }: NodeProps<AssetCardNodeT
 
   return (
     <div style={{ position: 'relative', width: w }}>
-      {stack && stack.count > 1 && !isL1 ? (
-        <StackChrome stack={stack} cardW={w} cardH={h} mod={mod} nodeId={id}>
-          {card}
-        </StackChrome>
+      {(stack && stack.count > 1) || (data.variantGroupSize ?? 0) > 1 ? (
+        !isL1 ? (
+          <StackChrome
+            stack={stack ?? null}
+            cardW={w}
+            cardH={h}
+            mod={mod}
+            nodeId={id}
+            groupIds={data.variantGroupIds}
+            groupSize={data.variantGroupSize}
+          >
+            {card}
+          </StackChrome>
+        ) : card
       ) : card}
       {stack && expanded && !isL1 && <ExpandedStackFan stack={stack} />}
     </div>
