@@ -43,7 +43,7 @@ export default router.post(
       }
 
       const graph = JSON.parse(row.data) as {
-        nodes?: { id: string; type?: string; state?: string }[];
+        nodes?: { id: string; type?: string; state?: string; data?: Record<string, unknown> }[];
       };
       const allNodes = graph.nodes ?? [];
 
@@ -52,8 +52,12 @@ export default router.post(
         ? allNodes.filter((n) => nodeIds.includes(n.id))
         : allNodes;
 
-      // Skip nodes already done
-      const targets = filtered.filter((n) => n.state !== "success" && n.state !== "cached");
+      // Skip nodes already done — 52-02: stale 即需重跑语义(REGEN-03 锁定决策):
+      // success/cached 且【无】 stale 标记才跳过;带 stale 的 success 节点进入 targets。
+      // 不加 force 参数;52-02 起 data.stale 随 wire 持久化(serializeGraphToV2)。
+      const targets = filtered.filter(
+        (n) => (n.state !== "success" && n.state !== "cached") || (n.data != null && n.data.stale != null),
+      );
 
       // Sort by node-type topology (script → asset → storyboard → video → audio)
       targets.sort((a, b) => {

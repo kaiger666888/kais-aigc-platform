@@ -257,7 +257,11 @@ app.post('/api/canvas/orchestrate', (req, res) => {
   const filtered = Array.isArray(nodeIds) && nodeIds.length > 0
     ? all.filter((n) => nodeIds.includes(n.id))
     : all
-  const targets = filtered.filter((n) => n.state !== 'success' && n.state !== 'cached')
+  // 52-02: 镜像服务端 orchestrate.ts 同构改动——success/cached 且无 stale 标记才跳过
+  // (stale 即需重跑语义,e2e 与生产语义不分叉)
+  const targets = filtered.filter(
+    (n) => (n.state !== 'success' && n.state !== 'cached') || (n.data != null && n.data.stale != null),
+  )
   targets.sort((a, b) => TOPOLOGY.indexOf(a.type) - TOPOLOGY.indexOf(b.type))
 
   const total = targets.length
@@ -265,7 +269,9 @@ app.post('/api/canvas/orchestrate', (req, res) => {
   const runId = `run-${Date.now()}`
 
   res.json({ code: 200, data: { runId, total, skipped: filtered.length - total, mode } })
-  logCall('POST', '/api/canvas/orchestrate', { projectId, episodesId, nodeIds, mode, total }, { runId, total, skipped: filtered.length - total, mode })
+  // 52-02: logCall 记完整 body({...req.body} 全透传 + 计算字段 mode/total,
+  // mode/total 不在 req.body 里但 phase36/37 e2e 断言依赖)——REGEN e2e 断言任务参数的观测点
+  logCall('POST', '/api/canvas/orchestrate', { ...req.body, mode, total }, { runId, total, skipped: filtered.length - total, mode })
 
   // 把 runId 加入 active 集合;reset 会清空,使旧 run 自动终止
   state.activeRuns.add(runId)
@@ -346,7 +352,8 @@ app.post('/api/canvas/storyboard/preview', (req, res) => {
 app.post('/api/canvas/execute', (req, res) => {
   const { projectId, episodesId, nodeId, nodeType } = req.body
   res.json({ code: 200, data: { nodeId, status: 'triggered' } })
-  logCall('POST', '/api/canvas/execute', { projectId, episodesId, nodeId, nodeType }, null)
+  // 52-02: logCall 记完整 req.body(prompt/params/seed 等任务参数为 e2e 断言观测点)
+  logCall('POST', '/api/canvas/execute', req.body, null)
   setTimeout(() => {
     broadcastToProject(projectId, 'node:state', { nodeId, state: 'success' })
   }, 30)
