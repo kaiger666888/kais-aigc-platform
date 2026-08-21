@@ -13,8 +13,8 @@
  * review_result) → pending/approve/reject/waive。非 COMPLETE 一律 pending;
  * decision 优先;BLOCK→reject;AUTO/HUMAN 无 decision → approve(legacy 兼容)。
  *
- * 纯模块:无 @/utils import(P7——verify 脚本直读);等值匹配铁律(WR-01,
- * 零 startsWith)。
+ * 纯模块:无 @/utils import(P7——verify 脚本直读);等值匹配铁律(WR-01——
+ * 禁止任何前缀式字符串匹配)。
  */
 
 import { z } from "zod";
