@@ -62,7 +62,7 @@ function resetStore(): void {
     projectId: 7,
     episodesId: 101,
     toasts: [],
-    showToast: vi.fn() as unknown as (m: string, t?: 'success' | 'error' | 'warning') => void,
+    showToast: vi.fn() as unknown as (m: string, t?: 'success' | 'error' | 'info' | 'warning') => void,
   })
 }
 

@@ -51,8 +51,8 @@ export default function G15TriagePanel(): React.ReactElement | null {
   const setExpanded = useG15TriageStore((s) => s.setExpanded)
   const markRows = useG15TriageStore((s) => s.markRows)
   const unmarkRows = useG15TriageStore((s) => s.unmarkRows)
-  const projectId = useCanvasStore((s) => s.projectId)
-  const episodesId = useCanvasStore((s) => s.episodesId)
+  const projectId = useCanvasStore((s) => s.projectId) ?? 0
+  const episodesId = useCanvasStore((s) => s.episodesId) ?? 0
   const showToast = useCanvasStore((s) => s.showToast)
 
   const [confirming, setConfirming] = useState<'requeue' | null>(null)
