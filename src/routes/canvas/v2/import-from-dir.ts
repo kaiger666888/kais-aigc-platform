@@ -1893,7 +1893,7 @@ async function scanAndBuildTree(
   // from the p09 shot list. We match by shot_id extracted from the filename.
   enrichMediaArtifactsFromJSON(phaseArtifacts);
 
-  // Build tree for each phase, in PHASE_DEFS order
+  // Build tree for each phase, in PHASE_LANE_ORDER order
   const activePhases: string[] = [];
   for (const def of PHASE_LANE_ORDER) {
     const artifacts = phaseArtifacts.get(def.prefix);
