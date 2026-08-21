@@ -19,6 +19,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useCanvasStore } from '../../store/canvasStore'
+import { useVariantPickerStore } from '../variants/variantPickerStore'
 import { placeAssetOnCanvas, updateAsset, type AssetDetail } from '../../services/canvasApi'
 import { resolveMediaUrl } from '../../utils/mediaUrl'
 import { useRealAssets } from './useRealAssets'
@@ -834,6 +835,24 @@ export default function AssetLibrary() {
     store.setViewMode('canvas')
   }, [])
 
+  // 【D-19 去画布选片】候选组 → 画布变体墙。不做盲拼 `cand:${group.key}`——
+  // 资产中心展示分组键（char:/scene:/keyframe:）与画布推导组词表
+  // （shot:{sid}:first|last / name:{dir}/{base}）不同源；改为经画布图精确反查
+  // 组内主资产节点所属的 variantGroup，确定性拿组 id 后开墙。图未加载或组
+  // 不存在时降级为仅定位（focus + 切画布视图），不强开空态墙。
+  const handleGoCanvasSelect = useCallback((group: CandidateGroup) => {
+    const store = useCanvasStore.getState()
+    store.navPushCallback?.()
+    const primary = group.items.find((d) => d.isPrimaryView) ?? group.items[0]
+    const nodeId = `asset-${primary.id}`
+    const vg = store.graph?.variantGroups.find(
+      (v) => v.variantNodeIds.includes(nodeId) || v.winnerNodeId === nodeId,
+    )
+    store.setFocusAssetNodeId(nodeId)
+    if (vg) useVariantPickerStore.getState().openWallByGroup(vg.id)
+    store.setViewMode('canvas')
+  }, [])
+
   // 待选→选定：新选资产置 selected，同组其余所有变体自动淘汰（三态流转）。
   // 全程乐观更新——绝不 reload（避免列表闪烁/跳顶），仅在后端失败时回滚。
   const handleSelect = async (assetId: number, groupKey: string) => {
@@ -1339,6 +1358,14 @@ export default function AssetLibrary() {
                     <span className="am-group__title">{group.title}</span>
                     <span className="am-group__count">{group.items.length} 个变体</span>
                     <span className="am-group__hint" title="互斥组 · 选定其一则同组其余自动淘汰">⚙ 互斥组 · 选定其一则同组其余自动淘汰</span>
+                    <button
+                      className="am-group__hint"
+                      title="在画布变体墙中并排对比选片"
+                      onClick={() => handleGoCanvasSelect(group)}
+                      style={{ cursor: 'pointer', border: 'none', background: 'none', padding: 0, font: 'inherit' }}
+                    >
+                      去画布选片 →
+                    </button>
                   </div>
                   <div className="am-group__grid">
                     {group.items.map((d) => renderCard(d))}
