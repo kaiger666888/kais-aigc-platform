@@ -40,6 +40,7 @@ import type {
   ReviewStatus,
   SlotRole,
   Stage,
+  StaleInfo,
   VariantGroupV3,
 } from './types.js';
 import type { FlowGraphV2Export, FlowLinkV2, FlowNodeV2 } from './v2types.js';
@@ -163,6 +164,28 @@ function recipeParams(v2: FlowNodeV2): GenerationParams {
 function hasRecipe(v2: FlowNodeV2): boolean {
   const d = v2.data ?? {};
   return d.prompt != null || d.seed != null || d.engine != null;
+}
+
+/**
+ * 【52-02】wire data.stale → StaleInfo 还原（序列化器 data.stale 的逆）。
+ * 轻校验：since 为 number 且 triggerAssetId/triggerEventId 为 string 才还原；
+ * 缺失/畸形降级 null 不 throw（与 migrate 宽容风格一致）。
+ */
+function restoreStaleInfo(raw: unknown): StaleInfo | null {
+  if (raw == null || typeof raw !== 'object') return null;
+  const s = raw as Record<string, unknown>;
+  if (
+    typeof s.since === 'number' &&
+    typeof s.triggerAssetId === 'string' &&
+    typeof s.triggerEventId === 'string'
+  ) {
+    return {
+      since: s.since,
+      triggerAssetId: s.triggerAssetId,
+      triggerEventId: s.triggerEventId,
+    };
+  }
+  return null;
 }
 
 /** video 事件 op 推断：engine 字符串是唯一线索（假设，注释即规则）。 */
@@ -549,7 +572,11 @@ export function migrateV2toV3(v2: FlowGraphV2Export): {
       ...(normalizeReviewStatus(n) != null ? { reviewStatus: normalizeReviewStatus(n)! } : {}),
       ...(normalizeAiScore(n) != null ? { aiScore: normalizeAiScore(n)! } : {}),
       curation,
-      stale: null,
+      // 【52-02】stale 还原：d.stale 三字段齐全 → StaleInfo；缺失/畸形 → null
+      // （轻校验降级不 throw，与 migrate 宽容风格一致；stale 未进 v2types 白名单——
+      //  52-02 新上 wire 的富字段，按 §7 宽松消费 cast 读取）。修复 stale 刷新即丢
+      //  预存缺口；orchestrate 服务端 stale-success 不跳过（REGEN-03）的信息源。
+      stale: restoreStaleInfo((d as Record<string, unknown>).stale),
     };
     assetById.set(n.id, asset);
     nodes.push(asset);

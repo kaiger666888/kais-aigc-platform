@@ -349,3 +349,31 @@ describe('迁移输出引用完整性（F5：悬空引用 drop + warning，不�
     expect(checkReferentialIntegrity(graph)).toEqual([]);
   });
 });
+
+describe('【52-02】stale wire 还原：data.stale → asset.stale', () => {
+  const STALE = { since: 1724300000000, triggerAssetId: 'n_up_01', triggerEventId: 'evt_n_up_01' };
+
+  it('data.stale 三字段齐全 → asset.stale 还原相等（修复 stale 刷新即丢预存缺口）', () => {
+    const v2in = JSON.parse(JSON.stringify(v2Sample)) as FlowGraphV2Export;
+    const node = v2in.nodes.find((n) => n.id === 'n_sb_01')!;
+    (node.data as Record<string, unknown>).stale = STALE;
+    const { graph: out } = migrateV2toV3(v2in);
+    expect(asset(out, 'n_sb_01').stale).toEqual(STALE);
+  });
+
+  it('data.stale 缺失 → asset.stale 为 null（不伪造）', () => {
+    expect(asset(graph, 'n_sb_01').stale).toBeNull();
+  });
+
+  it('data.stale 畸形（缺字段 / 非对象）→ 降级 null 不 throw（migrate 宽容风格）', () => {
+    const v2in = JSON.parse(JSON.stringify(v2Sample)) as FlowGraphV2Export;
+    const a = v2in.nodes.find((n) => n.id === 'n_sb_01')!;
+    (a.data as Record<string, unknown>).stale = { since: 123 }; // 缺 trigger 两字段
+    const b = v2in.nodes.find((n) => n.id === 'n_script_01')!;
+    (b.data as Record<string, unknown>).stale = 'not-an-object'; // 非对象
+    expect(() => migrateV2toV3(v2in)).not.toThrow();
+    const { graph: out } = migrateV2toV3(v2in);
+    expect(asset(out, 'n_sb_01').stale).toBeNull();
+    expect(asset(out, 'n_script_01').stale).toBeNull();
+  });
+});
