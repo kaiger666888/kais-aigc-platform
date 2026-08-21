@@ -21,6 +21,11 @@ export default router.post(
     // prompt + branchId: IterationEngine sends these for single-node regeneration.
     prompt: z.string().optional(),
     branchId: z.string().optional(),
+    // 52-02: params(配方袋,REGEN-02 换 seed 提交通道)。validateFields 只校验不回写
+    // (middleware safeParse 后 next(),extra key 本就原样穿透无行为变化)——此字段为
+    // 契约诚实 + 防未来有人给 middleware 加 strip 回写踩雷。模拟器语义不变:
+    // handler 不把 prompt/params 传给 simulateExecution(归宿 = 接受并忽略)。
+    params: z.record(z.string(), z.unknown()).optional(),
   }),
   async (req, res) => {
     const { projectId, episodesId, nodeId, nodeType, prompt, branchId } = req.body;

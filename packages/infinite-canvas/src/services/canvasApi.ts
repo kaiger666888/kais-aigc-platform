@@ -372,9 +372,17 @@ export async function executeNode(
   episodesId: number,
   nodeId: string,
   nodeType: string,
+  // 52-02: extra 提交通道(REGEN-01/02)——重生成/换 seed 经此携带新 prompt/seed/params;
+  // 服务端 zod 契约层接受并忽略(模拟器语义不变),e2e 经 mock logCall 完整 body 断言到达。
+  // 可选参数,既有调用方(CanvasContextMenu handleExecute)不传 extra,向后兼容零改动。
+  extra?: { prompt?: string; seed?: number; params?: Record<string, unknown> },
   cancelToken?: CancelToken,
 ): Promise<void> {
-  await apiCall<void>('/canvas/execute', { projectId, episodesId, nodeId, nodeType }, { cancelToken })
+  await apiCall<void>(
+    '/canvas/execute',
+    { projectId, episodesId, nodeId, nodeType, ...extra },
+    { cancelToken },
+  )
 }
 
 // ─── 一键成片 / 批量执行 (Phase 36/37) ───────────────────
