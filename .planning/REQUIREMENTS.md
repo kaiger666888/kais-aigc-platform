@@ -8,10 +8,10 @@
 
 ### A. 写路径地基 (WRITE)
 
-- [ ] **WRITE-01**: 画布保存切换到 V2 save-v2 / 直接持久化 canonical V3 graph,废弃 `canvasToFlowGraph` legacy v1 绕行;保存失败必须 toast 可见,不再只 console.error
-- [ ] **WRITE-02**: 右键菜单审核/删除改走 `store.approveNode/rejectNode` canonical 路径;删除有确认且持久化(重载不复活)
-- [ ] **WRITE-03**: MetadataEditor 镜头意图编辑、socket `node:preview`/`node:state` 更新全部回写 canonical graph,不再只写派生缓存被 applyGraphTransform 覆盖
-- [ ] **WRITE-04**: 死代码清理 — 4 个旧节点渲染器(ScriptNode/VideoNode/AudioNode/StoryboardNode)、VariantGroupDetail、BranchPanel、StructuredFieldPanel、双份徽章组件、legacy 类型与过期注释(约 2500 行);`@kais/flowgraph-v3` 声明进 dependencies 消除幽灵依赖
+- [x] **WRITE-01**: 画布保存切换到 V2 save-v2 / 直接持久化 canonical V3 graph,废弃 `canvasToFlowGraph` legacy v1 绕行;保存失败必须 toast 可见,不再只 console.error
+- [x] **WRITE-02**: 右键菜单审核/删除改走 `store.approveNode/rejectNode` canonical 路径;删除有确认且持久化(重载不复活)
+- [x] **WRITE-03**: MetadataEditor 镜头意图编辑、socket `node:preview`/`node:state` 更新全部回写 canonical graph,不再只写派生缓存被 applyGraphTransform 覆盖
+- [x] **WRITE-04**: 死代码清理 — 4 个旧节点渲染器(ScriptNode/VideoNode/AudioNode/StoryboardNode)、VariantGroupDetail、BranchPanel、StructuredFieldPanel、双份徽章组件、legacy 类型与过期注释(约 2500 行);`@kais/flowgraph-v3` 声明进 dependencies 消除幽灵依赖
 
 ### B. 生成-迭代闭环 (REGEN)
 
@@ -57,7 +57,7 @@
 
 ### H. 并行工作流协调 (COORD)
 
-- [ ] **COORD-01**: khs2 (kmc v2.4) 冲突管理 — v3.0 kmc 侧变更限定契约/映射层(field-map/canvas_sync/manifest schema),不碰 v2.4 在改的 phases 内部算法;涉及 p04/p09 输出字段映射的 phase 排在 v2.4 Phase 25 验收之后;kmc 侧 phase 开工前检查工作树干净
+- [x] **COORD-01**: khs2 (kmc v2.4) 冲突管理 — v3.0 kmc 侧变更限定契约/映射层(field-map/canvas_sync/manifest schema),不碰 v2.4 在改的 phases 内部算法;涉及 p04/p09 输出字段映射的 phase 排在 v2.4 Phase 25 验收之后;kmc 侧 phase 开工前检查工作树干净
 
 ## Future Requirements (deferred)
 

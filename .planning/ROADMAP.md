@@ -7,7 +7,7 @@
 
 ### v3.0 Phases
 
-- [ ] **Phase 51: 写路径地基统一 (Canonical Write Path + Coordination Guard)** — 保存/审核/删除/socket 回写全部切到 V3 canonical graph + ~2500 行死代码清理 + khs2 v2.4 横切冲突约束落地
+- [x] **Phase 51: 写路径地基统一 (Canonical Write Path + Coordination Guard)** — 保存/审核/删除/socket 回写全部切到 V3 canonical graph + ~2500 行死代码清理 + khs2 v2.4 横切冲突约束落地 (completed 2026-08-21)
 - [ ] **Phase 52: 生成-迭代闭环 (Prompt Edit → Regenerate Loop)** — 详情面板 prompt 编辑一键重生成 + 换 seed 重跑 + stale 下游重跑链 + 面板交互优化
 - [ ] **Phase 53: 候选变体契约与选片 (Variant Contract + Picker Upgrade)** — field-map 补 candidate/variant/winner 字段 + VariantPicker 升级 + 选优回写 manifest + 失败镜头批量操作
 - [ ] **Phase 54: Gate 中心 (Gate Center + Blocking-State UX)** — 16 gate 状态接入 + 画布阻塞态一等呈现 + approve/reject/waive 画布内闭环
