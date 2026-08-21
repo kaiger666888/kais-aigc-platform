@@ -56,6 +56,9 @@ import StoryboardBoard from './storyboard/StoryboardBoard'
 import SceneShotBrowser from './SceneShotBrowser'
 import SearchNavigator from './canvas/SearchNavigator'
 import BranchPanel from './BranchPanel'
+import GroupViewTheater from './theater/GroupViewTheater'
+import { theaterTargetOf } from './theater/groupMembership'
+import { useTheaterStore } from './theater/theaterStore'
 import { placeNewAsset } from '../utils/placeNewAsset'
 import { useLayout } from '../hooks/useLayout'
 import { canvasStateKey, loadCanvasState, useCanvasPersistence } from '../hooks/useCanvasPersistence'
@@ -550,6 +553,13 @@ function CanvasInner() {
   // 已在 <ReactFlow> 上设 zoomOnDoubleClick={false} 放行。
   const onNodeDoubleClick = useCallback((_event: React.MouseEvent, node: any) => {
     if (node?.type === 'eventChip') return
+    // 56-04 (VIZ-02):组资产双击改道开剧场(前置分支;未命中原路径零改动)
+    const st = useCanvasStore.getState()
+    const t = theaterTargetOf({ id: node.id, data: node.data ?? {} }, st.graph, st.rawDataByNodeId)
+    if (t != null) {
+      useTheaterStore.getState().open(t)
+      return
+    }
     if (!navSkipRef.current) navHistory.push()
     setSelectedNode(node)
     setDetailNode(node)
@@ -1117,6 +1127,7 @@ function CanvasInner() {
         <G15TriagePanel />
         {gateOpen && <GateCenterPanel />}
         {branchPanelOpen && <BranchPanel onClose={() => setBranchPanelOpen(false)} />}
+        <GroupViewTheater />
         <SearchNavigator open={searchNavOpen} onClose={() => setSearchNavOpen(false)} initialQuery={searchQuery} />
         </>
         )}

@@ -25,6 +25,8 @@ import IterationPanel from '../IterationPanel'
 import MetaRenderer from './MetaRenderer'
 import TimelineStructure from '../timeline/TimelineStructure'
 import { resolveMediaUrl, resolveRelativeAssetPath, ossDirOf } from '../../utils/mediaUrl'
+import { theaterTargetOf } from '../theater/groupMembership'
+import { useTheaterStore } from '../theater/theaterStore'
 
 interface Props {
   node: Node | null
@@ -107,6 +109,21 @@ export default function NodeDetailPanel({ node, onClose }: Props): React.ReactEl
             <span style={{ color: theme.text.primary, fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: panelWidth - 160 }}>{title}</span>
             {isAsset && <StateBadge state={asset!.state} />}
           </div>
+          {(() => {
+            // 56-04 (VIZ-02):组资产次入口(命中才渲染)
+            const st = useCanvasStore.getState()
+            const t = theaterTargetOf({ id: node.id, data: (node.data ?? {}) as Record<string, unknown> }, st.graph, st.rawDataByNodeId)
+            if (t == null) return null
+            return (
+              <button
+                onClick={() => useTheaterStore.getState().open(t)}
+                title="打开组视图剧场"
+                style={{ background: 'none', border: 'none', color: theme.text.secondary, cursor: 'pointer', fontSize: 11, padding: '2px 8px', borderRadius: 4 }}
+              >
+                组视图
+              </button>
+            )
+          })()}
           <button onClick={onClose} style={closeBtnStyle}>✕</button>
         </div>
 
@@ -633,8 +650,20 @@ function PromptSection({ asset }: { asset: AssetNodeV3 }) {
     return (
       <div data-testid="prompt-section">
         <SectionLabel>Prompt</SectionLabel>
-        <div style={{ padding: '8px 12px', borderRadius: 8, background: theme.bg.input, border: `1px dashed ${theme.border.subtle}`, color: theme.text.disabled, fontSize: 12, lineHeight: 1.6 }}>
+        <div data-testid="prompt-readonly-hint" style={{ padding: '8px 12px', borderRadius: 8, background: theme.bg.input, border: `1px dashed ${theme.border.subtle}`, color: theme.text.disabled, fontSize: 12, lineHeight: 1.6, marginBottom: 8 }}>
           {hint}
+        </div>
+        <textarea
+          data-testid="prompt-textarea"
+          value={canonicalPrompt}
+          readOnly
+          disabled
+          rows={3}
+          style={{ width: '100%', boxSizing: 'border-box', resize: 'none', background: theme.bg.input, border: `1px solid ${theme.border.default}`, borderRadius: 8, padding: 10, color: theme.text.disabled, fontSize: 12, lineHeight: 1.6, fontFamily: 'inherit' }}
+        />
+        <div style={{ display: 'flex', gap: 8, marginTop: 8, marginBottom: 4 }}>
+          <button data-testid="prompt-save" disabled title={hint} style={{ padding: '4px 14px', borderRadius: 6, border: 'none', fontSize: 12, fontWeight: 600, cursor: 'default', background: theme.bg.surface, color: theme.text.disabled }}>保存</button>
+          <button data-testid="prompt-regenerate" disabled title={hint} style={{ padding: '4px 14px', borderRadius: 6, border: 'none', fontSize: 12, fontWeight: 600, cursor: 'default', background: theme.bg.surface, color: theme.text.disabled }}>重生成</button>
         </div>
       </div>
     )
