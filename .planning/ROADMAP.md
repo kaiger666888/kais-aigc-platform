@@ -83,7 +83,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 53-04-PLAN.md — select-winner 扩展(frameSlot/source)+ manifest 回写 hook + canvas_writeback_queue 重试队列 + S3 (VAR-03 kap 半部)
+- [x] 53-04-PLAN.md — select-winner 扩展(frameSlot/source)+ manifest 回写 hook + canvas_writeback_queue 重试队列 + S3 (VAR-03 kap 半部)
 - [ ] 53-05-PLAN.md — 墙接线:frameSlot 透传 + G13 首尾两组 + 下一镜串行 + D-12 RF 双轨废弃 (VAR-02/03)
 
 **Wave 4** *(blocked on Wave 3 completion)*
