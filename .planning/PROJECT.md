@@ -29,6 +29,7 @@ AI 短剧全链路制作平台，通过 kais-gold-team 统一执行引擎编排 
 
 <!-- Shipped and confirmed. -->
 
+- ✓ 画布写路径统一 (V3 canonical graph: save-v2 保存/右键审核删除/MetaEditor+socket 回写; ~3,200 行死代码清除; @kais/flowgraph-v3 依赖正名; COORD-01 成文) — v3.0 Phase 51
 - ✓ 视频生成 (Wan2.2 T2V/I2V via ComfyUI GGUF) — gold-team v6
 - ✓ 图片生成 (FLUX via ComfyUI) — gold-team v6
 - ✓ 语音合成 (CosyVoice3 TTS) — gold-team v6
@@ -291,4 +292,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-19 after v2.1 milestone complete*
+*Last updated: 2026-08-21 after Phase 51 (写路径地基统一) complete*
