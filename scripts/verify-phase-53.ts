@@ -765,7 +765,7 @@ async function main(): Promise<void> {
   const failed = total - passed;
   console.log(`\n=== Summary: ${passed}/${total} assertions passed, FAIL count = ${failed} (self-check excluded from totals) ===`);
   if (passed === total) {
-    console.log("✅ Phase 53 verification PASSED (S1 envelope round-trip ✓ S2-S4 placeholders marked ✓ S5 forced-failure ✓)");
+    console.log("✅ Phase 53 verification PASSED (S1 envelope ✓ S2 group derivation ✓ S3 writeback+queue ✓ S4 wall shapes ✓ S5 G15 bridge + forced-failure ✓)");
     cleanup();
     process.exit(0);
   } else {

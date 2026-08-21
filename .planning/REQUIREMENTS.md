@@ -22,10 +22,10 @@
 
 ### C. 候选与选片 (VAR)
 
-- [ ] **VAR-01**: field-map / canvas_sync 补 candidate/variant/winner/selected 字段映射(kmc 侧同步修改),p01 hook 候选、p03 N-best、p11a0 条件帧、p11a 预览变体、p11b take-log 不再被压平丢失
-- [ ] **VAR-02**: VariantPicker 升级 — 候选卡带 aiScore/时长/prompt 摘要,支持并排大屏对比与视频同播;缩略图走 resolveMediaUrl 修 404
-- [ ] **VAR-03**: 选优回写 manifest — G13 条件帧/G14 预览的换选直接写回 kmc manifest(chosen_variant_id / selected_first/last_variant 闭环)
-- [ ] **VAR-04**: 失败镜头批量操作(G15)— failed-shots 列表带失败原因标注,支持批量豁免与批量重渲
+- [x] **VAR-01**: field-map / canvas_sync 补 candidate/variant/winner/selected 字段映射(kmc 侧同步修改),p01 hook 候选、p03 N-best、p11a0 条件帧、p11a 预览变体、p11b take-log 不再被压平丢失
+- [x] **VAR-02**: VariantPicker 升级 — 候选卡带 aiScore/时长/prompt 摘要,支持并排大屏对比与视频同播;缩略图走 resolveMediaUrl 修 404
+- [x] **VAR-03**: 选优回写 manifest — G13 条件帧/G14 预览的换选直接写回 kmc manifest(chosen_variant_id / selected_first/last_variant 闭环)
+- [x] **VAR-04**: 失败镜头批量操作(G15)— failed-shots 列表带失败原因标注,支持批量豁免与批量重渲
 
 ### D. Gate 中心 (GATE)
 
