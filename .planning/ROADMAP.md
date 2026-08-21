@@ -72,11 +72,22 @@
 **Plans**: 7 plans (Wave A only — D-01;Wave B = khs field-map + E2E 闭环,gated on khs2 v2.4 Phase 25 验收,单独 plan)
 
 Plans:
+**Wave 1**
+
 - [ ] 53-01-PLAN.md — 候选信封 zod 契约 + verify-phase-53 骨架(S1) + 双代 fixtures (VAR-01 kap 半部)
 - [ ] 53-02-PLAN.md — 变体墙引擎:wallTransport 同播主时钟 + 键盘流 + 全屏剧场组件 (VAR-02)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 53-03-PLAN.md — 候选组推导/物化(cand: 组,Phase 48 词表)+ load-v2 钩子 + S2 (VAR-01/03)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 53-04-PLAN.md — select-winner 扩展(frameSlot/source)+ manifest 回写 hook + canvas_writeback_queue 重试队列 + S3 (VAR-03 kap 半部)
 - [ ] 53-05-PLAN.md — 墙接线:frameSlot 透传 + G13 首尾两组 + 下一镜串行 + D-12 RF 双轨废弃 (VAR-02/03)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 53-06-PLAN.md — 入口改造(adapter 组成员通道/AssetCardNode 徽章)+ 资产中心「去画布选片」+ VariantPicker 删除 (VAR-02/03)
 - [ ] 53-07-PLAN.md — G15 操作桥 + g15-ops 端点 + 分诊面板 + S4/S5 契约门收口 (VAR-04)
 
