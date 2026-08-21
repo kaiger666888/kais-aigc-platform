@@ -164,8 +164,12 @@ async function main(): Promise<void> {
     "S1e-1: all five sources parse",
     JSON.stringify(sources),
   );
-  for (const w of waveB) {
-    const parsed = envelope.parseCandidateEnvelope(w);
+  for (const wRaw of waveB) {
+    const w = wRaw as {
+      source: string; groupKey: string; variantId: string; selected: boolean;
+      score?: { overall: number; scale: string }; prompt?: string; seed?: number; durationSec?: number;
+    };
+    const parsed = envelope.parseCandidateEnvelope(wRaw);
     const ok =
       parsed != null &&
       parsed.groupKey === w.groupKey &&
