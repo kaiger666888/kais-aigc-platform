@@ -79,7 +79,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 53-03-PLAN.md — 候选组推导/物化(cand: 组,Phase 48 词表)+ load-v2 钩子 + S2 (VAR-01/03)
+- [x] 53-03-PLAN.md — 候选组推导/物化(cand: 组,Phase 48 词表)+ load-v2 钩子 + S2 (VAR-01/03)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -96,7 +96,7 @@ Plans:
 **Goal**: kmc 16 道 gate 的 pending/approve/reject/waive 状态接入平台并在画布一等呈现——用户一眼看到"管线停在哪道门等你决策"，且审批操作在画布内直接回写 kmc，替代 telegram/CLI 审批。
 **Depends on**: Phase 51 (gate 操作回写依赖 canonical write path + kmc 契约层变更纪律); Phase 53 可并行(无强依赖，但 gate 面板复用变体选定数据时获益)
 **Requirements**: GATE-01, GATE-02, GATE-03
-**Repo**: `kais-aigc-platform` + `kais-hermes-skills` (回写 gates.yaml/review-outcomes 属契约层，遵守 COORD-01)
+**Repo**: `kais-aigc-platform` + `kais-hermes-skills` (回写 gates.yaml/review-outcomes 属契约层，遵守 COORD-01) + `kais-review-platform` (R1 最小契约: decision 字段 + waive 端点, 依 54-CONTEXT 自由裁量授权)
 **Success Criteria** (what must be TRUE):
 
   1. 平台读取 kmc gates.yaml / review-outcomes 后，16 gate 各自呈现正确的 pending/approve/reject/waive 状态；kmc 侧状态变更后平台侧同步刷新(轮询或事件)。
