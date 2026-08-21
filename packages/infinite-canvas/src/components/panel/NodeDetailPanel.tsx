@@ -590,10 +590,10 @@ function DimBar({ label, value }: { label: string; value: number }) {
  * 画布资产卡无 running/success 反馈、stale 清除链（52-01 applySocketNodeState）不生效。
  * eventId 仅用于 canonical 写回（persistEventParams）。
  *
- * 边缘 case（research Task 2 实证矩阵）：落选变体（候选事件被删并入 winner variantRecipes）
- * 与无产生事件的资产（fixture 手造图）→ 整块只读，保存/重生成 disabled（地雷 #5）；
- * import 种子事件可编辑（prompt 初始空，语义=补配方后重抽，放行）；
- * 多产生事件取第一条 + console.warn，不阻塞。
+ * 边缘 case（research Task 2 实证矩阵）：落选变体（候选事件被删、output 边重指 winner
+ * 主事件、配方并入 variantRecipes）与无产生事件的资产（fixture 手造图）→ 整块只读，
+ * 保存/重生成 disabled（地雷 #5）；import 种子事件可编辑（prompt 初始空，语义=补配方后
+ * 重抽，放行）；多产生事件取第一条 + console.warn，不阻塞。
  */
 function PromptSection({ asset }: { asset: AssetNodeV3 }) {
   const graph = useCanvasStore((s) => s.graph)
@@ -620,8 +620,13 @@ function PromptSection({ asset }: { asset: AssetNodeV3 }) {
 
   if (!graph) return null
 
-  // ── 只读态：无产生事件（落选变体 / fixture 手造图）──
-  if (!evt) {
+  // ── 只读态：落选变体 / 无产生事件 ──
+  // 落选变体（curation:'deprecated'）：migrate Pass 3 删除候选事件、把 output 边重指到
+  // winner 主事件（配方并入 winner variantRecipes）——反查会命中共享主事件，但从落选卡
+  // 编辑会改到 winner 配方（地雷 #5），故无论反查是否命中都整块只读。
+  // 无产生事件（fixture 手造图）：同样只读。
+  const isLoserVariant = asset.curation === 'deprecated'
+  if (!evt || isLoserVariant) {
     const hint = asset.variantGroupId
       ? '落选变体配方已并入主事件 variantRecipes，不可单独编辑'
       : '无产生事件，prompt 不可编辑'
