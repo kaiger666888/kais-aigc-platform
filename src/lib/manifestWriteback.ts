@@ -76,11 +76,21 @@ export function targetForParams(params: ManifestWritebackParams): ManifestWriteT
 
 // ─── enqueueManifestWriteback(never-throws 挂点)──────────────────────────
 
+export interface ManifestWritebackDeps {
+  /** 传输解析注入(verify 用);缺省读 getManifestTransport()。 */
+  getTransport?: () => ManifestTransport | null
+  /** db 注入(verify :memory: 用);缺省 @/utils/db。 */
+  db?: unknown
+}
+
 let warnedNoTransport = false;
 
-export async function enqueueManifestWriteback(params: ManifestWritebackParams): Promise<void> {
+export async function enqueueManifestWriteback(
+  params: ManifestWritebackParams,
+  deps?: ManifestWritebackDeps,
+): Promise<void> {
   try {
-    const transport = getManifestTransport();
+    const transport = deps?.getTransport ? deps.getTransport() : getManifestTransport();
     if (transport == null) {
       if (!warnedNoTransport) {
         warnedNoTransport = true;
@@ -97,7 +107,9 @@ export async function enqueueManifestWriteback(params: ManifestWritebackParams):
       // 直投失败 → 入队重放(D-10)
     }
     try {
-      const { db } = await import("@/utils/db");
+      const db = deps?.db != null
+        ? (deps.db as import("knex").Knex)
+        : (await import("@/utils/db")).db;
       await enqueueWriteback(db, {
         projectId: params.projectId,
         episodesId: params.episodesId,
