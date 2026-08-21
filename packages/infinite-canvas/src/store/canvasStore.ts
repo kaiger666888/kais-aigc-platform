@@ -12,7 +12,8 @@ import {
 import type { SkillNodeTypeDecl, IterationPlan, IterationResult } from '../services/canvasApi'
 import type { FlowBranch, VariantGroup, VariantGroupId } from '../types/canvas'
 import { asNodeId, asVariantGroupId } from '../types/canvas'
-import { approveNode as apiApproveNode, rejectNode as apiRejectNode, selectVariantWinner } from '../services/canvasApi'
+import { approveNode as apiApproveNode, rejectNode as apiRejectNode, selectVariantWinner, saveCanvasGraph } from '../services/canvasApi'
+import { serializeGraphToV2 } from '../v3/serialize'
 import {
   applyWinnerSelection,
   rollbackWinnerSelection,
@@ -140,6 +141,9 @@ interface CanvasState {
   // 审核操作
   approveNode: (nodeId: string) => Promise<void>
   rejectNode: (nodeId: string, feedback?: string) => Promise<void>
+  /** WRITE-02：删除节点 —— canonical 图变换（节点 + 触及 links + variantGroups 清理）
+   *  → save-v2 统一持久化（不新增 delete 端点），失败回滚 prevGraph + error toast。 */
+  deleteNode: (nodeId: string) => Promise<void>
   /** 选定变体组优胜（Phase 49 SELECT-02：乐观更新 → POST select-winner → 失败回滚）。 */
   selectWinner: (nodeId: string) => Promise<void>
 
@@ -659,6 +663,45 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
         ),
       }))
       showToast(`驳回失败: ${(err as Error).message}`, 'error')
+    }
+  },
+  // 删除 —— approveNode 同款范式：快照 prevGraph → canonical 变换乐观上屏 →
+  // save-v2 统一持久化 → 失败回滚 prevGraph + error toast。
+  // 图变换含三道清理（T-51-03-03）：触及该节点的 links；节点是组 winner 清
+  // winnerNodeId；组成员清空则删整组（不残留悬空引用/空组）。
+  deleteNode: async (nodeId) => {
+    const { projectId, episodesId, graph, rawDataByNodeId, showToast } = get()
+    if (!graph || !graph.nodes.some((n) => n.id === nodeId)) return
+    if (!projectId || !episodesId) {
+      showToast('缺少项目上下文', 'warning')
+      return
+    }
+
+    const prevGraph = graph
+    get().applyGraphTransform((g) => ({
+      ...g,
+      nodes: g.nodes.filter((n) => n.id !== nodeId),
+      links: g.links.filter((l) => l.source !== nodeId && l.target !== nodeId),
+      variantGroups: g.variantGroups
+        .map((grp) => {
+          const next = {
+            ...grp,
+            variantNodeIds: grp.variantNodeIds.filter((id) => id !== nodeId),
+          }
+          if (next.winnerNodeId === nodeId) delete next.winnerNodeId
+          return next
+        })
+        .filter((grp) => grp.variantNodeIds.length > 0),
+    }))
+
+    try {
+      const cur = get().graph
+      if (!cur) throw new Error('canonical graph 已清空，无法保存')
+      await saveCanvasGraph(projectId, episodesId, serializeGraphToV2(cur, rawDataByNodeId))
+      showToast(`已删除节点: ${nodeId}`, 'success')
+    } catch (err) {
+      get().setGraph(prevGraph, get().warnings)
+      showToast(`删除失败已回滚: ${(err as Error).message}`, 'error')
     }
   },
   selectWinner: async (nodeId) => {

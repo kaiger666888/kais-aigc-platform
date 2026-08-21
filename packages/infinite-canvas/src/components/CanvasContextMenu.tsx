@@ -31,20 +31,23 @@ export default function CanvasContextMenu({
 }: CanvasContextMenuProps) {
   const [showRejectInput, setShowRejectInput] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
+  // WRITE-02：删除确认（画布内轻量确认 UI，CONTEXT 锁定禁用浏览器原生确认弹窗）
+  const [showDeletePrompt, setShowDeletePrompt] = useState(false)
 
   const setNodes = useCanvasStore((s) => s.setNodes)
-  const setEdges = useCanvasStore((s) => s.setEdges)
   const showToast = useCanvasStore((s) => s.showToast)
   const selectWinner = useCanvasStore((s) => s.selectWinner)
   // WRITE-02：右键审核走 store canonical optimistic 通道（乐观更新 + prevGraph 回滚 + toast 内置于 store action）
   const storeApproveNode = useCanvasStore((s) => s.approveNode)
   const storeRejectNode = useCanvasStore((s) => s.rejectNode)
+  const storeDeleteNode = useCanvasStore((s) => s.deleteNode)
 
+  // WRITE-02：确认后走 store.deleteNode（canonical 图变换 + save-v2 统一持久化 +
+  // 失败回滚 prevGraph + toast，全在 store 内），菜单层不再直改派生缓存。
   const handleDelete = () => {
     if (!nodeId) return
-    setNodes((nds) => nds.filter((n) => n.id !== nodeId))
-    setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId))
     onClose()
+    void storeDeleteNode(nodeId)
   }
 
   const handleExecute = async () => {
@@ -179,7 +182,7 @@ export default function CanvasContextMenu({
   if (nodeId) {
     items.push(
       { label: '执行节点', icon: '▶', action: handleExecute },
-      { label: '删除节点', icon: '🗑', action: handleDelete, danger: true },
+      { label: '删除节点', icon: '🗑', action: () => setShowDeletePrompt(true), danger: true },
     )
     items.push({ label: '---', icon: '', action: () => {} })
 
@@ -343,6 +346,51 @@ export default function CanvasContextMenu({
           </div>
         )
       })}
+
+      {/* 删除确认区域（复用本文件驳回确认的轻量模式，非浏览器原生弹窗） */}
+      {nodeId && showDeletePrompt && (
+        <>
+          <div style={{ height: 1, background: theme.border.subtle, margin: '4px 0' }} />
+          <div style={{ padding: '4px 8px' }}>
+            <div style={{ padding: '2px 4px 6px', fontSize: 11, color: theme.status.rejected }}>
+              确认删除该节点？相关连线与变体组引用将一并清理。
+            </div>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <button
+                onClick={handleDelete}
+                style={{
+                  flex: 1,
+                  padding: '4px 8px',
+                  borderRadius: 4,
+                  border: 'none',
+                  background: theme.button.danger,
+                  color: theme.text.onAccent,
+                  fontSize: 11,
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                }}
+              >
+                确认删除
+              </button>
+              <button
+                onClick={() => setShowDeletePrompt(false)}
+                style={{
+                  flex: 1,
+                  padding: '4px 8px',
+                  borderRadius: 4,
+                  border: 'none',
+                  background: theme.button.ghost,
+                  color: theme.text.secondary,
+                  fontSize: 11,
+                  cursor: 'pointer',
+                }}
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* 审核操作区域 */}
       {nodeId && (
