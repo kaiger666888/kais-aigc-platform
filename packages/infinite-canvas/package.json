@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@dagrejs/dagre": "^3.0.0",
+    "@kais/flowgraph-v3": "file:../flowgraph-v3",
     "@xyflow/react": "^12.6.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
