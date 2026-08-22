@@ -100,6 +100,15 @@ export interface PhaseDecl {
   order: number;
   label: string;
   requires_review: boolean;
+  /**
+   * Real review-gate id for phases that gate on human review, in the platform
+   * gate-catalog derivedGateId form (e.g. `'p03-gate'` — see
+   * src/lib/gateCatalog.ts, Phase 54). Empty string or absent for gate-less
+   * phases. Machine-readable (Phase 57 D-15): the value is aligned with the
+   * platform gate snapshot, not hand-written by skill authors. OPTIONAL so
+   * pre-57 manifests without the key still load (Research Pitfall 10).
+   */
+  review_gate?: string;
   ingest_outputs: IngestOutput[];
 }
 

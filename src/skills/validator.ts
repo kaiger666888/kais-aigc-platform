@@ -63,6 +63,11 @@ const phaseDeclSchema = z
     order: z.number().int().min(0),
     label: z.string(),
     requires_review: z.boolean(),
+    // Phase 57-07 (D-15): real review-gate id (gateCatalog derivedGateId form,
+    // e.g. 'p03-gate'); empty/absent for gate-less phases. Optional so pre-57
+    // manifests without the key still load (Pitfall 10). .strict() below now
+    // whitelists this key.
+    review_gate: z.string().optional(),
     ingest_outputs: z.array(z.enum(["images", "videos", "storyboard", "audio", "none"])),
   })
   .strict();

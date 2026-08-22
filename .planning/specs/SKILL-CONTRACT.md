@@ -155,6 +155,7 @@ phase constants in `src/routes/v1/pipeline/`: `PHASE_ORDER` (→ `order`),
 | order | number | yes | Execution ordinal (0, 1, 2, …). Replaces `PHASE_ORDER` map values. |
 | label | string | yes | UI label for the phase. |
 | requires_review | boolean | yes | Whether the phase gates on the review callback. Replaces `REVIEW_REQUIRED_PHASES.includes(id)`. |
+| review_gate | string | no | Real review-gate id in the platform gate-catalog derivedGateId form (e.g. `p03-gate`); empty or absent for gate-less phases. Machine-readable alignment with the platform gate snapshot (Phase 54 `src/lib/gateCatalog.ts`) — populated by platform alignment, not hand-written by skill authors. |
 | ingest_outputs | IngestOutput[] | yes | Asset categories the phase routes into the ingest pipeline. Values: `images`, `videos`, `storyboard`, `audio`, `none`. Replaces `PHASE_INGEST_MAP[id]`. |
 
 ### Sub-interface: `AssetCategoryDecl`

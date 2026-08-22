@@ -70,9 +70,12 @@ interface PhaseDecl {
   order: number;              // 0-based position in the pipeline
   label: string;              // UI label
   requires_review: boolean;   // does completing this phase pause the pipeline for human review?
+  review_gate?: string;       // real review-gate id (derivedGateId form, e.g. "p03-gate"); empty/absent for gate-less phases
   ingest_outputs: IngestOutput[];  // "images" | "videos" | "storyboard" | "audio" | "none"
 }
 ```
+
+`review_gate` is aligned with the platform's gate snapshot (`src/lib/gateCatalog.ts`, kept zero-drift against the pipeline repo's `gates.yaml`). Skill authors normally do NOT hand-fill it — the platform's taxonomy alignment (Phase 57) populates it from the gate catalog; manifests without the key still load.
 
 Phases are **descriptive metadata**. The platform consults `requires_review` to decide whether a phase-completion callback transitions the pipeline to `awaiting-review` vs `running`. It consults `order` to compute phase ordering on resume. It does NOT consult `ingest_outputs` at runtime in v1.6 (the runtime branches on the output's `type` field directly) — `ingest_outputs` is locked in via the equivalence test as a regression guard.
 
