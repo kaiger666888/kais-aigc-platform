@@ -587,13 +587,22 @@ function CanvasInner() {
     setActiveChip(null) // 关掉事件芯片 popover 插槽
   }, [navHistory, setMenuPos, setSelectedNode, setDetailNode])
 
-  const onNodeClick = useCallback((_event: React.MouseEvent, node: any) => {
+  const onNodeClick = useCallback((event: React.MouseEvent, node: any) => {
     // 事件芯片自带点击行为（P19 参数 popover 出口），不进节点详情面板
     if (node?.type === 'eventChip') return
-    // 单击 = 选中 + 溯源高亮（不开右面板），且若右面板已开则自动缩回（双击才再次打开）
+    // REGEN-04(52-05) 修饰键守卫(地雷 #9):ctrl/⌘/shift 多选点击只选不切面板,
+    // 多选语义优先——不 push 导航历史、不动 detailNode
+    if (event.ctrlKey || event.metaKey || event.shiftKey) {
+      setSelectedNode(node)
+      return
+    }
+    // 单击 = 选中 + 溯源高亮;面板开着 → 跟随切换到新节点(保持打开,审片不反复开合);
+    // 面板关着 → 不打开(双击才打开)。detailNode 用 getState 读当前值,免闭包过期。
     if (!navSkipRef.current) navHistory.push()
     setSelectedNode(node)
-    setDetailNode(null)
+    if (useCanvasStore.getState().detailNode != null) setDetailNode(node)
+    // 拖拽误触:RF 内部位移抑制(onNodeClick 拖后不触发),理论安全;若实测误触,
+    // 逃生口 = onNodeDragStop 里 suppress 一次 onNodeClick(此处不预设)。
   }, [navHistory, setSelectedNode, setDetailNode])
 
   // 双击 = 打开右详情面板（与单击解耦：单击只驱动溯源高亮 + 选中环）
