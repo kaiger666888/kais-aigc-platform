@@ -19,7 +19,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@kais/flowgraph-v3": ["../flowgraph-v3/ts/src/index.ts"]
+      "@kais/flowgraph-v3": ["../flowgraph-v3/ts/src/index.ts"],
+      "@portal-nav": ["../portal/src/nav/kap-nav.ts"]
     }
   },
   "include": ["src"]

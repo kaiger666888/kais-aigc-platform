@@ -63,6 +63,9 @@ import { useTheaterStore } from './theater/theaterStore'
 import { placeNewAsset } from '../utils/placeNewAsset'
 // 57-03 (D-05): 深链 focus/zone 纯函数 —— 只解析,viewport 副作用全复用既有 effect
 import { parseDeepLink, resolveDeepLinkTarget, type DeepLinkNodeLike } from '../lib/deepLink'
+// 57-03 (D-06): KapNavbar 单源三宿主第二宿主——副作用 import 注册共享导航元素
+// (跨包 alias '@portal-nav',flowgraph-v3 同式;样式走 index.html 稳定名产物)。
+import '@portal-nav'
 import { useLayout } from '../hooks/useLayout'
 import { canvasStateKey, loadCanvasState, useCanvasPersistence } from '../hooks/useCanvasPersistence'
 import { useNavHistory, type NavSnapshot } from '../hooks/useNavHistory'
@@ -235,8 +238,13 @@ function CanvasInner() {
   // 57-03 (D-05): 深链 focus/zone 一次性快照与消费守卫——首载 mount 时解析一次,
   // 图加载 resolve 后消费一次(useRef 防重放;health-poll/socket 触发的 reload 不
   // 重跳,刷新重放属既定 UX——replaceState 回写不动 focus/zone,URL 留参可重放)。
+  // 消费分两步:loadCanvas resolve 时解析目标 + 切画布视图(此处);目标投放交给
+  // 下方 deepLinkPending effect(等 RF 初始 fitView 走完再设 focusAssetNodeId)。
   const deepLinkRef = useRef(initialParams)
   const deepLinkConsumedRef = useRef(false)
+  const [deepLinkPending, setDeepLinkPending] = useState<string | null>(null)
+  // ReactFlow init 门(onInit 置位):深链投放须等 RF 实例就绪
+  const [rfReady, setRfReady] = useState(false)
 
   // 事件芯片参数 popover 插槽（SPEC B.3：B 留出口，popover 本体归 D）
   const [activeChip, setActiveChip] = useState<EventChipClickInfo | null>(null)
@@ -395,9 +403,9 @@ function CanvasInner() {
     }
 
     // 57-03 (D-05): 深链消费——loadCanvas resolve 后一次性(useRef 守卫)。
-    // focus/zone → resolveDeepLinkTarget → 只设 focusAssetNodeId + 切画布视图
-    // (AssetLibrary.handleLocateOnCanvas 同款定位链);fitView/选中/高亮/1.5s 清空/
-    // 未放置 toast 全走既有 focusAssetNodeId effect,不写第二套 viewport 机制。
+    // focus/zone → resolveDeepLinkTarget → 切画布视图 + 目标挂 pending(由下方
+    // deepLinkPending effect 投放 setFocusAssetNodeId);fitView/选中/高亮/1.5s
+    // 清空/未放置 toast 全走既有 focusAssetNodeId effect,不写第二套 viewport 机制。
     // zone 无节点/注册表外 → none 静默(只加载不跳,UI-SPEC State Matrix)。
     if (!deepLinkConsumedRef.current) {
       deepLinkConsumedRef.current = true
@@ -407,8 +415,8 @@ function CanvasInner() {
         nodes: useCanvasStore.getState().nodes as DeepLinkNodeLike[],
       })
       if (target.kind !== 'none') {
-        setFocusAssetNodeId(target.nodeId)
         setViewMode('canvas')
+        setDeepLinkPending(target.nodeId)
       }
     }
 
@@ -835,6 +843,42 @@ function CanvasInner() {
     return () => { clearTimeout(tFit); clearTimeout(tClear) }
   }, [focusAssetNodeId, nodes, reactFlow, setSelectedNode, setDetailNode, showToast, setFocusAssetNodeId])
 
+  // 57-03 (D-05): 深链目标投放——只决定「何时」把 nodeId 交给上方既有 effect,自身
+  // 不动视口。两重竞态防线(776 节点真机实测定位丢失的根因修复):
+  //  ① prop 级 initial fitView(下方 fitView={!deepLinkPending && ...})在深链
+  //     pending 期间禁用——它会晚于定位 fitView 发车(节点全量 measure 完才跑,
+  //     大图 >3s),把定位视口覆写成全图适配;
+  //  ② 投放门 = 目标节点已 measure(getInternalNode.measured.width>0)——定位
+  //     fitView 对未测量节点拿到 0×0 bounds 会静默 no-op。
+  // 投放后一切效果走既有 focusAssetNodeId effect 原语义(只复用不改)。
+  useEffect(() => {
+    if (!deepLinkPending || !rfReady) return
+    let cancelled = false
+    let poll: number | undefined
+    let fallback: number | undefined
+    const arm = () => {
+      if (cancelled) return
+      cancelled = true
+      window.clearInterval(poll)
+      window.clearTimeout(fallback)
+      setFocusAssetNodeId(deepLinkPending)
+      setDeepLinkPending(null)
+    }
+    poll = window.setInterval(() => {
+      if (cancelled) return
+      const internal = reactFlow.getInternalNode(deepLinkPending)
+      if (internal && (internal.measured?.width ?? 0) > 0) arm()
+    }, 100)
+    // 兜底:3s 内未测量(异常/节点被折叠)也投放——交给既有 effect 的
+    // 「该资产尚未放置在画布上」toast 语义兜底。
+    fallback = window.setTimeout(arm, 3000)
+    return () => {
+      cancelled = true
+      window.clearInterval(poll)
+      window.clearTimeout(fallback)
+    }
+  }, [deepLinkPending, rfReady, reactFlow, setFocusAssetNodeId])
+
   // Esc 退出溯源高亮 / 关芯片 popover（VariantPicker / EventParamsPopover 各自处理自身 Esc，
   // 有模态覆盖层时不在此连带关闭详情面板）。
   // 两段式：钉选详情面板开着 → 先关面板（保留溯源）；否则清选中退溯源。
@@ -859,10 +903,11 @@ function CanvasInner() {
       {/* 顶部导航栏 */}
       <div style={topBarStyle}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ display: 'flex', color: theme.node.script }}>
-            <UiIcon kind="graph" size={16} />
-          </span>
-          <span style={{ color: theme.text.primary, fontWeight: 600, fontSize: 13, letterSpacing: '0.02em' }}>无限画布</span>
+          {/* 57-03 (D-06): 共享导航 compact 档替换 logo+「无限画布」标题块(画布身份
+              由「画布」当前项承载)。Do-Not-Regress 1:48px 顶栏高度与余高布局、
+              视图切换簇/导航箭头/ProjectSelector/GateTodoChip 零改动——navbar
+              compact 26px 内联垂直居中,不加第二层横条。 */}
+          <kap-navbar compact="" data-active="canvas" style={{ alignSelf: 'center' }} />
           <span style={{ width: 1, height: 14, background: theme.border.default }} />
 
           {/* 视图模式切换 */}
@@ -977,7 +1022,8 @@ function CanvasInner() {
           onNodeDoubleClick={onNodeDoubleClick}
           onSelectionChange={onSelectionChange}
           onMoveEnd={handleMoveEnd}
-          fitView={hasData && !persistedViewport}
+          onInit={() => setRfReady(true)}
+          fitView={!deepLinkPending && hasData && !persistedViewport}
           fitViewOptions={{ padding: 0.15, minZoom: FITVIEW_MIN_ZOOM, maxZoom: 1.5, duration: 600 }}
           minZoom={0.05}
           maxZoom={4}
