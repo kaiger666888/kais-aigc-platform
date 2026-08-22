@@ -15,6 +15,12 @@ const STORYBOARD_TYPE = "storyboard";
 const VIDEO_TYPE = "video";
 const CONTENT_TYPES = [...ASSET_TYPES, STORYBOARD_TYPE, VIDEO_TYPE];
 
+/** Phase 57-02（U-08）管线带直方图的计数口径：创作内容节点。
+ *  排除 zone/phase/suggestion/variant —— 布局分区/AI 建议同样带 phase_index，
+ *  计入会让「这部片子走到了哪」失真（每个 zone 都算 filled）。script/audio
+ *  不在 CONTENT_TYPES 里但承载 P01-P03/P10-P12b 的真实产物，必须计入。 */
+const RIBBON_TYPES = ["asset", "reference", "script", "storyboard", "audio", "video"];
+
 /** 获取所有项目列表（供画布项目选择器使用）。
  *
  * 统计来自 canvas_nodes（画布真实数据），不再查 o_script/o_assets 旧表——后者对绝大多数
@@ -48,6 +54,22 @@ export default router.post("/", async (_req, res) => {
       .whereIn("project_id", projectIds)
       .groupBy("project_id", "episodes_id")) as Array<{ project_id: number; episodes_id: number; cnt: number }>;
 
+    // 一次聚合（Phase 57-02/U-08）：每集的 phase 直方图 —— 管线带 micro 数据源。
+    // additive 字段 episodes[].phases（phaseIndex → count，只含 count>0 键）；
+    // null phase_index 不进直方图。单条 GROUP BY 增一维，与既有聚合同量级（无 N+1）。
+    const phaseStats = (await u.db("canvas_nodes")
+      .select("project_id", "episodes_id", "phase_index")
+      .count("* as cnt")
+      .whereIn("project_id", projectIds)
+      .whereIn("type", RIBBON_TYPES)
+      .whereNotNull("phase_index")
+      .groupBy("project_id", "episodes_id", "phase_index")) as Array<{
+      project_id: number;
+      episodes_id: number;
+      phase_index: number;
+      cnt: number;
+    }>;
+
     // 归组：project_id → { asset, storyboard, video }
     const typeByProj = new Map<number, { asset: number; storyboard: number; video: number }>();
     for (const r of typeStats) {
@@ -67,10 +89,21 @@ export default router.post("/", async (_req, res) => {
       arr.push({ id: r.episodes_id, nodeCount: Number(r.cnt) });
     }
 
+    // 归组：project_id + episodes_id → phases 直方图（additive；count>0 才进键集）
+    const phasesByEp = new Map<string, Record<number, number>>();
+    for (const r of phaseStats) {
+      const key = `${r.project_id}:${r.episodes_id}`;
+      let entry = phasesByEp.get(key);
+      if (!entry) { entry = {}; phasesByEp.set(key, entry); }
+      entry[Number(r.phase_index)] = Number(r.cnt);
+    }
+
     const enriched = projects.map((p) => {
       const pid = p.id as number;
       const t = typeByProj.get(pid) ?? { asset: 0, storyboard: 0, video: 0 };
-      const episodes = (epsByProj.get(pid) ?? []).sort((a, b) => a.id - b.id);
+      const episodes = (epsByProj.get(pid) ?? [])
+        .sort((a, b) => a.id - b.id)
+        .map((ep) => ({ ...ep, phases: phasesByEp.get(`${pid}:${ep.id}`) ?? {} }));
       return {
         ...p,
         assetCount: t.asset,
