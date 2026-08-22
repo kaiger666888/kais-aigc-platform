@@ -42,6 +42,7 @@
     "verify:phase-49-linkage": "npx tsx scripts/verify-phase-49-linkage.ts",
     "verify:phase-50": "npx tsx scripts/verify-phase-50.ts",
     "verify:phase-51": "npx tsx scripts/verify-phase-51.ts",
+    "verify:phase-52": "npx tsx scripts/verify-phase-52.ts",
     "verify:phase-53": "npx tsx scripts/verify-phase-53.ts",
     "verify:phase-54": "npx tsx scripts/verify-phase-54.ts",
     "verify:phase-55": "npx tsx scripts/verify-phase-55.ts",

@@ -1,9 +1,9 @@
 ---
 phase: 52
 slug: prompt-edit-regenerate-loop
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-08-21
 ---
 
@@ -38,12 +38,14 @@ created: 2026-08-21
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 52-01-xx | 01 | 1 | REGEN-01 | — | updateEventParams 落 canonical + 事件配方序列化反向覆盖 | unit | vitest store action + serialize round-trip(事件配方保存/刷新不丢) | ❌ W0 | ⬜ pending |
-| 52-02-xx | 02 | 1 | REGEN-03 | — | stale wire 化(data.stale 序列化+migrate 还原) | unit | flowgraph-v3 stale/serialize 单测 | ❌ W0 | ⬜ pending |
-| 52-03-xx | 03 | 2 | REGEN-01 | — | PromptSection 保存→重生成,任务参数含新 prompt | unit+e2e | mock logCall 完整 body 断言 | ❌ W0 | ⬜ pending |
-| 52-04-xx | 04 | 2 | REGEN-02 | — | 换 seed 提交同配方+新 seed,pending 反馈 | unit+e2e | popover 提交断言 | ❌ W0 | ⬜ pending |
-| 52-05-xx | 05 | 3 | REGEN-03 | — | stale 重跑链(orchestrate 不跳过 stale-success,success 自动清 stale) | unit+集成 | orchestrate 断言 + applySocketNodeState 单测 | ❌ W0 | ⬜ pending |
-| 52-06-xx | 06 | 3 | REGEN-04 | — | 面板 480px + 单击切换保持打开 | e2e | 面板宽断言 + 单击切换断言 | ❌ W0 | ⬜ pending |
+| 52-01 | 01 | 1 | REGEN-01 | — | updateEventParams/persistEventParams + applySocketNodeState stale 清除 + getDownstreamIds | unit | canonicalWriteback.test 5 组 + stale.test(flowgraph-v3 130/130) | ✅ | ✅ green |
+| 52-02 | 02 | 1 | REGEN-03 | — | stale wire 化(data.stale 序列化+migrate restoreStaleInfo 还原)+ execute extra 契约 | unit | serialize.test + migrate.test stale 三用例 + mock logCall 镜像 | ✅ | ✅ green |
+| 52-03 | 03 | 2 | REGEN-01 | — | PromptSection 保存→重生成,任务参数含新 prompt | unit+e2e | phase52-regen a/b/c(mock logCall 完整 body) | ✅ | ✅ green(52-08 装置对齐后) |
+| 52-04 | 04 | 2 | REGEN-02 | — | 换 seed 提交同配方+新 seed,pending 反馈+canonical 回写 | unit+e2e | phase52-reroll a/b | ✅ | ✅ green |
+| 52-05 | 05 | 3 | REGEN-03/04 | — | stale 重跑链双出口 + 面板 480 + 单击跟随 | unit+e2e | phase52-stale-panel 四用例 + adapter/scorePopover 单测 | ✅ | ✅ green |
+| 52-07 | 07 | 3(gap) | REGEN-01 | — | save-v2 存量宽容 + 真机闭环 | 离线锁+真机探针 | verify:save-v2-legacy 17 断言 + probe-52-real 两段式 | ✅ | ✅ green |
+| 52-08 | 08 | 4(gap) | REGEN-01 | — | 落选详情入口 + e2e 装置对齐 | unit+e2e | adapter.test +3 + phase52-regen 3/3 | ✅ | ✅ green |
+| 52-06 | 06 | 5 | REGEN-01..04 | — | 聚合门 S1-S5 + forced-failure | gate | npm run verify:phase-52(31 断言) | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -51,9 +53,10 @@ created: 2026-08-21
 
 ## Wave 0 Requirements
 
-- [ ] `scripts/verify-phase-52.ts` — 聚合门(正则化 grep 门 + 关键契约 source-shape,遵循 verify-phase-51 范式)
-- [ ] vitest 新增:updateEventParams、事件配方序列化 round-trip、stale wire round-trip、getDownstreamIds、orchestrate stale 包含、applySocketNodeState stale 清除
-- [ ] e2e mock-backend:logCall 记完整 body;stale 镜像
+- [x] `scripts/verify-phase-52.ts` — 聚合门(S1-S5 grep/source-shape + 命令门 + forced-failure,verify-phase-51 范式)
+- [x] vitest 新增:updateEventParams(canonicalWriteback 5 组)、事件配方序列化反向覆盖、stale wire round-trip(migrate 3 用例)、getDownstreamIds、orchestrate stale 包含(mock 镜像谓词)、applySocketNodeState stale 清除
+- [x] e2e mock-backend:logCall 记完整 body(52-02);stale 镜像(52-02)
+- [x] (超出 W0 预判)migrate Pass 3 变体组防御回归 ×2(52-07 真机地雷)、syntheticDetailNode ×3(52-08)
 
 ---
 
@@ -67,11 +70,11 @@ created: 2026-08-21
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 180s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 180s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved 2026-08-22(全 8 plan SUMMARY + verify:phase-52 31/31;e2e/真机结果见 52-VERIFICATION.md)
