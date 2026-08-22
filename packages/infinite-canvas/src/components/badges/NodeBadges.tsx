@@ -12,12 +12,15 @@ import type { NodeBadgesProps } from '../canvas/slots'
 import { V3_NODE_SIZES } from '../../constants'
 import { v3theme, getScoreColor } from '../../theme/catppuccin'
 import { useStalePulse } from '../../hooks/useStale'
+import { useStaleRerun } from '../../hooks/useStaleRerun'
 import { EyeIcon, EarIcon } from '../canvas/icons'
 import { verdictLabel } from '../../utils/scoreVocabulary'
 
 export default function NodeBadges({ nodeId, asset, lod, verdicts }: NodeBadgesProps): React.ReactElement | null {
   // 脉动订阅必须在顶层（Rules of Hooks）；lod===0 早返前先取值。
   const pulsing = useStalePulse((s) => s.pulseIds.includes(nodeId))
+  // REGEN-03(52-05):stale 三角点击出口——同样必须在早返前订阅(Rules of Hooks)。
+  const { rerunStaleChain } = useStaleRerun()
   if (lod === 0) return null
 
   const { badge } = V3_NODE_SIZES
@@ -71,11 +74,16 @@ export default function NodeBadges({ nodeId, asset, lod, verdicts }: NodeBadgesP
   }
 
   // ── 左下：stale 三角 + 级联脉动 ──
+  // REGEN-03(52-05):stale 三角可点击 = 重跑下游出口之一(与 StaleSection 按钮共用
+  // 顶部订阅的 useStaleRerun)。stopPropagation 必须(地雷 #8):否则冒泡到 RF
+  // onNodeClick,REGEN-04 落地后(面板开着单击跟随)会连带切详情面板。
   let staleBadge: React.ReactNode = null
   if (asset.stale != null) {
     staleBadge = (
       <svg key="stale" width={badge.tri} height={badge.tri} viewBox="0 0 14 14" aria-label="stale"
-        style={{ position: 'absolute', left: off, bottom: off, display: 'block', animation: pulsing ? 'cv-stale-pulse 600ms ease-out 1' : undefined }}>
+        onClick={(e) => { e.stopPropagation(); void rerunStaleChain(nodeId) }}
+        style={{ position: 'absolute', left: off, bottom: off, display: 'block', cursor: 'pointer', animation: pulsing ? 'cv-stale-pulse 600ms ease-out 1' : undefined }}>
+        <title>重跑下游</title>
         <polygon points="0,14 14,14 0,0" fill={v3theme.signal.stale} />
       </svg>
     )

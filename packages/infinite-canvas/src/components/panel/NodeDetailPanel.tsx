@@ -17,6 +17,7 @@ import { RAW_FIELD_LABELS, RAW_FIELD_NOISE, RAW_FIELD_GROUPS } from '../../const
 import { useCanvasStore } from '../../store/canvasStore'
 import { executeNode } from '../../services/canvasApi'
 import { triggerStaleCascade } from '../../hooks/useStale'
+import { useStaleRerun } from '../../hooks/useStaleRerun'
 import FileViewer from '../FileViewer'
 import ScoreRadar from './ScoreRadar'
 import ReviewCard from '../ReviewCard'
@@ -36,8 +37,9 @@ interface Props {
 export default function NodeDetailPanel({ node, onClose }: Props): React.ReactElement | null {
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
   const [panelWidth, setPanelWidth] = useState(() => {
-    const w = typeof window !== 'undefined' ? window.innerWidth * 0.75 : 960
-    return Math.max(400, w)
+    // REGEN-04(52-05):默认宽 480——75% 屏宽把画布挤到只剩窄条,审片场景痛点;
+    // 拖拽调宽与 min 400(下方 onMove)不动。
+    return Math.max(400, 480)
   })
   const [dragging, setDragging] = useState(false)
   const dragRef = useRef<{ startX: number; startW: number } | null>(null)
@@ -176,7 +178,7 @@ function AssetDetail({ asset, node, onImageClick }: { asset: AssetNodeV3; node: 
       <RawDataSection nodeId={node.id} />
       <ReviewSection asset={asset} node={node} />
       <ScoreSection aiScore={asset.aiScore} />
-      <StaleSection stale={asset.stale} graph={graph} />
+      <StaleSection stale={asset.stale} graph={graph} nodeId={node.id} />
       <FileViewer filePath={asset.media.original ?? undefined} />
       {asset.stage === 'composite' && asset.timeline && <TimelineStructure asset={asset} />}
     </>
@@ -736,7 +738,9 @@ function PromptSection({ asset }: { asset: AssetNodeV3 }) {
   )
 }
 
-function StaleSection({ stale, graph }: { stale: StaleInfo | null; graph: ReturnType<typeof useCanvasStore.getState>['graph'] }) {
+function StaleSection({ stale, graph, nodeId }: { stale: StaleInfo | null; graph: ReturnType<typeof useCanvasStore.getState>['graph']; nodeId: string }) {
+  const { rerunStaleChain } = useStaleRerun()
+  const [rerunning, setRerunning] = useState(false)
   if (!stale) return null
   const triggerLabel = graph?.nodes.find((n) => n.id === stale.triggerAssetId)?.phaseName ?? stale.triggerAssetId.slice(-8)
   const since = new Date(stale.since).toLocaleString()
@@ -747,6 +751,15 @@ function StaleSection({ stale, graph }: { stale: StaleInfo | null; graph: Return
         ⚠ 已过期（上游变更触发）<br />
         <span style={{ color: theme.text.secondary, fontSize: 11 }}>触发：{triggerLabel} · 自 {since}</span>
       </div>
+      {/* REGEN-03(52-05):stale 链一键重跑出口之一——统一走 useStaleRerun(角标点击为另一出口) */}
+      <button
+        data-testid="stale-rerun-btn"
+        disabled={rerunning}
+        onClick={() => { setRerunning(true); void rerunStaleChain(nodeId).finally(() => setRerunning(false)) }}
+        style={{ marginTop: 6, marginBottom: 4, padding: '4px 12px', borderRadius: 6, border: `1px solid ${v3theme.signal.stale}`, background: 'transparent', color: v3theme.signal.stale, fontSize: 12, fontWeight: 600, cursor: rerunning ? 'default' : 'pointer' }}
+      >
+        {rerunning ? '重跑提交中…' : '🔄 重跑下游'}
+      </button>
     </>
   )
 }
