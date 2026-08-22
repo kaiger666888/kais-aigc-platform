@@ -248,7 +248,11 @@ function CanvasInner() {
 
   // 事件芯片参数 popover 插槽（SPEC B.3：B 留出口，popover 本体归 D）
   const [activeChip, setActiveChip] = useState<EventChipClickInfo | null>(null)
-  const handleEventChipClick = useCallback((info: EventChipClickInfo) => setActiveChip(info), [])
+  // 52-04：注入项目上下文（popover 换 seed 重跑提交需要 pid/eid，芯片自身拿不到）
+  const handleEventChipClick = useCallback(
+    (info: EventChipClickInfo) => setActiveChip({ ...info, projectId, episodesId }),
+    [projectId, episodesId],
+  )
 
   // WRITE-03（Phase 51-02）：socket 写回走 store canonical action，不再直改派生缓存
   const applySocketNodeState = useCanvasStore((s) => s.applySocketNodeState)

@@ -14,6 +14,10 @@ export interface EventChipClickInfo {
   /** 芯片中心屏坐标（popover 锚点；D 据此定位 320 宽参数面板）。 */
   clientX: number
   clientY: number
+  /** 项目上下文（52-04：FlowCanvas handleEventChipClick 注入，popover 重跑提交用；
+   *  可选——EventChipNode 发射端零改动，Provider 未注入时 popover 守卫早退）。 */
+  projectId?: number | null
+  episodesId?: number | null
 }
 
 /** 默认 no-op（Provider 未挂载时芯片点击静默，绝不崩）。 */
