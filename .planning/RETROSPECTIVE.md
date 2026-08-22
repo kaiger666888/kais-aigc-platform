@@ -154,6 +154,14 @@
 
 ---
 
+## Milestone: v3.0 — Canvas Creative Experience (2026-08-22)
+
+**What worked:** 单一注册表镜像+契约门模式第三次复刻(phaseRegistry/gateCatalog/taxonomy 三处零漂移治理);跨仓三段提交(khs/review-platform/kap)各自原子;并行会话 COORD-01 纪律(具名 add+khs 只读+域避让)全程零冲突;API 故障 SendMessage 续接保上下文;GUARD 收口传统(每 phase verify 门)使 milestone audit 仅聚合即可。
+
+**What hurt:** e2e 时序竞态消耗大量调试(fitView 动画期注入/mock webServer 陈旧进程/G16 打开源竞态三例);UI-SPEC 规格与 registry 真值偶有脱节(sub 段 6 vs 7);plan 的 verify 命令字面与仓内现实有三处需执行者自行校正(router 库禁引/服务名/tsc 形态)。
+
+**Carry forward:** Phase 53 Wave B(khs2 v2.4 Phase 25 gated);52 验证材料欠账(外部会话);TD-1..8(register 见 v3.0-MILESTONE-AUDIT);人工 UAT §7(14 项真机走查)。
+
 ## Cross-Milestone Trends
 
 | Metric | v1.1 | v1.5 | v1.6 |
