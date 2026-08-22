@@ -51,9 +51,14 @@ export default router.post(
       }
 
       const effectiveType = nodeType || "script";
+      // 52-07(2026-08-22 真机实证):REGEN-01/02 提交的 nodeType 是 V3 asset.stage
+      // (52-03 地雷 #4 裁定)——真实图含 'global'(p04 角色/p07 场景)、'voice' 等
+      // Stage 值,原 allowlist 缺失 → 真机重生成 400(mock fixture 只有 storyboard,
+      // e2e 测不出)。补齐 V3 Stage 全集(types.ts Stage union)+ 既有 V2 类型。
       const supportedTypes = [
         "asset", "storyboard", "video", "audio", "3d",
         "variant", "reference", "upscale", "face_restore", "script",
+        "global", "keyframe", "voice", "foley", "bgm", "mix", "composite",
       ];
       if (!supportedTypes.includes(effectiveType)) {
         console.log(`[canvas:execute] 未知节点类型: ${effectiveType}`);
