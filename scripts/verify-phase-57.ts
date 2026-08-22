@@ -7,7 +7,7 @@
  * 真相源(只读,KAIS_HERMES_SKILLS_PATH 可覆盖;verify-phase-54 diffCatalogAgainst
  * 先例):/data/workspace/kais-hermes-skills/plugins/review_gates/gates.yaml
  *
- * 断言组(Part 1 taxonomy;57-08 加 Part 2 探活组):
+ * 断言组(Part 1 taxonomy;57-08 Part 2 探活聚合):
  *   S 解析门 — gates.yaml 只读解析 0 条即 FAIL(脆弱即信号,55 纪律)
  *   T1 集合等价 — taxonomy id 集 ≡ PHASE_REGISTRY khsPrefix 集(双向 diff)
  *   T2 顺序 — taxonomy order 严格递增且与注册表 sortKey 升序同序(逐位比对)
@@ -18,7 +18,22 @@
  *       (phase-complete.ts 'phaseDecl?.requires_review ?? false' 暗礁反向断言)
  *   F forced-fail — 内存改坏一条 review_gate → 断言组必须红(能失败证明)
  *
- * 只读 fs + js-yaml,零子进程,零 khs 写(T-57-07c)。
+ * Part 2 探活聚合(57-08,四需求收口;live HTTP @10588,health 门):
+ *   P0 SC1 verdict 文档(fs 级) — docs/toonflow-replacement-verdict.md 六章节
+ *   P1 门户三路由 — /portal/ /deliver/1 /toonflow 均 200 且含「制片门户」
+ *   P2 深链契约 — /canvas?project&ep&focus&zone → 302 Location 精确形态
+ *       (白名单四键翻译;未知键不回显 = 开放重定向面反向断言)
+ *   P3 四岛共脸 — /infinite-canvas/(kap-nav 产物引用) /story-map/
+ *       /director-desk/(注入恰 1 处 <kap-navbar data-active>) /portal/(壳)
+ *       + navbar 产物 200 + /toonflow iframe src="/" 存在性(bundle 级)
+ *   P4 Toonflow 共存 — / 首字节仍 Toonflow(title 特征);POST
+ *       /api/project/getProject 200(agent-sync 旧链零破坏)
+ *   P5 交付面 — POST /api/canvas/projects 含 episodes[].phases 直方图;
+ *       GET /api/v1/skills/movie-v1/phases → 22 条(registry 加载新 manifest)
+ *   服务不可达 = FAIL 不跳过(57-08 PLAN action 1 字面;门禁可红可绿)。
+ *
+ * 只读 fs + js-yaml + fetch(既有 POST projects/getProject 查询),零子进程,
+ * 零 khs 写(T-57-07c/T-57-08a)。
  * Run: npm run verify:phase-57
  * Exit: 0 全绿 / 1 任一断言红 / 2 crash
  */
@@ -106,7 +121,136 @@ function checkTaxonomy(
   return problems;
 }
 
-function main(): void {
+// ─── Part 2 探活聚合(57-08:四需求成功标准 → 单命令 HTTP 断言组) ─────────
+// live 服务默认 prod systemd @10588;KAP_PROBE_BASE 可覆盖(探针同款)。
+const BASE = process.env.KAP_PROBE_BASE ?? "http://localhost:10588";
+const REPO_ROOT = path.resolve(__dirname, "..");
+
+interface LiveResp { ok: boolean; status: number; location: string | null; text: string }
+
+/** redirect:manual——302 形态断言须见原响应而非跟随后的终态。网络异常返回 null。 */
+async function liveFetch(pathname: string, init?: RequestInit): Promise<LiveResp | null> {
+  try {
+    const res = await fetch(`${BASE}${pathname}`, { redirect: "manual", ...init });
+    const text = await res.text().catch(() => "");
+    return { ok: res.ok, status: res.status, location: res.headers.get("location"), text };
+  } catch {
+    return null;
+  }
+}
+
+const JSON_HEADERS = { "content-type": "application/json" } as const;
+
+function sectionFailIfDead(alive: boolean, name: string): boolean {
+  // 服务不可达 = FAIL 不跳过(PLAN action 1 字面)——每段仍独立进 harness。
+  if (!alive) assert(false, `${name}(服务不可达 ${BASE})`);
+  return !alive;
+}
+
+async function runPart2(): Promise<void> {
+  console.log(`\n=== Part 2 探活聚合(live @${BASE};health 门 + P0-P5)===`);
+
+  // ─── P0 SC1 verdict 文档(fs 级,不依赖 liveness) ──────────────────────
+  console.log("\n=== P0 SC1 书面结论(docs/toonflow-replacement-verdict.md 六章节)===");
+  const verdictPath = path.join(REPO_ROOT, "docs", "toonflow-replacement-verdict.md");
+  const verdict = fs.existsSync(verdictPath) ? fs.readFileSync(verdictPath, "utf8") : "";
+  assert(verdict.length > 0, "P0: verdict 文档存在且非空", verdictPath);
+  for (const ch of [
+    "## 结论（TL;DR）",
+    "## 基线事实",
+    "## 五维对比",
+    "## 工作量估算（person-day）",
+    "## 终态切换条件(root takeover checklist)",
+    "## 本期已落地项",
+  ]) {
+    assert(verdict.includes(ch), `P0: 章节「${ch}」在位`);
+  }
+
+  // ─── H health 门 ──────────────────────────────────────────────────────
+  const health = await liveFetch("/health");
+  const alive = health != null && health.ok;
+  assert(alive, "H: /health 可达(Part 2 P1-P5 前置门)", health == null ? "网络不可达" : `HTTP ${health.status}`);
+
+  // ─── P1 门户三路由(成功标准 1 后半:壳可运行访问) ────────────────────────
+  console.log("\n=== P1 门户三路由(200 + 制片门户;Pitfall 1 反向)===");
+  if (!sectionFailIfDead(alive, "P1: 门户三路由")) {
+    for (const p of ["/portal/", "/deliver/1", "/toonflow"]) {
+      const r = await liveFetch(p);
+      assert(r != null && r.status === 200, `P1: GET ${p} → 200`, r ? `HTTP ${r.status}` : "fetch 异常");
+      assert(r?.text.includes("制片门户") ?? false, `P1: GET ${p} 含「制片门户」(未被 Toonflow 26MB 吞)`);
+    }
+    const bare = await liveFetch("/portal");
+    assert(bare?.status === 301 && bare?.location === "/portal/", "P1: 裸 /portal → 301 /portal/(static 挂载形态)", bare ? `${bare.status} ${bare.location ?? ""}` : "fetch 异常");
+  }
+
+  // ─── P2 深链契约(D-05 对外稳定形态) ────────────────────────────────────
+  console.log("\n=== P2 深链契约(/canvas 302 白名单翻译)===");
+  if (!sectionFailIfDead(alive, "P2: 深链契约")) {
+    const r = await liveFetch("/canvas?project=3&ep=1&focus=n-x&zone=p11b");
+    assert(r?.status === 302, "P2: GET /canvas?project&ep&focus&zone → 302", r ? `HTTP ${r.status}` : "fetch 异常");
+    assert(
+      r?.location === "/infinite-canvas/?projectId=3&episodesId=1&focus=n-x&zone=p11b",
+      "P2: Location 精确形态(57-02 同式)",
+      r?.location ?? "",
+    );
+    const w = await liveFetch("/canvas?next=https://evil.example");
+    assert(w?.status === 302 && w?.location === "/infinite-canvas/", "P2: 未知键不回显(开放重定向面反向)", w?.location ?? "");
+  }
+
+  // ─── P3 四岛共脸(D-06)+ navbar 产物 + toonflow iframe ──────────────────
+  console.log("\n=== P3 四岛共脸(kap-navbar 各宿主形态)+ navbar 产物 ===");
+  if (!sectionFailIfDead(alive, "P3: 四岛共脸")) {
+    const ic = await liveFetch("/infinite-canvas/");
+    assert(ic != null && ic.status === 200 && ic.text.includes("/assets/kap-nav.css"), "P3: /infinite-canvas/ HTML 引 kap-nav 产物(画布宿主 curl 形态;元素本体由 e2e 真浏览器断言)", ic ? `HTTP ${ic.status}` : "fetch 异常");
+    for (const [p, active] of [["/story-map/", "story-map"], ["/director-desk/", "director-desk"]] as const) {
+      const r = await liveFetch(p);
+      const count = r ? (r.text.match(/<kap-navbar/g) ?? []).length : -1;
+      assert(r != null && r.status === 200, `P3: GET ${p} → 200`, r ? `HTTP ${r.status}` : "fetch 异常");
+      assert(count === 1 && r!.text.includes(`data-active="${active}"`), `P3: ${p} 注入恰 1 处 <kap-navbar data-active="${active}">`, `count=${count}`);
+    }
+    const pf = await liveFetch("/portal/");
+    assert(pf?.text.includes("<kap-navbar") ?? false, "P3: /portal/ 文档壳含 <kap-navbar>(双通道注册之静态侧)");
+    const navJs = await liveFetch("/assets/kap-nav.js");
+    assert(navJs != null && navJs.ok && navJs.text.includes("kap-navbar"), "P3: /assets/kap-nav.js 200 且含元素定义", navJs ? `HTTP ${navJs.status}` : "fetch 异常");
+    const navCss = await liveFetch("/assets/kap-nav.css");
+    assert(navCss != null && navCss.ok && navCss.text.includes("--cv-bg-panel"), "P3: /assets/kap-nav.css 200 且含 token(concat 生效)", navCss ? `HTTP ${navCss.status}` : "fetch 异常");
+    // /toonflow 页 iframe src="/":React 运行时渲染,curl 只见壳——降一档到 bundle 级存在性
+    const m = pf?.text.match(/src="(\/portal\/assets\/[^"]+\.js)"/);
+    const bundle = m ? await liveFetch(m[1]!) : null;
+    assert(bundle != null && bundle.text.includes("iframe") && bundle.text.includes('src:"/"'), 'P3: /toonflow 页 iframe src="/" 存在(bundle 级)', m?.[1] ?? "portal 壳未引用 bundle");
+  }
+
+  // ─── P4 Toonflow 共存(U-01:/ 与旧 API 零破坏) ──────────────────────────
+  console.log("\n=== P4 Toonflow 共存(/ 首字节 + agent-sync 旧链)===");
+  if (!sectionFailIfDead(alive, "P4: Toonflow 共存")) {
+    const root = await liveFetch("/");
+    assert(root != null && root.status === 200, "P4: GET / → 200", root ? `HTTP ${root.status}` : "fetch 异常");
+    assert(root?.text.includes("<title>Toonflow</title>") ?? false, "P4: / title 仍 Toonflow(共存零破坏)");
+    assert(!(root?.text.includes("制片门户") ?? true), "P4: / 不含「制片门户」(门户不吞根)");
+    const gp = await liveFetch("/api/project/getProject", { method: "POST", headers: JSON_HEADERS, body: "{}" });
+    assert(gp != null && gp.status === 200, "P4: POST /api/project/getProject → 200(agent-sync 消费链)", gp ? `HTTP ${gp.status}` : "fetch 异常");
+  }
+
+  // ─── P5 交付面数据(成功标准 3 数据半边 + 成功标准 4 registry 半边) ────────
+  console.log("\n=== P5 交付面(phases 直方图 + registry 22 条)===");
+  if (!sectionFailIfDead(alive, "P5: 交付面")) {
+    const pr = await liveFetch("/api/canvas/projects", { method: "POST", headers: JSON_HEADERS, body: "{}" });
+    assert(pr != null && pr.status === 200, "P5: POST /api/canvas/projects → 200", pr ? `HTTP ${pr.status}` : "fetch 异常");
+    let hasPhases = false;
+    let epCount = 0;
+    try {
+      const data = (JSON.parse(pr?.text ?? "{}") as { data?: Array<{ episodes?: Array<{ phases?: unknown }> }> }).data ?? [];
+      for (const proj of data) for (const ep of proj.episodes ?? []) { epCount++; if (ep.phases && typeof ep.phases === "object") hasPhases = true; }
+    } catch { /* JSON 异常由下方断言红 */ }
+    assert(hasPhases, "P5: episodes[].phases 直方图在位(U-08 additive)", `扫描 ${epCount} 集`);
+    const ph = await liveFetch("/api/v1/skills/movie-v1/phases");
+    let n = -1;
+    try { n = ((JSON.parse(ph?.text ?? "{}") as { phases?: unknown[] }).phases ?? []).length; } catch { /* -1 即红 */ }
+    assert(ph != null && ph.status === 200 && n === 22, "P5: GET /api/v1/skills/movie-v1/phases → 22 条(成功标准 4)", `HTTP ${ph?.status ?? "?"} n=${n}`);
+  }
+}
+
+async function main(): Promise<void> {
   console.log("=== Phase 57 — verify-phase-57.ts (PORTAL-04 三方 drift: taxonomy ↔ registry ↔ gates) ===\n");
 
   const yamlGates = readGatesYaml();
@@ -161,20 +305,20 @@ function main(): void {
   assert(f2.some((x) => x.includes("p035")), "F: 无门 phase 虚标 requires_review 被检出", f2.find((x) => x.includes("p035")));
   assert(MOVIE_V1_MANIFEST.phase_taxonomy.every((p, i) => p === taxonomy[i]), "F: 原常量未被改动(仅内存突变)");
 
+  await runPart2();
+
   const passed = results.filter((r) => r.pass).length;
   const failed = results.length - passed;
   console.log(`\n=== Summary: ${passed}/${results.length} passed, FAIL = ${failed} ===`);
   if (failed === 0) {
-    console.log("✅ Phase 57 PORTAL-04 三方 drift 契约全绿(taxonomy ≡ registry ≡ catalog ≡ gates.yaml)");
+    console.log("✅ Phase 57 全绿:Part 1 taxonomy 三方 drift(taxonomy ≡ registry ≡ catalog ≡ gates.yaml)+ Part 2 四需求探活聚合");
     process.exit(0);
   }
   for (const r of results.filter((x) => !x.pass)) console.log(`   FAIL: ${r.name} — ${r.detail ?? ""}`);
   process.exit(1);
 }
 
-try {
-  main();
-} catch (err) {
+main().catch((err) => {
   console.error("verify-phase-57.ts crashed:", err);
   process.exit(2);
-}
+});
