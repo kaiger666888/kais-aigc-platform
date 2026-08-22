@@ -8,7 +8,11 @@ AI 短剧全链路制作平台，通过 kais-gold-team 统一执行引擎编排 
 
 让 AI 短剧制作流程跑通——从角色设计、剧本生成、分镜、视频生成到后期制作的完整管线能够自动执行并产出可交付的成片。
 
-## Current Milestone: v3.0 画布创作体验 (Canvas Creative Experience for kmc)
+## Current Milestone: (none — awaiting `/gsd:new-milestone`)
+
+v3.0 画布创作体验 shipped 2026-08-22 (audit passed f9280e0c; 305/305 verify; Phase 52 externally owned by parallel session — code on master, verification owed). Archive: milestones/v3.0-{ROADMAP,REQUIREMENTS,MILESTONE-AUDIT}.md. Carry-forward: Wave B (khs2 v2.4 gated), UAT register §7 of audit, TD-1..8.
+
+## Shipped: v3.0 画布创作体验 (Canvas Creative Experience for kmc)
 
 **Goal:** 以 kmc 22-phase/16-gate 创作流为准绳，系统性修复画布写路径地基，并把"看/选/改/批"四类创作交互在画布 + 平台页面上做到一等公民。
 
