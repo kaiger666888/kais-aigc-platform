@@ -12,7 +12,7 @@
 - [x] **Phase 53: 候选变体契约与选片 (Variant Contract + Picker Upgrade)** — field-map 补 candidate/variant/winner 字段 + VariantPicker 升级 + 选优回写 manifest + 失败镜头批量操作 (completed 2026-08-21)
 - [x] **Phase 54: Gate 中心 (Gate Center + Blocking-State UX)** — 16 gate 状态接入 + 画布阻塞态一等呈现 + approve/reject/waive 画布内闭环
 - [x] **Phase 55: 画布导航与规模 (Navigation & Scale)** — zone 表对齐 22 phase + 分镜层级浏览 + 搜索导航器 + 落点修正 + LOD 可读 + 分支 UI 接通
-- [ ] **Phase 56: 创作环节可视化 (Creative Visualization)** — 审核分数雷达图/角标 + 角色场景组视图 + 配音审核工作台
+- [x] **Phase 56: 创作环节可视化 (Creative Visualization)** — 审核分数雷达图/角标 + 角色场景组视图 + 配音审核工作台
 - [ ] **Phase 57: 平台页面与门户 (Portal & Delivery Pages)** — Toonflow 替换评估 + 四套前端互链 + p13 成片交付页 + manifest taxonomy 重对齐
 
 **Architecture decisions (v3.0):**
