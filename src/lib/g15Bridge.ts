@@ -30,6 +30,12 @@ export interface G15BridgeParams {
   episodesId: number;
   action: "waive" | "requeue";
   shotIds: string[];
+  /**
+   * 56-05 (D-11):目标 gate(缺省 p11c-gate = G15 现行为)。同一 bridge
+   * action,不同 gate 目标——G16 配音听审传 'p10c-gate' 复用全链
+   * (409 幂等/队列/重放)。白名单在 route zod 层(本层不校验形态)。
+   */
+  gate?: string;
 }
 
 export interface G15BridgeDeps {
@@ -85,12 +91,14 @@ export async function dispatchG15Op(
     }
     const timeoutMs = deps.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
+    const gateId = params.gate ?? "p11c-gate";
     const comment =
       params.action === "waive"
-        ? `g15:waive:${params.shotIds.join(",")}`
-        : `g15:requeue:${params.shotIds.join(",")}`;
+        ? `${gateId}:waive:${params.shotIds.join(",")}`
+        : `${gateId}:requeue:${params.shotIds.join(",")}`;
 
-    // G15 = p11c-gate。review-platform 无按 content_ref 的服务端过滤
+    // G15 缺省 p11c-gate(G16 经 gate:'p10c-gate' 复用,56-05 D-11)。
+    // review-platform 无按 content_ref 的服务端过滤
     // (reviewBridge WR-02 已核),桥侧先列表后匹配——本 Wave A 通道为
     // 指令送达语义:直接 POST approve 通道的 G15 扩展形状(批量 comment),
     // review 列表匹配闭环与 Wave B 的 kmc 消费端一并对齐。
@@ -103,6 +111,7 @@ export async function dispatchG15Op(
         action: params.action,
         shotIds: params.shotIds,
         comment,
+        gate: gateId,
       }),
       signal: AbortSignal.timeout(timeoutMs),
     });

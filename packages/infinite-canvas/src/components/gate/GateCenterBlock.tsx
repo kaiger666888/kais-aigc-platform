@@ -15,6 +15,7 @@ import { useEffect, useState } from 'react'
 import { useGateStore, type GateStateGate } from '../../store/gateStore'
 import { useCanvasStore } from '../../store/canvasStore'
 import { gateOps, fetchGateState } from '../../services/canvasApi'
+import { useVoiceAuditStore } from '../g16/voiceAuditStore'
 import { v3theme, theme } from '../../theme/catppuccin'
 
 type Display = GateStateGate['display']
@@ -185,6 +186,15 @@ export default function GateCenterBlock(): React.ReactElement | null {
                 <span style={{ fontSize: 10, fontFamily: 'var(--cv-font-mono, monospace)', color: theme.text.tertiary, flexShrink: 0 }}>
                   {g.reviewId != null ? `#${g.reviewId}` : g.phaseId.replace(/_/g, '').slice(0, 10)}
                 </span>
+                {g.gateId === 'p10c-gate' && (
+                  <button
+                    onClick={() => useVoiceAuditStore.getState().setOpen(true)}
+                    title="打开听审工作台"
+                    style={{ background: 'none', border: `1px solid ${theme.border.default}`, borderRadius: 6, color: theme.text.secondary, cursor: 'pointer', fontSize: 10, padding: '2px 8px', flexShrink: 0 }}
+                  >
+                    打开听审工作台
+                  </button>
+                )}
               </div>
 
               {/* 阻塞门展开卡 */}

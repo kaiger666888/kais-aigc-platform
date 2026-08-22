@@ -491,8 +491,10 @@ export async function g15Ops(
   action: 'waive' | 'requeue',
   shotIds: string[],
   cancelToken?: CancelToken,
+  /** 56-05 (D-11):目标 gate(缺省 G15 p11c-gate;G16 听审传 'p10c-gate') */
+  gate?: string,
 ): Promise<void> {
-  await apiCall<void>('/canvas/v2/g15-ops', { projectId, episodesId, action, shotIds }, { cancelToken })
+  await apiCall<void>('/canvas/v2/g15-ops', { projectId, episodesId, action, shotIds, ...(gate != null ? { gate } : {}) }, { cancelToken })
 }
 
 // ─── Gate 中心(Phase 54-04 GATE-02;54-05 服务端对接) ───────────────────

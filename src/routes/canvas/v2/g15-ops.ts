@@ -29,6 +29,9 @@ const g15OpsSchema = z.object({
   episodesId: z.number(),
   action: z.enum(["waive", "requeue"]),
   shotIds: z.array(z.string().min(1).max(128)).max(200),
+  // 56-05 (D-11/T-56-05-01):目标 gate 白名单(gateCatalog deriveGateId 同源
+  // 词汇)——任意 gate 字符串不接受,防越权豁免他门;缺省 = G15 p11c-gate。
+  gate: z.string().regex(/^p\d+[a-z0-9]*-gate$/).optional(),
 });
 
 // 队列 drain 消费者(53-04 bootWritebackDrain 同款;g15 行重放走 g15Bridge)
@@ -65,11 +68,11 @@ router.post("/", async (req, res) => {
   if (!parse.success) {
     return res.status(400).send(error("参数校验失败", parse.error.issues));
   }
-  const { projectId, episodesId, action, shotIds } = parse.data;
+  const { projectId, episodesId, action, shotIds, gate } = parse.data;
 
   try {
     bootG15Drain();
-    const result = await dispatchG15Op({ projectId, episodesId, action, shotIds });
+    const result = await dispatchG15Op({ projectId, episodesId, action, shotIds, gate });
     let queued = 0;
     if (!result.delivered) {
       // D-10/Pitfall 4:入队失败降级 warn——响应仍是 200(操作已受理)
@@ -78,7 +81,8 @@ router.post("/", async (req, res) => {
           projectId,
           episodesId,
           action: action === "waive" ? "g15_waive" : "g15_requeue",
-          payload: { projectId, episodesId, action, shotIds, lastReason: result.reason },
+          // 56-05:gate 入队透传;旧行无 gate 字段 = 缺省 p11c-gate(回放天然正确)
+          payload: { projectId, episodesId, action, shotIds, gate, lastReason: result.reason },
         });
         queued = 1;
       } catch (queueErr) {

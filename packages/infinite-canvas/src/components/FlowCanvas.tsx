@@ -57,6 +57,7 @@ import SceneShotBrowser from './SceneShotBrowser'
 import SearchNavigator from './canvas/SearchNavigator'
 import BranchPanel from './BranchPanel'
 import GroupViewTheater from './theater/GroupViewTheater'
+import G16VoiceWorkbench from './g16/G16VoiceWorkbench'
 import { theaterTargetOf } from './theater/groupMembership'
 import { useTheaterStore } from './theater/theaterStore'
 import { placeNewAsset } from '../utils/placeNewAsset'
@@ -1128,6 +1129,7 @@ function CanvasInner() {
         {gateOpen && <GateCenterPanel />}
         {branchPanelOpen && <BranchPanel onClose={() => setBranchPanelOpen(false)} />}
         <GroupViewTheater />
+        <G16VoiceWorkbench />
         <SearchNavigator open={searchNavOpen} onClose={() => setSearchNavOpen(false)} initialQuery={searchQuery} />
         </>
         )}
