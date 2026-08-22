@@ -209,3 +209,27 @@ export function formatBytes(bytes: number | null | undefined): string | null {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
+
+// ─── full 档管线带直方图（load-v2 图 → phaseIndex 计数）──────────────────
+
+/**
+ * 计入口径镜像 projects.ts RIBBON_TYPES（asset/reference/script/storyboard/
+ * audio/video；排除 zone/phase/suggestion/variant——DB 实测 zone 行也带
+ * phase_index，全计会让每段恒 filled，57-02 已裁决）。服务端路由不能进
+ * 前端 bundle，故此处镜像常量（契约测试防漂移的同一词汇集）。
+ */
+const RIBBON_NODE_TYPES = new Set(['asset', 'reference', 'script', 'storyboard', 'audio', 'video'])
+
+/** load-v2 图节点按 phaseIndex 聚合（交付页管线带 full 的 counts 来源）。 */
+export function phaseCountsOf(
+  nodes: ReadonlyArray<{ type?: string; phaseIndex?: number; data?: Record<string, unknown> }>,
+): Record<number, number> {
+  const counts: Record<number, number> = {}
+  for (const nd of nodes) {
+    if (!nd.type || !RIBBON_NODE_TYPES.has(nd.type)) continue
+    const idx = typeof nd.phaseIndex === 'number' ? nd.phaseIndex : numOf(nd.data?.phaseIndex)
+    if (idx == null) continue
+    counts[idx] = (counts[idx] ?? 0) + 1
+  }
+  return counts
+}
