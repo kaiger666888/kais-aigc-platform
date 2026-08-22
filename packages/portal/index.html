@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- 探活断言标记（57 Pitfall 1 反向利用）：/deliver/:ep 等深链必须返回本页 -->
+    <title>制片门户</title>
+    <!-- KapNavbar 样式（tokens.css 构建期 concat 产物——单 token 源，非复制值；
+         deploy-portal.sh 部署时把稳定名改写为 hash 名破 /assets 1d 缓存） -->
+    <link rel="stylesheet" href="/assets/kap-nav.css" />
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        background: var(--cv-bg-canvas);
+        color: var(--cv-text-primary);
+        font-family: var(--cv-font-ui);
+        color-scheme: dark;
+      }
+      /* navbar 壳 40px + 页面区占余高（ToonflowEmbed iframe 同基准） */
+      #root { min-height: calc(100vh - 40px); }
+    </style>
+  </head>
+  <body>
+    <!-- 共享导航壳（main.tsx import 注册后升级；未升级时为空行不挡内容） -->
+    <kap-navbar></kap-navbar>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

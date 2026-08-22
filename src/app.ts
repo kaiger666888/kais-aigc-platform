@@ -203,6 +203,43 @@ export default async function startServe(randomPort: Boolean = false) {
     });
   }
 
+  // ── Phase 57 制片门户：data/web/portal 静态 + 三前缀 SPA fallback ──
+  // 三个前缀（/portal、/deliver/:ep、/toonflow）必须注册在下方全局 SPA fallback
+  // 之前 —— 否则无扩展名 GET 会被根 index.html（Toonflow 26MB）吞掉（57 Pitfall 1）。
+  // /deliver 与 /toonflow 无独立静态资产（门户资产全在 /portal/ 前缀下），复用同 index。
+  const portalDir = path.join(webDir, "portal");
+  if (fs.existsSync(portalDir)) {
+    app.use("/portal", express.static(portalDir, { acceptRanges: true, maxAge: "5m", cacheControl: true }));
+    app.get("/portal/{*path}", (_req, res) => {
+      res.sendFile(path.join(portalDir, "index.html"));
+    });
+    app.get("/deliver", (_req, res) => {
+      res.sendFile(path.join(portalDir, "index.html"));
+    });
+    app.get("/deliver/{*path}", (_req, res) => {
+      res.sendFile(path.join(portalDir, "index.html"));
+    });
+    app.get("/toonflow", (_req, res) => {
+      res.sendFile(path.join(portalDir, "index.html"));
+    });
+    app.get("/toonflow/{*path}", (_req, res) => {
+      res.sendFile(path.join(portalDir, "index.html"));
+    });
+  }
+
+  // D-05 深链重定向：/canvas?project&ep&focus&zone → 302 /infinite-canvas/?projectId&episodesId&focus&zone
+  // 白名单四键翻译（project→projectId、ep→episodesId、focus/zone 透传）；目标写死站内
+  // /infinite-canvas/，不回显任何 URL 形参 —— 杜绝开放重定向（T-57-02a）。
+  app.get("/canvas", (req, res) => {
+    const { project, ep, focus, zone } = req.query as Record<string, string | undefined>;
+    const qs = new URLSearchParams();
+    if (project !== undefined) qs.set("projectId", String(project));
+    if (ep !== undefined) qs.set("episodesId", String(ep));
+    if (focus !== undefined) qs.set("focus", String(focus));
+    if (zone !== undefined) qs.set("zone", String(zone));
+    res.redirect(302, `/infinite-canvas/${qs.size > 0 ? `?${qs.toString()}` : ""}`);
+  });
+
   // arch dashboards：manifest-driven reverse proxy (Phase 6 PROXY-01/02/03).
   // Reads /etc/arch-tracked-repos.conf (or ~/.config fallback) and mounts each
   // tracked repo's MkDocs site at its declared URL prefix. Adding a repo
