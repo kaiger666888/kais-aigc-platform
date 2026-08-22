@@ -385,7 +385,7 @@ describe('【52-07】Pass 3 防御：变体组候选事件缺失（真机 9999 �
   // 复现:varA(candA winner + candB)先并掉 candB 事件;varB(candB + candC)再遇
   // candB → 事件已被组1消费。candC 有配方,正常并入。
   const mk = (id: string, extra: Record<string, unknown> = {}) => ({
-    id, type: 'video', position: { x: 0, y: 0 }, size: { width: 260, height: 180 },
+    id, type: 'video' as const, branchId: 'br_main', position: { x: 0, y: 0 }, size: { width: 260, height: 180 },
     data: { label: id, ...extra } as FlowNodeV2Data, state: 'idle',
   })
   const v2in: FlowGraphV2Export = {
@@ -394,14 +394,14 @@ describe('【52-07】Pass 3 防御：变体组候选事件缺失（真机 9999 �
       { ...mk('n_cand_a', { prompt: '配方A' }), isWinner: true },
       { ...mk('n_cand_b', { prompt: '配方B' }), isWinner: true },
       { ...mk('n_cand_c', { prompt: '配方C' }), isWinner: true },
-      { id: 'n_var_a', type: 'variant', position: { x: 150, y: 200 }, size: { width: 200, height: 100 }, data: { label: '组A' } as FlowNodeV2Data, state: 'idle' },
-      { id: 'n_var_b', type: 'variant', position: { x: 450, y: 200 }, size: { width: 200, height: 100 }, data: { label: '组B' } as FlowNodeV2Data, state: 'idle' },
+      { id: 'n_var_a', type: 'variant', position: { x: 150, y: 200 }, size: { width: 200, height: 100 }, branchId: 'br_main', data: { label: '组A' } as FlowNodeV2Data, state: 'idle' },
+      { id: 'n_var_b', type: 'variant', position: { x: 450, y: 200 }, size: { width: 200, height: 100 }, branchId: 'br_main', data: { label: '组B' } as FlowNodeV2Data, state: 'idle' },
     ],
     links: [
-      { id: 'e1', source: 'n_cand_a', target: 'n_var_a', data: { dataType: 'variant' } },
-      { id: 'e2', source: 'n_cand_b', target: 'n_var_a', data: { dataType: 'variant' } },
-      { id: 'e3', source: 'n_cand_b', target: 'n_var_b', data: { dataType: 'variant' } },
-      { id: 'e4', source: 'n_cand_c', target: 'n_var_b', data: { dataType: 'variant' } },
+      { id: 'e1', source: 'n_cand_a', target: 'n_var_a', dataType: 'variant' },
+      { id: 'e2', source: 'n_cand_b', target: 'n_var_a', dataType: 'variant' },
+      { id: 'e3', source: 'n_cand_b', target: 'n_var_b', dataType: 'variant' },
+      { id: 'e4', source: 'n_cand_c', target: 'n_var_b', dataType: 'variant' },
     ],
     branches: [],
   };
@@ -429,12 +429,12 @@ describe('【52-07】Pass 3 防御：变体组候选事件缺失（真机 9999 �
       ...v2in,
       nodes: [
         ...v2in.nodes,
-        { id: 'n_var_c', type: 'variant', position: { x: 750, y: 200 }, size: { width: 200, height: 100 }, data: { label: '组C' } as FlowNodeV2Data, state: 'idle' },
+        { id: 'n_var_c', type: 'variant', position: { x: 750, y: 200 }, size: { width: 200, height: 100 }, branchId: 'br_main', data: { label: '组C' } as FlowNodeV2Data, state: 'idle' },
       ],
       links: [
         ...v2in.links,
-        { id: 'e5', source: 'n_cand_b', target: 'n_var_c', data: { dataType: 'variant' } },
-        { id: 'e6', source: 'n_cand_a', target: 'n_var_c', data: { dataType: 'variant' } },
+        { id: 'e5', source: 'n_cand_b', target: 'n_var_c', dataType: 'variant' },
+        { id: 'e6', source: 'n_cand_a', target: 'n_var_c', dataType: 'variant' },
       ],
     }
     let out: ReturnType<typeof migrateV2toV3>
