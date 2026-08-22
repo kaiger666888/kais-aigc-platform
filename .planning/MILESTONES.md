@@ -1,5 +1,21 @@
 # Milestones
 
+## v3.0 画布创作体验 / Canvas Creative Experience for kmc (Shipped: 2026-08-22)
+
+**Status:** ✅ Archived
+**Phases:** 51–57 (7 phases; 52 externally owned — code on master, verification owed by owning session, user-accepted 2026-08-22) | **Requirements:** 25/29 verified + 4 code-only (REGEN-01..04)
+**Automated assertions:** verify:phase-53 92 · 54 57 · 55 14 · 56 94 · 57 48 — 305/305 全绿; canvas vitest 401/401; portal vitest 34/34; tsc 三根 clean; live 探针(10588/8090/gate-state 16 gates)ok
+
+**Key accomplishments:**
+
+1. **Gate 中心三仓闭环** — review-platform R1(决策持久化+waive 端点,已部署活体)+ khs R2/R3(COMPLETE 词汇+result 提取)+ kap(20s 轮询+gate-ops 409 幂等+chip/列发光/决策面板);SC1 活体对照表全绿。
+2. **导航与规模** — 22-phase 单一注册表(三张旧表删,khs 三真相源契约门)+ SceneShotBrowser 两级浏览 + `/` SearchNavigator(隐藏式搜索永删)+ placeNewAsset 有界落点 + laneZoom 泳道记忆 + BranchPanel 乐观+REST+回滚;e2e 5/5×3。
+3. **创作可视化** — scored 死信修复 + verdict 眼/耳角标 + hover mini-雷达 + 组视图剧场(2×2 同步缩放签名元素)+ G16 配音听审工作台(双轨+豁免桥 p10c-gate 白名单);94/94 契约门含 khs 词表零漂移。
+4. **门户与交付** — Toonflow 替换评估结论(五维对比+混合路线)+ packages/portal 三路由壳 + KapNavbar 单源三宿主 + 交付页(master hero+管线带 full+G8 放行/驳回)+ taxonomy 22 重对齐(verify:phase-57 48/48)。
+5. **并行会话协作零冲突** — COORD-01 纪律全程(具名文件 add;khs 只读;52 域避让);两波 API 故障经 SendMessage 续接零上下文损失。
+
+**Stats:** Timeline: 2026-08-21..22 (single session, autonomous) · audit f9280e0c passed · carry-forward: Wave B(khs2 v2.4 gated)/UAT §7/TD-1..8
+
 ## v2.1 候选资产配套 / candidate-asset-completeness (Shipped: 2026-08-19)
 
 **Status:** ✅ Archived
