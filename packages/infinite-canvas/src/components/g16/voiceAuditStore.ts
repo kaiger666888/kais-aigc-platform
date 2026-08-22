@@ -5,7 +5,7 @@
  * currentIndex 连播游标。数据源 = VoiceAuditSource seam(fixture 对齐 p10c
  * 真实 clips 形状;真实源 = graph 内 voice-audit 节点 raw 袋防御式派生,
  * 键序 clips/findings,识别不了空数组 + warn 一次,不 throw——A-1 兜底)。
- * 无 requeue(G16 只有豁免)。
+ * G16 只有豁免语义(无重渲 action)。
  */
 import { create } from 'zustand'
 import type { FlowGraphV3 } from '@kais/flowgraph-v3'

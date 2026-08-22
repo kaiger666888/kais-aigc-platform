@@ -185,6 +185,12 @@ app.post('/api/canvas/v2/save-v2', (req, res) => {
   }, 5)
 })
 
+// Phase 56 G16 豁免回路 mock(56-05 g15-ops):受理即 200 applied。
+app.post('/api/canvas/v2/g15-ops', (req, res) => {
+  logCall('POST', '/api/canvas/v2/g15-ops', req.body ?? {}, null)
+  res.json({ code: 200, data: { action: req.body?.action, applied: true } })
+})
+
 // Health 端点 mock — 用于前端兜底轮询。返回当前 state.canvas 节点数作为 eventCount。
 app.get('/api/canvas/v2/health', (req, res) => {
   const totalEvents = state.calls.filter((c) => c.path === '/api/canvas/v2/save-v2').length

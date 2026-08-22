@@ -41,6 +41,15 @@ if (typeof window !== 'undefined' && new URLSearchParams(window.location.search)
     // 55-07:canonical graph 只读桥(placement 断言读 graph 节点 position——
     // rfNodes 的 position 是布局缓存,经 layoutFlowGraph 重算,非放置决策)。
     getGraph: () => useCanvasStore.getState().graph,
+    // 56-06:scored 事件模拟(scored 死信修复链的 e2e 驱动面)
+    emitScored: (nodeId: string, aiScore: unknown): void => {
+      useCanvasStore.getState().applySocketScored(nodeId, aiScore)
+    },
+    // 56-06:G16 听审工作台直开(store seam;gate 行入口需 gate 快照,e2e 直驱)
+    openG16: (): void => {
+      // 模块级单例:dynamic import 与 FlowCanvas 挂载处同一模块实例
+      void import('./components/g16/voiceAuditStore').then((m) => m.useVoiceAuditStore.getState().setOpen(true))
+    },
     // 55-04 (W2 裁决):新资产落点 e2e 断言桥——55-07 消费。
     // getViewCenter 读 FlowCanvas live 视口 getter(非 store 镜像——镜像仅
     // setGraph 载入且逐平移写会触发全量重布,已被证伪);换算与

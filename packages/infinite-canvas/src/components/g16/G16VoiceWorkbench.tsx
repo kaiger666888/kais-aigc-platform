@@ -46,10 +46,27 @@ export default function G16VoiceWorkbench(): React.ReactElement | null {
   const episodesId = useCanvasStore((s) => s.episodesId)
 
   // 真实源 seam:打开时按当前 graph/raw 注入(Wave A fixture 是缺省;画布有
-  // voice-audit 节点则换真实源——零面板改动)
+  // voice-audit 节点则换真实源——零面板改动)。打开动作时序效应先于 open 效应:
+  // openGate 封装「注源 → setOpen(true)」(store.setOpen 的 open-且-未加载懒
+  // 触发必须在源就位后,否则 fixture 先行覆盖)。
+  const openGate = () => {
+    if (graph != null && rawDataByNodeId != null) {
+      setSource(graphVoiceAuditSource(graph, rawDataByNodeId))
+    }
+    setOpen(true)
+  }
   useEffect(() => {
-    if (!open || graph == null || rawDataByNodeId == null) return
-    setSource(graphVoiceAuditSource(graph, rawDataByNodeId))
+    // 打开的瞬时时机:open 变 true 后源再注入仍为 fixture——source 注入必须
+    // 在打开前。此 effect 只做「open 真 + 源仍 fixture 且有 graph」的补注
+    // (用户经 GateCenterBlock p10c 行直开 store 的旁路)。
+    if (!open) return
+    const s = useVoiceAuditStore.getState()
+    if (graph != null && rawDataByNodeId != null && s.rows.every((r) => r.id.startsWith('S01_') || r.id.startsWith('S02_') || r.id.startsWith('S03_'))) {
+      // fixture 签名(S01/S02/S03 五样本)时换真实源
+      const real = graphVoiceAuditSource(graph, rawDataByNodeId)
+      setSource(real)
+      void s.load()
+    }
   }, [open, graph, rawDataByNodeId, setSource])
 
   const clip = rows[currentIndex] ?? null
