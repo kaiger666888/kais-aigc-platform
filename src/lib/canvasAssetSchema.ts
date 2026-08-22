@@ -19,9 +19,19 @@ import { z } from "zod";
 import { YAML_OPTIONAL_FIELDS } from "../../schema/generated/frontend-zod-extensions";
 
 // ─── Universal required fields (all media-bearing nodes) ──────────
+//
+// 52-UAT gap#1(2026-08-22)存量宽容:kmc sync 直写 DB 的真实图普遍含无媒体/无配方
+// 参数的节点(修前诊断回放:项目 1/2/2001/9999 load-v2 原图原样回发 save-v2 全 400,
+// 缺失形态全为 undefined/null,零空串)。filePath 等必填字段 nullish 化 = 与本文件
+// prompt/description 可选化同一先例("rejecting on full-graph save would break the
+// UI for 689 pre-existing asset rows")。管线写入本就直写 DB 绕过 HTTP,此门真正拦的
+// 只有 UI 回写——nullish 化不弱化任何管线强制;**字段在场时仍强制形状**(空串/
+// 负数照旧 400,行为锁 scripts/canvas/verify-save-v2-legacy-asset.ts 双分支锁死)。
+// 各类型配方字段基线仍由文件尾的同名 EXPECTED 常量声明(本计划零改动),import-
+// from-dir 的 __incomplete 警告语义不变。
 
 const universalRequired = {
-  filePath: z.string().min(1, "filePath is required for media nodes"),
+  filePath: z.string().min(1, "filePath is required for media nodes").nullish(),
 };
 
 // ─── Per-type param schemas ───────────────────────────────────────
@@ -50,36 +60,43 @@ function withYamlOptional<T extends z.ZodObject<any>>(
 
 export const assetDataSchemas: Record<string, z.ZodSchema> = {
   // ── Audio nodes (P10 voice, P10b bgm/sfx, P12 audio_stems) ──
+  // 52-UAT gap#1:nullish 化(修前回放实证 9999 项目 72 个 sync 写入 audio 节点
+  // 缺 shot_id/engine/duration_sec;在场时 min 形状仍强制)。
   audio: withYamlOptional("audio", z.object({
     ...universalRequired,
-    shot_id: z.string().min(1, "audio node requires shot_id"),
-    engine: z.string().min(1, "audio node requires engine (e.g. ChatTTS)"),
-    duration_sec: z.number().min(0, "audio node requires duration_sec >= 0 (0 = engine did not report)"),
+    shot_id: z.string().min(1, "audio node requires shot_id").nullish(),
+    engine: z.string().min(1, "audio node requires engine (e.g. ChatTTS)").nullish(),
+    duration_sec: z.number().min(0, "audio node requires duration_sec >= 0 (0 = engine did not report)").nullish(),
     // Optional but expected:
     text: z.string().optional(),
     clip_type: z.string().optional(),
   })),
 
   // ── Video nodes (P11 video_render, P12 master, P13 delivery) ──
+  // 52-UAT gap#1:nullish 化(修前回放实证 2001 项目 15 个 video 节点四字段全缺;
+  // 在场时 min 形状仍强制)。
   video: withYamlOptional("video", z.object({
     ...universalRequired,
-    shot_id: z.string().min(1, "video node requires shot_id"),
-    engine: z.string().min(1, "video node requires engine (e.g. ltx)"),
-    duration_sec: z.number().min(0, "video node requires duration_sec >= 0 (0 = engine did not report)"),
-    resolution: z.string().min(1, "video node requires resolution (e.g. 1280x704)"),
+    shot_id: z.string().min(1, "video node requires shot_id").nullish(),
+    engine: z.string().min(1, "video node requires engine (e.g. ltx)").nullish(),
+    duration_sec: z.number().min(0, "video node requires duration_sec >= 0 (0 = engine did not report)").nullish(),
+    resolution: z.string().min(1, "video node requires resolution (e.g. 1280x704)").nullish(),
     // Optional but expected:
     codec: z.string().optional(),
     thumbnailUrl: z.string().optional(),
   })),
 
   // ── Asset nodes (P04 character, P07 scene) ──
+  // 52-UAT gap#1:摘除 universalRequired 展开,filePath/label/assetType 三字段
+  // nullish 化(修前回放实证 43+9+3 节点缺失;sum-* 摘要卡/文本资产无媒体)——
+  // 与 prompt/description 可选化同一先例(见下)。在场时 min(1) 仍强制。
   asset: withYamlOptional("asset", z.object({
-    ...universalRequired,
+    filePath: z.string().min(1, "filePath is required for media nodes").nullish(),
     // P04 character turnaround
     // P07 scene image
-    label: z.string().min(1, "asset node requires label"),
+    label: z.string().min(1, "asset node requires label").nullish(),
     // At least one of these must identify what kind of asset it is
-    assetType: z.string().min(1, "asset node requires assetType (character|scene|prop)"),
+    assetType: z.string().min(1, "asset node requires assetType (character|scene|prop)").nullish(),
     // Generation prompt or human-readable description.
     // Pipeline SHOULD fill at least one; UI falls back from prompt → description.
     // Kept optional because legacy data lacks both, and rejecting on full-graph
@@ -94,11 +111,13 @@ export const assetDataSchemas: Record<string, z.ZodSchema> = {
   })),
 
   // ── Storyboard nodes (P09 shot_breakdown) ──
+  // 52-UAT gap#1:shot_id/shot_type/duration_sec nullish 化(修前回放实证 9999
+  // 40+1+1 节点缺失;kmc sync 分镜卡缺管线配方参数)。label 无缺失证据,维持必填。
   storyboard: withYamlOptional("storyboard", z.object({
     label: z.string().min(1, "storyboard node requires label"),
-    shot_id: z.string().min(1, "storyboard node requires shot_id"),
-    shot_type: z.string().min(1, "storyboard requires shot_type (e.g. WS, CU)"),
-    duration_sec: z.number().min(0, "storyboard requires duration_sec >= 0 (0 = engine did not report)"),
+    shot_id: z.string().min(1, "storyboard node requires shot_id").nullish(),
+    shot_type: z.string().min(1, "storyboard requires shot_type (e.g. WS, CU)").nullish(),
+    duration_sec: z.number().min(0, "storyboard requires duration_sec >= 0 (0 = engine did not report)").nullish(),
     // The storyboard may not have a rendered image yet (pre-production)
     filePath: z.string().optional(),
     // Optional but expected structured params:
@@ -107,12 +126,15 @@ export const assetDataSchemas: Record<string, z.ZodSchema> = {
 
   // ── Script nodes (P01-P06, P13 delivery) ──
   // Script nodes carry text content, not media. They require a description.
+  // 52-UAT gap#1:description nullish 化(修前回放实证 127 节点缺失——kmc sync 的
+  // 剧本/大纲节点无 description);filePath 修 optional→nullish(2001 实证 3 节点
+  // 显式 null 形态,optional() 不收 null)。label 无缺失证据,维持必填。
   script: withYamlOptional("script", z.object({
     label: z.string().min(1, "script node requires label"),
-    description: z.string().min(1, "script node requires description"),
+    description: z.string().min(1, "script node requires description").nullish(),
     // Optional:
     assetType: z.string().optional(),
-    filePath: z.string().optional(),
+    filePath: z.string().nullish(),
     score: z.any().optional(),
     content: z.string().optional(),
   })),

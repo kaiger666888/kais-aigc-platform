@@ -258,8 +258,10 @@ export function serializeGraphToV2(
         triggerEventId: n.stale.triggerEventId,
       }
     }
-    // filePath/thumbnailUrl 仅在非空时覆盖（不抹 rawData 里的原值；空媒体不伪造字段——
-    // 服务端结构化参数 schema 的 filePath 必填由管线数据保证，序列化器不兜底）。
+    // filePath/thumbnailUrl 仅在非空时覆盖（不抹 rawData 里的原值；空媒体不伪造字段）。
+    // 服务端 schema 的 filePath 对 asset 型已 nullish 宽容、audio/video 型同样 nullish
+    // （52-UAT gap#1 存量先例：sync 写入路径无「管线数据保证必填」——该假设已被
+    // 2026-08-22 修前诊断回放证伪；字段在场时形状仍强制），序列化器依旧不兜底。
     if (n.media.original != null) data.filePath = n.media.original
     if (n.media.thumbnail != null) data.thumbnailUrl = n.media.thumbnail
     // media.durationS 回写 data.durationS（storyboard 已由 flattenMeta 覆盖；video/audio
