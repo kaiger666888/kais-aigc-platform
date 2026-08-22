@@ -9,7 +9,7 @@ import type { DB } from "@/types/database";
 import crypto from "crypto";
 import fixDB from "@/lib/fixDB";
 import { loadAllFromDB } from "@/skills/loader";
-import { seedDefaultIfEmpty } from "@/skills/defaultSkill";
+import { seedDefaultIfEmpty, upgradeDefaultSkillRow } from "@/skills/defaultSkill";
 
 type TableName = keyof DB & string;
 type RowType<TName extends TableName> = DB[TName];
@@ -53,6 +53,10 @@ export const bootReady: Promise<void> = new Promise((resolve) => {
     await fixDB(db);
     await loadAllFromDB(db);
     await seedDefaultIfEmpty(db);
+    // Phase 57-07: idempotent row upgrade — a DB seeded with the pre-57
+    // 12-phase taxonomy gets rewritten to the current 22-entry constant and
+    // the in-memory registry re-hydrated (no-op when already current).
+    await upgradeDefaultSkillRow(db);
     if (process.env.NODE_ENV === "dev") initKnexType(db);
   } catch (err) {
     console.error("[db] boot failed:", err);

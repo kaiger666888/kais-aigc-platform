@@ -39,18 +39,26 @@ const SKILL_HEALTHCHECK_PATH = process.env.SKILL_MOVIE_V1_HEALTHCHECK_PATH || "/
 /**
  * The movie-v1 SkillManifest — a literal constant as of Phase 31.
  *
- * The `phase_taxonomy[]` array below is inlined verbatim (12 PhaseDecl entries,
- * order 0 through 11). The descriptive fields (node_types, asset_categories,
+ * The `phase_taxonomy[]` array below is inlined verbatim (22 PhaseDecl entries,
+ * order 0 through 21). The descriptive fields (node_types, asset_categories,
  * review_criteria, runtime) are minimal sensible values per CONTEXT.md
  * "Claude's Discretion" — refined in v1.7+. node_types uses the five
  * BuiltinRenderer primitives the platform ships today; each `type` is
  * namespaced `movie-v1::<bare>` (validator enforces NODE_ID_NAMESPACING).
  *
- * Six phases carry `requires_review: true` (storyboard, character, scene,
- * camera-preview, camera-final, quality-gate). Six phases carry
- * `ingest_outputs: ["none"]` (requirement, scenario, voice, post-production,
- * quality-gate, delivery) — the explicit "no ingest" sentinel replaces the
- * empty-array representation the pre-refactor code used.
+ * Phase 57-07 (PORTAL-04, D-13/D-16): the taxonomy was rewritten from the
+ * legacy 12-entry list to the 22-phase pipeline vocabulary — id = PHASE_REGISTRY
+ * khsPrefix (packages/infinite-canvas/src/constants/phaseRegistry.ts, the
+ * 55-D04 single registry), order = sortKey ascending sequence, label = registry
+ * name. Thirteen phases carry `requires_review: true` + a real `review_gate`
+ * (gateCatalog derivedGateId form, e.g. 'p03-gate'); nine gate-less phases
+ * carry `review_gate: ''`. The three p13 redline sub-gates are
+ * platformInvisible and do NOT occupy taxonomy entries (54 U-06).
+ * ingest_outputs follows the canvasType mapping (video→['videos'],
+ * audio→['audio'], asset→['images'], storyboard→['storyboard'],
+ * script→['none'] — the explicit "no ingest" sentinel). verify-phase-57
+ * asserts this literal stays three-way consistent with PHASE_REGISTRY,
+ * GATE_CATALOG, and the khs gates.yaml.
  */
 export const MOVIE_V1_MANIFEST: SkillManifest = {
   skill_id: "movie-v1",
@@ -106,21 +114,35 @@ export const MOVIE_V1_MANIFEST: SkillManifest = {
     },
   ],
 
-  // Inline literal phase_taxonomy — single source of truth as of Phase 31.
-  // 12 phases, order 0..11. Labels match ids (Phase 33 may refine).
+  // Inline literal phase_taxonomy — single source of truth as of Phase 31,
+  // realigned to the 22-phase registry vocabulary in Phase 57-07 (D-13/D-16).
+  // 22 phases, order 0..21 (sortKey ascending). id = PHASE_REGISTRY khsPrefix
+  // (p035 / p11a0 token forms — same vocabulary as the zone deep-link param and
+  // the phase-complete.ts lookup chain); label = registry name.
+  // 13 gated phases carry review_gate '<khsPrefix>-gate'; 9 gate-less phases ''.
   phase_taxonomy: [
-    { id: "requirement", order: 0, label: "requirement", requires_review: false, ingest_outputs: ["none"] },
-    { id: "art-direction", order: 1, label: "art-direction", requires_review: false, ingest_outputs: ["images"] },
-    { id: "character", order: 2, label: "character", requires_review: true, ingest_outputs: ["images"] },
-    { id: "scenario", order: 3, label: "scenario", requires_review: false, ingest_outputs: ["none"] },
-    { id: "voice", order: 4, label: "voice", requires_review: false, ingest_outputs: ["none"] },
-    { id: "storyboard", order: 5, label: "storyboard", requires_review: true, ingest_outputs: ["storyboard"] },
-    { id: "scene", order: 6, label: "scene", requires_review: true, ingest_outputs: ["images"] },
-    { id: "camera-preview", order: 7, label: "camera-preview", requires_review: true, ingest_outputs: ["videos"] },
-    { id: "camera-final", order: 8, label: "camera-final", requires_review: true, ingest_outputs: ["videos"] },
-    { id: "post-production", order: 9, label: "post-production", requires_review: false, ingest_outputs: ["none"] },
-    { id: "quality-gate", order: 10, label: "quality-gate", requires_review: true, ingest_outputs: ["none"] },
-    { id: "delivery", order: 11, label: "delivery", requires_review: false, ingest_outputs: ["none"] },
+    { id: "p01", order: 0, label: "选题/钩子", requires_review: true, review_gate: "p01-gate", ingest_outputs: ["none"] },
+    { id: "p02", order: 1, label: "大纲", requires_review: true, review_gate: "p02-gate", ingest_outputs: ["none"] },
+    { id: "p03", order: 2, label: "剧本审计", requires_review: true, review_gate: "p03-gate", ingest_outputs: ["none"] },
+    { id: "p035", order: 3, label: "戏剧事件打磨", requires_review: false, review_gate: "", ingest_outputs: ["none"] },
+    { id: "p04", order: 4, label: "角色设计", requires_review: true, review_gate: "p04-gate", ingest_outputs: ["images"] },
+    { id: "p06", order: 5, label: "时空剧本", requires_review: true, review_gate: "p06-gate", ingest_outputs: ["none"] },
+    { id: "p07", order: 6, label: "场景图生成", requires_review: true, review_gate: "p07-gate", ingest_outputs: ["images"] },
+    { id: "p08", order: 7, label: "场景选择", requires_review: false, review_gate: "", ingest_outputs: ["images"] },
+    { id: "p09", order: 8, label: "分镜拆解", requires_review: false, review_gate: "", ingest_outputs: ["storyboard"] },
+    { id: "p09b", order: 9, label: "镜头审计", requires_review: false, review_gate: "", ingest_outputs: ["storyboard"] },
+    { id: "p09c", order: 10, label: "分镜故事板", requires_review: true, review_gate: "p09c-gate", ingest_outputs: ["storyboard"] },
+    { id: "p10", order: 11, label: "语音合成", requires_review: false, review_gate: "", ingest_outputs: ["audio"] },
+    { id: "p10c", order: 12, label: "语音审计", requires_review: true, review_gate: "p10c-gate", ingest_outputs: ["audio"] },
+    { id: "p11a", order: 13, label: "片段预览", requires_review: true, review_gate: "p11a-gate", ingest_outputs: ["videos"] },
+    { id: "p11a0", order: 14, label: "条件帧审核", requires_review: true, review_gate: "p11a0-gate", ingest_outputs: ["videos"] },
+    { id: "p11b", order: 15, label: "片段生成", requires_review: true, review_gate: "p11b-gate", ingest_outputs: ["videos"] },
+    { id: "p11c", order: 16, label: "视频质检", requires_review: true, review_gate: "p11c-gate", ingest_outputs: ["videos"] },
+    { id: "p12a", order: 17, label: "时间线合成", requires_review: false, review_gate: "", ingest_outputs: ["videos"] },
+    { id: "p12b", order: 18, label: "音频合成", requires_review: false, review_gate: "", ingest_outputs: ["audio"] },
+    { id: "p13", order: 19, label: "交付", requires_review: true, review_gate: "p13-gate", ingest_outputs: ["videos"] },
+    { id: "p14", order: 20, label: "质量审计", requires_review: false, review_gate: "", ingest_outputs: ["none"] },
+    { id: "p15", order: 21, label: "反馈", requires_review: false, review_gate: "", ingest_outputs: ["none"] },
   ],
 
   // Descriptive asset categories (minimal — refined in v1.7+).
@@ -237,5 +259,68 @@ export async function seedDefaultIfEmpty(knex: Knex): Promise<boolean> {
   //    restart.
   registry.register(MOVIE_V1_MANIFEST);
 
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// upgradeDefaultSkillRow — Phase 57-07 idempotent row upgrade (PORTAL-04, Q2)
+// ---------------------------------------------------------------------------
+
+/** Taxonomy size the movie-v1 row must carry after the 57-07 realignment. */
+export const MOVIE_V1_TAXONOMY_SIZE = MOVIE_V1_MANIFEST.phase_taxonomy.length; // 22
+
+/**
+ * Idempotent boot-time upgrade for the movie-v1 row (Phase 57-07).
+ *
+ * seedDefaultIfEmpty only runs on an EMPTY table, so a DB seeded with the
+ * pre-57 12-phase manifest would keep serving the stale taxonomy forever.
+ * This upgrades the row in place whenever its phase_taxonomy size differs
+ * from the current constant, then replays registry.register() so the
+ * in-memory cache matches without a second restart.
+ *
+ * Threat model (T-57-07a): the UPDATE is scoped to skill_id='movie-v1' only,
+ * guarded by the taxonomy-size condition (idempotent — re-running on an
+ * already-upgraded row is a no-op returning false), inside a transaction,
+ * with a one-line audit log before the write. Other skills' rows are never
+ * touched. NULL / unparseable manifest_json is treated as stale (upgraded).
+ *
+ * @param knex - the Knex instance (boot singleton or transient test instance)
+ * @returns true if the row was upgraded; false when it already carries the
+ *   current taxonomy size (idempotent no-op)
+ */
+export async function upgradeDefaultSkillRow(knex: Knex): Promise<boolean> {
+  const row = await knex("o_skillRegistry").where({ skill_id: "movie-v1" }).first();
+  if (row == null) return false; // nothing seeded yet — seedDefaultIfEmpty owns that path
+
+  let stale = true;
+  if (row.manifest_json != null) {
+    try {
+      const parsed = JSON.parse(row.manifest_json);
+      const size = Array.isArray(parsed?.phase_taxonomy) ? parsed.phase_taxonomy.length : -1;
+      stale = size !== MOVIE_V1_TAXONOMY_SIZE;
+    } catch {
+      stale = true; // unparseable blob — upgrade to the known-good constant
+    }
+  }
+  if (!stale) return false;
+
+  console.log(
+    `[skills/defaultSkill] upgrading movie-v1 row: taxonomy ${MOVIE_V1_TAXONOMY_SIZE} entries (was seeded with a different size) — Phase 57-07 idempotent row upgrade`,
+  );
+
+  await knex.transaction(async (trx) => {
+    await trx("o_skillRegistry")
+      .where({ skill_id: "movie-v1" })
+      .update({
+        manifest_json: JSON.stringify(MOVIE_V1_MANIFEST),
+        version: MOVIE_V1_MANIFEST.version,
+        active: 1,
+      });
+  });
+
+  // Re-hydrate the in-memory cache so phaseById() serves the new vocabulary
+  // immediately (register re-validates — the constant already passed the
+  // module-load self-check).
+  registry.register(MOVIE_V1_MANIFEST);
   return true;
 }

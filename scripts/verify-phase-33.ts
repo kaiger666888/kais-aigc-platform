@@ -288,8 +288,11 @@ async function main(): Promise<void> {
     "golden-path: registry.get('movie-v1') is hydrated",
   );
 
-  // Sample phase lookups matching what phase-complete / resume / submit-to-review perform
-  const samplePhases = ["requirement", "storyboard", "scene", "quality-gate", "delivery"];
+  // Sample phase lookups matching what phase-complete / resume / submit-to-review
+  // perform. Phase 57-07 superseded the legacy 12 ids with the 22-phase registry
+  // khsPrefix vocabulary — samples now span gated (p03/p09c/p11c/p13) and
+  // gate-less (p15) phases. Zero-drift taxonomy contract lives in verify-phase-57.
+  const samplePhases = ["p03", "p09c", "p11c", "p13", "p15"];
   for (const p of samplePhases) {
     const decl = registry.phaseById("movie-v1", p);
     assertPassed(

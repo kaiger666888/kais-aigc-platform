@@ -52,109 +52,221 @@
   ],
   "phase_taxonomy": [
     {
-      "id": "requirement",
+      "id": "p01",
       "order": 0,
-      "label": "requirement",
-      "requires_review": false,
+      "label": "选题/钩子",
+      "requires_review": true,
+      "review_gate": "p01-gate",
       "ingest_outputs": [
         "none"
       ]
     },
     {
-      "id": "art-direction",
+      "id": "p02",
       "order": 1,
-      "label": "art-direction",
-      "requires_review": false,
+      "label": "大纲",
+      "requires_review": true,
+      "review_gate": "p02-gate",
       "ingest_outputs": [
-        "images"
+        "none"
       ]
     },
     {
-      "id": "character",
+      "id": "p03",
       "order": 2,
-      "label": "character",
+      "label": "剧本审计",
       "requires_review": true,
+      "review_gate": "p03-gate",
+      "ingest_outputs": [
+        "none"
+      ]
+    },
+    {
+      "id": "p035",
+      "order": 3,
+      "label": "戏剧事件打磨",
+      "requires_review": false,
+      "review_gate": "",
+      "ingest_outputs": [
+        "none"
+      ]
+    },
+    {
+      "id": "p04",
+      "order": 4,
+      "label": "角色设计",
+      "requires_review": true,
+      "review_gate": "p04-gate",
       "ingest_outputs": [
         "images"
       ]
     },
     {
-      "id": "scenario",
-      "order": 3,
-      "label": "scenario",
-      "requires_review": false,
-      "ingest_outputs": [
-        "none"
-      ]
-    },
-    {
-      "id": "voice",
-      "order": 4,
-      "label": "voice",
-      "requires_review": false,
-      "ingest_outputs": [
-        "none"
-      ]
-    },
-    {
-      "id": "storyboard",
+      "id": "p06",
       "order": 5,
-      "label": "storyboard",
+      "label": "时空剧本",
       "requires_review": true,
+      "review_gate": "p06-gate",
+      "ingest_outputs": [
+        "none"
+      ]
+    },
+    {
+      "id": "p07",
+      "order": 6,
+      "label": "场景图生成",
+      "requires_review": true,
+      "review_gate": "p07-gate",
+      "ingest_outputs": [
+        "images"
+      ]
+    },
+    {
+      "id": "p08",
+      "order": 7,
+      "label": "场景选择",
+      "requires_review": false,
+      "review_gate": "",
+      "ingest_outputs": [
+        "images"
+      ]
+    },
+    {
+      "id": "p09",
+      "order": 8,
+      "label": "分镜拆解",
+      "requires_review": false,
+      "review_gate": "",
       "ingest_outputs": [
         "storyboard"
       ]
     },
     {
-      "id": "scene",
-      "order": 6,
-      "label": "scene",
-      "requires_review": true,
-      "ingest_outputs": [
-        "images"
-      ]
-    },
-    {
-      "id": "camera-preview",
-      "order": 7,
-      "label": "camera-preview",
-      "requires_review": true,
-      "ingest_outputs": [
-        "videos"
-      ]
-    },
-    {
-      "id": "camera-final",
-      "order": 8,
-      "label": "camera-final",
-      "requires_review": true,
-      "ingest_outputs": [
-        "videos"
-      ]
-    },
-    {
-      "id": "post-production",
+      "id": "p09b",
       "order": 9,
-      "label": "post-production",
+      "label": "镜头审计",
       "requires_review": false,
+      "review_gate": "",
       "ingest_outputs": [
-        "none"
+        "storyboard"
       ]
     },
     {
-      "id": "quality-gate",
+      "id": "p09c",
       "order": 10,
-      "label": "quality-gate",
+      "label": "分镜故事板",
       "requires_review": true,
+      "review_gate": "p09c-gate",
+      "ingest_outputs": [
+        "storyboard"
+      ]
+    },
+    {
+      "id": "p10",
+      "order": 11,
+      "label": "语音合成",
+      "requires_review": false,
+      "review_gate": "",
+      "ingest_outputs": [
+        "audio"
+      ]
+    },
+    {
+      "id": "p10c",
+      "order": 12,
+      "label": "语音审计",
+      "requires_review": true,
+      "review_gate": "p10c-gate",
+      "ingest_outputs": [
+        "audio"
+      ]
+    },
+    {
+      "id": "p11a",
+      "order": 13,
+      "label": "片段预览",
+      "requires_review": true,
+      "review_gate": "p11a-gate",
+      "ingest_outputs": [
+        "videos"
+      ]
+    },
+    {
+      "id": "p11a0",
+      "order": 14,
+      "label": "条件帧审核",
+      "requires_review": true,
+      "review_gate": "p11a0-gate",
+      "ingest_outputs": [
+        "videos"
+      ]
+    },
+    {
+      "id": "p11b",
+      "order": 15,
+      "label": "片段生成",
+      "requires_review": true,
+      "review_gate": "p11b-gate",
+      "ingest_outputs": [
+        "videos"
+      ]
+    },
+    {
+      "id": "p11c",
+      "order": 16,
+      "label": "视频质检",
+      "requires_review": true,
+      "review_gate": "p11c-gate",
+      "ingest_outputs": [
+        "videos"
+      ]
+    },
+    {
+      "id": "p12a",
+      "order": 17,
+      "label": "时间线合成",
+      "requires_review": false,
+      "review_gate": "",
+      "ingest_outputs": [
+        "videos"
+      ]
+    },
+    {
+      "id": "p12b",
+      "order": 18,
+      "label": "音频合成",
+      "requires_review": false,
+      "review_gate": "",
+      "ingest_outputs": [
+        "audio"
+      ]
+    },
+    {
+      "id": "p13",
+      "order": 19,
+      "label": "交付",
+      "requires_review": true,
+      "review_gate": "p13-gate",
+      "ingest_outputs": [
+        "videos"
+      ]
+    },
+    {
+      "id": "p14",
+      "order": 20,
+      "label": "质量审计",
+      "requires_review": false,
+      "review_gate": "",
       "ingest_outputs": [
         "none"
       ]
     },
     {
-      "id": "delivery",
-      "order": 11,
-      "label": "delivery",
+      "id": "p15",
+      "order": 21,
+      "label": "反馈",
       "requires_review": false,
+      "review_gate": "",
       "ingest_outputs": [
         "none"
       ]
