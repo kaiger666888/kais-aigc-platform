@@ -1,18 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.0
-milestone_name: Phases
-current_plan: 3 of 7
-status: executing
-stopped_at: "Phase 56 planned — 6 plans (W1: 56-01/02, W2: 56-03/04, W3: 56-05, W4: 56-06) + UI-SPEC/RESEARCH/PATTERNS committed"
-last_updated: "2026-08-21T22:17:08.167Z"
-last_activity: 2026-08-21 -- Phase 56 planning complete
+milestone: null
+milestone_name: null
+status: awaiting-planning
+stopped_at: "v3.0 milestone complete — audit passed (f9280e0c); roadmap + audit archived to .planning/milestones/"
+last_updated: "2026-08-22T02:20:54.000Z"
+last_activity: 2026-08-22 -- v3.0 milestone close (complete-milestone)
 progress:
   total_phases: 7
-  completed_phases: 4
-  total_plans: 43
-  completed_plans: 28
-  percent: 57
+  completed_phases: 6
+  total_plans: 46
+  completed_plans: 42
+  percent: 86
 ---
 
 # Project State
@@ -22,14 +21,19 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-17)
 
 **Core value:** AI creative production pipeline that runs end-to-end, pluggable across multiple creative workflows via a published skill contract.
-**Current focus:** Phase 57 — portal & delivery pages (executing)
+**Current focus:** v3.0 shipped 2026-08-22 — awaiting next milestone planning (`/gsd:new-milestone`)
 
 ## Current Position
 
-Phase: 57 — COMPLETE (all plans landed)
-Current Plan: 8 of 8 (complete — verification pending)
-Status: Ready to verify
-Last activity: 2026-08-22 -- 57-08 aggregate gate: verify-phase-57 48/48 + portal-probe 16/16
+Phase: v3.0 complete (Phases 51-57, 2026-08-21 → 2026-08-22)
+Current Plan: None — milestone closed
+Status: Milestone complete (audit **passed** — f9280e0c, archived at .planning/milestones/v3.0-MILESTONE-AUDIT.md)
+Last activity: 2026-08-22 -- complete-milestone: ROADMAP/audit archived, STATE reset
+
+**Carry-forward (v3.0 close):**
+- **Phase 52 (REGEN) externally owned by parallel session** — code on master (11 `52-0*` commits), verification materials (52-03..06 SUMMARYs, 52-VERIFICATION.md, phase52-regen.mjs commit) owed by owning session; user-accepted 2026-08-22 — ROADMAP line intentionally left unchecked; do not re-open here (audit §3).
+- Phase 53 Wave B — khs canvas_sync/field-map envelope 映射 + manifest transport E2E + G15 真实数据源, gated by design on khs2 v2.4 Phase 25 验收 (audit TD-1).
+- Consolidated human-UAT register for phases 54-57 (audit §7) + tech debt TD-1..TD-8 (audit §6).
 
 ## Performance Metrics
 
@@ -70,6 +74,7 @@ Last activity: 2026-08-22 -- 57-08 aggregate gate: verify-phase-57 48/48 + porta
 
 ### Roadmap Evolution
 
+- **v3.0 shipped (2026-08-22):** 7 phases (51-57), 46 plans. 写路径地基统一 canonical V3 graph (51) + prompt 编辑→重生成闭环 code landed (52, externally owned) + 候选变体契约/变体墙/G15 批量操作 (53 Wave A) + 16-gate 中心三仓回写链 (54) + 22-phase 导航与 93 镜规模 (55) + 审核 radar/角标/G16 配音工作台 (56) + 制片门户/p13 交付页/deep-link/taxonomy 重对齐 (57)。Milestone audit **passed** (f9280e0c): 305/305 verify assertions · 435/435 vitest · 3× tsc clean · live probes ok · khs plugins/ 0 dirty。Deferred: 53 Wave B (khs2 v2.4 Phase 25 gate) + Phase 52 verification materials (owning session)。Archives: milestones/v3.0-ROADMAP.md + v3.0-MILESTONE-AUDIT.md。
 - **v2.1 roadmap created (2026-08-19):** 3 phases (48-50) derived from 12 requirements across 4 categories (INGEST 4 / SELECT 4 / PHASE 2 / GUARD 2). Serial chain 48→49→50: Phase 48 = o_assets 分组契约源头 (ingest 建组 + assetType 真值源 + workflow_phase 写入); Phase 49 = 选定回写闭环 (select-winner 端点 + 前端接线 + 资产中心联动 + kmc review resolve 桥接); Phase 50 = 存量回填 (与 Phase 47 模式一致) + 契约守护 (GUARD-01/02 + verify-phase-50)。kmc 侧零修改,桥接只读消费 manifest/review 协议。
 - **v2.0 shipped (2026-07-16):** 6 phases (42-47), 12/12 plans. 源端 manifest 契约 + canvas_sync 单路径 + 接收端 schema 严格化 + 文字资产 UI + E2E 契约测试 + 历史 backfill。唯一 deferred: BACKFILL-02 人工抽样签收。
 - **v1.8 kicked off (2026-06-19):** Phase 39 — reconcile master's v1.7 canvas with kais-movie-agent V8.6 (at `/data/workspace/kais-movie-agent/`). Discovered `feature/canvas-v2` (containing `/api/v2/canvas/*` routes + FlowGraphV2 types) had been stranded since merge-base d9c826c — `canvas-client.js` in V8.6 was written against these v2 routes but they never landed on master. Wave 1 merged feature/canvas-v2 → master-side branch with single conflict resolved (useCanvasSocket — kept both event handler sets).
@@ -160,6 +165,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-21T22:17:08.158Z
-Stopped at: Phase 56 planned — 6 plans (W1: 56-01/02, W2: 56-03/04, W3: 56-05, W4: 56-06) + UI-SPEC/RESEARCH/PATTERNS committed
-Resume: `/gsd:execute-phase 48` (Plan 48-02: route rewrite + registry compat — consumes src/lib/assetTypes + candidateGrouping exports, extends verify-phase-48 at the Part 2 marker).
+Last session: 2026-08-22T02:20:54.000Z
+Stopped at: v3.0 milestone complete — audit passed (f9280e0c), archives in .planning/milestones/, Phase 52 externally owned (see carry-forward above)
+Resume: `/gsd:new-milestone`
