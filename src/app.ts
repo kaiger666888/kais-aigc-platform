@@ -17,6 +17,7 @@ import { setIo } from "@/utils/ws";
 import { isEletron } from "@/utils/getPath";
 import { bootReady } from "@/utils/db";
 import { loadArchRepos } from "@/lib/arch-tracked-repos";
+import { createIslandNavInjector } from "@/lib/islandNavInjector";
 
 const app = express();
 const server = http.createServer(app);
@@ -166,8 +167,23 @@ export default async function startServe(randomPort: Boolean = false) {
     res.sendFile(path.resolve(resolvedPath));
   });
 
-  // data/web 静态网站
+  // ── Phase 57-04 (D-07): 静态岛共享 navbar 注入 handler ──
+  // 必须注册在下方根 webDir static 之前——根 static 直接命中 <webDir>/story-map/
+  // 与 /director-desk/ 的 index.html,晚注册的岛根路由永远不触发(spa fallback
+  // 注入不受影响)。实例同时供下方岛段 extensionless fallback 复用(共享缓存)。
   const webDir = u.getPath("web");
+  const directorDeskDir = path.join(webDir, "director-desk");
+  const storyMapDir = path.join(webDir, "story-map");
+  const injectDirectorDesk = fs.existsSync(directorDeskDir)
+    ? createIslandNavInjector({ islandDir: directorDeskDir, activeId: "director-desk" })
+    : null;
+  const injectStoryMap = fs.existsSync(storyMapDir)
+    ? createIslandNavInjector({ islandDir: storyMapDir, activeId: "story-map" })
+    : null;
+  if (injectDirectorDesk) app.get(["/director-desk", "/director-desk/"], injectDirectorDesk);
+  if (injectStoryMap) app.get(["/story-map", "/story-map/"], injectStoryMap);
+
+  // data/web 静态网站
   if (fs.existsSync(webDir)) {
     console.log("静态网站目录:", webDir);
     app.use(express.static(webDir, { acceptRanges: true, maxAge: "5m", cacheControl: true }));
@@ -185,21 +201,25 @@ export default async function startServe(randomPort: Boolean = false) {
   }
 
   // 3D 导演台：从 data/web/director-desk 提供独立 SPA (storyai-3d-director-desk)
-  const directorDeskDir = path.join(webDir, "director-desk");
-  if (fs.existsSync(directorDeskDir)) {
-    app.use("/director-desk", express.static(directorDeskDir, { acceptRanges: true, maxAge: "5m", cacheControl: true }));
-    app.get("/director-desk/{*path}", (_req, res) => {
-      res.sendFile(path.join(directorDeskDir, "index.html"));
+  // 57-04 (D-07): 岛根注入 handler 已在上方根 static 前注册;此处保留资产 static +
+  // extensionless SPA fallback 注入(未命中的扩展名请求交 404 不再被 index 吞,
+  // arch-proxy extension-aware fallback 同裁定)。
+  if (injectDirectorDesk) {
+    app.use("/director-desk", express.static(directorDeskDir!, { acceptRanges: true, maxAge: "5m", cacheControl: true }));
+    app.get("/director-desk/{*path}", (req, res, next) => {
+      if (path.extname(req.path)) return next();
+      injectDirectorDesk(req, res, next);
     });
   }
 
   // 剧本分析：从 data/web/story-map 提供独立 SPA (kais-story-map)
   // 与 director-desk 同模式:static 提供资源 + GET 回退 index.html(HashRouter,无服务端路由)
-  const storyMapDir = path.join(webDir, "story-map");
-  if (fs.existsSync(storyMapDir)) {
-    app.use("/story-map", express.static(storyMapDir, { acceptRanges: true, maxAge: "5m", cacheControl: true }));
-    app.get("/story-map/{*path}", (_req, res) => {
-      res.sendFile(path.join(storyMapDir, "index.html"));
+  // 57-04: 同 director-desk 注入(站内自有 Navbar 保留共存,不吞不改 —— 全局层 vs 站内层)
+  if (injectStoryMap) {
+    app.use("/story-map", express.static(storyMapDir!, { acceptRanges: true, maxAge: "5m", cacheControl: true }));
+    app.get("/story-map/{*path}", (req, res, next) => {
+      if (path.extname(req.path)) return next();
+      injectStoryMap(req, res, next);
     });
   }
 
