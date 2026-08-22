@@ -1,5 +1,8 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+// KapNavbar custom element 注册（单源三宿主——本包 React 宿主经 bundler 副作用
+// 注册，静态站宿主吃 /assets/kap-nav.js 产物，同一份源；define 有幂等守卫）。
+import './nav/kap-nav'
 import PortalHome from './pages/PortalHome'
 import DeliveryPage from './pages/DeliveryPage'
 import ToonflowEmbed from './pages/ToonflowEmbed'

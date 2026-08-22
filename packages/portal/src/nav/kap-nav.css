@@ -1,0 +1,97 @@
+/* kap-nav.css — KapNavbar 结构样式（token-only 红线：零 hex，全部 var(--cv-*)；
+ * 颜色值不在此复制 —— 构建期由 scripts/build-kap-nav.mjs 与 tokens.css concat 成
+ * 单文件产物，静态宿主无需另引 tokens）。
+ *
+ * 两档：全宽档（门户/交付/嵌入页，高 40px）与 compact 档（画布 topbar 内嵌，
+ * compact 属性，高 26px、项字号 t3 —— 嵌入在 57-03）。
+ */
+
+kap-navbar {
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+  height: 40px;
+  padding: 0 16px;
+  box-sizing: border-box;
+  background: var(--cv-bg-panel);
+  border-bottom: 1px solid var(--cv-line-panel);
+  font-family: var(--cv-font-ui);
+  font-size: var(--cv-fs-t2);
+  color: var(--cv-text-secondary);
+  position: relative;
+  z-index: 10;
+}
+
+/* ── compact 档（画布 topbar 内嵌；对齐顶栏 ViewMode 控件族高度） ── */
+kap-navbar[compact] {
+  height: 26px;
+  padding: 0 8px;
+  gap: 12px;
+  background: transparent;
+  border-bottom: none;
+  font-size: var(--cv-fs-t3);
+}
+
+/* ── 品牌 KAP（mono 600 冷白，链接 /portal） ── */
+.kap-nav-brand {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 8px;
+  font-family: var(--cv-font-mono);
+  font-size: var(--cv-fs-t2);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--cv-text-primary);
+  text-decoration: none;
+}
+kap-navbar[compact] .kap-nav-brand {
+  font-size: var(--cv-fs-t3);
+}
+
+/* ── 项簇 ── */
+.kap-nav-items {
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+}
+kap-navbar[compact] .kap-nav-items {
+  gap: 12px;
+}
+
+.kap-nav-item {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 2px;
+  line-height: 1.6;
+  color: var(--cv-text-secondary);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  transition:
+    color var(--cv-d-select) var(--cv-e-out),
+    border-color var(--cv-d-select) var(--cv-e-out);
+}
+
+/* hover 120ms 转 primary（--cv-d-select） */
+.kap-nav-item:hover {
+  color: var(--cv-text-primary);
+}
+
+/* 当前项：冷白文字 + 2px 下划线（accent reserved 清单第 1 处） */
+.kap-nav-item[aria-current="page"] {
+  color: var(--cv-text-primary);
+  border-bottom-color: var(--cv-select);
+}
+
+/* 键盘焦点环（tokens.css 既有 :focus-visible 规则的同式延伸到 <a>） */
+.kap-nav-brand:focus-visible,
+.kap-nav-item:focus-visible {
+  outline: 2px solid var(--cv-select);
+  outline-offset: 2px;
+}
+
+/* reduced-motion：hover/焦点过渡静止（同 tokens.css 既有块口径） */
+@media (prefers-reduced-motion: reduce) {
+  .kap-nav-item {
+    transition: none;
+  }
+}
