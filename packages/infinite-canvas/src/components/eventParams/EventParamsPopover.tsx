@@ -5,13 +5,16 @@
  * 据 eventId 从 graph 查事件节点，把 params（GenerationParams）友好分组渲染：
  *  提示词(prompt/negative) / 采样(seed/steps/cfg/modelVersion/quant/sageAttention) / LoRA(name×strength) / 其他(catchall)，
  *  附 executor + durationS。
- * 「同配方换 seed 重跑」按钮：组装 {...params, seed:newRandom} → console.log + toast（本期不接执行后端，留 TODO）。
+ * 「同配方换 seed 重跑」（REGEN-02，52-04）：同配方 + 新随机 seed 提交 /canvas/execute
+ *  通道（52-02 extra 契约），pending 态防连点；提交成功后 updateEventParams 回写 canonical
+ *  （芯片 tooltip/popover 立即显示新 seed；持久化等下一次 save——地雷 #12 裁定）。
  */
-import { useEffect } from 'react'
-import type { EventNodeV3, GenerationParams } from '@kais/flowgraph-v3'
+import { useEffect, useState } from 'react'
+import type { AssetNodeV3, EventNodeV3, GenerationParams } from '@kais/flowgraph-v3'
 import type { EventChipClickInfo } from '../canvas/eventChipBus'
 import { theme } from '../../theme/catppuccin'
 import { useCanvasStore } from '../../store/canvasStore'
+import { executeNode } from '../../services/canvasApi'
 
 interface Props {
   anchor: EventChipClickInfo | null
@@ -26,6 +29,8 @@ const KNOWN_KEYS = new Set(['prompt', 'negative', 'seed', 'modelVersion', 'lora'
 export default function EventParamsPopover({ anchor, onClose }: Props): React.ReactElement | null {
   const graph = useCanvasStore((s) => s.graph)
   const showToast = useCanvasStore((s) => s.showToast)
+  const updateEventParams = useCanvasStore((s) => s.updateEventParams)
+  const [pending, setPending] = useState(false)
 
   useEffect(() => {
     if (!anchor) return
@@ -46,13 +51,43 @@ export default function EventParamsPopover({ anchor, onClose }: Props): React.Re
   const left = Math.min(anchor.clientX + 8, vw - POPOVER_W - 8)
   const top = anchor.clientY + 8
 
-  const handleRerollSeed = () => {
+  // REGEN-02（52-04）：同配方 + 新 seed 提交 execute 通道。
+  // nodeId = 产出资产 id（地雷 #4 裁定，与 52-03 PromptSection 同一裁定）——持久化 V2 blob
+  // 无 evt_* 节点，传 eventId 则 node:state 回写只更新不可见 canonical 事件节点，画布资产卡
+  // 无 running/success 反馈、stale 清除链不生效；eventId 仅用于 canonical 写回。
+  // pending 只覆盖 HTTP 提交期，不等 socket success（无 per-request 关联，等了会泄漏）。
+  const handleRerollSeed = async () => {
+    // 守卫：缺项目上下文（fixture 模式等）→ toast 早退（deleteNode 范式）
+    if (anchor.projectId == null || anchor.episodesId == null) {
+      showToast('缺少项目上下文', 'warning')
+      return
+    }
+    if (pending) return // 连点抑制
+    // 反查产出资产：event → asset 的 role:'output' 边
+    const outputAsset = graph?.nodes.find(
+      (n): n is AssetNodeV3 =>
+        n.kind === 'asset' &&
+        graph.links.some((l) => l.role === 'output' && l.source === anchor.eventId && l.target === n.id),
+    )
+    if (!outputAsset) {
+      showToast('未找到该事件的产出资产，无法重跑', 'warning')
+      return
+    }
+    // 保留 1e6 域（与芯片 tooltip seed 量级一致，免改 chipSummary）
     const newSeed = Math.floor(Math.random() * 1_000_000)
-    const rerun = { ...params, seed: newSeed }
-    // TODO(执行后端): 接 pipeline 重跑入口（同 op + 同配方换 seed）。本期仅组装 + 提示。
-    console.log('[eventParams] 同配方换 seed 重跑请求', { op: anchor.op, executor, rerun })
-    showToast(`已组装重跑请求：${anchor.op} · seed ${newSeed}（执行后端待接入）`, 'info')
-    onClose()
+    setPending(true)
+    try {
+      await executeNode(anchor.projectId, anchor.episodesId, outputAsset.id, outputAsset.stage, {
+        params: { ...params, seed: newSeed },
+      })
+      // 提交成功 → 新 seed 回写 canonical（防 reload 回旧值；持久化等下一次 save，地雷 #12 裁定）
+      updateEventParams(anchor.eventId, { seed: newSeed })
+      showToast(`已提交换 seed 重跑（seed ${newSeed}）`, 'success')
+    } catch (err) {
+      showToast(`重跑提交失败: ${(err as Error).message}`, 'error')
+    } finally {
+      setPending(false)
+    }
   }
 
   const otherEntries = Object.entries(params).filter(([k]) => !KNOWN_KEYS.has(k))
@@ -112,7 +147,16 @@ export default function EventParamsPopover({ anchor, onClose }: Props): React.Re
         </div>
 
         <div style={{ padding: 8, borderTop: `1px solid ${theme.border.default}`, background: theme.bg.card }}>
-          <button onClick={handleRerollSeed} style={rerollBtnStyle}>🎲 同配方换 seed 重跑</button>
+          <button
+            data-testid="reroll-seed-btn"
+            data-seed={params.seed ?? ''}
+            data-pending={pending ? 'true' : 'false'}
+            onClick={() => { void handleRerollSeed() }}
+            disabled={pending}
+            style={{ ...rerollBtnStyle, cursor: pending ? 'default' : 'pointer', opacity: pending ? 0.6 : 1 }}
+          >
+            {pending ? '重跑中…' : '🎲 同配方换 seed 重跑'}
+          </button>
         </div>
       </div>
     </div>
