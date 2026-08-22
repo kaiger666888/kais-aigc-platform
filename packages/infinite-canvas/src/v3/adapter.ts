@@ -887,3 +887,49 @@ export function getViewModel(graph: FlowGraphV3): ViewModel {
   viewModelCache.set(graph, vm)
   return vm
 }
+
+// ─── 落选变体详情入口（52-08 gap#3） ──────────────────────
+
+/**
+ * syntheticDetailNode —— 落选（deprecated）资产的 RF 形状合成节点。
+ *
+ * 用途：P12 把 deprecated 候选折叠进 winner 牌堆不上画布（无 RF 实体），但侧栏
+ * focusShot / 深链 focus / 资产库「定位」三条通路都经 focusAssetNodeId——FlowCanvas
+ * 在其未命中分支对本类资产分流 setDetailNode(syntheticDetailNode(loser))，使 52-03
+ * 的只读保护（落选变体配方已并入主事件 variantRecipes）可被用户观察。
+ *
+ * 数据形状与 graphToViewModel 的真实 asset RF 节点同构（data.v3 直载 canonical
+ * 资产；NodeDetailPanel Props={node,onClose} 契约零改动）。
+ *
+ * 已知语义：detailNode 在下一次 setGraph 派生重解析时被置 null（rfNodes 无此 id）
+ * → 面板自动关闭——落选只读查阅场景可接受（无编辑写面，按钮 disabled）。
+ */
+export function syntheticDetailNode(asset: AssetNodeV3): Node {
+  return {
+    id: asset.id,
+    type: rfTypeOfAsset(asset),
+    position: { ...asset.position },
+    width: asset.size.width,
+    height: asset.size.height,
+    data: {
+      v3: asset,
+      stage: asset.stage,
+      modality: asset.modality,
+      scope: asset.scope,
+      media: asset.media,
+      meta: asset.meta,
+      ...(asset.content != null ? { content: asset.content } : {}),
+      ...(asset.timeline != null ? { timeline: asset.timeline } : {}),
+      curation: asset.curation,
+      stale: asset.stale,
+      ...(asset.variantGroupId != null ? { variantGroupId: asset.variantGroupId } : {}),
+      label: asset.phaseName || asset.id,
+      type: legacyTypeOfStage(asset.stage),
+      filePath: asset.media.original,
+      thumbnailUrl: asset.media.thumbnail,
+      state: asset.state,
+      ...(asset.reviewStatus != null ? { reviewStatus: asset.reviewStatus } : {}),
+      ...(asset.aiScore != null ? { aiScore: asset.aiScore } : {}),
+    },
+  }
+}

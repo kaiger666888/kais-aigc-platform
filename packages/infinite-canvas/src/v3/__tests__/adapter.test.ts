@@ -15,6 +15,7 @@ import {
   graphToViewModel,
   getViewModel,
   RF_TYPE_EVENT_CHIP,
+  syntheticDetailNode,
 } from '../adapter'
 import { getFixtureMode, loadFixtureGraph } from '../fixtureSource'
 
@@ -591,5 +592,39 @@ describe('phase registry 覆盖：22 phaseIndex 合成 V2 图零未映射（55-0
     })) as unknown as Parameters<typeof derivePipelineModels>[0]
     const models = derivePipelineModels(rfNodes)
     expect(models.filter((m) => m.def.unmapped === true)).toHaveLength(1)
+  })
+})
+
+
+// ─── 52-08 gap#3：syntheticDetailNode（落选变体详情入口的合成节点） ───
+
+describe('syntheticDetailNode：deprecated 资产的 RF 形状合成（52-08）', () => {
+  const { graph } = loadFixtureGraph('valid')
+  const loser = graph.nodes.find(
+    (n) => n.kind === 'asset' && n.curation === 'deprecated',
+  ) as import('@kais/flowgraph-v3').AssetNodeV3
+  const node = syntheticDetailNode(loser)
+
+  it('v3 直载 canonical 资产（引用相等）+ label 兜底 phaseName ?? id', () => {
+    expect(node.id).toBe(loser.id)
+    expect(node.data.v3).toBe(loser) // 同构关键：面板 asset = node.data.v3
+    expect((node.data as Record<string, unknown>).label).toBe(loser.phaseName || loser.id)
+  })
+
+  it('deprecated 输入 → data.curation=deprecated（面板 isLoserVariant 只读分支可触发）', () => {
+    expect((node.data as Record<string, unknown>).curation).toBe('deprecated')
+    // 与真实 asset RF 节点同构的其余关键字段
+    const d = node.data as Record<string, unknown>
+    expect(d.stage).toBe(loser.stage)
+    expect(d.media).toBe(loser.media)
+    expect(d.stale).toBe(loser.stale)
+    expect(node.type).toBe(loser.stage) // rfTypeOfAsset 同款映射
+  })
+
+  it('phaseName 缺失的资产 → label 兜底为 id', () => {
+    const noName = { ...loser } as typeof loser
+    delete (noName as { phaseName?: string }).phaseName
+    const n2 = syntheticDetailNode(noName)
+    expect((n2.data as Record<string, unknown>).label).toBe(loser.id)
   })
 })

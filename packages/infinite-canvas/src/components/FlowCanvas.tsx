@@ -13,6 +13,8 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { applyLayout, selectVariant } from '@kais/flowgraph-v3'
+import type { AssetNodeV3 } from '@kais/flowgraph-v3'
+import { syntheticDetailNode } from '../v3/adapter'
 import { FITVIEW_MIN_ZOOM, LodProvider } from '../hooks/useLod'
 
 import FallbackNodeComponent from './nodes/FallbackNode'
@@ -837,6 +839,21 @@ function CanvasInner() {
     if (!focusAssetNodeId) return
     const target = (nodes as any[]).find((n) => n.id === focusAssetNodeId)
     if (!target) {
+      // 52-08 gap#3：未命中分流——落选变体（P12 折叠进 winner 牌堆，无 RF 实体但存在于
+      // canonical graph）经任一 focus 通路（侧栏 focusShot / 深链 focus / 资产库定位）一律
+      // 打开只读详情面板，而非「尚未放置」死路。Phase 53 变体墙域（VariantWall）不在此触碰。
+      const loser = useCanvasStore
+        .getState()
+        .graph?.nodes.find(
+          (n) => n.kind === 'asset' && n.id === focusAssetNodeId && n.curation === 'deprecated',
+        ) as AssetNodeV3 | undefined
+      if (loser) {
+        // 合成节点（data.v3 直载 canonical）——不 setSelectedNode/不 fitView（无画布实体）；
+        // 面板在下次 setGraph 派生重解析时自动关闭（rfNodes 无此 id，只读查阅可接受）
+        setDetailNode(syntheticDetailNode(loser))
+        const t = setTimeout(() => setFocusAssetNodeId(null), 0)
+        return () => clearTimeout(t)
+      }
       showToast('该资产尚未放置在画布上', 'info')
       // 微延迟清空，避免 tracedNodes memo 在同一帧内还看到旧值
       const t = setTimeout(() => setFocusAssetNodeId(null), 0)
