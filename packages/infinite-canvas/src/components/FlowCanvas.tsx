@@ -61,6 +61,8 @@ import G16VoiceWorkbench from './g16/G16VoiceWorkbench'
 import { theaterTargetOf } from './theater/groupMembership'
 import { useTheaterStore } from './theater/theaterStore'
 import { placeNewAsset } from '../utils/placeNewAsset'
+// 57-03 (D-05): 深链 focus/zone 纯函数 —— 只解析,viewport 副作用全复用既有 effect
+import { parseDeepLink, resolveDeepLinkTarget, type DeepLinkNodeLike } from '../lib/deepLink'
 import { useLayout } from '../hooks/useLayout'
 import { canvasStateKey, loadCanvasState, useCanvasPersistence } from '../hooks/useCanvasPersistence'
 import { useNavHistory, type NavSnapshot } from '../hooks/useNavHistory'
@@ -106,14 +108,23 @@ const edgeTypes = {
   canvas: CanvasEdgeComponent,
 }
 
-function getInitialParams(): { projectId: number | null; episodesId: number | null } {
+function getInitialParams(): {
+  projectId: number | null
+  episodesId: number | null
+  focus?: string
+  zone?: string
+} {
   if (typeof window === 'undefined') return { projectId: null, episodesId: null }
   const params = new URLSearchParams(window.location.search)
   const projectId = params.get('projectId')
   const episodesId = params.get('episodesId')
+  // 57-03 (D-05): 深链 focus/zone 增读（同函数追加,既有两键回归兼容）
+  const { focus, zone } = parseDeepLink(window.location.search)
   return {
     projectId: projectId ? Number(projectId) : null,
     episodesId: episodesId ? Number(episodesId) : null,
+    ...(focus ? { focus } : {}),
+    ...(zone ? { zone } : {}),
   }
 }
 
@@ -220,6 +231,12 @@ function CanvasInner() {
   const updateIterationProgress = useCanvasStore((s) => s.updateIterationProgress)
 
   const initialParams = getInitialParams()
+
+  // 57-03 (D-05): 深链 focus/zone 一次性快照与消费守卫——首载 mount 时解析一次,
+  // 图加载 resolve 后消费一次(useRef 防重放;health-poll/socket 触发的 reload 不
+  // 重跳,刷新重放属既定 UX——replaceState 回写不动 focus/zone,URL 留参可重放)。
+  const deepLinkRef = useRef(initialParams)
+  const deepLinkConsumedRef = useRef(false)
 
   // 事件芯片参数 popover 插槽（SPEC B.3：B 留出口，popover 本体归 D）
   const [activeChip, setActiveChip] = useState<EventChipClickInfo | null>(null)
@@ -377,11 +394,29 @@ function CanvasInner() {
       setLoadError('该项目暂无数据，请先运行管线生成剧本和资产')
     }
 
+    // 57-03 (D-05): 深链消费——loadCanvas resolve 后一次性(useRef 守卫)。
+    // focus/zone → resolveDeepLinkTarget → 只设 focusAssetNodeId + 切画布视图
+    // (AssetLibrary.handleLocateOnCanvas 同款定位链);fitView/选中/高亮/1.5s 清空/
+    // 未放置 toast 全走既有 focusAssetNodeId effect,不写第二套 viewport 机制。
+    // zone 无节点/注册表外 → none 静默(只加载不跳,UI-SPEC State Matrix)。
+    if (!deepLinkConsumedRef.current) {
+      deepLinkConsumedRef.current = true
+      const target = resolveDeepLinkTarget({
+        focus: deepLinkRef.current.focus,
+        zone: deepLinkRef.current.zone,
+        nodes: useCanvasStore.getState().nodes as DeepLinkNodeLike[],
+      })
+      if (target.kind !== 'none') {
+        setFocusAssetNodeId(target.nodeId)
+        setViewMode('canvas')
+      }
+    }
+
     const url = new URL(window.location.href)
     url.searchParams.set('projectId', String(pid))
     url.searchParams.set('episodesId', String(eid))
     window.history.replaceState({}, '', url.toString())
-  }, [setNodes, setEdges, setLoadError, setProject, loadInitialGraph])
+  }, [setNodes, setEdges, setLoadError, setProject, loadInitialGraph, setFocusAssetNodeId, setViewMode])
 
   // fixture 模式：免选项目直接加载（?fixture=decompose|valid），项目上下文取 fixture meta
   useEffect(() => {
