@@ -738,13 +738,35 @@ export function migrateV2toV3(v2: FlowGraphV2Export): {
       warnings.push(`variant 节点 ${n.id}: 无 isWinner 候选，winner 默认首候选 ${winnerNodeId}`);
 
     // 多输出归组：候选事件合并为 winner 的单事件（P12：一次生成事件的多个输出天然构成变体组）
-    const primaryEventId = eventIdOf.get(winnerNodeId)!;
-    const primaryEvent = eventById.get(primaryEventId)!;
+    // 52-07 防御(2026-08-22 真机实证):envelope 变体组可含无配方无因果入边的候选
+    // (kmc sync 直写形态)→ 该候选无合成事件,eventIdOf/eventById 查无 —— 原非空
+    // 断言在此 throw 使 migrate 整体降级空图(整个画布消失)。改为 warn + 跳过该
+    // 候选的事件合并;winner 无事件则整组不并(保留候选独立,不造悬空边)。
+    const primaryEventId = eventIdOf.get(winnerNodeId);
+    const primaryEvent = primaryEventId != null ? eventById.get(primaryEventId) : undefined;
+    if (primaryEvent == null || primaryEventId == null) {
+      warnings.push(
+        `variant 节点 ${n.id}: winner ${winnerNodeId} 无合成事件，跳过多输出归组（候选保留独立节点）`,
+      );
+      nodeMap.push({
+        v2NodeId: n.id,
+        v2Type: n.type,
+        action: 'skipped_variant_merge_no_primary_event',
+        v3NodeIds: [],
+      });
+      continue;
+    }
     const variantRecipes: Array<Record<string, unknown>> = [];
     for (const candId of candidates) {
       if (candId === winnerNodeId) continue;
-      const candEventId = eventIdOf.get(candId)!;
-      const candEvent = eventById.get(candEventId)!;
+      const candEventId = eventIdOf.get(candId);
+      const candEvent = candEventId != null ? eventById.get(candEventId) : undefined;
+      if (candEvent == null || candEventId == null) {
+        warnings.push(
+          `variant 节点 ${n.id}: 候选 ${candId} 无合成事件，跳过其配方合并与边重指`,
+        );
+        continue;
+      }
       // 非 winner 配方留存（§9 开放扩展点，保可复现）
       if (Object.keys(candEvent.params).length > 0) {
         variantRecipes.push({ assetId: candId, ...candEvent.params });

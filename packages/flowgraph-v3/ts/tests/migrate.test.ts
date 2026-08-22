@@ -377,3 +377,72 @@ describe('【52-02】stale wire 还原：data.stale → asset.stale', () => {
     expect(asset(out, 'n_script_01').stale).toBeNull();
   });
 });
+
+describe('【52-07】Pass 3 防御：变体组候选事件缺失（真机 9999 实证形态）', () => {
+  // 真机形态(kmc sync envelope):两个 variant 组共享候选——组1合并时删掉候选事件,
+  // 组2再查该候选 eventById.get(...) 得 undefined,原非空断言 throw → migrate 整体
+  // 降级空图(整个画布消失)。修复后:warn + 跳过该候选合并,不崩。
+  // 复现:varA(candA winner + candB)先并掉 candB 事件;varB(candB + candC)再遇
+  // candB → 事件已被组1消费。candC 有配方,正常并入。
+  const mk = (id: string, extra: Record<string, unknown> = {}) => ({
+    id, type: 'video', position: { x: 0, y: 0 }, size: { width: 260, height: 180 },
+    data: { label: id, ...extra } as FlowNodeV2Data, state: 'idle',
+  })
+  const v2in: FlowGraphV2Export = {
+    meta: { projectId: 1, episodesId: 1, createdAt: 0, updatedAt: 0 },
+    nodes: [
+      { ...mk('n_cand_a', { prompt: '配方A' }), isWinner: true },
+      { ...mk('n_cand_b', { prompt: '配方B' }), isWinner: true },
+      { ...mk('n_cand_c', { prompt: '配方C' }), isWinner: true },
+      { id: 'n_var_a', type: 'variant', position: { x: 150, y: 200 }, size: { width: 200, height: 100 }, data: { label: '组A' } as FlowNodeV2Data, state: 'idle' },
+      { id: 'n_var_b', type: 'variant', position: { x: 450, y: 200 }, size: { width: 200, height: 100 }, data: { label: '组B' } as FlowNodeV2Data, state: 'idle' },
+    ],
+    links: [
+      { id: 'e1', source: 'n_cand_a', target: 'n_var_a', data: { dataType: 'variant' } },
+      { id: 'e2', source: 'n_cand_b', target: 'n_var_a', data: { dataType: 'variant' } },
+      { id: 'e3', source: 'n_cand_b', target: 'n_var_b', data: { dataType: 'variant' } },
+      { id: 'e4', source: 'n_cand_c', target: 'n_var_b', data: { dataType: 'variant' } },
+    ],
+    branches: [],
+  };
+
+  it('不 throw:组间共享候选的事件已被前组消费 → warn 跳过,资产与事件存活', () => {
+    let out: ReturnType<typeof migrateV2toV3>;
+    expect(() => { out = migrateV2toV3(v2in) }).not.toThrow();
+    // 三候选资产全部存活
+    for (const id of ['n_cand_a', 'n_cand_b', 'n_cand_c']) {
+      expect(out!.graph.nodes.find((n) => n.id === id)?.kind).toBe('asset');
+    }
+    // candB 事件被组A合并删除(既有 P12 行为不变)
+    expect(out!.graph.nodes.find((n) => n.id === 'evt_n_cand_b')).toBeUndefined();
+    // 组A winner 事件留存 candB 配方(前组合并成功)
+    expect(event(out!.graph, 'evt_n_cand_a').params.variantRecipes).toEqual([
+      { assetId: 'n_cand_b', prompt: '配方B' },
+    ])
+    // 告警可见:组B 遇到无事件的 candB
+    expect(out!.report.warnings.some((w) => w.includes('n_var_b') && w.includes('n_cand_b') && w.includes('无合成事件'))).toBe(true);
+  })
+
+  it('winner 事件也已被前组消费 → 整组跳过合并(warn),不造悬空边', () => {
+    // 组C:winner = n_cand_b(其事件已被组A合并消费)
+    const v2c: FlowGraphV2Export = {
+      ...v2in,
+      nodes: [
+        ...v2in.nodes,
+        { id: 'n_var_c', type: 'variant', position: { x: 750, y: 200 }, size: { width: 200, height: 100 }, data: { label: '组C' } as FlowNodeV2Data, state: 'idle' },
+      ],
+      links: [
+        ...v2in.links,
+        { id: 'e5', source: 'n_cand_b', target: 'n_var_c', data: { dataType: 'variant' } },
+        { id: 'e6', source: 'n_cand_a', target: 'n_var_c', data: { dataType: 'variant' } },
+      ],
+    }
+    let out: ReturnType<typeof migrateV2toV3>
+    expect(() => { out = migrateV2toV3(v2c) }).not.toThrow()
+    // 跳过合并的告警可见
+    expect(out!.report.warnings.some((w) => w.includes('n_var_c') && w.includes('跳过多输出归组'))).toBe(true)
+    // candA 资产与事件仍存活(未被悬空重指)
+    expect(out!.graph.nodes.find((n) => n.id === 'n_cand_a')?.kind).toBe('asset')
+    expect(out!.graph.nodes.find((n) => n.id === 'evt_n_cand_a')?.kind).toBe('event')
+  })
+})
