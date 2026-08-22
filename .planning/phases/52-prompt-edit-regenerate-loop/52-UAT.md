@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: resolved
 phase: 52-prompt-edit-regenerate-loop
 source: [52-01-SUMMARY.md, 52-02-SUMMARY.md, 52-03 code commits dffafd26/1690e36c (SUMMARY owed), v3.0-ROADMAP Phase 52 SC1-4]
 started: 2026-08-22T10:59:55+08:00
-updated: 2026-08-22T15:45:00+08:00
+updated: 2026-08-22T21:30:00+08:00
 verification: playwright-self-verified (mock e2e + real-backend headless probes, 2026-08-22)
 ---
 
@@ -122,8 +122,8 @@ missing:
 ## Summary
 
 total: 10
-passed: 3
-issues: 6
+passed: 9
+issues: 0
 pending: 0
 skipped: 0
 blocked: 0
@@ -131,7 +131,7 @@ blocked: 0
 ## Gaps
 
 - truth: "编辑 prompt 保存后跨刷新存活(save-v2 持久化)"
-  status: failed
+  status: resolved
   reason: "save-v2 HTTP 400:asset 节点 filePath 必填,真实 sync 图普遍缺失;全部项目原图回发均 400,画布保存路径整体不可用"
   severity: blocker
   test: 2
@@ -144,7 +144,7 @@ blocked: 0
   debug_session: ""
 
 - truth: "改 prompt→保存→重生成闭环(任务参数含新 prompt,新结果回贴节点)"
-  status: failed
+  status: resolved
   reason: "真机断在保存 400;mock 层全链已实证(body.prompt/params.prompt/nodeId 正确)"
   severity: major
   test: 3
@@ -155,7 +155,7 @@ blocked: 0
   debug_session: ""
 
 - truth: "落选变体详情面板 prompt 区只读可观察"
-  status: failed
+  status: resolved
   reason: "只读实现完整但落选节点不渲染上画布,详情面板无入口;e2e REGEN-01-c 因此必败"
   severity: minor
   test: 4
@@ -167,7 +167,7 @@ blocked: 0
   debug_session: ""
 
 - truth: "EventParamsPopover 换 seed 重跑提交任务+pending 反馈"
-  status: failed
+  status: resolved
   reason: "TODO/console.log 残桩,REGEN-02 未实现(plan 52-04 零执行)"
   severity: major
   test: 7
@@ -179,7 +179,7 @@ blocked: 0
   debug_session: ""
 
 - truth: "stale 下游一键重跑出口(角标/详情区)"
-  status: failed
+  status: resolved
   reason: "useStaleRerun 不存在,UI 出口零实现(地基已齐)"
   severity: major
   test: 8
@@ -190,7 +190,7 @@ blocked: 0
   debug_session: ""
 
 - truth: "面板默认 ~480px + 单击切换保持打开且内容跟随"
-  status: failed
+  status: resolved
   reason: "实测 1200px(75%);单击面板不缩回但内容不跟随"
   severity: minor
   test: 9
@@ -203,6 +203,19 @@ blocked: 0
   debug_session: ""
 
 ---
+
+## Gap Resolution(2026-08-22,owning session 收口)
+
+| Gap | Test | 收口 plan | 证据 |
+|---|---|---|---|
+| save-v2 存量 400(blocker) | 2 | 52-07 | Part A 四项目回放 200 + verified no-op;verify:save-v2-legacy 17/17 |
+| 重生成真机闭环 | 3 | 52-07 | probe-52-real B3:running→success + toast + 零足迹 |
+| 落选详情入口 | 4 | 52-08 | syntheticDetailNode + focus 分流;e2e REGEN-01-c(侧栏) |
+| REGEN-02 残桩 | 7 | 52-04 | e2e phase52-reroll a/b(同配方+新 seed+pending+回写) |
+| REGEN-03 出口 | 8 | 52-05 | e2e phase52-stale-panel 03-a/b(重跑不跳过+消除+持久化) |
+| REGEN-04 面板 | 9/10 | 52-05 | e2e REGEN-04-a/b(480+跟随+守卫+关闭回归) |
+
+外加执行中收口的真机地雷:migrate Pass 3 整图崩溃(52-07)/execute allowlist 缺 V3 Stage(52-07)——详见 52-VERIFICATION.md。
 
 ## Session Notes
 

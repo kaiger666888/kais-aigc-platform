@@ -31,9 +31,9 @@ Status: Milestone complete (audit **passed** — f9280e0c, archived at .planning
 Last activity: 2026-08-22 -- complete-milestone: ROADMAP/audit archived, STATE reset
 
 **Carry-forward (v3.0 close):**
-- **Phase 52 (REGEN) externally owned by parallel session** — code on master (11 `52-0*` commits), verification materials (52-03..06 SUMMARYs, 52-VERIFICATION.md, phase52-regen.mjs commit) owed by owning session; user-accepted 2026-08-22 — ROADMAP line intentionally left unchecked; do not re-open here (audit §3).
+- **Phase 52 (REGEN) materials delivered 2026-08-22 by owning session** — 8/8 plan SUMMARYs + 52-VERIFICATION.md (verify:phase-52 31/31; vitest 404+130; e2e 62 passed; 真机 probe-52-real 全绿) + phase52-regen.mjs 入 git;52-UAT 6 gaps 全数收口(52-07/08 gap-closure,含两颗真机地雷修复:migrate Pass 3 整图崩溃 / execute allowlist V3 Stage);ROADMAP(现行+归档)Phase 52 行已勾选。
 - Phase 53 Wave B — khs canvas_sync/field-map envelope 映射 + manifest transport E2E + G15 真实数据源, gated by design on khs2 v2.4 Phase 25 验收 (audit TD-1).
-- Consolidated human-UAT register for phases 54-57 (audit §7) + tech debt TD-1..TD-8 (audit §6).
+- Consolidated human-UAT register for phases 54-57 (audit §7) + tech debt TD-1..TD-8 (audit §6) + Phase 52 Manual-Only 项(审片面板开合体验,52-VALIDATION)。
 
 ## Performance Metrics
 

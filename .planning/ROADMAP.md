@@ -57,7 +57,7 @@ See [milestones/](milestones/) for per-milestone ROADMAP/REQUIREMENTS/AUDIT arch
 以 kmc 22-phase/16-gate 创作流为准绳：画布写路径统一走 V3 canonical graph，"看/选/改/批"四类创作交互一等公民化。
 
 - [x] Phase 51: 写路径地基统一 (Canonical Write Path + Coordination Guard) — completed 2026-08-21
-- [ ] Phase 52: 生成-迭代闭环 (Prompt Edit → Regenerate Loop) — **externally owned by parallel session** (code on master, verification owed by owning session; user-accepted 2026-08-22)
+- [x] Phase 52: 生成-迭代闭环 (Prompt Edit → Regenerate Loop) — **materials delivered 2026-08-22 by owning session** (8/8 SUMMARYs + VERIFICATION passed + UAT gaps closed; verify:phase-52 31/31, e2e 62, 真机 probe 全绿)
 - [x] Phase 53: 候选变体契约与选片 (Variant Contract + Picker Upgrade) — completed 2026-08-21 (Wave A; Wave B gated on khs2 v2.4 Phase 25)
 - [x] Phase 54: Gate 中心 (Gate Center + Blocking-State UX) — completed 2026-08-21
 - [x] Phase 55: 画布导航与规模 (Navigation & Scale) — completed 2026-08-22
