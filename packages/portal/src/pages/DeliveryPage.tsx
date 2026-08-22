@@ -1,22 +1,26 @@
 /**
- * DeliveryPage.tsx — 交付页（/deliver/:ep，Phase 57-05 Task 2，UI-SPEC P-3）。
+ * DeliveryPage.tsx — 交付页（/deliver/:ep，Phase 57-05 版面 / 57-06 终审操作面，UI-SPEC P-3）。
  *
- * 面向收片人（非操作员）：成片 hero 主角、管线带/清单为辅、终审状态面收尾。
+ * 面向收片人（非操作员）：成片 hero 主角、管线带/清单为辅、终审收尾。
  * 数据 = loadDelivery（projects 反查 + load-v2 ∥ gate-state 三既有端点组装，
  * U-10 零新建后端）；master 播放经 resolveMediaUrl 同链（D-12——/oss 与
  * /local-file 均原生 Range，零新流播代码）。
  *
- * 本 plan 只出终审「状态显示面」（四态行 + note + redline 脚注 + 降级横幅）；
- * 操作条/理由框/409 幂等在 57-06 接 gate-ops（下方 display:none 占位注释）。
+ * 57-06：终审动作条 [放行]/[驳回] 接 54 gate-ops 通道（D-10 一套通道三处
+ * 消费）——runTerminalOp 状态机驱动（乐观翻转/409 幂等/失败回滚三分支，
+ * 见 lib/gateOpsFlow.ts）；驳回 = ReasonDialog 组件内二次确认（54 C-4）；
+ * display 非 pending 或 reviewId 缺（legacy）时动作条不渲染——只留状态行。
  *
  * 设计纪律：token-only（零新 hex——色值只经 var(--cv-*) / v3theme / theme）；
- * accent 冷白只出现在播放键/已播段（原生 controls）与焦点环；文案 = UI-SPEC
- * Copywriting Contract 逐字；进场 hero→管线带→清单 --cv-d-panel 240ms +
+ * accent 冷白只出现在播放键/已播段（原生 controls）、放行主按钮与焦点环
+ * （UI-SPEC §Color reserved 5 处）；文案 = UI-SPEC Copywriting Contract 逐字
+ * （54 词表同源）；进场 hero→管线带→清单 --cv-d-panel 240ms +
  * --cv-d-ancestor-step 40ms 递进一次（reduced-motion 静止）。
  */
 import { useEffect, useState, type CSSProperties, type ReactElement } from 'react'
 import { loadDelivery, type DeliveryLoad } from '../services/portalApi'
 import PipelineRibbon from '../components/PipelineRibbon'
+import ReasonDialog from '../components/ReasonDialog'
 import {
   classifyDeliveryNodes,
   phaseCountsOf,
@@ -30,6 +34,9 @@ import {
   P13_GATE_ID,
   P13_GATE_NAME,
 } from '../lib/delivery'
+import { runTerminalOp, type TerminalAction, type TerminalOpEvent } from '../lib/gateOpsFlow'
+import { gateOps, fetchGateState, type GateStateSnapshot } from '@ic/services/canvasApi'
+import { PHASE_REGISTRY } from '@ic/constants/phaseRegistry'
 import { v3theme, theme } from '@ic/theme/catppuccin'
 import { resolveMediaUrl } from '@ic/utils/mediaUrl'
 
@@ -55,7 +62,19 @@ const PAGE_CSS = `
 @keyframes cv-portal-pulse { 0%, 100% { opacity: 0.35 } 50% { opacity: 0.7 } }
 .cv-portal-skel { animation: cv-portal-pulse calc(var(--cv-d-running-spin) * 2) var(--cv-e-inout) infinite; }
 @media (prefers-reduced-motion: reduce) { .cv-portal-skel { animation: none; opacity: 0.5; } }
+/* 终审动作条退场（UI-SPEC §Motion：--cv-d-unhighlight 220ms；reduced-motion 直接隐藏） */
+@keyframes cv-gate-actions-out { from { opacity: 1; } to { opacity: 0; visibility: hidden; } }
+.cv-gate-actions-exit { animation: cv-gate-actions-out var(--cv-d-unhighlight) var(--cv-e-out) forwards; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .cv-gate-actions-exit { animation: none; visibility: hidden; } }
+/* toast 进场（54 画布 toast 同语言；节拍复用 --cv-d-panel） */
+@keyframes cv-deliver-toast-in { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: none; } }
+.cv-deliver-toast { animation: cv-deliver-toast-in var(--cv-d-panel) var(--cv-e-out) both; }
+@media (prefers-reduced-motion: reduce) { .cv-deliver-toast { animation: none; } }
 `
+
+/** p13 阶段名（驳回确认标题 {阶段名} 插值源——注册表 name「交付」，55-D04 单源）。 */
+const P13_PHASE_NAME =
+  PHASE_REGISTRY.find((p) => p.khsPrefix === 'p13')?.name ?? '本阶段'
 
 const pageStyle: CSSProperties = {
   maxWidth: 1080,
@@ -183,6 +202,58 @@ const gateMonoStyle: CSSProperties = {
   color: 'var(--cv-text-tertiary)',
 }
 
+/** 终审动作条（54 同款按钮本体 32px + 2px 边距 = 36px 行；[放行] 冷白 primary / [驳回] 玫）。 */
+const actionBaseStyle: CSSProperties = {
+  flex: 1,
+  height: 32,
+  borderRadius: 6,
+  border: 'none',
+  fontSize: 'var(--cv-fs-t2)',
+  fontWeight: 600,
+}
+
+const approveBtnStyle: CSSProperties = {
+  ...actionBaseStyle,
+  background: theme.button.primary,
+  color: theme.text.onAccent,
+}
+
+const rejectBtnStyle: CSSProperties = {
+  ...actionBaseStyle,
+  background: theme.button.danger,
+  color: theme.text.onAccent,
+}
+
+/** 降级横幅 [重试]（54 同款 ghost 键）。 */
+const retryBtnStyle: CSSProperties = {
+  flex: 'none',
+  background: 'none',
+  border: `1px solid ${theme.border.strong}`,
+  borderRadius: 6,
+  color: 'var(--cv-text-primary)',
+  padding: '2px 10px',
+  cursor: 'pointer',
+  fontSize: 'var(--cv-fs-t3)',
+}
+
+type ToastTone = 'success' | 'info' | 'error'
+
+/** toast 三档色（54 四态色映射：approved / pending 冷灰 / rejected——零新 hex）。 */
+function toastToneColor(tone: ToastTone): string {
+  if (tone === 'success') return v3theme.signal.approved
+  if (tone === 'error') return v3theme.signal.rejected
+  return v3theme.signal.pending
+}
+
+function toastGlyph(tone: ToastTone): string {
+  if (tone === 'success') return '✓'
+  if (tone === 'error') return '✗'
+  return 'ℹ'
+}
+
+/** toast auto-dismiss（画布 useToast AUTO_DISMISS_MS 同值）。 */
+const TOAST_DISMISS_MS = 3000
+
 type LoadState =
   | { kind: 'loading' }
   | { kind: 'no-episode' }
@@ -206,6 +277,11 @@ export default function DeliveryPage({ ep }: { ep: number }) {
   useEffect(() => {
     load()
   }, [ep])
+
+  /** 57-06：终审幂等重拉 / 降级重试后的 gate-state 回写（null = 降级，fail-closed 诚实）。 */
+  const applyGateSnapshot = (snapshot: GateStateSnapshot | null) => {
+    setState((s) => (s.kind === 'data' ? { ...s, data: { ...s.data, gateState: snapshot } } : s))
+  }
 
   const header = (projectId?: number) => (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
@@ -264,24 +340,35 @@ export default function DeliveryPage({ ep }: { ep: number }) {
         </div>
       )}
 
-      {state.kind === 'data' && <DeliveryBody ep={ep} data={state.data} videoError={videoError} setVideoError={setVideoError} header={header} />}
+      {state.kind === 'data' && (
+        <DeliveryBody
+          ep={ep}
+          data={state.data}
+          videoError={videoError}
+          setVideoError={setVideoError}
+          header={header}
+          onGateSnapshot={applyGateSnapshot}
+        />
+      )}
     </main>
   )
 }
 
-/** 数据态版面：hero（step 0）→ 管线带 full（step 1）→ 交付清单（step 2）+ 终审卡。 */
+/** 数据态版面：hero（step 0）→ 管线带 full（step 1）→ 交付清单（step 2）+ 终审卡（57-06 动作面）。 */
 function DeliveryBody({
   ep,
   data,
   videoError,
   setVideoError,
   header,
+  onGateSnapshot,
 }: {
   ep: number
   data: DeliveryLoad & { kind: 'data' }
   videoError: boolean
   setVideoError: (v: boolean) => void
   header: (projectId?: number) => ReactElement
+  onGateSnapshot: (snapshot: GateStateSnapshot | null) => void
 }) {
   const { projectId, graph, gateState } = data
   const nodes = graph?.nodes ?? []
@@ -294,6 +381,80 @@ function DeliveryBody({
 
   const gateEntry = gateState?.gates.find((g) => g.gateId === P13_GATE_ID) ?? null
   const isBlocking = gateState?.blocking?.gateId === P13_GATE_ID
+
+  // ─── 57-06 终审操作状态（runTerminalOp 事件流的 UI 侧落点）─────────────
+  /** 乐观翻态（成功/幂等期间覆盖快照；回滚与重拉时清除）。 */
+  const [gateOverride, setGateOverride] = useState<'approve' | 'reject' | null>(null)
+  /** 行级处理中（禁两键，禁全屏 loading）。 */
+  const [working, setWorking] = useState(false)
+  /** 驳回二次确认对话框（54 C-4 组件内 state）。 */
+  const [confirming, setConfirming] = useState(false)
+  /** 成功后动作条退场（--cv-d-unhighlight 220ms，CSS 动画完成后保持隐藏）。 */
+  const [exited, setExited] = useState(false)
+  const [toast, setToast] = useState<{ tone: ToastTone; text: string } | null>(null)
+
+  useEffect(() => {
+    if (!toast) return
+    const timer = setTimeout(() => setToast(null), TOAST_DISMISS_MS)
+    return () => clearTimeout(timer)
+  }, [toast])
+
+  /** 幂等/降级重试的重拉（fetchGateState 失败自返 null → 降级横幅，fail-closed）。 */
+  const refetchGateState = () => {
+    fetchGateState(projectId, ep)
+      .then((snapshot) => {
+        setGateOverride(null)
+        setExited(false)
+        onGateSnapshot(snapshot)
+      })
+      .catch(() => {})
+  }
+
+  const applyOpEvent = (e: TerminalOpEvent) => {
+    if (e.type === 'working') {
+      setWorking(true)
+    } else if (e.type === 'optimistic') {
+      setGateOverride(e.display)
+    } else if (e.type === 'success') {
+      setWorking(false)
+      setExited(true)
+      setToast({ tone: 'success', text: e.toast })
+    } else if (e.type === 'idempotent') {
+      // 409 幂等成功：不回滚——重拉快照回实际态 + 幂等 toast。
+      setWorking(false)
+      setToast({ tone: 'info', text: e.toast })
+      refetchGateState()
+    } else {
+      // 失败回滚：乐观态清回快照 + 错误 toast。
+      setWorking(false)
+      setGateOverride(null)
+      setToast({ tone: 'error', text: e.toast })
+    }
+  }
+
+  const runOp = (action: TerminalAction, reason?: string) => {
+    if (gateEntry == null) return
+    void runTerminalOp({
+      gate: gateEntry,
+      projectId,
+      episodesId: ep,
+      action,
+      ...(reason != null ? { reason } : {}),
+      api: { gateOps },
+      onEvent: applyOpEvent,
+    })
+  }
+
+  // ─── 终审卡派生态 ────────────────────────────────────────────────────
+  /** fail-closed：快照拉取失败（null）或服务端 degrade（陈旧快照）都禁动作。 */
+  const degraded = gateState == null || gateState.degrade
+  const effDisplay = gateEntry ? (gateOverride ?? gateEntry.display) : null
+  /** 动作条渲染前提（54 语义）：display=pending 且 reviewId 存在（legacy 无 reviewId 只留状态行）。 */
+  const canPlan = gateEntry != null && gateEntry.display === 'pending' && gateEntry.reviewId != null
+  /** null 降级也渲染动作条（禁用 + 横幅——比消失诚实）；exited 后保持挂载播
+   * 220ms 退场动画（forwards 隐藏，pointer-events none——视觉等同移除）。 */
+  const actionsVisible = gateState == null || canPlan || exited
+  const actionsDisabled = degraded || working
 
   return (
     <div className="cv-deliver-cols">
@@ -379,7 +540,7 @@ function DeliveryBody({
             {P13_GATE_NAME ?? '—'} · {P13_GATE_ID ?? '—'}
           </p>
 
-          {/* gate-state 拉取失败 / 服务端 degrade → 降级横幅（54 原文；null 快照无时刻省略时段） */}
+          {/* gate-state 拉取失败 / 服务端 degrade → 降级横幅（54 原文 + [重试]；null 快照无时刻省略时段；动作条 fail-closed 禁用） */}
           {gateState == null && (
             <div
               data-testid="deliver-gate-degrade"
@@ -392,9 +553,15 @@ function DeliveryBody({
                 fontSize: 'var(--cv-fs-t3)',
                 lineHeight: 1.6,
                 color: 'var(--cv-text-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
               }}
             >
-              状态源不可达 —— 无法连接审核状态源，不会误判为已放行。
+              <span style={{ flex: 1 }}>状态源不可达 —— 无法连接审核状态源，不会误判为已放行。</span>
+              <button onClick={refetchGateState} style={retryBtnStyle}>
+                重试
+              </button>
             </div>
           )}
           {gateState?.degrade && (
@@ -409,34 +576,43 @@ function DeliveryBody({
                 fontSize: 'var(--cv-fs-t3)',
                 lineHeight: 1.6,
                 color: 'var(--cv-text-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
               }}
             >
-              状态源不可达 —— 无法连接审核状态源，正在显示 {relativeTime(gateState.fetchedAt)} 的快照，不会误判为已放行。
+              <span style={{ flex: 1 }}>
+                状态源不可达 —— 无法连接审核状态源，正在显示 {relativeTime(gateState.fetchedAt)} 的快照，不会误判为已放行。
+              </span>
+              <button onClick={refetchGateState} style={retryBtnStyle}>
+                重试
+              </button>
             </div>
           )}
 
-          {gateEntry && (
+          {gateEntry && effDisplay != null && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
               <span
-                className={gateEntry.display === 'pending' && isBlocking ? 'cv-gate-dot-breathe' : undefined}
+                className={effDisplay === 'pending' && isBlocking ? 'cv-gate-dot-breathe' : undefined}
                 style={{
                   width: 10,
                   height: 10,
                   borderRadius: 999,
-                  background: gateDisplayColor(gateEntry.display, isBlocking),
+                  background: gateDisplayColor(effDisplay, isBlocking),
                   flex: 'none',
                 }}
                 aria-hidden="true"
               />
               <span
+                data-testid="deliver-gate-state"
                 style={{
                   fontSize: 'var(--cv-fs-t3)',
                   fontWeight: 600,
                   lineHeight: 1.4,
-                  color: gateDisplayColor(gateEntry.display, isBlocking),
+                  color: gateDisplayColor(effDisplay, isBlocking),
                 }}
               >
-                {GATE_STATE_LABEL[gateEntry.display]}
+                {working ? '处理中…' : GATE_STATE_LABEL[effDisplay]}
               </span>
               <span style={gateMonoStyle}>{gateEntry.gateId}</span>
             </div>
@@ -465,10 +641,78 @@ function DeliveryBody({
             p13 红线子门为本地自动扫描，不进入人工决策。
           </p>
 
-          {/* 57-06 占位：终审动作条 [放行]/[驳回] + 理由对话框（gate-ops 通道）接此 */}
-          <div style={{ display: 'none' }} data-reserved="57-06-gate-actions" />
+          {/* 57-06 终审动作条：[放行] 单点击即执行（54 U-05 无二次确认）/ [驳回] 开 ReasonDialog；
+              display 非 pending 或 reviewId 缺（legacy）不渲染——只留上方状态行；
+              降级（fail-closed）/处理中禁两键；成功后退场 --cv-d-unhighlight 220ms。 */}
+          {actionsVisible && (
+            <div
+              className={exited ? 'cv-gate-actions-exit' : undefined}
+              data-testid="deliver-gate-actions"
+              style={{ display: 'flex', gap: 8, marginTop: 16, padding: '2px 0' }}
+            >
+              <button
+                onClick={() => runOp('approve')}
+                disabled={actionsDisabled}
+                style={{ ...approveBtnStyle, cursor: actionsDisabled ? 'not-allowed' : 'pointer' }}
+              >
+                放行
+              </button>
+              <button
+                onClick={() => setConfirming(true)}
+                disabled={actionsDisabled}
+                style={{ ...rejectBtnStyle, cursor: actionsDisabled ? 'not-allowed' : 'pointer' }}
+              >
+                驳回
+              </button>
+            </div>
+          )}
         </div>
       </aside>
+
+      {/* 驳回理由对话框（54 C-4 复刻：必填 1-500 + 二次确认 + Esc） */}
+      {confirming && gateEntry && (
+        <ReasonDialog
+          phaseName={P13_PHASE_NAME}
+          onCancel={() => setConfirming(false)}
+          onConfirm={(reason) => {
+            setConfirming(false)
+            runOp('reject', reason)
+          }}
+        />
+      )}
+
+      {/* 终审操作 toast（54 词表逐字：成功/幂等/回滚；3s 自散，点击即散） */}
+      {toast && (
+        <div
+          className="cv-deliver-toast"
+          role="status"
+          data-testid="deliver-gate-toast"
+          onClick={() => setToast(null)}
+          style={{
+            position: 'fixed',
+            bottom: 20,
+            right: 20,
+            zIndex: 1000,
+            background: 'var(--cv-bg-elevated)',
+            border: `1px solid ${toastToneColor(toast.tone)}`,
+            borderRadius: 8,
+            padding: '10px 16px',
+            color: 'var(--cv-text-primary)',
+            fontSize: 'var(--cv-fs-t2)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            boxShadow: theme.shadow.cardHi,
+            maxWidth: 360,
+            cursor: 'pointer',
+          }}
+        >
+          <span style={{ color: toastToneColor(toast.tone), fontWeight: 700, fontSize: 'var(--cv-fs-t1)' }}>
+            {toastGlyph(toast.tone)}
+          </span>
+          <span>{toast.text}</span>
+        </div>
+      )}
     </div>
   )
 }
