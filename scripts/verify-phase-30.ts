@@ -57,6 +57,11 @@ import type { Request, Response } from "express";
 import { registry } from "../src/skills/registry";
 import { validateManifest } from "../src/skills/validator";
 import { seedDefaultIfEmpty, MOVIE_V1_MANIFEST } from "../src/skills/defaultSkill";
+// Phase 57-07 supersede (2026-08-22): the manifest taxonomy moved from the
+// legacy 12 ids to the 22-phase registry khsPrefix vocabulary. Expected values
+// below derive from PHASE_REGISTRY — the zero-drift taxonomy contract itself
+// lives in scripts/verify-phase-57.ts (T1-T5).
+import { PHASE_REGISTRY } from "../packages/infinite-canvas/src/constants/phaseRegistry";
 // Phase 31 inlined the pipeline callback constants into MOVIE_V1_MANIFEST as
 // a literal phase_taxonomy[]. This verifier now reads expected values from
 // literals / the manifest itself instead of importing the (now-deleted)
@@ -260,94 +265,97 @@ async function main(): Promise<void> {
     `active=${movieRow?.active}`,
   );
 
-  // 1d. Manifest's phase_taxonomy has exactly 12 phases in canonical order.
-  // Phase 31 inlined the constant values into MOVIE_V1_MANIFEST directly, so
-  // this assertion now locks the canonical 12-phase list + order against the
-  // manifest literal (regression guard against accidental phase reordering).
+  // 1d. Manifest's phase_taxonomy has exactly 22 phases in canonical order.
+  // Phase 57-07 realigned the taxonomy to the 22-phase registry vocabulary;
+  // PHASE_REGISTRY (sortKey ascending) is the source of the expected id list.
+  // Full three-way drift contract: scripts/verify-phase-57.ts (supersedes this
+  // section's 12-id predecessor).
   const manifest = MOVIE_V1_MANIFEST;
   const phaseIds = manifest.phase_taxonomy.map((p) => p.id);
-  const expectedPhaseIds = [
-    "requirement",
-    "art-direction",
-    "character",
-    "scenario",
-    "voice",
-    "storyboard",
-    "scene",
-    "camera-preview",
-    "camera-final",
-    "post-production",
-    "quality-gate",
-    "delivery",
-  ];
+  const expectedPhaseIds = [...PHASE_REGISTRY]
+    .sort((a, b) => a.sortKey - b.sortKey)
+    .map((p) => p.khsPrefix);
   assert(
-    manifest.phase_taxonomy.length === 12,
-    "manifest: phase_taxonomy has exactly 12 phases",
+    manifest.phase_taxonomy.length === 22,
+    "manifest: phase_taxonomy has exactly 22 phases",
     `length=${manifest.phase_taxonomy.length}`,
   );
   assert(
     JSON.stringify(phaseIds) === JSON.stringify(expectedPhaseIds),
-    "manifest: phase_taxonomy[].id list matches canonical 12-phase order exactly",
+    "manifest: phase_taxonomy[].id list matches PHASE_REGISTRY sortKey-ascending order exactly",
     `ids=${phaseIds.join(",")}`,
   );
 
   // 1e. Spot-check 3 phases against expected literals (SC #5 regression guard).
-  //   - storyboard: review required, ingest ["storyboard"], order 5
-  //   - scenario: no review, ingest []→["none"], order 3
-  //   - art-direction: no review, ingest ["images"], order 1
-  // Phase 31 inlined the constants into the manifest; expected values are now
-  // literal booleans / numbers (previously derived from the deleted constants).
-  const sb = manifest.phase_taxonomy.find((p) => p.id === "storyboard");
-  assert(sb != null, "spot-check: storyboard phase exists in manifest");
+  //   - p03: gated (review_gate 'p03-gate'), ingest ["none"], order 2
+  //   - p09c: gated (review_gate 'p09c-gate'), ingest ["storyboard"], order 10
+  //   - p11b: gated (review_gate 'p11b-gate'), ingest ["videos"], order 15
+  const sb = manifest.phase_taxonomy.find((p) => p.id === "p09c");
+  assert(sb != null, "spot-check: p09c phase exists in manifest");
   assert(
     sb?.requires_review === true,
-    "spot-check: storyboard.requires_review === true",
+    "spot-check: p09c.requires_review === true",
     `requires_review=${sb?.requires_review}`,
   );
   assert(
+    sb?.review_gate === "p09c-gate",
+    "spot-check: p09c.review_gate === 'p09c-gate'",
+    `review_gate=${sb?.review_gate}`,
+  );
+  assert(
     JSON.stringify(sb?.ingest_outputs) === JSON.stringify(["storyboard"]),
-    "spot-check: storyboard.ingest_outputs === ['storyboard']",
+    "spot-check: p09c.ingest_outputs === ['storyboard']",
     `ingest_outputs=${JSON.stringify(sb?.ingest_outputs)}`,
   );
   assert(
-    sb?.order === 5,
-    "spot-check: storyboard.order === 5",
+    sb?.order === 10,
+    "spot-check: p09c.order === 10",
     `order=${sb?.order}`,
   );
 
-  const sc = manifest.phase_taxonomy.find((p) => p.id === "scenario");
-  assert(sc != null, "spot-check: scenario phase exists in manifest");
+  const sc = manifest.phase_taxonomy.find((p) => p.id === "p03");
+  assert(sc != null, "spot-check: p03 phase exists in manifest");
   assert(
-    sc?.requires_review === false,
-    "spot-check: scenario.requires_review === false",
+    sc?.requires_review === true,
+    "spot-check: p03.requires_review === true",
     `requires_review=${sc?.requires_review}`,
   );
   assert(
+    sc?.review_gate === "p03-gate",
+    "spot-check: p03.review_gate === 'p03-gate'",
+    `review_gate=${sc?.review_gate}`,
+  );
+  assert(
     JSON.stringify(sc?.ingest_outputs) === JSON.stringify(["none"]),
-    "spot-check: scenario.ingest_outputs === ['none'] (empty array → ['none'] sentinel)",
+    "spot-check: p03.ingest_outputs === ['none'] (empty array → ['none'] sentinel)",
     `ingest_outputs=${JSON.stringify(sc?.ingest_outputs)}`,
   );
   assert(
-    sc?.order === 3,
-    "spot-check: scenario.order === 3",
+    sc?.order === 2,
+    "spot-check: p03.order === 2",
     `order=${sc?.order}`,
   );
 
-  const ad = manifest.phase_taxonomy.find((p) => p.id === "art-direction");
-  assert(ad != null, "spot-check: art-direction phase exists in manifest");
+  const ad = manifest.phase_taxonomy.find((p) => p.id === "p11b");
+  assert(ad != null, "spot-check: p11b phase exists in manifest");
   assert(
-    ad?.requires_review === false,
-    "spot-check: art-direction.requires_review === false",
+    ad?.requires_review === true,
+    "spot-check: p11b.requires_review === true",
     `requires_review=${ad?.requires_review}`,
   );
   assert(
-    JSON.stringify(ad?.ingest_outputs) === JSON.stringify(["images"]),
-    "spot-check: art-direction.ingest_outputs === ['images']",
+    ad?.review_gate === "p11b-gate",
+    "spot-check: p11b.review_gate === 'p11b-gate'",
+    `review_gate=${ad?.review_gate}`,
+  );
+  assert(
+    JSON.stringify(ad?.ingest_outputs) === JSON.stringify(["videos"]),
+    "spot-check: p11b.ingest_outputs === ['videos']",
     `ingest_outputs=${JSON.stringify(ad?.ingest_outputs)}`,
   );
   assert(
-    ad?.order === 1,
-    "spot-check: art-direction.order === 1",
+    ad?.order === 15,
+    "spot-check: p11b.order === 15",
     `order=${ad?.order}`,
   );
 
@@ -417,8 +425,8 @@ async function main(): Promise<void> {
     assert(getBody.ok === true, "get known: body.ok === true");
     assert(getBody.skill?.skill_id === "movie-v1", "get known: body.skill.skill_id === 'movie-v1'");
     assert(
-      Array.isArray(getBody.skill?.phase_taxonomy) && getBody.skill.phase_taxonomy.length === 12,
-      "get known: body.skill.phase_taxonomy is an array of 12",
+      Array.isArray(getBody.skill?.phase_taxonomy) && getBody.skill.phase_taxonomy.length === 22,
+      "get known: body.skill.phase_taxonomy is an array of 22",
       `length=${getBody.skill?.phase_taxonomy?.length}`,
     );
 
@@ -457,14 +465,14 @@ async function main(): Promise<void> {
     assert(phResp.status === 200, "phases known: status 200", `status=${phResp.status}`);
     assert(phBody.ok === true, "phases known: body.ok === true");
     assert(
-      Array.isArray(phBody.phases) && phBody.phases.length === 12,
-      "phases known: body.phases is an array of 12",
+      Array.isArray(phBody.phases) && phBody.phases.length === 22,
+      "phases known: body.phases is an array of 22",
       `length=${phBody.phases?.length}`,
     );
-    // Spot-check: phases include storyboard (declared, not derived).
+    // Spot-check: phases include p09c (declared, not derived) — 57-07 vocabulary.
     assert(
-      phBody.phases?.some((p: any) => p.id === "storyboard"),
-      "phases known: contains storyboard phase",
+      phBody.phases?.some((p: any) => p.id === "p09c"),
+      "phases known: contains p09c phase",
     );
 
     const ntUnknown = await fetch(`${base}/api/v1/skills/unknown-skill/node-types`);

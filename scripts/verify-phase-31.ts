@@ -17,10 +17,17 @@
  * of PIPELINE-02.
  *
  * Assertion groups:
- *   A. MOVIE_V1_MANIFEST.phase_taxonomy shape (12 entries, IDs match OLD_PHASE_ORDER keys)
- *   B. Per-phase equivalence: requires_review / order / ingest_outputs match the OLD_ snapshots
+ *   A. MOVIE_V1_MANIFEST.phase_taxonomy shape — SUPERSEDED by verify:phase-57
+ *      T1-T4 (2026-08-22): Phase 57-07 realigned the taxonomy from the legacy
+ *      12 ids to the 22-phase registry khsPrefix vocabulary. The OLD_* equality
+ *      assertions no longer hold BY DESIGN (D-16 direct switch, no adapter).
+ *   B. Per-phase equivalence vs OLD_ snapshots — SUPERSEDED (same as A).
  *   C. Registry lookup parity: registry.phaseById("movie-v1", id) returns the manifest's PhaseDecl
  *   D. Negative spot-checks: old invalid enum IDs (image/video/audio/compose) return undefined
+ *
+ * The OLD_* snapshots below are preserved verbatim as the pre-31 historical
+ * document (CONTEXT.md "Deprecation Marker Style"). The live taxonomy drift
+ * contract is scripts/verify-phase-57.ts.
  *
  * The OLD_ snapshots ARE the deprecation marker (per CONTEXT.md "Deprecation
  * Marker Style"): they document what the constants were before deletion.
@@ -135,45 +142,42 @@ async function main(): Promise<void> {
 
   // -------------------------------------------------------------------------
   // Group A — manifest shape
+  // SUPERSEDED by verify:phase-57 T1-T4 (2026-08-22): the 22-phase taxonomy no
+  // longer matches the pre-31 OLD_* snapshot BY DESIGN (Phase 57-07 D-16 direct
+  // switch). Kept as an explicit skip with a pointer — the OLD_* constants are
+  // a historical document and are NOT modified.
   // -------------------------------------------------------------------------
 
-  console.log("\n=== Group A: manifest shape ===");
+  console.log("\n=== Group A: manifest shape — superseded by verify:phase-57 ===");
+  console.log(
+    "  SKIP: 'manifest has exactly 12 phases' + 'manifest phase IDs match OLD_PHASE_ORDER keys' — superseded by verify:phase-57 T1-T4 (22-phase registry alignment; OLD_* is the pre-31 historical snapshot).",
+  );
   assert(
-    taxonomy.length === 12,
-    "manifest has exactly 12 phases",
+    taxonomy.length === 22,
+    "manifest has exactly 22 phases (57-07 realignment)",
     `got ${taxonomy.length}`,
   );
   assert(
-    JSON.stringify(manifestIds) === JSON.stringify(oldOrderKeys),
-    "manifest phase IDs match OLD_PHASE_ORDER keys",
-    `manifest=[${manifestIds.join(",")}] vs old=[${oldOrderKeys.join(",")}]`,
+    !manifestIds.some((id) => oldOrderKeys.includes(id)),
+    "legacy 12 ids fully retired from the taxonomy (D-16 direct switch)",
+    manifestIds.filter((id) => oldOrderKeys.includes(id)).join(",") || undefined,
   );
 
   // -------------------------------------------------------------------------
-  // Group B — per-phase equivalence (the core regression guard)
+  // Group B — per-phase equivalence vs OLD_ snapshots
+  // SUPERSEDED by verify:phase-57 T3/T5 (2026-08-22): per-phase requires_review
+  // is now asserted against PHASE_REGISTRY gated-ness + GATE_CATALOG, not the
+  // pre-31 constants. OLD_* values remain untouched above.
   // -------------------------------------------------------------------------
 
-  console.log("\n=== Group B: per-phase equivalence vs OLD_ snapshots ===");
+  console.log("\n=== Group B: per-phase equivalence — superseded by verify:phase-57 ===");
+  console.log(
+    "  SKIP: per-phase requires_review / order / ingest_outputs equivalence vs OLD_ snapshots — superseded by verify:phase-57 (T2 order ≡ sortKey, T3/T5 requires_review ⇔ gate).",
+  );
   for (const phaseDecl of taxonomy) {
-    const expectedReview = OLD_REVIEW_REQUIRED_PHASES.includes(phaseDecl.id);
     assert(
-      phaseDecl.requires_review === expectedReview,
-      `equivalence: ${phaseDecl.id}.requires_review matches OLD_REVIEW_REQUIRED_PHASES`,
-      `manifest=${phaseDecl.requires_review} vs old=${expectedReview}`,
-    );
-
-    const expectedOrder = OLD_PHASE_ORDER[phaseDecl.id];
-    assert(
-      phaseDecl.order === expectedOrder,
-      `equivalence: ${phaseDecl.id}.order matches OLD_PHASE_ORDER`,
-      `manifest=${phaseDecl.order} vs old=${expectedOrder}`,
-    );
-
-    const expectedIngest = mapOldIngest(OLD_PHASE_INGEST_MAP[phaseDecl.id]);
-    assert(
-      JSON.stringify(phaseDecl.ingest_outputs) === JSON.stringify(expectedIngest),
-      `equivalence: ${phaseDecl.id}.ingest_outputs matches OLD_PHASE_INGEST_MAP`,
-      `manifest=${JSON.stringify(phaseDecl.ingest_outputs)} vs old=${JSON.stringify(expectedIngest)}`,
+      typeof phaseDecl.requires_review === "boolean" && typeof phaseDecl.order === "number",
+      `shape: ${phaseDecl.id} carries well-formed requires_review/order`,
     );
   }
 
