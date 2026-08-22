@@ -105,6 +105,7 @@ function EdgeOpChipComponent({
     <div
       data-testid="edge-op-chip"
       data-op={op}
+      data-event-id={eventId ?? ''}
       className="nodrag nopan"
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
