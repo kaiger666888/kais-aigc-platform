@@ -8,7 +8,9 @@ import { test, expect, loadCanvas, nodeSelector, getCalls, switchToCanvasView } 
  *    → mock logCall 完整 body 断言:body.prompt / body.params.prompt 含新 prompt、
  *    body.nodeId === 资产 id(地雷 #4 裁定:非 evt_* id)
  *  - REGEN-01-b: 保存 + 页面 reload 往返保真(地雷 #1 端到端防线,STORYBOARD-07 范式)
- *  - REGEN-01-c: 落选变体只读态(地雷 #5):只读提示可见,保存/重生成 disabled
+ *  - REGEN-01-c: 落选变体只读态(地雷 #5):只读提示可见,保存/重生成 disabled。
+ *    入口 = 分镜浏览侧栏卡点击(focusShot → focusAssetNodeId 未命中分支 deprecated
+ *    分流,52-08 gap#3)——deprecated 候选不上画布,dblclick 路径不存在。
  *
  * ⚠️ 前置纪律(地雷 #10):e2e 跑 dist 非源码——运行本文件前必须 `npm run build`
  *    (packages/infinite-canvas),否则测的是旧构建产物。
@@ -58,11 +60,12 @@ test.describe('Phase 52-03 — REGEN-01 Prompt Edit → Regenerate Loop', () => 
     await loadCanvas(page)
     await editAndSavePrompt(page)
 
-    // 保存后 graph:saved 广播触发前端 reload;重开面板拿到最新 canonical 态再点重生成
-    await openDetailPanel(page, 'storyboard-1')
+    // 52-08 gap#7a 修正:保存后面板保持打开(mock 实证;旧装置假设需重开面板,
+    // dblclick 被仍开的面板遮挡而必败)。graph:saved 触发前端 reload 后
+    // PromptSection useEffect 以 canonicalPrompt(=新值)重置草稿——直接断言即可。
     await expect(page.locator('[data-testid="prompt-textarea"]')).toHaveValue(NEW_PROMPT)
     const regenBtn = page.locator('[data-testid="prompt-regenerate"]')
-    await expect(regenBtn).toBeEnabled() // 已保存 → 重生成可用
+    await expect(regenBtn).toBeEnabled() // 已保存(非 dirty)→ 重生成可用
     await regenBtn.click()
 
     // 轮询 mock 调用日志:execute 完整 body 含新 prompt(52-02 logCall 观测点)
@@ -149,14 +152,24 @@ test.describe('Phase 52-03 — REGEN-01 Prompt Edit → Regenerate Loop', () => 
     await page.waitForTimeout(300)
 
     // 落选候选 sb-cand-b:只读提示可见 + 保存/重生成 disabled(地雷 #5)
-    await openDetailPanel(page, 'sb-cand-b')
+    // 52-08 gap#7b 修正:deprecated 候选不上画布(P12 折叠进 winner 牌堆),dblclick
+    // 永不命中——改走真实用户路径:分镜浏览侧栏卡点击(focusShot → focusAssetNodeId
+    // → 52-08 未命中分支 deprecated 分流开只读面板)。
+    await page.getByRole('button', { name: '分镜浏览', exact: true }).click()
+    // displayShotId = raw.label 优先(StoryboardTimeline extractShots 实证)
+    const loserCard = page.locator('[data-testid^="shot-card-"]').filter({ hasText: '分镜候选 B' }).first()
+    await expect(loserCard).toBeVisible({ timeout: 5_000 })
+    await loserCard.click()
+    // focusShot 自动切回画布视图;52-08 分流打开合成只读面板
+    await page.waitForSelector('[data-testid="detail-panel"]', { timeout: 5_000 })
+    await page.waitForSelector('[data-testid="prompt-section"]', { timeout: 5_000 })
     await expect(page.locator('[data-testid="prompt-readonly-hint"]')).toBeVisible()
     await expect(page.locator('[data-testid="prompt-readonly-hint"]')).toContainText('落选变体')
     await expect(page.locator('[data-testid="prompt-textarea"]')).toBeDisabled()
     await expect(page.locator('[data-testid="prompt-save"]')).toBeDisabled()
     await expect(page.locator('[data-testid="prompt-regenerate"]')).toBeDisabled()
 
-    // winner sb-cand-a 不受影响:可编辑可保存可重生成
+    // winner sb-cand-a 不受影响:可编辑(在画布上有实体,dblclick 正常路径)
     await openDetailPanel(page, 'sb-cand-a')
     await expect(page.locator('[data-testid="prompt-textarea"]')).toBeEnabled()
     await expect(page.locator('[data-testid="prompt-textarea"]')).toHaveValue('候选A配方')
