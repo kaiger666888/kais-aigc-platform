@@ -20,7 +20,8 @@
  *     传播行 + script stage prompt 例外(52-02 保留)。
  *   S4 nullish/optional 计数锁 — canvasAssetSchema 五配方键声明计数
  *     (每键 ×5 分支,防分支漏声明)。
- *   S5 命令门 — 三根 tsc + 双包 vitest tail(52 范式;任一非零 exit 即红)。
+ *   S5 命令门 — 三根 tsc + 双包 vitest(不经 shell 管道——管道尾 exit code 会
+ *     掩蔽 vitest 失败,WR-01;tail 摘要在 JS 侧切;任一非零 exit 即红)。
  *   Forced-failure self-check — must-fail 断言组(含 sampler 必然失败项:
  *     A1 裁定 sampler 不存在,可编辑字段集已锁定五键);意外 PASS 整门红。
  *
@@ -66,6 +67,9 @@ function runCmd(name: string, cwdRel: string, cmd: string, tailLines = 3): void 
     shell: true,
     encoding: "utf8",
     timeout: 300_000,
+    // WR-01: 命令不再经 shell 管道,stdout/stderr 全量捕获——默认 1MB maxBuffer
+    // 会被 vitest 全量输出撑爆(res.error=ENOBUFS 之外 status=null 假红),放大到 16MB。
+    maxBuffer: 16 * 1024 * 1024,
   });
   const out = (res.stdout ?? "") + (res.stderr ?? "");
   const tail = out.split("\n").filter((l) => l.trim().length > 0).slice(-tailLines).join(" | ");
@@ -219,8 +223,11 @@ function main(): void {
   runCmd("root tsc --noEmit", ".", "npx tsc --noEmit");
   runCmd("infinite-canvas tsc -b", "packages/infinite-canvas", "npx tsc -b");
   runCmd("flowgraph-v3 tsc --noEmit", "packages/flowgraph-v3/ts", "npx tsc --noEmit");
-  runCmd("infinite-canvas vitest", "packages/infinite-canvas", "npm test 2>&1 | tail -2", 2);
-  runCmd("flowgraph-v3 vitest", "packages/flowgraph-v3", "npx vitest run 2>&1 | tail -2", 2);
+  // WR-01: vitest 门禁不经 shell 管道——`... | tail -2` 下 res.status 是管道尾
+  // (tail) 的退出码,vitest 全红仍 exit 0 → 断言恒 PASS(假绿)。tail 摘要由
+  // runCmd 在 JS 侧 slice 完成,管道纯属多余;命令真实退出码 = vitest 退出码。
+  runCmd("infinite-canvas vitest", "packages/infinite-canvas", "npm test", 2);
+  runCmd("flowgraph-v3 vitest", "packages/flowgraph-v3", "npx vitest run", 2);
 
   // ═══ Forced-failure self-check — prove the gate can fail ═════════════════
   console.log("\n=== Forced-failure self-check (gate can actually fail — expected FAILs below) ===");
