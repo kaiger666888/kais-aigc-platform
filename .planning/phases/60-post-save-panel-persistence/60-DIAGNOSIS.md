@@ -82,3 +82,22 @@ fixture = phase59 cascadeFixtureGraph 三节点裁剪（trig-1/mid-1/down-1,两�
 2. PANEL-01 的用户可感修复在 60-02（D-01 savedBy 自回声跳过:自保存根本不 reload）——与本裁定正交,不因 Branch A 减配。
 3. fixture fallback 残留路径（Prong 2 §2c）登记知悉即可,本 phase 不修（修 = 新行为变更,越 A/B 框架）。
 4. 探针 `scripts/diagnose-60-roundtrip.ts` 可重复运行（--strict 门/exit 2 SKIP 契约）,60-05 verify dispatch 段直接复用。
+
+---
+
+## Branch A confirmation（60-03 执行结果,2026-08-24）
+
+**分支字母: A**（逐字消费上方「Fix branch: A」裁定,未在 serialize/adapter/canvasRelationalStore 任何一层动刀）。
+
+**两次门结果（同日连续过门）:**
+
+| 门 | 命令 | 结果 |
+|----|------|------|
+| 真机门 | `npx tsx scripts/diagnose-60-roundtrip.ts --strict`（:10588） | **exit 0** —— scope 2/1（31 节点）:层1 V2 31v31 双向差集 0/0（锚点 n-p04 同 id 存在）、层2 V3 62v62 差集 0/0、层3 evt_* 31v31 差集 0;恢复深比对全等（剔 meta.updatedAt,净足迹=0）。与 60-01 首跑逐层复现,零漂移可重复。 |
+| in-memory 门 | `cd packages/infinite-canvas && npx vitest run src/store/__tests__/reloadAnchor.test.ts` | **8/8 绿** —— 60-01 三 case（survive/collapse/other-anchor-untouched）+ 60-03 五 case（warn-on-miss/symmetric-collapse/no-warn-on-hit/no-warn-spam/roundtrip-lock）。roundtrip-lock 为纯函数级绑定门:adapt→serialize→adapt 两代节点 id 集全等 + evt_ 子集单列全等（非空先证）,不依赖 :10588。 |
+
+**改动文件清单（Branch A = id 稳定性零修复;唯一生产 delta 是 Task 1 的 D-03 warn 纯增量钩子,plan must_haves 明列,非分支 B 修复）:**
+
+- `packages/infinite-canvas/src/store/canvasStore.ts` —— setGraph 重锚「非 null→null」转移时 console.warn 一次（`[panel-persist]` 默认串）;重锚语义 L442-447 逐字未动。
+- `packages/infinite-canvas/src/store/__tests__/reloadAnchor.test.ts` —— 三 case 基底扩为八 case 永久锁（D-03/D-07/roundtrip）。
+- `packages/infinite-canvas/src/v3/serialize.ts` / `src/v3/adapter.ts` / `src/lib/canvasRelationalStore.ts` —— **diff 为零**（Branch A 验收项,已核）。

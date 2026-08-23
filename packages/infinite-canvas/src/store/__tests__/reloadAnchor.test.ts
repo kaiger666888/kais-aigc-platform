@@ -277,3 +277,27 @@ describe('setGraph 锚丢失 warn + 对称锁（60-03 Task 1 / D-03 D-07）', ()
     expect(warnSpy).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('in-memory roundtrip id 稳定性锁（60-03 Task 2 / Branch A 绑定门）', () => {
+  it('h. roundtrip-lock：adapt→serialize→adapt 两代节点 id 集全等（evt_ 子集单列）', () => {
+    // Branch A（60-DIAGNOSIS「Fix branch: A」）: reload 链 id 稳定性由既有语义满足,
+    // 本 case 把它锁为纯函数级可重复门——链路与 60-01 探针层2/层3 同源:
+    // adaptV2Graph → serializeGraphToV2(事件折叠,evt_ 不落盘) → adaptV2Graph(evt_ 重合成)。
+    // evt_ id 派生确定（migrate §14: evt_<产出资产id>,资产 id 由 wire 全程透传）,
+    // 故两代 id 集合必须全等——任何 serialize/adapter 派生源漂移都会在此红。
+    // 不依赖 :10588（真机门由 scripts/diagnose-60-roundtrip.ts --strict 单独跑）。
+    const adaptedA = adaptV2Graph(wireFixture())
+    const wire2 = serializeGraphToV2(adaptedA.graph, adaptedA.rawDataByNodeId, undefined)
+    const adaptedB = adaptV2Graph(wire2)
+
+    const idsA = adaptedA.graph.nodes.map((n) => n.id).sort()
+    const idsB = adaptedB.graph.nodes.map((n) => n.id).sort()
+    // 全集相等（资产 + 合成事件）
+    expect(idsB).toEqual(idsA)
+    // evt_ 子集单列:重合成确定性独立锁（非空先证——本 fixture 有 image 链,必合成事件）
+    const evtA = idsA.filter((id) => id.startsWith('evt_'))
+    const evtB = idsB.filter((id) => id.startsWith('evt_'))
+    expect(evtA.length).toBeGreaterThan(0)
+    expect(evtB).toEqual(evtA)
+  })
+})
