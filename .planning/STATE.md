@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: 重生成闭环深化
 status: executing
-stopped_at: Phase 59 UI-SPEC approved
-last_updated: "2026-08-23T17:19:05.910Z"
+stopped_at: Completed 59-03-PLAN.md
+last_updated: "2026-08-23T17:25:17.673Z"
 last_activity: 2026-08-23
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 8
-  completed_plans: 6
+  completed_plans: 7
   percent: 25
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-08-23)
 ## Current Position
 
 Phase: 59 (窄触发 stale 级联) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-08-23
 
-Progress: [████████░░] 75%
+Progress: [█████████░] 88%
 
 ## Performance Metrics
 
@@ -71,6 +71,7 @@ Progress: [████████░░] 75%
 | Phase 58 P58-03 | 25 min | 2 tasks | 2 files |
 | Phase 58 P58-04 | 8 min | 2 tasks | 3 files |
 | Phase 59 P02 | 12 | 3 tasks | 5 files |
+| Phase 59 P59-03 | 4 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -126,6 +127,8 @@ Progress: [████████░░] 75%
 - [Phase ?]: [59-02]: D-01 落点=execute 路由层 setImmediate 成功块(regenSource 在场才标记),orchestrate/ContextMenu 无通道=SC3 架构性保证;catch 分支结构性零调用(D-02)
 - [Phase ?]: [59-02]: orchestrate 目标筛选换 loadFullGraph 关系表读(谓词逐字冻结;cast 防联合类型 tsc2367)——SC4 链路打通,blob 从未写入仍 200 执行=数据源真化行为级证明
 - [Phase ?]: [59-02]: dispatch 手范式=express 真路由+fetch 真 HTTP+异步 spawn(spawnSync 冻结父事件循环使常驻 fake 引擎 fetch 死锁,54-05 教训)+子进程 --tsconfig 显式指 repo(临时 cwd 下 @/ 不解析)+process.exit 强退(49-01)
+- [Phase ?]: [59-03]: regenSource 形态=canvasApi executeNode extra 两值字面量联合('panel-regen'|'reroll-seed'),52-02 通道零逻辑改动;orchestrate/ContextMenu 无通道=SC3 架构性保证(grep 0)
+- [Phase ?]: [59-03]: node:updated 订阅独立注册(FLAG-3/52-01 红线:绝不进 normalizeSocketNodeState/执行态映射);FlowCanvas 轻校验 since number+triggerAssetId string,非 stale 载荷静默忽略零 store 写入(UI-SPEC §5);无 scope 守卫依据=room 即 project:{id} 传输层隔离
 
 ### Pending Todos
 
@@ -179,6 +182,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-23T17:18:34.277Z
-Stopped at: Phase 59 UI-SPEC approved
+Last session: 2026-08-23T17:25:17.665Z
+Stopped at: Completed 59-03-PLAN.md
 Resume: `/gsd-discuss-phase 59`（Phase 59 无 CONTEXT.md；讨论时核对 2026-08-23 四路 review 遗留的 canvas→引擎反向链 4 断点与 execute.ts 透传面的重叠）

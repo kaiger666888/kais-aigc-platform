@@ -176,7 +176,7 @@ Phases execute in numeric order: 58 → 59 → 60 → 61 (60/61 parallel-safe if
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 58. 全配方持久化 | 4/4 | Complete    | 2026-08-23 |
-| 59. 窄触发 stale 级联 | 2/4 | In Progress|  |
+| 59. 窄触发 stale 级联 | 3/4 | In Progress|  |
 | 60. 保存后面板保持 | 0/TBD | Not started | - |
 | 61. 审计清债 TD-3/4/5 | 0/TBD | Not started | - |
 
