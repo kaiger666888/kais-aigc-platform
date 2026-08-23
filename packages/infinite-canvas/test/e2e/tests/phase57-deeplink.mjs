@@ -145,7 +145,10 @@ async function expectCompactNavbar(page) {
   expect(box, 'kap-navbar boundingBox').not.toBeNull()
   expect(box.height).toBeLessThanOrEqual(30) // compact 26px(+容差),全宽档 40px 即红
   const links = nav.locator('a')
-  await expect(links).toHaveCount(6) // 品牌 KAP + 5 项(UI-SPEC P-1 词表)
+  // Phase 58 注记:6→5 —— b8be598a(2026-08-23)下线 Toonflow 项,kap-nav.ts NAV_ITEMS
+  // 缩为 4 项(门户/画布/剧核/3D导演台,源注释即规则);旧 6 断言随之假红,随现实更新
+  // (Phase 48「旧断言随现实更新并注记」先例,58-01 verify 门同款)。
+  await expect(links).toHaveCount(5) // 品牌 KAP + 4 项(UI-SPEC P-1 词表 − Toonflow)
   await expect(nav.locator('a[aria-current="page"]')).toHaveText('画布')
 }
 
