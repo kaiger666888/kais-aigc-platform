@@ -1,0 +1,89 @@
+/**
+ * Phase 59 (59-02) — 服务端 stale 标记接缝(下划线私有模块范式,与 _engine.ts /
+ * _simulate.ts 同款:不挂 router,仅导出函数供 execute 路由层消费)。
+ *
+ * markStaleAndBroadcast(projectId, episodesId, changedAssetId):
+ *   loadFullGraph(关系表唯一真值源,save-v2 写入面)→ migrateV2toV3(事件 id
+ *   确定性合成 evt_<nodeId>,migrate.ts L523,与客户端 adaptV2Graph 同规则 →
+ *   triggerEventId 跨端一致)→ markStaleDownstream(宪法 §13 纯函数零改动复用:
+ *   传递闭包 / sequence·isInactive 边排除 / curation:'locked' 传播终点 /
+ *   环防御 / 最早 since 保留)→ diff 只取**新增** stale 资产(绝不覆盖既有
+ *   since)→ 逐节点先落库(upsertNode,data.stale 三字段整包)后广播
+ *   (node:updated + changedFields:["data.stale"],v2/nodes.ts L210-213 既有
+ *   wire 格式)——客户端零改动复用既有 node:updated 消费链(D-01)。
+ *
+ * 决策编号(59-CONTEXT):
+ *   - D-01 服务端标记(窄触发成功判定处调用,失败路径结构性不进);
+ *   - D-03 级联深度 = 传递闭包(纯函数单点复用,禁手写 V2 因果遍历);
+ *   - D-04 落选/locked 边界沿用(stale.ts 宪法 §13 注释即契约);
+ *   - D-05 stale 字段复用 data.stale——wire 三字段 {since, triggerAssetId,
+ *     triggerEventId}(serialize.ts:276-281 同款形状,缺一 migrate 还原为 null)。
+ *
+ * 配置:无 env 依赖。错误上抛(由 execute.ts 标记位 try/catch 接管,标记自身
+ * 失败不把引擎成功翻成 error)——本模块不静默吞错。
+ *
+ * ⚠ 跨包深链纪律(59-RESEARCH Anti-Pattern #2):禁 import flowgraph-v3 的
+ * index.ts(`export * from './zod.js'` 会拉包内 zod 3.23.8,与根仓 4.3.6 版本
+ * 分裂冲突)——只深链 stale.ts / migrate.ts(runtime 依赖仅 integrity.js +
+ * recipe.js 纯常量;import-from-dir.ts L81 跨包相对深链运行时先例)。
+ */
+import { markStaleDownstream } from "../../../packages/flowgraph-v3/ts/src/stale";
+import { migrateV2toV3 } from "../../../packages/flowgraph-v3/ts/src/migrate";
+import type { AssetNodeV3 } from "../../../packages/flowgraph-v3/ts/src/types";
+import { loadFullGraph, listNodes, upsertNode } from "@/lib/canvasRelationalStore";
+import { broadcastToProject } from "@/utils/ws";
+
+export async function markStaleAndBroadcast(
+  projectId: number,
+  episodesId: number,
+  changedAssetId: string,
+): Promise<void> {
+  const scope = { projectId, episodesId };
+  const v2 = await loadFullGraph(scope);
+  if (!v2) return;
+
+  // 事件 id 确定性合成 evt_<nodeId>(migrate.ts L523)——与客户端 adaptV2Graph
+  // 同规则,triggerEventId 跨端一致(服务端/客户端级联收敛的前提)。
+  const { graph: v3 } = migrateV2toV3(v2 as any);
+  const next = markStaleDownstream(v3, [changedAssetId], Date.now());
+
+  // diff 只取增量:仅「本次新变 stale」的资产进入落库/广播——既有 stale 不
+  // 覆盖(保最早 since,宪法 §13「已 stale 的资产不重复覆盖」落库侧兑现)。
+  const prevById = new Map(v3.nodes.map((n) => [n.id, n]));
+  const newlyStale: AssetNodeV3[] = [];
+  for (const n of next.nodes) {
+    if (n.kind !== "asset") continue;
+    const asset = n as AssetNodeV3;
+    if (asset.stale == null) continue;
+    const prev = prevById.get(asset.id);
+    const prevStale =
+      prev != null && prev.kind === "asset" ? (prev as AssetNodeV3).stale : null;
+    if (prevStale != null) continue;
+    newlyStale.push(asset);
+  }
+
+  // 逐节点:先落库后广播(Pitfall 4——客户端全量 save 竞态下服务端真值先行)。
+  // 找不到关系表行(已删节点/悬空 id)silent skip:广播必须与库一致,不广播
+  // 库里不存在的节点。
+  const existing = await listNodes(scope);
+  for (const asset of newlyStale) {
+    const row = existing.find((r) => r.id === asset.id);
+    if (!row) continue;
+    const stale = asset.stale!;
+    const data = {
+      ...(row.data ?? {}),
+      // D-05:三字段整包(serialize.ts:276-281 同款 wire 形状,缺一 migrate
+      // 还原为 null——刷新即丢,故必须整包)
+      stale: {
+        since: stale.since,
+        triggerAssetId: stale.triggerAssetId,
+        triggerEventId: stale.triggerEventId,
+      },
+    };
+    await upsertNode(scope, { ...row, data });
+    broadcastToProject(projectId, "node:updated", {
+      node: { ...row, data },
+      changedFields: ["data.stale"],
+    });
+  }
+}
