@@ -209,6 +209,19 @@ profile 详情、分辨率预设、token 预算线、预留档位 —— KMC/前
 7. **已修复(2026-08-17):thin routes 静默降级** —— `/t2va` `/i2va` 此前不校验 profile,
    传 `lightx2v-*` 等无对应 builder 的档会静默跑 T8;`/ref2va` 校验全 8 档但 lightx2v 放行后
    同样静默 T8。现三路由统一 `H3_EXPOSED_PROFILES` 白名单校验,白名单外一律 400。
+9. **已修复(2026-08-23):T8 构建器 ref_images bare 数组键被静默丢弃** ——
+   `MiniMaxH3AudioConditioningT8` 的 `ref_images/ref_audios/ref_videos/ref_video_audios`
+   是 `COMFY_AUTOGROW_V3` 输入,API prompt 必须用点号键 `ref_images.ref_image_N`;
+   thin `/ref2va` 与 `generate.ts` 的 T8 构建器此前用 `ref_images:[[id,0]]` 数组键 →
+   ComfyUI 丢弃该输入 → LoadImage 不执行 → T8 数出 0 张图 →
+   `"<Picture 1> is not connected; available picture count is 0"`。turbo 档 ref2va
+   由此必挂(native 链路槽位形式正确,final-shot 不受影响——这也是它能长期潜伏的原因)。
+   修复 a1db792c + d05dfb53;KMC 侧同主题前期侦查见 `comfyui-v3-autogrow-api-format` SKILL。
+10. **新增(2026-08-23):i2va 首帧锚定行防御性注入** —— 官方协议要求 i2va/fl2va 的
+    prompt 显式声明帧图与时间线对齐(`For the target video, at 0.00 seconds …`),实测
+    漏写时首帧保持明显变弱。`/i2va` 与 `/generate`(mode=i2va)现检测不到锚定表述时
+    自动前置官方指令行(`promptAnchor.ts`);ref2va 有意不注入(参考图时间线锚定是
+    调用方 opt-in,与 KMC enhancer 协议一致),L2VA 无官方指令行同样不注入。
 8. **已修复(2026-08-17):`mergeAudioAndVideo` amix 截断** —— `loudnorm + amix duration=first`
    组合使混音在 ~1.1s 处截断(loudnorm lookahead flush 致首输入提前 EOF;实测 4s TTS +
    4.45s ambient 只出 1.12s,之后数字静音)。改为 `duration=longest`(对白结束后环境音延续,

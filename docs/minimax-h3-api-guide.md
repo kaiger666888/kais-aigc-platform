@@ -237,6 +237,11 @@ For the target video, at 0.00 seconds into the target video, <Picture 1> (from [
 How the reference pictures align with the target video — Picture 1 (from Shot 1) aligns with the 0.00-second mark of the target video; Picture 2 (from Shot N) aligns with the S.SS-second mark of the target video.
 ```
 
+> **2026-08-23 起无需手写**:`/i2va` 与 `/generate`(mode=i2va)检测不到锚定表述
+> (中英任一)时自动前置官方指令行(`promptAnchor.ts`);FL2VA 双图变体按视频时长
+> 生成尾帧对齐时刻。ref2va 有意不注入——参考图时间线锚定是调用方 opt-in 决策
+> (KMC enhancer 协议默认禁止,需用户显式要求帧锚定);L2VA 官方指南无指令行同样不注入。
+
 ### Ref2VA 六节结构
 
 ```
