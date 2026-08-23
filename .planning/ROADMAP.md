@@ -104,7 +104,12 @@ Audit: **passed** (305/305 verify assertions · 435/435 vitest · 3× tsc clean 
   2. 编辑 cfg/steps 后点击重生成,发出的引擎请求体携带编辑后的高级字段值(请求体断言可见)——编辑即真值,窄通道不再丢弃未覆盖字段。
   3. lora/量化等复杂结构字段可在面板编辑且结构保真;只改 steps 时,未编辑的 lora/quant 原样保留,不被 nullish 清洗抹掉。
   4. verify 断言锁死 canvasAssetSchema 字段集 ↔ 面板可编辑字段集一致——任一侧新增字段未同步另一侧时断言变红。
-**Plans**: TBD (via /gsd:plan-phase)
+**Plans**: 4 plans
+Plans:
+- [ ] 58-01-PLAN.md — 数据通道: recipe.ts 九键映射契约 + migrate 全集提取 + serialize 反向覆盖拓宽 + delete 传播(serialize+migrate 同 plan,Pitfall 3)+ verify-phase-51 断言注解
+- [ ] 58-02-PLAN.md — 编辑 UI: PromptSection 高级参数折叠区(UI-SPEC 契约)+ popover KNOWN_KEYS 换共享常量源 + canvasAssetSchema 五类型 optional 声明
+- [ ] 58-03-PLAN.md — e2e: phase58-recipe.mjs fixture 注入 + 编辑往返/清空 delete/请求体整袋/落选只读三层断言 + 全量回归
+- [ ] 58-04-PLAN.md — 守护与真机: verify-phase-58 三方集合相等聚合门 + forced-failure + probe-58-real 零足迹探针
 **UI hint**: yes
 
 ### Phase 59: 窄触发 stale 级联 (Narrow-Trigger Stale Cascade)
@@ -148,7 +153,7 @@ Phases execute in numeric order: 58 → 59 → 60 → 61 (60/61 parallel-safe if
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 58. 全配方持久化 | 0/TBD | Not started | - |
+| 58. 全配方持久化 | 0/4 | Planning complete | - |
 | 59. 窄触发 stale 级联 | 0/TBD | Not started | - |
 | 60. 保存后面板保持 | 0/TBD | Not started | - |
 | 61. 审计清债 TD-3/4/5 | 0/TBD | Not started | - |
