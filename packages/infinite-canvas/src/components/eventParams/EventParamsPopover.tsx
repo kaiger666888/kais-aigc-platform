@@ -98,6 +98,12 @@ export default function EventParamsPopover({ anchor, onClose }: Props): React.Re
     setPending(true)
     try {
       await executeNode(anchor.projectId, anchor.episodesId, outputAsset.id, outputAsset.stage, {
+        // 59-fix WR-05: 显示中的 prompt 走 execute 请求体顶层专用通道——CR-01
+        // 白名单后 params 袋内 prompt 不再达引擎(_simulate CLIENT_PARAM_KEYS 排除
+        // prompt),此前「同配方」仅靠 extractPrompt(node)→node.data.prompt 兜底
+        // 巧合成立;顶层通道(overrides.prompt 优先)使配方不依赖持久化行与
+        // canonical 零漂移假设。NodeDetailPanel.handleRegenerate 同款双通道。
+        prompt: typeof params.prompt === 'string' ? params.prompt : undefined,
         params: { ...params, seed: newSeed },
         // Phase 59 (59-03): 窄触发身份标识——服务端(59-02)在任务成功且携带此标识时把
         // 下游标 stale(STALE-02);换 seed 语义本身仍由 params.seed 透传承担。
