@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: null
-milestone_name: null
-status: awaiting-planning
-stopped_at: "v3.0 milestone complete — audit passed (f9280e0c); roadmap + audit archived to .planning/milestones/"
-last_updated: "2026-08-22T02:20:54.000Z"
-last_activity: 2026-08-22 -- v3.0 milestone close (complete-milestone)
+milestone: v3.1
+milestone_name: 重生成闭环深化
+status: planning
+last_updated: "2026-08-23T02:33:00.235Z"
+last_activity: 2026-08-23
 progress:
-  total_phases: 7
-  completed_phases: 6
-  total_plans: 46
-  completed_plans: 42
-  percent: 86
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,15 +24,10 @@ See: .planning/PROJECT.md (updated 2026-06-17)
 
 ## Current Position
 
-Phase: v3.0 complete (Phases 51-57, 2026-08-21 → 2026-08-22)
-Current Plan: None — milestone closed
-Status: Milestone complete (audit **passed** — f9280e0c, archived at .planning/milestones/v3.0-MILESTONE-AUDIT.md)
-Last activity: 2026-08-22 -- complete-milestone: ROADMAP/audit archived, STATE reset
-
-**Carry-forward (v3.0 close):**
-- **Phase 52 (REGEN) materials delivered 2026-08-22 by owning session** — 8/8 plan SUMMARYs + 52-VERIFICATION.md (verify:phase-52 31/31; vitest 404+130; e2e 62 passed; 真机 probe-52-real 全绿) + phase52-regen.mjs 入 git;52-UAT 6 gaps 全数收口(52-07/08 gap-closure,含两颗真机地雷修复:migrate Pass 3 整图崩溃 / execute allowlist V3 Stage);ROADMAP(现行+归档)Phase 52 行已勾选。
-- Phase 53 Wave B — khs canvas_sync/field-map envelope 映射 + manifest transport E2E + G15 真实数据源, gated by design on khs2 v2.4 Phase 25 验收 (audit TD-1).
-- Consolidated human-UAT register for phases 54-57 (audit §7) + tech debt TD-1..TD-8 (audit §6) + Phase 52 Manual-Only 项(审片面板开合体验,52-VALIDATION)。
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-08-23 — Milestone v3.1 started
 
 ## Performance Metrics
 

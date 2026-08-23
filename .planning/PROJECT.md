@@ -8,9 +8,19 @@ AI 短剧全链路制作平台，通过 kais-gold-team 统一执行引擎编排 
 
 让 AI 短剧制作流程跑通——从角色设计、剧本生成、分镜、视频生成到后期制作的完整管线能够自动执行并产出可交付的成片。
 
-## Current Milestone: (none — awaiting `/gsd:new-milestone`)
+## Current Milestone: v3.1 重生成闭环深化 (regen-loop-deepening)
 
-v3.0 画布创作体验 shipped 2026-08-22 (audit passed f9280e0c; 305/305 verify; Phase 52 externally owned by parallel session — code on master, verification owed). Archive: milestones/v3.0-{ROADMAP,REQUIREMENTS,MILESTONE-AUDIT}.md. Carry-forward: Wave B (khs2 v2.4 gated), UAT register §7 of audit, TD-1..8.
+**Goal:** 付清 v3.0 收尾锁定的三笔「生成-迭代闭环」欠账——窄触发 stale 级联、全配方持久化、保存后面板保持——并顺带清掉审计三笔低优先债 (TD-3/4/5)。
+
+**Target features:**
+- **窄触发 stale 级联** — 仅面板编辑重生成 / 换 seed 重跑两条路径按请求关联把下游标 stale；Phase 37 批量执行零影响
+- **全配方持久化** — steps/cfg/sampler/lora/quant 等全量高级字段进出 `EventNodeV3.params`，编辑即真值，重生成直接消费
+- **保存后面板保持** — reload 链保 `detailNode`，真机保存 200 后面板不收起，与 mock 行为对齐
+- **TD-3/4/5 清债** — `placeNewAsset` 无调用方、reviewBridge 无尾斜杠 307 陷阱、51-REVIEW I1 buildMeta round-trip + I5 node:created 派生直写
+
+**Key context:** khs2 v2.4 Phase 25 gate 未过 → 53 Wave B (TD-1) 继续留在范围外；本期全部改动限 kap 仓画布侧，无跨仓库依赖。
+
+v3.0 画布创作体验 shipped 2026-08-22 (audit passed f9280e0c; 305/305 verify; Phase 52 verification materials delivered 2026-08-22 by owning session — carry-forward closed). Archive: milestones/v3.0-{ROADMAP,REQUIREMENTS,MILESTONE-AUDIT}.md.
 
 ## Shipped: v3.0 画布创作体验 (Canvas Creative Experience for kmc)
 
@@ -296,4 +306,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-21 after Phase 51 (写路径地基统一) complete*
+*Last updated: 2026-08-23 — milestone v3.1 (重生成闭环深化) started*
