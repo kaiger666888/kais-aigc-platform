@@ -377,7 +377,17 @@ export async function executeNode(
   // 52-02: extra 提交通道(REGEN-01/02)——重生成/换 seed 经此携带新 prompt/seed/params;
   // 服务端 zod 契约层接受并忽略(模拟器语义不变),e2e 经 mock logCall 完整 body 断言到达。
   // 可选参数,既有调用方(CanvasContextMenu handleExecute)不传 extra,向后兼容零改动。
-  extra?: { prompt?: string; seed?: number; params?: Record<string, unknown> },
+  // Phase 59 (59-02/59-03): extra 新增 regenSource 窄触发身份标识——服务端在任务成功
+  // 且携带此标识时经 markStaleAndBroadcast 把下游标 stale(级联+落库+node:updated 广播);
+  // 仅面板「重生成」('panel-regen')与事件芯片换 seed('reroll-seed')两条窄路径携带,
+  // orchestrate/ContextMenu 客户端链永不携带(SC3 架构性保证)。展开逻辑零改动(...extra
+  // 平铺透传,加字段即达)。
+  extra?: {
+    prompt?: string
+    seed?: number
+    params?: Record<string, unknown>
+    regenSource?: 'panel-regen' | 'reroll-seed'
+  },
   cancelToken?: CancelToken,
 ): Promise<void> {
   await apiCall<void>(
@@ -645,8 +655,11 @@ export async function createNode(
  * `updates` 在节点**顶层浅合并**（`{ ...node, ...updates }`）：传 `{ data }` 会整体替换
  * data 袋，调用方需发送完整 data 对象（见 StoryboardTimeline 帧选择器的 patchFrameNode）。
  *
- * 后端广播 `node:updated`，前端 socket 当前未消费该事件 → 不触发全图重载，
- * 适合乐观更新（点选不闪烁、不跳顶）。写入的 relational store 正是 load-v2 的数据源。
+ * 后端广播 `node:updated`——前端 socket 自 59-03 起消费该事件(仅 stale 载荷:
+ * useCanvasSocket onNodeUpdated → FlowCanvas 形状校验后接 triggerStaleCascade;
+ * 非 stale 载荷的 node:updated,如本端点的 PATCH 回声,被静默忽略)→ 不触发
+ * 全图重载,乐观更新语义不变(点选不闪烁、不跳顶)。写入的 relational store
+ * 正是 load-v2 的数据源。
  */
 export async function updateCanvasNode(
   projectId: number,

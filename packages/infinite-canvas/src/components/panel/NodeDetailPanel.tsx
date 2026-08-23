@@ -725,10 +725,14 @@ function PromptSection({ asset }: { asset: AssetNodeV3 }) {
     }
     setSubmitting(true)
     try {
-      // nodeId = 资产 id（地雷 #4 裁定，见组件头注释）；eventId 仅用于 canonical 写回
+      // nodeId = 资产 id（地雷 #4 裁定，见组件头注释）；eventId 仅用于 canonical 写回。
+      // Phase 59 (59-03): regenSource='panel-regen' 窄触发身份标识——服务端(59-02)在任务
+      // 成功且携带此标识时把下游标 stale(node:updated 广播回本端触发角标,STALE-01);
+      // prompt/params 保持不变。
       await executeNode(projectId, episodesId, asset.id, asset.stage, {
         prompt: canonicalPrompt,
         params: { ...evt.params, prompt: canonicalPrompt },
+        regenSource: 'panel-regen',
       })
       // HTTP 200 即提交成功；running/success 反馈交给既有 node:state socket 链，不在此等待
       showToast('已提交重生成', 'success')

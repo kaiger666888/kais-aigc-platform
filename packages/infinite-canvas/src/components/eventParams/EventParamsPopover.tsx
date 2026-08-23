@@ -82,6 +82,9 @@ export default function EventParamsPopover({ anchor, onClose }: Props): React.Re
     try {
       await executeNode(anchor.projectId, anchor.episodesId, outputAsset.id, outputAsset.stage, {
         params: { ...params, seed: newSeed },
+        // Phase 59 (59-03): 窄触发身份标识——服务端(59-02)在任务成功且携带此标识时把
+        // 下游标 stale(STALE-02);换 seed 语义本身仍由 params.seed 透传承担。
+        regenSource: 'reroll-seed',
       })
       // 提交成功 → 新 seed 回写 canonical（防 reload 回旧值；持久化等下一次 save，地雷 #12 裁定）
       updateEventParams(anchor.eventId, { seed: newSeed })
