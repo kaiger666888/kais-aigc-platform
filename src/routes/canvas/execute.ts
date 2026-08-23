@@ -5,6 +5,7 @@ import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
 import { broadcastToProject } from "@/utils/ws";
 import { simulateExecution } from "./_simulate";
+import { markStaleAndBroadcast } from "./_stale";
 const router = express.Router();
 
 /** 触发节点执行 */
@@ -23,12 +24,20 @@ export default router.post(
     branchId: z.string().optional(),
     // 52-02: params(配方袋,REGEN-02 换 seed 提交通道)。validateFields 只校验不回写
     // (middleware safeParse 后 next(),extra key 本就原样穿透无行为变化)——此字段为
-    // 契约诚实 + 防未来有人给 middleware 加 strip 回写踩雷。模拟器语义不变:
-    // handler 不把 prompt/params 传给 simulateExecution(归宿 = 接受并忽略)。
+    // 契约诚实 + 防未来有人给 middleware 加 strip 回写踩雷。
+    // 59-02 起 params 自本 phase 起被 handler 消费:随 overrides 透传
+    // simulateExecution(metadata 平铺达引擎 params,含 params.seed → REGEN-02)。
     params: z.record(z.string(), z.unknown()).optional(),
+    // 59-02: regenSource(窄触发重生成身份标识,Pattern 4)。validateFields 不
+    // strip 未知键——此声明为契约诚实 + 类型提示 + zod 白名单枚举(Security V5:
+    // 客户端可伪造信号,仅作标记依据绝不当权限依据;最坏语义=多显示一个 stale
+    // 角标,重跑仍走既有通道)。orchestrate/CanvasContextMenu 永不携带 →
+    // SC3 零波及是架构性保证而非行为过滤(D-01)。合法值仅两条窄路径:
+    //   'panel-regen'(NodeDetailPanel 面板配方重生成)/'reroll-seed'(事件芯片换 seed 重跑)
+    regenSource: z.enum(["panel-regen", "reroll-seed"]).optional(),
   }),
   async (req, res) => {
-    const { projectId, episodesId, nodeId, nodeType, prompt, branchId } = req.body;
+    const { projectId, episodesId, nodeId, nodeType, prompt, branchId, params, regenSource } = req.body;
 
     try {
       broadcastToProject(projectId, "node:state", {
@@ -67,9 +76,28 @@ export default router.post(
 
       setImmediate(async () => {
         try {
-          await simulateExecution(projectId, nodeId, episodesId);
+          // 59-02: overrides 透传(REGEN-02 seed 不再丢弃——params.seed 数值直达
+          // 引擎提交体 params.seed;params 配方袋 + prompt + nodeType 同袋)。
+          await simulateExecution(projectId, nodeId, episodesId, {
+            prompt,
+            seed: typeof params?.seed === "number" ? params.seed : undefined,
+            params,
+            nodeType: effectiveType,
+          });
+          // 59-02 D-01:窄触发成功后服务端级联标记——仅 regenSource 在场才触发
+          // (orchestrate/ContextMenu 无此通道 = SC3 架构性保证)。标记自身失败
+          // 不把成功翻成 error(引擎任务已成功,级联标记是派生动作)。
+          if (regenSource) {
+            try {
+              await markStaleAndBroadcast(projectId, episodesId, nodeId);
+            } catch (e) {
+              console.error("[canvas:execute] stale 标记失败:", e);
+            }
+          }
           broadcastToProject(projectId, "node:state", { nodeId, state: "success" });
         } catch (err) {
+          // D-02:引擎失败(error 广播)结构性不进任何标记——catch 分支无
+          // markStaleAndBroadcast 调用(59-02 S3-engine-fail 负向断言锁死)。
           broadcastToProject(projectId, "node:state", { nodeId, state: "error" });
         }
       });

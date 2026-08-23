@@ -1,9 +1,9 @@
 import express from "express";
-import u from "@/utils";
 import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
 import { broadcastToProject } from "@/utils/ws";
+import { loadFullGraph } from "@/lib/canvasRelationalStore";
 import { simulateExecution, NODE_TYPE_TOPOLOGY } from "./_simulate";
 
 const router = express.Router();
@@ -31,21 +31,26 @@ export default router.post(
     const mode: "full" | "batch" = Array.isArray(nodeIds) && nodeIds.length > 0 ? "batch" : "full";
 
     try {
-      const row = await u
-        .db("o_agentWorkData")
-        .where("projectId", String(projectId))
-        .andWhere("episodesId", String(episodesId))
-        .andWhere("key", "canvasGraph")
-        .first();
+      // 59-02: 目标筛选数据源真化——legacy JSON blob(canvasGraph 键)读取
+      // (save-v2 只写关系表,v2 项目 blob 恒空 → orchestrate 现状对现代项目恒
+      // 404,SC4「重跑下游→orchestrate 子集」真机链路死路)替换为 loadFullGraph
+      // 关系表读。52-02 stale-success 谓词自此在真数据源上生效。谓词逐字
+      // 冻结,零级联结构:本文件不 import 级联纯函数、不消费重生成标记字段
+      // (SC3 架构性保证,59-02 + 59-04 静态负向断言锁死)。
+      const graph = await loadFullGraph({
+        projectId: Number(projectId),
+        episodesId: Number(episodesId),
+      });
 
-      if (!row?.data) {
+      if (!graph) {
         return res.status(404).send(error("画布数据不存在,请先保存"));
       }
 
-      const graph = JSON.parse(row.data) as {
-        nodes?: { id: string; type?: string; state?: string; data?: Record<string, unknown> }[];
-      };
-      const allNodes = graph.nodes ?? [];
+      // (cast 保谓词逐字冻结:FlowNodeV2.state 是 NodeState 联合,原行内形状
+      // state?: string 才能让下述 "cached" 比较无 tsc2367;结构不变纯类型收窄)
+      const allNodes = graph.nodes as {
+        id: string; type?: string; state?: string; data?: Record<string, unknown>;
+      }[];
 
       // Filter to specified subset (Phase 37 batch) or all (Phase 36 full)
       const filtered = Array.isArray(nodeIds) && nodeIds.length > 0
