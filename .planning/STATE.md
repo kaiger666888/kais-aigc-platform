@@ -4,13 +4,13 @@ milestone: v3.1
 milestone_name: 重生成闭环深化
 status: executing
 stopped_at: Phase 59 UI-SPEC approved
-last_updated: "2026-08-23T16:23:58.081Z"
-last_activity: 2026-08-23 -- Phase 59 planning complete
+last_updated: "2026-08-23T17:19:05.910Z"
+last_activity: 2026-08-23
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 8
-  completed_plans: 4
+  completed_plans: 6
   percent: 25
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-08-23)
 ## Current Position
 
 Phase: 59 (窄触发 stale 级联) — EXECUTING
-Plan: 1 of 4
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-08-23 -- Phase 59 planning complete
+Last activity: 2026-08-23
 
-Progress: [██████████] 100%
+Progress: [████████░░] 75%
 
 ## Performance Metrics
 
@@ -70,6 +70,7 @@ Progress: [██████████] 100%
 | Phase 58 P58-02 | 10 min | 2 tasks | 3 files |
 | Phase 58 P58-03 | 25 min | 2 tasks | 2 files |
 | Phase 58 P58-04 | 8 min | 2 tasks | 3 files |
+| Phase 59 P02 | 12 | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -122,6 +123,9 @@ Progress: [██████████] 100%
 - [Phase ?]: [Phase 58]: 58-03 fixture 注入即测试基底——每用例 save-v2 POST 写带全套配方字段的单节点 graph 再 reload(禁对 DEFAULT_NODES 直断高级字段,Pitfall 6);高级字段 e2e 断言一律先 click advanced-toggle(默认收起契约)收敛为 openAdvanced helper
 - [Phase ?]: [Phase 58]: 58-03 落选用例给 winner 配高级字段并断言只读面板显示 winner 配方——Pitfall 7 折叠语义证据化;phase55-nav 全量跑间歇 flake 判定为并行会话负载环境噪音(隔离+终跑全绿),未修仅记录
 - [Phase 58]: 58-04 verify:phase-58 三方集合相等门落地——常量侧(recipe.ts 相对 import)/schema 侧(canvasAssetSchema shape 键)/ROUNDTRIP 高级子集三串严格相等 + zod.ts 九键 regex 文本交叉验证(禁跨包 zod 对象 import,Pitfall 4);计数锁做满五键各恰 5 处;forced-failure 含 sampler 必然失败项(A1 字段集锁定五键);probe-58-real 真机零足迹实证 RECIPE-01
+- [Phase ?]: [59-02]: D-01 落点=execute 路由层 setImmediate 成功块(regenSource 在场才标记),orchestrate/ContextMenu 无通道=SC3 架构性保证;catch 分支结构性零调用(D-02)
+- [Phase ?]: [59-02]: orchestrate 目标筛选换 loadFullGraph 关系表读(谓词逐字冻结;cast 防联合类型 tsc2367)——SC4 链路打通,blob 从未写入仍 200 执行=数据源真化行为级证明
+- [Phase ?]: [59-02]: dispatch 手范式=express 真路由+fetch 真 HTTP+异步 spawn(spawnSync 冻结父事件循环使常驻 fake 引擎 fetch 死锁,54-05 教训)+子进程 --tsconfig 显式指 repo(临时 cwd 下 @/ 不解析)+process.exit 强退(49-01)
 
 ### Pending Todos
 
@@ -175,6 +179,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-23T14:58:18.171Z
+Last session: 2026-08-23T17:18:34.277Z
 Stopped at: Phase 59 UI-SPEC approved
 Resume: `/gsd-discuss-phase 59`（Phase 59 无 CONTEXT.md；讨论时核对 2026-08-23 四路 review 遗留的 canvas→引擎反向链 4 断点与 execute.ts 透传面的重叠）

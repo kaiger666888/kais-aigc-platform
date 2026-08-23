@@ -9,9 +9,9 @@
 
 ### STALE — 窄触发级联 (地雷 #11)
 
-- [ ] **STALE-01**: 用户在详情面板编辑配方后重生成成功,该资产下游节点自动标 stale(角标可见,无需手动触发)
-- [ ] **STALE-02**: 用户在事件芯片换 seed 重跑成功,下游同样自动标 stale
-- [ ] **STALE-03**: 编排/批量执行成功**不**触发级联——既有批量链路行为零变化(负向断言锁死)
+- [x] **STALE-01**: 用户在详情面板编辑配方后重生成成功,该资产下游节点自动标 stale(角标可见,无需手动触发)
+- [x] **STALE-02**: 用户在事件芯片换 seed 重跑成功,下游同样自动标 stale
+- [x] **STALE-03**: 编排/批量执行成功**不**触发级联——既有批量链路行为零变化(负向断言锁死)
 
 ### RECIPE — 全配方持久化 (§14 窄通道)
 
@@ -70,9 +70,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RECIPE-02 | Phase 58 | Complete |
 | RECIPE-03 | Phase 58 | Complete |
 | RECIPE-04 | Phase 58 | Complete |
-| STALE-01 | Phase 59 | Pending |
-| STALE-02 | Phase 59 | Pending |
-| STALE-03 | Phase 59 | Pending |
+| STALE-01 | Phase 59 | Complete |
+| STALE-02 | Phase 59 | Complete |
+| STALE-03 | Phase 59 | Complete |
 | PANEL-01 | Phase 60 | Pending |
 | PANEL-02 | Phase 60 | Pending |
 | DEBT-01 | Phase 61 | Pending |
