@@ -2035,6 +2035,20 @@ export default router.post(
         ));
       }
 
+      // 59-fix r3 WR-07: 上述全部校验针对 realpath 解析结果,铸造点此前却绑定
+      // 词法 workdir——workdir 自身为 symlink(允许根内本地写即可构造,与
+      // WR-06 同原语)时守卫指向放行根、铸造的 data/oss/{basename} 链却可在
+      // 事后重指仓库 data(守卫仅检查期运行一次,挂载服务期长存),
+      // /oss/{basename}/db2.sqlite 直接暴露生产库。拒绝带符号链接分量的
+      // workdir 输入(realWorkdir !== absWorkdir 即存在 symlink 分量);
+      // 下方铸造点改绑已验证的 realWorkdir(此刻与 absWorkdir 相等,即用户
+      // 所指真实目录本身),词法间接层不再进入服务面。
+      if (realWorkdir !== absWorkdir) {
+        return res.status(400).send(error(
+          `workdir 路径含符号链接,请使用真实路径: ${workdir}`,
+        ));
+      }
+
       // 59-fix CR-04: CR-03 残余——允许根 /data/workspace/ 本身包含平台仓库,
       // workdir=仓库根仍会通过根约束,在扫描前铸造持久 data/oss/{basename}
       // symlink(与扫描结果无关,imported:0 早退也留链)把仓库整树(含生产库
@@ -2077,7 +2091,9 @@ export default router.post(
         let exists = false;
         try {
           const existing = await readlink(ossLinkPath);
-          if (existing === workdir || existing === workdir.replace(/\/$/, "")) {
+          // 59-fix r3 WR-07: 铸链目标为已验证 realWorkdir;旧链指向不一致
+          // (含 r3 前词法铸造残留/尾斜杠变体)即拆除重建为规范目标。
+          if (existing === realWorkdir) {
             exists = true;
           } else {
             // Symlink exists but points elsewhere — recreate
@@ -2087,8 +2103,8 @@ export default router.post(
           // No symlink exists
         }
         if (!exists) {
-          await symlink(workdir, ossLinkPath, "dir");
-          console.log(`[import-from-dir] Created oss symlink: ${ossLinkPath} → ${workdir}`);
+          await symlink(realWorkdir, ossLinkPath, "dir");
+          console.log(`[import-from-dir] Created oss symlink: ${ossLinkPath} → ${realWorkdir}`);
         }
       } catch (symlinkErr) {
         console.warn(`[import-from-dir] Failed to create oss symlink (non-fatal):`, (symlinkErr as Error).message);
