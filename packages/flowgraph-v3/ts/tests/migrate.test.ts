@@ -446,3 +446,66 @@ describe('【52-07】Pass 3 防御：变体组候选事件缺失（真机 9999 �
     expect(out!.graph.nodes.find((n) => n.id === 'evt_n_cand_a')?.kind).toBe('event')
   })
 })
+
+describe('Phase 58: recipeParams 全集提取（窄通道解除）', () => {
+  // 单 video 节点局部图（L206-217 migrateStoryboard 同款 helper 范式）
+  const migrateSingleNode = (data: FlowNodeV2Data, id = 'n_video_x') =>
+    migrateV2toV3({
+      meta: { projectId: 1, episodesId: 1 },
+      nodes: [{
+        id, type: 'video', branchId: 'br_main', phaseIndex: 4,
+        phaseName: 'video', position: { x: 0, y: 0 }, size: { width: 240, height: 160 },
+        state: 'success', data,
+      }],
+      links: [],
+    });
+
+  it('(a) data 带 steps/cfg/quant/sageAttention/negative/lora → params 九键全提取，lora 深结构保真', () => {
+    const { graph: g } = migrateSingleNode({
+      prompt: '夜色中的城市天际线',
+      negative: '模糊，低清',
+      seed: 424242,
+      engine: 'wan2.2-i2v',
+      lora: [
+        { name: 'style-anime', strength: 0.7 },
+        { name: 'light-film', strength: 0.35 },
+      ],
+      steps: 32,
+      cfg: 6.5,
+      quant: 'q8',
+      sageAttention: true,
+    });
+    const params = event(g, 'evt_n_video_x').params;
+    expect(params.prompt).toBe('夜色中的城市天际线');
+    expect(params.negative).toBe('模糊，低清'); // negative 必须在往返集（裁决 2）
+    expect(params.seed).toBe(424242);
+    expect(params.modelVersion).toBe('wan2.2-i2v');
+    expect(params.steps).toBe(32);
+    expect(params.cfg).toBe(6.5);
+    expect(params.quant).toBe('q8');
+    expect(params.sageAttention).toBe(true);
+    // lora 数组整袋透传：深结构（name+strength）保真
+    expect(params.lora).toEqual([
+      { name: 'style-anime', strength: 0.7 },
+      { name: 'light-film', strength: 0.35 },
+    ]);
+  });
+
+  it('(b) data.engine → params.modelVersion 键名映射回归（唯一非恒等映射）', () => {
+    const { graph: g } = migrateSingleNode({ prompt: 'p', seed: 7, engine: 'wan2.2-t2v' });
+    const params = event(g, 'evt_n_video_x').params;
+    expect(params.modelVersion).toBe('wan2.2-t2v');
+    expect((params as Record<string, unknown>).engine).toBeUndefined(); // d 侧键名不进 params
+  });
+
+  it('(c) 仅 data.steps 无 prompt/seed/engine → hasRecipe 不再判孤儿，params.steps 在场', () => {
+    const { graph: g, report: rep } = migrateSingleNode({ steps: 40 });
+    const e = event(g, 'evt_n_video_x');
+    expect(e.params.steps).toBe(40); // 配方提取在场（原窄通道下被丢弃）
+    expect(e.params.sourcePath).toBeUndefined(); // 未落 orphan import 种子（orphan 分支 params 只剩 sourcePath）
+    expect(e.op).not.toBe('import');
+    expect(
+      rep.importedSeedEvents.some((s) => s.assetNodeId === 'n_video_x' && s.reason === 'orphan_no_recipe_no_causal_input'),
+    ).toBe(false);
+  });
+})

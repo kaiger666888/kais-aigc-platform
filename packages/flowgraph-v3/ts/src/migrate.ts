@@ -45,6 +45,7 @@ import type {
 } from './types.js';
 import type { FlowGraphV2Export, FlowLinkV2, FlowNodeV2 } from './v2types.js';
 import { checkReferentialIntegrity } from './integrity.js';
+import { RECIPE_ROUNDTRIP_KEYS } from './recipe.js';
 
 /** 结构化深拷贝（纯函数契约：输出与输入不共享引用）。 */
 function clone<T>(v: T): T {
@@ -151,19 +152,31 @@ function firstTurnaroundPath(refs: unknown): unknown {
   return null;
 }
 
-/** 【§14】节点 data 上的 prompt/seed/engine → 生成事件 params（P4：配方唯一合法存放处）。 */
+/**
+ * 【§14】节点 data 上的配方 → 生成事件 params（P4：配方唯一合法存放处）。
+ * 【58-01】窄通道解除：映射表驱动全集提取（九键，RECIPE_ROUNDTRIP_KEYS 单点契约，
+ * engine→modelVersion 键名映射由映射表承载）；lora 数组整袋透传不逐项校验
+ * （generationParamsSchema.catchall 已宽容）。
+ */
 function recipeParams(v2: FlowNodeV2): GenerationParams {
   const d = v2.data ?? {};
   const params: GenerationParams = {};
-  if (d.prompt != null) params.prompt = d.prompt;
-  if (d.seed != null) params.seed = d.seed;
-  if (d.engine != null) params.modelVersion = d.engine; // engine → modelVersion（§14 语义：引擎即模型版本）
+  for (const { p: pk, d: dk } of RECIPE_ROUNDTRIP_KEYS) {
+    const v = d[dk];
+    if (v != null) (params as Record<string, unknown>)[pk] = v;
+  }
   return params;
 }
 
+/**
+ * 配方在场判定：映射表任意 d 侧键在场即 true。
+ * 【58-01/Pitfall 8】拓宽（原仅查 prompt/seed/engine）——防「仅 steps 无
+ * prompt/seed/engine」的生成产物节点被误判孤儿落 import 种子（orphan 分支
+ * params 只剩 sourcePath，配方丢失）。
+ */
 function hasRecipe(v2: FlowNodeV2): boolean {
   const d = v2.data ?? {};
-  return d.prompt != null || d.seed != null || d.engine != null;
+  return RECIPE_ROUNDTRIP_KEYS.some(({ d: dk }) => d[dk] != null);
 }
 
 /**

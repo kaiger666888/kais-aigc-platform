@@ -11,3 +11,4 @@ export * from './migrate.js';
 export * from './integrity.js';
 export * from './importFromDir.js';
 export * from './layout.js';
+export * from './recipe.js';
