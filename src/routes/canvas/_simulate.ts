@@ -177,6 +177,13 @@ export async function simulateExecution(
 
   // 提交任务 → 轮询完成 → 广播进度
   const steps = [0.1, 0.3, 0.5, 0.7, 0.9];
+  // 59-fix IN-05: 专用 seed 通道优先——execute.ts 对 overrides.seed 走
+  // typeof number 类型门,而 params 袋只做键白名单不做值形状校验(袋内
+  // seed: "abc" 字符串可绕类型门直达引擎 params.seed,引擎侧行为未定义)。
+  // 袋内 seed 先删除再平铺:专用通道值不可被袋值覆盖,与 _engine.ts
+  // model_preference 服务端常量后置平铺同向(类型受控/服务端设置的键总是赢)。
+  const clientParams = filterClientParams(overrides?.params);
+  if (overrides?.seed != null) delete clientParams.seed;
   try {
     const taskId = await submitEngineTask({
       taskType,
@@ -192,7 +199,7 @@ export async function simulateExecution(
         // 59-fix CR-01:overrides.params 经白名单过滤后平铺(配方袋,59-02 接线
         // panel-edit-regen;白名单外键静默丢弃——ref_images 穿越白名单/model_preference
         // 伪造/身份键篡改在 _simulate 与 _engine(RESERVED_PARAM_KEYS)两道防线拦截)
-        ...filterClientParams(overrides?.params),
+        ...clientParams,
       },
     });
 
