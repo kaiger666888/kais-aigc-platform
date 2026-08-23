@@ -4,7 +4,7 @@ milestone: v3.1
 milestone_name: 重生成闭环深化
 status: executing
 stopped_at: Completed 59-03-PLAN.md
-last_updated: "2026-08-23T17:25:17.673Z"
+last_updated: "2026-08-23T18:17:03.698Z"
 last_activity: 2026-08-23
 progress:
   total_phases: 4
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-08-23)
 ## Current Position
 
 Phase: 59 (窄触发 stale 级联) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-08-23
 
@@ -72,6 +72,7 @@ Progress: [█████████░] 88%
 | Phase 58 P58-04 | 8 min | 2 tasks | 3 files |
 | Phase 59 P02 | 12 | 3 tasks | 5 files |
 | Phase 59 P59-03 | 4 | 2 tasks | 5 files |
+| Phase 59 P59-04 | 49 | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -129,6 +130,10 @@ Progress: [█████████░] 88%
 - [Phase ?]: [59-02]: dispatch 手范式=express 真路由+fetch 真 HTTP+异步 spawn(spawnSync 冻结父事件循环使常驻 fake 引擎 fetch 死锁,54-05 教训)+子进程 --tsconfig 显式指 repo(临时 cwd 下 @/ 不解析)+process.exit 强退(49-01)
 - [Phase ?]: [59-03]: regenSource 形态=canvasApi executeNode extra 两值字面量联合('panel-regen'|'reroll-seed'),52-02 通道零逻辑改动;orchestrate/ContextMenu 无通道=SC3 架构性保证(grep 0)
 - [Phase ?]: [59-03]: node:updated 订阅独立注册(FLAG-3/52-01 红线:绝不进 normalizeSocketNodeState/执行态映射);FlowCanvas 轻校验 since number+triggerAssetId string,非 stale 载荷静默忽略零 store 写入(UI-SPEC §5);无 scope 守卫依据=room 即 project:{id} 传输层隔离
+- [Phase ?]: [59-04]: mock 回放契约=execute regenSource 条件分支内 BFS 回放 node:updated(59-02 wire 镜像);无 regenSource 零回放=SC3 mock 侧前提
+- [Phase ?]: [59-04]: SC4 时序确定性=mock suppressGraphSaved 旋钮(默认 false)剔除 rerun 自保存的 graph:saved 自回声 reload——写-写竞态窗口(Pitfall 4 已知边界,planner 裁定不治;实测 reload 落地 ~1s 抖动,stale 复活后由 running/success 再清)
+- [Phase ?]: [59-04]: 真机发现=含 'phase' 型 legacy 节点的图(如 1/2)markStaleAndBroadcast 在 migrateV2toV3 阶段结构性 throw(execute.ts 仅 console.error,任务仍 success 零 stale 写)——该图 V3 客户端同样不可加载,非本 phase 回归;探针以 MIGRATE_SUPPORTED 全图校验选 scope
+- [Phase ?]: [59-04]: probe A1 证据判定=filePath 与原图快照比对,只有本次新增才算引擎产物落库(存量 pipeline-runs 绝对路径不得误报)
 
 ### Pending Todos
 
@@ -182,6 +187,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-23T17:25:17.665Z
+Last session: 2026-08-23T18:16:50.464Z
 Stopped at: Completed 59-03-PLAN.md
 Resume: `/gsd-discuss-phase 59`（Phase 59 无 CONTEXT.md；讨论时核对 2026-08-23 四路 review 遗留的 canvas→引擎反向链 4 断点与 execute.ts 透传面的重叠）
