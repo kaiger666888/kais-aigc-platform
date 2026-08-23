@@ -702,11 +702,12 @@ function PromptSection({ asset }: { asset: AssetNodeV3 }) {
     setSaving(true)
     try {
       // 共享保存 patch 只含 dirty 字段；清空 number / 未设置 select → undefined（store
-      // updateEventParams 删键语义）；lora 归一化后空数组 → undefined 非 []（Pitfall 2）
+      // updateEventParams 删键语义）；lora 归一化后空数组 → undefined 非 []（Pitfall 2）；
+      // number 草稿经 applyNumDraft 守卫（WR-02，见其注释）
       const patch: Partial<GenerationParams> = {}
       if (draft !== canonicalPrompt) patch.prompt = draft
-      if (adv.stepsDirty) patch.steps = adv.drafts.steps.trim() === '' ? undefined : Number(adv.drafts.steps)
-      if (adv.cfgDirty) patch.cfg = adv.drafts.cfg.trim() === '' ? undefined : Number(adv.drafts.cfg)
+      if (adv.stepsDirty) applyNumDraft(patch, 'steps', adv.drafts.steps)
+      if (adv.cfgDirty) applyNumDraft(patch, 'cfg', adv.drafts.cfg)
       if (adv.quantDirty) patch.quant = adv.drafts.quant === '' ? undefined : adv.drafts.quant
       if (adv.sageDirty) patch.sageAttention = adv.drafts.sage === '' ? undefined : adv.drafts.sage === 'true'
       if (adv.loraDirty) patch.lora = normalizeLoraDraft(adv.drafts.lora)
@@ -802,13 +803,36 @@ interface AdvancedDrafts {
 const QUANT_OPTIONS: readonly string[] = ['fp8', 'fp16', 'int8', 'bf16']
 
 /**
+ * number 草稿守卫（WR-02）：空串 → patch[key] = undefined（显式清空，走 store 删键
+ * 语义）；非有限数（手键 '1e999' → Infinity / 非法文本 → NaN）→ **不写 patch 键**
+ * （canonical 原值不动，非法输入留待用户改正）。Infinity 经 JSON.stringify 会
+ * null 化，服务端 zod z.number() 不收 null → 整图 save-v2 400，爆炸半径是整图保存。
+ * input[type=number] 的 min/max/step HTML 属性不拦截手工键入的越界/溢出文本，必须
+ * JS 侧守卫。
+ */
+function applyNumDraft(patch: Partial<GenerationParams>, key: 'steps' | 'cfg', draft: string): void {
+  const t = draft.trim()
+  if (t === '') {
+    patch[key] = undefined
+    return
+  }
+  const n = Number(t)
+  if (Number.isFinite(n)) patch[key] = n
+}
+
+/**
  * lora 保存前归一化（Pitfall 2）：trim 后空名行丢弃；结果空数组 → **undefined 非 []**。
  * updateEventParams 只对 undefined/null/'' 删键——[] 是合法值会被写入 params.lora=[]，
- * 与「空 lora = 字段删除」的 UI-SPEC §5 语义冲突。
+ * 与「空 lora = 字段删除」的 UI-SPEC §5 语义冲突。strength 非有限数（'1e999'→Infinity，
+ * WR-02）回退默认 1，同空串语义，防 JSON null 化 400。
  */
 function normalizeLoraDraft(rows: LoraDraftRow[]): Array<{ name: string; strength: number }> | undefined {
   const kept = rows
-    .map((r) => ({ name: r.name.trim(), strength: r.strength.trim() === '' ? 1 : Number(r.strength) }))
+    .map((r) => {
+      const t = r.strength.trim()
+      const n = t === '' ? 1 : Number(t)
+      return { name: r.name.trim(), strength: Number.isFinite(n) ? n : 1 }
+    })
     .filter((r) => r.name !== '')
   return kept.length > 0 ? kept : undefined
 }
