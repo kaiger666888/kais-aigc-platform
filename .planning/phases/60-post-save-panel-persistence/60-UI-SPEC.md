@@ -1,7 +1,8 @@
 ---
 phase: 60
 slug: post-save-panel-persistence
-status: draft
+status: approved
+reviewed_at: 2026-08-24
 shadcn_initialized: false
 preset: none
 created: 2026-08-24
