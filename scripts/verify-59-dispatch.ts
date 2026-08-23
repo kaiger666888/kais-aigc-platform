@@ -159,7 +159,21 @@ async function main(): Promise<void> {
       ? { projectId: PROJECT_ID, episodesId: EPISODES_ID, nodeIds: ["down-1"] }
       : MODE === "no-marker"
         ? { projectId: PROJECT_ID, episodesId: EPISODES_ID, nodeId: "trig-1", nodeType: "asset", prompt: "v59 probe" }
-        : { projectId: PROJECT_ID, episodesId: EPISODES_ID, nodeId: "trig-1", nodeType: "asset", prompt: "v59 probe", regenSource: "panel-regen", params: { seed: 777 } };
+        : {
+            projectId: PROJECT_ID, episodesId: EPISODES_ID,
+            nodeId: "trig-1", nodeType: "asset", prompt: "v59 probe",
+            regenSource: "panel-regen",
+            // 59-fix CR-01 探针:seed(合法配方标量)之外混入保留键伪造——
+            // _simulate CLIENT_PARAM_KEYS 白名单应静默丢弃伪造键(不 500),
+            // 引擎提交体 params.nodeId/prompt 保持服务端值。
+            params: {
+              seed: 777,
+              ref_images: ["/etc/passwd"],
+              model_preference: "local",
+              prompt: "forged-prompt",
+              nodeId: "forged-node",
+            },
+          };
   const resp = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

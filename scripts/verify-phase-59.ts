@@ -284,6 +284,46 @@ async function main(): Promise<void> {
         !("model_preference" in vp),
         "S2: video_final 提交体 params 无 model_preference 键(路由政策仅 image_* 适用)",
       );
+
+      // ─ 59-fix CR-01: metadata 保留键剔除(伪造 ref_images/model_preference/
+      //    身份键/prompt 不可覆盖服务端显式设置;非保留键不误伤) ─
+      await submitEngineTask({
+        taskType: "video_final",
+        prompt: "server-prompt",
+        projectId: 7,
+        episodesId: 8,
+        nodeId: "scrub-probe",
+        metadata: {
+          ref_images: ["/etc/passwd"],
+          model_preference: "local",
+          prompt: "forged-prompt",
+          nodeId: "forged-node",
+          projectId: 999,
+          episodesId: 999,
+          nodeType: "forged-type",
+          originalNodeId: "forged-orig",
+          seed: 42,
+        },
+      });
+      const scrubBody = capturedBodies.find((b) => b?.params?.nodeId === "scrub-probe");
+      assert(Boolean(scrubBody), "S2 CR-01: 捕获到 scrub 探针 POST 体");
+      if (scrubBody) {
+        const sp = scrubBody.params as Record<string, unknown>;
+        assert(
+          sp.prompt === "server-prompt" && sp.projectId === 7 && sp.episodesId === 8 &&
+            sp.nodeType !== "forged-type" && sp.originalNodeId !== "forged-orig",
+          "S2 CR-01: 服务端身份/prompt 键不被 metadata 覆盖(RESERVED_PARAM_KEYS 剔除)",
+          JSON.stringify(sp).slice(0, 160),
+        );
+        assert(
+          !("ref_images" in sp) && !("model_preference" in sp),
+          "S2 CR-01: 伪造 ref_images/model_preference 被剔除(video 非政策任务,服务端不设也不被注入)",
+        );
+        assert(
+          sp.seed === 42,
+          "S2 CR-01: 非保留键(seed)照常平铺透传(剔除不误伤)",
+        );
+      }
     } finally {
       if (prevGoldUrl === undefined) delete process.env.GOLD_TEAM_URL;
       else process.env.GOLD_TEAM_URL = prevGoldUrl;
@@ -435,6 +475,28 @@ async function main(): Promise<void> {
           dispatchBodies.some((b) => b?.params?.seed === 777),
           "S3-cascade: fake 引擎捕获体 params.seed === 777(REGEN-02 行为级)",
         );
+        // 59-fix CR-01 行为级:dispatch body 混入伪造保留键(ref_images=/etc 路径/
+        // model_preference=local/身份键/prompt)——_simulate CLIENT_PARAM_KEYS 白名单
+        // + _engine RESERVED_PARAM_KEYS 两道防线后,引擎提交体只应有服务端真值。
+        const cascadeBody = dispatchBodies.find((b) => b?.params?.seed === 777);
+        assert(Boolean(cascadeBody), "S3-cascade CR-01: 捕获 cascade 引擎提交体");
+        if (cascadeBody) {
+          const cp = cascadeBody.params as Record<string, unknown>;
+          assert(
+            cp.nodeId === "trig-1" && cp.prompt === "v59 probe",
+            "S3-cascade CR-01: 客户端 params 伪造身份/prompt 键被拦截(execute→engine 全链,服务端值保持)",
+            JSON.stringify(cp).slice(0, 160),
+          );
+          assert(
+            cp.model_preference === "cloud",
+            "S3-cascade CR-01: image 任务 model_preference 仍为服务端强制 cloud(伪造 'local' 不落地)",
+            `got=${String(cp.model_preference)}`,
+          );
+          assert(
+            !Array.isArray(cp.ref_images) || !(cp.ref_images as string[]).includes("/etc/passwd"),
+            "S3-cascade CR-01: 伪造 ref_images(/etc/passwd)不可经 params 注入引擎(白名单外键静默丢弃)",
+          );
+        }
       }
 
       // ── S3-engine-fail(failed):D-02 失败零标记负向 ──
@@ -534,7 +596,18 @@ async function main(): Promise<void> {
       const executeSrc = read("src/routes/canvas/execute.ts");
       const orchestrateSrc = read("src/routes/canvas/orchestrate.ts");
       const staleSrc = read("src/routes/canvas/_stale.ts");
+      const simulateSrc = read("src/routes/canvas/_simulate.ts");
+      const engineSrc = read("src/routes/canvas/_engine.ts");
       assert(executeSrc.includes("regenSource: z.enum"), "静态: execute.ts 含 regenSource: z.enum(zod 白名单)");
+      // 59-fix CR-01: params 双防线静态锁(行为级在 S2 scrub 探针 + S3-cascade)
+      assert(
+        simulateSrc.includes("CLIENT_PARAM_KEYS") && simulateSrc.includes("filterClientParams"),
+        "静态 CR-01: _simulate.ts 含客户端 params 白名单(CLIENT_PARAM_KEYS)",
+      );
+      assert(
+        engineSrc.includes("RESERVED_PARAM_KEYS") && engineSrc.includes("scrubReservedParams"),
+        "静态 CR-01: _engine.ts 含引擎 params 保留键剔除(纵深防御)",
+      );
       assert(orchestrateSrc.includes("loadFullGraph"), "静态: orchestrate.ts 含 loadFullGraph(关系表优先读)");
       // 59-fix WR-01 翻转:legacy blob 兜底是审查裁定的修复行为(关系表 null →
       // 回退旧查询,59-02 前 legacy-blob-only 项目行为保持)——锁从「无 blob 读」
@@ -566,6 +639,20 @@ async function main(): Promise<void> {
       flowCanvasSrc.includes("onNodeUpdated") && flowCanvasSrc.includes("triggerStaleCascade"),
       "S5: FlowCanvas 含 onNodeUpdated 与 triggerStaleCascade(实时级联链,FLAG-1 Option A)",
     );
+    // 59-fix CR-02: onNodeUpdated scope 守卫静态锁(行为级在 phase59 e2e
+    // cross-episode 用例)——与 onGateState/onVariantSelected 同款两行守卫。
+    {
+      const nuIdx = flowCanvasSrc.indexOf("onNodeUpdated: (payload)");
+      assert(nuIdx >= 0, "S5: onNodeUpdated 回调块可定位");
+      if (nuIdx >= 0) {
+        const nuBlock = flowCanvasSrc.slice(nuIdx, nuIdx + 1200);
+        assert(
+          nuBlock.includes("payload.projectId !== projectId") &&
+            nuBlock.includes("payload.episodesId !== episodesId"),
+          "S5 CR-02: onNodeUpdated 含 scope 守卫(他 episode 广播静默拒绝,onGateState 同法)",
+        );
+      }
+    }
     assert(
       canvasApiSrc.includes("regenSource"),
       "S5: canvasApi executeNode extra 含 regenSource 类型(两值字面量联合)",
