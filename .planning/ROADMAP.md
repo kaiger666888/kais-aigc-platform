@@ -151,7 +151,25 @@ Plans:
   2. 重载恢复后的面板锚定与保存前语义等价——同一资产/同一事件锚,不漂移到其他节点、不丢失锚上下文。
   3. mock 后端与真机后端两个环境下保存后面板行为一致(对齐 Phase 52 时代 mock 行为),e2e 双环境断言通过。
 
-**Plans**: TBD (via /gsd:plan-phase)
+**Plans**: 5 plans
+Plans:
+**Wave 1**
+
+- [ ] 60-01-PLAN.md — 诊断先行: 真机 :10588 roundtrip id-diff 探针 + store 重锚/loading 探针 → 60-DIAGNOSIS 钉死收起根因与 A/B 修复分支(RESEARCH Pitfall 2 强制次序)
+- [ ] 60-02-PLAN.md — savedBy tabId 自回声跳过(D-01/D-04/D-05): server zod+broadcast 回显 + clientTabId + saveCanvasGraph 单点附身 + FlowCanvas skip 分支(FLAG-1 基线重置保留) + mock 镜像 + suppressGraphSaved 退役(FLAG-4)
+
+**Wave 2** *(blocked on 60-01)*
+
+- [ ] 60-03-PLAN.md — reload 重锚语义: D-03 锚丢失诚实收起 warn + D-07 对称锁 + 诊断分支修复(A 仅锁不修 / B 定层修 id 漂移,roundtrip 零漂移门收口)
+
+**Wave 3** *(blocked on 60-02 + 60-03)*
+
+- [ ] 60-04-PLAN.md — phase60-panel-persist.mjs 四用例 e2e(self-save silent / other-client symmetry / anchor-miss / no-revival) + D-12 全量回归(52 三件套+59 全部)
+
+**Wave 4** *(blocked on 60-04)*
+
+- [ ] 60-05-PLAN.md — verify:phase-60 聚合门(静态锁 FLAG-1/2/4 + 行为 + dispatch + forced-failure) + probe-60-real 零足迹真机探针(协议段回显契约 + 真浏览器段面板保持)
+
 **UI hint**: yes
 
 ### Phase 61: 审计清债 TD-3/4/5 (Audit Debt Clearance)
