@@ -11,7 +11,8 @@
  */
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import type { Node } from '@xyflow/react'
-import type { AssetNodeV3, EventNodeV3, AIScore, StaleInfo, NodeState } from '@kais/flowgraph-v3'
+import type { AssetNodeV3, EventNodeV3, AIScore, StaleInfo, NodeState, GenerationParams } from '@kais/flowgraph-v3'
+import { RECIPE_EDITABLE_FIELDS, RECIPE_KNOWN_KEYS } from '@kais/flowgraph-v3'
 import { theme, v3theme, getScoreColor } from '../../theme/catppuccin'
 import { RAW_FIELD_LABELS, RAW_FIELD_NOISE, RAW_FIELD_GROUPS } from '../../constants'
 import { useCanvasStore } from '../../store/canvasStore'
@@ -613,6 +614,12 @@ function DimBar({ label, value }: { label: string; value: number }) {
  * 主事件、配方并入 variantRecipes）与无产生事件的资产（fixture 手造图）→ 整块只读，
  * 保存/重生成 disabled（地雷 #5）；import 种子事件可编辑（prompt 初始空，语义=补配方后
  * 重抽，放行）；多产生事件取第一条 + console.warn，不阻塞。
+ *
+ * 58-02（UI-SPEC 58）：prompt textarea 之下扩「高级参数」折叠区编辑器——五高级字段
+ * （steps/cfg/quant/sageAttention/lora）控件由 RECIPE_EDITABLE_FIELDS 单点常量驱动；
+ * seed/modelVersion/catchall 只读（seed 编辑权在 popover reroll 通道，CONTEXT 锁定）。
+ * 共享「保存」按钮治理整个编辑器：patch 只含 dirty 字段，清空 → undefined 触发 store
+ * 删键，空 lora 归一化为 undefined 非 []（Pitfall 2）。
  */
 function PromptSection({ asset }: { asset: AssetNodeV3 }) {
   const graph = useCanvasStore((s) => s.graph)
@@ -634,8 +641,13 @@ function PromptSection({ asset }: { asset: AssetNodeV3 }) {
   const [draft, setDraft] = useState(canonicalPrompt)
   const [saving, setSaving] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  // 58-02（UI-SPEC §1）：「高级参数」折叠区——默认收起，组件本地态（切节点重置，可接受）。
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+  // 高级字段草稿（steps/cfg/quant/sageAttention/lora），canonical 变化时重置（见 hook 注释）
+  const adv = useAdvancedDrafts(evt)
   // 切换节点/产生事件、或 canonical prompt 变化（保存成功 / 失败回滚）时重置草稿
   useEffect(() => { setDraft(canonicalPrompt) }, [evt?.id, canonicalPrompt])
+  useEffect(() => { setAdvancedOpen(false) }, [evt?.id])
 
   if (!graph) return null
 
@@ -645,6 +657,8 @@ function PromptSection({ asset }: { asset: AssetNodeV3 }) {
   // 编辑会改到 winner 配方（地雷 #5），故无论反查是否命中都整块只读。
   // 无产生事件（fixture 手造图）：同样只读。
   const isLoserVariant = asset.curation === 'deprecated'
+  // 任一高级字段 dirty（lora 深比较，UI-SPEC §5）
+  const advancedDirty = adv.stepsDirty || adv.cfgDirty || adv.quantDirty || adv.sageDirty || adv.loraDirty
   if (!evt || isLoserVariant) {
     const hint = asset.variantGroupId
       ? '落选变体配方已并入主事件 variantRecipes，不可单独编辑'
@@ -663,6 +677,16 @@ function PromptSection({ asset }: { asset: AssetNodeV3 }) {
           rows={3}
           style={{ width: '100%', boxSizing: 'border-box', resize: 'none', background: theme.bg.input, border: `1px solid ${theme.border.default}`, borderRadius: 8, padding: 10, color: theme.text.disabled, fontSize: 12, lineHeight: 1.6, fontFamily: 'inherit' }}
         />
+        {/* 58-02：三态只读整块覆盖高级控件（disabled，值仍可展开查看，UI-SPEC §4） */}
+        <AdvancedParamsSection
+          evt={evt}
+          open={advancedOpen}
+          onToggle={() => setAdvancedOpen((o) => !o)}
+          readOnly
+          drafts={adv.drafts}
+          onDrafts={adv.setDrafts}
+          advancedDirty={advancedDirty}
+        />
         <div style={{ display: 'flex', gap: 8, marginTop: 8, marginBottom: 4 }}>
           <button data-testid="prompt-save" disabled title={hint} style={{ padding: '4px 14px', borderRadius: 6, border: 'none', fontSize: 12, fontWeight: 600, cursor: 'default', background: theme.bg.surface, color: theme.text.disabled }}>保存</button>
           <button data-testid="prompt-regenerate" disabled title={hint} style={{ padding: '4px 14px', borderRadius: 6, border: 'none', fontSize: 12, fontWeight: 600, cursor: 'default', background: theme.bg.surface, color: theme.text.disabled }}>重生成</button>
@@ -671,12 +695,22 @@ function PromptSection({ asset }: { asset: AssetNodeV3 }) {
     )
   }
 
-  const dirty = draft !== canonicalPrompt
+  // dirty = prompt 或任一高级字段（UI-SPEC §5）——重生成 dirty 时 disabled（防半编辑误触发）
+  const dirty = draft !== canonicalPrompt || advancedDirty
 
   const handleSave = async () => {
     setSaving(true)
     try {
-      await persistEventParams(evt.id, { prompt: draft })
+      // 共享保存 patch 只含 dirty 字段；清空 number / 未设置 select → undefined（store
+      // updateEventParams 删键语义）；lora 归一化后空数组 → undefined 非 []（Pitfall 2）
+      const patch: Partial<GenerationParams> = {}
+      if (draft !== canonicalPrompt) patch.prompt = draft
+      if (adv.stepsDirty) patch.steps = adv.drafts.steps.trim() === '' ? undefined : Number(adv.drafts.steps)
+      if (adv.cfgDirty) patch.cfg = adv.drafts.cfg.trim() === '' ? undefined : Number(adv.drafts.cfg)
+      if (adv.quantDirty) patch.quant = adv.drafts.quant === '' ? undefined : adv.drafts.quant
+      if (adv.sageDirty) patch.sageAttention = adv.drafts.sage === '' ? undefined : adv.drafts.sage === 'true'
+      if (adv.loraDirty) patch.lora = normalizeLoraDraft(adv.drafts.lora)
+      await persistEventParams(evt.id, patch)
     } finally {
       setSaving(false)
     }
@@ -715,6 +749,15 @@ function PromptSection({ asset }: { asset: AssetNodeV3 }) {
         placeholder={evt.op === 'import' ? '（导入资产暂无 prompt，可在此补配方后重抽）' : ''}
         style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', background: theme.bg.input, border: `1px solid ${theme.border.default}`, borderRadius: 8, padding: 10, color: theme.text.primary, fontSize: 12, lineHeight: 1.6, fontFamily: 'inherit' }}
       />
+      <AdvancedParamsSection
+        evt={evt}
+        open={advancedOpen}
+        onToggle={() => setAdvancedOpen((o) => !o)}
+        readOnly={false}
+        drafts={adv.drafts}
+        onDrafts={adv.setDrafts}
+        advancedDirty={advancedDirty}
+      />
       <div style={{ display: 'flex', gap: 8, marginTop: 8, marginBottom: 4 }}>
         <button
           data-testid="prompt-save"
@@ -735,6 +778,329 @@ function PromptSection({ asset }: { asset: AssetNodeV3 }) {
         </button>
       </div>
     </div>
+  )
+}
+
+// ─── Phase 58-02：高级参数折叠区编辑器（UI-SPEC 58 §1-§7） ─────
+
+/** lora 草稿行：strength 以 string 承载 number input 受控值（空串=未填，保存时归一）。 */
+interface LoraDraftRow {
+  name: string
+  strength: string
+}
+
+/** 高级字段草稿（steps/cfg/quant/sage 空串 = 未设置）。 */
+interface AdvancedDrafts {
+  steps: string
+  cfg: string
+  quant: string
+  sage: string
+  lora: LoraDraftRow[]
+}
+
+/** quant select 选项列表（canonical 值不在列表时由渲染侧注入为额外选中项，禁静默 coerce）。 */
+const QUANT_OPTIONS: readonly string[] = ['fp8', 'fp16', 'int8', 'bf16']
+
+/**
+ * lora 保存前归一化（Pitfall 2）：trim 后空名行丢弃；结果空数组 → **undefined 非 []**。
+ * updateEventParams 只对 undefined/null/'' 删键——[] 是合法值会被写入 params.lora=[]，
+ * 与「空 lora = 字段删除」的 UI-SPEC §5 语义冲突。
+ */
+function normalizeLoraDraft(rows: LoraDraftRow[]): Array<{ name: string; strength: number }> | undefined {
+  const kept = rows
+    .map((r) => ({ name: r.name.trim(), strength: r.strength.trim() === '' ? 1 : Number(r.strength) }))
+    .filter((r) => r.name !== '')
+  return kept.length > 0 ? kept : undefined
+}
+
+/** lora 行深比较（UI-SPEC §5：lora dirty = 深比较，非引用比较）。 */
+function loraRowsEqual(
+  a: Array<{ name: string; strength: number }> | undefined,
+  b: Array<{ name: string; strength: number }> | undefined,
+): boolean {
+  if (a == null && b == null) return true
+  if (a == null || b == null) return false
+  return a.length === b.length && a.every((r, i) => r.name === b[i].name && r.strength === b[i].strength)
+}
+
+/**
+ * 高级字段草稿态（52-03 draft 重置范式扩展，Pattern 3 / Pitfall 9）：canonical 变化
+ * （保存成功 graph:saved 回读 / 失败回滚）→ 重置草稿，防「保存后仍 dirty → 重生成永久
+ * 禁用」。lora 以内容序列化 key 触发重置（引用变化但内容未变时不打断进行中的编辑，
+ * 与 prompt 字符串值 dep 的 52-03 语义对齐）。
+ */
+function useAdvancedDrafts(evt: EventNodeV3 | null) {
+  const canonicalSteps = evt?.params.steps
+  const canonicalCfg = evt?.params.cfg
+  const canonicalQuant = evt?.params.quant
+  const canonicalSage = evt?.params.sageAttention
+  const canonicalLora = evt?.params.lora
+  const canonicalLoraKey = JSON.stringify((canonicalLora ?? []).map((r) => [r.name, r.strength]))
+
+  const [drafts, setDrafts] = useState<AdvancedDrafts>({ steps: '', cfg: '', quant: '', sage: '', lora: [] })
+  useEffect(() => {
+    setDrafts({
+      steps: canonicalSteps != null ? String(canonicalSteps) : '',
+      cfg: canonicalCfg != null ? String(canonicalCfg) : '',
+      quant: canonicalQuant ?? '',
+      sage: canonicalSage == null ? '' : canonicalSage ? 'true' : 'false',
+      lora: (canonicalLora ?? []).map((r) => ({ name: r.name, strength: String(r.strength) })),
+    })
+    // canonicalLora 经 canonicalLoraKey 内容键触发（见函数头注释）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [evt?.id, canonicalSteps, canonicalCfg, canonicalQuant, canonicalSage, canonicalLoraKey])
+
+  const stepsDirty = drafts.steps !== (canonicalSteps != null ? String(canonicalSteps) : '')
+  const cfgDirty = drafts.cfg !== (canonicalCfg != null ? String(canonicalCfg) : '')
+  const quantDirty = drafts.quant !== (canonicalQuant ?? '')
+  const sageDirty = drafts.sage !== (canonicalSage == null ? '' : canonicalSage ? 'true' : 'false')
+  const canonicalLoraNorm = canonicalLora != null && canonicalLora.length > 0 ? canonicalLora : undefined
+  const loraDirty = !loraRowsEqual(normalizeLoraDraft(drafts.lora), canonicalLoraNorm)
+
+  return { drafts, setDrafts, stepsDirty, cfgDirty, quantDirty, sageDirty, loraDirty }
+}
+
+/**
+ * 「高级参数」折叠区（PromptSection 内、prompt textarea 之下）。
+ * 可编辑控件由 RECIPE_EDITABLE_FIELDS 单点常量驱动（58-01 契约，禁本地重列字段——
+ * T-58-03：catchall 不在白名单 → 永不可编辑）；seed/modelVersion/catchall 只读展示。
+ */
+function AdvancedParamsSection({ evt, open, onToggle, readOnly, drafts, onDrafts, advancedDirty }: {
+  evt: EventNodeV3 | null
+  open: boolean
+  onToggle: () => void
+  readOnly: boolean
+  drafts: AdvancedDrafts
+  onDrafts: React.Dispatch<React.SetStateAction<AdvancedDrafts>>
+  advancedDirty: boolean
+}): React.ReactElement {
+  const p = evt?.params
+  const catchallEntries = Object.entries(p ?? {}).filter(([k]) => !RECIPE_KNOWN_KEYS.includes(k))
+  const hasAnyAdvancedValue =
+    p?.steps != null || p?.cfg != null || p?.quant != null || p?.sageAttention != null ||
+    (p?.lora != null && p.lora.length > 0) || catchallEntries.length > 0
+
+  // 控件统一样式（UI-SPEC §2）：28px 高 / bg.input / border.default / radius 6 / 12px mono
+  const controlStyle = (extra?: React.CSSProperties): React.CSSProperties => ({
+    height: 28, boxSizing: 'border-box', width: '100%',
+    background: theme.bg.input, border: `1px solid ${theme.border.default}`, borderRadius: 6,
+    padding: '4px 8px', fontSize: 12,
+    color: readOnly ? theme.text.disabled : theme.text.primary,
+    fontFamily: 'var(--cv-font-mono, monospace)',
+    ...extra,
+  })
+  const setField = (patch: Partial<AdvancedDrafts>) => onDrafts((d) => ({ ...d, ...patch }))
+  const addLora = () => onDrafts((d) => ({ ...d, lora: [...d.lora, { name: '', strength: '1' }] }))
+
+  /** 字段 → 控件映射（UI-SPEC §2 锁定）；枚举来源 = RECIPE_EDITABLE_FIELDS 循环本身。 */
+  const renderField = (field: (typeof RECIPE_EDITABLE_FIELDS)[number]): React.ReactNode => {
+    switch (field) {
+      case 'steps':
+        return (
+          <AdvancedFieldRow key={field} label="steps">
+            <input
+              type="number"
+              data-testid="param-input-steps"
+              className="cv-adv-control"
+              min={1} max={100} step={1}
+              placeholder="未设置"
+              disabled={readOnly}
+              value={drafts.steps}
+              onChange={(e) => setField({ steps: e.target.value })}
+              style={controlStyle()}
+            />
+          </AdvancedFieldRow>
+        )
+      case 'cfg':
+        return (
+          <AdvancedFieldRow key={field} label="cfg">
+            <input
+              type="number"
+              data-testid="param-input-cfg"
+              className="cv-adv-control"
+              min={0} max={20} step={0.5}
+              placeholder="未设置"
+              disabled={readOnly}
+              value={drafts.cfg}
+              onChange={(e) => setField({ cfg: e.target.value })}
+              style={controlStyle()}
+            />
+          </AdvancedFieldRow>
+        )
+      case 'quant':
+        return (
+          <AdvancedFieldRow key={field} label="quant">
+            <select
+              data-testid="param-select-quant"
+              className="cv-adv-control"
+              disabled={readOnly}
+              value={drafts.quant}
+              onChange={(e) => setField({ quant: e.target.value })}
+              style={controlStyle()}
+            >
+              <option value="">未设置</option>
+              {QUANT_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+              {/* canonical 值不在选项列表时注入为额外选中项（禁静默 coerce，RECIPE-03 保真） */}
+              {drafts.quant !== '' && !QUANT_OPTIONS.includes(drafts.quant) && (
+                <option value={drafts.quant}>{drafts.quant}</option>
+              )}
+            </select>
+          </AdvancedFieldRow>
+        )
+      case 'sageAttention':
+        return (
+          <AdvancedFieldRow key={field} label="sageAttention">
+            <select
+              data-testid="param-select-sage"
+              className="cv-adv-control"
+              disabled={readOnly}
+              value={drafts.sage}
+              onChange={(e) => setField({ sage: e.target.value })}
+              style={controlStyle()}
+            >
+              <option value="">未设置</option>
+              <option value="true">是</option>
+              <option value="false">否</option>
+            </select>
+          </AdvancedFieldRow>
+        )
+      case 'lora':
+        return (
+          <AdvancedFieldRow key={field} label="lora">
+            {drafts.lora.length === 0 ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, height: 28 }}>
+                <span style={{ color: theme.text.disabled, fontSize: 12 }}>暂无 LoRA</span>
+                <AddLoraButton readOnly={readOnly} onAdd={addLora} />
+              </div>
+            ) : (
+              <>
+                {drafts.lora.map((row, i) => (
+                  <div key={i} data-testid={`lora-row-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <input
+                      data-testid={`lora-name-${i}`}
+                      className="cv-adv-control"
+                      value={row.name}
+                      placeholder="LoRA 名称"
+                      disabled={readOnly}
+                      onChange={(e) => onDrafts((d) => ({ ...d, lora: d.lora.map((r, j) => (j === i ? { ...r, name: e.target.value } : r)) }))}
+                      style={controlStyle({ flex: 1, width: 'auto' })}
+                    />
+                    <input
+                      data-testid={`lora-strength-${i}`}
+                      type="number"
+                      className="cv-adv-control"
+                      min={-1} max={2} step={0.05}
+                      placeholder="1"
+                      disabled={readOnly}
+                      value={row.strength}
+                      onChange={(e) => onDrafts((d) => ({ ...d, lora: d.lora.map((r, j) => (j === i ? { ...r, strength: e.target.value } : r)) }))}
+                      style={controlStyle({ width: 72, flexShrink: 0 })}
+                    />
+                    <button
+                      type="button"
+                      data-testid={`lora-remove-${i}`}
+                      aria-label="移除此 LoRA"
+                      className="cv-adv-ghost"
+                      disabled={readOnly}
+                      onClick={() => onDrafts((d) => ({ ...d, lora: d.lora.filter((_, j) => j !== i) }))}
+                      style={{ width: 24, height: 24, padding: 2, fontSize: 20, lineHeight: 1, background: 'none', border: 'none', color: theme.text.secondary, cursor: readOnly ? 'default' : 'pointer', flexShrink: 0 }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                <AddLoraButton readOnly={readOnly} onAdd={addLora} />
+              </>
+            )}
+          </AdvancedFieldRow>
+        )
+    }
+  }
+
+  return (
+    <div>
+      <style>{`
+        .cv-adv-control:focus { outline: none; border-color: ${theme.border.strong} !important; }
+        .cv-adv-ghost:hover:not(:disabled) { color: ${theme.text.primary}; }
+      `}</style>
+      <button
+        type="button"
+        data-testid="advanced-toggle"
+        aria-expanded={open}
+        data-state={open ? 'expanded' : 'collapsed'}
+        data-dirty={advancedDirty ? 'true' : 'false'}
+        onClick={onToggle}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', padding: 0, marginTop: 12, cursor: 'pointer', color: theme.text.secondary, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}
+      >
+        <span>高级参数 {open ? '▾' : '▸'}</span>
+        {/* dirty 圆点（10px，#E0B665 = theme.node.script，UI-SPEC accent 保留清单②） */}
+        {advancedDirty && (
+          <span aria-label="高级参数有未保存修改" style={{ width: 10, height: 10, borderRadius: 999, background: theme.node.script, marginLeft: 'auto', flexShrink: 0 }} />
+        )}
+      </button>
+      {open && (
+        <div data-testid="advanced-section" data-state="expanded" style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+          {RECIPE_EDITABLE_FIELDS.map(renderField)}
+          {/* 只读行：seed 编辑权在 popover reroll 通道（CONTEXT 锁定） */}
+          <div data-testid="advanced-readonly-seed">
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12 }}>
+              <span style={{ color: theme.text.secondary, flexShrink: 0 }}>seed</span>
+              <span style={{ color: theme.text.primary, fontFamily: 'var(--cv-font-mono, monospace)', textAlign: 'right' }}>{p?.seed != null ? String(p.seed) : '—'}</span>
+            </div>
+            <div style={{ fontSize: 10, color: theme.text.disabled, textAlign: 'right', marginTop: 2 }}>在事件芯片 popover 换 seed 重跑</div>
+          </div>
+          <div data-testid="advanced-readonly-modelVersion" style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12 }}>
+            <span style={{ color: theme.text.secondary, flexShrink: 0 }}>modelVersion</span>
+            <span style={{ color: theme.text.primary, fontFamily: 'var(--cv-font-mono, monospace)', textAlign: 'right', wordBreak: 'break-all' }}>{p?.modelVersion ?? '—'}</span>
+          </div>
+          {/* catchall：KNOWN_KEYS 之外的管线私有字段，只读 JSON.stringify（防误伤，T-58-03） */}
+          {catchallEntries.length > 0 && (
+            <div data-testid="advanced-catchall">
+              <div style={{ fontSize: 11, color: theme.text.secondary, fontWeight: 600, marginBottom: 4 }}>其他（只读）</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {catchallEntries.map(([k, v]) => (
+                  <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12 }}>
+                    <span style={{ color: theme.text.secondary, flexShrink: 0 }}>{k}</span>
+                    <span style={{ color: theme.text.primary, fontFamily: 'var(--cv-font-mono, monospace)', textAlign: 'right', wordBreak: 'break-all' }}>
+                      {typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean' ? String(v) : JSON.stringify(v)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {!hasAnyAdvancedValue && (
+            <div data-testid="advanced-empty" style={{ color: theme.text.disabled, fontSize: 12 }}>暂无高级参数</div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** 高级字段行骨架：88px 标签列 + flex 控件列（UI-SPEC §Component Contract 1）。 */
+function AdvancedFieldRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+      <span style={{ width: 88, flexShrink: 0, color: theme.text.secondary, fontSize: 11, lineHeight: '28px' }}>{label}</span>
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>{children}</div>
+    </div>
+  )
+}
+
+/** 「+ 添加 LoRA」：ghost 按钮，追加 { name: '', strength: 1 } 草稿行。 */
+function AddLoraButton({ readOnly, onAdd }: { readOnly: boolean; onAdd: () => void }) {
+  return (
+    <button
+      type="button"
+      data-testid="lora-add"
+      className="cv-adv-ghost"
+      disabled={readOnly}
+      onClick={onAdd}
+      style={{ background: 'none', border: 'none', padding: '4px 8px', fontSize: 12, color: theme.text.secondary, cursor: readOnly ? 'default' : 'pointer', borderRadius: 6, flexShrink: 0 }}
+    >
+      + 添加 LoRA
+    </button>
   )
 }
 
