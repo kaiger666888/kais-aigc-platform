@@ -208,6 +208,10 @@ test.describe('Phase 59-04 — STALE 窄触发级联 (SC1-SC4, mock 回放 59-02
       return exec?.body?.regenSource
     }, { timeout: 5_000 }).toBe('reroll-seed')
     expect(typeof exec.body.params?.seed).toBe('number')
+    // 59-fix WR-05:顶层 prompt 专用通道到达(CR-01 白名单后 params 袋内 prompt
+    // 不再达引擎,服务端回落 extractPrompt 依赖持久化行零漂移;顶层通道使
+    // 「同配方」承诺不依赖兜底巧合——NodeDetailPanel 同款双通道)。
+    expect(exec.body.prompt).toBe('链中配方')
     // 产出资产 id(地雷 #4 裁定:role:'output' 反查,非 evt_*)
     expect(exec.body.nodeId).toBe(MID)
     expect(exec.body.nodeId.startsWith('evt_')).toBe(false)

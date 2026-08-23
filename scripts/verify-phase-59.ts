@@ -19,6 +19,8 @@
  *       cascade(D-01 级联+node:updated 契约+seed 777+D-05 reload 保真) /
  *       engine-fail(D-02 失败零标记)/ no-marker(负向#1 ContextMenu 路径) /
  *       orchestrate(非空洞负向#2:关系表目标真执行+零 stale——blob 从未写入)。
+ *     59-fix r2 追加: orchestrate-legacy(WR-01 兜底)/ import-guard(CR-04/WR-06
+ *     workdir 守卫四探针)/ seed-precedence(IN-05 专用 seed 通道优先)。
  *     fake 引擎常驻本进程(completed/failed 可切换,POST 捕获体跨模式累积)。
  *   S5 客户端静态断言(59-04 Task 3):
  *     useCanvasSocket node:updated 订阅(独立 handler,FLAG-3 红线:转发不得进
@@ -597,6 +599,50 @@ async function main(): Promise<void> {
         );
       }
 
+      // ── S4-import-guard(59-fix r2 CR-04/WR-06):workdir 守卫负向三件套 + 正向对照 ──
+      const guard = await runDispatch("import-guard");
+      dispatchOutcomes["import-guard"] = guard as unknown as DispatchOutcome | null;
+      assert(guard != null, "S4-import-guard: 子进程产出 V59_DISPATCH_JSON");
+      if (guard) {
+        const probes = ((guard as any).probes ?? []) as Array<{ name: string; status: number; minted: boolean }>;
+        const by = (n: string) => probes.find((p) => p.name === n);
+        assert(
+          by("repo-root")?.status === 400 && by("repo-root")?.minted === false,
+          "S4-import-guard CR-04: workdir=仓库根 → 400 且未铸造 /oss symlink(审查实证向量收口)",
+          JSON.stringify(by("repo-root") ?? null),
+        );
+        assert(
+          by("repo-ancestor")?.status === 400 && by("repo-ancestor")?.minted === false,
+          "S4-import-guard CR-04: workdir=仓库祖先(/data/workspace) → 400 且未铸造",
+          JSON.stringify(by("repo-ancestor") ?? null),
+        );
+        assert(
+          by("symlink-escape")?.status === 400 && by("symlink-escape")?.minted === false,
+          "S4-import-guard WR-06: 允许根内 symlink 指向根外 → 400(realpath 复检)且未铸造",
+          JSON.stringify(by("symlink-escape") ?? null),
+        );
+        assert(
+          by("positive-control")?.status === 200 && by("positive-control")?.minted === true,
+          "S4-import-guard 正向对照: 合法 workdir(真实目录,非仓库根/祖先/含 data)仍 200 + 正常铸造(守卫不过拦)",
+          JSON.stringify(by("positive-control") ?? null),
+        );
+      }
+
+      // ── S4-seed-precedence(59-fix r2 IN-05):专用 seed 通道赢过 params 袋字符串 seed ──
+      const seedPrec = await runDispatch("seed-precedence");
+      assert(seedPrec != null, "S4-seed-precedence: 子进程产出 V59_DISPATCH_JSON");
+      if (seedPrec) {
+        const spBody = dispatchBodies.find((b) => b?.params?.prompt === "v59 seed-precedence probe");
+        assert(Boolean(spBody), "S4-seed-precedence: 捕获 seed 优先级探针引擎提交体");
+        if (spBody) {
+          assert(
+            spBody.params.seed === 424242,
+            "S4-seed-precedence IN-05: 专用 seed 通道(424242,execute.ts typeof number 类型门)赢过 params 袋 seed(修复前白名单袋后展开,字符串 'spoofed' 覆盖直达引擎)",
+            `got=${JSON.stringify(spBody.params.seed)}`,
+          );
+        }
+      }
+
       // ── 静态断言(结构冻结锁) ──
       const executeSrc = read("src/routes/canvas/execute.ts");
       const orchestrateSrc = read("src/routes/canvas/orchestrate.ts");
@@ -623,6 +669,17 @@ async function main(): Promise<void> {
         "静态: orchestrate.ts 零级联结构(无级联函数 import / 无 _stale 引用 / 无重生成标记消费)",
       );
       assert(!staleSrc.includes("ts/src/index"), "静态: _stale.ts 无 flowgraph-v3 index.ts 深链(zod 分裂防线)");
+      // 59-fix r2 CR-04/WR-06 静态锁(行为级在 S4-import-guard 四探针)
+      const importSrc = read("src/routes/canvas/v2/import-from-dir.ts");
+      assert(
+        importSrc.includes("PROTECTED_REPO_ROOTS") && importSrc.includes("realpath(absWorkdir)"),
+        "静态 CR-04/WR-06: import-from-dir 含仓库自身/祖先守卫(PROTECTED_REPO_ROOTS)与 realpath 复检",
+      );
+      // 59-fix r2 IN-05 静态锁(行为级在 S4-seed-precedence)
+      assert(
+        simulateSrc.includes("delete clientParams.seed"),
+        "静态 IN-05: _simulate.ts 专用 seed 通道优先(袋内 seed 删除后再平铺)",
+      );
     } finally {
       if (feServer) await new Promise<void>((resolve) => feServer!.close(() => resolve()));
     }
@@ -664,6 +721,13 @@ async function main(): Promise<void> {
     );
     assert(panelSrc.includes("'panel-regen'"), "S5: NodeDetailPanel 发射 'panel-regen'(STALE-01)");
     assert(popoverSrc.includes("'reroll-seed'"), "S5: EventParamsPopover 发射 'reroll-seed'(STALE-02)");
+    // 59-fix r2 WR-05: popover 换 seed 提交带顶层 prompt 专用通道(行为级在
+    // phase59 SC2 / phase52-reroll e2e 断言 exec.body.prompt;CR-01 白名单后
+    // params 袋内 prompt 不再达引擎,顶层通道使「同配方」不依赖 extractPrompt 兜底)。
+    assert(
+      popoverSrc.includes("prompt: typeof params.prompt === 'string'"),
+      "S5 WR-05: EventParamsPopover reroll-seed 提交顶层 prompt(NodeDetailPanel 同款)",
+    );
     // FLAG-3 / 52-01 红线:node:updated 转发必须是独立 handler——读注册块上下文,
     // 断言转发经 callbacksRef.current.onNodeUpdated 且不进 normalizeSocketNodeState
     // 调用链(stale 载荷误映射执行态会在 error 时错清 stale)。

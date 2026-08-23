@@ -3,7 +3,8 @@
  * verify-59-dispatch.ts — 59-02 Task 3 spawn dispatch 手 harness(短命子进程)。
  *
  * 由 scripts/verify-phase-59.ts 逐模式 spawn:
- *   env: DISPATCH_MODE ∈ {cascade | engine-fail | no-marker | orchestrate};
+ *   env: DISPATCH_MODE ∈ {cascade | engine-fail | no-marker | orchestrate |
+ *                         orchestrate-legacy | import-guard | seed-precedence};
  *        GOLD_TEAM_URL = 父进程 fake 引擎(completed/failed 由父进程切换);
  *        ENGINE_POLL_INTERVAL_MS=10(防御性,fake 引擎首个 GET 即终结)。
  *   cwd: 父进程指定的 mkdtemp 临时目录——getPath 以 process.cwd()/data 为基,
@@ -35,6 +36,9 @@
  */
 
 import http from "node:http";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { Server } from "socket.io";
 import { io } from "socket.io-client";
 import express from "express";
@@ -57,6 +61,11 @@ import { migrateV2toV3 } from "../packages/flowgraph-v3/ts/src/migrate";
 import { getDownstreamIds } from "../packages/flowgraph-v3/ts/src/stale";
 import executeRoute from "../src/routes/canvas/execute";
 import orchestrateRoute from "../src/routes/canvas/orchestrate";
+// 59-fix r2: import-guard 模式挂真 import-from-dir 路由(CR-04/WR-06 workdir
+// 守卫行为探针);seed-precedence 模式直调 simulateExecution(IN-05 专用 seed
+// 通道 vs params 袋冲突构造)。
+import importFromDirRoute from "../src/routes/canvas/v2/import-from-dir";
+import { simulateExecution } from "../src/routes/canvas/_simulate";
 
 const MODE = process.env.DISPATCH_MODE ?? "cascade";
 const PROJECT_ID = 990059;
@@ -80,6 +89,8 @@ async function main(): Promise<void> {
   app.use(express.json());
   app.use("/api/canvas/execute", executeRoute);
   app.use("/api/canvas/orchestrate", orchestrateRoute);
+  // 59-fix r2 import-guard:挂真 import-from-dir 路由(与 app.ts 同挂载点)。
+  app.use("/api/canvas/v2/import-from-dir", importFromDirRoute);
   const server = http.createServer(app);
   const ioServer = new Server(server, { cors: { origin: "*" } });
   setIo(ioServer);
@@ -90,6 +101,66 @@ async function main(): Promise<void> {
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   const port = (server.address() as { port: number }).port;
   const base = `http://127.0.0.1:${port}`;
+
+  // ── 59-fix r2: import-guard 模式 — CR-04/WR-06 workdir 守卫行为探针 ─────
+  // 四探针全走真 HTTP(真 validateFields 链);全部在被拒探针上断「零 symlink
+  // 铸造」,正向对照断「仍铸造」(守卫不过拦)。铸造点 data/oss 与路由字面量
+  // 同源;守卫若回归误铸造,防御性回撤后再上报(不留暴露面)。
+  if (MODE === "import-guard") {
+    const GUARD_OSS_DIR = "/data/workspace/kais-aigc-platform/data/oss";
+    const post = async (wd: string): Promise<number> => {
+      const r = await fetch(`${base}/api/canvas/v2/import-from-dir`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId: PROJECT_ID, episodesId: EPISODES_ID, workdir: wd }),
+      });
+      await r.text(); // drain
+      return r.status;
+    };
+    const mintedTo = (name: string): string | null => {
+      try { return fs.readlinkSync(path.join(GUARD_OSS_DIR, name)); } catch { return null; }
+    };
+    // 守卫回归防御性回撤:探针若误铸造指向被拒目标的 symlink,先撤除再上报。
+    const guardUnlinkIf = (name: string, target: string): void => {
+      const cur = mintedTo(name);
+      if (cur != null && (cur === target || cur === target.replace(/\/$/, ""))) {
+        try {
+          fs.unlinkSync(path.join(GUARD_OSS_DIR, name));
+          console.error(`[v59-dispatch] import-guard 防御性回撤误铸造 symlink: ${name} → ${cur}`);
+        } catch { /* best-effort */ }
+      }
+    };
+    const probes: Array<{ name: string; status: number; minted: boolean }> = [];
+    // ① CR-04: workdir = 部署仓库根本身(审查实证向量:铸链后 GET /oss/…/data/db2.sqlite 200)
+    let s = await post("/data/workspace/kais-aigc-platform");
+    guardUnlinkIf("kais-aigc-platform", "/data/workspace/kais-aigc-platform");
+    probes.push({ name: "repo-root", status: s, minted: mintedTo("kais-aigc-platform") != null });
+    // ② CR-04: workdir = 仓库祖先(包含仓库与其 data/ 的最浅允许根内路径)
+    s = await post("/data/workspace");
+    guardUnlinkIf("workspace", "/data/workspace");
+    probes.push({ name: "repo-ancestor", status: s, minted: mintedTo("workspace") != null });
+    // ③+④ WR-06: 允许根内 symlink 指向根外 → realpath 复检拒绝;同目录正向对照。
+    const escapeTmp = fs.mkdtempSync(path.join(os.tmpdir(), "v59-guard-escape-"));
+    const guardDir = "/data/workspace/__v59_guard";
+    try {
+      fs.mkdirSync(guardDir, { recursive: true });
+      fs.symlinkSync(escapeTmp, path.join(guardDir, "escape"), "dir");
+      s = await post(path.join(guardDir, "escape"));
+      guardUnlinkIf("escape", path.join(guardDir, "escape"));
+      probes.push({ name: "symlink-escape", status: s, minted: mintedTo("escape") != null });
+      // ④ 正向对照:真实目录(非仓库根/祖先/含 data)→ 200 + 正常铸造,证守卫不过拦
+      s = await post(guardDir);
+      probes.push({ name: "positive-control", status: s, minted: mintedTo("__v59_guard") != null });
+    } finally {
+      try { fs.unlinkSync(path.join(GUARD_OSS_DIR, "__v59_guard")); } catch { /* 未铸造即无 */ }
+      fs.rmSync(guardDir, { recursive: true, force: true });
+      fs.rmSync(escapeTmp, { recursive: true, force: true });
+    }
+    console.log("V59_DISPATCH_JSON=" + JSON.stringify({ mode: MODE, probes }));
+    ioServer.close();
+    server.close();
+    process.exit(0);
+  }
 
   // ── 2) socket.io-client 连自身,收集 room 广播事件 ────────────────────────
   const events: CapturedEvent[] = [];
@@ -158,36 +229,53 @@ async function main(): Promise<void> {
   // ── 4) dispatch(真 zod 中间件链;mock req/res 直调升级为真 HTTP——
   //       validateFields/promise 链零 stub) ─────────────────────────────────
   const isOrch = MODE === "orchestrate";
-  const url = isOrch || IS_LEGACY ? `${base}/api/canvas/orchestrate` : `${base}/api/canvas/execute`;
-  const body = IS_LEGACY
-    ? { projectId: PROJECT_ID, episodesId: EPISODES_ID } // 全量模式——目标发现走 legacy 兜底
-    : isOrch
-      ? { projectId: PROJECT_ID, episodesId: EPISODES_ID, nodeIds: ["down-1"] }
-      : MODE === "no-marker"
-        ? { projectId: PROJECT_ID, episodesId: EPISODES_ID, nodeId: "trig-1", nodeType: "asset", prompt: "v59 probe" }
-        : {
-            projectId: PROJECT_ID, episodesId: EPISODES_ID,
-            nodeId: "trig-1", nodeType: "asset", prompt: "v59 probe",
-            regenSource: "panel-regen",
-            // 59-fix CR-01 探针:seed(合法配方标量)之外混入保留键伪造——
-            // _simulate CLIENT_PARAM_KEYS 白名单应静默丢弃伪造键(不 500),
-            // 引擎提交体 params.nodeId/prompt 保持服务端值。
-            params: {
-              seed: 777,
-              ref_images: ["/etc/passwd"],
-              model_preference: "local",
-              prompt: "forged-prompt",
-              nodeId: "forged-node",
-            },
-          };
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const respBody = await resp.json().catch(() => null);
-  const httpStatus = resp.status;
-  console.error(`[v59-dispatch] mode=${MODE} httpStatus=${httpStatus} respBody=${JSON.stringify(respBody).slice(0, 200)}`);
+  let httpStatus = 0;
+  let respBody: any = null;
+  if (MODE === "seed-precedence") {
+    // 59-fix IN-05 行为级:execute.ts 的类型门(overrides.seed = typeof number)
+    // 后接的专用 seed 通道,必须赢过 params 袋内 seed(袋只做键白名单不做值形状
+    // 校验——字符串 "spoofed" 修复前经白名单后展开覆盖专用通道值直达引擎)。
+    // 直调 simulateExecution 构造二者冲突;引擎提交体由父进程 fake 引擎捕获断言。
+    await simulateExecution(PROJECT_ID, "trig-1", EPISODES_ID, {
+      prompt: "v59 seed-precedence probe",
+      seed: 424242,
+      params: { seed: "spoofed" },
+      nodeType: "asset",
+    });
+    respBody = { directCall: "simulateExecution" };
+    console.error(`[v59-dispatch] mode=${MODE} direct simulateExecution done`);
+  } else {
+    const url = isOrch || IS_LEGACY ? `${base}/api/canvas/orchestrate` : `${base}/api/canvas/execute`;
+    const body = IS_LEGACY
+      ? { projectId: PROJECT_ID, episodesId: EPISODES_ID } // 全量模式——目标发现走 legacy 兜底
+      : isOrch
+        ? { projectId: PROJECT_ID, episodesId: EPISODES_ID, nodeIds: ["down-1"] }
+        : MODE === "no-marker"
+          ? { projectId: PROJECT_ID, episodesId: EPISODES_ID, nodeId: "trig-1", nodeType: "asset", prompt: "v59 probe" }
+          : {
+              projectId: PROJECT_ID, episodesId: EPISODES_ID,
+              nodeId: "trig-1", nodeType: "asset", prompt: "v59 probe",
+              regenSource: "panel-regen",
+              // 59-fix CR-01 探针:seed(合法配方标量)之外混入保留键伪造——
+              // _simulate CLIENT_PARAM_KEYS 白名单应静默丢弃伪造键(不 500),
+              // 引擎提交体 params.nodeId/prompt 保持服务端值。
+              params: {
+                seed: 777,
+                ref_images: ["/etc/passwd"],
+                model_preference: "local",
+                prompt: "forged-prompt",
+                nodeId: "forged-node",
+              },
+            };
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    respBody = await resp.json().catch(() => null);
+    httpStatus = resp.status;
+    console.error(`[v59-dispatch] mode=${MODE} httpStatus=${httpStatus} respBody=${JSON.stringify(respBody).slice(0, 200)}`);
+  }
 
   // ── 5) 轮询收集事件至目标节点 node:state success/error 或 15s 超时 ───────
   // legacy 模式:blob 节点不在关系表 → simulateExecution readNode null →

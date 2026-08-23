@@ -61,6 +61,9 @@ test.describe('Phase 52-04 — REGEN-02 Reroll Seed', () => {
 
     // 同配方:prompt 与旧配方一致(未被改动)
     expect(exec.body.params.prompt).toBe('主角进入场景')
+    // 59-fix WR-05:顶层 prompt 专用通道同样到达(NodeDetailPanel 同款;CR-01
+    // 白名单后服务端不读袋内 prompt,顶层通道使同配方不依赖 extractPrompt 兜底)
+    expect(exec.body.prompt).toBe('主角进入场景')
     // 新 seed:1e6 域内(与芯片 tooltip seed 量级一致)且 ≠ 旧展示值
     const newSeed = exec.body.params.seed
     expect(typeof newSeed).toBe('number')
