@@ -80,12 +80,16 @@ export default function ProjectSelector({
       display: 'flex',
       gap: 10,
       alignItems: 'center',
-      flexWrap: 'wrap',
+      // nowrap + minWidth:0 —— 顶栏 48px 定高 + overflow:hidden，wrap 出来的
+      // 第二行必然被裁掉（08-22 kap-navbar 入驻后左簇变宽，CopyableName 在
+      // ≤1600px 窗口全部换行蒸发）。改为单行 + 让 select 弹性收缩兜底。
+      flexWrap: 'nowrap',
+      minWidth: 0,
     }}>
       <select
         value={selectedProjectId ?? ''}
         onChange={handleProjectChange}
-        style={selectStyle}
+        style={{ ...selectStyle, maxWidth: 280 }}
         disabled={loading}
       >
         <option value="">-- 选择项目 --</option>
@@ -100,7 +104,7 @@ export default function ProjectSelector({
         <select
           value={selectedEpisodesId ?? ''}
           onChange={handleEpisodeChange}
-          style={selectStyle}
+          style={{ ...selectStyle, maxWidth: 200 }}
         >
           {episodes.map((ep) => (
             <option key={ep.id} value={ep.id}>
@@ -115,6 +119,7 @@ export default function ProjectSelector({
         disabled={!selectedProjectId}
         style={{
           ...buttonStyle,
+          flexShrink: 0,
           opacity: !selectedProjectId ? 0.5 : 1,
           cursor: !selectedProjectId ? 'not-allowed' : 'pointer',
         }}
@@ -157,7 +162,9 @@ async function copyText(text: string): Promise<void> {
   try { document.execCommand('copy') } finally { document.body.removeChild(ta) }
 }
 
-/** 当前项目名标签：常驻展示，单击复制（含项目 ID），复制成功显示 ✓。 */
+/** 当前项目名标签：常驻展示，单击复制（含项目 ID），复制成功显示 ✓。
+ *  flexShrink:0 —— 顶栏收窄时 select 可截断，本标签是项目身份的唯一常驻
+ *  展示位（外加复制入口），不参与收缩、不换行（换行即被 48px 顶栏裁掉）。 */
 function CopyableName({ name, id }: { name: string; id: number }) {
   const [copied, setCopied] = useState(false)
   const [hovered, setHovered] = useState(false)
@@ -173,11 +180,12 @@ function CopyableName({ name, id }: { name: string; id: number }) {
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      title="点击复制项目名"
+      title="点击复制项目名 (ID)"
       style={{
         display: 'inline-flex',
         alignItems: 'center',
         gap: 6,
+        flexShrink: 0,
         background: hovered ? theme.bg.input : theme.bg.surface,
         color: copied ? theme.state.success : theme.text.primary,
         border: `1px solid ${hovered ? theme.border.default : theme.border.subtle}`,
@@ -203,7 +211,7 @@ const selectStyle: React.CSSProperties = {
   borderRadius: 6,
   padding: '6px 10px',
   fontSize: 12,
-  minWidth: 180,
+  minWidth: 120,
   outline: 'none',
 }
 
