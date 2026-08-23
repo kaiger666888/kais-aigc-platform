@@ -20,6 +20,12 @@
  *       engine-fail(D-02 失败零标记)/ no-marker(负向#1 ContextMenu 路径) /
  *       orchestrate(非空洞负向#2:关系表目标真执行+零 stale——blob 从未写入)。
  *     fake 引擎常驻本进程(completed/failed 可切换,POST 捕获体跨模式累积)。
+ *   S5 客户端静态断言(59-04 Task 3):
+ *     useCanvasSocket node:updated 订阅(独立 handler,FLAG-3 红线:转发不得进
+ *     normalizeSocketNodeState 调用链)/ FlowCanvas onNodeUpdated→triggerStaleCascade /
+ *     canvasApi regenSource 类型 / panel-regen·reroll-seed 两发射点。
+ *   S6 命令门(verify-phase-58 同款):三根 tsc + 双包 vitest
+ *     (flowgraph-v3 全量含 stale.test.ts——D-03 语义基线回归)。
  *   Forced-failure self-check — must-fail 断言组;意外 PASS 整门红。
  *
  * Isolation guard (verify-phase-51 pattern, line-for-line): _engine.ts
@@ -53,7 +59,7 @@ function exists(rel: string): boolean {
   return fs.existsSync(path.join(REPO_ROOT, rel));
 }
 
-/** S5 命令门:cwd + 命令,tail 摘要;非零 exit 红。 */
+/** S6 命令门:cwd + 命令,tail 摘要;非零 exit 红。 */
 function runCmd(name: string, cwdRel: string, cmd: string, tailLines = 3): void {
   const res = spawnSync(cmd, {
     cwd: path.join(REPO_ROOT, cwdRel),
@@ -68,7 +74,7 @@ function runCmd(name: string, cwdRel: string, cmd: string, tailLines = 3): void 
   const tail = out.split("\n").filter((l) => l.trim().length > 0).slice(-tailLines).join(" | ");
   assert(
     res.status === 0,
-    `S5 cmd: ${name} (exit ${res.status})`,
+    `S6 cmd: ${name} (exit ${res.status})`,
     res.status === 0 ? tail.slice(0, 160) : tail.slice(-300),
   );
 }
@@ -515,6 +521,56 @@ async function main(): Promise<void> {
       if (feServer) await new Promise<void>((resolve) => feServer!.close(() => resolve()));
     }
   }
+
+  // ═══ S5 — 客户端静态断言(59-04 Task 3:59-03 接线锁) ══════════════════════
+  console.log("\n=== S5 客户端静态断言: 59-03 窄通道接线(node:updated 订阅 + regenSource 发射) ===");
+  {
+    const socketSrc = read("packages/infinite-canvas/src/hooks/useCanvasSocket.ts");
+    const flowCanvasSrc = read("packages/infinite-canvas/src/components/FlowCanvas.tsx");
+    const canvasApiSrc = read("packages/infinite-canvas/src/services/canvasApi.ts");
+    const panelSrc = read("packages/infinite-canvas/src/components/panel/NodeDetailPanel.tsx");
+    const popoverSrc = read("packages/infinite-canvas/src/components/eventParams/EventParamsPopover.tsx");
+    assert(
+      socketSrc.includes("socket.on('node:updated'"),
+      "S5: useCanvasSocket 注册 socket.on('node:updated'(G1 缺口闭合,59-03)",
+    );
+    assert(
+      flowCanvasSrc.includes("onNodeUpdated") && flowCanvasSrc.includes("triggerStaleCascade"),
+      "S5: FlowCanvas 含 onNodeUpdated 与 triggerStaleCascade(实时级联链,FLAG-1 Option A)",
+    );
+    assert(
+      canvasApiSrc.includes("regenSource"),
+      "S5: canvasApi executeNode extra 含 regenSource 类型(两值字面量联合)",
+    );
+    assert(panelSrc.includes("'panel-regen'"), "S5: NodeDetailPanel 发射 'panel-regen'(STALE-01)");
+    assert(popoverSrc.includes("'reroll-seed'"), "S5: EventParamsPopover 发射 'reroll-seed'(STALE-02)");
+    // FLAG-3 / 52-01 红线:node:updated 转发必须是独立 handler——读注册块上下文,
+    // 断言转发经 callbacksRef.current.onNodeUpdated 且不进 normalizeSocketNodeState
+    // 调用链(stale 载荷误映射执行态会在 error 时错清 stale)。
+    const regIdx = socketSrc.indexOf("socket.on('node:updated'");
+    assert(regIdx >= 0, "S5: node:updated 注册块可定位");
+    if (regIdx >= 0) {
+      const regBlock = socketSrc.slice(regIdx, regIdx + 700);
+      assert(
+        regBlock.includes("callbacksRef.current.onNodeUpdated"),
+        "S5: node:updated 注册块经 callbacksRef.current.onNodeUpdated 转发(订阅三件套)",
+      );
+      assert(
+        !regBlock.includes("normalizeSocketNodeState"),
+        "S5: node:updated 转发不在 normalizeSocketNodeState 调用链内(FLAG-3 / 52-01 红线)",
+      );
+    }
+  }
+
+  // ═══ S6 — 命令门(verify-phase-58 同款:三根 tsc + 双包 vitest) ════════════
+  console.log("\n=== S6 command gates (tsc ×3 + vitest ×2; flowgraph-v3 全量含 stale.test.ts——D-03 语义基线) ===");
+  runCmd("root tsc --noEmit", ".", "npx tsc --noEmit");
+  runCmd("infinite-canvas tsc -b", "packages/infinite-canvas", "npx tsc -b");
+  runCmd("flowgraph-v3 tsc --noEmit", "packages/flowgraph-v3/ts", "npx tsc --noEmit");
+  // WR-01: vitest 门禁不经 shell 管道(tail 管道会让 res.status 变成 tail 的退出码,
+  // vitest 全红仍 exit 0 → 假绿);摘要由 runCmd 在 JS 侧 slice 完成。
+  runCmd("infinite-canvas vitest", "packages/infinite-canvas", "npm test", 2);
+  runCmd("flowgraph-v3 vitest", "packages/flowgraph-v3", "npx vitest run", 2);
   console.log("\n=== Forced-failure self-check (gate can actually fail — expected FAILs below) ===");
   const selfCheckShadow: TestResult[] = [];
   const shadowAssert = (cond: boolean, name: string): void => {
@@ -549,6 +605,12 @@ async function main(): Promise<void> {
     orchShadow?.httpStatus === 404,
     "self-check: inverted 断言失败——orchestrate 模式 httpStatus 404 必须不成立",
   );
+  // 59-04 forced-failure 补一项:orchestrate.ts 含 markStaleDownstream 必须 FAIL
+  // (SC3 结构性保证的静态面——正向断言在 S3/S4 静态锁,此处反向自证门能红)
+  shadowAssert(
+    read("src/routes/canvas/orchestrate.ts").includes("markStaleDownstream"),
+    "self-check: inverted 断言失败——orchestrate.ts 含 markStaleDownstream 必须不成立(SC3 架构性保证)",
+  );
   const shadowFailed = selfCheckShadow.filter((r) => !r.pass).length;
   assert(
     selfCheckShadow.length >= 3 && selfCheckShadow.every((r) => !r.pass),
@@ -562,7 +624,7 @@ async function main(): Promise<void> {
   const failed = total - passed;
   console.log(`\n=== Summary: ${passed}/${total} assertions passed, FAIL count = ${failed} (self-check excluded from totals) ===`);
   if (passed === total) {
-    console.log("✅ Phase 59 verification PASSED (S1 双向路径翻译 ✓ S2 fake 引擎三模式 ✓ S3/S4 spawn dispatch 行为断言 ✓ + forced-failure self-check ✓)");
+    console.log("✅ Phase 59 verification PASSED (S1 双向路径翻译 ✓ S2 fake 引擎三模式 ✓ S3/S4 spawn dispatch 行为断言 ✓ S5 客户端静态断言 ✓ S6 命令门 ✓ + forced-failure self-check ✓)");
     process.exit(0);
   } else {
     console.log("❌ Phase 59 verification FAILED");
