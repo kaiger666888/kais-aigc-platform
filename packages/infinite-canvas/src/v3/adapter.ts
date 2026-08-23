@@ -154,8 +154,23 @@ function normalizeNode(raw: unknown, warn: Warn): FlowNodeV2 | null {
     // 无封面、不能播、不进视频泳道）。降级节点的 filePath 仍在、媒体可播：
     // 恢复原类型按原模态渲染。服务端 schema 已放行 0 时长 + 守卫只对真缺失
     // 降级后，该标记不再新增；此处纯为历史降级数据兜底。
+    //
+    // ── 恢复资格守卫（2026-08-23）───────────────────────────────
+    // 只有「真被降级的资产」可恢复：data 带媒体（filePath/thumbnailUrl，恢复后
+    // 可播/有图）或镜头身份（shot_id，storyboard 行的必需字段）。无媒体无
+    // shot_id 的 _original_type=storyboard 载荷是「报告类 slot」（storyboard-qc /
+    // preview-qc / continuity_report 等：canvas_sync 的 phase 级 storyboard 默认
+    // 盖掉了 slot 声明的 script，Gate B 又因缺分镜必填字段降级回来）——它们不是
+    // 分镜，恢复成 storyboard 会混进时间轴成为质检报告行（钟馗夜馒 2026-08-23
+    // 时间轴前 7 行全是「分镜板质检 · engine/reason/status/…」）。报告保持
+    // script，按文本卡在画布呈现。
     const degradedFrom = rawData['_original_type']
-    if (type === 'script'
+    const restorable = typeof rawData['filePath'] === 'string' && rawData['filePath'].length > 0
+      ? true
+      : typeof rawData['thumbnailUrl'] === 'string' && rawData['thumbnailUrl'].length > 0
+        ? true
+        : typeof rawData['shot_id'] === 'string' && rawData['shot_id'].length > 0
+    if (type === 'script' && restorable
       && (degradedFrom === 'video' || degradedFrom === 'audio'
         || degradedFrom === 'storyboard' || degradedFrom === 'asset')) {
       type = degradedFrom

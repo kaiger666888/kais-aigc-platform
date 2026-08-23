@@ -263,6 +263,63 @@ describe('adaptV2Graph：Gate B 降级恢复 + audit 接纳（2026-08-19）', ()
     expect(asset && asset.kind === 'asset' ? asset.stage : undefined).toBe('script')
   })
 
+  it('报告类 _original_type=storyboard（无媒体无 shot_id）→ 不恢复，保持 script（时间轴不混质检行）', () => {
+    // 钟馗夜馒 2026-08-23 实录：p09c storyboard-qc 的概览/子键节点被 phase 级
+    // storyboard 默认盖掉 script 声明 → Gate B 降级回 script 带 _original_type
+    // → 恢复逻辑把它们变回 storyboard → 时间轴前 7 行全是「分镜板质检 · …」。
+    const { graph } = adaptV2Graph({
+      meta: { projectId: 1, episodesId: 2 },
+      nodes: [
+        {
+          id: 'a-storyboard-qc-summary', type: 'script', branchId: 'br_main',
+          phaseIndex: 10, phaseName: 'p09c_storyboard_board', state: 'success',
+          data: {
+            label: '分镜板质检（概览）', description: '分镜板质检',
+            _original_type: 'storyboard', assetType: 'storyboard',
+            checked: 0, passed: 0, failed: 0,
+          },
+        },
+        {
+          id: 'a-storyboard-qc-engine', type: 'script', branchId: 'br_main',
+          phaseIndex: 10, phaseName: 'p09c_storyboard_board', state: 'success',
+          data: {
+            label: '分镜板质检 · engine', content: 'qwen-eye',
+            _original_type: 'storyboard', assetType: 'storyboard',
+          },
+        },
+      ],
+      links: [],
+      branches: [],
+    })
+    for (const nid of ['a-storyboard-qc-summary', 'a-storyboard-qc-engine']) {
+      const asset = graph.nodes.find((n) => n.id === nid)
+      expect(asset).toBeDefined()
+      expect(asset && asset.kind === 'asset' ? asset.stage : undefined).toBe('script')
+    }
+  })
+
+  it('报告类守卫不误伤：_original_type=storyboard + shot_id（e_konte 行）→ 仍恢复 storyboard', () => {
+    const { graph } = adaptV2Graph({
+      meta: { projectId: 1, episodesId: 2 },
+      nodes: [
+        {
+          id: 'a-e_konte_sheets-S01_B01', type: 'script', branchId: 'br_main',
+          phaseIndex: 9, phaseName: 'p09_shot_breakdown', state: 'success',
+          data: {
+            label: 'S01_B01', description: 'S01_B01',
+            _original_type: 'storyboard', shot_id: 'S01_B01',
+            layers: { composition: '竖屏9:16 BCU构图' },
+          },
+        },
+      ],
+      links: [],
+      branches: [],
+    })
+    const asset = graph.nodes.find((n) => n.id === 'a-e_konte_sheets-S01_B01')
+    expect(asset).toBeDefined()
+    expect(asset && asset.kind === 'asset' ? asset.stage : undefined).toBe('storyboard')
+  })
+
   it("type='audit'（p06 物理预检等）→ script 资产保留，不再整节点丢弃", () => {
     const { graph, warnings } = adaptV2Graph({
       meta: { projectId: 1, episodesId: 2 },
