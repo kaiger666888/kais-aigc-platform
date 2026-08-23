@@ -40,16 +40,12 @@ export default router.post(
     const { projectId, episodesId, nodeId, nodeType, prompt, branchId, params, regenSource } = req.body;
 
     try {
-      broadcastToProject(projectId, "node:state", {
-        nodeId,
-        state: "running",
-        progress: 0,
-      });
-
       // IterationEngine path: caller omits episodesId (single-node regeneration
       // via _callEngine). Return a structured queued response — engine dispatch
       // will be wired in a follow-up. This closes the 400-validation-breakpoint
       // without disturbing the canvas-UI simulateExecution flow.
+      // 59-fix WR-02: running 广播已下移过全部早退分支——本分支不发 running
+      // (无终态跟进的 running 会让客户端节点卡「生成中」),queued 响应即终点。
       if (episodesId === undefined || episodesId === null) {
         return res.status(200).send(success({
           status: "queued",
@@ -70,9 +66,21 @@ export default router.post(
         "global", "keyframe", "voice", "foley", "bgm", "mix", "composite",
       ];
       if (!supportedTypes.includes(effectiveType)) {
+        // 59-fix WR-02: 早退分支补终态事件——running 曾在本分支之前无条件广播,
+        // 400 后无 success/error 跟进 → 客户端节点卡「生成中」。error 终态不清
+        // stale(52-01 红线),安全。
+        broadcastToProject(projectId, "node:state", { nodeId, state: "error" });
         console.log(`[canvas:execute] 未知节点类型: ${effectiveType}`);
         return res.status(400).send(error(`不支持的节点类型: ${effectiveType}`));
       }
+
+      // 59-fix WR-02: running 广播仅在 setImmediate 派发真正武装时发(全部早退
+      // 分支已过)——每个 running 必有 success/error 终态跟进,客户端不再卡态。
+      broadcastToProject(projectId, "node:state", {
+        nodeId,
+        state: "running",
+        progress: 0,
+      });
 
       setImmediate(async () => {
         try {
