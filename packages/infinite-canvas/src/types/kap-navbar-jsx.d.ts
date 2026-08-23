@@ -12,7 +12,7 @@ declare module 'react' {
   namespace JSX {
     interface IntrinsicElements {
       'kap-navbar': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & {
-        /** 当前项 id(portal/canvas/story-map/director-desk/toonflow;缺省按 pathname 自判) */
+        /** 当前项 id(portal/canvas/story-map/director-desk;缺省按 pathname 自判) */
         'data-active'?: string
         /** compact 档标记(画布 topbar 内嵌,26px;presence-driven,任意非空值) */
         compact?: string

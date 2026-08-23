@@ -21,13 +21,12 @@ interface NavItem {
   href: string
 }
 
-/** 项常量单处（UI-SPEC P-1 词表：门户/画布/剧核/3D导演台/Toonflow）。 */
+/** 项常量单处（UI-SPEC P-1 词表：门户/画布/剧核/3D导演台——Toonflow 项 2026-08-23 下线）。 */
 const NAV_ITEMS: readonly NavItem[] = [
   { id: 'portal', label: '门户', href: '/portal' },
   { id: 'canvas', label: '画布', href: '/canvas' },
   { id: 'story-map', label: '剧核', href: '/story-map/' },
   { id: 'director-desk', label: '3D导演台', href: '/director-desk/' },
-  { id: 'toonflow', label: 'Toonflow', href: '/toonflow' },
 ]
 
 /** pathname 前缀 → 当前项（data-active 属性缺省时的自判）。 */
@@ -38,7 +37,6 @@ const ACTIVE_PATH_PREFIXES: ReadonlyArray<readonly [string, string]> = [
   ['/canvas', 'canvas'],
   ['/story-map', 'story-map'],
   ['/director-desk', 'director-desk'],
-  ['/toonflow', 'toonflow'],
 ]
 
 function activeFromPathname(pathname: string): string {

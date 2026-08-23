@@ -107,3 +107,16 @@
 - **57-05/57-06**:`/deliver/:ep` 交付页版面 + G8 终审操作面。
 
 以上四件均经本 phase 各 plan SUMMARY 记录;混合路线②③(迁移期/终态)归后续里程碑。
+
+---
+
+## 终态执行记录(2026-08-23,用户裁决提前切换)
+
+用户裁决「无限画布侧 Toonflow 没有必要保留,彻底去掉」——§终态切换条件按用户指令提前执行(功能缺口按缺口行现状接受降级,双写观察期以 API 层保留替代):
+
+1. **root takeover**:`app.ts` 全局 SPA fallback 改指 `data/web/portal/index.html`(portal 缺失时回退旧根 index);`/` 即制片门户。
+2. **/toonflow 嵌入页下线**:`ToonflowEmbed.tsx` 删除,portal 路由收敛为 /portal + /deliver;服务端 `/toonflow*` 302 → /portal(书签兜底)。KapNavbar 词表去掉 Toonflow 项(P-1 词表同步,四项:门户/画布/剧核/3D导演台)。
+3. **26MB bundle 归档**:`data/web/index.html` → `data/web/archive/toonflow-index-26mb.html`,连同仅被其引用的 4 个 `*.worker-*.js`(共 ~36MB,归档不删,可随时回滚归位)。
+4. **API 层保留**(终态明确豁免):`/api/project/*`、`/api/script/addScript`、`/api/assets/*`、`/api/production/storyboard/addStoryboard` 维持原样——pipeline-results.ts / canvas_sync.py / project-manager.js 的生产写路径,与工作台 UI 无关。`data/vendor/toonflow.ts` 为模型适配器,同样保留。
+
+部署:deploy-portal.sh + deploy-canvas.sh + build:server,10588 重启(canvas 部署 build 同时补齐了此前 ~20 commit 的滞后)。回滚:git revert 本提交 + archive 归位 + 三个 deploy 脚本重跑。

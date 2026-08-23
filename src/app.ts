@@ -223,10 +223,10 @@ export default async function startServe(randomPort: Boolean = false) {
     });
   }
 
-  // ── Phase 57 制片门户：data/web/portal 静态 + 三前缀 SPA fallback ──
-  // 三个前缀（/portal、/deliver/:ep、/toonflow）必须注册在下方全局 SPA fallback
-  // 之前 —— 否则无扩展名 GET 会被根 index.html（Toonflow 26MB）吞掉（57 Pitfall 1）。
-  // /deliver 与 /toonflow 无独立静态资产（门户资产全在 /portal/ 前缀下），复用同 index。
+  // ── Phase 57 制片门户：data/web/portal 静态 + 前缀 SPA fallback ──
+  // /portal 与 /deliver 必须注册在下方全局 SPA fallback 之前（57 Pitfall 1）。
+  // 2026-08-23 root takeover：根 `/` 已改指门户，Toonflow 26MB 旧包归档于
+  // data/web/archive/（toonflow-replacement-verdict §终态切换）。
   const portalDir = path.join(webDir, "portal");
   if (fs.existsSync(portalDir)) {
     app.use("/portal", express.static(portalDir, { acceptRanges: true, maxAge: "5m", cacheControl: true }));
@@ -239,13 +239,15 @@ export default async function startServe(randomPort: Boolean = false) {
     app.get("/deliver/{*path}", (_req, res) => {
       res.sendFile(path.join(portalDir, "index.html"));
     });
-    app.get("/toonflow", (_req, res) => {
-      res.sendFile(path.join(portalDir, "index.html"));
-    });
-    app.get("/toonflow/{*path}", (_req, res) => {
-      res.sendFile(path.join(portalDir, "index.html"));
-    });
   }
+
+  // 旧工作台 /toonflow 已下线（2026-08-23）—— 书签/旧链 302 回门户。
+  app.get("/toonflow", (_req, res) => {
+    res.redirect(302, "/portal");
+  });
+  app.get("/toonflow/{*path}", (_req, res) => {
+    res.redirect(302, "/portal");
+  });
 
   // D-05 深链重定向：/canvas?project&ep&focus&zone → 302 /infinite-canvas/?projectId&episodesId&focus&zone
   // 白名单四键翻译（project→projectId、ep→episodesId、focus/zone 透传）；目标写死站内
@@ -290,8 +292,9 @@ export default async function startServe(randomPort: Boolean = false) {
     res.json({ status: "ok", service: "kais-core-backend", version: "6.0.0" });
   });
 
-  // SPA fallback: serve index.html BEFORE auth middleware
-  // so that deep links like /project, /production work without JWT
+  // SPA fallback（2026-08-23 root takeover）：全局兜底改指门户 index ——
+  // Toonflow 26MB 旧包已归档 data/web/archive/，根 `/` 即制片门户。
+  // 仍注册于 auth 之前（深链无 JWT 可达）；门户缺失时回退旧根 index（若有）。
   app.use((req, res, next) => {
     if (req.method !== "GET") return next();
     if (req.path.startsWith("/api/") || req.path.startsWith("/oss/") || req.path.startsWith("/assets/") || req.path.startsWith("/skills/") || req.path.startsWith("/infinite-canvas") || archRepos.some(r => req.path.startsWith(r.urlPrefix))) {
@@ -300,9 +303,12 @@ export default async function startServe(randomPort: Boolean = false) {
     if (req.path.match(/\.[^/]+$/)) {
       return next();
     }
-    const indexPath = path.join(webDir, "index.html");
-    if (fs.existsSync(indexPath)) {
-      res.sendFile(indexPath);
+    const portalIndex = path.join(webDir, "portal", "index.html");
+    const legacyIndex = path.join(webDir, "index.html");
+    if (fs.existsSync(portalIndex)) {
+      res.sendFile(portalIndex);
+    } else if (fs.existsSync(legacyIndex)) {
+      res.sendFile(legacyIndex);
     } else {
       next();
     }
@@ -318,7 +324,7 @@ export default async function startServe(randomPort: Boolean = false) {
     // 白名单路径
     if (req.path === "/api/login/login") return next();
     if (req.path === "/health") return next();
-    // 静态前端文件（Toonflow UI）
+    // 静态前端文件（root takeover 后 `/` = 门户 SPA）
     if (req.path === "/" || req.path === "/index.html") return next();
     if (req.path.startsWith("/assets/") || req.path.endsWith(".js") || req.path.endsWith(".css") || req.path.endsWith(".ico") || req.path.endsWith(".map")) return next();
     // 无限画布页面

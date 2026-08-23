@@ -6,9 +6,9 @@ import path from 'path'
  * packages/portal — 制片门户 shell（Phase 57-02 / U-07）。
  *
  * 与 infinite-canvas 的两处关键差异：
- *  - base '/portal/'（绝对路径）——/deliver/:ep 与 /toonflow 在 /portal 前缀
- *    之外共用同一 index，相对 base 会让这两页的资产 404（57 Pitfall 2；
- *    director-desk base:'/director-desk/' 同款先例）。
+ *  - base '/portal/'（绝对路径）——/deliver/:ep 在 /portal 前缀之外共用同一
+ *    index，相对 base 会让该页资产 404（57 Pitfall 2；director-desk
+ *    base:'/director-desk/' 同款先例）。
  *  - '@ic' alias 跨包复用 infinite-canvas 的 tokens/registry/services
  *    （零复制；infinite-canvas vite alias 引 flowgraph-v3 同式先例）。
  *
