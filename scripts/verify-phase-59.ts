@@ -604,7 +604,7 @@ async function main(): Promise<void> {
       dispatchOutcomes["import-guard"] = guard as unknown as DispatchOutcome | null;
       assert(guard != null, "S4-import-guard: 子进程产出 V59_DISPATCH_JSON");
       if (guard) {
-        const probes = ((guard as any).probes ?? []) as Array<{ name: string; status: number; minted: boolean }>;
+        const probes = ((guard as any).probes ?? []) as Array<{ name: string; status: number; minted: boolean; realpathLeaked?: boolean }>;
         const by = (n: string) => probes.find((p) => p.name === n);
         assert(
           by("repo-root")?.status === 400 && by("repo-root")?.minted === false,
@@ -623,8 +623,29 @@ async function main(): Promise<void> {
         );
         assert(
           by("positive-control")?.status === 200 && by("positive-control")?.minted === true,
-          "S4-import-guard 正向对照: 合法 workdir(真实目录,非仓库根/祖先/含 data)仍 200 + 正常铸造(守卫不过拦)",
+          "S4-import-guard 正向对照: 合法 workdir(真实目录,非仓库根/祖先/子树)仍 200 + 正常铸造(守卫不过拦)",
           JSON.stringify(by("positive-control") ?? null),
+        );
+        // 59-fix r3 行为断言(WR-08 仓库子树 / WR-07 symlink 输入 / IN-06 泄露)
+        assert(
+          by("repo-subtree-serve")?.status === 400 && by("repo-subtree-serve")?.minted === false,
+          "S4-import-guard WR-08: workdir=仓库内 data/serve(生产 bundle+运行日志)→ 400 且未铸造(仓库子树全包含)",
+          JSON.stringify(by("repo-subtree-serve") ?? null),
+        );
+        assert(
+          by("repo-subtree-src")?.status === 400 && by("repo-subtree-src")?.minted === false,
+          "S4-import-guard WR-08: workdir=仓库内 src(源码树)→ 400 且未铸造",
+          JSON.stringify(by("repo-subtree-src") ?? null),
+        );
+        assert(
+          by("symlinked-workdir-input")?.status === 400 && by("symlinked-workdir-input")?.minted === false,
+          "S4-import-guard WR-07: workdir 本身为 symlink(指向允许根内,各包含检查全过)→ 400(realWorkdir!==absWorkdir 拒间接输入,事后重指复活向量收口)且未铸造",
+          JSON.stringify(by("symlinked-workdir-input") ?? null),
+        );
+        assert(
+          by("symlink-escape")?.realpathLeaked === false && by("symlinked-workdir-input")?.realpathLeaked === false,
+          "S4-import-guard IN-06: 400 体不回显解析后真实路径(无鉴权 symlink 解析预言机收口)",
+          JSON.stringify({ escape: by("symlink-escape") ?? null, alias: by("symlinked-workdir-input") ?? null }),
         );
       }
 
@@ -674,6 +695,16 @@ async function main(): Promise<void> {
       assert(
         importSrc.includes("PROTECTED_REPO_ROOTS") && importSrc.includes("realpath(absWorkdir)"),
         "静态 CR-04/WR-06: import-from-dir 含仓库自身/祖先守卫(PROTECTED_REPO_ROOTS)与 realpath 复检",
+      );
+      // 59-fix r3 WR-07/WR-08 静态锁(行为级在 S4-import-guard r3 探针)
+      assert(
+        importSrc.includes("realWorkdir !== absWorkdir") &&
+          importSrc.includes("symlink(realWorkdir, ossLinkPath"),
+        "静态 r3 WR-07: 拒绝符号链接 workdir 输入 + 铸造点绑定已验证 realpath",
+      );
+      assert(
+        importSrc.includes('p.startsWith(root + "/")'),
+        "静态 r3 WR-08: 仓库子树包含判定(workdir 位于仓库内一律拒绝)",
       );
       // 59-fix r2 IN-05 静态锁(行为级在 S4-seed-precedence)
       assert(

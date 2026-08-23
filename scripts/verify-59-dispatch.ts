@@ -62,8 +62,9 @@ import { getDownstreamIds } from "../packages/flowgraph-v3/ts/src/stale";
 import executeRoute from "../src/routes/canvas/execute";
 import orchestrateRoute from "../src/routes/canvas/orchestrate";
 // 59-fix r2: import-guard 模式挂真 import-from-dir 路由(CR-04/WR-06 workdir
-// 守卫行为探针);seed-precedence 模式直调 simulateExecution(IN-05 专用 seed
-// 通道 vs params 袋冲突构造)。
+// 守卫行为探针;r3 增 WR-08 仓库子树 / WR-07 symlink 输入 / IN-06 泄露断言);
+// seed-precedence 模式直调 simulateExecution(IN-05 专用 seed 通道 vs params
+// 袋冲突构造)。
 import importFromDirRoute from "../src/routes/canvas/v2/import-from-dir";
 import { simulateExecution } from "../src/routes/canvas/_simulate";
 
@@ -103,19 +104,21 @@ async function main(): Promise<void> {
   const base = `http://127.0.0.1:${port}`;
 
   // ── 59-fix r2: import-guard 模式 — CR-04/WR-06 workdir 守卫行为探针 ─────
-  // 四探针全走真 HTTP(真 validateFields 链);全部在被拒探针上断「零 symlink
-  // 铸造」,正向对照断「仍铸造」(守卫不过拦)。铸造点 data/oss 与路由字面量
-  // 同源;守卫若回归误铸造,防御性回撤后再上报(不留暴露面)。
+  // r2 四探针 + r3 三探针(WR-08 仓库子树×2 / WR-07 symlink 输入 + IN-06
+  // 400 体 realpath 泄露断言),全走真 HTTP(真 validateFields 链);全部在
+  // 被拒探针上断「零 symlink 铸造」,正向对照断「仍铸造」(守卫不过拦)。
+  // 铸造点 data/oss 与路由字面量同源;守卫若回归误铸造,防御性回撤后再
+  // 上报(不留暴露面)。
   if (MODE === "import-guard") {
     const GUARD_OSS_DIR = "/data/workspace/kais-aigc-platform/data/oss";
-    const post = async (wd: string): Promise<number> => {
+    const post = async (wd: string): Promise<{ status: number; body: string }> => {
       const r = await fetch(`${base}/api/canvas/v2/import-from-dir`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId: PROJECT_ID, episodesId: EPISODES_ID, workdir: wd }),
       });
-      await r.text(); // drain
-      return r.status;
+      const body = await r.text(); // drain + r3 IN-06 断言面(400 体不泄露 realpath)
+      return { status: r.status, body };
     };
     const mintedTo = (name: string): string | null => {
       try { return fs.readlinkSync(path.join(GUARD_OSS_DIR, name)); } catch { return null; }
@@ -130,27 +133,58 @@ async function main(): Promise<void> {
         } catch { /* best-effort */ }
       }
     };
-    const probes: Array<{ name: string; status: number; minted: boolean }> = [];
+    // realpathLeaked=true 表示 400 体含解析后真实路径(IN-06 回归信号)。
+    const probes: Array<{ name: string; status: number; minted: boolean; realpathLeaked?: boolean }> = [];
     // ① CR-04: workdir = 部署仓库根本身(审查实证向量:铸链后 GET /oss/…/data/db2.sqlite 200)
-    let s = await post("/data/workspace/kais-aigc-platform");
+    let pr = await post("/data/workspace/kais-aigc-platform");
     guardUnlinkIf("kais-aigc-platform", "/data/workspace/kais-aigc-platform");
-    probes.push({ name: "repo-root", status: s, minted: mintedTo("kais-aigc-platform") != null });
+    probes.push({ name: "repo-root", status: pr.status, minted: mintedTo("kais-aigc-platform") != null });
     // ② CR-04: workdir = 仓库祖先(包含仓库与其 data/ 的最浅允许根内路径)
-    s = await post("/data/workspace");
+    pr = await post("/data/workspace");
     guardUnlinkIf("workspace", "/data/workspace");
-    probes.push({ name: "repo-ancestor", status: s, minted: mintedTo("workspace") != null });
+    probes.push({ name: "repo-ancestor", status: pr.status, minted: mintedTo("workspace") != null });
+    // ⑤+⑥ 59-fix r3 WR-08: workdir = 仓库子树内目录——CR-04 只拒根/祖先/
+    // 字面 data,r3 前仓库内其余目录仍可铸链:生产 bundle+运行日志(data/
+    // serve)与源码树(src)均暴露于无鉴权 /oss。
+    pr = await post("/data/workspace/kais-aigc-platform/data/serve");
+    guardUnlinkIf("serve", "/data/workspace/kais-aigc-platform/data/serve");
+    probes.push({ name: "repo-subtree-serve", status: pr.status, minted: mintedTo("serve") != null });
+    pr = await post("/data/workspace/kais-aigc-platform/src");
+    guardUnlinkIf("src", "/data/workspace/kais-aigc-platform/src");
+    probes.push({ name: "repo-subtree-src", status: pr.status, minted: mintedTo("src") != null });
     // ③+④ WR-06: 允许根内 symlink 指向根外 → realpath 复检拒绝;同目录正向对照。
     const escapeTmp = fs.mkdtempSync(path.join(os.tmpdir(), "v59-guard-escape-"));
     const guardDir = "/data/workspace/__v59_guard";
     try {
       fs.mkdirSync(guardDir, { recursive: true });
       fs.symlinkSync(escapeTmp, path.join(guardDir, "escape"), "dir");
-      s = await post(path.join(guardDir, "escape"));
+      pr = await post(path.join(guardDir, "escape"));
       guardUnlinkIf("escape", path.join(guardDir, "escape"));
-      probes.push({ name: "symlink-escape", status: s, minted: mintedTo("escape") != null });
-      // ④ 正向对照:真实目录(非仓库根/祖先/含 data)→ 200 + 正常铸造,证守卫不过拦
-      s = await post(guardDir);
-      probes.push({ name: "positive-control", status: s, minted: mintedTo("__v59_guard") != null });
+      // r3 IN-06: 400 体只回显调用方输入,不得含解析后真实路径(无鉴权
+      // symlink 解析预言机)。
+      probes.push({
+        name: "symlink-escape",
+        status: pr.status,
+        minted: mintedTo("escape") != null,
+        realpathLeaked: pr.body.includes(fs.realpathSync(path.join(guardDir, "escape"))),
+      });
+      // ⑦ 59-fix r3 WR-07: workdir 本身为 symlink 且指向允许根内真实目录——
+      // 各包含检查全过(指向合法),r3 前铸造词法路径可事后重指仓库 data
+      // (检查期守卫 vs 服务期长存挂载);修复后 realWorkdir !== absWorkdir
+      // 一律 400(拒绝间接输入),零铸造。
+      fs.mkdirSync(path.join(guardDir, "real-dir"), { recursive: true });
+      fs.symlinkSync(path.join(guardDir, "real-dir"), path.join(guardDir, "alias"), "dir");
+      pr = await post(path.join(guardDir, "alias"));
+      guardUnlinkIf("alias", path.join(guardDir, "alias"));
+      probes.push({
+        name: "symlinked-workdir-input",
+        status: pr.status,
+        minted: mintedTo("alias") != null,
+        realpathLeaked: pr.body.includes(fs.realpathSync(path.join(guardDir, "alias"))),
+      });
+      // ④ 正向对照:真实目录(非仓库根/祖先/子树)→ 200 + 正常铸造,证守卫不过拦
+      pr = await post(guardDir);
+      probes.push({ name: "positive-control", status: pr.status, minted: mintedTo("__v59_guard") != null });
     } finally {
       try { fs.unlinkSync(path.join(GUARD_OSS_DIR, "__v59_guard")); } catch { /* 未铸造即无 */ }
       fs.rmSync(guardDir, { recursive: true, force: true });
