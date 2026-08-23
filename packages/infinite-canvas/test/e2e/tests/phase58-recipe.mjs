@@ -1,4 +1,4 @@
-import { test, expect, loadCanvas, nodeSelector, switchToCanvasView } from '../helpers.mjs'
+import { test, expect, loadCanvas, nodeSelector, getCalls, switchToCanvasView } from '../helpers.mjs'
 
 /**
  * Phase 58-03 — RECIPE-01/02/03: 全配方持久化 e2e
@@ -65,6 +65,57 @@ function advancedFixtureGraph() {
       },
     ],
     links: [],
+    groups: [],
+    variantGroups: [],
+  }
+}
+
+/**
+ * 落选变体 fixture(REGEN-01-c 变体组范式):winner 带全套高级字段——migrate Pass 3
+ * 删候选事件、output 边重指 winner 主事件,落选面板显示的是主事件配方(Pitfall 7
+ * 预存折叠语义,本文件只断言 disabled,不试图「修复」折叠)。
+ */
+function loserVariantGraph() {
+  return {
+    nodes: [
+      {
+        id: 'adv-cand-a',
+        type: 'storyboard',
+        position: { x: 400, y: 500 },
+        size: { width: 260, height: 180 },
+        data: {
+          label: '高级候选 A', type: 'storyboard', storyboardId: 101, duration: 3,
+          prompt: '候选A配方', filePath: null, thumbnailUrl: null, state: 'idle',
+          steps: 44, cfg: 6, quant: 'fp16', sageAttention: false,
+          lora: [{ name: 'winner-lora', strength: 0.5 }],
+        },
+        state: 'idle',
+        isWinner: true,
+      },
+      {
+        id: 'adv-cand-b',
+        type: 'storyboard',
+        position: { x: 700, y: 500 },
+        size: { width: 260, height: 180 },
+        data: {
+          label: '高级候选 B', type: 'storyboard', storyboardId: 102, duration: 3,
+          prompt: '候选B配方', filePath: null, thumbnailUrl: null, state: 'idle',
+        },
+        state: 'idle',
+      },
+      {
+        id: 'adv-var-1',
+        type: 'variant',
+        position: { x: 550, y: 700 },
+        size: { width: 200, height: 100 },
+        data: { label: '变体组', type: 'variant' },
+        state: 'idle',
+      },
+    ],
+    links: [
+      { id: 've1', source: 'adv-cand-a', target: 'adv-var-1', data: { dataType: 'variant' } },
+      { id: 've2', source: 'adv-cand-b', target: 'adv-var-1', data: { dataType: 'variant' } },
+    ],
     groups: [],
     variantGroups: [],
   }
@@ -234,5 +285,132 @@ test.describe('Phase 58-03 — RECIPE 全配方持久化(编辑往返 + 请求�
     }, { timeout: 5_000 }).toBe(true)
     wire = await wireNodeData(page)
     expect(wire.lora).toEqual([{ name: 'ink-style', strength: 1.2 }])
+  })
+
+  test('RECIPE-02: 仅编辑 steps → 重生成 → execute 请求体整袋断言(未编辑字段原样透传)', async ({ page }) => {
+    await loadCanvas(page)
+    await injectAdvancedFixture(page)
+
+    await openDetailPanel(page, ADV_NODE_ID)
+    await openAdvanced(page)
+    // 仅编辑 steps(其余字段不碰——整袋 spread 证明的对照面)
+    await page.locator('[data-testid="param-input-steps"]').fill('50')
+    await page.locator('[data-testid="prompt-save"]').click()
+    await expect.poll(async () => (await wireNodeData(page))?.steps, { timeout: 5_000 }).toBe(50)
+
+    // 已保存(非 dirty)→ 重生成可用;点击走 executeNode 整袋 spread 通道
+    await expect(page.locator('[data-testid="prompt-regenerate"]')).toBeEnabled()
+    await page.locator('[data-testid="prompt-regenerate"]').click()
+
+    // ② 请求体层:mock logCall 完整 body(phase52 REGEN-01-a 同款轮询)
+    let exec
+    await expect.poll(async () => {
+      const calls = await getCalls(page)
+      exec = calls.find((c) => c.path === '/api/canvas/execute')
+      return exec?.body?.params?.steps
+    }, { timeout: 5_000 }).toBe(50)
+
+    // 编辑值到达请求体(RECIPE-02);nodeId = 产出资产 id(地雷 #4)
+    expect(exec.body.nodeId).toBe(ADV_NODE_ID)
+    expect(exec.body.nodeType).toBe('storyboard')
+    expect(exec.body.params?.steps).toBe(50)
+    // 未编辑字段原样透传——窄通道不再丢弃(RECIPE-03 整袋 spread 证明)
+    expect(exec.body.params?.quant).toBe('fp8')
+    expect(exec.body.params?.cfg).toBe(7)
+    expect(exec.body.params?.sageAttention).toBe(true)
+    expect(exec.body.params?.lora).toEqual([{ name: 'xl-light', strength: 0.6 }])
+    expect(exec.body.params?.prompt).toBe(INITIAL.prompt)
+  })
+
+  test('RECIPE-03-b(Pitfall 1): 清空 steps → 保存 → wire 键消失 + reload 不复活', async ({ page }) => {
+    await loadCanvas(page)
+    await injectAdvancedFixture(page)
+
+    await openDetailPanel(page, ADV_NODE_ID)
+    await openAdvanced(page)
+    // 清空(留空 = 未设置,UI-SPEC §5)
+    await page.locator('[data-testid="param-input-steps"]').fill('')
+    await page.locator('[data-testid="prompt-save"]').click()
+
+    // ① wire 层:58-01 delete 传播——data.steps 键消失(防 rawData 陈旧值复活)
+    await expect.poll(async () => (await wireNodeData(page))?.steps, { timeout: 5_000 }).toBeUndefined()
+    const wire = await wireNodeData(page)
+    expect(wire).not.toHaveProperty('steps')
+    // 其余字段不受清空波及
+    expect(wire.cfg).toBe(7)
+
+    // reload → migrate recipeParams 不再提取 → canonical params.steps === undefined(清空不复活)
+    await page.reload({ waitUntil: 'networkidle' })
+    await switchToCanvasView(page)
+    await page.waitForSelector('.react-flow__node', { timeout: 15_000 })
+    await page.waitForFunction(() => !!window.__kaisCanvas, { timeout: 5_000 }).catch(() => {})
+    await page.waitForTimeout(300)
+    const params = await canonicalParams(page)
+    expect(params).not.toBeNull()
+    expect(params.steps).toBeUndefined()
+    expect(params.cfg).toBe(7)
+
+    // 面板侧:重开面板后输入框为空(未设置态),其余字段仍在
+    await openDetailPanel(page, ADV_NODE_ID)
+    await openAdvanced(page)
+    await expect(page.locator('[data-testid="param-input-steps"]')).toHaveValue('')
+    await expect(page.locator('[data-testid="param-input-cfg"]')).toHaveValue('7')
+  })
+
+  test('RECIPE-03-c(Pitfall 2): 删光 lora 行 → 保存 → wire data.lora === undefined 非 [] + 空态', async ({ page }) => {
+    await loadCanvas(page)
+    await injectAdvancedFixture(page)
+
+    await openDetailPanel(page, ADV_NODE_ID)
+    await openAdvanced(page)
+    await page.locator('[data-testid="lora-remove-0"]').click()
+    await page.locator('[data-testid="prompt-save"]').click()
+
+    // ① wire 层:空 lora 归一化为 undefined——非 [](Pitfall 2:[] 是合法值会被写入
+    // params.lora=[],与「空 lora = 字段删除」语义冲突)
+    await expect.poll(async () => (await wireNodeData(page))?.lora, { timeout: 5_000 }).toBeUndefined()
+    const wire = await wireNodeData(page)
+    expect(wire).not.toHaveProperty('lora')
+
+    // 面板 advanced 区显示「暂无 LoRA」空态(graph:saved 回读后 draft 重置为 0 行)
+    await expect(page.locator('[data-testid="advanced-section"]')).toContainText('暂无 LoRA')
+    // steps 未动,仍在(空 lora 不波及其他字段)
+    await expect(page.locator('[data-testid="param-input-steps"]')).toHaveValue('30')
+  })
+
+  test('落选只读: advanced 控件随整块 disabled + 「落选变体」锁死文案', async ({ page }) => {
+    await loadCanvas(page)
+    await page.request.post('/api/canvas/v2/save-v2', {
+      data: { projectId: 1, episodesId: 1, graph: loserVariantGraph() },
+    })
+    await page.reload({ waitUntil: 'networkidle' })
+    await switchToCanvasView(page)
+    await page.waitForSelector('.react-flow__node', { timeout: 15_000 })
+    await page.waitForFunction(() => !!window.__kaisCanvas, { timeout: 5_000 }).catch(() => {})
+    await page.waitForTimeout(300)
+
+    // 落选候选不上画布(P12 折叠进 winner 牌堆)——走分镜浏览侧栏卡点击(52-08 gap#7b 真实路径)
+    await page.getByRole('button', { name: '分镜浏览', exact: true }).click()
+    const loserCard = page.locator('[data-testid^="shot-card-"]').filter({ hasText: '高级候选 B' }).first()
+    await expect(loserCard).toBeVisible({ timeout: 5_000 })
+    await loserCard.click()
+    await page.waitForSelector('[data-testid="detail-panel"]', { timeout: 5_000 })
+    await page.waitForSelector('[data-testid="prompt-section"]', { timeout: 5_000 })
+
+    // 锁死文案(UI-SPEC e2e 锁定,逐字不可改) + 保存/重生成 disabled
+    await expect(page.locator('[data-testid="prompt-readonly-hint"]')).toContainText('落选变体')
+    await expect(page.locator('[data-testid="prompt-save"]')).toBeDisabled()
+    await expect(page.locator('[data-testid="prompt-regenerate"]')).toBeDisabled()
+
+    // 高级控件随整块 disabled(值可展开查看——显示主事件配方,Pitfall 7 折叠语义)
+    await openAdvanced(page)
+    await expect(page.locator('[data-testid="param-input-steps"]')).toBeDisabled()
+    await expect(page.locator('[data-testid="param-input-steps"]')).toHaveValue('44')
+    await expect(page.locator('[data-testid="param-input-cfg"]')).toBeDisabled()
+    await expect(page.locator('[data-testid="param-select-quant"]')).toBeDisabled()
+    await expect(page.locator('[data-testid="param-select-sage"]')).toBeDisabled()
+    await expect(page.locator('[data-testid="lora-name-0"]')).toBeDisabled()
+    await expect(page.locator('[data-testid="lora-remove-0"]')).toBeDisabled()
+    await expect(page.locator('[data-testid="lora-add"]')).toBeDisabled()
   })
 })
