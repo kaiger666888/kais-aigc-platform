@@ -2,7 +2,7 @@ import express from "express";
 import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
-import { readdir, readFile, stat } from "fs/promises";
+import { readdir, readFile, stat, realpath } from "fs/promises";
 import { join, extname, basename, resolve } from "path";
 import type { FlowGraphV2, FlowNodeV2, FlowLinkV2, FlowBranchV2 } from "@/types/flowgraph-v2";
 import {
@@ -2016,6 +2016,23 @@ export default router.post(
         }
       } catch {
         return res.status(400).send(error(`workdir 不存在: ${workdir}`));
+      }
+
+      // 59-fix WR-06: resolve() 是纯词法归一——允许根内的 symlink 可指向根外
+      // (/data/workspace/x -> /home/kai 之类),词法 startsWith 前缀检查与其后的
+      // stat(跟随符号链接)都会放行,把 symlink 目标整树导入并以 data/oss/{basename}
+      // 挂上 /oss,重开 CR-03 任意宿主目录暴露(前提仅「允许根内本地写」)。realpath
+      // 解析全部符号链接后对真实路径复检包含关系;解析失败(悬空链/权限)同样拒绝。
+      let realWorkdir: string;
+      try {
+        realWorkdir = await realpath(absWorkdir);
+      } catch {
+        return res.status(400).send(error(`workdir 无法解析为真实路径: ${workdir}`));
+      }
+      if (!ALLOWED_WORKDIR_ROOTS.some((r) => realWorkdir.startsWith(r))) {
+        return res.status(400).send(error(
+          `workdir 解析后不在允许的根目录下(${ALLOWED_WORKDIR_ROOTS.join(" 或 ")}): ${workdir} → ${realWorkdir}`,
+        ));
       }
 
       // Auto-create oss symlink: data/oss/{basename} → workdir
