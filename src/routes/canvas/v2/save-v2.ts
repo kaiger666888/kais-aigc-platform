@@ -28,9 +28,12 @@ export default router.post(
     projectId: z.number(),
     episodesId: z.number(),
     graph: z.any(),
+    // 60-02 D-01: 客户端自声明 tab 身份(echo-only,不落库不鉴权——威胁定级
+    // Informational,见 60-02-PLAN T-60-02)。白名单+长度限制是唯一缓解。
+    savedBy: z.string().max(64).optional(),
   }),
   async (req, res) => {
-    const { projectId, episodesId, graph } = req.body;
+    const { projectId, episodesId, graph, savedBy } = req.body;
 
     try {
       const parseResult = FlowGraphV2Schema.safeParse(graph);
@@ -68,7 +71,16 @@ export default router.post(
       // Direct row-level write — no event log, no recompute, no O(N²)
       await saveFullGraph({ projectId, episodesId }, validGraph);
 
-      broadcastToProject(projectId, "graph:saved", { projectId, episodesId, timestamp: Date.now() });
+      // 60-02 D-01: savedBy 条件回显——带身份的保存(画布客户端)广播多一个 savedBy 键,
+      // 接收端据此跳过自回声 reload;不带的(kmc pipeline 等既有调用方)广播形状与
+      // 改造前逐键一致(向后兼容,60-PATTERNS Shared Pattern 2)。broadcast 先于
+      // HTTP 响应是既有事实(F-1),保持不动——这正是 savedBy 方案的存在理由。
+      broadcastToProject(projectId, "graph:saved", {
+        projectId,
+        episodesId,
+        timestamp: Date.now(),
+        ...(savedBy != null ? { savedBy } : {}),
+      });
       return res.status(200).send(success());
     } catch (err) {
       console.error("[v2/canvas/save] 保存画布失败:", err);

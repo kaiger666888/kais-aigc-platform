@@ -182,13 +182,15 @@ app.post('/api/canvas/v2/load-v2', (req, res) => {
 // 用它把 rerun 自保存的 graph:saved 自回声 reload(写-写竞态窗口,RESEARCH
 // Pitfall 4 已知边界,planner 裁定本 phase 不治)从被测面剔除;其余用例零影响。
 app.post('/api/canvas/v2/save-v2', (req, res) => {
-  const { projectId, episodesId, graph } = req.body
+  const { projectId, episodesId, graph, savedBy } = req.body
   state.canvas = graph?.nodes?.length ? graph : state.canvas
-  logCall('POST', '/api/canvas/v2/save-v2', { projectId, episodesId, nodeCount: graph?.nodes?.length }, null)
+  // 60-02: body 记 savedBy(?? null)——e2e 断言客户端真的发了身份的观测面(60-04 用例 1)。
+  logCall('POST', '/api/canvas/v2/save-v2', { projectId, episodesId, nodeCount: graph?.nodes?.length, savedBy: req.body?.savedBy ?? null }, null)
   res.json({ code: 200, data: null })
   if (state.config.suppressGraphSaved) return
   setTimeout(() => {
-    broadcastToProject(projectId, 'graph:saved', { projectId, episodesId, timestamp: Date.now() })
+    // 60-02 D-04: savedBy 条件回显,与真后端 save-v2.ts 同形;不带身份的调用广播形状不变。
+    broadcastToProject(projectId, 'graph:saved', { projectId, episodesId, timestamp: Date.now(), ...(savedBy != null ? { savedBy } : {}) })
   }, 5)
 })
 
