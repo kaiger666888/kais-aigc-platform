@@ -43,6 +43,7 @@ v3.0 画布创作体验 shipped 2026-08-22 (audit passed f9280e0c; 305/305 verif
 
 <!-- Shipped and confirmed. -->
 
+- ✓ 窄触发 stale 级联 + execute 链四断点修真 (STALE-01/02/03: 面板重生成/换 seed 重跑→下游 stale 角标+一键重跑, 编排/批量零波及负向锁死; D-06 ①outputs.image ②/mnt/agents/output→/oss/ ③假成功→真错误 ④ref_images 对齐 + REGEN-02 seed 透传; workdir 防穿越/仓库暴露三向守卫; verify:phase-59 89/89 + e2e 5/5 + probe 真机零足迹) — v3.1 Phase 59
 - ✓ 全配方持久化 (§14 窄通道→九键全量: steps/cfg/quant/sageAttention/lora 面板编辑+migrate/serialize 往返+delete 传播+regen 整袋透传; 三方集合相等防漂移门 verify:phase-58 25/25) — v3.1 Phase 58
 - ✓ 画布写路径统一 (V3 canonical graph: save-v2 保存/右键审核删除/MetaEditor+socket 回写; ~3,200 行死代码清除; @kais/flowgraph-v3 依赖正名; COORD-01 成文) — v3.0 Phase 51
 - ✓ 视频生成 (Wan2.2 T2V/I2V via ComfyUI GGUF) — gold-team v6
@@ -307,4 +308,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-23 — Phase 58 全配方持久化 complete (v3.1 1/4)*
+*Last updated: 2026-08-24 — Phase 59 窄触发 stale 级联 complete (v3.1 2/4; 3 项人工 UAT 挂起: 引擎环境补跑/GOLD_TEAM_URL 裁决/角标 UX)*
