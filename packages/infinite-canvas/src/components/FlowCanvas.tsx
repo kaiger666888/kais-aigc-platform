@@ -51,6 +51,8 @@ import { getLayoutedElements } from '../utils/autoLayout'
 import { loadCanvasGraph, saveCanvasGraph, convertProjectData, fetchSkillNodeTypes, orchestrateCanvas, fetchCanvasHealth, fetchGateState } from '../services/canvasApi'
 import { useGateStore, resolveRepresentativeNodeId } from '../store/gateStore'
 import { useCanvasSocket } from '../hooks/useCanvasSocket'
+// Phase 59 (59-03): node:updated stale 载荷 → 既有级联出口(幂等收敛+脉动)
+import { triggerStaleCascade } from '../hooks/useStale'
 import StoryboardTimeline from './StoryboardTimeline'
 import AssetManager from './assetManager/AssetManager'
 import PipelineStateMachine from './PipelineStateMachine'
@@ -373,6 +375,27 @@ function CanvasInner() {
         // locked/multi 等组态与本地视图不一致 — 不强推，留给下次全量加载收敛
         console.warn('[FlowCanvas] variant:selected 应用失败(等待下次全量同步):', err)
       }
+    },
+    onNodeUpdated: (payload) => {
+      // Phase 59 (D-01, FLAG-1 Option A): 服务端 stale 标记广播(59-02
+      // markStaleAndBroadcast——带 regenSource 的 execute 任务成功后把下游落库
+      // stale 并逐节点广播)。严格契约(UI-SPEC §5):只消费 stale 载荷——轻校验
+      // node.data.stale 三字段形状(since 为 number、triggerAssetId 为 string),
+      // 校验失败静默 return(校验失败分支无任何 store 写入);非 stale 载荷的
+      // node:updated(如 nodes.ts PATCH 回声)一律忽略——不开面板、不改选中、
+      // 不弹 toast。socket room 即 project:{id}(io join 已按 projectId 隔离),
+      // 广播无跨项目串扰面,无需 scope 守卫。
+      const data = payload.node?.data as
+        | { stale?: { since?: unknown; triggerAssetId?: unknown } }
+        | undefined
+      const stale = data?.stale
+      if (stale == null || typeof stale !== 'object') return
+      if (typeof stale.since !== 'number') return
+      if (typeof stale.triggerAssetId !== 'string') return
+      // 合法 → 复用既有级联出口(角标/脉动/StaleSection/useStaleRerun 全部零改动
+      // 消费):内部即 store.markStaleDownstream 纯函数重算 + 脉动,与服务端真相
+      // 幂等收敛(divergence impossible by construction)。
+      triggerStaleCascade([stale.triggerAssetId])
     },
   })
 
