@@ -12,6 +12,14 @@
  *     pollEngineTask 读 raw.outputs.*(断点①) + ref_images/model_preference
  *     提交体形(断点④ + A3)。baseUrl() 运行时读 process.env.GOLD_TEAM_URL,
  *     fake 引擎 set env 后直调,无需 spawn。
+ *   S3/S4 spawn dispatch 行为断言(59-02 Task 3):
+ *     每模式 spawn scripts/verify-59-dispatch.ts(49-01 教训:端点 dispatch 的
+ *     app-db knex 池不落共享进程)——cwd=mkdtemp 隔离空库 + --tsconfig 显式指向
+ *     repo(子进程 cwd 无 repo tsconfig,@/ 不解析,实证)。四模式:
+ *       cascade(D-01 级联+node:updated 契约+seed 777+D-05 reload 保真) /
+ *       engine-fail(D-02 失败零标记)/ no-marker(负向#1 ContextMenu 路径) /
+ *       orchestrate(非空洞负向#2:关系表目标真执行+零 stale——blob 从未写入)。
+ *     fake 引擎常驻本进程(completed/failed 可切换,POST 捕获体跨模式累积)。
  *   Forced-failure self-check — must-fail 断言组;意外 PASS 整门红。
  *
  * Isolation guard (verify-phase-51 pattern, line-for-line): _engine.ts
@@ -27,7 +35,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import http from "node:http";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 
 interface TestResult { name: string; pass: boolean; detail?: string; }
 const results: TestResult[] = [];
@@ -277,7 +285,236 @@ async function main(): Promise<void> {
     }
   }
 
-  // ═══ Forced-failure self-check — prove the gate can fail ═════════════════
+  // ═══ S3/S4 — spawn dispatch 行为断言(59-02 Task 3) ═══════════════════════
+  console.log("\n=== S3/S4 spawn dispatch: D-01 级联+契约广播 / D-02 失败零标记 / SC3 负向三件套 / REGEN-02 seed / D-05 reload 保真 ===");
+  interface DispatchOutcome {
+    mode: string;
+    httpStatus: number;
+    respBody: any;
+    events: Array<{ event: string; data: any }>;
+    staleRows: Array<{ id: string; stale: any }>;
+  }
+  const dispatchOutcomes: Record<string, DispatchOutcome | null> = {};
+  {
+    // fake 引擎常驻本进程(S2 stub 模式;completed/failed 由 engineMode 切换,
+    // POST 捕获体 dispatchBodies 跨模式累积——seed===777 只有 cascade 模式发)。
+    let engineMode: "completed" | "failed" = "completed";
+    const dispatchBodies: any[] = [];
+    const fakeEngine = http.createServer((req, res) => {
+      const url = new URL(req.url ?? "/", "http://stub");
+      const bodyChunks: Buffer[] = [];
+      req.on("data", (c: Buffer) => bodyChunks.push(c));
+      req.on("end", () => {
+        const bodyText = Buffer.concat(bodyChunks).toString("utf8");
+        let body: any = null;
+        try { body = bodyText ? JSON.parse(bodyText) : null; } catch { /* non-JSON */ }
+        const json = (status: number, payload: unknown) => {
+          res.writeHead(status, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(payload));
+        };
+        if (url.pathname === "/api/v1/tasks" && req.method === "POST") {
+          dispatchBodies.push(body);
+          json(202, { task_id: body?.task_id ?? "stub-task" });
+          return;
+        }
+        const getMatch = /^\/api\/v1\/tasks\/([^/]+)$/.exec(url.pathname);
+        if (getMatch && req.method === "GET") {
+          if (engineMode === "failed") {
+            json(200, { status: "failed", error: "Generation timed out" });
+            return;
+          }
+          json(200, {
+            status: "completed",
+            outputs: {
+              image: "/mnt/agents/output/jimeng_T6384/output.png",
+              thumbnail: "/mnt/agents/output/jimeng_T6384/output.png",
+            },
+            metadata: { seed: 42 },
+          });
+          return;
+        }
+        json(404, { detail: `no stub route ${req.method} ${url.pathname}` });
+      });
+    });
+    let feServer: http.Server | null = null;
+    try {
+      feServer = fakeEngine;
+      await new Promise<void>((resolve) => fakeEngine.listen(0, "127.0.0.1", resolve));
+      const stubUrl = `http://127.0.0.1:${(fakeEngine.address() as { port: number }).port}`;
+
+      // 单模式 spawn(必须异步 spawn 而非 spawnSync——54-05 同款教训:fake 引擎
+      // 常驻本进程,spawnSync 冻结父进程事件循环会让子进程的引擎 fetch 死锁
+      // 超时):cwd=mkdtemp 隔离空库(getPath 以 cwd/data 为基;生产库绝不被
+      // 打开);package.json staged(writeVersion 从 cwd 解析);--tsconfig 显式
+      // 指 repo(实证:tsx 从临时 cwd 找不到 tsconfig,@/ 不解析)。
+      const runDispatch = async (mode: string): Promise<DispatchOutcome | null> => {
+        const tmp = fs.mkdtempSync(path.join(os.tmpdir(), `verify-59-dispatch-${mode}-`));
+        fs.copyFileSync(path.join(REPO_ROOT, "package.json"), path.join(tmp, "package.json"));
+        try {
+          const child = spawn(
+            path.join(REPO_ROOT, "node_modules", ".bin", "tsx"),
+            [
+              "--tsconfig", path.join(REPO_ROOT, "tsconfig.json"),
+              path.join(REPO_ROOT, "scripts", "verify-59-dispatch.ts"),
+            ],
+            {
+              cwd: tmp,
+              env: {
+                ...process.env,
+                GOLD_TEAM_URL: stubUrl,
+                DISPATCH_MODE: mode,
+                ENGINE_POLL_INTERVAL_MS: "10", // 防御性:fake 引擎首个 GET 即终结
+              },
+              stdio: ["ignore", "pipe", "pipe"],
+            },
+          );
+          let out = "";
+          let err = "";
+          child.stdout.on("data", (d: Buffer) => { out += d.toString(); });
+          child.stderr.on("data", (d: Buffer) => { err += d.toString(); });
+          const exitCode = await new Promise<number | null>((resolve) => {
+            const killer = setTimeout(() => child.kill("SIGKILL"), 120_000);
+            child.once("exit", (code) => { clearTimeout(killer); resolve(code); });
+          });
+          const line = out
+            .split("\n")
+            .map((l) => l.trim())
+            .filter((l) => l.startsWith("V59_DISPATCH_JSON="))
+            .pop();
+          if (!line) {
+            const errTail = err.split("\n").filter((l) => l.trim()).slice(-3).join(" | ");
+            console.log(`  [dispatch:${mode}] 子进程未产出 JSON (exit ${exitCode}): ${errTail.slice(-250)}`);
+            return null;
+          }
+          return JSON.parse(line.slice("V59_DISPATCH_JSON=".length)) as DispatchOutcome;
+        } finally {
+          fs.rmSync(tmp, { recursive: true, force: true }); // 临时目录清理
+        }
+      };
+
+      // ── S3-cascade(completed):D-01 级联 + wire 契约 + seed + D-05 ──
+      engineMode = "completed";
+      const cascade = await runDispatch("cascade");
+      dispatchOutcomes.cascade = cascade;
+      assert(cascade != null, "S3-cascade: 子进程产出 V59_DISPATCH_JSON");
+      if (cascade) {
+        assert(
+          cascade.events.some((e) => e.event === "node:state" && e.data?.nodeId === "trig-1" && e.data?.state === "success"),
+          "S3-cascade: node:state success(trig-1)",
+        );
+        const staleUpdates = cascade.events.filter(
+          (e) => e.event === "node:updated" &&
+            Array.isArray(e.data?.changedFields) &&
+            e.data.changedFields.length === 1 &&
+            e.data.changedFields[0] === "data.stale",
+        );
+        assert(
+          staleUpdates.length >= 1,
+          `S3-cascade: ≥1 条 node:updated 且 changedFields === ["data.stale"](得 ${staleUpdates.length})`,
+        );
+        assert(
+          staleUpdates.some((e) => e.data?.node?.data?.stale?.triggerAssetId === "trig-1"),
+          "S3-cascade: 广播 node.data.stale.triggerAssetId === 'trig-1'",
+        );
+        const downRow = cascade.staleRows.find((r) => r.id === "down-1");
+        assert(
+          downRow != null &&
+            typeof downRow.stale?.since === "number" &&
+            typeof downRow.stale?.triggerAssetId === "string" &&
+            typeof downRow.stale?.triggerEventId === "string",
+          "S3-cascade: DB down-1 stale 三字段齐全(D-05 reload 保真——loadFullGraph 即 load-v2 数据源,同一读)",
+          JSON.stringify(downRow ?? null),
+        );
+        assert(
+          dispatchBodies.some((b) => b?.params?.seed === 777),
+          "S3-cascade: fake 引擎捕获体 params.seed === 777(REGEN-02 行为级)",
+        );
+      }
+
+      // ── S3-engine-fail(failed):D-02 失败零标记负向 ──
+      engineMode = "failed";
+      const fail = await runDispatch("engine-fail");
+      dispatchOutcomes["engine-fail"] = fail;
+      assert(fail != null, "S3-engine-fail: 子进程产出 V59_DISPATCH_JSON");
+      if (fail) {
+        assert(
+          fail.events.some((e) => e.event === "node:state" && e.data?.nodeId === "trig-1" && e.data?.state === "error"),
+          "S3-engine-fail: node:state error 广播(59-01 断点③修真后失败可见)",
+        );
+        assert(
+          !fail.events.some((e) => e.event === "node:state" && e.data?.state === "success"),
+          "S3-engine-fail: 零 success 事件",
+        );
+        assert(
+          !fail.events.some((e) => e.event === "node:updated"),
+          "S3-engine-fail: 零 node:updated 广播",
+        );
+        assert(
+          fail.staleRows.length === 0,
+          "S3-engine-fail: staleRows 空(D-02 负向:失败零 stale 写)",
+        );
+      }
+      engineMode = "completed";
+
+      // ── S4-no-marker(completed):负向 #1 ContextMenu 路径 ──
+      const nom = await runDispatch("no-marker");
+      dispatchOutcomes["no-marker"] = nom;
+      assert(nom != null, "S4-no-marker: 子进程产出 V59_DISPATCH_JSON");
+      if (nom) {
+        assert(
+          nom.events.some((e) => e.event === "node:state" && e.data?.nodeId === "trig-1" && e.data?.state === "success"),
+          "S4-no-marker: 无标记 execute 仍 success(ContextMenu 路径行为不变)",
+        );
+        assert(
+          !nom.events.some((e) => e.event === "node:updated"),
+          "S4-no-marker: 零 node:updated(负向 #1:无 regenSource 零级联)",
+        );
+        assert(
+          nom.staleRows.length === 0,
+          "S4-no-marker: staleRows 空(负向 #1)",
+        );
+      }
+
+      // ── S4-orchestrate(completed):非空洞负向 #2(SC3) ──
+      const orch = await runDispatch("orchestrate");
+      dispatchOutcomes.orchestrate = orch;
+      assert(orch != null, "S4-orchestrate: 子进程产出 V59_DISPATCH_JSON");
+      if (orch) {
+        assert(
+          orch.httpStatus === 200,
+          "S4-orchestrate: httpStatus 200(blob 从未写入——关系表是唯一数据源,orchestrate 数据源真化的行为级证明)",
+          `status=${orch.httpStatus} body=${JSON.stringify(orch.respBody).slice(0, 120)}`,
+        );
+        assert(
+          orch.events.some((e) => e.event === "node:state" && e.data?.nodeId === "down-1" && e.data?.state === "success"),
+          "S4-orchestrate: down-1 node:state success(非空洞负向前提:orchestrate 真执行了关系表目标,而非 404 空转)",
+        );
+        assert(
+          !orch.events.some((e) => e.event === "node:updated"),
+          "S4-orchestrate: 零 node:updated(负向 #2:SC3 orchestrate 零级联)",
+        );
+        assert(
+          orch.staleRows.length === 0,
+          "S4-orchestrate: staleRows 空(负向 #2:SC3)",
+        );
+      }
+
+      // ── 静态断言(结构冻结锁) ──
+      const executeSrc = read("src/routes/canvas/execute.ts");
+      const orchestrateSrc = read("src/routes/canvas/orchestrate.ts");
+      const staleSrc = read("src/routes/canvas/_stale.ts");
+      assert(executeSrc.includes("regenSource: z.enum"), "静态: execute.ts 含 regenSource: z.enum(zod 白名单)");
+      assert(orchestrateSrc.includes("loadFullGraph"), "静态: orchestrate.ts 含 loadFullGraph(关系表读)");
+      assert(!orchestrateSrc.includes("o_agentWorkData"), "静态: orchestrate.ts 无 legacy blob 读取");
+      assert(
+        !/markStaleDownstream|\.\/_stale|regenSource/.test(orchestrateSrc),
+        "静态: orchestrate.ts 零级联结构(无级联函数 import / 无 _stale 引用 / 无重生成标记消费)",
+      );
+      assert(!staleSrc.includes("ts/src/index"), "静态: _stale.ts 无 flowgraph-v3 index.ts 深链(zod 分裂防线)");
+    } finally {
+      if (feServer) await new Promise<void>((resolve) => feServer!.close(() => resolve()));
+    }
+  }
   console.log("\n=== Forced-failure self-check (gate can actually fail — expected FAILs below) ===");
   const selfCheckShadow: TestResult[] = [];
   const shadowAssert = (cond: boolean, name: string): void => {
@@ -296,6 +533,22 @@ async function main(): Promise<void> {
     exists("src/routes/canvas/__definitely_not_real__.ts"),
     "self-check: known-nonexistent file is reported missing",
   );
+  // 59-02 S3/S4 三条 forced-failure(证明 dispatch 门能红):
+  const nomShadow = dispatchOutcomes["no-marker"];
+  const failShadow = dispatchOutcomes["engine-fail"];
+  const orchShadow = dispatchOutcomes.orchestrate;
+  shadowAssert(
+    (nomShadow?.staleRows.length ?? 0) > 0,
+    "self-check: inverted 断言失败——no-marker 模式 staleRows.length > 0 必须不成立",
+  );
+  shadowAssert(
+    (failShadow?.events ?? []).some((e) => e.event === "node:state" && e.data?.state === "success"),
+    "self-check: inverted 断言失败——engine-fail 模式出现 success 事件必须不成立",
+  );
+  shadowAssert(
+    orchShadow?.httpStatus === 404,
+    "self-check: inverted 断言失败——orchestrate 模式 httpStatus 404 必须不成立",
+  );
   const shadowFailed = selfCheckShadow.filter((r) => !r.pass).length;
   assert(
     selfCheckShadow.length >= 3 && selfCheckShadow.every((r) => !r.pass),
@@ -309,7 +562,7 @@ async function main(): Promise<void> {
   const failed = total - passed;
   console.log(`\n=== Summary: ${passed}/${total} assertions passed, FAIL count = ${failed} (self-check excluded from totals) ===`);
   if (passed === total) {
-    console.log("✅ Phase 59 verification PASSED (S1 双向路径翻译 ✓ S2 fake 引擎三模式 ✓ + forced-failure self-check ✓)");
+    console.log("✅ Phase 59 verification PASSED (S1 双向路径翻译 ✓ S2 fake 引擎三模式 ✓ S3/S4 spawn dispatch 行为断言 ✓ + forced-failure self-check ✓)");
     process.exit(0);
   } else {
     console.log("❌ Phase 59 verification FAILED");
