@@ -15,6 +15,7 @@
  *
  * WebSocket 命名空间: /ws/projects
  *  - 广播 node:state / execution:progress / orchestrate:start/progress/done / node:preview
+ *  - Phase 59: execute(body 含 regenSource)回放 node:updated { node, changedFields:["data.stale"] }
  *
  * 测试控制接口 (测试代码用来注入 / 验证状态):
  *  - GET  /__mock/state              → 当前 mock 数据库
@@ -131,6 +132,8 @@ const state = {
     orchDelay: 50,    // ms per node during orchestrate
     previewDelay: 100,
     failSecondNode: false,
+    // 59-04: SC4 用——抑制 save-v2 的 graph:saved 自回声广播(见 save-v2 handler 注释)
+    suppressGraphSaved: false,
   },
   activeRuns: new Set(),  // runId 集合; reset 时清空,orchestrate 循环检查
 }
@@ -175,11 +178,15 @@ app.post('/api/canvas/v2/load-v2', (req, res) => {
 // Phase 51-02 起这也是前端 saveCanvasGraph 的唯一保存通道（v1 save 已删除，契约诚实）。
 // 替换 mock canvas 状态,然后广播 graph:saved 事件 — 与真 backend
 // src/routes/canvas/v2/save-v2.ts:60 的行为对齐。
+// 59-04: config.suppressGraphSaved(默认 false)可抑制本广播——SC4 双出口 e2e
+// 用它把 rerun 自保存的 graph:saved 自回声 reload(写-写竞态窗口,RESEARCH
+// Pitfall 4 已知边界,planner 裁定本 phase 不治)从被测面剔除;其余用例零影响。
 app.post('/api/canvas/v2/save-v2', (req, res) => {
   const { projectId, episodesId, graph } = req.body
   state.canvas = graph?.nodes?.length ? graph : state.canvas
   logCall('POST', '/api/canvas/v2/save-v2', { projectId, episodesId, nodeCount: graph?.nodes?.length }, null)
   res.json({ code: 200, data: null })
+  if (state.config.suppressGraphSaved) return
   setTimeout(() => {
     broadcastToProject(projectId, 'graph:saved', { projectId, episodesId, timestamp: Date.now() })
   }, 5)
@@ -355,12 +362,70 @@ app.post('/api/canvas/storyboard/preview', (req, res) => {
 
 // ─── Phase 37 — Single-node execute (back-compat) ──────────
 
+// Phase 59 (59-04): mock 侧 stale 级联回放——严格镜像 59-02 服务端契约
+// (markStaleAndBroadcast → node:updated { node, changedFields:["data.stale"] })。
+// mock 是**契约回放**非语义重实现:语义真值源在 59-02 服务端 spawn dispatch 断言
+// (cascade 传递闭包 / sequence·isInactive 排除 / locked 终点 / evt_ 确定性 id),
+// mock 只按 mock 图形状做最小等价回放供 e2e 消费(SC1/SC2/SC4)。
+function replayStaleCascade(projectId, triggerNodeId) {
+  const nodes = state.canvas.nodes ?? []
+  const nodeById = new Map(nodes.map((n) => [n.id, n]))
+  if (!nodeById.has(triggerNodeId)) return
+  // 下游 BFS(D-03 传递闭包的 mock 等价):沿 mock links 前向遍历;
+  //  - 事件芯片(type 'eventChip' / id 'evt_*')是结构节点,穿过但不标记;
+  //  - data.curation === 'locked' 视作终点跳过(D-04 服务端语义镜像);
+  //  - mock 图未建模 isInactive/sequence 边则自然全走(语义归 59-02 服务端断言);
+  //  - visited 去重做环防御(stale.ts BFS 去重先例)。
+  const downstream = []
+  const visited = new Set([triggerNodeId])
+  const queue = [triggerNodeId]
+  while (queue.length > 0) {
+    const cur = queue.shift()
+    for (const link of state.canvas.links ?? []) {
+      if (link.source !== cur || visited.has(link.target)) continue
+      visited.add(link.target)
+      const target = nodeById.get(link.target)
+      if (target == null) continue
+      const isEventNode = target.type === 'eventChip' || String(target.id).startsWith('evt_')
+      if (!isEventNode && target.data?.curation !== 'locked') downstream.push(target)
+      if (target.data?.curation === 'locked') continue // 传播终点:不标不传
+      queue.push(target.id)
+    }
+  }
+  const now = Date.now()
+  for (const target of downstream) {
+    if (target.type === 'eventChip' || String(target.id).startsWith('evt_')) continue
+    // 已 stale 不覆盖(宪法 §13「最早 since 保留」——59-02 服务端 diff 只取增量的镜像)
+    if (target.data?.stale != null) continue
+    target.data = {
+      ...(target.data ?? {}),
+      stale: {
+        since: now,
+        triggerAssetId: triggerNodeId,
+        // evt_ 前缀确定性 id(migrate.ts L523 同规则;mock 图无独立事件节点 →
+        // 合成 evt_<触发节点>,与服务端对 mock 形状图的合成结果一致)
+        triggerEventId: `evt_${triggerNodeId}`,
+      },
+    }
+    // 逐节点广播——payload 严格镜像 59-02 服务端 wire 契约(T-59-09)
+    broadcastToProject(projectId, 'node:updated', {
+      node: target,
+      changedFields: ['data.stale'],
+    })
+  }
+}
+
 app.post('/api/canvas/execute', (req, res) => {
-  const { projectId, episodesId, nodeId, nodeType } = req.body
+  const { projectId, episodesId, nodeId, nodeType, regenSource } = req.body
   res.json({ code: 200, data: { nodeId, status: 'triggered' } })
-  // 52-02: logCall 记完整 req.body(prompt/params/seed 等任务参数为 e2e 断言观测点)
+  // 52-02: logCall 记完整 req.body(prompt/params/seed 等任务参数为 e2e 断言观测点);
+  // 59 起含 regenSource —— SC1/SC2 请求体断言观测点(panel-regen / reroll-seed)
   logCall('POST', '/api/canvas/execute', req.body, null)
   setTimeout(() => {
+    // 59-04: body 含 regenSource 时,在既有 node:state success 广播**之前**回放
+    // 服务端级联契约(59-02 真实顺序:标记落库+广播 → success)。body 无 regenSource
+    // 时行为与今天完全一致(SC3 mock 侧负向前提——回放逻辑严格在条件分支内)。
+    if (regenSource) replayStaleCascade(projectId, nodeId)
     broadcastToProject(projectId, 'node:state', { nodeId, state: 'success' })
   }, 30)
 })
@@ -373,7 +438,7 @@ app.post('/__mock/reset', (req, res) => {
   state.activeRuns.clear()
   reset()
   if (!req.body?.keepConfig) {
-    state.config = { orchDelay: 50, previewDelay: 100, failSecondNode: false }
+    state.config = { orchDelay: 50, previewDelay: 100, failSecondNode: false, suppressGraphSaved: false }
   }
   res.json({ ok: true })
 })
