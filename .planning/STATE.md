@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: 重生成闭环深化
-status: planning
-last_updated: "2026-08-23T02:33:00.235Z"
+status: roadmap_created
+last_updated: "2026-08-23T03:10:00.000Z"
 last_activity: 2026-08-23
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,17 +17,19 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-17)
+See: .planning/PROJECT.md (updated 2026-08-23)
 
 **Core value:** AI creative production pipeline that runs end-to-end, pluggable across multiple creative workflows via a published skill contract.
-**Current focus:** v3.0 shipped 2026-08-22 — awaiting next milestone planning (`/gsd:new-milestone`)
+**Current focus:** v3.1 Phase 58 — 全配方持久化 (RECIPE narrow-channel widening via EventNodeV3.params)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-08-23 — Milestone v3.1 started
+Phase: 58 of 61 (全配方持久化 / Full Recipe Persistence)
+Plan: — (plans TBD via /gsd:plan-phase 58)
+Status: Ready to plan
+Last activity: 2026-08-23 — v3.1 roadmap created (4 phases, 13/13 requirements mapped)
+
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
@@ -68,6 +70,7 @@ Last activity: 2026-08-23 — Milestone v3.1 started
 
 ### Roadmap Evolution
 
+- **v3.1 roadmap created (2026-08-23):** 4 phases (58-61) derived from 13 requirements across 4 categories (RECIPE 4 / STALE 3 / PANEL 2 / DEBT 4)。Order 58 RECIPE → 59 STALE → 60 PANEL → 61 DEBT:RECIPE 与 STALE 都动 execute.ts 请求体与两条重生成路径(panel-edit-regen / reroll-seed),先定数据通道最终形状(全配方字段进 EventNodeV3.params)再挂 per-request 关联级联,避免同文件二次返工;STALE 锁定最小方案(executeNode extra channel,仅两条窄路径触发,orchestrate/batch 零影响负向断言锁死);PANEL(canvasStore reload 保 detailNode)与 DEBT 四项均 parallel-safe,串行排在末两位。全部改动限 kap 仓画布侧,e2e 落 packages/infinite-canvas/test/e2e/tests/。
 - **v3.0 shipped (2026-08-22):** 7 phases (51-57), 46 plans. 写路径地基统一 canonical V3 graph (51) + prompt 编辑→重生成闭环 code landed (52, externally owned) + 候选变体契约/变体墙/G15 批量操作 (53 Wave A) + 16-gate 中心三仓回写链 (54) + 22-phase 导航与 93 镜规模 (55) + 审核 radar/角标/G16 配音工作台 (56) + 制片门户/p13 交付页/deep-link/taxonomy 重对齐 (57)。Milestone audit **passed** (f9280e0c): 305/305 verify assertions · 435/435 vitest · 3× tsc clean · live probes ok · khs plugins/ 0 dirty。Deferred: 53 Wave B (khs2 v2.4 Phase 25 gate) + Phase 52 verification materials (owning session)。Archives: milestones/v3.0-ROADMAP.md + v3.0-MILESTONE-AUDIT.md。
 - **v2.1 roadmap created (2026-08-19):** 3 phases (48-50) derived from 12 requirements across 4 categories (INGEST 4 / SELECT 4 / PHASE 2 / GUARD 2). Serial chain 48→49→50: Phase 48 = o_assets 分组契约源头 (ingest 建组 + assetType 真值源 + workflow_phase 写入); Phase 49 = 选定回写闭环 (select-winner 端点 + 前端接线 + 资产中心联动 + kmc review resolve 桥接); Phase 50 = 存量回填 (与 Phase 47 模式一致) + 契约守护 (GUARD-01/02 + verify-phase-50)。kmc 侧零修改,桥接只读消费 manifest/review 协议。
 - **v2.0 shipped (2026-07-16):** 6 phases (42-47), 12/12 plans. 源端 manifest 契约 + canvas_sync 单路径 + 接收端 schema 严格化 + 文字资产 UI + E2E 契约测试 + 历史 backfill。唯一 deferred: BACKFILL-02 人工抽样签收。
@@ -78,15 +81,13 @@ Last activity: 2026-08-23 — Milestone v3.1 started
 
 ### Decisions
 
-**v1.7 milestone decisions (authoritative — see PROJECT.md for full table):**
+**v3.1 milestone decisions (see ROADMAP.md Architecture decisions):**
 
-- Phase numbering continues from v1.6 (Phase 35+)
-- Borrow scope focused on Tier 1; LLM integration + character schema changes deferred to v1.8+
-- Storyboard metadata lives in existing `FlowGraph.data` free schema + `o_storyboard.prompt_meta` JSON column — no breaking schema migration
-- One-click orchestration reuses existing `executeNode` — no new engine; orchestrator loops at canvas API layer; progress via WebSocket
-- Batch execution = multiple `executeNode` calls; backend not concurrent; GPU serialization via GpuScheduler
-- Single backend endpoint `POST /api/canvas/orchestrate` serves both full-canvas and explicit-subset (batch) flows via optional `nodeIds`
-- Tier 2 PREVIEW phase (38) optional and parallel-safe — depends only on Phase 35
+- Phase numbering continues from v3.0 (Phase 58+)
+- RECIPE 先于 STALE — 同动 execute.ts 请求体,先定数据通道再挂关联级联
+- STALE 锁定最小方案 — executeNode extra channel + per-request correlation;仅 panel-edit-regen / reroll-seed 触发;orchestrate/batch 零影响(负向断言)
+- PANEL (canvasStore reload 保 detailNode) 与 DEBT 四项 parallel-safe
+- 改动限 kap 仓画布侧;khs2 Wave B (TD-1) 维持范围外
 
 **Inherited from prior milestones:**
 
@@ -116,7 +117,7 @@ None.
 
 ### Blockers/Concerns
 
-None blocking v1.7 close. Carry-forward items below in Deferred Items.
+None blocking v3.1 start. Carry-forward items below in Deferred Items.
 
 ### Notable deviations from PLAN (documented for transparency)
 
@@ -129,12 +130,14 @@ Items acknowledged and carried forward from previous milestone close:
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
+| v3.0 carry-forward | 53 Wave B / 变体域 (VAR-01k/03k/04k, TD-1) | gated on khs2 v2.4 Phase 25 验收 | v3.1 kickoff (out of scope) |
+| v3.0 carry-forward | consolidated human-UAT register (54-57) | future sign-off | v3.0 close |
+| v3.0 carry-forward | tech-debt register TD-2/6/7/8 (TD-3/4/5 in v3.1 scope as DEBT-01..04) | future milestone | v3.1 kickoff (triaged) |
 | v1.7 out-of-scope | Story blueprint generator (LLM script→storyboard expansion) | v1.8+ — needs LLM integration layer | v1.7 kickoff |
 | v1.7 out-of-scope | Character consistency management (cross-scene/episode) | v1.8+ — needs `o_character_role` table + consistency engine | v1.7 kickoff |
 | v1.7 out-of-scope | Multi-episode batch generation (Xiaoyunque 80-episode capability) | v1.9+ — needs queue + scheduler coordination | v1.7 kickoff |
 | v1.7 follow-up | Phase 38 PREVIEW — real gold-team IMAGE_DRAW engine integration | Placeholder simulation shipped; TODO in `src/routes/canvas/storyboardPreview.ts` | v1.7 close |
 | v1.7 follow-up | Phase 38 PREVIEW — `o_storyboard.preview_path` DB persistence | Skipped (no schema change in v1.7); UI works via in-memory thumbnailUrl | v1.7 close |
-| v1.7 out-of-scope | Phase 38 PREVIEW if time runs out | Tier 2, parallel-safe — may be deferred without blocking milestone close | v1.7 kickoff |
 | v1.6 out-of-scope | Second reference skill (podcast/ads/interactive) | v1.7+ — validates abstraction against single skill first | v1.6 kickoff |
 | v1.6 out-of-scope | Skill scaffolding CLI / hot-reload / offline validator | v1.7+ (AUTHOR-01/02/03) | v1.6 kickoff |
 | v1.6 out-of-scope | Multi-skill coexistence per project | v1.7+ (MULTI-01/02/03) | v1.6 kickoff |
@@ -159,6 +162,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-22T02:20:54.000Z
-Stopped at: v3.0 milestone complete — audit passed (f9280e0c), archives in .planning/milestones/, Phase 52 externally owned (see carry-forward above)
-Resume: `/gsd:new-milestone`
+Last session: 2026-08-23
+Stopped at: v3.1 roadmap created — Phases 58-61 defined (RECIPE → STALE → PANEL → DEBT), 13/13 requirements mapped, traceability updated
+Resume: `/gsd:plan-phase 58`

@@ -66,16 +66,16 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| STALE-01 | — | Pending |
-| STALE-02 | — | Pending |
-| STALE-03 | — | Pending |
-| RECIPE-01 | — | Pending |
-| RECIPE-02 | — | Pending |
-| RECIPE-03 | — | Pending |
-| RECIPE-04 | — | Pending |
-| PANEL-01 | — | Pending |
-| PANEL-02 | — | Pending |
-| DEBT-01 | — | Pending |
-| DEBT-02 | — | Pending |
-| DEBT-03 | — | Pending |
-| DEBT-04 | — | Pending |
+| RECIPE-01 | Phase 58 | Pending |
+| RECIPE-02 | Phase 58 | Pending |
+| RECIPE-03 | Phase 58 | Pending |
+| RECIPE-04 | Phase 58 | Pending |
+| STALE-01 | Phase 59 | Pending |
+| STALE-02 | Phase 59 | Pending |
+| STALE-03 | Phase 59 | Pending |
+| PANEL-01 | Phase 60 | Pending |
+| PANEL-02 | Phase 60 | Pending |
+| DEBT-01 | Phase 61 | Pending |
+| DEBT-02 | Phase 61 | Pending |
+| DEBT-03 | Phase 61 | Pending |
+| DEBT-04 | Phase 61 | Pending |
