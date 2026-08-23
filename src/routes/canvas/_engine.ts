@@ -101,6 +101,11 @@ export async function submitEngineTask(
   input: EngineTaskSubmitInput,
 ): Promise<string> {
   const taskId = `canvas-${input.nodeId}-${Date.now()}`;
+  // 59-01 断点④:referenceImages 先经 ossToEnginePath 翻译(/oss/ web 路径 →
+  // 引擎容器可见宿主路径;translate 失败返回 null 的项 filter 丢弃,不污染引擎)。
+  const translatedRefs = (input.referenceImages ?? [])
+    .map((r) => ossToEnginePath(r))
+    .filter((r): r is string => r !== null);
   const payload: Record<string, any> = {
     task_id: taskId,
     type: input.taskType,
@@ -110,10 +115,18 @@ export async function submitEngineTask(
       episodesId: input.episodesId,
       nodeId: input.nodeId,
       prompt: input.prompt,
-      ...(input.referenceImages?.length
-        ? { reference_images: input.referenceImages }
-        : {}),
+      // 59-01 断点④:引擎 v6 cloud 直通表键名 ref_images(executor.py:703-717),
+      // 不是旧 reference_images;仅非空数组时展开。
+      ...(translatedRefs.length > 0 ? { ref_images: translatedRefs } : {}),
+      // 59-01 REGEN-02 seed 通道:调用方经 input.metadata 平铺即达 params.seed
+      // (59-02 接线 reroll-seed 时直接生效);本地引擎读 params.seed,完成时
+      // 写入 metadata.seed。cloud 路径 dreamina CLI 不接受 seed,seed 只落
+      // metadata.seed,确定性重放仅本地 ComfyUI 路径成立(VERIFICATION 如实记录)。
       ...input.metadata,
+      // 59-01 A3 裁定:平台政策 2026-08-19 — image 任务(t2i 5.0 / i2i 4.6 白名单)
+      // 走 :8002 gateway cloud-jimeng;model_preference 服务端常量非用户输入
+      // (T-59-03 accept)。taskType 以 "image" 开头时平铺,video/tts 等不动。
+      ...(input.taskType.startsWith("image") ? { model_preference: "cloud" } : {}),
     },
   };
   if (input.callbackUrl) payload.callback_url = input.callbackUrl;
@@ -167,13 +180,18 @@ export async function pollEngineTask(taskId: string): Promise<EngineTaskResult> 
       const raw = (await resp.json()) as Record<string, any>;
       const status = String(raw.status ?? raw.state ?? "running");
       if (status === "completed") {
+        // 59-01 断点①:引擎活体形状(GET :8002/api/v1/tasks/{id} 两轮实证 +
+        // docker/gold-team/src/v6/models/task.py:90-127)产物挂在 raw.outputs
+        // 对象下,依序回退 image → video → audio → thumbnail;旧 output_url /
+        // outputUrl 键保留兜底无害。
+        const out = (raw.outputs ?? {}) as Record<string, unknown>;
+        const containerPath =
+          out.image ?? out.video ?? out.audio ?? out.thumbnail ??
+          raw.output_url ?? raw.outputUrl ?? null;
+        // 59-01 断点②:容器路径(/mnt/agents/output/...)经 fsToOssUrl 翻译为
+        // /oss/ web 路径;http(s) CDN 直链原样透传;不可翻译 → null。
         const outputUrl =
-          raw.output_url ??
-          raw.outputUrl ??
-          raw.result?.output_url ??
-          raw.result?.url ??
-          raw.result?.image_url ??
-          null;
+          containerPath != null ? fsToOssUrl(String(containerPath)) : null;
         return { taskId, status: "completed", outputUrl, raw };
       }
       if (status === "failed" || status === "cancelled") {
