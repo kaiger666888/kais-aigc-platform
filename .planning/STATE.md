@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: 重生成闭环深化
 status: executing
-stopped_at: Completed 60-01-PLAN.md (诊断 Branch A 裁定;下一步 60-02/60-03)
-last_updated: "2026-08-23T23:40:57.567Z"
+stopped_at: Completed 60-02-PLAN.md (D-01 savedBy 契约+客户端跳过落地;下一步 60-03/60-04)
+last_updated: "2026-08-23T23:52:28.367Z"
 last_activity: 2026-08-23
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 13
-  completed_plans: 9
+  completed_plans: 10
   percent: 50
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-08-23)
 ## Current Position
 
 Phase: 60 (保存后面板保持) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-08-23
 
-Progress: [███████░░░] 69%
+Progress: [████████░░] 77%
 
 ## Performance Metrics
 
@@ -74,6 +74,7 @@ Progress: [███████░░░] 69%
 | Phase 59 P59-03 | 4 | 2 tasks | 5 files |
 | Phase 59 P59-04 | 49 | 3 tasks | 5 files |
 | Phase 60 P01 | 15min | 2 tasks | 3 files |
+| Phase 60 P02 | 6min | 2 tasks tasks | 7 files files |
 
 ## Accumulated Context
 
@@ -138,6 +139,9 @@ Progress: [███████░░░] 69%
 - [Phase 60]: 60-01 Prong1 实测:真机 :10588 roundtrip 三层 id 差集全 0/0(V2 31v31/V3 62v62 含 evt 31v31)+恢复深比对全等——候选①(vm id 派生漂移)证伪 — 60-DIAGNOSIS Prong 1;探针 scripts/diagnose-60-roundtrip.ts 可复跑(--strict/exit 2 契约)
 - [Phase 60]: 60-01 裁定 Branch A:setGraph 重锚语义已对,60-03 仅锁零生产修复;候选②(loading 卸载)行级证伪(L956 门仅首载/render sites 无 loading 门);症状根治在 60-02 D-01 自回声跳过 — 60-DIAGNOSIS 最终裁定;残留 fixture fallback 路径(fixtureSource.ts L99-111)登记不修
 - [Phase 60]: 60-01 导入纪律:root 脚本消费 packages 内部 @kais 别名模块走 computed-specifier dynamic import(root tsc node10 不解析 exports-only 包;tsx 运行时经 symlink 正常) — verify-59-dispatch 相对直连先例的推广;scripts/diagnose-60-roundtrip.ts 头注释固化
+- [Phase 60]: 60-02 onGraphSaved 最终块序(scope 后): 基线重置无条件先行(FLAG-1)→ selfEcho 命中静默早退(D-01/D-05)→ toast → loadCanvas;60-05 S2 静态锁锚定此序 — FlowCanvas.tsx
+- [Phase 60]: 60-02 savedBy 条件展开回显:kmc pipeline 等不传身份的调用广播形状逐键不变(向后兼容);canvasApi 单点附加身份,六调用方零改动全覆盖(含 rerun 先存再跑,Pitfall 5 根治) — save-v2.ts/canvasApi.ts
+- [Phase 60]: 60-02 mock graph:saved 抑制旋钮退役(四处删),59 SC4 改走真实回声路径自然通过(全 5 用例绿)= rerun 保存真带 savedBy 的行为证明;59 Known Issue #1 角标复活竞态 reload 侧根因销案(D-08) — server.mjs/phase59-stale-cascade.mjs
 
 ### Pending Todos
 
@@ -191,6 +195,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-23T23:40:57.559Z
-Stopped at: Completed 60-01-PLAN.md (诊断 Branch A 裁定;下一步 60-02/60-03)
-Resume: `/gsd-discuss-phase 59`（Phase 59 无 CONTEXT.md；讨论时核对 2026-08-23 四路 review 遗留的 canvas→引擎反向链 4 断点与 execute.ts 透传面的重叠）
+Last session: 2026-08-23T23:52:28.359Z
+Stopped at: Completed 60-02-PLAN.md (D-01 savedBy 契约+客户端跳过落地;下一步 60-03/60-04)
+Resume: `/gsd-execute-phase 60`（下一步 60-03 Branch A 永久锁 / 60-04 e2e 四用例;60-02 savedBy 机制面已落地）
