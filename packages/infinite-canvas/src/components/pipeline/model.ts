@@ -441,11 +441,14 @@ export const KMC_SLOT_REGISTRY: readonly KmcSlotEntry[] = [
   // preview-qc (qwen-eye, 2026-08-16): advisory 变体首帧 QC；P14 聚合。
   // P11a inputs：shot-timeline 已除名（P10a 注销后 p11a 自行 ffprobe 实测时长）。
   { phaseCode: 'P11a', inputs: ['shot-list', 'scene-images', 'character-assets', 'voice-clips', 'storyboard-board'], outputs: ['preview-clips', 'preview-qc'] },
-  // P11a.5 预演音频+成片（提案 2026-08-23，管线侧落地前为规划态）：p11a 预演夹与
-  // p11b 终渲之间插入预览级环境音生成（foley 前移）+ TTS/环境音 pairwise amix +
-  // concat 拼装粗剪（纯 CPU ~3min），产出 roughcut-mp4 尽早暴露语音溢出/节奏问题；
-  // preview-verdicts（per 镜 放行/打回/未判）作为 quorum 门控 p11b 批次派发。
-  { phaseCode: 'P11a.5', inputs: ['shot-list', 'preview-clips', 'voice-clips'], outputs: ['ambient-stems', 'preview-mix', 'roughcut-mp4', 'preview-verdicts'] },
+  // P11a.5 预演音频+成片（提案 2026-08-23，python 侧已落地 p11a5_preview_audio）：
+  // p11a 预演夹与 p11b 终渲之间插入预览级环境音生成 + TTS/环境音 pairwise amix +
+  // concat 拼装粗剪（纯 CPU ~1min），产出 roughcut-mp4 尽早暴露语音溢出/节奏问题；
+  // preview-verdicts（per 镜 放行/打回/未判）为 advisory quorum（kmc-status 可读）。
+  // ⚠️ python INPUT_SLOTS = shot-list + voice-clips（rapid-preview-clips 是
+  // operator-facing slot，phase 不经 bus 读——p11b 同款先例）；turbo 夹从
+  // assets/preview/<ep>/ 约定目录发现，故 preview-clips 两条边走 design-intent。
+  { phaseCode: 'P11a.5', inputs: ['shot-list', 'voice-clips'], outputs: ['ambient-stems', 'preview-mix', 'roughcut-mp4', 'preview-verdicts'] },
   { phaseCode: 'P11b', inputs: ['preview-clips'], outputs: ['video-clips', 'take-log'] },
   // P11c 视频智能质检（qwen-eye）：读 video-clips + shot-list（SPEC 字段），
   // 写 video-qc（per_shot 判定 + summary；advisory，P14 聚合，P12 不读）。
@@ -1107,6 +1110,11 @@ export function validateDagEdges(): string[] {
   // 前端建模边：DAG 刻意表达比 KMC slot 粒度更细的依赖（KMC 未单列对应 slot）→ 豁免并记录原因。
   const DESIGN_INTENT_EDGES = new Map<string, string>([
     ['scene-images|iframe-generation', '条件帧按所选场景生成；KMC P11 INPUT_SLOTS 未单列 scene-images（原 scene-selection 节点已合并）'],
+    // P11a.5 预演夹入条：python p11a5 从 assets/preview/<ep>/ 约定目录发现 turbo 夹
+    //（rapid-preview-clips 是 operator-facing slot，phase 不经 bus 读——p11b 同款
+    // 先例），故这两条是 display 通道的 design-intent 边，非 slot 数据流。
+    ['preview-clips|ambient-stems', '预演环境音以 turbo 夹画面为参考（V2A 对齐 P12 foley 形态）；python 侧从文件系统约定目录发现，不经 bus slot'],
+    ['preview-clips|rough-cut', '预演成片的视频床优先用 turbo 预演夹（缺口降级 spec 首帧/垫黑）；文件系统约定目录发现，不经 bus slot'],
     // P03.5 打磨剧本 → P04 角色设定：KMC p04 run() 读序是 polished 优先、
     // script-draft fallback（P03.5 degrade 时两者内容相同）。registry 的 P04
     // INPUT_SLOTS 保持 script-draft 单值以维持 P03 lineage，故这条运行时
