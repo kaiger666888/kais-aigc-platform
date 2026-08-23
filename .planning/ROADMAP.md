@@ -155,7 +155,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 60-01-PLAN.md — 诊断先行: 真机 :10588 roundtrip id-diff 探针 + store 重锚/loading 探针 → 60-DIAGNOSIS 钉死收起根因与 A/B 修复分支(RESEARCH Pitfall 2 强制次序)
+- [x] 60-01-PLAN.md — 诊断先行: 真机 :10588 roundtrip id-diff 探针 + store 重锚/loading 探针 → 60-DIAGNOSIS 钉死收起根因与 A/B 修复分支(RESEARCH Pitfall 2 强制次序)
 - [ ] 60-02-PLAN.md — savedBy tabId 自回声跳过(D-01/D-04/D-05): server zod+broadcast 回显 + clientTabId + saveCanvasGraph 单点附身 + FlowCanvas skip 分支(FLAG-1 基线重置保留) + mock 镜像 + suppressGraphSaved 退役(FLAG-4)
 
 **Wave 2** *(blocked on 60-01)*
@@ -195,7 +195,7 @@ Phases execute in numeric order: 58 → 59 → 60 → 61 (60/61 parallel-safe if
 |-------|----------------|--------|-----------|
 | 58. 全配方持久化 | 4/4 | Complete    | 2026-08-23 |
 | 59. 窄触发 stale 级联 | 4/4 | Complete    | 2026-08-23 |
-| 60. 保存后面板保持 | 0/TBD | Not started | - |
+| 60. 保存后面板保持 | 1/5 | In Progress|  |
 | 61. 审计清债 TD-3/4/5 | 0/TBD | Not started | - |
 
 ## Requirement → Phase Coverage (13/13)

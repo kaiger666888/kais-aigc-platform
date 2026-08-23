@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: 重生成闭环深化
 status: executing
-stopped_at: Phase 60 UI-SPEC approved
-last_updated: "2026-08-23T23:21:53.396Z"
-last_activity: 2026-08-23 -- Phase 60 planning complete
+stopped_at: Completed 60-01-PLAN.md (诊断 Branch A 裁定;下一步 60-02/60-03)
+last_updated: "2026-08-23T23:40:57.567Z"
+last_activity: 2026-08-23
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 13
-  completed_plans: 8
+  completed_plans: 9
   percent: 50
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-23)
 
 **Core value:** AI creative production pipeline that runs end-to-end, pluggable across multiple creative workflows via a published skill contract.
-**Current focus:** Phase 60 — 保存后面板保持 (post save panel persistence)
+**Current focus:** Phase 60 — 保存后面板保持
 
 ## Current Position
 
-Phase: 60
-Plan: Not started
+Phase: 60 (保存后面板保持) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-08-23 -- Phase 60 planning complete
+Last activity: 2026-08-23
 
-Progress: [█████████░] 88%
+Progress: [███████░░░] 69%
 
 ## Performance Metrics
 
@@ -73,6 +73,7 @@ Progress: [█████████░] 88%
 | Phase 59 P02 | 12 | 3 tasks | 5 files |
 | Phase 59 P59-03 | 4 | 2 tasks | 5 files |
 | Phase 59 P59-04 | 49 | 3 tasks | 5 files |
+| Phase 60 P01 | 15min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -134,6 +135,9 @@ Progress: [█████████░] 88%
 - [Phase ?]: [59-04]: SC4 时序确定性=mock suppressGraphSaved 旋钮(默认 false)剔除 rerun 自保存的 graph:saved 自回声 reload——写-写竞态窗口(Pitfall 4 已知边界,planner 裁定不治;实测 reload 落地 ~1s 抖动,stale 复活后由 running/success 再清)
 - [Phase ?]: [59-04]: 真机发现=含 'phase' 型 legacy 节点的图(如 1/2)markStaleAndBroadcast 在 migrateV2toV3 阶段结构性 throw(execute.ts 仅 console.error,任务仍 success 零 stale 写)——该图 V3 客户端同样不可加载,非本 phase 回归;探针以 MIGRATE_SUPPORTED 全图校验选 scope
 - [Phase ?]: [59-04]: probe A1 证据判定=filePath 与原图快照比对,只有本次新增才算引擎产物落库(存量 pipeline-runs 绝对路径不得误报)
+- [Phase 60]: 60-01 Prong1 实测:真机 :10588 roundtrip 三层 id 差集全 0/0(V2 31v31/V3 62v62 含 evt 31v31)+恢复深比对全等——候选①(vm id 派生漂移)证伪 — 60-DIAGNOSIS Prong 1;探针 scripts/diagnose-60-roundtrip.ts 可复跑(--strict/exit 2 契约)
+- [Phase 60]: 60-01 裁定 Branch A:setGraph 重锚语义已对,60-03 仅锁零生产修复;候选②(loading 卸载)行级证伪(L956 门仅首载/render sites 无 loading 门);症状根治在 60-02 D-01 自回声跳过 — 60-DIAGNOSIS 最终裁定;残留 fixture fallback 路径(fixtureSource.ts L99-111)登记不修
+- [Phase 60]: 60-01 导入纪律:root 脚本消费 packages 内部 @kais 别名模块走 computed-specifier dynamic import(root tsc node10 不解析 exports-only 包;tsx 运行时经 symlink 正常) — verify-59-dispatch 相对直连先例的推广;scripts/diagnose-60-roundtrip.ts 头注释固化
 
 ### Pending Todos
 
@@ -187,6 +191,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-23T21:03:31.160Z
-Stopped at: Phase 60 UI-SPEC approved
+Last session: 2026-08-23T23:40:57.559Z
+Stopped at: Completed 60-01-PLAN.md (诊断 Branch A 裁定;下一步 60-02/60-03)
 Resume: `/gsd-discuss-phase 59`（Phase 59 无 CONTEXT.md；讨论时核对 2026-08-23 四路 review 遗留的 canvas→引擎反向链 4 断点与 execute.ts 透传面的重叠）
