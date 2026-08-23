@@ -111,7 +111,7 @@ Audit: **passed** (305/305 verify assertions · 435/435 vitest · 3× tsc clean 
 Plans:
 **Wave 1**
 
-- [ ] 58-01-PLAN.md — 数据通道: recipe.ts 九键映射契约 + migrate 全集提取 + serialize 反向覆盖拓宽 + delete 传播(serialize+migrate 同 plan,Pitfall 3)+ verify-phase-51 断言注解
+- [x] 58-01-PLAN.md — 数据通道: recipe.ts 九键映射契约 + migrate 全集提取 + serialize 反向覆盖拓宽 + delete 传播(serialize+migrate 同 plan,Pitfall 3)+ verify-phase-51 断言注解
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -174,7 +174,7 @@ Phases execute in numeric order: 58 → 59 → 60 → 61 (60/61 parallel-safe if
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 58. 全配方持久化 | 0/4 | Planning complete | - |
+| 58. 全配方持久化 | 1/4 | In Progress|  |
 | 59. 窄触发 stale 级联 | 0/TBD | Not started | - |
 | 60. 保存后面板保持 | 0/TBD | Not started | - |
 | 61. 审计清债 TD-3/4/5 | 0/TBD | Not started | - |

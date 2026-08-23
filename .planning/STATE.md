@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: 重生成闭环深化
 status: executing
-stopped_at: Phase 58 UI-SPEC approved
-last_updated: "2026-08-23T12:40:08.079Z"
-last_activity: 2026-08-23 -- Phase 58 planning complete
+stopped_at: "Completed 58-01-PLAN.md (recipe 数据通道: recipe.ts 契约 + migrate/serialize 对称拓宽)"
+last_updated: "2026-08-23T13:00:21.816Z"
+last_activity: 2026-08-23
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 4
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-23)
 
 **Core value:** AI creative production pipeline that runs end-to-end, pluggable across multiple creative workflows via a published skill contract.
-**Current focus:** v3.1 Phase 58 — 全配方持久化 (RECIPE narrow-channel widening via EventNodeV3.params)
+**Current focus:** Phase 58 — full-recipe-persistence
 
 ## Current Position
 
-Phase: 58 of 61 (全配方持久化 / Full Recipe Persistence)
-Plan: — (plans TBD via /gsd:plan-phase 58)
+Phase: 58 (full-recipe-persistence) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-08-23 -- Phase 58 planning complete
+Last activity: 2026-08-23
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [███░░░░░░░] 25%
 
 ## Performance Metrics
 
@@ -66,6 +66,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 54 P05 | 55 min | 3 tasks | 5 files |
 | Phase 54 P06 | 27 min | 2 tasks | 6 files |
 | Phase 54 P07 | 35 min | 3 tasks | 5 files |
+| Phase 58 P01 | 7 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -111,6 +112,8 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 50]: 50-01: BL-1 meta.phase -> meta.provenance.phase fallback lands 129 provenance-only rows; pre-existing workflow_phase values never rewritten (backfill writes normalized 2-digit forms only)
 - [Phase 50]: 50-01: production db2.sqlite backfilled (154 groups, 240 member links, 534 wf values, wf NULL 1456->922) in one gated transaction; eliminated 386 rows byte-untouched; second apply 0/0 idempotent
 - [Phase 50]: 50-02: GUARD-01/GUARD-02 locked as verify:phase-50 — the v2.1 final gate; contract suite drives the real planBackfill/applyBackfill on :memory: (never re-implemented), Phase 48/49 covered by spot invariants not re-runs, SC-4 debt as one WARN line (D-11), manual register scripts deprecated not deleted (D-12) — Import-identity + spot-invariant pattern keeps the aggregate gate maintainable: one verify script, zero logic copies, forced-failure sanity proves the gate can fail
+- [Phase 58]: 58-01 数据通道:serialize.ts 引入唯一一条运行时常量导入 RECIPE_ROUNDTRIP_KEYS(路线 A 裁决);verify-phase-51 S1 断言外科注记允许恰这一条 — recipe.ts 零 import 纯常量,alias 双通,仓内 STAGE_ORDER 运行时导入先例充分;路线 B 本地复制会弱化 RECIPE-04 三方一致防漂移门
+- [Phase 58]: 58-01 delete 传播语义:params 缺键时 serialize 同步 delete wire data 同键——「空=未设置」清空语义成立,防 rawData 陈旧值复活(Pitfall 1),与 updateEventParams 空值删除对称 — Phase 58 面板高级字段编辑的主交互是清空;旧「有值才写」会让清空后 reload 复活旧值,顺手覆盖 prompt 清空''同款潜在 bug
 
 ### Pending Todos
 
@@ -164,6 +167,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-23T04:23:50.197Z
-Stopped at: Phase 58 UI-SPEC approved
+Last session: 2026-08-23T12:59:31.494Z
+Stopped at: Completed 58-01-PLAN.md (recipe 数据通道: recipe.ts 契约 + migrate/serialize 对称拓宽)
 Resume: `/gsd:plan-phase 58`

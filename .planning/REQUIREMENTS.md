@@ -15,9 +15,9 @@
 
 ### RECIPE — 全配方持久化 (§14 窄通道)
 
-- [ ] **RECIPE-01**: 用户可在详情面板编辑高级配方字段(steps/cfg/sampler 等)并保存,reload 往返保真
+- [x] **RECIPE-01**: 用户可在详情面板编辑高级配方字段(steps/cfg/sampler 等)并保存,reload 往返保真
 - [ ] **RECIPE-02**: 编辑后的高级字段直接进入重生成引擎请求——编辑即真值,窄通道不再丢弃
-- [ ] **RECIPE-03**: 复杂结构字段(lora/量化等)可编辑;未编辑字段原样保留,不被 nullish 清洗抹掉
+- [x] **RECIPE-03**: 复杂结构字段(lora/量化等)可编辑;未编辑字段原样保留,不被 nullish 清洗抹掉
 - [ ] **RECIPE-04**: canvasAssetSchema 与面板可编辑字段集有防漂移守护(verify 断言)
 
 ### PANEL — 保存后面板保持
@@ -66,9 +66,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| RECIPE-01 | Phase 58 | Pending |
+| RECIPE-01 | Phase 58 | Complete |
 | RECIPE-02 | Phase 58 | Pending |
-| RECIPE-03 | Phase 58 | Pending |
+| RECIPE-03 | Phase 58 | Complete |
 | RECIPE-04 | Phase 58 | Pending |
 | STALE-01 | Phase 59 | Pending |
 | STALE-02 | Phase 59 | Pending |
