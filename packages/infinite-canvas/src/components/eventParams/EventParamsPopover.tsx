@@ -11,6 +11,7 @@
  */
 import { useEffect, useState } from 'react'
 import type { AssetNodeV3, EventNodeV3, GenerationParams } from '@kais/flowgraph-v3'
+import { RECIPE_KNOWN_KEYS } from '@kais/flowgraph-v3'
 import type { EventChipClickInfo } from '../canvas/eventChipBus'
 import { theme } from '../../theme/catppuccin'
 import { useCanvasStore } from '../../store/canvasStore'
@@ -24,7 +25,9 @@ interface Props {
 const POPOVER_W = 320
 const POPOVER_MAX_H = 480
 
-const KNOWN_KEYS = new Set(['prompt', 'negative', 'seed', 'modelVersion', 'lora', 'steps', 'cfg', 'quant', 'sageAttention'])
+// 58-02：已知键集换共享常量源（58-01 recipe.ts 单点契约，一处定义两处消费）——
+// 下游 otherEntries 过滤与分组渲染零改（CONTEXT 锁定 popover 只读 + 换 seed 定位）。
+const KNOWN_KEYS = new Set(RECIPE_KNOWN_KEYS)
 
 export default function EventParamsPopover({ anchor, onClose }: Props): React.ReactElement | null {
   const graph = useCanvasStore((s) => s.graph)

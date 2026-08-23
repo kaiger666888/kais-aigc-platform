@@ -70,6 +70,14 @@ export const assetDataSchemas: Record<string, z.ZodSchema> = {
     // Optional but expected:
     text: z.string().optional(),
     clip_type: z.string().optional(),
+    // Phase 58 recipe fields (optional, present-shape enforced; shapes mirror
+    // flowgraph-v3 zod.ts generationParamsSchema — root zod v4, no cross-package
+    // zod import, Pitfall 4):
+    steps: z.number().optional(),
+    cfg: z.number().optional(),
+    quant: z.string().optional(),
+    sageAttention: z.boolean().optional(),
+    lora: z.array(z.object({ name: z.string(), strength: z.number() }).strict()).optional(),
   })),
 
   // ── Video nodes (P11 video_render, P12 master, P13 delivery) ──
@@ -84,6 +92,14 @@ export const assetDataSchemas: Record<string, z.ZodSchema> = {
     // Optional but expected:
     codec: z.string().optional(),
     thumbnailUrl: z.string().optional(),
+    // Phase 58 recipe fields (optional, present-shape enforced; shapes mirror
+    // flowgraph-v3 zod.ts generationParamsSchema — root zod v4, no cross-package
+    // zod import, Pitfall 4):
+    steps: z.number().optional(),
+    cfg: z.number().optional(),
+    quant: z.string().optional(),
+    sageAttention: z.boolean().optional(),
+    lora: z.array(z.object({ name: z.string(), strength: z.number() }).strict()).optional(),
   })),
 
   // ── Asset nodes (P04 character, P07 scene) ──
@@ -108,6 +124,14 @@ export const assetDataSchemas: Record<string, z.ZodSchema> = {
     views: z.array(z.string()).optional(),
     style_vector: z.string().optional(),
     turnaround_path: z.string().optional(),
+    // Phase 58 recipe fields (optional, present-shape enforced; shapes mirror
+    // flowgraph-v3 zod.ts generationParamsSchema — root zod v4, no cross-package
+    // zod import, Pitfall 4):
+    steps: z.number().optional(),
+    cfg: z.number().optional(),
+    quant: z.string().optional(),
+    sageAttention: z.boolean().optional(),
+    lora: z.array(z.object({ name: z.string(), strength: z.number() }).strict()).optional(),
   })),
 
   // ── Storyboard nodes (P09 shot_breakdown) ──
@@ -122,6 +146,14 @@ export const assetDataSchemas: Record<string, z.ZodSchema> = {
     filePath: z.string().optional(),
     // Optional but expected structured params:
     scene_ref: z.string().optional(),
+    // Phase 58 recipe fields (optional, present-shape enforced; shapes mirror
+    // flowgraph-v3 zod.ts generationParamsSchema — root zod v4, no cross-package
+    // zod import, Pitfall 4):
+    steps: z.number().optional(),
+    cfg: z.number().optional(),
+    quant: z.string().optional(),
+    sageAttention: z.boolean().optional(),
+    lora: z.array(z.object({ name: z.string(), strength: z.number() }).strict()).optional(),
   })),
 
   // ── Script nodes (P01-P06, P13 delivery) ──
@@ -137,6 +169,14 @@ export const assetDataSchemas: Record<string, z.ZodSchema> = {
     filePath: z.string().nullish(),
     score: z.any().optional(),
     content: z.string().optional(),
+    // Phase 58 recipe fields (optional, present-shape enforced; shapes mirror
+    // flowgraph-v3 zod.ts generationParamsSchema — root zod v4, no cross-package
+    // zod import, Pitfall 4):
+    steps: z.number().optional(),
+    cfg: z.number().optional(),
+    quant: z.string().optional(),
+    sageAttention: z.boolean().optional(),
+    lora: z.array(z.object({ name: z.string(), strength: z.number() }).strict()).optional(),
   })),
 };
 
