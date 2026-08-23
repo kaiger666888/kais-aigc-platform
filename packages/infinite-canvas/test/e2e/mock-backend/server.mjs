@@ -363,11 +363,13 @@ app.post('/api/canvas/storyboard/preview', (req, res) => {
 // ─── Phase 37 — Single-node execute (back-compat) ──────────
 
 // Phase 59 (59-04): mock 侧 stale 级联回放——严格镜像 59-02 服务端契约
-// (markStaleAndBroadcast → node:updated { node, changedFields:["data.stale"] })。
+// (markStaleAndBroadcast → node:updated { projectId, episodesId, node,
+// changedFields:["data.stale"] };scope 字段为 59-fix CR-02 上 wire,客户端
+// onNodeUpdated 守卫以其比对当前 project/episode)。
 // mock 是**契约回放**非语义重实现:语义真值源在 59-02 服务端 spawn dispatch 断言
 // (cascade 传递闭包 / sequence·isInactive 排除 / locked 终点 / evt_ 确定性 id),
 // mock 只按 mock 图形状做最小等价回放供 e2e 消费(SC1/SC2/SC4)。
-function replayStaleCascade(projectId, triggerNodeId) {
+function replayStaleCascade(projectId, episodesId, triggerNodeId) {
   const nodes = state.canvas.nodes ?? []
   const nodeById = new Map(nodes.map((n) => [n.id, n]))
   if (!nodeById.has(triggerNodeId)) return
@@ -407,8 +409,10 @@ function replayStaleCascade(projectId, triggerNodeId) {
         triggerEventId: `evt_${triggerNodeId}`,
       },
     }
-    // 逐节点广播——payload 严格镜像 59-02 服务端 wire 契约(T-59-09)
+    // 逐节点广播——payload 严格镜像 59-02 服务端 wire 契约(T-59-09 + CR-02 scope)
     broadcastToProject(projectId, 'node:updated', {
+      projectId,
+      episodesId,
       node: target,
       changedFields: ['data.stale'],
     })
@@ -425,7 +429,7 @@ app.post('/api/canvas/execute', (req, res) => {
     // 59-04: body 含 regenSource 时,在既有 node:state success 广播**之前**回放
     // 服务端级联契约(59-02 真实顺序:标记落库+广播 → success)。body 无 regenSource
     // 时行为与今天完全一致(SC3 mock 侧负向前提——回放逻辑严格在条件分支内)。
-    if (regenSource) replayStaleCascade(projectId, nodeId)
+    if (regenSource) replayStaleCascade(projectId, episodesId, nodeId)
     broadcastToProject(projectId, 'node:state', { nodeId, state: 'success' })
   }, 30)
 })

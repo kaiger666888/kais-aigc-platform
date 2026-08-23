@@ -77,11 +77,19 @@ interface UseCanvasSocketOptions {
   onGateState?: (payload: GateStatePayload) => void
   /**
    * Phase 59 (D-01): 服务端 stale 标记广播——59-02 markStaleAndBroadcast 经
-   * broadcastToProject 发射,payload = { node: FlowNodeV2 行, changedFields: ["data.stale"] }
-   * (v2/nodes.ts 既有 wire 格式)。消费方(FlowCanvas)负责 stale 形状守卫与级联派发;
-   * 非 stale 载荷的 node:updated 按严格契约静默忽略(UI-SPEC §5)。
+   * broadcastToProject 发射,payload = { projectId, episodesId, node: FlowNodeV2
+   * 行, changedFields: ["data.stale"] }(59-fix CR-02:scope 字段上 wire——room=
+   * project:{id} 只隔离跨项目,同项目多 episodes 共享一室,scope 守卫由消费方
+   * 负责,与 onGateState/onVariantSelected 同法)。消费方(FlowCanvas)负责
+   * scope 守卫 + stale 形状守卫与级联派发;非 stale 载荷的 node:updated 按严格
+   * 契约静默忽略(UI-SPEC §5)。
    */
-  onNodeUpdated?: (payload: { node: Record<string, unknown>; changedFields?: string[] }) => void
+  onNodeUpdated?: (payload: {
+    projectId?: number
+    episodesId?: number
+    node: Record<string, unknown>
+    changedFields?: string[]
+  }) => void
   // Phase 41 SYNC-10: feature-flagged incremental event subscription
   onCanvasEvent?: (event: CanvasEventPayload) => void
   onCanvasReset?: (info: { lastEventId: number | null }) => void
@@ -236,14 +244,21 @@ export function useCanvasSocket(options: UseCanvasSocketOptions) {
     })
 
     // Phase 59 (D-01): 服务端 stale 标记广播(59-02 markStaleAndBroadcast)——
-    // payload = { node: FlowNodeV2 行, changedFields: ["data.stale"] }。坏形状守卫
-    // 先例同 node:created(node != null && typeof node === 'object' 才转发)。
-    // 独立订阅注册——绝不路由进 normalizeSocketNodeState 或任何执行态映射
-    // (FLAG-3 / 52-01 stale 保留红线:stale 载荷若被误映射为执行态,error 时会错清 stale)。
-    socket.on('node:updated', (payload: { node?: Record<string, unknown>; changedFields?: string[] }) => {
+    // payload = { projectId, episodesId, node: FlowNodeV2 行, changedFields:
+    // ["data.stale"] }(59-fix CR-02:scope 字段随 wire 透传,消费方守卫消费)。
+    // 坏形状守卫先例同 node:created(node != null && typeof node === 'object'
+    // 才转发)。独立订阅注册——绝不路由进 normalizeSocketNodeState 或任何执行态
+    // 映射(FLAG-3 / 52-01 stale 保留红线:stale 载荷若被误映射为执行态,error
+    // 时会错清 stale)。
+    socket.on('node:updated', (payload: { projectId?: number; episodesId?: number; node?: Record<string, unknown>; changedFields?: string[] }) => {
       const node = payload?.node
       if (node != null && typeof node === 'object') {
-        callbacksRef.current.onNodeUpdated?.({ node, changedFields: payload.changedFields })
+        callbacksRef.current.onNodeUpdated?.({
+          projectId: payload.projectId,
+          episodesId: payload.episodesId,
+          node,
+          changedFields: payload.changedFields,
+        })
       }
     })
 

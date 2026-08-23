@@ -383,8 +383,14 @@ function CanvasInner() {
       // node.data.stale 三字段形状(since 为 number、triggerAssetId 为 string),
       // 校验失败静默 return(校验失败分支无任何 store 写入);非 stale 载荷的
       // node:updated(如 nodes.ts PATCH 回声)一律忽略——不开面板、不改选中、
-      // 不弹 toast。socket room 即 project:{id}(io join 已按 projectId 隔离),
-      // 广播无跨项目串扰面,无需 scope 守卫。
+      // 不弹 toast。
+      // 59-fix CR-02: scope 守卫(与 onGateState/onVariantSelected 同法)——
+      // socket room 即 project:{id}(io join 按 projectId 隔离)只挡跨项目;
+      // 同项目多 episodes 共享一室,且确定性节点 id 跨 episodes 复用,他集
+      // 广播会对本集图误触发级联并随下次 save 落库。scope 不匹配(含缺字段的
+      // 旧形状)静默 return。
+      if (!projectId || episodesId == null) return
+      if (payload.projectId !== projectId || payload.episodesId !== episodesId) return
       const data = payload.node?.data as
         | { stale?: { since?: unknown; triggerAssetId?: unknown } }
         | undefined

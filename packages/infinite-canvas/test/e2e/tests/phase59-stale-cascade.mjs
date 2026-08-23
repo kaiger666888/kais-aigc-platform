@@ -32,7 +32,8 @@ import { test, expect, loadCanvas, nodeSelector, getCalls, getMockState, setSele
  *
  * mock 回放契约(mock-backend/server.mjs Phase 59 段):execute body 含
  * regenSource 时,success 广播前逐下游节点 broadcast node:updated
- * { node, changedFields:["data.stale"] }——客户端(59-03)轻校验后
+ * { projectId, episodesId, node, changedFields:["data.stale"] }(scope 字段
+ * 为 CR-02 修复上 wire)——客户端(59-03)scope 守卫 + 轻校验后
  * triggerStaleCascade 复用既有角标/脉动/StaleSection/useStaleRerun 全链。
  * 脉动不断言(decorative,flake-bait——UI-SPEC §2)。
  */
@@ -216,6 +217,50 @@ test.describe('Phase 59-04 — STALE 窄触发级联 (SC1-SC4, mock 回放 59-02
     await expect(staleBadge(page, MID)).toHaveCount(0)
     await expect(staleBadge(page, TRIG)).toHaveCount(0)
     await expect(staleBadge(page, DOWN_A)).toHaveCount(0)
+  })
+
+  test('cross-episode node:updated is scope-guarded (CR-02)', async ({ page }) => {
+    await loadCanvas(page)
+    await injectCascadeFixture(page)
+
+    const badgeAll = page.locator('.react-flow__node svg[aria-label="stale"]')
+    await expect(badgeAll).toHaveCount(0)
+
+    // 同 room(project:{id})他 episode 的 stale 广播——确定性节点 id 跨 episodes
+    // 复用(import-from-dir p04/a-p04-* 形态),修复前客户端无 scope 守卫会对他集
+    // 广播误触发本集级联(角标出现 + 下次 save 落库脏行)。修复后 scope 不匹配
+    // 静默 return:零角标、零 store 写入。
+    const foreignPayload = {
+      projectId: PID,
+      episodesId: EID + 500, // 他 episode——同室跨集串扰面(CR-02)
+      node: {
+        id: MID, type: 'storyboard', state: 'idle',
+        data: {
+          label: '跨集注入', type: 'storyboard',
+          stale: { since: Date.now(), triggerAssetId: TRIG, triggerEventId: `evt_${TRIG}` },
+        },
+      },
+      changedFields: ['data.stale'],
+    }
+    await page.request.post('/__mock/emit', {
+      data: { projectId: PID, event: 'node:updated', data: foreignPayload },
+    })
+    await page.waitForTimeout(600)
+    await expect(staleBadge(page, MID)).toHaveCount(0)
+    await expect(badgeAll).toHaveCount(0)
+
+    // 正向对照(守卫非死码/socket 正常):同 scope 注入 → 级联照常,角标出现
+    await page.request.post('/__mock/emit', {
+      data: {
+        projectId: PID, event: 'node:updated',
+        data: { ...foreignPayload, episodesId: EID },
+      },
+    })
+    await expect(staleBadge(page, MID)).toBeVisible({ timeout: 5_000 })
+    await expect(staleBadge(page, DOWN_B)).toBeVisible({ timeout: 5_000 })
+    // 触发资产自身与无关节点不受波及(宪法 §13)
+    await expect(staleBadge(page, TRIG)).toHaveCount(0)
+    await expect(staleBadge(page, UNREL)).toHaveCount(0)
   })
 
   test('orchestrate does not cascade (SC3-negative)', async ({ page }) => {

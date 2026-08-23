@@ -9,8 +9,9 @@
  *   传递闭包 / sequence·isInactive 边排除 / curation:'locked' 传播终点 /
  *   环防御 / 最早 since 保留)→ diff 只取**新增** stale 资产(绝不覆盖既有
  *   since)→ 逐节点先落库(upsertNode,data.stale 三字段整包)后广播
- *   (node:updated + changedFields:["data.stale"],v2/nodes.ts L210-213 既有
- *   wire 格式)——客户端零改动复用既有 node:updated 消费链(D-01)。
+ *   (node:updated + projectId/episodesId scope + changedFields:["data.stale"],
+ *   wire 格式对齐 v2/nodes.ts L210-213 + 59-fix CR-02 scope 扩展)——客户端
+ *   (59-03 node:updated 订阅 + scope 守卫)复用既有级联消费链(D-01)。
  *
  * 决策编号(59-CONTEXT):
  *   - D-01 服务端标记(窄触发成功判定处调用,失败路径结构性不进);
@@ -82,6 +83,12 @@ export async function markStaleAndBroadcast(
     };
     await upsertNode(scope, { ...row, data });
     broadcastToProject(projectId, "node:updated", {
+      // 59-fix CR-02: scope 字段上 wire — socket room=project:{id} 只隔离跨项目,
+      // 同项目多 episodes 共享一室;缺 episodesId 使跨 episode 串扰成为可能
+      // (确定性节点 id 跨 episodes 复用 → 他集客户端对自有图误触发级联并随
+      // save 落库)。客户端守卫(FlowCanvas onNodeUpdated)以此为比对源。
+      projectId,
+      episodesId,
       node: { ...row, data },
       changedFields: ["data.stale"],
     });
