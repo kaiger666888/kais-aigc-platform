@@ -1,7 +1,8 @@
 ---
 phase: 59
 slug: narrow-trigger-stale-cascade
-status: draft
+status: approved
+reviewed_at: 2026-08-23
 shadcn_initialized: false
 preset: none
 created: 2026-08-23
