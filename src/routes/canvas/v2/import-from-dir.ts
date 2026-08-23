@@ -2030,8 +2030,12 @@ export default router.post(
         return res.status(400).send(error(`workdir 无法解析为真实路径: ${workdir}`));
       }
       if (!ALLOWED_WORKDIR_ROOTS.some((r) => realWorkdir.startsWith(r))) {
+        // 59-fix r3 IN-06: 解析结果只落服务端日志——400 体回显 realWorkdir
+        // 等于无鉴权 symlink 解析预言机(可探测允许根内任意路径的存在与指向,
+        // 部分抵消守卫维持的不透明性)。响应体仅回显调用方自己的输入。
+        console.warn(`[import-from-dir] workdir 解析后不在允许的根目录下: ${workdir} → ${realWorkdir}`);
         return res.status(400).send(error(
-          `workdir 解析后不在允许的根目录下(${ALLOWED_WORKDIR_ROOTS.join(" 或 ")}): ${workdir} → ${realWorkdir}`,
+          `workdir 解析后不在允许的根目录下(${ALLOWED_WORKDIR_ROOTS.join(" 或 ")}): ${workdir}`,
         ));
       }
 
