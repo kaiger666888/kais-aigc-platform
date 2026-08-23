@@ -334,16 +334,21 @@ expect(exec.body.params?.lora).toEqual([...])   // RECIPE-03 结构保真
 | A3 | verify-phase-58 可 import 双侧源码做集合比较(verify-phase-51 有「根 scripts 可直接 import infinite-canvas 文件」先例;flowgraph-v3 经 serialize.ts 的 `import type` 链已被 verify 消费) | Pattern 4 | LOW:若 tsx 解析 @kais alias 失败,退化为读源码文本 regex 提取键集(52 范式本来就是文本断言) |
 | A4 | canvasAssetSchema 声明配方字段用「直接字面量」而非 pipeline-field-map.yaml 生成链(yaml 只支持 string|number,装不下 boolean/array) | 架构 | LOW:若强行走 yaml 需改 generate_mappings.py + yaml schema,范围膨胀 |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> 三条裁决 2026-08-23 planner 回写;均已在其对应 plan 中显式采纳:
 
 1. **canvasAssetSchema 声明哪些 V2 类型的配方字段?**
+   - **(RESOLVED) 五类型全声明**(script/asset/storyboard/video/audio 各五键全 optional),采纳 Recommendation——verify 集合相等断言需要完整对照面;已落地 58-02 Task 2(planner 裁决 3)。
    - What we know: 反向覆盖会把配方键写上**任何**有产生事件的资产 data(全 stage);assetDataSchemas 按 type(script/asset/storyboard/video/audio)分schema;生产 DB 0 行含配方字段。
    - What's unclear: 五个类型全声明(可选)vs 只声明高频类型(video/asset/storyboard)。zod object 默认 strip 不拒未知键——**未声明的类型不会 400**,只是不形状强制。
    - Recommendation: 五类型全声明可选字段(steps:number / cfg:number / quant:string / sageAttention:boolean / lora:{name,strength}[] 全 optional),一次到位,verify 断言集相等才有完整对照面。
 2. **regen 请求体是否需要在 params 外平铺高级键?**(52-02 契约 prompt/seed 在 body 顶层,params 整袋在内)
+   - **(RESOLVED) 不平铺**——params 整袋即 RECIPE-02 断言面,维持 extra 契约零改动;已落地 58-03 Task 2 用例组 C(body.params.steps/quant/lora 整袋断言)。
    - What we know: 现契约 `extra?: { prompt?, seed?, params? }`;prompt/seed 双轨(顶层+params 内)。
    - Recommendation: 不平铺新键——params 整袋即 RECIPE-02 断言面(「请求体断言可见」已满足);维持 extra 契约零改动。
 3. **probe-58-real 目标节点**
+   - **(RESOLVED) a-p04-art4**(与 probe-52-real 同锚,生产零 steps 存量=纯增量);「恢复」= 删新增键,delete 传播恰好是被测语义;已落地 58-04 Task 2。
    - What we know: 9999/1 有 479 节点,6 个带配方(a-p04-art4/5/6,prompt-only);steps/cfg 生产零存量。
    - Recommendation: a-p04-art4(与 probe-52-real 同锚);「恢复」= 删新增键(delete 传播恰好是被测语义)。
 
