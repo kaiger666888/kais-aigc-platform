@@ -79,7 +79,7 @@ Audit: **passed** (305/305 verify assertions · 435/435 vitest · 3× tsc clean 
 
 **v3.1 Phases:**
 
-- [ ] **Phase 58: 全配方持久化 (Full Recipe Persistence)** — §14 窄通道扩展为全量高级字段进出 `EventNodeV3.params`:面板编辑/持久化/序列化往返/重生成请求体 + schema↔面板防漂移守护
+- [x] **Phase 58: 全配方持久化 (Full Recipe Persistence)** — §14 窄通道扩展为全量高级字段进出 `EventNodeV3.params`:面板编辑/持久化/序列化往返/重生成请求体 + schema↔面板防漂移守护 (completed 2026-08-23)
 - [ ] **Phase 59: 窄触发 stale 级联 (Narrow-Trigger Stale Cascade)** — 面板编辑重生成 + 换 seed 重跑两条路径按请求关联自动标下游 stale;编排/批量路径零影响(负向断言锁死)
 - [ ] **Phase 60: 保存后面板保持 (Post-Save Panel Persistence)** — canvasStore reload 链保 `detailNode`,真机保存 200 后详情面板不收起,锚定语义等价
 - [ ] **Phase 61: 审计清债 TD-3/4/5 (Audit Debt Clearance)** — placeNewAsset 活调用方 + reviewBridge 尾斜杠 307 消除 + buildMeta 5 字段读回 + node:created canonical-or-document
@@ -120,7 +120,7 @@ Plans:
 **Wave 3** *(blocked on Wave 2 completion)*
 
 - [x] 58-03-PLAN.md — e2e: phase58-recipe.mjs fixture 注入 + 编辑往返/清空 delete/请求体整袋/落选只读三层断言 + 全量回归
-- [ ] 58-04-PLAN.md — 守护与真机: verify-phase-58 三方集合相等聚合门 + forced-failure + probe-58-real 零足迹探针
+- [x] 58-04-PLAN.md — 守护与真机: verify-phase-58 三方集合相等聚合门 + forced-failure + probe-58-real 零足迹探针
 
 **UI hint**: yes
 
@@ -174,7 +174,7 @@ Phases execute in numeric order: 58 → 59 → 60 → 61 (60/61 parallel-safe if
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 58. 全配方持久化 | 3/4 | In Progress|  |
+| 58. 全配方持久化 | 4/4 | Complete   | 2026-08-23 |
 | 59. 窄触发 stale 级联 | 0/TBD | Not started | - |
 | 60. 保存后面板保持 | 0/TBD | Not started | - |
 | 61. 审计清债 TD-3/4/5 | 0/TBD | Not started | - |
