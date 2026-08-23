@@ -2035,6 +2035,27 @@ export default router.post(
         ));
       }
 
+      // 59-fix CR-04: CR-03 残余——允许根 /data/workspace/ 本身包含平台仓库,
+      // workdir=仓库根仍会通过根约束,在扫描前铸造持久 data/oss/{basename}
+      // symlink(与扫描结果无关,imported:0 早退也留链)把仓库整树(含生产库
+      // data/db2.sqlite 与 o_setting.tokenKey)暴露给无鉴权 /oss 静态挂载
+      // (app.ts /oss 先于 token 中间件注册)。仓库自身/其祖先/其 data 目录
+      // 一律拒绝;双锚点:运行实例自身(__dirname 反推,checkout/worktree 无关
+      // ——esbuild 打包布局下仅收窄为「祖先也拒」方向,不误放) + 部署字面量
+      // 根(与下方 ossDir 字面量同源,保护生产部署)。祖先含 data/ 即覆盖
+      // 「等于/包含 data 目录」两形态,等于 data/ 单列兜底。
+      const repoRoot = resolve(__dirname, "../../../.."); // src/routes/canvas/v2 → 仓库根
+      const PROTECTED_REPO_ROOTS = [repoRoot, "/data/workspace/kais-aigc-platform"];
+      const isSelfOrAncestor = (p: string, root: string): boolean =>
+        p === root || root.startsWith(p + "/");
+      for (const rr of PROTECTED_REPO_ROOTS) {
+        if (isSelfOrAncestor(realWorkdir, rr) || realWorkdir === join(rr, "data")) {
+          return res.status(400).send(error(
+            `workdir 不得是应用仓库自身、其祖先或其 data 目录: ${workdir}`,
+          ));
+        }
+      }
+
       // Auto-create oss symlink: data/oss/{basename} → workdir
       // so that thumbnailUrl/filePath resolve to web-accessible /oss/ paths
       const workdirBase = basename(workdir.replace(/\/$/, ""));
