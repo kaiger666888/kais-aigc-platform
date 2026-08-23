@@ -48,6 +48,7 @@
     "verify:phase-55": "npx tsx scripts/verify-phase-55.ts",
     "verify:phase-56": "npx tsx scripts/verify-phase-56.ts",
     "verify:phase-57": "npx tsx scripts/verify-phase-57.ts",
+    "verify:phase-58": "npx tsx scripts/verify-phase-58.ts",
     "verify:qwen-tts": "npx tsx scripts/verify-qwen-tts.ts",
     "verify:save-v2-legacy": "npx tsx scripts/canvas/verify-save-v2-legacy-asset.ts",
     "verify:schema-drift": "npx tsx scripts/canvas/verify-schema-drift.ts"
