@@ -2039,19 +2039,29 @@ export default router.post(
       // workdir=仓库根仍会通过根约束,在扫描前铸造持久 data/oss/{basename}
       // symlink(与扫描结果无关,imported:0 早退也留链)把仓库整树(含生产库
       // data/db2.sqlite 与 o_setting.tokenKey)暴露给无鉴权 /oss 静态挂载
-      // (app.ts /oss 先于 token 中间件注册)。仓库自身/其祖先/其 data 目录
-      // 一律拒绝;双锚点:运行实例自身(__dirname 反推,checkout/worktree 无关
-      // ——esbuild 打包布局下仅收窄为「祖先也拒」方向,不误放) + 部署字面量
-      // 根(与下方 ossDir 字面量同源,保护生产部署)。祖先含 data/ 即覆盖
-      // 「等于/包含 data 目录」两形态,等于 data/ 单列兜底。
+      // (app.ts /oss 先于 token 中间件注册)。仓库自身/其祖先一律拒绝;
+      // 双锚点:运行实例自身(__dirname 反推,checkout/worktree 无关——
+      // esbuild 打包布局下仅收窄为「祖先也拒」方向,不误放) + 部署字面量根
+      // (与下方 ossDir 字面量同源,保护生产部署)。
+      // 59-fix r3 WR-08: CR-04 只拒「等于/祖先/字面 data 目录」三形态,仓库内
+      // 其余目录(data/serve 生产 bundle+运行日志、src、schema、data/skills、
+      // data/modelPrompt…)仍可铸造持久无鉴权 /oss 挂载——补齐第三方向
+      // 「workdir 位于仓库子树内」全包含(data/ 目录被子句子包含,无需单列)。
+      // 例外:锚点本身是允许根的祖先(esbuild bundle 布局 __dirname 反推退化
+      // 为 /data,正是 /data/workspace/ 的祖先)时跳过该锚点的子树判定——
+      // 否则会吞掉整个允许域(过拦);退化方向下部署字面量锚点仍完整承担
+      // 子树拒绝,不误放。
       const repoRoot = resolve(__dirname, "../../../.."); // src/routes/canvas/v2 → 仓库根
       const PROTECTED_REPO_ROOTS = [repoRoot, "/data/workspace/kais-aigc-platform"];
-      const isSelfOrAncestor = (p: string, root: string): boolean =>
-        p === root || root.startsWith(p + "/");
+      const isProtected = (p: string, root: string): boolean =>
+        p === root ||
+        root.startsWith(p + "/") ||
+        (!ALLOWED_WORKDIR_ROOTS.some((r) => r.startsWith(root + "/")) &&
+          p.startsWith(root + "/"));
       for (const rr of PROTECTED_REPO_ROOTS) {
-        if (isSelfOrAncestor(realWorkdir, rr) || realWorkdir === join(rr, "data")) {
+        if (isProtected(realWorkdir, rr)) {
           return res.status(400).send(error(
-            `workdir 不得是应用仓库自身、其祖先或其 data 目录: ${workdir}`,
+            `workdir 不得位于应用仓库内或与其自身/祖先重叠: ${workdir}`,
           ));
         }
       }
