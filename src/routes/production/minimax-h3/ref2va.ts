@@ -154,6 +154,21 @@ export function buildH3Ref2vaWorkflowT8(opts: H3Ref2vaWorkflowOpts): Record<stri
     turbo, saveSeparateAudio,
   } = opts;
 
+  // T8 的 ref_images/ref_audios/ref_videos/ref_video_audios 是 COMFY_AUTOGROW_V3
+  // 输入: API prompt 必须用点号键 ref_images.ref_image_N。bare 数组键
+  // (ref_images: [[id,0]]) 会被 ComfyUI 静默丢弃 → T8 数出 0 张图 →
+  // strict_prompt_tags 校验报 "<Picture 1> is not connected"(2026-08-23
+  // b166a962 实证; 同 native 构建器既有槽位形式, 见
+  // comfyui-v3-autogrow-api-format SKILL)。
+  const refImageSlots: Record<string, any> = {};
+  refImageFilenames.forEach((_, i) => { refImageSlots[`ref_images.ref_image_${i}`] = [imageNodeId(i), 0]; });
+  const refAudioSlots: Record<string, any> = {};
+  refAudioFilenames.forEach((_, i) => { refAudioSlots[`ref_audios.ref_audio_${i}`] = [audioNodeId(i), 0]; });
+  const refVideoSlots: Record<string, any> = {};
+  refVideoFilenames.forEach((_, i) => { refVideoSlots[`ref_videos.ref_video_${i}`] = [videoNodeId(i), 0]; });
+  const refVideoAudioSlots: Record<string, any> = {};
+  refVideoAudioFilenames.forEach((_, i) => { refVideoAudioSlots[`ref_video_audios.ref_video_audio_${i}`] = [videoAudioNodeId(i), 0]; });
+
   const nodes: Record<string, any> = {
     // === 模型 / 文本编码器 / VAE ===
     "10": { class_type: "CLIPLoader", inputs: { clip_name: H3_DEFAULTS.clipName, type: "minimax" } },
@@ -191,10 +206,10 @@ export function buildH3Ref2vaWorkflowT8(opts: H3Ref2vaWorkflowOpts): Record<stri
         strict_prompt_tags: H3_T8.strictPromptTags,
         ref_image_size: refImageSize,
         reference_video_policy: H3_T8.referenceVideoPolicy,
-        ...(refImageFilenames.length ? { ref_images: refImageFilenames.map((_, i) => [imageNodeId(i), 0]) } : {}),
-        ...(refAudioFilenames.length ? { ref_audios: refAudioFilenames.map((_, i) => [audioNodeId(i), 0]) } : {}),
-        ...(refVideoFilenames.length ? { ref_videos: refVideoFilenames.map((_, i) => [videoNodeId(i), 0]) } : {}),
-        ...(refVideoAudioFilenames.length ? { ref_video_audios: refVideoAudioFilenames.map((_, i) => [videoAudioNodeId(i), 0]) } : {}),
+        ...refImageSlots,
+        ...refAudioSlots,
+        ...refVideoSlots,
+        ...refVideoAudioSlots,
         ...(firstFrameFilename ? { first_frame: [FIRST_FRAME_NODE, 0] } : {}),
         ...(lastFrameFilename ? { last_frame: [LAST_FRAME_NODE, 0] } : {}),
       },
