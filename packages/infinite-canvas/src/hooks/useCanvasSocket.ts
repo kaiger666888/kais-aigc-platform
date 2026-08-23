@@ -70,7 +70,8 @@ interface UseCanvasSocketOptions {
   onBranchCreated?: (branch: FlowBranch) => void
   onReviewApproved?: (nodeId: string) => void
   onReviewRejected?: (nodeId: string, reason?: string) => void
-  onGraphSaved?: (payload: { projectId: number; episodesId: number; timestamp: number }) => void
+  /** 60-02 (D-01): savedBy = 保存方 tab 身份回显(缺省=他端/旧服务端)。 */
+  onGraphSaved?: (payload: { projectId: number; episodesId: number; timestamp: number; savedBy?: string }) => void
   /** Phase 49 (WR-08): 他端选定了变体组 winner — 消费方负责回显守卫。 */
   onVariantSelected?: (payload: VariantSelectedPayload) => void
   /** Phase 54 (D-03): gate 中心状态推送,scope 守卫由消费方负责。 */
@@ -231,7 +232,8 @@ export function useCanvasSocket(options: UseCanvasSocketOptions) {
     })
 
     // 全图保存(pipeline 通过 /api/canvas/v2/save-v2 写入)— 触发前端重新加载
-    socket.on('graph:saved', (payload: { projectId: number; episodesId: number; timestamp: number }) => {
+    // 60-02: payload.savedBy(可选)= 保存方 tab 身份回显,消费方据此跳过自回声
+    socket.on('graph:saved', (payload: { projectId: number; episodesId: number; timestamp: number; savedBy?: string }) => {
       callbacksRef.current.onGraphSaved?.(payload)
     })
 

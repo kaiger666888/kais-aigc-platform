@@ -313,15 +313,14 @@ test.describe('Phase 59-04 — STALE 窄触发级联 (SC1-SC4, mock 回放 59-02
   test('rerun-clears badge via existing exits (SC4)', async ({ page }) => {
     await loadCanvas(page)
     await injectCascadeFixture(page)
-    // 时序确定性(mock config 既有控制面 + 59-04 新增旋钮):rerunStaleChain 先
-    // save(stale 上 wire,52-02 语义)再 orchestrate 子集——save 的 graph:saved
-    // 自回声触发全量 reload,与 node:state running/success 本地清 stale(52-01
-    // 两态都清)存在既有竞态窗口(reload 落地实测 ~1s 且抖动,restore 可能落在
-    // clear 之后 → 角标复活)。该写-写竞态是 RESEARCH Pitfall 4 已知边界、planner
-    // 裁定本 phase 不做合并写——本用例以 suppressGraphSaved 旋钮把自回声 reload
-    // 从被测面剔除(被测语义 = 既有出口重跑 → success 清角标,52-01 链),
-    // 产品竞态在 SUMMARY 如实记录。
-    await page.request.post('/__mock/config', { data: { suppressGraphSaved: true } })
+    // 60-02 (D-08): rerun 保存经 saveCanvasGraph 单点自动携带 savedBy →
+    // graph:saved 自回声被客户端 D-01 判定为本端保存而跳过 reload——59 Known
+    // Issue #1(自回声 reload 与 node:state success 清 stale 的写-写竞态致角标
+    // 短暂复活)的 reload 侧根因消失,销案。本用例改走真实回声路径:广播照发
+    // (无 mock 旁路),客户端自然跳过——被测
+    // 语义不变(既有出口重跑 → success 清角标,52-01 链);rerun 保存真的带
+    // 了身份由本用例的绿反向证明(FLAG-4:判定漏了 rerun 路径则此处必红)。
+    // (mock 的 graph:saved 抑制旋钮已随 60-02 退役,本文件零 mock 旁路。)
 
     // SC1 前置:面板重生成 → 三下游角标(mid-1/down-2 链 + down-1 独立叶子)
     await panelRegen(page, TRIG)

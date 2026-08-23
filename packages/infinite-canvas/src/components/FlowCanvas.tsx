@@ -49,6 +49,8 @@ import { ToastContainer } from '../hooks/useToast'
 import { serializeGraphToV2 } from '../v3/serialize'
 import { getLayoutedElements } from '../utils/autoLayout'
 import { loadCanvasGraph, saveCanvasGraph, convertProjectData, fetchSkillNodeTypes, orchestrateCanvas, fetchCanvasHealth, fetchGateState } from '../services/canvasApi'
+// 60-02 (D-01): graph:saved 自回声判定身份(详见 clientTabId.ts 头注释)
+import { getClientTabId } from '../services/clientTabId'
 import { useGateStore, resolveRepresentativeNodeId } from '../store/gateStore'
 import { useCanvasSocket } from '../hooks/useCanvasSocket'
 // Phase 59 (59-03): node:updated stale 载荷 → 既有级联出口(幂等收敛+脉动)
@@ -334,9 +336,19 @@ function CanvasInner() {
         payload.projectId === projectId &&
         payload.episodesId === episodesId
       ) {
-        showToast('Pipeline 同步了新数据,正在刷新画布…', 'info')
-        // 重置 health 轮询基线,避免 30 秒后再次触发重复 reload
+        // FLAG-1(60-UI-SPEC §4): 基线重置无条件先行——mock health 的 eventCount
+        // 把每次 save-v2 计为事件,自回声分支若丢重置,自保存后 ≤30s 会冒假
+        // 「检测到 pipeline 远端更新」toast + 无谓 reload(违 D-05)。
+        // 跳 reload 不跳基线;此序为 60-05 S2 静态锁锚定(重置行先于早退行)。
         lastEventCountRef.current = null
+        // 60-02 (D-01): 自回声判定——本端 saveCanvasGraph 单点携带 savedBy,
+        // 服务端原样回显;命中即本端保存(本地 store 已是 canonical 真相 +
+        // 200 确认),静默早退:无 toast、无 reload(D-05)。他端(kmc pipeline /
+        // 其他 tab,无 savedBy 或不同 tabId)走下方既有 reload 链,零回归。
+        const selfEcho =
+          typeof payload.savedBy === 'string' && payload.savedBy === getClientTabId()
+        if (selfEcho) return
+        showToast('Pipeline 同步了新数据,正在刷新画布…', 'info')
         loadCanvas(projectId, episodesId)
       }
     },

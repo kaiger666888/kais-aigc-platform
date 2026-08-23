@@ -2,6 +2,10 @@ import type { FlowGraph, FlowBranch, LegacyFlowData, FlowGraphNode } from '../ty
 import type { FlowGraphV2WireShape } from '../v3/serialize'
 // Phase 54-04: gate:state payload 契约真值源(gateStore)。
 import type { GateStatePayload } from '../store/gateStore'
+// 60-02 (D-01): save-v2 自回声判定身份——单点附加,六个调用方零改动全覆盖
+// (handleSave/handleOrchestrate/ContextMenu/canvasStore 两处/useStaleRerun,
+// 含 rerun 先存再跑的保存路径,Pitfall 5 根治)。
+import { getClientTabId } from './clientTabId'
 
 const API_BASE = '/api'
 const TIMEOUT_MS = 15_000
@@ -334,7 +338,10 @@ export async function saveCanvasGraph(
   graph: FlowGraphV2WireShape,
   cancelToken?: CancelToken,
 ): Promise<void> {
-  await apiCall<void>('/canvas/v2/save-v2', { projectId, episodesId, graph }, { cancelToken })
+  // 60-02 (D-01): body 自动附 savedBy(页面级 tabId 单例)——服务端原样回显进
+  // graph:saved 广播,本端 onGraphSaved 据此跳过自回声 reload。签名不变,
+  // 全部调用方零改动天然携带身份。
+  await apiCall<void>('/canvas/v2/save-v2', { projectId, episodesId, graph, savedBy: getClientTabId() }, { cancelToken })
 }
 
 /**

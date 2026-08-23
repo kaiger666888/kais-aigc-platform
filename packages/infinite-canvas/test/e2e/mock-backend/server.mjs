@@ -132,8 +132,6 @@ const state = {
     orchDelay: 50,    // ms per node during orchestrate
     previewDelay: 100,
     failSecondNode: false,
-    // 59-04: SC4 用——抑制 save-v2 的 graph:saved 自回声广播(见 save-v2 handler 注释)
-    suppressGraphSaved: false,
   },
   activeRuns: new Set(),  // runId 集合; reset 时清空,orchestrate 循环检查
 }
@@ -178,16 +176,14 @@ app.post('/api/canvas/v2/load-v2', (req, res) => {
 // Phase 51-02 起这也是前端 saveCanvasGraph 的唯一保存通道（v1 save 已删除，契约诚实）。
 // 替换 mock canvas 状态,然后广播 graph:saved 事件 — 与真 backend
 // src/routes/canvas/v2/save-v2.ts:60 的行为对齐。
-// 59-04: config.suppressGraphSaved(默认 false)可抑制本广播——SC4 双出口 e2e
-// 用它把 rerun 自保存的 graph:saved 自回声 reload(写-写竞态窗口,RESEARCH
-// Pitfall 4 已知边界,planner 裁定本 phase 不治)从被测面剔除;其余用例零影响。
+// 60-02: 59-04 的 graph:saved 抑制旋钮已退役——自回声跳过改由客户端 D-01
+// 机制(savedBy 回声判定)实现,广播恒发(mock 不设旁路,D-04 契约对齐)。
 app.post('/api/canvas/v2/save-v2', (req, res) => {
   const { projectId, episodesId, graph, savedBy } = req.body
   state.canvas = graph?.nodes?.length ? graph : state.canvas
   // 60-02: body 记 savedBy(?? null)——e2e 断言客户端真的发了身份的观测面(60-04 用例 1)。
   logCall('POST', '/api/canvas/v2/save-v2', { projectId, episodesId, nodeCount: graph?.nodes?.length, savedBy: req.body?.savedBy ?? null }, null)
   res.json({ code: 200, data: null })
-  if (state.config.suppressGraphSaved) return
   setTimeout(() => {
     // 60-02 D-04: savedBy 条件回显,与真后端 save-v2.ts 同形;不带身份的调用广播形状不变。
     broadcastToProject(projectId, 'graph:saved', { projectId, episodesId, timestamp: Date.now(), ...(savedBy != null ? { savedBy } : {}) })
@@ -444,7 +440,7 @@ app.post('/__mock/reset', (req, res) => {
   state.activeRuns.clear()
   reset()
   if (!req.body?.keepConfig) {
-    state.config = { orchDelay: 50, previewDelay: 100, failSecondNode: false, suppressGraphSaved: false }
+    state.config = { orchDelay: 50, previewDelay: 100, failSecondNode: false }
   }
   res.json({ ok: true })
 })
