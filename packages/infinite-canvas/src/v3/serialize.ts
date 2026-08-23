@@ -254,14 +254,21 @@ export function serializeGraphToV2(
     // 复活——updateEventParams 空值删除的对称面，顺手覆盖 prompt 清空 '' 同款
     // 潜在复活）。script stage 跳过 prompt 覆盖（52-02 例外保留：真值是
     // content，flattenMeta 已处理，P4 防两处抄）。
+    // CR-01 落选豁免（Phase 58 review）：curation==='deprecated' 成员的 output 边
+    // 已被 migrate Pass 3 重指到 winner 共享主事件——本反查命中的不是其自身配方。
+    // 落选 data 袋是其配方的唯一持久化载体（reload 时 variantRecipes 从它重建），
+    // 共享主事件缺键 ≠ 用户清空：delete 传播对其跳过（写覆盖照旧，Pitfall 7 预存
+    // 折叠语义裁定不治），否则下一次任意整图保存会把落选配方字段从 wire/DB 静默
+    // 删光（永久丢失，variantRecipes 重建条件 Object.keys(params).length>0 失效）。
     const producingEvt = producingEventByAssetId.get(n.id)
     if (producingEvt != null) {
+      const loserExempt = n.curation === 'deprecated'
       const p = producingEvt.params as Record<string, unknown>
       for (const { p: pk, d: dk } of RECIPE_ROUNDTRIP_KEYS) {
         if (n.stage === 'script' && pk === 'prompt') continue // 52-02 例外保留
         const v = p[pk]
         if (v != null) data[dk] = v
-        else delete data[dk] // delete 传播：canonical 缺键 = 清空 → wire 同步删，防 rawData 复活
+        else if (!loserExempt) delete data[dk] // delete 传播：canonical 缺键 = 清空 → wire 同步删，防 rawData 复活（落选豁免）
       }
     }
     // stale 上 wire（Phase 52-02 地雷 #2）：服务端 orchestrate 只读持久化 blob，

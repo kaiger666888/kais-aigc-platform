@@ -466,4 +466,46 @@ describe('Phase 58: 全配方反向覆盖 + delete 传播', () => {
     const w = serializeGraphToV2(fullGraph(), new Map([['n_full', { shot_id: 'S01' }]]))
     expect(FlowGraphV2Schema.safeParse(w).success).toBe(true)
   })
+
+  it('e. CR-01 落选豁免：deprecated 成员命中共享主事件，主事件缺键不删——落选 data 袋配方字段原样保留', () => {
+    // migrate Pass 3 形态：落选资产的 output 边被重指到 winner 主事件（两条 output
+    // 边同源 evt_primary）；主事件 params 仅 prompt（生产现状 prompt-only），落选
+    // raw data 自带完整配方（其唯一持久化载体，variantRecipes 重建源）。
+    const g = minimalGraph(
+      [
+        asset({
+          id: 'n_win', stage: 'keyframe', curation: 'selected', variantGroupId: 'vg_cr1',
+          meta: { stage: 'keyframe', shotId: 'shot-cr1' },
+        }),
+        asset({
+          id: 'n_lose', stage: 'keyframe', curation: 'deprecated', variantGroupId: 'vg_cr1',
+          meta: { stage: 'keyframe', shotId: 'shot-cr1' },
+        }),
+        evt('evt_primary', 'wan22_i2v', { prompt: 'A' }), // 共享主事件：仅 prompt，缺 seed/steps/cfg/engine/lora
+      ],
+      [
+        { id: 'l_out_win', source: 'evt_primary', target: 'n_win', branchId: 'br_main', role: 'output' },
+        { id: 'l_out_lose', source: 'evt_primary', target: 'n_lose', branchId: 'br_main', role: 'output' },
+      ],
+    )
+    const raw = new Map([
+      ['n_win', { prompt: 'A', steps: 50, shot_id: 'S01' }], // winner 的陈旧 steps（delete 传播应删）
+      ['n_lose', { prompt: 'B', seed: 222, steps: 30, cfg: 7, engine: 'wan2.2-i2v', lora: [{ name: 'style', strength: 0.6 }], shot_id: 'S01' }],
+    ])
+    const w = serializeGraphToV2(g, raw)
+    const lose = w.nodes.find((n) => n.id === 'n_lose')!
+    // 主事件在场键照常折叠写入（Pitfall 7 预存折叠语义保留，不在本修复范围）
+    expect(lose.data.prompt).toBe('A')
+    // 主事件缺键 ≠ 落选清空：落选配方字段原样保留（variantRecipes 重建源不可删）
+    expect(lose.data.seed).toBe(222)
+    expect(lose.data.steps).toBe(30)
+    expect(lose.data.cfg).toBe(7)
+    expect(lose.data.engine).toBe('wan2.2-i2v')
+    expect(lose.data.lora).toEqual([{ name: 'style', strength: 0.6 }])
+    expect(lose.data.shot_id).toBe('S01') // 非配方键不动
+    // 对照：winner（selected，非豁免）delete 传播照常——陈旧 steps=50 不复活
+    const win = w.nodes.find((n) => n.id === 'n_win')!
+    expect(win.data.steps).toBeUndefined()
+    expect(win.data.prompt).toBe('A')
+  })
 })
