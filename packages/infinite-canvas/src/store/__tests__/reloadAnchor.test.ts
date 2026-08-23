@@ -11,6 +11,17 @@
  *      （诚实收起,禁模糊匹配）;
  *   c. other-anchor-untouched: 无关节点消失不影响存活锚。
  *
+ * 60-03 扩充（Branch A 永久锁——60-DIAGNOSIS「Fix branch: A」,零生产修复仅锁）:
+ *   d. warn-on-miss: 锚丢失 → setGraph 内 console.warn 一次,串含 '[panel-persist]'
+ *      与丢失 id（D-03 验收钩子,60-UI-SPEC §7 console 捕获面）;
+ *   e. symmetric-collapse: selectedNode 与 detailNode 同一次 setGraph 内同时 null
+ *      （D-07 together-or-not-at-all 显式锁）;
+ *   f. no-warn-on-hit: id 命中重锚 → warn 零调用（无噪声）;
+ *   g. no-warn-spam: 同一缺失锚连续两次 setGraph → warn 恰一次（「非 null → null」
+ *      转移守卫,第二次锚已 null 不再发——T-60-05 日志洪水缓解锁）;
+ *   h. roundtrip-lock: adapt→serialize→adapt 纯函数往返两代节点 id 集全等
+ *      （evt_ 子集单列断言;Branch A 的 in-memory id 稳定性绑定门,不依赖 :10588）。
+ *
  * fixture（plan 指定）: phase59 cascadeFixtureGraph 的 trig-1/mid-1/down-1 三节点裁剪,
  * 两条 image 边成链;经生产 adaptV2Graph 生成合法 V3 graph——与真机 reload 链同源
  * （loadGraphFromV2/loadInitialGraph 均以 adaptV2Graph 产物喂 setGraph）。
@@ -22,7 +33,7 @@
  * 「先 null 后重锚」的中间窗口（60-UI-SPEC §1「No intermediate null / no flash」的
  * store 侧保证）。React 层不渲染（store 直驱,canonicalWriteback.test.ts 范式）。
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // canvasStore 传递 import canvasApi（persistEventParams/updateBranch/saveCanvasGraph 等）;
 // 本测试零网络——整模块 mock（canonicalWriteback.test.ts 同款手法）。
@@ -36,6 +47,7 @@ vi.mock('../../services/canvasApi', () => ({
 
 import { useCanvasStore } from '../canvasStore'
 import { adaptV2Graph } from '../../v3/adapter'
+import { serializeGraphToV2 } from '../../v3/serialize'
 
 // ─── fixture:3 节点最小 V2 图（phase59 cascadeFixtureGraph 裁剪） ────────────
 
@@ -110,6 +122,12 @@ beforeEach(() => {
   resetStore()
 })
 
+// 60-03:warn spy 用 afterEach restore（plan 指定;与 beforeEach 的 restore+re-spy
+// 双保险,确保 spy 状态永不跨用例泄漏——no-warn-* 计数断言的前提）。
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
 describe('setGraph reload 重锚语义（60-01 Task 2 / D-02 D-03 D-07）', () => {
   it('a. survive：id 存活时 detailNode/selectedNode 重锚到新派生模型同 id 节点（引用刷新,非旧引用）', () => {
     const store = useCanvasStore.getState()
@@ -174,5 +192,88 @@ describe('setGraph reload 重锚语义（60-01 Task 2 / D-02 D-03 D-07）', () =
     expect(after.detailNode?.id).toBe(TRIG)
     expect(after.selectedNode?.id).toBe(TRIG)
     expect(after.detailNode).toBe(after.nodes.find((n) => n.id === TRIG))
+  })
+})
+
+describe('setGraph 锚丢失 warn + 对称锁（60-03 Task 1 / D-03 D-07）', () => {
+  it('d. warn-on-miss：锚定的 down-1 缺席 → console.warn 一次,串含 [panel-persist] 与丢失 id', () => {
+    const warnSpy = vi.mocked(console.warn)
+    const store = useCanvasStore.getState()
+    const g2 = adaptV2Graph(wireFixture()).graph
+    store.setGraph(g2)
+
+    // 仅锚定 detailNode（selectedNode 保持 null——单一转移源,计数断言无歧义）
+    const downBefore = useCanvasStore.getState().nodes.find((n) => n.id === DOWN)!
+    store.setDetailNode(downBefore)
+
+    const g3 = adaptV2Graph(wireWithoutDown()).graph
+    store.setGraph(g3)
+
+    expect(useCanvasStore.getState().detailNode).toBeNull()
+    expect(warnSpy).toHaveBeenCalledTimes(1)
+    const msg = String(warnSpy.mock.calls[0]?.[0])
+    expect(msg).toContain('[panel-persist]')
+    expect(msg).toContain(DOWN)
+    // 60-UI-SPEC §2 默认串（dev-console only,非 user-facing copy）
+    expect(msg).toBe(`[panel-persist] 锚点丢失: ${DOWN} 在重载图中未找到,面板已收起`)
+  })
+
+  it('e. symmetric-collapse：detailNode 与 selectedNode 同一次 setGraph 内同时收起（together or not at all）', () => {
+    const store = useCanvasStore.getState()
+    const g2 = adaptV2Graph(wireFixture()).graph
+    store.setGraph(g2)
+
+    // 双锚同指 DOWN（双击语义:detail + selection 同源）
+    const downBefore = useCanvasStore.getState().nodes.find((n) => n.id === DOWN)!
+    store.setDetailNode(downBefore)
+    store.setSelectedNode(downBefore)
+
+    const g3 = adaptV2Graph(wireWithoutDown()).graph
+    store.setGraph(g3)
+
+    // D-07 显式对称锁:同一 id-miss 条件下两锚 either 同时存活 or 同时收起——
+    // 不存在「面板在而选中丢」/「选在而面板丢」的半收起态（同一次原子 set 落盘）。
+    const after = useCanvasStore.getState()
+    expect(after.detailNode).toBeNull()
+    expect(after.selectedNode).toBeNull()
+    expect(after.detailNode === null && after.selectedNode === null).toBe(true)
+  })
+
+  it('f. no-warn-on-hit：id 命中重锚 → warn 零调用（命中路径无噪声）', () => {
+    const warnSpy = vi.mocked(console.warn)
+    const store = useCanvasStore.getState()
+    const g1 = adaptV2Graph(wireFixture()).graph
+    store.setGraph(g1)
+
+    const trigBefore = useCanvasStore.getState().nodes.find((n) => n.id === TRIG)!
+    store.setDetailNode(trigBefore)
+    store.setSelectedNode(trigBefore)
+
+    const g2 = adaptV2Graph(structuredClone(wireFixture())).graph
+    store.setGraph(g2)
+
+    expect(useCanvasStore.getState().detailNode?.id).toBe(TRIG)
+    expect(useCanvasStore.getState().selectedNode?.id).toBe(TRIG)
+    expect(warnSpy).not.toHaveBeenCalled()
+  })
+
+  it('g. no-warn-spam：同一缺失锚连续两次 setGraph → warn 恰一次（非 null→null 转移已消费）', () => {
+    const warnSpy = vi.mocked(console.warn)
+    const store = useCanvasStore.getState()
+    const g2 = adaptV2Graph(wireFixture()).graph
+    store.setGraph(g2)
+
+    const downBefore = useCanvasStore.getState().nodes.find((n) => n.id === DOWN)!
+    store.setDetailNode(downBefore)
+
+    // 第一次:锚非 null + id 缺席 → warn（转移发生）
+    const g3a = adaptV2Graph(wireWithoutDown()).graph
+    store.setGraph(g3a)
+    expect(warnSpy).toHaveBeenCalledTimes(1)
+
+    // 第二次:锚已是 null → 「非 null → null」转移不存在 → 不再发（T-60-05 防刷屏守卫）
+    const g3b = adaptV2Graph(structuredClone(wireWithoutDown())).graph
+    store.setGraph(g3b)
+    expect(warnSpy).toHaveBeenCalledTimes(1)
   })
 })

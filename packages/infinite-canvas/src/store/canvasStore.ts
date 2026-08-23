@@ -428,6 +428,16 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     }
     // memo 化派生：同一 graph 引用 → 同一 RF 模型引用（组件 memo 有效）
     const vm = getViewModel(graph)
+    // Phase 60-03（D-03 锚丢失诚实收起的验收钩子——纯增量，下方重锚语义 L442-447 零改动）：
+    // 重锚即将置 null（state 锚非 null 且新派生模型按 id 未命中）时 warn 一次，文案为
+    // 60-UI-SPEC §2 默认串（dev-console only，非 user-facing copy）。「非 null → null」
+    // 转移守卫天然防刷屏——锚本就 null 的 setGraph 不进此分支，同一丢失锚连续换图
+    // 只发一次（T-60-05 日志洪水缓解，no-warn-spam vitest 锁）。
+    for (const anchor of [get().selectedNode, get().detailNode]) {
+      if (anchor != null && !vm.rfNodes.some((n) => n.id === anchor.id)) {
+        console.warn(`[panel-persist] 锚点丢失: ${anchor.id} 在重载图中未找到,面板已收起`)
+      }
+    }
     set((state) => ({
       graph,
       warnings: warnings ?? state.warnings,
