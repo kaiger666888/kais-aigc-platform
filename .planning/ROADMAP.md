@@ -126,7 +126,7 @@ Plans:
 
 ### Phase 59: 窄触发 stale 级联 (Narrow-Trigger Stale Cascade)
 
-**Goal**: 生成-迭代闭环获得下游感知——仅面板编辑配方重生成与事件芯片换 seed 重跑两条路径,按 per-request 关联(executeNode extra channel)把该资产的下游节点自动标 stale,角标可见且可一键重跑;编排/批量执行路径行为零变化。
+**Goal**: 生成-迭代闭环获得下游感知——仅面板编辑配方重生成与事件芯片换 seed 重跑两条路径,按 per-request 关联(executeNode extra channel)把该资产的下游节点自动标 stale,角标可见且可一键重跑;编排/批量执行路径行为零变化。**+ execute 链四断点全修**(2026-08-23 discuss 用户裁决扩入:①_engine poll 读引擎真实 outputs.image ②/mnt/agents/output→/oss/ 路径翻译 ③_simulate 假成功改真错误广播 ④ref_images 参数名与路径形态对齐,含 REGEN-02 seed 透传)——级联必须建立在真实成功信号上,详见 59-CONTEXT D-06/D-07。
 **Depends on**: Phase 58 (关联级联构建在最终请求体形状之上;STALE-01 触发路径即 Phase 58 打通的配方编辑重生成)
 **Requirements**: STALE-01, STALE-02, STALE-03
 **Success Criteria** (what must be TRUE):
@@ -135,6 +135,7 @@ Plans:
   2. 用户在事件芯片换 seed 重跑成功后,下游节点同样自动标 stale。
   3. 编排(orchestrate)/批量执行成功后,下游不出现任何 stale 角标——既有批量链路行为零变化,负向断言/e2e 锁死。
   4. 被 stale 的节点可经既有 Phase 52「重跑下游」出口消除标记(重跑完成后角标消失);与该资产无下游关系的节点不受级联波及。
+  5. execute 链断点修复后,面板重生成产物真实落画布(引擎 outputs.image 读取/oss 路径翻译/ref_images 参数全对齐,seed 真传引擎);引擎故障时报 error 不再假成功——负向断言锁死。
 
 **Plans**: TBD (via /gsd:plan-phase)
 **UI hint**: yes
