@@ -3,7 +3,7 @@ import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
 import { readdir, readFile, stat } from "fs/promises";
-import { join, extname, basename } from "path";
+import { join, extname, basename, resolve } from "path";
 import type { FlowGraphV2, FlowNodeV2, FlowLinkV2, FlowBranchV2 } from "@/types/flowgraph-v2";
 import {
   ensureBootstrap,
@@ -1991,6 +1991,23 @@ export default router.post(
     const { projectId, episodesId, workdir, projectName, mode = "merge" } = req.body;
 
     try {
+      // 59-fix CR-03: workdir 根约束 — 本路由会把 workdir 以 data/oss/{basename}
+      // symlink 形式暴露为无鉴权 /oss 静态挂载(app.ts)下的 web 根,且扫描导入
+      // 目录下全部文件;未约束的 workdir 可把任意宿主目录(/home、/etc…)挂上
+      // /oss → 目录泄露 + 任意读。仅放行引擎白名单同根(ossToEnginePath 双根
+      // /data/workspace/kais-aigc-platform/data/oss + /mnt/agents/output 的父域,
+      // iteration 路由 ALLOW_ROOT=/data/workspace 先例):/data/workspace/** 与
+      // /mnt/agents/output/**。仓库 data/oss 自身位于 /data/workspace 下,
+      // 既有 e2e/mock/probe 流不受影响。resolve 归一(./.. 前缀/相对路径挡在
+      // startsWith 之外)。
+      const ALLOWED_WORKDIR_ROOTS = ["/data/workspace/", "/mnt/agents/output/"];
+      const absWorkdir = resolve(workdir);
+      if (!ALLOWED_WORKDIR_ROOTS.some((r) => absWorkdir.startsWith(r))) {
+        return res.status(400).send(error(
+          `workdir 必须位于允许的根目录下(${ALLOWED_WORKDIR_ROOTS.join(" 或 ")}): ${workdir}`,
+        ));
+      }
+
       // 安全检查：workdir 必须存在且是目录
       try {
         const st = await stat(workdir);
