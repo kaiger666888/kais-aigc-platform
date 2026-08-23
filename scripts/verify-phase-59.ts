@@ -428,7 +428,7 @@ async function main(): Promise<void> {
             typeof downRow.stale?.since === "number" &&
             typeof downRow.stale?.triggerAssetId === "string" &&
             typeof downRow.stale?.triggerEventId === "string",
-          "S3-cascade: DB down-1 stale 三字段齐全(D-05 reload 保真——loadFullGraph 即 load-v2 数据源,同一读)",
+          "S3-cascade: DB down-1 stale 三字段齐全(D-05 reload 保真;fixture 混入 migrate 不支持 'phase' 节点仍级联——WR-03 容错行为级)",
           JSON.stringify(downRow ?? null),
         );
         assert(

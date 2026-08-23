@@ -34,6 +34,20 @@ import type { AssetNodeV3 } from "../../../packages/flowgraph-v3/ts/src/types";
 import { loadFullGraph, listNodes, upsertNode } from "@/lib/canvasRelationalStore";
 import { broadcastToProject } from "@/utils/ws";
 
+/**
+ * 59-fix WR-03: migrate planNode 支持的 V2 节点类型全集(v2types.ts
+ * FlowNodeV2Type 联合镜像——planNode case 表 + Pass 3/4 分流的 variant/
+ * reference)。legacy 图混入集合外类型(如 'phase',probe-59-real 真机发现)时
+ * planNode throw,曾使 markStaleAndBroadcast 整图级联结构性失效(execute 吞错
+ * 后仍 success、零 stale 写)。进 migrate 前过滤:migrate 对悬空边 warn+丢弃
+ * (宽容,Pass 2「target 无合成事件,丢弃」先例),支持节点子集的下游级联照常;
+ * changedAssetId 自身被滤掉 → 空级联(该节点无法在 V3 语义表达,正确)。
+ */
+const MIGRATE_SUPPORTED_V2_TYPES: ReadonlySet<string> = new Set([
+  "script", "storyboard", "video", "audio", "asset", "scene_image",
+  "upscale", "face_restore", "variant", "reference",
+]);
+
 export async function markStaleAndBroadcast(
   projectId: number,
   episodesId: number,
@@ -45,7 +59,22 @@ export async function markStaleAndBroadcast(
 
   // 事件 id 确定性合成 evt_<nodeId>(migrate.ts L523)——与客户端 adaptV2Graph
   // 同规则,triggerEventId 跨端一致(服务端/客户端级联收敛的前提)。
-  const { graph: v3 } = migrateV2toV3(v2 as any);
+  // 59-fix WR-03: 先滤掉 migrate 不支持的 V2 节点类型(整图 throw → 支持子集
+  // 级联;见 MIGRATE_SUPPORTED_V2_TYPES 注释),滤过即 warn 可观测。
+  // (root FlowGraphV2 与 flowgraph-v3 FlowGraphV2Export 结构性近同但类型独立,
+  //  沿用下方既有 as any 传递——注释/成员访问零差异。)
+  const unsupported = v2.nodes.filter((n) => !MIGRATE_SUPPORTED_V2_TYPES.has(n.type));
+  const graphInput =
+    unsupported.length > 0
+      ? { ...v2, nodes: v2.nodes.filter((n) => MIGRATE_SUPPORTED_V2_TYPES.has(n.type)) }
+      : v2;
+  if (unsupported.length > 0) {
+    console.warn(
+      `[canvas:_stale] scope=${projectId}/${episodesId} 图含 ${unsupported.length} 个 migrate 不支持的 V2 节点类型` +
+        `(${[...new Set(unsupported.map((n) => n.type))].join(",")}),已过滤——级联对支持节点子集继续(WR-03)`,
+    );
+  }
+  const { graph: v3 } = migrateV2toV3(graphInput as any);
   const next = markStaleDownstream(v3, [changedAssetId], Date.now());
 
   // diff 只取增量:仅「本次新变 stale」的资产进入落库/广播——既有 stale 不

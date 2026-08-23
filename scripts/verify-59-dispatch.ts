@@ -141,6 +141,12 @@ async function main(): Promise<void> {
       process.exit(3);
     }
     console.error(`[v59-dispatch] fixture 自检 OK: downstream(trig-1)=${JSON.stringify(downstream)}; evt ids: ${graph.nodes.filter((n) => n.kind === "event").map((n) => n.id).join(",")}`);
+
+    // 59-fix WR-03 fixture 注入(自检之后,不进 migrate 自检):一个 migrate
+    // planNode 不支持的 legacy 类型节点('phase'——probe-59-real 真机发现项)。
+    // 修复前 markStaleAndBroadcast 在 migrate 阶段整图 throw → 零 stale 写;
+    // 修复后过滤继续,cascade 模式 node-1/down-1 照常落 stale(verify 侧行为断言)。
+    await upsertNode(SCOPE, node("legacy-phase-1", "phase", 9, "P00", { label: "legacy phase 容错锚" }, "idle"));
   }
 
   // ── 4) dispatch(真 zod 中间件链;mock req/res 直调升级为真 HTTP——
