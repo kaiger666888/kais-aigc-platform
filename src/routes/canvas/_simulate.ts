@@ -51,6 +51,29 @@ const NODE_TYPE_TO_TASK_TYPE: Record<string, TaskType> = {
   bgm: "music",
 };
 
+/**
+ * 59-fix CR-01: 客户端 params 白名单 — 仅 Phase 58 §14 全配方窄通道
+ * (GenerationParams 九键)中可经 params 袋透传的配方标量键放行;白名单外键
+ * (如伪造的 ref_images/model_preference/nodeId/prompt)静默丢弃,不 500
+ * (e2e 流保持绿)。prompt 走 execute 请求体顶层专用通道
+ * (overrides.prompt → submitEngineTask input.prompt → params.prompt),
+ * 不经 params 袋;服务端保留键的第二道防线在 _engine.ts RESERVED_PARAM_KEYS。
+ */
+const CLIENT_PARAM_KEYS = new Set([
+  "seed", "negative", "modelVersion", "lora",
+  "steps", "cfg", "quant", "sageAttention",
+]);
+
+function filterClientParams(
+  params: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(params ?? {})) {
+    if (CLIENT_PARAM_KEYS.has(k)) out[k] = v;
+  }
+  return out;
+}
+
 function randomDelay(): number {
   return 5000 + Math.floor(Math.random() * 10000);
 }
@@ -166,8 +189,10 @@ export async function simulateExecution(
         originalNodeId: nodeId,
         // 59-01 REGEN-02:seed 经 metadata 平铺即达 params.seed(59-02 接线)
         ...(overrides?.seed != null ? { seed: overrides.seed } : {}),
-        // 59-01:overrides.params 平铺(配方袋,59-02 接线 panel-edit-regen)
-        ...(overrides?.params ?? {}),
+        // 59-fix CR-01:overrides.params 经白名单过滤后平铺(配方袋,59-02 接线
+        // panel-edit-regen;白名单外键静默丢弃——ref_images 穿越白名单/model_preference
+        // 伪造/身份键篡改在 _simulate 与 _engine(RESERVED_PARAM_KEYS)两道防线拦截)
+        ...filterClientParams(overrides?.params),
       },
     });
 

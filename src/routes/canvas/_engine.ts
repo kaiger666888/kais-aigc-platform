@@ -94,6 +94,29 @@ export function ossToEnginePath(input: string): string | null {
 }
 
 /**
+ * 59-fix CR-01: 引擎 params 服务端保留键 — 这些键由 submitEngineTask 显式设置
+ * (projectId/episodesId/nodeId/prompt/ref_images)或受平台政策约束
+ * (model_preference:A3 服务端常量,非用户输入)。metadata(可携带客户端透传
+ * params,_simulate.ts CLIENT_PARAM_KEYS 白名单后的余量)里的同名键在平铺进
+ * payload.params 前剔除——纵深防御:即使白名单侧被绕过(未来新调用方直传),
+ * 客户端也无法覆盖 ref_images 翻译白名单/model_preference 政策/身份键。
+ */
+const RESERVED_PARAM_KEYS = new Set([
+  "ref_images", "model_preference", "prompt",
+  "nodeId", "projectId", "episodesId", "nodeType", "originalNodeId",
+]);
+
+function scrubReservedParams(
+  metadata: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(metadata ?? {})) {
+    if (!RESERVED_PARAM_KEYS.has(k)) out[k] = v;
+  }
+  return out;
+}
+
+/**
  * 提交任务到 gold-team。
  * 返回 task_id。如果 gold-team 不可用或拒绝,抛错。
  */
@@ -122,7 +145,10 @@ export async function submitEngineTask(
       // (59-02 接线 reroll-seed 时直接生效);本地引擎读 params.seed,完成时
       // 写入 metadata.seed。cloud 路径 dreamina CLI 不接受 seed,seed 只落
       // metadata.seed,确定性重放仅本地 ComfyUI 路径成立(VERIFICATION 如实记录)。
-      ...input.metadata,
+      // 59-fix CR-01:metadata 先经 scrubReservedParams 剔除服务端保留键再平铺
+      // ——上方服务端显式设置的 projectId/episodesId/nodeId/prompt/ref_images
+      // 不可被覆盖,非 image 任务也不会被注入 model_preference。
+      ...scrubReservedParams(input.metadata),
       // 59-01 A3 裁定:平台政策 2026-08-19 — image 任务(t2i 5.0 / i2i 4.6 白名单)
       // 走 :8002 gateway cloud-jimeng;model_preference 服务端常量非用户输入
       // (T-59-03 accept)。taskType 以 "image" 开头时平铺,video/tts 等不动。
