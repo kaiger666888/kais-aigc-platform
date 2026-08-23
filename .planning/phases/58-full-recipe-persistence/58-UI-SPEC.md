@@ -1,7 +1,8 @@
 ---
 phase: 58
 slug: full-recipe-persistence
-status: draft
+status: approved
+reviewed_at: 2026-08-23
 shadcn_initialized: false
 preset: none
 created: 2026-08-23
@@ -38,11 +39,11 @@ Declared values (must be multiples of 4):
 | Token | Value | Usage (this phase's new surface) |
 |-------|-------|-------|
 | xs | 4px | LoRA row internal gaps; row-list gaps; toggle dot margin |
-| sm | 8px | Vertical gap between advanced-param field rows; save-button row gap (existing) |
-| md | 12px | Horizontal padding of number/select inputs (8px 12px); advanced body top offset under header |
+| sm | 8px | Vertical gap between advanced-param field rows; advanced body top offset under header (marginTop 8, §Component Contract 1); save-button row gap (existing) |
+| md | 12px | Horizontal padding of number/select inputs (8px 12px) |
 | lg | 16px | Section rhythm — `SectionLabel` marginTop 16 (existing panel pattern) |
 
-Exceptions: none. Control heights: 28px (number input, select, LoRA name input), 24px (LoRA remove ✕ hit target renders 20px glyph with 2px padding inside 24px box). LoRA strength input width 72px; field-label column width 88px (`flexShrink: 0`).
+Exceptions: one justified optical-centering exception — LoRA remove ✕ renders a 20px glyph with 2px padding inside a 24px hit target (20+2+2=24; keeps hit target a multiple of 4 while centering the glyph visually). Control heights: 28px (number input, select, LoRA name input), 24px (LoRA remove ✕ hit target). LoRA strength input width 72px; field-label column width 88px (`flexShrink: 0`).
 
 Panel geometry (inherited, DO NOT change): default width 480px (min 400, drag-resizable), content padding 16px → 448px usable row width; field row = 88px label + 8px gap + 352px control.
 
@@ -167,7 +168,7 @@ Readonly grouped display + 「🎲 同配方换 seed 重跑」 stay as-is; only 
 | `param-input-steps` / `param-input-cfg` | number inputs | `input[type=number]` |
 | `param-select-quant` / `param-select-sage` | selects | native select |
 | `advanced-readonly-seed` / `advanced-readonly-modelVersion` | readonly rows | mono values |
-| `lora-row-{i}` / `lora-name-{i}` / `lora-strength-{i}` / `lora-remove-{i}` | LoRA editor | index = display order |
+| `lora-row-{i}` / `lora-name-{i}` / `lora-strength-{i}` / `lora-remove-{i}` | LoRA editor | index = display order; remove ✕ carries `aria-label="移除此 LoRA"` (icon-only control needs accessible name) |
 | `lora-add` | add button | |
 | `advanced-catchall` | catchall group container | |
 | `advanced-empty` | all-empty hint | only when no advanced values exist |
@@ -187,11 +188,11 @@ testMode hooks: **none new** — existing `window.__kaisCanvas.getGraph()` (main
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: PASS
+- [x] Dimension 2 Visuals: PASS (FLAG resolved — LoRA remove ✕ aria-label added to testid contract)
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS (2 FLAGs resolved — 2px optical-centering documented as justified exception; body top offset unified to sm 8px)
+- [x] Dimension 6 Registry Safety: PASS
 
-**Approval:** pending
+**Approval:** approved 2026-08-23 (checker verdict APPROVED; 3 non-blocking recommendations applied post-review)
