@@ -27,6 +27,15 @@ class SeedanceEngine(JimengEngine):
     _default_models = ["jimeng-video-seedance-2.0-fast", "jimeng-video-seedance-2.0-pro"]
     _default_base_url = "http://jimeng-free-api:5100"
 
+    @property
+    def engine_id(self) -> str:
+        # MUST override — JimengEngine's inherited "cloud-jimeng" made this
+        # class OVERWRITE the real jimeng engine in the executor registry
+        # (registration order: jimeng → kling → seedance), so every
+        # "cloud-jimeng" image task silently ran SeedanceEngine._build_request
+        # and died with KeyError('task_type').
+        return "cloud-seedance"
+
     def _build_request(self, task_type: str, prompt: str,
                        width: int, height: int,
                        workflow: dict, params: dict) -> dict:

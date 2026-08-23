@@ -17,8 +17,11 @@ Lifecycle:
 from __future__ import annotations
 
 # ── Disable numba JIT BEFORE any import that touches librosa ──────────────
-import numba  # noqa: E402 — must be before librosa
-numba.config.DISABLE_JIT = True
+try:
+    import numba  # noqa: E402 — must be before librosa
+    numba.config.DISABLE_JIT = True
+except ImportError:  # numba absent → no JIT to disable; librosa may not be installed either
+    numba = None
 
 import asyncio
 import gc

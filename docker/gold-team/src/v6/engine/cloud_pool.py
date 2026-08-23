@@ -37,7 +37,7 @@ CLOUD_PROVIDERS = {
         "engine_class": "src.v6.engines.cloud_jimeng.JimengEngine",
         "env_required": [],  # dreamina CLI uses OAuth, no env vars needed
         "cli_required": "dreamina",
-        "locked_model": "5.0lite",
+        "models": {"t2i": ["5.0", "5.0lite"], "t2i_default": "5.0", "i2i": "4.6"},
         "locked_resolution": "2k",
     },
     "seedance": {

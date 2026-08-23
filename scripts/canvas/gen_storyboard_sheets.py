@@ -3,7 +3,7 @@
 gen_storyboard_sheets.py — 白模分镜板（clay-render maquette storyboard）整图生成。
 
 按场景（scene）分组 shot-list，每个场景拆成 ≤ max-panels 格的 sheet，用 dreamina
-5.0Pro image2image 生成「灰色泥塑白模」风格的多格分镜板整图。参考图三件套：
+4.6 image2image 生成「灰色泥塑白模」风格的多格分镜板整图。参考图三件套：
   1. Pillow 生成的网格模板（布局/格数/编号）
   2. 场景 front 图（环境）
   3. 角色 turnaround 图（外貌）
@@ -31,7 +31,7 @@ prompt 从 shot-list 的 start_frame_description 简化（只留景别+位置+�
 import argparse, hashlib, json, os, re, subprocess, sys, tempfile, time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-MODEL = "5.0Pro"
+MODEL = "4.6"  # i2i 一律 4.6（Kai 08-06 规定）；2026-08-19 起全管线取消 5.0Pro
 RATIO = "9:16"
 RESOLUTION = "2k"          # 1440×2560 portrait
 WORKERS = 2

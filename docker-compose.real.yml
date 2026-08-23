@@ -13,6 +13,9 @@ services:
 
   redis:
     image: redis:7-alpine
+    # 2026-08-23: gold-team 死伴重启不自启（thrash 硬重启后 :8002 断供
+    # 整个下午）——infra 与引擎都钉 unless-stopped
+    restart: unless-stopped
     ports:
       - "6390:6379"
     volumes:
@@ -43,19 +46,19 @@ services:
   # ─── Application Services ────────────────────────────────────────
 
   # core-backend: (REMOVED 2026-06-28 — use host tsx :10588)
-    #     image: kais-core-backend:latest
-    ports:
-      - "8000:8000"
-    environment:
-      NODE_ENV: production
-      PORT: 8000
-    volumes:
-      - /mnt/agents/output:/mnt/agents/output
-    healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:8000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
+  #   image: kais-core-backend:latest
+  #   ports:
+  #     - "8000:8000"
+  #   environment:
+  #     NODE_ENV: production
+  #     PORT: 8000
+  #   volumes:
+  #     - /mnt/agents/output:/mnt/agents/output
+  #   healthcheck:
+  #     test: ["CMD", "node", "-e", "fetch('http://localhost:8000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 3
 
   # ─── Gold Team (REAL — built from source, GPU-enabled) ──────────
 
@@ -64,6 +67,7 @@ services:
       context: docker/gold-team
       dockerfile: Dockerfile.real
     image: kais-gold-team:real
+    restart: unless-stopped
     ports:
       - "8002:8002"
     environment:
@@ -77,15 +81,26 @@ services:
       OUTPUT_DIR: /mnt/agents/output
       # Logging
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      # Dreamina CLI engine (image generation only, model=5.0lite/2k)
+      # Dreamina CLI engine (image generation; whitelist t2i=5.0/5.0lite,
+      # i2i forced 4.6, resolution 2k — 2026-08-19)
       DREAMINA_CLI: /usr/local/bin/dreamina
+      # Cloud job poll cap (was hardcoded 600s); keep TASK_TIMEOUT_SEC >= this
+      CLOUD_JOB_MAX_WAIT_SEC: ${CLOUD_JOB_MAX_WAIT_SEC:-900}
+      TASK_TIMEOUT_SEC: ${TASK_TIMEOUT_SEC:-960}
     volumes:
       - /mnt/agents/output:/mnt/agents/output
       # Mount model cache to avoid re-downloading
       - model_cache:/home/kais/.cache
-      # Mount dreamina CLI binary + OAuth state from host
+      # Mount dreamina CLI binary (ro) + OAuth state (rw — the CLI writes
+      # its rolling logs into this dir; the actual auth token lives in
+      # ~/.local/share/dreamina/byted_cli_user_token.json and is refreshed
+      # in place, so that mount must be rw too)
       - /home/kai/.local/bin/dreamina:/usr/local/bin/dreamina:ro
-      - /home/kai/.dreamina_cli:/home/kais/.dreamina_cli:ro
+      - /home/kai/.dreamina_cli:/home/kais/.dreamina_cli
+      - /home/kai/.local/share/dreamina:/home/kais/.local/share/dreamina
+      # kmc episode assets (i2i reference images) — same path inside the
+      # container so host-side ref paths work verbatim (read-only)
+      - /data/workspace/kais-hermes-skills:/data/workspace/kais-hermes-skills:ro
     depends_on:
       redis:
         condition: service_healthy

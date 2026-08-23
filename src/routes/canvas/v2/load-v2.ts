@@ -104,7 +104,7 @@ export default router.post(
         if (derived.groups.length > 0) {
           const { db } = await import("@/utils/db");
           await materializeCandidateGroups(db, { projectId, episodesId }, derived.groups);
-          graph.variantGroups = mergeDerivedGroups(graph.variantGroups ?? [], derived) as typeof graph.variantGroups;
+          graph.variantGroups = mergeDerivedGroups(graph.variantGroups ?? [], derived);
         }
       } catch (deriveErr) {
         console.warn("[load-v2] 候选组推导失败(不影响加载):", deriveErr);

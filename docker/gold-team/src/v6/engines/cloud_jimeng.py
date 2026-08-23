@@ -4,8 +4,12 @@ Replaces the deprecated jimeng-free-api HTTP proxy with direct subprocess
 calls to the dreamina Go binary. Only image generation (text2image +
 image2image) is enabled; video and other task types are explicitly rejected.
 
-Enforced constraints:
-  - model_version locked to "5.0lite" (5.0 Lite)
+Enforced constraints (2026-08-19 Kai directive — whitelist replaces the old
+single-model "5.0lite" lock):
+  - text2image: model_version ∈ {"5.0" (default), "5.0lite"};
+    anything else (incl. the retired 5.0Pro) is rejected with HTTP 400
+  - image2image: model_version FORCED to "4.6" (Kai 08-06 rule —
+    5.x i2i deadlocks server-side)
   - resolution_type locked to "2k" (4k is forbidden)
 """
 from __future__ import annotations
@@ -29,15 +33,18 @@ logger = logging.getLogger(__name__)
 
 # ── Hard constraints ─────────────────────────────────────────────────────────
 
-_LOCKED_MODEL = "5.0lite"          # Only allowed model
+# Model whitelist (2026-08-19 Kai directive: t2i defaults to 5.0, 5.0Pro
+# retired pipeline-wide; i2i locked to 4.6 per Kai 08-06 rule).
+_T2I_DEFAULT_MODEL = "5.0"
+_T2I_ALLOWED_MODELS = {"5.0", "5.0lite"}
+_I2I_MODEL = "4.6"
 _LOCKED_RESOLUTION = "2k"          # Only allowed resolution (4k FORBIDDEN)
+_VALID_RATIOS = {"1:1", "16:9", "9:16", "3:2", "2:3", "4:3", "3:4", "21:9"}
 _DREAMINA_CLI_PATHS = [
     Path(os.environ.get("DREAMINA_CLI", "/usr/local/bin/dreamina")),
     Path.home() / ".local" / "bin" / "dreamina",
     Path("/home/kai/.local/bin/dreamina"),
 ]
-_POLL_INTERVAL_SEC = 5
-_POLL_MAX_SEC = 180
 
 
 class JimengEngine(BaseCloudEngine):
@@ -61,7 +68,7 @@ class JimengEngine(BaseCloudEngine):
 
     provider = "jimeng"
     _supported_types = ["image_draw", "image_refine"]
-    _default_models = [_LOCKED_MODEL]
+    _default_models = ["5.0", "5.0lite"]
     _default_base_url = ""  # Not used — CLI-based, not HTTP
 
     def __init__(self) -> None:
@@ -122,11 +129,38 @@ class JimengEngine(BaseCloudEngine):
                 f"Use a different engine for video/audio.",
             )
 
-        # Force model + resolution constraints
-        model = _LOCKED_MODEL  # ignore any user-specified model
-        resolution = _LOCKED_RESOLUTION  # ignore any user-specified resolution
+        # Model whitelist — see module docstring (2026-08-19 Kai directive).
+        requested_model = params.get("model_version") or workflow.get("model_version")
+        if task_type == "image_refine":
+            if requested_model and requested_model != _I2I_MODEL:
+                logger.warning(
+                    "jimeng i2i model_version=%r requested but i2i is locked to %r "
+                    "(Kai 08-06 rule: 5.x i2i deadlocks); forcing %s",
+                    requested_model, _I2I_MODEL, _I2I_MODEL,
+                )
+            model = _I2I_MODEL
+        else:
+            model = requested_model or _T2I_DEFAULT_MODEL
+            if model not in _T2I_ALLOWED_MODELS:
+                raise CloudEngineError(
+                    "jimeng", 400,
+                    f"model_version '{model}' is not allowed for text2image. "
+                    f"Allowed: {sorted(_T2I_ALLOWED_MODELS)} "
+                    f"(5.0Pro was retired pipeline-wide on 2026-08-19).",
+                )
 
-        ratio = self._aspect_ratio(width, height)
+        resolution = _LOCKED_RESOLUTION  # 4k stays forbidden
+
+        # Explicit ratio wins (callers know their form factor — the executor's
+        # auto-built ComfyUI workflow doesn't carry top-level width/height);
+        # otherwise derive from pixel dimensions.
+        ratio = params.get("ratio") or workflow.get("ratio")
+        if ratio not in _VALID_RATIOS:
+            ratio = self._aspect_ratio(width, height)
+
+        # Params-level prompt is authoritative for direct HTTP callers whose
+        # executor-built workflow nests the prompt inside ComfyUI nodes.
+        prompt = params.get("prompt") or prompt
 
         request: dict[str, Any] = {
             "task_type": task_type,
@@ -328,7 +362,12 @@ class JimengEngine(BaseCloudEngine):
                     "cli": str(self._cli_path),
                     "credit": credit,
                     "vip": data.get("vip_level", "unknown"),
-                    "model": _LOCKED_MODEL,
+                    "model": _T2I_DEFAULT_MODEL,
+                    "models": {
+                        "t2i": sorted(_T2I_ALLOWED_MODELS),
+                        "t2i_default": _T2I_DEFAULT_MODEL,
+                        "i2i": _I2I_MODEL,
+                    },
                     "resolution": _LOCKED_RESOLUTION,
                 }
             return {

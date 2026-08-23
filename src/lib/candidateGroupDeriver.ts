@@ -30,6 +30,7 @@
  */
 
 import type { Knex } from "knex";
+import type { VariantGroupV2 } from "@/types/flowgraph-v2";
 import { parseCandidateEnvelope, type CandidateSource } from "./candidateEnvelope";
 import { parseVariantName } from "./candidateGrouping";
 
@@ -240,12 +241,12 @@ export async function materializeCandidateGroups(
 
 /** 既有组优先,derived 只补缺(load 路径合并响应用)。 */
 export function mergeDerivedGroups(
-  existing: Array<{ id: string; [k: string]: unknown }>,
+  existing: VariantGroupV2[],
   derived: DerivedGroup[] | DeriveResult,
-): Array<{ id: string; [k: string]: unknown }> {
+): VariantGroupV2[] {
   const groups = Array.isArray(derived) ? derived : derived.groups;
   const have = new Set(existing.map((g) => g.id));
-  const additions = groups
+  const additions: VariantGroupV2[] = groups
     .filter((g) => !have.has(g.id))
     .map((g) => ({
       id: g.id,

@@ -246,7 +246,8 @@ services:
       - ${OUTPUT_DIR:-/mnt/agents/output}:/mnt/agents/output
       - ${MODELS_DIR:-/opt/kais/models}:/opt/kais/models:ro
       - ${DATA_MODELS_DIR:-/data/models}:/data/models
-      - cosyvoice-models:/opt/CosyVoice/pretrained_models
+      # CosyVoice3: 2026-08-19 合并双副本,原 docker volume kais-cosyvoice-models 改为 bind mount
+      - /data/models/cosyvoice/Fun-CosyVoice3-0.5B-2512:/opt/CosyVoice/pretrained_models/FunAudioLLM/Fun-CosyVoice3-0.5B-2512
       # TTS 三轨模型目录挂载
       - ${GPTSOVITS_DIR:-/data/models/GPT-SoVITS}:/opt/GPT-SoVITS
       - ${CHATTERBOX_DIR:-/data/models/chatterbox}:/opt/chatterbox
@@ -504,8 +505,7 @@ volumes:
   redis-data:
     name: kais-redis-data
   # core-data volume removed with kais-core-backend (2026-06-28)
-  cosyvoice-models:
-    name: kais-cosyvoice-models
+  # cosyvoice-models volume removed 2026-08-19: 改为 bind mount /data/models/cosyvoice
   comfyui-cache:
     name: kais-comfyui-cache
   comfyui-user:
