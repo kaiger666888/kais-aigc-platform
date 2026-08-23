@@ -9,6 +9,7 @@
  *     build artifacts under src/routes/canvas/static/** and data/web/**
  *     excluded per the 地雷 #5 discipline), v1 route gone, save-v2 wired in
  *     canvasApi, handleSave toast on failure, serialize.ts import-type-only
+ *     (Phase 58 起: + 唯一一条 RECIPE_ROUNDTRIP_KEYS 纯常量运行时导入豁免)
  *     on @kais/flowgraph-v3, adapter error→failed normalization.
  *   S2 WRITE-02 — context-menu approve/delete: source-shape assertions on
  *     CanvasContextMenu.tsx + the "delete does not resurrect" REAL module
@@ -162,10 +163,15 @@ async function main(): Promise<void> {
   const fgv3ImportLines = serializeSrc
     .split("\n")
     .filter((l) => l.includes("from '@kais/flowgraph-v3'") || l.includes('from "@kais/flowgraph-v3"'));
+  // Phase 58：serialize.ts 引入唯一一条运行时常量导入（RECIPE_ROUNDTRIP_KEYS，
+  // 纯常量 recipe.ts 零 import——tsx 直连链不受影响）；其余行仍须 import type。
+  const runtimeImportLines = fgv3ImportLines.filter((l) => !/\bimport\s+type\b/.test(l));
   assert(
-    fgv3ImportLines.length > 0 && fgv3ImportLines.every((l) => /\bimport\s+type\b/.test(l)),
-    "S1: every @kais/flowgraph-v3 import in serialize.ts is `import type` (type-erased, tsx-safe)",
-    `import lines: ${fgv3ImportLines.length}`,
+    fgv3ImportLines.length > 0 &&
+      runtimeImportLines.length === 1 &&
+      /\bimport\s*\{\s*RECIPE_ROUNDTRIP_KEYS\s*\}\s*from/.test(runtimeImportLines[0] ?? ""),
+    "S1: @kais/flowgraph-v3 imports in serialize.ts are `import type` except exactly one runtime import of RECIPE_ROUNDTRIP_KEYS (Phase 58: runtime import allowed for pure-constant recipe.ts only)",
+    `import lines: ${fgv3ImportLines.length}, runtime imports: ${runtimeImportLines.length}`,
   );
   assert(
     read("packages/infinite-canvas/src/v3/adapter.ts").includes("case 'error'"),
@@ -345,7 +351,8 @@ async function main(): Promise<void> {
     "packages/infinite-canvas/src/components/nodes/StoryboardNode.tsx",
     "packages/infinite-canvas/src/components/nodes/AssetNode.tsx",
     "packages/infinite-canvas/src/components/VariantGroupDetail.tsx",
-    "packages/infinite-canvas/src/components/BranchPanel.tsx",
+    // Phase 58 注记：BranchPanel 已从 dead list 移除——Phase 55-06 (NAV-06) 将其重写为
+    // 活组件（FlowCanvas.tsx 消费，commit 912eda85），51-04 的「已删除」事实随之过期。
     "packages/infinite-canvas/src/components/StructuredFieldPanel.tsx",
     "packages/infinite-canvas/src/components/ScoreBadge.tsx",
     "packages/infinite-canvas/src/components/VariantBadge.tsx",
@@ -390,8 +397,9 @@ async function main(): Promise<void> {
     "S5: COORD-01 spec carries the plan-kickoff checklist with the 工作树干净 (clean worktree) clause",
   );
   assert(
-    read(".planning/ROADMAP.md").includes("COORD-01-khs2-parallel-coordination"),
-    "S5: ROADMAP.md architecture decision #4 references the COORD-01 spec",
+    read(".planning/ROADMAP.md").includes("COORD-01-khs2-parallel-coordination") ||
+      read(".planning/milestones/v3.0-ROADMAP.md").includes("COORD-01-khs2-parallel-coordination"),
+    "S5: ROADMAP.md (or its v3.0 milestone archive) architecture decision #4 references the COORD-01 spec (Phase 58 注记: v3.1 ROADMAP 重写后引用移至归档)",
   );
 
   // ═══ Forced-failure self-check — prove the gate can fail ═══════════════

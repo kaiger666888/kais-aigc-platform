@@ -7,8 +7,10 @@
  * graph:saved 广播）。纯函数，不 throw（rawDataByNodeId === null 时退化为纯
  * flattenMeta——地雷 #6：fixture / V3 直通模式没有原始袋）。
  *
- * 对 @kais/flowgraph-v3 只许 `import type`（tsx 下类型擦除，根 scripts/verify-phase-51.ts
- * 可直接 import 本文件做断言）。
+ * 对 @kais/flowgraph-v3 的导入纪律（Phase 58 起更新）：类型导入照旧只许
+ * `import type`（tsx 下类型擦除，根 scripts/verify-phase-51.ts 可直接 import 本文件
+ * 做断言）；运行时导入仅限纯常量（recipe.ts，Phase 58 起——其零 import 纯常量，
+ * tsx 直连链无解析风险；verify-phase-51 断言已注记允许恰这一条）。
  *
  * 映射依据（51-RESEARCH Task 2 逆变换映射表，逐行推导自 migrate.ts §14 / buildMeta）：
  *  - stage script→'script'（content→data.prompt，§14 prompt→content 的逆）；
@@ -31,9 +33,11 @@
  *    migrate §14 只从产出资产 flat data.prompt/seed/engine 重建 EventNodeV3.params——
  *    序列化必须把产生事件的配方覆盖回产出资产 data 袋（在 {...raw, ...flattenMeta}
  *    之后覆盖，canonical 事件配方为最终真值），否则 updateEventParams 的编辑
- *    保存+刷新后无声丢失。窄通道声明（地雷 #3）：§14 只 round-trip
- *    prompt/seed/engine 三键；steps/cfg/lora/quant 等全配方持久化出范围
- *    （预存损耗，非本期引入，防 scope creep）。script stage 跳过 prompt 覆盖
+ *    保存+刷新后无声丢失。窄通道解除声明（Phase 58）：round-trip 扩为
+ *    RECIPE_ROUNDTRIP_KEYS 九键全集（steps/cfg/lora/quant/sageAttention/negative
+ *    全配方持久化），且事件 params 缺键时同步 delete data 同键——delete 传播
+ *    （「空 = 未设置」清空语义，防 rawData 陈旧值复活，与 canvasStore
+ *    updateEventParams 空值删除语义对称）。script stage 跳过 prompt 覆盖
  *    （其真值是 content，flattenMeta 已处理，P4 防两处抄）。
  *  - stale 上 wire（Phase 52-02，地雷 #2）：asset.stale != null → data.stale
  *    {since, triggerAssetId, triggerEventId}；服务端 orchestrate 只读持久化 blob，
@@ -48,6 +52,10 @@
  *    single|multi，原样序列化会让整图 400；解构集锁定语义仅前端展示层）。
  */
 import type { FlowGraphV3, AssetNodeV3, EventNodeV3, AssetStageMeta, VariantGroupV3 } from '@kais/flowgraph-v3'
+// Phase 58（路线 A 裁决）：唯一一条运行时常量导入——recipe.ts 零 import 纯常量，
+// alias 双通（tsconfig + vite.config，STAGE_ORDER 运行时导入先例）；根 verify 脚本
+// 侧只做文本断言，tsx 直连链不受影响（verify-phase-51 已注记允许恰这一条）。
+import { RECIPE_ROUNDTRIP_KEYS } from '@kais/flowgraph-v3'
 
 // ─── V2 wire 形状（镜像 src/types/flowgraph-v2-schema.ts 服务端 zod 契约） ───
 
@@ -238,16 +246,23 @@ export function serializeGraphToV2(
     // 与白名单外字段的唯一存活地。flattenMeta 在后，canonical meta 覆盖同名字段。
     const data: Record<string, unknown> = { ...raw, ...flattenMeta(n, warn) }
 
-    // 事件配方反向覆盖（Phase 52-02 地雷 #1）：在 {...raw, ...flattenMeta} 之后覆盖，
-    // canonical 事件配方为最终真值。事件 params 无该字段（undefined）时不写不伪造。
-    // 窄通道（地雷 #3）：只 round-trip prompt/seed/engine 三键，steps/cfg/lora/quant
-    // 等全配方持久化出范围。script stage 跳过 prompt（真值是 content，防两处抄）。
+    // 事件配方反向覆盖（Phase 52-02 地雷 #1 + Phase 58 全集拓宽）：在
+    // {...raw, ...flattenMeta} 之后覆盖，canonical 事件配方为最终真值。
+    // Phase 58：九键全集 round-trip（RECIPE_ROUNDTRIP_KEYS 映射表驱动，
+    // modelVersion→engine 键名映射由映射表承载）；params 有值→写，缺键→同步
+    // delete data 同键（delete 传播：「空 = 未设置」清空语义，防 rawData 陈旧值
+    // 复活——updateEventParams 空值删除的对称面，顺手覆盖 prompt 清空 '' 同款
+    // 潜在复活）。script stage 跳过 prompt 覆盖（52-02 例外保留：真值是
+    // content，flattenMeta 已处理，P4 防两处抄）。
     const producingEvt = producingEventByAssetId.get(n.id)
     if (producingEvt != null) {
-      const p = producingEvt.params
-      if (n.stage !== 'script' && p.prompt != null) data.prompt = p.prompt
-      if (p.seed != null) data.seed = p.seed
-      if (p.modelVersion != null) data.engine = p.modelVersion
+      const p = producingEvt.params as Record<string, unknown>
+      for (const { p: pk, d: dk } of RECIPE_ROUNDTRIP_KEYS) {
+        if (n.stage === 'script' && pk === 'prompt') continue // 52-02 例外保留
+        const v = p[pk]
+        if (v != null) data[dk] = v
+        else delete data[dk] // delete 传播：canonical 缺键 = 清空 → wire 同步删，防 rawData 复活
+      }
     }
     // stale 上 wire（Phase 52-02 地雷 #2）：服务端 orchestrate 只读持久化 blob，
     // stale-success 不跳过需要信息源；顺带修复 stale 刷新即丢（migrate d.stale 还原）。

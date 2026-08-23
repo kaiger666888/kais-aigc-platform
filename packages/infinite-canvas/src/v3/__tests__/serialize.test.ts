@@ -391,3 +391,79 @@ describe('Phase 52-02: 事件配方反向覆盖 + stale wire (地雷 #1/#2)', ()
     expect(bClean && bClean.kind === 'asset' ? bClean.stale : undefined).toBeNull()
   })
 })
+
+// ─── Phase 58：全配方反向覆盖 + delete 传播（窄通道解除，映射表驱动） ───
+
+describe('Phase 58: 全配方反向覆盖 + delete 传播', () => {
+  const FULL_PARAMS = {
+    prompt: '夜色中的城市天际线',
+    negative: '模糊，低清',
+    seed: 424242,
+    modelVersion: 'wan2.2-i2v',
+    lora: [
+      { name: 'style-anime', strength: 0.7 },
+      { name: 'light-film', strength: 0.35 },
+    ],
+    steps: 32,
+    cfg: 6.5,
+    quant: 'q8',
+    sageAttention: true,
+  }
+
+  const fullGraph = () =>
+    minimalGraph(
+      [
+        asset({ id: 'n_full', stage: 'keyframe', meta: { stage: 'keyframe', shotId: 'shot-058' } }),
+        evt('evt_n_full', 'wan22_i2v', FULL_PARAMS),
+      ],
+      [{ id: 'l58', source: 'evt_n_full', target: 'n_full', branchId: 'br_main', role: 'output' }],
+    )
+
+  it('a. 九键写回：事件 params 全套字段 → 产出资产 data 袋九键可见（engine 键对应 modelVersion 值）', () => {
+    const w = serializeGraphToV2(fullGraph(), new Map([['n_full', { shot_id: 'S01' }]]))
+    const node = w.nodes.find((n) => n.id === 'n_full')!
+    expect(node.data.prompt).toBe('夜色中的城市天际线')
+    expect(node.data.negative).toBe('模糊，低清')
+    expect(node.data.seed).toBe(424242)
+    expect(node.data.engine).toBe('wan2.2-i2v') // 唯一非恒等映射：modelVersion → data.engine
+    expect(node.data.lora).toEqual([
+      { name: 'style-anime', strength: 0.7 },
+      { name: 'light-film', strength: 0.35 },
+    ]) // lora 深结构整袋写回
+    expect(node.data.steps).toBe(32)
+    expect(node.data.cfg).toBe(6.5)
+    expect(node.data.quant).toBe('q8')
+    expect(node.data.sageAttention).toBe(true)
+    expect(node.data.shot_id).toBe('S01') // 非配方键不动
+  })
+
+  it('b. delete 传播：rawData 陈旧 steps=50 + 事件 params 无 steps → 输出 data.steps === undefined', () => {
+    const g = minimalGraph(
+      [
+        asset({ id: 'n_stale', stage: 'keyframe', meta: { stage: 'keyframe', shotId: 'shot-058' } }),
+        evt('evt_n_stale', 'wan22_i2v', { prompt: '配方只有 prompt' }), // 无 steps/cfg/modelVersion
+      ],
+      [{ id: 'l58b', source: 'evt_n_stale', target: 'n_stale', branchId: 'br_main', role: 'output' }],
+    )
+    const raw = new Map([['n_stale', { steps: 50, cfg: 7.5, engine: 'wan-old', prompt: '旧提示词', shot_id: 'S01' }]])
+    const w = serializeGraphToV2(g, raw)
+    const node = w.nodes.find((n) => n.id === 'n_stale')!
+    expect(node.data.steps).toBeUndefined() // 陈旧 steps 不复活（Pitfall 1 delete 传播）
+    expect(node.data.cfg).toBeUndefined()
+    expect(node.data.engine).toBeUndefined() // canonical 缺 modelVersion → 陈旧 engine 同步删
+    expect(node.data.prompt).toBe('配方只有 prompt') // 在场值照常覆盖
+    expect(node.data.shot_id).toBe('S01') // 非配方键不动
+  })
+
+  it('c. adapt∘serialize round-trip：九键经 wire 全保真（migrate 全集提取配套）', () => {
+    const w = serializeGraphToV2(fullGraph(), new Map([['n_full', { shot_id: 'S01' }]]))
+    const back = adaptV2Graph(w)
+    const evtBack = back.graph.nodes.find((n) => n.kind === 'event' && n.id === 'evt_n_full')
+    expect(evtBack && evtBack.kind === 'event' ? evtBack.params : null).toMatchObject(FULL_PARAMS)
+  })
+
+  it('d. 九键写回输出过服务端 FlowGraphV2Schema.safeParse', () => {
+    const w = serializeGraphToV2(fullGraph(), new Map([['n_full', { shot_id: 'S01' }]]))
+    expect(FlowGraphV2Schema.safeParse(w).success).toBe(true)
+  })
+})
