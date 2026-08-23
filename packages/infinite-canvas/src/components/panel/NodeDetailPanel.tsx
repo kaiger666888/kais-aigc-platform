@@ -874,8 +874,14 @@ function useAdvancedDrafts(evt: EventNodeV3 | null) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [evt?.id, canonicalSteps, canonicalCfg, canonicalQuant, canonicalSage, canonicalLoraKey])
 
-  const stepsDirty = drafts.steps !== (canonicalSteps != null ? String(canonicalSteps) : '')
-  const cfgDirty = drafts.cfg !== (canonicalCfg != null ? String(canonicalCfg) : '')
+  // 数值等价比较（WR-03）：'30.0'/'3e1' 与 canonical 30 数值相等 → 不 dirty。
+  // 原字符串比较下数值等价文本不等：保存写入同值 → canonical 原语不变 → 重置
+  // effect 不触发 → 「保存已成功但面板永久 dirty → 重生成持续 disabled」（Pitfall 9
+  // 恰在此输入形态成真）。与 lora 的 normalize 后数值深比较对齐为同一语义。
+  const numDirty = (draft: string, canonical: number | undefined): boolean =>
+    draft.trim() === '' ? canonical != null : Number(draft) !== canonical
+  const stepsDirty = numDirty(drafts.steps, canonicalSteps)
+  const cfgDirty = numDirty(drafts.cfg, canonicalCfg)
   const quantDirty = drafts.quant !== (canonicalQuant ?? '')
   const sageDirty = drafts.sage !== (canonicalSage == null ? '' : canonicalSage ? 'true' : 'false')
   const canonicalLoraNorm = canonicalLora != null && canonicalLora.length > 0 ? canonicalLora : undefined
