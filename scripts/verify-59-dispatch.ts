@@ -39,7 +39,13 @@ import { Server } from "socket.io";
 import { io } from "socket.io-client";
 import express from "express";
 import type { FlowNodeV2 } from "../src/types/flowgraph-v2";
-import { bootReady, db } from "../src/utils/db";
+// ⚠ 循环依赖次序(src/utils.ts → @/utils/db → fixDB → @/utils):必须先评估
+// src/utils.ts 再评估 src/utils/db——app.ts L13(u)先于 L18(bootReady)同款。
+// 若 db 先入,src/utils.ts 的 default 对象在 dbClient 赋值前快照,u.db 永为
+// undefined(orchestrate WR-01 兜底读会 500)。blob 写入走 u.db 与 orchestrate
+// 同一 knex 实例。
+import u from "../src/utils";
+import { bootReady } from "../src/utils/db";
 import { setIo } from "../src/utils/ws";
 import {
   ensureMeta,
@@ -110,9 +116,9 @@ async function main(): Promise<void> {
   if (IS_LEGACY) {
     // WR-01 fixture:legacy-blob-only——关系表零节点零边(仅 meta),blob 单节点
     // idle asset。loadFullGraph → null → orchestrate 走 59-fix 兜底读 blob。
-    await db("o_agentWorkData").insert({
-      projectId: String(PROJECT_ID),
-      episodesId: String(EPISODES_ID),
+    await u.db("o_agentWorkData").insert({
+      projectId: PROJECT_ID, // 列亲和 TEXT:数字落库即文本,graph-helpers saveGraph 同款
+      episodesId: EPISODES_ID,
       key: "canvasGraph",
       data: JSON.stringify({
         meta: { version: "2", projectId: PROJECT_ID, episodesId: EPISODES_ID, createdAt: Date.now(), updatedAt: Date.now(), lastEventId: 0 },

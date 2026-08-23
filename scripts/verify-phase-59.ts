@@ -123,9 +123,13 @@ async function main(): Promise<void> {
     "S1: ossToEnginePath 拒绝 /oss/a/../../b(规范化后仍上溯)",
   );
 
-  // 双根白名单: 写入 data/oss/__v59_probe/t.png → ossToEnginePath 命中第二个根
+  // 双根白名单: 写入 data/oss/__v59_probe/t.png → ossToEnginePath 命中第二个根。
+  // fixture 写在 ossToEnginePath 实际探测的字面量根(_engine.ts L86 部署契约,
+  // IN-03 已记录)——gate 从任意 checkout 位置(含 git worktree)跑均自洽,
+  // 不依赖 REPO_ROOT 与部署字面量重合。
+  const OSS_ROOT_LITERAL = "/data/workspace/kais-aigc-platform/data/oss";
   const probeRel = "__v59_probe/t.png";
-  const probeAbs = path.join(REPO_ROOT, "data/oss", probeRel);
+  const probeAbs = path.join(OSS_ROOT_LITERAL, probeRel);
   fs.mkdirSync(path.dirname(probeAbs), { recursive: true });
   try {
     fs.writeFileSync(probeAbs, Buffer.from([0x89, 0x50, 0x4e, 0x47])); // PNG magic stub
@@ -229,8 +233,9 @@ async function main(): Promise<void> {
       );
 
       // ─ image_draw 提交体形:ref_images 宿主路径 + model_preference cloud + seed 通道 ─
+      // fixture 同 S1:写在 ossToEnginePath 实际探测的字面量根(checkout 位置无关)。
       const probeRel2 = "__v59_probe/t.png";
-      const probeAbs2 = path.join(REPO_ROOT, "data/oss", probeRel2);
+      const probeAbs2 = path.join(OSS_ROOT_LITERAL, probeRel2);
       fs.mkdirSync(path.dirname(probeAbs2), { recursive: true });
       fs.writeFileSync(probeAbs2, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
       try {
