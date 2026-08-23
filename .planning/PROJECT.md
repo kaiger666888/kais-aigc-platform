@@ -43,6 +43,7 @@ v3.0 画布创作体验 shipped 2026-08-22 (audit passed f9280e0c; 305/305 verif
 
 <!-- Shipped and confirmed. -->
 
+- ✓ 全配方持久化 (§14 窄通道→九键全量: steps/cfg/quant/sageAttention/lora 面板编辑+migrate/serialize 往返+delete 传播+regen 整袋透传; 三方集合相等防漂移门 verify:phase-58 25/25) — v3.1 Phase 58
 - ✓ 画布写路径统一 (V3 canonical graph: save-v2 保存/右键审核删除/MetaEditor+socket 回写; ~3,200 行死代码清除; @kais/flowgraph-v3 依赖正名; COORD-01 成文) — v3.0 Phase 51
 - ✓ 视频生成 (Wan2.2 T2V/I2V via ComfyUI GGUF) — gold-team v6
 - ✓ 图片生成 (FLUX via ComfyUI) — gold-team v6
@@ -306,4 +307,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-23 — milestone v3.1 (重生成闭环深化) started*
+*Last updated: 2026-08-23 — Phase 58 全配方持久化 complete (v3.1 1/4)*
