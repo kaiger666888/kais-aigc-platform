@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: 重生成闭环深化
 status: executing
-stopped_at: "Completed 58-01-PLAN.md (recipe 数据通道: recipe.ts 契约 + migrate/serialize 对称拓宽)"
-last_updated: "2026-08-23T13:00:21.816Z"
+stopped_at: Completed 58-02-PLAN.md
+last_updated: "2026-08-23T13:12:33.230Z"
 last_activity: 2026-08-23
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 4
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-08-23)
 ## Current Position
 
 Phase: 58 (full-recipe-persistence) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-08-23
 
-Progress: [███░░░░░░░] 25%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
@@ -67,6 +67,7 @@ Progress: [███░░░░░░░] 25%
 | Phase 54 P06 | 27 min | 2 tasks | 6 files |
 | Phase 54 P07 | 35 min | 3 tasks | 5 files |
 | Phase 58 P01 | 7 min | 2 tasks | 7 files |
+| Phase 58 P58-02 | 10 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -114,6 +115,8 @@ Progress: [███░░░░░░░] 25%
 - [Phase 50]: 50-02: GUARD-01/GUARD-02 locked as verify:phase-50 — the v2.1 final gate; contract suite drives the real planBackfill/applyBackfill on :memory: (never re-implemented), Phase 48/49 covered by spot invariants not re-runs, SC-4 debt as one WARN line (D-11), manual register scripts deprecated not deleted (D-12) — Import-identity + spot-invariant pattern keeps the aggregate gate maintainable: one verify script, zero logic copies, forced-failure sanity proves the gate can fail
 - [Phase 58]: 58-01 数据通道:serialize.ts 引入唯一一条运行时常量导入 RECIPE_ROUNDTRIP_KEYS(路线 A 裁决);verify-phase-51 S1 断言外科注记允许恰这一条 — recipe.ts 零 import 纯常量,alias 双通,仓内 STAGE_ORDER 运行时导入先例充分;路线 B 本地复制会弱化 RECIPE-04 三方一致防漂移门
 - [Phase 58]: 58-01 delete 传播语义:params 缺键时 serialize 同步 delete wire data 同键——「空=未设置」清空语义成立,防 rawData 陈旧值复活(Pitfall 1),与 updateEventParams 空值删除对称 — Phase 58 面板高级字段编辑的主交互是清空;旧「有值才写」会让清空后 reload 复活旧值,顺手覆盖 prompt 清空''同款潜在 bug
+- [Phase 58]: 58-02: lora 草稿归一化——trim 空名行丢弃、空数组→undefined 非 [](Pitfall 2);strength 空串回退 1 — updateEventParams 只对 undefined/null/'' 删键,[] 会被写入 params;UI 归一化与 store 删键语义对齐
+- [Phase 58]: 58-02: 控件集由 RECIPE_EDITABLE_FIELDS 单点常量驱动(map+switch),schema 形状镜像根仓字面量声明(禁跨包 zod import,Pitfall 4) — 一处定义两处消费(panel+popover),集合相等由 verify-phase-58 机器锁死
 
 ### Pending Todos
 
@@ -167,6 +170,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-23T12:59:31.494Z
-Stopped at: Completed 58-01-PLAN.md (recipe 数据通道: recipe.ts 契约 + migrate/serialize 对称拓宽)
+Last session: 2026-08-23T13:12:33.223Z
+Stopped at: Completed 58-02-PLAN.md
 Resume: `/gsd:plan-phase 58`

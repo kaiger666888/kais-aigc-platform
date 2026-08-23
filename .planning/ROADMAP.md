@@ -115,7 +115,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 58-02-PLAN.md — 编辑 UI: PromptSection 高级参数折叠区(UI-SPEC 契约)+ popover KNOWN_KEYS 换共享常量源 + canvasAssetSchema 五类型 optional 声明
+- [x] 58-02-PLAN.md — 编辑 UI: PromptSection 高级参数折叠区(UI-SPEC 契约)+ popover KNOWN_KEYS 换共享常量源 + canvasAssetSchema 五类型 optional 声明
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -174,7 +174,7 @@ Phases execute in numeric order: 58 → 59 → 60 → 61 (60/61 parallel-safe if
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 58. 全配方持久化 | 1/4 | In Progress|  |
+| 58. 全配方持久化 | 2/4 | In Progress|  |
 | 59. 窄触发 stale 级联 | 0/TBD | Not started | - |
 | 60. 保存后面板保持 | 0/TBD | Not started | - |
 | 61. 审计清债 TD-3/4/5 | 0/TBD | Not started | - |
