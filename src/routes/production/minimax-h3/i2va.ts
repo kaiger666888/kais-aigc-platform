@@ -67,6 +67,7 @@ import {
   adaptH3Canvas,
   getTurboSteps,
 } from "./config";
+import { withFirstFrameAnchor } from "./promptAnchor";
 
 const router = express.Router();
 
@@ -491,6 +492,16 @@ export default router.post(
     const length = alignH3FrameCount(rawLength);
     const durationSeconds = length / H3_CONSTANTS.FPS;
 
+    // ── 首帧锚定指令行防御性注入 (2026-08-23, promptAnchor.ts) ──
+    // 调用方 prompt 已含锚定表述(中英任一)时原样透传; L2VA(仅尾帧)不注入。
+    const anchoredPrompt = withFirstFrameAnchor(prompt, !!firstFrameFile, {
+      hasLastFrame: !!lastFrameFile,
+      durationSec: durationSeconds,
+    });
+    if (anchoredPrompt !== prompt) {
+      console.log(`[i2va] prompt missing 0.00s anchor line — auto-prepended (mode=${mode})`);
+    }
+
     // ── 上传帧图到 ComfyUI 容器 ──
     let firstFrameFilename: string | null = null;
     let lastFrameFilename: string | null = null;
@@ -524,7 +535,7 @@ export default router.post(
       ? buildH3I2vaWorkflowNative({
           firstFrameFilename,
           lastFrameFilename,
-          prompt, negativePrompt,
+          prompt: anchoredPrompt, negativePrompt,
           width, height, length,
           seed, steps,
           shiftVideo, shiftAudio,
@@ -542,7 +553,7 @@ export default router.post(
       : buildH3I2vaWorkflowT8({
           firstFrameFilename,
           lastFrameFilename,
-          prompt,
+          prompt: anchoredPrompt,
           width, height, length,
           seed, steps,
           shiftVideo, shiftAudio,

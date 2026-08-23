@@ -101,6 +101,7 @@ import {
   type H3UseCasePreset,
   type H3MotionLevel,
 } from "./config";
+import { withFirstFrameAnchor } from "./promptAnchor";
 // 复用 replace-audio 的辅助函数 (这些函数仅新增了 export 关键字, 逻辑未变更)
 import {
   LTX_AMBIENT,
@@ -203,6 +204,14 @@ function buildH3WorkflowT8(opts: H3GenOpts): Record<string, any> {
   const useLora = turbo && steps <= 15;
   // ref2va 参考图节点 ID: 首张 "14", 其余 141,142...
   const imageNodeId = (i: number) => (i === 0 ? "14" : `14${i}`);
+  // T8 的 ref_images 是 COMFY_AUTOGROW_V3 输入: API prompt 必须用点号键
+  // ref_images.ref_image_N, bare 数组键会被 ComfyUI 静默丢弃 → T8 数出 0 张图
+  // → strict_prompt_tags 校验 "<Picture 1> is not connected"(2026-08-23 实证,
+  // 同 ref2va.ts T8 修复; 见 comfyui-v3-autogrow-api-format SKILL)。
+  const refImageSlots: Record<string, any> = {};
+  if (isRef2va) {
+    refImageFilenames.forEach((_, i) => { refImageSlots[`ref_images.ref_image_${i}`] = [imageNodeId(i), 0]; });
+  }
 
   const nodes: Record<string, any> = {
     // === 模型 / 文本编码器 / VAE ===
@@ -242,9 +251,7 @@ function buildH3WorkflowT8(opts: H3GenOpts): Record<string, any> {
         ref_image_size: "match",
         reference_video_policy: H3_T8.referenceVideoPolicy,
         ...(mode === "i2va" && firstFrameFilename ? { first_frame: ["14", 0] } : {}),
-        ...(isRef2va && refImageFilenames.length
-          ? { ref_images: refImageFilenames.map((_, i) => [imageNodeId(i), 0]) }
-          : {}),
+        ...refImageSlots,
       },
     },
 
@@ -707,7 +714,7 @@ export default router.post(
   }),
   async (req, res) => {
     const projectId = req.body.projectId;
-    const prompt = req.body.prompt as string;
+    let prompt = req.body.prompt as string;
     const negativePrompt = (req.body.negativePrompt as string) || LTX_AMBIENT.defaultNegativePrompt;
     const filenamePrefix =
       (req.body.filenamePrefix as string) || `h3_generate_${projectId}_${Date.now()}`;
@@ -845,6 +852,19 @@ export default router.post(
     // 模式入参校验
     if (mode === "i2va" && !imageFile) {
       return res.status(400).send(error("mode=i2va requires an 'image' file (first frame)."));
+    }
+
+    // ── 首帧锚定指令行防御性注入 (2026-08-23, promptAnchor.ts; 同 i2va.ts) ──
+    // 仅 mode=i2va(generate 无尾帧入参, 不存在 FL2VA 分支); prompt 已含锚定
+    // 表述时原样透传; ref2va 保持调用方 opt-in, 不注入。
+    if (mode === "i2va") {
+      const anchored = withFirstFrameAnchor(prompt, true, {
+        durationSec: length / H3_CONSTANTS.FPS,
+      });
+      if (anchored !== prompt) {
+        console.log("[generate] i2va prompt missing 0.00s anchor line — auto-prepended");
+        prompt = anchored;
+      }
     }
     if (mode === "ref2va") {
       // lineart-anime profile 可只用 refVideo (线稿视频) 不传 refImages
