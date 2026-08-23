@@ -8,6 +8,9 @@
  * 「同配方换 seed 重跑」（REGEN-02，52-04）：同配方 + 新随机 seed 提交 /canvas/execute
  *  通道（52-02 extra 契约），pending 态防连点；提交成功后 updateEventParams 回写 canonical
  *  （芯片 tooltip/popover 立即显示新 seed；持久化等下一次 save——地雷 #12 裁定）。
+ *  59-fix WR-04：事件节点查找失败（折叠/删除/图重载后芯片锚点悬空）→ 重跑按钮
+ *  disabled + 提示,不再提交 seed-only 破坏「同配方」承诺;多产出资产取第一条 + warn
+ *  （PromptSection 同款）。
  */
 import { useEffect, useState } from 'react'
 import type { AssetNodeV3, EventNodeV3, GenerationParams } from '@kais/flowgraph-v3'
@@ -65,13 +68,27 @@ export default function EventParamsPopover({ anchor, onClose }: Props): React.Re
       showToast('缺少项目上下文', 'warning')
       return
     }
+    // 59-fix WR-04: 事件节点查找失败（芯片锚点后事件被折叠/删除/图重载）时早退
+    // ——此前 evt?.params ?? {} 兜底会提交 seed-only 配方,服务端回落
+    // extractPrompt(node),实际生成配方与 popover 展示及「同配方换 seed 重跑」
+    // 承诺不符。按钮 disabled 已挡 UI 入口,此处防御性早退双保险。
+    if (!evt) {
+      showToast('事件已被折叠/删除，无法换 seed 重跑', 'warning')
+      return
+    }
     if (pending) return // 连点抑制
-    // 反查产出资产：event → asset 的 role:'output' 边
-    const outputAsset = graph?.nodes.find(
+    // 反查产出资产：event → asset 的 role:'output' 边。多产出候选收集全量后
+    // 取第一条 + console.warn(59-fix WR-04:PromptSection 多产生事件同款行为
+    // 对齐——静默任取会掩盖图结构歧义)。
+    const outputAssets = (graph?.nodes ?? []).filter(
       (n): n is AssetNodeV3 =>
         n.kind === 'asset' &&
-        graph.links.some((l) => l.role === 'output' && l.source === anchor.eventId && l.target === n.id),
+        (graph?.links ?? []).some((l) => l.role === 'output' && l.source === anchor.eventId && l.target === n.id),
     )
+    if (outputAssets.length > 1) {
+      console.warn(`[EventParamsPopover] ${anchor.eventId} 有 ${outputAssets.length} 个产出资产，取第一条（link 序）`)
+    }
+    const outputAsset = outputAssets[0]
     if (!outputAsset) {
       showToast('未找到该事件的产出资产，无法重跑', 'warning')
       return
@@ -158,10 +175,15 @@ export default function EventParamsPopover({ anchor, onClose }: Props): React.Re
             data-seed={params.seed ?? ''}
             data-pending={pending ? 'true' : 'false'}
             onClick={() => { void handleRerollSeed() }}
-            disabled={pending}
-            style={{ ...rerollBtnStyle, cursor: pending ? 'default' : 'pointer', opacity: pending ? 0.6 : 1 }}
+            disabled={pending || evt == null}
+            title={evt == null ? '事件已被折叠/删除，无法换 seed 重跑' : undefined}
+            style={{
+              ...rerollBtnStyle,
+              cursor: pending || evt == null ? 'default' : 'pointer',
+              opacity: pending || evt == null ? 0.6 : 1,
+            }}
           >
-            {pending ? '重跑中…' : '🎲 同配方换 seed 重跑'}
+            {pending ? '重跑中…' : evt == null ? '🎲 事件已删除，无法换 seed' : '🎲 同配方换 seed 重跑'}
           </button>
         </div>
       </div>
