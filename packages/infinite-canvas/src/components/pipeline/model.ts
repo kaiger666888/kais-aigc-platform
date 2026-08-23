@@ -441,6 +441,11 @@ export const KMC_SLOT_REGISTRY: readonly KmcSlotEntry[] = [
   // preview-qc (qwen-eye, 2026-08-16): advisory 变体首帧 QC；P14 聚合。
   // P11a inputs：shot-timeline 已除名（P10a 注销后 p11a 自行 ffprobe 实测时长）。
   { phaseCode: 'P11a', inputs: ['shot-list', 'scene-images', 'character-assets', 'voice-clips', 'storyboard-board'], outputs: ['preview-clips', 'preview-qc'] },
+  // P11a.5 预演音频+成片（提案 2026-08-23，管线侧落地前为规划态）：p11a 预演夹与
+  // p11b 终渲之间插入预览级环境音生成（foley 前移）+ TTS/环境音 pairwise amix +
+  // concat 拼装粗剪（纯 CPU ~3min），产出 roughcut-mp4 尽早暴露语音溢出/节奏问题；
+  // preview-verdicts（per 镜 放行/打回/未判）作为 quorum 门控 p11b 批次派发。
+  { phaseCode: 'P11a.5', inputs: ['shot-list', 'preview-clips', 'voice-clips'], outputs: ['ambient-stems', 'preview-mix', 'roughcut-mp4', 'preview-verdicts'] },
   { phaseCode: 'P11b', inputs: ['preview-clips'], outputs: ['video-clips', 'take-log'] },
   // P11c 视频智能质检（qwen-eye）：读 video-clips + shot-list（SPEC 字段），
   // 写 video-qc（per_shot 判定 + summary；advisory，P14 聚合，P12 不读）。
@@ -498,6 +503,8 @@ export interface DagNodeDef {
 export interface DagEdgeDef {
   from: string
   to: string
+  /** 边型：缺省 = slot 数据流；'gate' = phase 门控（金虚线）；'back' = 打回回环（玫虚线）。 */
+  kind?: 'gate' | 'back'
 }
 
 /**
@@ -582,6 +589,22 @@ export const DAG_NODES: readonly DagNodeDef[] = [
   // P11a 预览质检（qwen-eye advisory）：变体首帧 vs shot intent；P14 聚合。
   { id: 'preview-qc', label: '预览质检', phaseCode: 'P11a', phaseIndex: 14, group: 'post', dim: true,
     match: { phaseIndex: 14, idIncludes: 'preview-qc' }, expectedCount: 1 },
+  // ── P11a.5 预演音频+成片（提案 2026-08-23；管线侧未落地 → 恒 pending「规划中」）──
+  // 环境音生成（foley 泳道前移到预演级）：按 shot-list 场景环境线索 + 预演夹画面
+  // 参考生成场景级环境底噪，产出 ambient-stems。
+  { id: 'ambient-stems', label: '环境音生成', phaseCode: 'P11a.5', phaseIndex: 14.5, group: 'post',
+    match: { idIncludes: 'ambient' }, expectedCount: 'dynamic' },
+  // 预演混音：voice-clips（TTS）与 ambient-stems 两两 pairwise amix（3+ 路并行 amix
+  // 会挂死——KMC 权威 pitfall），产出 preview-mix。
+  { id: 'preview-amix', label: '预演混音', phaseCode: 'P11a.5', phaseIndex: 14.5, group: 'post',
+    match: { idIncludes: 'preview-mix' }, expectedCount: 'dynamic' },
+  // 预演成片：preview-clips concat + preview-mix mux（纯 CPU ~3min），产出 roughcut-mp4。
+  { id: 'rough-cut', label: '预演成片', phaseCode: 'P11a.5', phaseIndex: 14.5, group: 'post',
+    match: { idIncludes: 'roughcut' }, expectedCount: 'dynamic' },
+  // 预演门（advisory quorum）：roughcut 审片 per 镜 verdict（放行/打回/未判），
+  // 未判清零才放行 p11b 批次派发；打回镜回环 p10_voice / p09。
+  { id: 'preview-gate', label: '预演门', phaseCode: 'P11a.5', phaseIndex: 14.5, group: 'post', dim: true,
+    match: { idIncludes: 'preview-gate' }, expectedCount: 1 },
   // ── P11b 片段生成（正式渲染，预览锁定后执行） ──
   { id: 'video-clips', label: '片段生成', phaseCode: 'P11b', phaseIndex: 14, group: 'post',
     match: { phaseIndex: 14, stage: 'video' }, expectedCount: 'dynamic' },
@@ -716,6 +739,25 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   // P11a → P11b：片段预览锁定后，prompt/关键帧数据直接传递给片段生成
   // 片段生成不再从其他创作节点读取——所有数据通过片段预览传递
   { from: 'preview-clips', to: 'video-clips' },
+  // ── P11a.5 预演音频+成片子图（提案 2026-08-23）──
+  // 环境音生成：shot-list 场景环境线索 + 预演夹画面参考（V2A，对齐 P12 foley 的
+  // video-clips→foley-stems 依赖形态）
+  { from: 'shot-list', to: 'ambient-stems' },
+  { from: 'preview-clips', to: 'ambient-stems' },
+  // 预演混音：TTS voice-clips + ambient-stems 汇入（pairwise amix）
+  { from: 'voice-clips', to: 'preview-amix' },
+  { from: 'ambient-stems', to: 'preview-amix' },
+  // 预演成片：preview-clips（视频床）+ preview-mix（音轨）拼装粗剪
+  { from: 'preview-amix', to: 'rough-cut' },
+  { from: 'preview-clips', to: 'rough-cut' },
+  { from: 'rough-cut', to: 'preview-gate' },
+  // 预演门 → P11b：quorum 门控边（未判=0 才派发 H3 批次）——非 slot 数据流，
+  // 对应 KMC p11b depends_on 前置门，见 validateDagEdges GATE_EDGES。
+  { from: 'preview-gate', to: 'video-clips', kind: 'gate' },
+  // 预演门 → P10/P09：打回回环边（verdict=rejected 的镜回炉重做）——
+  // KMC resume 语义的 re-run，非 slot 流，见 validateDagEdges BACK_EDGES。
+  { from: 'preview-gate', to: 'voice-clips', kind: 'back' },
+  { from: 'preview-gate', to: 'shot-list', kind: 'back' },
   // P11b → P11c：最终视频 → 视频质检（qwen-eye 读 video-clips + shot-list SPEC）
   { from: 'video-clips', to: 'video-qc' },
   { from: 'shot-list', to: 'video-qc' },
@@ -1052,6 +1094,15 @@ export function validateDagEdges(): string[] {
     // P11c → P12：PHASE_REGISTRY depends_on 顺序门控（p12a depends_on p11c）。
     // video-qc slot 是 advisory，P12 不消费它（fail 汇总由 P14 聚合）。
     'video-qc|master-timeline',
+    // P11a.5 → P11b：预演门 quorum（preview-verdicts 未判=0）门控 H3 批次派发；
+    // verdicts 是决策数据而非被 p11b 消费的素材 slot。
+    'preview-gate|video-clips',
+  ])
+  // 打回回环边（preview verdict=rejected 的镜回炉 p10_voice / p09 重做）：
+  // KMC resume/re-run 语义，DAG 表达「修改上游后预演链重跑」的迭代方向，非 slot 流 → 豁免。
+  const BACK_EDGES = new Set<string>([
+    'preview-gate|voice-clips',
+    'preview-gate|shot-list',
   ])
   // 前端建模边：DAG 刻意表达比 KMC slot 粒度更细的依赖（KMC 未单列对应 slot）→ 豁免并记录原因。
   const DESIGN_INTENT_EDGES = new Map<string, string>([
@@ -1066,6 +1117,7 @@ export function validateDagEdges(): string[] {
   for (const e of DAG_EDGES) {
     const key = `${e.from}|${e.to}`
     if (GATE_EDGES.has(key)) continue
+    if (BACK_EDGES.has(key)) continue
     if (DESIGN_INTENT_EDGES.has(key)) continue
     const from = nodeById.get(e.from)
     const to = nodeById.get(e.to)

@@ -70,6 +70,12 @@ export default function PipelineStateMachine({
     ),
     [],
   )
+  // 语义边型（gate 门控 / back 回环）查表：layoutDag 重建边对象不带自定义字段
+  const edgeKindById = useMemo(() => {
+    const m = new Map<string, 'gate' | 'back'>()
+    for (const e of DAG_EDGES) if (e.kind) m.set(`${e.from}->${e.to}`, e.kind)
+    return m
+  }, [])
   const layoutById = useMemo(() => {
     const m = new Map<string, LayoutNode>()
     for (const n of layout.nodes) m.set(n.id, n)
@@ -378,6 +384,7 @@ export default function PipelineStateMachine({
                     d={edgePathD(e, layoutById)}
                     tone={edgeToneOf(e.from, e.to)}
                     upstreamDone={(sm?.completed ?? 0) > 0}
+                    kind={edgeKindById.get(`${e.from}->${e.to}`)}
                   />
                 )
               })}
