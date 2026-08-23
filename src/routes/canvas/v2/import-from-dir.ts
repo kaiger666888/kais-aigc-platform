@@ -190,11 +190,23 @@ export function setWorkdirToOss(
   _workdirToOss = mapping;
 }
 
-/** Convert a filesystem path to a /oss/ URL if possible. */
-function fsToOssUrl(fsPath: string): string | null {
+/**
+ * Convert a filesystem path to a /oss/ URL if possible.
+ *
+ * 59-01 断点②动机:引擎活体 outputs.* 返回的是容器内 /mnt/agents/output/…
+ * 路径(docker/gold-team/src/v6/models/task.py:90-127),app.ts:74-87 的
+ * /oss 静态链已能服务 /mnt/agents/output 根——此处把该前缀纯字符串翻译为
+ * /oss/ web 路径,pollEngineTask 拿到结果直接可用,不再恒 null。
+ * 本分支不依赖 _workdirToOss 全局态,无副作用。
+ */
+export function fsToOssUrl(fsPath: string): string | null {
   if (!fsPath || typeof fsPath !== "string") return null;
   // Check if already an /oss/ URL
   if (fsPath.startsWith("/oss/")) return fsPath;
+  // 59-01 断点②:引擎 outputs.* 容器路径 → /oss/ web 路径(app.ts 静态链已挂 /mnt/agents/output)
+  if (fsPath.startsWith("/mnt/agents/output/")) {
+    return "/oss/" + fsPath.substring("/mnt/agents/output/".length);
+  }
   // Check if it's an absolute path under the OSS dir
   const ossDir = "/data/workspace/kais-aigc-platform/data/oss";
   if (fsPath.startsWith(ossDir + "/")) {

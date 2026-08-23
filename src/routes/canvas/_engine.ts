@@ -11,6 +11,10 @@
  *   - ENGINE_POLL_MAX_ATTEMPTS=200 (最大轮询次数,默认 200 = 10 分钟)
  */
 
+import fs from "node:fs";
+import path from "node:path";
+import { fsToOssUrl } from "./v2/import-from-dir";
+
 export type TaskType =
   | "image_draw"
   | "image_refine"
@@ -54,6 +58,39 @@ function baseUrl(): string {
   const url = process.env.GOLD_TEAM_URL;
   if (!url) throw new Error("GOLD_TEAM_URL not configured");
   return url.replace(/\/$/, "");
+}
+
+/**
+ * 59-01 断点④入向翻译:把客户端可影响的 `/oss/...` web 路径与既有宿主路径,
+ * 翻译为引擎容器可见的宿主绝对路径。
+ *
+ * 语义(T-59-01 缓解):
+ *   - 空 / 非 string → null
+ *   - `/oss/...` → posix.normalize + 拒绝 `..` 上溯(replaceUrl.ts L14-21 先例)
+ *     + 双根白名单 fs.existsSync 探测——引擎容器 Mounts 实证只挂
+ *     `/mnt/agents/output` 与 `/data/workspace/kais-aigc-platform/data/oss`
+ *     两个根(与 fsToOssUrl 的 ossDir 字面量一致,Pitfall 3);命中者返回,
+ *     均不命中 → null。非白名单根不可达。
+ *   - 其余输入(宿主绝对路径 / http(s) URL)原样返回——已是引擎可见形态
+ *     (kmc 活体先例)。
+ */
+export function ossToEnginePath(input: string): string | null {
+  if (!input || typeof input !== "string") return null;
+  if (input.startsWith("/oss/")) {
+    const rel = input.substring("/oss/".length);
+    const normalized = path.posix.normalize(rel);
+    // 防路径穿越:规范化后若以 ../ 开头或等于 ..,拒绝
+    if (normalized === ".." || normalized.startsWith("../")) return null;
+    const candidates = [
+      `/mnt/agents/output/${normalized}`,
+      `/data/workspace/kais-aigc-platform/data/oss/${normalized}`,
+    ];
+    for (const c of candidates) {
+      if (fs.existsSync(c)) return c;
+    }
+    return null;
+  }
+  return input;
 }
 
 /**
