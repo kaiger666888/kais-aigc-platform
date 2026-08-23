@@ -39,7 +39,7 @@ import { Server } from "socket.io";
 import { io } from "socket.io-client";
 import express from "express";
 import type { FlowNodeV2 } from "../src/types/flowgraph-v2";
-import { bootReady } from "../src/utils/db";
+import { bootReady, db } from "../src/utils/db";
 import { setIo } from "../src/utils/ws";
 import {
   ensureMeta,
@@ -56,6 +56,10 @@ const MODE = process.env.DISPATCH_MODE ?? "cascade";
 const PROJECT_ID = 990059;
 const EPISODES_ID = 1;
 const SCOPE = { projectId: PROJECT_ID, episodesId: EPISODES_ID };
+// 59-fix WR-01: legacy-blob-only 模式——关系表仅 ensureMeta(空图),唯一真值在
+// o_agentWorkData canvasGraph blob(59-02 前项目形态)。orchestrate 全量模式
+// 应经 59-fix 兜底发现 blob 目标(total=1)而非 404。
+const IS_LEGACY = MODE === "orchestrate-legacy";
 
 interface CapturedEvent {
   event: string;
@@ -103,31 +107,53 @@ async function main(): Promise<void> {
     position: { x: phaseIndex * 300, y: 0 }, size: { width: 260, height: 180 },
     data, state,
   });
-  await upsertNode(SCOPE, node("trig-1", "asset", 0, "P04", { prompt: "v59 trigger asset" }, "success"));
-  await upsertNode(SCOPE, node("node-1", "storyboard", 2, "P06", { prompt: "v59 storyboard", shotType: "wide", durationS: 2 }, "idle"));
-  await upsertNode(SCOPE, node("down-1", "asset", 0, "P07", { prompt: "v59 downstream" }, "idle"));
-  await upsertLink(SCOPE, { id: "l-trig-node", source: "trig-1", target: "node-1", branchId: "main", dataType: "text" });
-  await upsertLink(SCOPE, { id: "l-node-down", source: "node-1", target: "down-1", branchId: "main", dataType: "text" });
+  if (IS_LEGACY) {
+    // WR-01 fixture:legacy-blob-only——关系表零节点零边(仅 meta),blob 单节点
+    // idle asset。loadFullGraph → null → orchestrate 走 59-fix 兜底读 blob。
+    await db("o_agentWorkData").insert({
+      projectId: String(PROJECT_ID),
+      episodesId: String(EPISODES_ID),
+      key: "canvasGraph",
+      data: JSON.stringify({
+        meta: { version: "2", projectId: PROJECT_ID, episodesId: EPISODES_ID, createdAt: Date.now(), updatedAt: Date.now(), lastEventId: 0 },
+        nodes: [node("legacy-blob-1", "asset", 1, "P04", { prompt: "legacy blob asset" }, "idle")],
+        links: [],
+        branches: [],
+        variantGroups: [],
+      }),
+      createTime: Date.now(),
+      updateTime: Date.now(),
+    });
+    console.error("[v59-dispatch] legacy fixture OK: blob 单节点 legacy-blob-1(关系表空)");
+  } else {
+    await upsertNode(SCOPE, node("trig-1", "asset", 0, "P04", { prompt: "v59 trigger asset" }, "success"));
+    await upsertNode(SCOPE, node("node-1", "storyboard", 2, "P06", { prompt: "v59 storyboard", shotType: "wide", durationS: 2 }, "idle"));
+    await upsertNode(SCOPE, node("down-1", "asset", 0, "P07", { prompt: "v59 downstream" }, "idle"));
+    await upsertLink(SCOPE, { id: "l-trig-node", source: "trig-1", target: "node-1", branchId: "main", dataType: "text" });
+    await upsertLink(SCOPE, { id: "l-node-down", source: "node-1", target: "down-1", branchId: "main", dataType: "text" });
 
-  // fixture 形状自检(migrate+getDownstreamIds;不对 → exit 3,只修 fixture 不改产品)
-  const seeded = await loadFullGraph(SCOPE);
-  const { graph } = migrateV2toV3(seeded as any);
-  const downstream = getDownstreamIds(graph, "trig-1");
-  if (!(downstream.includes("node-1") && downstream.includes("down-1"))) {
-    console.error(`[v59-dispatch] fixture 自检失败: downstream(trig-1)=${JSON.stringify(downstream)}`);
-    process.exit(3);
+    // fixture 形状自检(migrate+getDownstreamIds;不对 → exit 3,只修 fixture 不改产品)
+    const seeded = await loadFullGraph(SCOPE);
+    const { graph } = migrateV2toV3(seeded as any);
+    const downstream = getDownstreamIds(graph, "trig-1");
+    if (!(downstream.includes("node-1") && downstream.includes("down-1"))) {
+      console.error(`[v59-dispatch] fixture 自检失败: downstream(trig-1)=${JSON.stringify(downstream)}`);
+      process.exit(3);
+    }
+    console.error(`[v59-dispatch] fixture 自检 OK: downstream(trig-1)=${JSON.stringify(downstream)}; evt ids: ${graph.nodes.filter((n) => n.kind === "event").map((n) => n.id).join(",")}`);
   }
-  console.error(`[v59-dispatch] fixture 自检 OK: downstream(trig-1)=${JSON.stringify(downstream)}; evt ids: ${graph.nodes.filter((n) => n.kind === "event").map((n) => n.id).join(",")}`);
 
   // ── 4) dispatch(真 zod 中间件链;mock req/res 直调升级为真 HTTP——
   //       validateFields/promise 链零 stub) ─────────────────────────────────
   const isOrch = MODE === "orchestrate";
-  const url = isOrch ? `${base}/api/canvas/orchestrate` : `${base}/api/canvas/execute`;
-  const body = isOrch
-    ? { projectId: PROJECT_ID, episodesId: EPISODES_ID, nodeIds: ["down-1"] }
-    : MODE === "no-marker"
-      ? { projectId: PROJECT_ID, episodesId: EPISODES_ID, nodeId: "trig-1", nodeType: "asset", prompt: "v59 probe" }
-      : { projectId: PROJECT_ID, episodesId: EPISODES_ID, nodeId: "trig-1", nodeType: "asset", prompt: "v59 probe", regenSource: "panel-regen", params: { seed: 777 } };
+  const url = isOrch || IS_LEGACY ? `${base}/api/canvas/orchestrate` : `${base}/api/canvas/execute`;
+  const body = IS_LEGACY
+    ? { projectId: PROJECT_ID, episodesId: EPISODES_ID } // 全量模式——目标发现走 legacy 兜底
+    : isOrch
+      ? { projectId: PROJECT_ID, episodesId: EPISODES_ID, nodeIds: ["down-1"] }
+      : MODE === "no-marker"
+        ? { projectId: PROJECT_ID, episodesId: EPISODES_ID, nodeId: "trig-1", nodeType: "asset", prompt: "v59 probe" }
+        : { projectId: PROJECT_ID, episodesId: EPISODES_ID, nodeId: "trig-1", nodeType: "asset", prompt: "v59 probe", regenSource: "panel-regen", params: { seed: 777 } };
   const resp = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -138,11 +164,13 @@ async function main(): Promise<void> {
   console.error(`[v59-dispatch] mode=${MODE} httpStatus=${httpStatus} respBody=${JSON.stringify(respBody).slice(0, 200)}`);
 
   // ── 5) 轮询收集事件至目标节点 node:state success/error 或 15s 超时 ───────
-  const targetNodeId = isOrch ? "down-1" : "trig-1";
+  // legacy 模式:blob 节点不在关系表 → simulateExecution readNode null →
+  // simulateOnly(5-15s);断言面在 respBody(200 + blob 目标发现),不等终态。
+  const targetNodeId = IS_LEGACY ? "legacy-blob-1" : isOrch ? "down-1" : "trig-1";
   const terminal = (e: CapturedEvent) =>
     e.event === "node:state" && e.data?.nodeId === targetNodeId &&
     (e.data?.state === "success" || e.data?.state === "error");
-  const deadline = Date.now() + 15_000;
+  const deadline = Date.now() + (IS_LEGACY ? 0 : 15_000);
   while (Date.now() < deadline && !events.some(terminal)) {
     await sleep(100);
   }

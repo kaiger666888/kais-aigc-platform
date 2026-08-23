@@ -488,7 +488,7 @@ async function main(): Promise<void> {
       if (orch) {
         assert(
           orch.httpStatus === 200,
-          "S4-orchestrate: httpStatus 200(blob 从未写入——关系表是唯一数据源,orchestrate 数据源真化的行为级证明)",
+          "S4-orchestrate: httpStatus 200(blob 从未写入——关系表非空直读不走兜底,orchestrate 数据源真化的行为级证明)",
           `status=${orch.httpStatus} body=${JSON.stringify(orch.respBody).slice(0, 120)}`,
         );
         assert(
@@ -505,13 +505,41 @@ async function main(): Promise<void> {
         );
       }
 
+      // ── S4-orchestrate-legacy(completed):WR-01 legacy blob 兜底 ──
+      // 59-fix WR-01 行为级:legacy-blob-only scope(关系表仅 meta 零节点,blob
+      // 单节点)——59-02 换 loadFullGraph 后此形态恒 404;修复后关系表 null →
+      // 回退 legacy blob 读取,目标发现 total=1/skipped=0(59-02 前行为恢复)。
+      const orchLegacy = await runDispatch("orchestrate-legacy");
+      dispatchOutcomes["orchestrate-legacy"] = orchLegacy;
+      assert(orchLegacy != null, "S4-orchestrate-legacy: 子进程产出 V59_DISPATCH_JSON");
+      if (orchLegacy) {
+        assert(
+          orchLegacy.httpStatus === 200 &&
+            orchLegacy.respBody?.data?.total === 1 &&
+            orchLegacy.respBody?.data?.skipped === 0,
+          "S4-orchestrate-legacy: legacy-blob-only scope 200 + blob 目标发现 total=1/skipped=0(WR-01:关系表 null 回退 legacy blob,修复前 404)",
+          `status=${orchLegacy.httpStatus} body=${JSON.stringify(orchLegacy.respBody).slice(0, 120)}`,
+        );
+        assert(
+          !orchLegacy.events.some((e) => e.event === "node:updated"),
+          "S4-orchestrate-legacy: 零 node:updated(兜底路径零级联,SC3)",
+        );
+        assert(
+          orchLegacy.staleRows.length === 0,
+          "S4-orchestrate-legacy: staleRows 空(兜底路径零 stale 写)",
+        );
+      }
+
       // ── 静态断言(结构冻结锁) ──
       const executeSrc = read("src/routes/canvas/execute.ts");
       const orchestrateSrc = read("src/routes/canvas/orchestrate.ts");
       const staleSrc = read("src/routes/canvas/_stale.ts");
       assert(executeSrc.includes("regenSource: z.enum"), "静态: execute.ts 含 regenSource: z.enum(zod 白名单)");
-      assert(orchestrateSrc.includes("loadFullGraph"), "静态: orchestrate.ts 含 loadFullGraph(关系表读)");
-      assert(!orchestrateSrc.includes("o_agentWorkData"), "静态: orchestrate.ts 无 legacy blob 读取");
+      assert(orchestrateSrc.includes("loadFullGraph"), "静态: orchestrate.ts 含 loadFullGraph(关系表优先读)");
+      // 59-fix WR-01 翻转:legacy blob 兜底是审查裁定的修复行为(关系表 null →
+      // 回退旧查询,59-02 前 legacy-blob-only 项目行为保持)——锁从「无 blob 读」
+      // 翻为「兜底在场」,防止未来被误删。
+      assert(orchestrateSrc.includes("o_agentWorkData"), "静态: orchestrate.ts 含 legacy blob 兜底读(WR-01:关系表 null 回退)");
       assert(
         !/markStaleDownstream|\.\/_stale|regenSource/.test(orchestrateSrc),
         "静态: orchestrate.ts 零级联结构(无级联函数 import / 无 _stale 引用 / 无重生成标记消费)",
