@@ -354,16 +354,14 @@ if str(getattr(engine, "engine_id", "")).startswith("cloud-"):
 | A4 | 断点④最小实现：面板重生成默认 t2i（image_draw）；解析上游产物作 ref_images（i2i）是增强位而非 SC5 硬门槛 | Pitfall 3 / 映射表 | 若「ref_images 参数全对齐」被解读为必须解析上游因果输入为参考图，需加解析逻辑（因果输入边遍历） |
 | A5 | `_engine.ts` TaskType 联合不需扩（3d/wan_i2v/shot_analysis 不进窄路径） | 映射表 | 低风险；扩了也无害 |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **A1 口径——「产物真实落画布」的验收深度**
-   - What we know: node:preview → applySocketNodePreview 更新 media.thumbnail（实时视觉）；data.filePath 落库为可选增强。
-   - What's unclear: SC5 是否要求产物成为持久化资产事实（reload 后仍在）。
-   - Recommendation: planner 把「thumbnail 实时 + filePath 落库（reload 保真）」写进任务验收，成本一行 upsertNode。
-2. **A3——image 任务 engine 路由政策**
-   - Recommendation: 默认 cloud（jimeng）并在 VERIFICATION 记录 seed 语义差异；如需本地确定性重放可留 env 开关。
-3. **orchestrate 目标筛选是否同步换关系表读法**（Pitfall 5）
-   - Recommendation: 换（一致性 + 52-02 stale-success 谓词才真正生效，SC4 链路依赖它）；但作为独立小任务并负向断言「不引入级联」。
+1. **A1 口径——「产物真实落画布」的验收深度** ✅ RESOLVED → 59-01-T3 action 5
+   - Resolution: 同时做 thumbnail 实时 + data.filePath 落库 reload 保真，通过 `upsertNode` 一行写入。
+2. **A3——image 任务 engine 路由政策** ✅ RESOLVED → 59-01-T2 action 2
+   - Resolution: image_* 任务提交体携带 `model_preference: 'cloud'` 对齐 kmc/dreamina-policy；cloud-jimeng 不接受 seed 的非确定性语义如实记录在 plan/SUMMARY/VERIFICATION。
+3. **orchestrate 目标筛选是否同步换关系表读法**（Pitfall 5）✅ RESOLVED → 59-02-T2 action 4 + planner_calls
+   - Resolution: orchestrate.ts L34-47 blob 读取替换为 `loadFullGraph` 关系表读；谓词逐字冻结；静态负向断言保证无 markStaleDownstream/regenSource 引入。
 
 ## Environment Availability
 
