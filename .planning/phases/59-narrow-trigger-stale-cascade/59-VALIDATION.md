@@ -10,7 +10,7 @@ created: 2026-08-23
 # Phase 59 — Validation Strategy
 
 > Per-phase validation contract for feedback sampling during execution.
-> Derived from 59-RESEARCH.md "Validation Architecture" (HIGH confidence). Task IDs are finalized by the planner; SC-level rows below are the assertion surface of record.
+> Source: 59-RESEARCH.md §Validation Architecture (HIGH confidence, line-verified).
 
 ---
 
@@ -18,44 +18,46 @@ created: 2026-08-23
 
 | Property | Value |
 |----------|-------|
-| **Framework** | vitest 2.1.9（infinite-canvas + flowgraph-v3/ts 双包）· Playwright 1.61（e2e :9876 mock）· tsx 聚合门（根仓，B3/B4 仓约定） |
-| **Config file** | 双包 vitest 内置配置 / playwright 既有配置（`packages/infinite-canvas/test/e2e/`） |
-| **Quick run command** | `cd packages/infinite-canvas && npx vitest run <最窄相关测试文件>`（触及包为准；根仓改动加 `npx tsc --noEmit`） |
-| **Full suite command** | `npx tsx scripts/verify-phase-59.ts`（新建聚合门：三根 tsc + 双包 vitest + 契约/负向断言 + forced-failure 自检） |
-| **Estimated runtime** | quick ~10-30s · full ~2-4min · e2e wave ~1-2min |
+| **Framework** | vitest 2.1.9 (packages/infinite-canvas + packages/flowgraph-v3/ts) · Playwright 1.61 (e2e) · tsx aggregate gate (root) |
+| **Config file** | vitest built-in per package · playwright.config.mjs (webServer=mock-backend :9876, workers=1) |
+| **Quick run command** | `npx tsc --noEmit` (root) + touched package `npx vitest run <narrowest relevant file>` |
+| **Full suite command** | `npx tsx scripts/verify-phase-59.ts` (new aggregate gate: 3× tsc + both vitest + contract assertions + forced-failure) |
+| **Estimated runtime** | ~120 seconds |
 
 ---
 
 ## Sampling Rate
 
-- **After every task commit:** quick run command（触及的最窄 vitest 文件 / `npx tsc --noEmit`）
-- **After every plan wave:** full suite command + `cd packages/infinite-canvas && npx playwright test tests/phase59-stale-cascade.mjs`（e2e 前置纪律：serve dist 非 source，地雷 #10）
-- **Before `/gsd:verify-work`:** 全量 e2e（含 phase52 三件套回归——级联共享 stale 面）+ probe-59-real 真机零足迹 + SC3 真机负向
-- **Max feedback latency:** 30s（task 级）· 4min（wave 级）
+- **After every task commit:** `npx tsc --noEmit` (root) + touched package `npx vitest run <file>`
+- **After every plan wave:** `npm run verify:phase-59` + `cd packages/infinite-canvas && npm run build && npx playwright test test/e2e/tests/phase59-stale-cascade.mjs` (serve dist, not source — landmine #10)
+- **Before `/gsd:verify-work`:** full e2e suite (incl. phase52 trio regression) + probe-59-real (:10588 zero-footprint) + SC3 real-machine negative
+- **Max feedback latency:** ~30 seconds (quick loop)
 
-### 负向断言三件套（锁死，phase 验收门组成部分）
+### Negative Assertion Trio (locked)
 
-1. 无 `regenSource` 的 execute（ContextMenu 路径）→ **零** stale 写
-2. orchestrate/batch → **零** stale 写（STALE-03/SC3）
-3. 引擎故障 → error 广播且**零** stale 写（D-02，断点③修真后）
+1. execute without regenSource (ContextMenu path) → zero stale writes
+2. orchestrate → zero stale writes (SC3)
+3. engine failure → error broadcast AND zero stale writes (D-02)
 
 ---
 
-## Per-SC Verification Map
+## Per-Task Verification Map
 
-| SC/Req | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
-|--------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| SC1 面板 regen→下游角标 | TBD | TBD | STALE-01 | V4 注记 | regenSource 仅标记信号非权限依据 | e2e (mock) | `npx playwright test tests/phase59-stale-cascade.mjs -g "panel"` | ❌ W0 | ⬜ pending |
-| SC2 换 seed→下游角标+seed 透传 | TBD | TBD | STALE-02 | V5 | seed 经 zod + 引擎 pydantic 双校验 | e2e + 请求体断言 | `… -g "reroll"` | ❌ W0 | ⬜ pending |
-| SC3 编排/批量零波及（负向） | TBD | TBD | STALE-03 | — | orchestrate.ts 无 markStaleDownstream import（静态断言） | e2e 负向 + 集成负向 + 静态 | `… -g "orchestrate"` + verify S 段 | ❌ W0 | ⬜ pending |
-| SC4 重跑出口清角标+无关节点不受波及 | TBD | TBD | STALE-01/02/03 | — | N/A | e2e（复用 phase52-stale-panel 面 + 服务端标记来源变体） | `… -g "rerun-clears"` | 部分 | ⬜ pending |
-| SC5-① poll 读 outputs.image | TBD | TBD | STALE-01/02 | — | 翻译层只接受 /mnt/agents/output 前缀 | 集成（fake 引擎活体形状直调） | verify S 段 | ❌ W0 | ⬜ pending |
-| SC5-② /mnt/agents/output→/oss/ 翻译 | TBD | TBD | SC5 | 路径穿越 T1 | path.normalize + 前缀白名单，拒 `..` 逃逸 | 单元（fsToOssUrl 新分支直测） | verify S 段 / vitest | ❌ W0 | ⬜ pending |
-| SC5-③ 引擎错误真广播（假成功修真） | TBD | TBD | SC5 | Repudiation | error 广播 + 零 stale 写（负向） | 集成（fake 引擎 500/超时→spawn 路由收广播） | verify S 段（49-01 子进程范式） | ❌ W0 | ⬜ pending |
-| SC5-④ ref_images 参数名+宿主路径 | TBD | TBD | SC5 | V5 | 入向翻译白名单校验 | 集成（fake 引擎捕获请求体） | verify S 段 | ❌ W0 | ⬜ pending |
-| REGEN-02 seed 到引擎 | TBD | TBD | STALE-02 | — | N/A | 集成 + e2e getCalls | verify S 段 | ❌ W0 | ⬜ pending |
-| 级联语义 D-03/04 收敛 | TBD | TBD | STALE-01/02/03 | — | N/A | 单元（服务端 fixture 图快照 vs stale.test.ts 基线） | vitest + verify S 段 | 部分（stale.test.ts ✅） | ⬜ pending |
-| reload 保真 D-05 | TBD | TBD | STALE-01 | — | N/A | 集成（:memory: sqlite load-v2 往返） | verify S 段 | ❌ W0 | ⬜ pending |
+> To be finalized by planner with concrete task IDs. Requirement→test mapping from RESEARCH.md:
+
+| Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
+|---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
+| {planner fills} | — | — | STALE-01/SC1 panel regen → stale badge | T-path-traversal / — | regenSource enum-validated, not auth basis | e2e | `npx playwright test test/e2e/tests/phase59-stale-cascade.mjs -g "panel"` | ❌ W0 | ⬜ pending |
+| {planner fills} | — | — | STALE-02/SC2 seed reroll → badge + seed passthrough | — | seed numeric, pydantic re-check | e2e + body assert | `… -g "reroll"` | ❌ W0 | ⬜ pending |
+| {planner fills} | — | — | STALE-03/SC3 orchestrate/batch zero impact | — | N/A (negative) | e2e neg + integration neg + static | `… -g "orchestrate"` + verify S-segment | ❌ W0 | ⬜ pending |
+| {planner fills} | — | — | SC4 rerun clears badge | — | N/A | e2e (reuse phase52-stale-panel.mjs) | `… -g "rerun-clears"` | Partial | ⬜ pending |
+| {planner fills} | — | — | SC5/BP① poll reads outputs.image | — | N/A | integration (fake engine live shape) | verify S-segment | ❌ W0 | ⬜ pending |
+| {planner fills} | — | — | SC5/BP② /mnt/agents/output→/oss/ | T-path-traversal | normalize + prefix whitelist | unit | verify or vitest | ❌ W0 | ⬜ pending |
+| {planner fills} | — | — | SC5/BP③ engine error → error broadcast, no fake success | — | N/A | integration (500/timeout) | verify S-segment | ❌ W0 | ⬜ pending |
+| {planner fills} | — | — | SC5/BP④ ref_images param + host paths | — | N/A | integration (capture body) | verify S-segment | ❌ W0 | ⬜ pending |
+| {planner fills} | — | — | REGEN-02 seed reaches engine params.seed | — | N/A | integration + e2e getCalls | verify S-segment | ❌ W0 | ⬜ pending |
+| {planner fills} | — | — | D-03/04 cascade semantics converge | — | N/A | unit (stale.test.ts baseline) | `cd packages/flowgraph-v3 && npx vitest run` | ✅ | ⬜ pending |
+| {planner fills} | — | — | D-05 reload fidelity (data.stale persist→restore) | — | N/A | integration (:memory: sqlite) | verify S-segment | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -63,11 +65,11 @@ created: 2026-08-23
 
 ## Wave 0 Requirements
 
-- [ ] `scripts/verify-phase-59.ts` — 聚合门骨架（S 段：断点①②/③/④+seed/级联接线/SC3 负向/命令门/forced-failure）+ package.json 注册 `verify:phase-59`
-- [ ] `packages/infinite-canvas/test/e2e/tests/phase59-stale-cascade.mjs` — SC1-4 e2e（mock-backend 扩：execute mock 认 regenSource 并回放 node:updated 契约事件）
-- [ ] fake 引擎 fixture（verify 内联 http server：活体实证形状三模式——outputs.image 容器路径 / failed+error / params 捕获）
-- [ ] fsToOssUrl export + 新分支单测挂点（planner 定居住所）
-- [ ] probe-59-real.mjs（:10588 零足迹探针 + finally 恢复）
+- [ ] `scripts/verify-phase-59.ts` — aggregate gate skeleton (S-segments: BP①②/③/④+seed/cascade wiring/SC3 negative/SC5 negative/command gate/forced-failure) + package.json `verify:phase-59`
+- [ ] `packages/infinite-canvas/test/e2e/tests/phase59-stale-cascade.mjs` — SC1-4 (mock-backend extension: execute mock honors regenSource + replays node:updated contract event; `/__mock/emit` available)
+- [ ] fake engine fixture (inline http server in verify: live-verified shapes — outputs.image container path / failed+error / params capture modes)
+- [ ] fsToOssUrl export + new-branch unit test hook (planner picks residence)
+- [ ] `probe-59-real.mjs` (:10588 zero-footprint probe + restore logic)
 
 ---
 
@@ -75,9 +77,9 @@ created: 2026-08-23
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| cloud-jimeng 换 seed 非确定性 | STALE-02 | dreamina CLI 无 seed 参数（RESEARCH MEDIUM 项） | 真机 reroll 两次观察产物差异；如无差异在 SUMMARY 如实记录（语义靠非确定性达成） |
+| Real-machine narrow-path regen cascades | STALE-01 | needs live :10588 + real project | probe-59-real.mjs scripted (zero-footprint, restore in finally) — scripted, not manual |
 
-*其余全部自动化（含真机面走 probe-59-real）。*
+*All other phase behaviors have automated verification.*
 
 ---
 
@@ -87,7 +89,7 @@ created: 2026-08-23
 - [ ] Sampling continuity: no 3 consecutive tasks without automated verify
 - [ ] Wave 0 covers all MISSING references
 - [ ] No watch-mode flags
-- [ ] Feedback latency < 30s（task 级）
+- [ ] Feedback latency < 30s
 - [ ] `nyquist_compliant: true` set in frontmatter
 
 **Approval:** pending
