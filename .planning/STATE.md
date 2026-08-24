@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: 重生成闭环深化
-status: verifying
-stopped_at: Completed 60-05-PLAN.md (verify 门 16/16 + probe 真机 13/13 + D-12 复跑 18/18;Phase 60 全 5 plan 完成,ready for verification)
-last_updated: "2026-08-24T00:46:44.593Z"
+status: ready_to_plan
+stopped_at: Phase 60 complete (5/5) — ready to discuss Phase 61
+last_updated: 2026-08-24T01:33:10.320Z
 last_activity: 2026-08-24
 progress:
   total_phases: 4
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-23)
 
 **Core value:** AI creative production pipeline that runs end-to-end, pluggable across multiple creative workflows via a published skill contract.
-**Current focus:** Phase 60 — 保存后面板保持
+**Current focus:** Phase 61 — 审计清债 td 3/4/5 (audit debt clearance)
 
 ## Current Position
 
-Phase: 60 (保存后面板保持) — EXECUTING
-Plan: 5 of 5
-Status: Phase complete — ready for verification
+Phase: 61
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-08-24
 
 Progress: [██████████] 100%
@@ -36,7 +36,7 @@ Progress: [██████████] 100%
 
 **Velocity:**
 
-- Total plans completed: 57 (v1.5 shipped — last fully-executed milestone before v1.7)
+- Total plans completed: 62 (v1.5 shipped — last fully-executed milestone before v1.7)
 - v1.7 shipped 2026-06-18 in single session (4 phases, 4 plans, 0 failures)
 
 **By Phase (v1.7):**
