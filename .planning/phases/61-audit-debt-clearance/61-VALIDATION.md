@@ -2,8 +2,8 @@
 phase: 61
 slug: audit-debt-clearance
 status: draft
-nyquist_compliant: false
-wave_0_complete: false
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-08-24
 ---
 
@@ -41,17 +41,17 @@ created: 2026-08-24
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 61-01 T1 | 61-01 | 1 | DEBT-01 mock 通道 + e2e 骨架(Wave 0) | T-61-01 | N/A | syntax+grep 门 | `node --check server.mjs && node --check phase61-debt.mjs && grep -c 路由锚` | ❌ W0→T1 建 | ⬜ pending |
-| 61-01 T2 | 61-01 | 1 | DEBT-01 拖入接线 + stub 处置(placeAssetOnCanvas 退役/接活) | T-61-01..04 | zod 门不绕过 | build+unit+负 grep | `npm run build && npx vitest run src/components/__tests__/placeNewAsset.test.ts && grep 退役三 token 零命中` | ✅ 既有(8 用例) | ⬜ pending |
-| 61-01 T3 | 61-01 | 1 | DEBT-01 拖入 source 锚活路径 + 有界落点 + 409 | T-61-01 | N/A | e2e | `npm run build && npx playwright test test/e2e/tests/phase61-debt.mjs && npx playwright test test/e2e/tests/phase55-nav.mjs` | ❌ W0→T1 建 | ⬜ pending |
-| 61-02 T1 | 61-02 | 1 | DEBT-02 尾斜杠一字修 + 契约注释 | T-61-05 | N/A | grep+tsc | `grep -c 'reviews/?' && ! grep -Eq 'reviews\?' && npx tsc --noEmit` | ✅ 目标文件在 | ⬜ pending |
-| 61-02 T2 | 61-02 | 1 | DEBT-02 回归锁(删斜杠必红) | T-61-07 | N/A | node:test unit | `node --import tsx --test src/lib/__tests__/reviewBridge.test.ts`(注入 fetchImpl 断言 URL 尾斜杠,字面量正反双断言) | ❌ W0→T2 建 | ⬜ pending |
-| 61-03 T1 | 61-03 | 1 | DEBT-03 buildMeta 5 字段读回 + migrate 单测 | T-61-08 | zod strict 回归网 | unit | `cd packages/flowgraph-v3 && npm test && npm run typecheck && grep -c 五句式` | ✅ 测试文件在,用例 ❌ W0 | ⬜ pending |
-| 61-03 T2 | 61-03 | 1 | DEBT-03 往返保真(raw=null 档)+ 三面收口 | T-61-08/09 | N/A | unit roundtrip | `cd packages/infinite-canvas && npx vitest run src/v3/__tests__/serialize.test.ts && npm test && cd ../flowgraph-v3 && npm test && cd .. && npx tsc --noEmit` | ✅ 测试文件在,用例 ❌ W0 | ⬜ pending |
-| 61-04 T1 | 61-04 | 1 | DEBT-04 Branch A 裁定成文(证据链/I5 原文/锁规格) | T-61-10 | N/A | doc+grep | `test -f 61-DEBT-04-VERDICT.md && grep -c 锚 && 引文核对` | ❌ W0→T1 建 | ⬜ pending |
-| 61-05 T1 | 61-05 | 2 | 四债静态锁聚合(S-DEBT1..4)+ 行为门 + forced-failure | T-61-11..13 | 命令字面量·无注入 | verify 门 | `npm run verify:phase-61` | ❌ W0→T1 建 | ⬜ pending |
-| 61-05 T2 | 61-05 | 2 | D-04 销账(REQUIREMENTS 勾选 + Traceability) | — | N/A | 门两连绿+grep | `npm run verify:phase-61 && grep -c "[x] **DEBT-0" REQUIREMENTS.md` | ✅ 目标文件在 | ⬜ pending |
-| verify-work 前 | — | — | 回归面 (52/59/60 + 55 standalone) | — | N/A | e2e 全量 | `npx playwright test phase52-* phase59-* phase60-* phase61-debt.mjs` + `phase55-nav.mjs` | ✅ 既有 | ⬜ pending |
+| 61-01 T1 | 61-01 | 1 | DEBT-01 mock 通道 + e2e 骨架(Wave 0) | T-61-01 | N/A | syntax+grep 门 | `node --check server.mjs && node --check phase61-debt.mjs && grep -c 路由锚` | ❌ W0→T1 建 | ✅ green |
+| 61-01 T2 | 61-01 | 1 | DEBT-01 拖入接线 + stub 处置(placeAssetOnCanvas 退役/接活) | T-61-01..04 | zod 门不绕过 | build+unit+负 grep | `npm run build && npx vitest run src/components/__tests__/placeNewAsset.test.ts && grep 退役三 token 零命中` | ✅ 既有(8 用例) | ✅ green |
+| 61-01 T3 | 61-01 | 1 | DEBT-01 拖入 source 锚活路径 + 有界落点 + 409 | T-61-01 | N/A | e2e | `npm run build && npx playwright test test/e2e/tests/phase61-debt.mjs && npx playwright test test/e2e/tests/phase55-nav.mjs` | ❌ W0→T1 建 | ✅ green |
+| 61-02 T1 | 61-02 | 1 | DEBT-02 尾斜杠一字修 + 契约注释 | T-61-05 | N/A | grep+tsc | `grep -c 'reviews/?' && ! grep -Eq 'reviews\?' && npx tsc --noEmit` | ✅ 目标文件在 | ✅ green |
+| 61-02 T2 | 61-02 | 1 | DEBT-02 回归锁(删斜杠必红) | T-61-07 | N/A | node:test unit | `node --import tsx --test src/lib/__tests__/reviewBridge.test.ts`(注入 fetchImpl 断言 URL 尾斜杠,字面量正反双断言) | ❌ W0→T2 建 | ✅ green |
+| 61-03 T1 | 61-03 | 1 | DEBT-03 buildMeta 5 字段读回 + migrate 单测 | T-61-08 | zod strict 回归网 | unit | `cd packages/flowgraph-v3 && npm test && npm run typecheck && grep -c 五句式` | ✅ 测试文件在,用例 ❌ W0 | ✅ green |
+| 61-03 T2 | 61-03 | 1 | DEBT-03 往返保真(raw=null 档)+ 三面收口 | T-61-08/09 | N/A | unit roundtrip | `cd packages/infinite-canvas && npx vitest run src/v3/__tests__/serialize.test.ts && npm test && cd ../flowgraph-v3 && npm test && cd .. && npx tsc --noEmit` | ✅ 测试文件在,用例 ❌ W0 | ✅ green |
+| 61-04 T1 | 61-04 | 1 | DEBT-04 Branch A 裁定成文(证据链/I5 原文/锁规格) | T-61-10 | N/A | doc+grep | `test -f 61-DEBT-04-VERDICT.md && grep -c 锚 && 引文核对` | ❌ W0→T1 建 | ✅ green |
+| 61-05 T1 | 61-05 | 2 | 四债静态锁聚合(S-DEBT1..4)+ 行为门 + forced-failure | T-61-11..13 | 命令字面量·无注入 | verify 门 | `npm run verify:phase-61` | ❌ W0→T1 建 | ✅ green |
+| 61-05 T2 | 61-05 | 2 | D-04 销账(REQUIREMENTS 勾选 + Traceability) | — | N/A | 门两连绿+grep | `npm run verify:phase-61 && grep -c "[x] **DEBT-0" REQUIREMENTS.md` | ✅ 目标文件在 | ✅ green |
+| verify-work 前 | — | — | 回归面 (52/59/60 + 55 standalone) | — | N/A | e2e 全量 | `npx playwright test phase52-* phase59-* phase60-* phase61-debt.mjs` + `phase55-nav.mjs` | ✅ 既有 | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠ flaky*
 
@@ -84,6 +84,6 @@ created: 2026-08-24
 - [x] Wave 0 covers all MISSING references (each ❌ mapped to owning task above)
 - [x] No watch-mode flags
 - [x] Feedback latency < 30s
-- [ ] `nyquist_compliant: true` set in frontmatter (executor flips after wave 0 artifacts land)
+- [x] `nyquist_compliant: true` set in frontmatter (executor flips after wave 0 artifacts land)
 
 **Approval:** pending
