@@ -389,7 +389,8 @@ test.describe('Phase 60-04 — 保存后面板保持 (D-09 四用例)', () => {
     await expect(staleBadge(page, DOWN_B)).toHaveCount(0, { timeout: 8_000 })
 
     // 采样窗: 每 300ms 读全画布 stale 角标计数,持续 2500ms 全程 === 0。
-    // 无 suppressGraphSaved 旋钮(60-02 退役,广播恒发)——两次 rerun 保存的
+    // 无 mock 广播抑制旋钮(60-02 退役,广播恒发;退役注释避用旧旋钮 token——
+    // verify 门 FLAG-4 零命中锁)——两次 rerun 保存的
     // graph:saved 回声活性保留,由客户端 savedBy 自回声跳过消化;跳过失效则
     // 自回声 reload 与 node:state success 清 stale 的写-写竞态复活角标
     // (59 Known Issue #1 回归,观测复活窗 ~1s < 2500ms 采样窗)。
