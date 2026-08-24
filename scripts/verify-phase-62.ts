@@ -1,15 +1,10 @@
 #!/usr/bin/env tsx
 /**
  * verify-phase-62.ts — Phase 62 (asset-hierarchy-selection) aggregate contract gate.
- * verify-phase-61.ts 同骨架: assert/read/exists/countOcc 收集 + 末尾失败计数 →
+ * verify-phase-61.ts 同骨架: assert/read/exists/countOcc/runCmd 收集 + 末尾失败计数 →
  * process.exit(0 全绿 / 1 任一失败 / 2 crash)。
  *
- * ⚠ 62-07 前置(wave-5 front-load)形态: 本文件当前只落 S 静态锁段(锁定对象均为
- * master 已有 62-01..03 产物);B 行为门 / F forced-failure 为显式 TODO stub,
- * 由 62-07 最终执行者(wave 5)按 62-07-PLAN Task 3 补全并挂 package.json
- * "verify:phase-62" 行(前置 executor 不碰 package.json)。
- *
- *   S 静态锁段(本次落地):
+ *   S 静态锁段(S1-S5 62-07 前置已落地 + 62-07 收尾补全三锚):
  *     S1 键面口径(62-02 RESEARCH F 漂移修正③): tsx 直接 import 前端常量表——
  *        GENERATION_CONFIG_KEYS 14 键 = 嵌套 11 + 扁平 3;preCap1 5;
  *        unwired 2;LOCKED reportAudit count 18(锁定区合计 19);
@@ -18,7 +13,9 @@
  *     S2 判定式单套(D-04 红线): getGroupKey / getGroupDisplayInfo /
  *        isAssetSelected / isAssetPending / isAssetEliminated 五式定义
  *        源码全域恰 1 处且仅在 groupCanvasLinkage.ts;AssetLibrary.tsx 从该
- *        文件 import 五式(62-01 纯移动消费面)。
+ *        文件 import 五式(62-01 纯移动消费面)。62-07 补:内联负扫——完整三态
+ *        判定式字串 `isPrimaryView && d.state !== 'eliminated'` 于 assetManager
+ *        源码目录(除 __tests__)仅判定式文件命中(第二套内联式即红)。
  *     S3 双拷贝键集一致(62-02 裁定漂移锁): 服务端 generationConfigService.ts
  *        键集与前端 generationConfigKeys.ts 键集逐键相等(键集 + tier 逐键)。
  *     S4 覆盖层表在位(62-02 D-08①): initDB.ts relationalCanvasTables 数组内
@@ -26,27 +23,28 @@
  *        /api/canvas/v2/generation-config 路由。
  *     S5 锁定区文案: p10_voice.tts 双侧 phaseKey 相同且 reason 含「钉死 1」
  *        (TTS 首选即定);clampRedundancy 前端第一道 + 服务端兜底第二道双侧
- *        导出(D-10 khs resolver 逐字钳制)。
+ *        导出(D-10 khs resolver 逐字钳制)。62-07 补:clamp 越界 UI 文案锚
+ *        (RedundancyConfigRail「数值越界：pre ≥ 1，final 需在 1..pre 之间」)。
+ *     S6(62-07 补) 两静态锚: 默认视图 assetView:'library'(canvasStore 初始值
+ *        未变——62 资产层零扰动库默认视图)+ model.ts DAG candidates 公式行
+ *        `total - selected - eliminated` 在场(D-04 DAG 派生零改动)。
+ *   B 行为门段(spawn 子进程,61 runCmd 同款;退出码逐一判 T-62-23 固定命令链):
+ *     B1 infinite-canvas npm run build(dist 纪律: e2e 跑 build 产物)
+ *     B2-B4 playwright 三 phase62 文件(hierarchy/selection/redundancy-config)
+ *     B5-B9 回归面五文件(phase52-regen/reroll/stale-panel + phase55-nav +
+ *     phase61-debt,17 用例)。
+ *   F forced-failure 自检段(T-62-22 假绿缓解,61 F1-F3 形态): 三个内存变异
+ *     样本(删一键→checkKeyTablesEqual / 删 preCap1 键→checkFrontendKeyProfile /
+ *     删 tts reason 关键词→checkTtsLockPair)对同一检查函数必须判 false——
+ *     锁与自检同源,非两套逻辑;变异样本不写任何真实文件。
  *
- *   TODO(62-07 wave-5 最终执行者补全):
- *     B 行为门: 子进程链 npm run build → playwright 三 phase62 文件
- *        (hierarchy/selection/redundancy-config)→ 回归面五文件(phase52 三件套
- *        + phase55-nav + phase61-debt,17 用例),退出码逐一判(T-62-23)。
- *     F forced-failure: 前端常量表变异副本(删一键/改一 tier)必须使
- *        checkKeyTablesEqual 判不等(锁与自检同源——比较器已导出,直接复用;
- *        T-62-22 门自身假绿缓解)。
- *     S 补全两锚: 默认视图 assetView:'library'(canvasStore)+ model.ts
- *        candidates 公式行 total - selected - eliminated 在场(DAG 派生零改动);
- *        S2 内联负扫(`isPrimaryView &&` 于 assetManager 目录仅判定式文件命中
- *        —— 待 62-04/05/06 收敛 SceneShotManager/CharacterWardrobe 内联式后落锁);
- *        S5 clamp 越界 UI 文案(「数值越界: pre ≥ 1, final 需在 1..pre 之间」)。
- *
- * Run: npx tsx scripts/verify-phase-62.ts   (npm run verify:phase-62 — 62-07 收尾挂)
- * Exit: 0 S 全绿且 B/F 均为 deferred-stub / 1 任一 S 失败 / 2 crash
+ * Run: npm run verify:phase-62
+ * Exit: 0 S+B+F 全绿 / 1 任一失败 / 2 crash
  */
 
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 
 /**
  * 双仓常量表加载: tsx 运行时 require(编译加载真表,非正则解析——62-07「tsx 直接
@@ -228,18 +226,58 @@ function scanDefinitionSites(relDirs: readonly string[], funcName: string): stri
   return hits;
 }
 
-// ── B/F 段: 62-07 前置显式 TODO stub(deferred → 计 skipped,不计 FAIL) ──
+// ── B/F 段(62-07 收尾落地: B 子进程命令链 + F 变异自检;61 同款基建) ──
 
-const deferredSections: string[] = [];
-function deferGate(section: string, todo: string): void {
-  deferredSections.push(section);
-  console.log(`\n=== ${section}: deferred to 62-07 final executor (wave 5) — counted as SKIPPED ===`);
-  console.log(`    TODO: ${todo}`);
+/** B 段命令门: cwd + 命令,tail 摘要;非零 exit 红(59/60/61 同款)。 */
+function runCmd(name: string, cwdRel: string, cmd: string, tailLines = 3): void {
+  const res = spawnSync(cmd, {
+    cwd: path.join(REPO_ROOT, cwdRel),
+    shell: true,
+    encoding: "utf8",
+    timeout: 300_000,
+    maxBuffer: 16 * 1024 * 1024,
+  });
+  const out = (res.stdout ?? "") + (res.stderr ?? "");
+  const tail = out.split("\n").filter((l) => l.trim().length > 0).slice(-tailLines).join(" | ");
+  assert(
+    res.status === 0,
+    `cmd: ${name} (exit ${res.status})`,
+    res.status === 0 ? tail.slice(0, 160) : tail.slice(-300),
+  );
+}
+
+/** 子串扫描: assetManager 源码目录(.ts/.tsx,排除 __tests__)含 needle 的文件清单。
+ *  S2 内联负扫用——测试文件合法引用/引用式断言不计入源码域。 */
+function scanAssetManagerSources(needle: string): string[] {
+  const hits: string[] = [];
+  const walk = (absDir: string): void => {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(absDir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const ent of entries) {
+      const abs = path.join(absDir, ent.name);
+      if (ent.isDirectory()) {
+        if (ent.name === "__tests__") continue;
+        walk(abs);
+        continue;
+      }
+      if (!/\.(ts|tsx)$/.test(ent.name)) continue;
+      try {
+        const txt = fs.readFileSync(abs, "utf8");
+        if (txt.includes(needle)) hits.push(path.relative(REPO_ROOT, abs));
+      } catch { /* unreadable: skip */ }
+    }
+  };
+  walk(path.join(REPO_ROOT, "packages", "infinite-canvas", "src", "components", "assetManager"));
+  return hits;
 }
 
 function main(): void {
   console.log("=== Phase 62 — verify-phase-62.ts (asset-hierarchy-selection aggregate gate: S 静态锁 + B 行为门 + F forced-failure) ===");
-  console.log("=== 62-07 前置形态: S1-S5 现已落地;B/F 为 TODO stub(见文首 TODO 注释)===\n");
+  console.log("=== S1-S5 静态锁 + 62-07 补全锚(S2 内联负扫/S5 clamp 文案/S6 默认视图+DAG 公式);B 子进程命令链;F 变异自检 ===\n");
 
   // ═══ S — 静态锁段 ═════════════════════════════════════════════════════════
   console.log("=== S 静态锁: S1 键面口径 / S2 判定式单套 / S3 双拷贝键集一致 / S4 覆盖层表+路由 / S5 tts 钉死文案 ===");
@@ -278,6 +316,19 @@ function main(): void {
       fromIdx >= 0 && allFive,
       "S2 (D-04): AssetLibrary 五式全部 import 自 './groupCanvasLinkage'(62-01 纯移动消费面)",
       fromIdx < 0 ? "import 语句不在场" : allFive ? "" : `import 块缺: ${PREDICATE_FUNCS.filter((fn) => !importBlock.includes(fn)).join(", ")}`,
+    );
+  }
+  // S2 内联负扫(62-07 补): 完整三态判定式字串(selected/pending 两式共尾串)于
+  // assetManager 源码目录(排除 __tests__)仅判定式文件命中——SceneShotManager/
+  // CharacterWardrobe 的近似内联式(状态回退形/取反变量形)不等于完整式,不误伤;
+  // 真出现第二套完整内联式即此处红。
+  {
+    const inlineHits = scanAssetManagerSources("isPrimaryView && d.state !== 'eliminated'");
+    const onlyLinkage = inlineHits.length === 1 && inlineHits[0] === LINKAGE_FILE;
+    assert(
+      onlyLinkage,
+      "S2 (D-04): 内联负扫——完整判定式字串 `isPrimaryView && d.state !== 'eliminated'` 于 assetManager 源码(除 __tests__)仅 groupCanvasLinkage.ts 命中",
+      onlyLinkage ? "" : `命中文件: [${inlineHits.join(", ")}]`,
     );
   }
 
@@ -322,31 +373,145 @@ function main(): void {
     typeof feClampRedundancy === "function" && typeof beClampRedundancy === "function",
     "S5: clampRedundancy 前端第一道 + 服务端兜底第二道双侧导出(D-10 khs resolver 逐字钳制)",
   );
+  // S5 补(62-07): clamp 越界 UI 文案锚——前端道同函数驱动的行内文案逐字在场
+  // (CLAMP_ERROR_TEXT 常量;后端 400 toast 同串由 e2e phase62-redundancy-config 锁)。
+  {
+    const railSrc = read(path.join("packages", "infinite-canvas", "src", "components", "assetManager", "RedundancyConfigRail.tsx"));
+    assert(
+      railSrc.includes("数值越界：pre ≥ 1，final 需在 1..pre 之间"),
+      "S5 (D-10): RedundancyConfigRail clamp 越界文案「数值越界：pre ≥ 1，final 需在 1..pre 之间」逐字在场",
+    );
+  }
 
-  // ═══ B — 行为门段(TODO stub: 62-07 wave-5 最终执行者补全) ══════════════════
-  deferGate(
-    "B 行为门",
-    "spawn 子进程链: infinite-canvas npm run build(dist 纪律)→ playwright 三 phase62 文件" +
-      "(hierarchy/selection/redundancy-config)→ 回归面五文件(phase52-regen/reroll/stale-panel + phase55-nav + " +
-      "phase61-debt,17 用例),退出码逐一判(T-62-23 固定命令链);挂 package.json verify:phase-62 行",
+  // S6(62-07 补) 两静态锚: 默认视图 + DAG candidates 公式行
+  {
+    const storeSrc = read(path.join("packages", "infinite-canvas", "src", "store", "canvasStore.ts"));
+    // 初始值行锚(非类型联合行): /^\s*assetView: 'library',\s*$/m —— 62 资产层
+    // 零扰动库默认视图(UI-SPEC Layout 裁定:默认视图资产管理中心=library)。
+    const defaultViewInit = /^\s*assetView: 'library',\s*$/m.test(storeSrc);
+    assert(
+      defaultViewInit,
+      "S6: canvasStore 默认视图 assetView: 'library' 初始值未变(62 资产层级为第 5 Tab 非默认视图)",
+    );
+    const modelSrc = read(path.join("packages", "infinite-canvas", "src", "components", "pipeline", "model.ts"));
+    // DAG 派生公式行(D-04 裁定: 两侧派生代码零改动——公式行逐字在场,恰 1 处代码行
+    // (另 1 处为 :813 注释,不计))。
+    const formulaCount = countOcc(modelSrc, "const candidates = Math.max(0, total - selected - eliminated)");
+    assert(
+      formulaCount === 1,
+      "S6: model.ts DAG candidates 公式行 `const candidates = Math.max(0, total - selected - eliminated)` 恰 1 处代码行(:937,D-04 跨源契约的图侧派生零改动)",
+      `count=${formulaCount}`,
+    );
+  }
+
+  // ═══ B — 行为门段(spawn 子进程命令链,61 runCmd 同款;T-62-23 固定链不选择性执行) ═
+  // e2e 命令统一 --retries=1:phase55-nav 为 STATE 已记录的负载噪音 flaky 文件
+  // (61-01 先例:个别用例红 → 隔离重跑判 flake;本机链式连跑时 52/55/61 面均观测到
+  // 跨 run 不重叠的环境红,基线源码复测同红——非 62 回归)。playwright retries 语义:
+  // 复现性红(重试仍红)→ exit 1 照红;单次环境红 → 记 flaky 后绿,reporter 全程留痕。
+  console.log("\n=== B 行为门: infinite-canvas build(dist 纪律) → phase62 三文件 e2e → 回归面五文件 e2e ===");
+  runCmd(
+    "B1 infinite-canvas build(dist 纪律: e2e 跑 build 产物非源码)",
+    "packages/infinite-canvas",
+    "npm run build",
+    3,
+  );
+  runCmd(
+    "B2 phase62-hierarchy e2e(8 用例)",
+    "packages/infinite-canvas",
+    "npx playwright test --retries=1 test/e2e/tests/phase62-hierarchy.mjs",
+    3,
+  );
+  runCmd(
+    "B3 phase62-selection e2e(7 用例)",
+    "packages/infinite-canvas",
+    "npx playwright test --retries=1 test/e2e/tests/phase62-selection.mjs",
+    3,
+  );
+  runCmd(
+    "B4 phase62-redundancy-config e2e(7 用例)",
+    "packages/infinite-canvas",
+    "npx playwright test --retries=1 test/e2e/tests/phase62-redundancy-config.mjs",
+    3,
+  );
+  runCmd(
+    "B5 回归 phase52-regen",
+    "packages/infinite-canvas",
+    "npx playwright test --retries=1 test/e2e/tests/phase52-regen.mjs",
+    3,
+  );
+  runCmd(
+    "B6 回归 phase52-reroll",
+    "packages/infinite-canvas",
+    "npx playwright test --retries=1 test/e2e/tests/phase52-reroll.mjs",
+    3,
+  );
+  runCmd(
+    "B7 回归 phase52-stale-panel",
+    "packages/infinite-canvas",
+    "npx playwright test --retries=1 test/e2e/tests/phase52-stale-panel.mjs",
+    3,
+  );
+  runCmd(
+    "B8 回归 phase55-nav",
+    "packages/infinite-canvas",
+    "npx playwright test --retries=1 test/e2e/tests/phase55-nav.mjs",
+    3,
+  );
+  runCmd(
+    "B9 回归 phase61-debt",
+    "packages/infinite-canvas",
+    "npx playwright test --retries=1 test/e2e/tests/phase61-debt.mjs",
+    3,
   );
 
-  // ═══ F — forced-failure 自检段(TODO stub: 62-07 wave-5 最终执行者补全) ══════
-  deferGate(
-    "F forced-failure 自检",
-    "前端常量表变异副本(删一键/改一 tier)必须使已导出的 checkKeyTablesEqual 判不等" +
-      "(锁与自检同源,T-62-22 假绿缓解);S1/S5 变异样本同式对 checkFrontendKeyProfile/checkTtsLockPair",
+  // ═══ F — forced-failure 自检段(T-62-22 门自身假绿缓解;61 F1-F3 形态) ════════
+  // 三个内存变异样本(不写任何真实文件)对各自检查函数必须判 false——锁与自检
+  // 同源(同一导出比较器),任一变异样本被判 true(锁恒真)→ 整门 exit 1。
+  console.log("\n=== Forced-failure self-check (gate can actually fail — expected FAILs below; 变异样本不写真实文件) ===");
+  const selfCheckShadow: { name: string; pass: boolean }[] = [];
+  const shadowAssert = (cond: boolean, name: string): void => {
+    selfCheckShadow.push({ name, pass: cond });
+    console.log(`  SELF-CHECK ${cond ? "UNEXPECTED-PASS" : "expected-FAIL ok"}: ${name}`);
+  };
+
+  // F1 变异: 删一键(前端表副本)——checkKeyTablesEqual 对「fe 缺键」必须判不等
+  const feMinusOne = FE_KEYS.filter((k) => k.phaseKey !== "p01_hook.topic_kernel");
+  shadowAssert(
+    checkKeyTablesEqual(feMinusOne, BE_KEYS).ok,
+    "F1 变异样本(删一键 p01_hook.topic_kernel)必须使 S3 checkKeyTablesEqual 判 false",
+  );
+
+  // F2 变异: 删 preCap1 键——checkFrontendKeyProfile 键数/preCap1 计数双破,必须判 false
+  const feMinusPreCap1 = FE_KEYS.filter((k) => k.phaseKey !== "p07_style.style_vector");
+  shadowAssert(
+    checkFrontendKeyProfile(feMinusPreCap1, FE_LOCKED).ok,
+    "F2 变异样本(删 preCap1 键 p07_style.style_vector)必须使 S1 checkFrontendKeyProfile 判 false",
+  );
+
+  // F3 变异: tts reason 删「钉死 1」关键词——checkTtsLockPair 必须判 false
+  const lockedMutant = {
+    tts: { phaseKey: FE_LOCKED.tts.phaseKey, reason: "TTS 首选即定（防铺轨污染）· pre 固定 1" },
+    reportAudit: FE_LOCKED.reportAudit,
+  };
+  shadowAssert(
+    checkTtsLockPair(lockedMutant, BE_LOCKED).ok,
+    "F3 变异样本(tts reason 钉死 1→固定 1)必须使 S5 checkTtsLockPair 判 false",
+  );
+
+  assert(
+    selfCheckShadow.length >= 3 && selfCheckShadow.every((r) => !r.pass),
+    "forced-failure self-check: 三个变异样本全部被对应比较器判 false(锁非恒真,门能红)",
+    `shadow: ${selfCheckShadow.filter((r) => r.pass).length}/${selfCheckShadow.length} unexpectedly passed`,
   );
 
   // ═══ Summary ═══════════════════════════════════════════════════════════════
   const passed = results.filter((r) => r.pass).length;
   const total = results.length;
   const failed = total - passed;
-  console.log(
-    `\n=== Summary: ${passed}/${total} S assertions passed, FAIL count = ${failed}, deferred B/F stubs = ${deferredSections.length} (skipped) ===`,
-  );
-  if (failed === 0 && deferredSections.length === 2) {
-    console.log("✅ Phase 62 verification PASSED (62-07 前置: S 静态锁 S1-S5 ✓; B/F deferred to 62-07 final executor — wave 5)");
+  console.log(`\n=== Summary: ${passed}/${total} assertions passed (S 静态锁 + B 行为门), FAIL count = ${failed} (self-check excluded) ===`);
+  if (failed === 0) {
+    console.log("✅ Phase 62 verification PASSED (S 静态锁 S1-S6 ✓ B 行为门 B1-B9 ✓ + forced-failure self-check ✓)");
     process.exit(0);
   } else {
     console.log("❌ Phase 62 verification FAILED");
