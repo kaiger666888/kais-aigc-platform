@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: 重生成闭环深化
 status: executing
-stopped_at: Completed 60-03-PLAN.md (Branch A 永久锁落地;下一步 60-04 e2e 四用例)
-last_updated: "2026-08-24T00:04:35.342Z"
+stopped_at: Completed 60-04-PLAN.md (D-09 四用例全绿+D-12 回归零红;下一步 60-05 probe-60-real+verify 门)
+last_updated: "2026-08-24T00:31:25.697Z"
 last_activity: 2026-08-24
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 13
-  completed_plans: 11
+  completed_plans: 12
   percent: 50
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-08-23)
 ## Current Position
 
 Phase: 60 (保存后面板保持) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-08-24
 
-Progress: [█████████░] 85%
+Progress: [█████████░] 92%
 
 ## Performance Metrics
 
@@ -76,6 +76,7 @@ Progress: [█████████░] 85%
 | Phase 60 P01 | 15min | 2 tasks | 3 files |
 | Phase 60 P02 | 6min | 2 tasks tasks | 7 files files |
 | Phase 60 P03 | 9min | 2 tasks | 3 files |
+| Phase 60 P04 | 19min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -145,6 +146,10 @@ Progress: [█████████░] 85%
 - [Phase 60]: 60-02 mock graph:saved 抑制旋钮退役(四处删),59 SC4 改走真实回声路径自然通过(全 5 用例绿)= rerun 保存真带 savedBy 的行为证明;59 Known Issue #1 角标复活竞态 reload 侧根因销案(D-08) — server.mjs/phase59-stale-cascade.mjs
 - [Phase 60]: 60-03 Branch A 逐字执行: warn 副作用置于 set() 更新器外(get() 预读锚态),重锚行 L442-447 字节级不变——serialize/adapter/canvasRelationalStore 三文件 diff 零(裁定如实性验收项)
 - [Phase 60]: 60-03 reloadAnchor 八 case 永久锁落地(D-03 warn 默认串+D-07 together-or-not-at-all+no-warn-spam 转移守卫+roundtrip-lock evt_ 子集单列非空先证);真机 --strict 门复跑 exit 0 三层零漂移,PANEL-02 id 稳定前提成立
+- [Phase 60]: 60-04 面板标题真值链勘正: wire data.label 不进 V3 标题链,标题源是 wire 顶层 phaseName(V2 §7 → migrate AssetNodeV3.phaseName → adapter data.label = phaseName||id);fixture 顶层带 phaseName 才有可区分标题 — phase60-panel-persist.mjs fixtureNode
+- [Phase 60]: 60-04 D-07 断言载体换真锚: selectedNodeIds 是 RF 瞬态镜像(onSelectionChange 在 setGraph 节点换血时被清空),重载后结构性必丢;对称真锚 = store.selectedNode(dblclick 双设 + setGraph L452/L455 相邻行同语义重锚) — main.tsx 桥增 getSelectedNode 只读 accessor(Rule 3)
+- [Phase 60]: 60-04 test4 采样前提补 exit 2: exit 1(down-1 rerun)后 mid-1/down-2 角标仍在画布(SC4 子集隔离语义),「全画布恒 0」不可满足;补 mid-1 角标点击(链子集 [mid-1,down-2])清完三条链再进 2500ms 采样窗,no-revival 覆盖两次 rerun 保存 — phase60-panel-persist.mjs(Rule 3)
+- [Phase 60]: 60-04 D-12 回归绿: 五文件(phase52 三件套 3+2+4 + phase59 全 5 + phase60 4)18/18 单次串行零红零 flake + 补充 phase58-recipe 8/8(共享 saveCanvasGraph/savedBy 通道);SC1-SC3 实时性断言未受 savedBy 改动影响 — 计划 verify 门;phase55-nav 噪音面未触碰
 
 ### Pending Todos
 
@@ -198,6 +203,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-24T00:04:35.333Z
-Stopped at: Completed 60-03-PLAN.md (Branch A 永久锁落地;下一步 60-04 e2e 四用例)
+Last session: 2026-08-24T00:31:25.688Z
+Stopped at: Completed 60-04-PLAN.md (D-09 四用例全绿+D-12 回归零红;下一步 60-05 probe-60-real+verify 门)
 Resume: `/gsd-execute-phase 60`（下一步 60-03 Branch A 永久锁 / 60-04 e2e 四用例;60-02 savedBy 机制面已落地）

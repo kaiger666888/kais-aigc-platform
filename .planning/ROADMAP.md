@@ -164,7 +164,7 @@ Plans:
 
 **Wave 3** *(blocked on 60-02 + 60-03)*
 
-- [ ] 60-04-PLAN.md — phase60-panel-persist.mjs 四用例 e2e(self-save silent / other-client symmetry / anchor-miss / no-revival) + D-12 全量回归(52 三件套+59 全部)
+- [x] 60-04-PLAN.md — phase60-panel-persist.mjs 四用例 e2e(self-save silent / other-client symmetry / anchor-miss / no-revival) + D-12 全量回归(52 三件套+59 全部)
 
 **Wave 4** *(blocked on 60-04)*
 
@@ -195,7 +195,7 @@ Phases execute in numeric order: 58 → 59 → 60 → 61 (60/61 parallel-safe if
 |-------|----------------|--------|-----------|
 | 58. 全配方持久化 | 4/4 | Complete    | 2026-08-23 |
 | 59. 窄触发 stale 级联 | 4/4 | Complete    | 2026-08-23 |
-| 60. 保存后面板保持 | 3/5 | In Progress|  |
+| 60. 保存后面板保持 | 4/5 | In Progress|  |
 | 61. 审计清债 TD-3/4/5 | 0/TBD | Not started | - |
 
 ## Requirement → Phase Coverage (13/13)
