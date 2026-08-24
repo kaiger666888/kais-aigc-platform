@@ -41,6 +41,13 @@ if (typeof window !== 'undefined' && new URLSearchParams(window.location.search)
     // 55-07:canonical graph 只读桥(placement 断言读 graph 节点 position——
     // rfNodes 的 position 是布局缓存,经 layoutFlowGraph 重算,非放置决策)。
     getGraph: () => useCanvasStore.getState().graph,
+    // 60-04 (D-09): 详情锚只读桥——e2e 面板保持/重锚断言读 store.detailNode 真值
+    // (同 id 重锚 / 诚实收起的 id 级证据面,56-06 openG16 同型 seam;testMode 门内零运行时影响)。
+    getDetailNode: () => useCanvasStore.getState().detailNode,
+    // 60-04 (D-07): 选中锚只读桥——selectedNodeIds 是 RF 瞬态镜像(onSelectionChange
+    // 在 setGraph 节点换血时被 RF 清空,FlowCanvas L621),对称断言须读 store.selectedNode
+    // 真锚(setGraph L452 与 detailNode 相邻行同语义重锚;testMode 门内零运行时影响)。
+    getSelectedNode: () => useCanvasStore.getState().selectedNode,
     // 56-06:scored 事件模拟(scored 死信修复链的 e2e 驱动面)
     emitScored: (nodeId: string, aiScore: unknown): void => {
       useCanvasStore.getState().applySocketScored(nodeId, aiScore)
