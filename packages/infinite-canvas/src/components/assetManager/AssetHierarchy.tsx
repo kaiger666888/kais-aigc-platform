@@ -8,14 +8,16 @@
  * 单组选定/取消/恢复走 assetHierarchy.ts 共享 handler（selectGroupWinner 含 D-05
  * 画布 best-effort 同步），与资产库同调用点（HIER-04）。
  * 数据源 useRealAssets 与资产库同一模块级缓存（同源计数）。
- * 冗余配置右栏（340px，toolbar「⚙ 冗余配置」）62-06 落——本 plan 栅格两列，
- * 不渲染第三列。批量决策条/组 checkbox/手动 chip（C4，D-06/D-07）62-05 已落。
+ * 冗余配置右栏（C8，340px，toolbar「⚙ 冗余配置」开合，默认收起）62-06 已落——
+ * 开时 .am-hier 栅格三列 220px 1fr 340px。批量决策条/组 checkbox/手动 chip（C4，
+ * D-06/D-07）62-05 已落（条位于 toolbar 与滚动区之间，不受第三列影响）。
  */
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useCanvasStore } from '../../store/canvasStore'
 import { useVariantPickerStore } from '../variants/variantPickerStore'
 import type { AssetDetail } from '../../services/canvasApi'
 import { resolveMediaUrl } from '../../utils/mediaUrl'
+import RedundancyConfigRail from './RedundancyConfigRail'
 import {
   assetPhaseOf,
   buildHierarchyModel,
@@ -61,6 +63,8 @@ export default function AssetHierarchy() {
   const rawOpenAssetDetail = useCanvasStore((s) => s.openAssetDetail)
   const showToast = useCanvasStore((s) => s.showToast)
   const projectId = useCanvasStore((s) => s.projectId)
+  // C8 冗余配置右栏数据 scope（Rail 拉取 GET generation-config 需要）。
+  const episodesId = useCanvasStore((s) => s.episodesId)
   // VG 徽标反查/定位需要画布图；订阅 graph 让徽标随画布变化即时刷新。
   const graph = useCanvasStore((s) => s.graph)
 
@@ -81,6 +85,8 @@ export default function AssetHierarchy() {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
   /** 域树节点折叠（C2 parent 节点；树无第三级，折叠仅收纳视觉态）。 */
   const [collapsedDomains, setCollapsedDomains] = useState<Set<AssetDomain>>(new Set())
+  /** C8 冗余配置右栏开合（UI-SPEC 默认收起；评审锚：初始 false）。 */
+  const [configOpen, setConfigOpen] = useState(false)
 
   // ── C4 批量决策 state（D-06/D-07，62-05） ──
   /** 组多选：选中组 key 集；≥1 时 toolbar 下方渲染批量条。 */
@@ -383,7 +389,10 @@ export default function AssetHierarchy() {
   )
 
   return (
-    <div className="am-hier" data-testid="hierarchy-view">
+    <div
+      className={`am-hier${configOpen ? ' am-hier--cfg' : ''}`}
+      data-testid="hierarchy-view"
+    >
       {/* ── L1 域导航树（C2；.am-tree 既有词汇原样） ── */}
       <aside className="am-tree">
         <div className="am-tree-group">
@@ -444,6 +453,13 @@ export default function AssetHierarchy() {
             data-testid="hier-collapse-all"
             onClick={() => setCollapsedGroups(new Set(visibleGroupKeys))}
           >折叠全部</button>
+          {/* C8 冗余配置右栏开关（62-06）：默认收起；开态同文案 + is-on。 */}
+          <button
+            className={`am-btn am-btn--ghost am-hier__config-toggle${configOpen ? ' is-on' : ''}`}
+            data-testid="config-toggle"
+            aria-expanded={configOpen}
+            onClick={() => setConfigOpen((v) => !v)}
+          >⚙ 冗余配置</button>
           <button
             className={`am-btn am-btn--ghost am-btn--refresh ${loading ? 'is-spinning' : ''}`}
             onClick={reload}
@@ -511,6 +527,10 @@ export default function AssetHierarchy() {
           )}
         </div>
       </div>
+
+      {/* ── C8 冗余配置右栏（62-06）：configOpen 时按需挂载（收起时零渲染）；
+          340px 第三列，数据 scope 取 store projectId/episodesId ── */}
+      {configOpen && <RedundancyConfigRail projectId={projectId} episodesId={episodesId} />}
     </div>
   )
 }

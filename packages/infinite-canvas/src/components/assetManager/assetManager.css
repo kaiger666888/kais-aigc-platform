@@ -770,3 +770,76 @@
 .am-hier__group-check input[type=checkbox]{accent-color:var(--cv-mod-image);cursor:pointer}
 /* D-07 手动组 chip：.am-badge 基底 + --cv-mod-audio 弱底（场景/声纹手动选择标注） */
 .am-hier__manual-chip{background:var(--cv-mod-audio-weak);color:var(--cv-mod-audio);cursor:default}
+
+/* ──────────────── C8 · 冗余配置右栏（62-06，HIER-03） ────────────────
+   .am-cfg-rail 列容器 + 行/divider + 来源角标 chip + 写徽标——全既有 --cv-* /
+   am-* 词汇（UI-SPEC Visual Language 表），零新全局 token；写徽标 600 字重
+   （Typography 表「600 for 写徽标」）。确定性派生档位 = 玫弱底警示；
+   来源角标 override 青 / requirement 金 / snapshot 中性 / legacy 虚线边。 */
+/* 开第三列：220px 1fr 340px（transition 缓入；栅格列数变化时浏览器按离散插值
+   呈现，rail 自带 am-cfg-in 滑入动画防跳变） */
+.am-hier--cfg{grid-template-columns:220px minmax(0,1fr) 340px;transition:grid-template-columns .18s ease}
+.am-hier__config-toggle.is-on{color:var(--cv-mod-image);border-color:rgba(86,184,154,.35);
+  background:var(--cv-mod-image-weak)}
+.am-cfg-rail{display:flex;flex-direction:column;min-height:0;min-width:0;background:var(--cv-bg-panel);
+  border-left:1px solid var(--cv-line-panel);overflow-y:auto;animation:am-cfg-in .18s ease-out}
+@keyframes am-cfg-in{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:none}}
+.am-cfg__head{display:flex;align-items:center;gap:8px;padding:12px 12px 8px;flex-wrap:wrap}
+/* 文件面状态码（requirement / legacy / not-found）——mono 灰 chip，非文案契约面 */
+.am-cfg__filestate{margin-left:auto;font-family:var(--cv-font-mono);font-size:9px;
+  color:var(--cv-text-tertiary);background:var(--cv-bg-overlay);padding:2px 7px;
+  border-radius:9px;white-space:nowrap;cursor:help}
+/* 列头行与配置行同栅格（阶段 | 档位 | pre | final；meta 行跨全列） */
+.am-cfg__cols{display:grid;grid-template-columns:minmax(0,1fr) 72px 56px 56px;gap:6px;
+  padding:0 12px 6px;border-bottom:1px solid var(--cv-line-panel);
+  font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--cv-text-tertiary)}
+.am-cfg__row{display:grid;grid-template-columns:minmax(0,1fr) 72px 56px 56px;gap:6px;
+  padding:8px 12px;border-bottom:1px solid var(--cv-line-canvas);align-items:start}
+.am-cfg__phase{display:flex;flex-direction:column;gap:1px;min-width:0}
+.am-cfg__label{font-size:12px;font-weight:500;color:var(--cv-text-primary);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.am-cfg__pkey{font-family:var(--cv-font-mono);font-size:9px;color:var(--cv-text-tertiary);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.am-cfg__note{font-size:9px;color:var(--cv-text-tertiary)}
+.am-cfg__tier{display:flex;flex-direction:column;gap:3px;align-items:flex-start}
+/* 确定性派生档位：玫弱底警示（UI-SPEC Color 表 destructive 位） */
+.am-cfg__tier-badge--det{color:var(--cv-mod-video);background:var(--cv-mod-video-weak)}
+.am-cfg__gpu-hint{font-size:11px;color:var(--cv-mod-video);cursor:help;line-height:1}
+.am-cfg__unwired{font-size:8.5px;color:var(--cv-text-tertiary);background:var(--cv-bg-overlay);
+  padding:1px 5px;border-radius:8px;white-space:nowrap;cursor:help}
+.am-cfg__cell{display:flex;flex-direction:column;gap:2px;align-items:flex-start;min-width:0}
+.am-cfg__input{width:100%;box-sizing:border-box;background:var(--cv-bg-card);
+  border:1px solid var(--cv-line-panel);border-radius:5px;padding:3px 5px;
+  color:var(--cv-text-primary);font-family:var(--cv-font-mono);font-size:11px}
+.am-cfg__input:focus{border-color:var(--cv-line-strong);outline:none}
+.am-cfg__input:disabled{opacity:.45;cursor:not-allowed}
+/* 来源角标四态 chip */
+.am-cfg__src{font-family:var(--cv-font-mono);font-size:8.5px;padding:1px 5px;border-radius:8px;
+  white-space:nowrap;cursor:help}
+.am-cfg__src--override{color:var(--cv-mod-image);background:var(--cv-mod-image-weak)}
+.am-cfg__src--requirement{color:var(--cv-mod-text);background:var(--cv-mod-text-weak)}
+.am-cfg__src--snapshot{color:var(--cv-text-tertiary);background:var(--cv-bg-overlay)}
+.am-cfg__src--legacy{color:var(--cv-text-tertiary);background:var(--cv-bg-overlay);
+  border:1px dashed var(--cv-line-strong)}
+/* 行内元信息（preCap1 reason / 钳制错误 / 未保存+保存 / 写徽标） */
+.am-cfg__meta{grid-column:1/-1;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.am-cfg__lock-reason{font-size:10px;color:var(--cv-text-tertiary)}
+.am-cfg__clamp-error{font-size:10px;color:var(--cv-mod-video)}
+.am-cfg__unsaved{font-size:10px;color:var(--cv-text-tertiary)}
+.am-cfg__save{padding:3px 10px;font-size:11px}
+/* 写徽标：.am-badge--ok（青）/--warn（玫）既有词汇 + 600 字重 */
+.am-cfg__write-badge{font-weight:600}
+/* 不可配折叠区（D-11）：整行 opacity .45 + not-allowed（同 .am-tree-node.is-empty 词汇）；
+   margin-top:auto 沉底 */
+.am-cfg__locked{margin-top:auto;padding:8px 12px 12px;border-top:1px solid var(--cv-line-panel)}
+.am-cfg__locked-summary{cursor:pointer;font-size:11px;color:var(--cv-text-tertiary);user-select:none}
+.am-cfg__locked-summary:hover{color:var(--cv-text-secondary)}
+.am-cfg__locked-row{display:flex;align-items:center;gap:10px;padding:6px 0;
+  opacity:.45;cursor:not-allowed}
+.am-cfg__locked-row + .am-cfg__locked-row{border-top:1px dashed var(--cv-line-canvas)}
+.am-cfg__lock-count{font-family:var(--cv-font-mono);font-size:9.5px;color:var(--cv-text-tertiary)}
+/* ≤880px rail 整宽下挂区（沿既有断点词汇；左树由全局 .am-tree 规则隐藏） */
+@media (max-width:880px){
+  .am-hier--cfg{grid-template-columns:1fr}
+  .am-cfg-rail{border-left:none;border-top:1px solid var(--cv-line-panel)}
+}
