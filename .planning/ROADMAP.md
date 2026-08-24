@@ -81,7 +81,7 @@ Audit: **passed** (305/305 verify assertions · 435/435 vitest · 3× tsc clean 
 
 - [x] **Phase 58: 全配方持久化 (Full Recipe Persistence)** — §14 窄通道扩展为全量高级字段进出 `EventNodeV3.params`:面板编辑/持久化/序列化往返/重生成请求体 + schema↔面板防漂移守护 (completed 2026-08-23)
 - [x] **Phase 59: 窄触发 stale 级联 (Narrow-Trigger Stale Cascade)** — 面板编辑重生成 + 换 seed 重跑两条路径按请求关联自动标下游 stale;编排/批量路径零影响(负向断言锁死) (completed 2026-08-23)
-- [ ] **Phase 60: 保存后面板保持 (Post-Save Panel Persistence)** — canvasStore reload 链保 `detailNode`,真机保存 200 后详情面板不收起,锚定语义等价
+- [x] **Phase 60: 保存后面板保持 (Post-Save Panel Persistence)** — canvasStore reload 链保 `detailNode`,真机保存 200 后详情面板不收起,锚定语义等价 (completed 2026-08-24)
 - [ ] **Phase 61: 审计清债 TD-3/4/5 (Audit Debt Clearance)** — placeNewAsset 活调用方 + reviewBridge 尾斜杠 307 消除 + buildMeta 5 字段读回 + node:created canonical-or-document
 
 **Architecture decisions (v3.1):**
@@ -168,7 +168,7 @@ Plans:
 
 **Wave 4** *(blocked on 60-04)*
 
-- [ ] 60-05-PLAN.md — verify:phase-60 聚合门(静态锁 FLAG-1/2/4 + 行为 + dispatch + forced-failure) + probe-60-real 零足迹真机探针(协议段回显契约 + 真浏览器段面板保持)
+- [x] 60-05-PLAN.md — verify:phase-60 聚合门(静态锁 FLAG-1/2/4 + 行为 + dispatch + forced-failure) + probe-60-real 零足迹真机探针(协议段回显契约 + 真浏览器段面板保持)
 
 **UI hint**: yes
 
@@ -195,7 +195,7 @@ Phases execute in numeric order: 58 → 59 → 60 → 61 (60/61 parallel-safe if
 |-------|----------------|--------|-----------|
 | 58. 全配方持久化 | 4/4 | Complete    | 2026-08-23 |
 | 59. 窄触发 stale 级联 | 4/4 | Complete    | 2026-08-23 |
-| 60. 保存后面板保持 | 4/5 | In Progress|  |
+| 60. 保存后面板保持 | 5/5 | Complete   | 2026-08-24 |
 | 61. 审计清债 TD-3/4/5 | 0/TBD | Not started | - |
 
 ## Requirement → Phase Coverage (13/13)

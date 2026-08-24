@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: 重生成闭环深化
-status: executing
-stopped_at: Completed 60-04-PLAN.md (D-09 四用例全绿+D-12 回归零红;下一步 60-05 probe-60-real+verify 门)
-last_updated: "2026-08-24T00:31:25.697Z"
+status: verifying
+stopped_at: Completed 60-05-PLAN.md (verify 门 16/16 + probe 真机 13/13 + D-12 复跑 18/18;Phase 60 全 5 plan 完成,ready for verification)
+last_updated: "2026-08-24T00:46:44.593Z"
 last_activity: 2026-08-24
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 13
-  completed_plans: 12
-  percent: 50
+  completed_plans: 13
+  percent: 75
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-08-23)
 
 Phase: 60 (保存后面板保持) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-08-24
 
-Progress: [█████████░] 92%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -77,6 +77,7 @@ Progress: [█████████░] 92%
 | Phase 60 P02 | 6min | 2 tasks tasks | 7 files files |
 | Phase 60 P03 | 9min | 2 tasks | 3 files |
 | Phase 60 P04 | 19min | 2 tasks | 2 files |
+| Phase 60 P05 | 11min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -150,6 +151,8 @@ Progress: [█████████░] 92%
 - [Phase 60]: 60-04 D-07 断言载体换真锚: selectedNodeIds 是 RF 瞬态镜像(onSelectionChange 在 setGraph 节点换血时被清空),重载后结构性必丢;对称真锚 = store.selectedNode(dblclick 双设 + setGraph L452/L455 相邻行同语义重锚) — main.tsx 桥增 getSelectedNode 只读 accessor(Rule 3)
 - [Phase 60]: 60-04 test4 采样前提补 exit 2: exit 1(down-1 rerun)后 mid-1/down-2 角标仍在画布(SC4 子集隔离语义),「全画布恒 0」不可满足;补 mid-1 角标点击(链子集 [mid-1,down-2])清完三条链再进 2500ms 采样窗,no-revival 覆盖两次 rerun 保存 — phase60-panel-persist.mjs(Rule 3)
 - [Phase 60]: 60-04 D-12 回归绿: 五文件(phase52 三件套 3+2+4 + phase59 全 5 + phase60 4)18/18 单次串行零红零 flake + 补充 phase58-recipe 8/8(共享 saveCanvasGraph/savedBy 通道);SC1-SC3 实时性断言未受 savedBy 改动影响 — 计划 verify 门;phase55-nav 噪音面未触碰
+- [Phase ?]: 60-05 Phase 60 收口: verify:phase-60 聚合门 16/16(S1-S7 静态锁含 FLAG-1 次序/FLAG-2 双向/FLAG-4 零命中 + B 行为门 + D dispatch exit2→WARN 分级 + F 三变异样本 0/3 unexpectedly passed 锁可失败证明)+ probe-60-real 真机 13/13(savedBy 回显双断言/浏览器段面板保持+静默+零 reload/净足迹 0) — PANEL-01/PANEL-02 validated
+- [Phase ?]: 60-05 D 段 WARN 分级契约: diagnose --strict exit 2(环境 SKIP)计 WARN 不计 FAIL+SUMMARY 补验提示——不假绿不硬红;F 段锁与自检同源(checkFlag 纯函数跑内存变异样本,不写盘)
 
 ### Pending Todos
 
@@ -203,6 +206,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-24T00:31:25.688Z
-Stopped at: Completed 60-04-PLAN.md (D-09 四用例全绿+D-12 回归零红;下一步 60-05 probe-60-real+verify 门)
+Last session: 2026-08-24T00:46:44.585Z
+Stopped at: Completed 60-05-PLAN.md (verify 门 16/16 + probe 真机 13/13 + D-12 复跑 18/18;Phase 60 全 5 plan 完成,ready for verification)
 Resume: `/gsd-execute-phase 60`（下一步 60-03 Branch A 永久锁 / 60-04 e2e 四用例;60-02 savedBy 机制面已落地）

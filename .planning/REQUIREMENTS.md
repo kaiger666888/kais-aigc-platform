@@ -22,8 +22,8 @@
 
 ### PANEL — 保存后面板保持
 
-- [ ] **PANEL-01**: 真机后端保存 200 后详情面板保持打开,不因 graph:saved 整图重载收起
-- [ ] **PANEL-02**: 重载恢复的面板锚定与保存前语义等价(同一资产/同一事件锚)
+- [x] **PANEL-01**: 真机后端保存 200 后详情面板保持打开,不因 graph:saved 整图重载收起
+- [x] **PANEL-02**: 重载恢复的面板锚定与保存前语义等价(同一资产/同一事件锚)
 
 ### DEBT — 审计清债 (TD-3/4/5)
 
@@ -73,8 +73,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | STALE-01 | Phase 59 | Complete |
 | STALE-02 | Phase 59 | Complete |
 | STALE-03 | Phase 59 | Complete |
-| PANEL-01 | Phase 60 | Pending |
-| PANEL-02 | Phase 60 | Pending |
+| PANEL-01 | Phase 60 | Complete |
+| PANEL-02 | Phase 60 | Complete |
 | DEBT-01 | Phase 61 | Pending |
 | DEBT-02 | Phase 61 | Pending |
 | DEBT-03 | Phase 61 | Pending |
