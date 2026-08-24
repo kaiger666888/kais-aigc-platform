@@ -32,7 +32,7 @@
 - Integer phases (42-47): v2.0 (shipped)
 - Integer phases (48-50): v2.1 (shipped)
 - Integer phases (51-57): v3.0 (shipped 2026-08-22 — audit passed; Phase 52 externally owned, code-on-master, user-accepted)
-- Integer phases (58-61): **v3.1 (current)**
+- Integer phases (58-62): **v3.1 (current)**
 - Decimal phases (e.g., 58.1): Urgent insertions
 
 Decimal phases appear between their surrounding integers in numeric order.
@@ -82,7 +82,8 @@ Audit: **passed** (305/305 verify assertions · 435/435 vitest · 3× tsc clean 
 - [x] **Phase 58: 全配方持久化 (Full Recipe Persistence)** — §14 窄通道扩展为全量高级字段进出 `EventNodeV3.params`:面板编辑/持久化/序列化往返/重生成请求体 + schema↔面板防漂移守护 (completed 2026-08-23)
 - [x] **Phase 59: 窄触发 stale 级联 (Narrow-Trigger Stale Cascade)** — 面板编辑重生成 + 换 seed 重跑两条路径按请求关联自动标下游 stale;编排/批量路径零影响(负向断言锁死) (completed 2026-08-23)
 - [x] **Phase 60: 保存后面板保持 (Post-Save Panel Persistence)** — canvasStore reload 链保 `detailNode`,真机保存 200 后详情面板不收起,锚定语义等价 (completed 2026-08-24)
-- [ ] **Phase 61: 审计清债 TD-3/4/5 (Audit Debt Clearance)** — placeNewAsset 活调用方 + reviewBridge 尾斜杠 307 消除 + buildMeta 5 字段读回 + node:created canonical-or-document
+- [x] **Phase 61: 审计清债 TD-3/4/5 (Audit Debt Clearance)** — placeNewAsset 活调用方 + reviewBridge 尾斜杠 307 消除 + buildMeta 5 字段读回 + node:created canonical-or-document (completed 2026-08-24)
+- [ ] **Phase 62: 资产管理中心资产层级与选定逻辑 (Asset Hierarchy & Selection)** — 三层资产层级视图(阶段/类型→候选组→候选) + 层级化选定逻辑 + 画布内 pre/final 冗余配置入口(2026-08-24 /goal 扩入;改动仍限 kap 仓画布侧,kmc 仓配合面由 khs v2.5 处理)
 
 **Architecture decisions (v3.1):**
 
@@ -196,21 +197,38 @@ Plans:
 
 **Wave 2** *(blocked on 61-01..04 — 收口门 + 销账)*
 
-- [ ] 61-05-PLAN.md — verify:phase-61 聚合门(S1-S5 静态锁 + B 行为门 + F forced-failure,零 live probe)+ D-04 销账(REQUIREMENTS 勾选 + Traceability)
+- [x] 61-05-PLAN.md — verify:phase-61 聚合门(S1-S5 静态锁 + B 行为门 + F forced-failure,零 live probe)+ D-04 销账(REQUIREMENTS 勾选 + Traceability)
+
+### Phase 62: 资产管理中心资产层级与选定逻辑 (Asset Hierarchy & Selection)
+
+**Goal**: 资产管理中心获得显式资产层级——按「管线阶段/资产类型 → 候选组(variant group) → 候选」三层组织资产库,层级间可折叠导航、层内计数聚合(每组选定/待选/淘汰);选定逻辑升级为层级化(组内 winner 选定既有闭环之上提供层级批量决策入口与聚合态展示);新增画布内 pre/final 冗余配置入口(读 kmc generation_config 键面矩阵 + 编辑写入,写入侧契约 discuss 定夺)。2026-08-24 /goal 扩入 phase——资产管理是画布创作闭环「选」面的深化,与 v3.1 主题一致。
+**Depends on**: Nothing hard within v3.1(资产管理域与 58-61 债务域文件正交);软依赖 khs(kais-hermes-skills) v2.5 冗余全域化——配置入口的键面契约以 kmc v2.5 交付的 42 节点可配性矩阵为准,UI 可先行以矩阵快照为契约开发,键面漂移由 e2e 契约测试暴露
+**Requirements**: HIER-01, HIER-02, HIER-03, HIER-04, HIER-05
+**Success Criteria** (what must be TRUE):
+
+  1. 资产管理中心呈现三层层级视图(阶段/资产类型 → 候选组 → 候选),复用既有 `variantGroupId` 分组语义不另造第二套分组;层间可折叠,每层有选定/待选/淘汰计数聚合;42 节点口径下无组资产(单产物)亦有明确层级挂载位。
+  2. 选定逻辑层级化:组内 winner 选定走既有 select-winner 事务闭环(不复制粘贴第二套);其上提供层级聚合的批量决策入口(如按资产类型批量选定/批量淘汰,形态 discuss 定夺);DAG 管线 `has-candidates` 待决策提示与层级视图计数一致不回归。
+  3. 画布内冗余配置入口:资产层级视图/节点详情可查每资产类型的 pre/final(n_candidates/final_candidates)当前值(读侧)且可编辑(写侧);写入通道契约 discuss 定夺(kap project config 落地 vs kmc requirement.json 同步通道 vs 两段式)并成文;键面覆盖 kmc v2.5 全域化矩阵,未支持键显式标注不可配原因而不是隐藏。
+  4. 既有三态流转零回归:AssetLibrary 分组互斥、取消选定恢复、场景/声纹手动选定规则、G13 首尾分选在层级视图下语义保持(负向断言/e2e 锁死)。
+  5. e2e 覆盖三条新链路(层级导航 / 层级化选定 / 冗余配置读+写)+ 既有资产管理 e2e 全量回归零破坏。
+
+**Plans**: TBD (via plan-phase)
+**UI hint**: yes
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 58 → 59 → 60 → 61 (60/61 parallel-safe if ever needed)
+Phases execute in numeric order: 58 → 59 → 60 → 61 → 62 (60/61/62 parallel-safe if ever needed)
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 58. 全配方持久化 | 4/4 | Complete    | 2026-08-23 |
 | 59. 窄触发 stale 级联 | 4/4 | Complete    | 2026-08-23 |
 | 60. 保存后面板保持 | 5/5 | Complete    | 2026-08-24 |
-| 61. 审计清债 TD-3/4/5 | 4/5 | In Progress|  |
+| 61. 审计清债 TD-3/4/5 | 5/5 | Complete   | 2026-08-24 |
+| 62. 资产层级与选定逻辑 | 0/? | Not Started |  |
 
-## Requirement → Phase Coverage (13/13)
+## Requirement → Phase Coverage (18/18)
 
 | Phase | Requirements |
 |---|---|
@@ -218,6 +236,7 @@ Phases execute in numeric order: 58 → 59 → 60 → 61 (60/61 parallel-safe if
 | 59 | STALE-01, STALE-02, STALE-03 |
 | 60 | PANEL-01, PANEL-02 |
 | 61 | DEBT-01, DEBT-02, DEBT-03, DEBT-04 |
+| 62 | HIER-01, HIER-02, HIER-03, HIER-04, HIER-05 |
 
 ## Deferred (out of v3.1 scope — see REQUIREMENTS.md)
 

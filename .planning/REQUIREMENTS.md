@@ -32,6 +32,14 @@
 - [x] **DEBT-03**: `buildMeta` 读回 5 个持久化字段(emotion/promptMeta/murchGrade/archetype/viewAngle),save→reload meta 往返保真 (51-REVIEW I1)
 - [x] **DEBT-04**: `node:created` 写入 canonical graph(V3 资产构造)或显式文档化为 ephemeral 并留守护注释 (51-REVIEW I5)
 
+### HIER — 资产管理中心资产层级与选定逻辑 (2026-08-24 /goal 扩入)
+
+- [ ] **HIER-01**: 资产管理中心三层资产层级视图——阶段/资产类型 → 候选组(variantGroupId 语义) → 候选;层间折叠导航 + 每层选定/待选/淘汰计数聚合;单产物(无组)资产有明确挂载位
+- [ ] **HIER-02**: 选定逻辑层级化——组内 winner 走既有 select-winner 事务闭环;层级聚合批量决策入口(形态 discuss 定夺);DAG `has-candidates` 计数与层级视图一致
+- [ ] **HIER-03**: 画布内 pre/final 冗余配置入口——读侧展示各资产类型 n_candidates/final_candidates 当前值,写侧可编辑;写入通道契约 discuss 定夺并成文;键面覆盖 kmc v2.5 全域矩阵,不可配键显式标注原因
+- [ ] **HIER-04**: 三态流转零回归——分组互斥/取消选定恢复/场景声纹手动规则/G13 首尾分选在层级视图下语义保持(负向断言锁死)
+- [ ] **HIER-05**: e2e 三链路(层级导航/层级化选定/冗余配置读写)+ 既有资产管理 e2e 全量零回归
+
 ## Future Requirements
 
 Deferred. Tracked but not in current roadmap.
@@ -79,3 +87,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEBT-02 | Phase 61 | Complete |
 | DEBT-03 | Phase 61 | Complete |
 | DEBT-04 | Phase 61 | Complete |
+| HIER-01 | Phase 62 | In Progress |
+| HIER-02 | Phase 62 | In Progress |
+| HIER-03 | Phase 62 | In Progress |
+| HIER-04 | Phase 62 | In Progress |
+| HIER-05 | Phase 62 | In Progress |
