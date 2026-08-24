@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: 重生成闭环深化
-status: ready_to_plan
-stopped_at: Phase 60 complete (5/5) — ready to discuss Phase 61
-last_updated: 2026-08-24T01:33:10.320Z
-last_activity: 2026-08-24
+status: executing
+stopped_at: Completed 60-05-PLAN.md (verify 门 16/16 + probe 真机 13/13 + D-12 复跑 18/18;Phase 60 全 5 plan 完成,ready for verification)
+last_updated: "2026-08-24T05:01:12.091Z"
+last_activity: 2026-08-24 -- Phase 61 planning complete
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 13
+  total_plans: 18
   completed_plans: 13
-  percent: 75
+  percent: 72
 ---
 
 # Project State
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-08-23)
 
 Phase: 61
 Plan: Not started
-Status: Ready to plan
-Last activity: 2026-08-24
+Status: Ready to execute
+Last activity: 2026-08-24 -- Phase 61 planning complete
 
 Progress: [██████████] 100%
 
