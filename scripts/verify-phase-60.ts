@@ -237,6 +237,14 @@ async function main(): Promise<void> {
     );
   }
 
+  // S9 CR-02(review-60): requestNodeScore 拆信封返回 json.data.score 本体。
+  // 旧版 `apiCall<any>` 把整 envelope({code,data,message})当返回值,UI 读
+  // score.overall 恒 undefined(「总分 undefined」)且污染 node.data.aiScore。
+  assert(
+    canvasApiSrc.includes("json.data.score"),
+    "S9 CR-02: canvasApi.requestNodeScore 拆信封返回 json.data.score(非整 envelope)",
+  );
+
   // ═══ B — 行为门段(spawn 子进程) ══════════════════════════════════════════
   console.log("\n=== B 行为门: 根 tsc / reloadAnchor vitest / canvas build(dist 纪律) / phase60 e2e 四用例 ===");
   runCmd("root tsc --noEmit", ".", "npx tsc --noEmit", 2);

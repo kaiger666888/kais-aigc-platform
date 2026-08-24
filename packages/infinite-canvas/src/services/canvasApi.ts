@@ -593,13 +593,39 @@ export async function gateOps(
   return json.data
 }
 
+/** AI 评分结果(score 路由 data.score 本体;VariantWall 等消费方读 aiScore.overall)。 */
+export interface NodeScoreResult {
+  overall: number
+  quality: number
+  aesthetic: number
+  storyConsistency: number
+  promptAdherence: number
+  emotionImpact: number
+  reasoning?: string
+}
+
 export async function requestNodeScore(
   projectId: number,
   episodesId: number,
   nodeId: string,
   cancelToken?: CancelToken,
-): Promise<{ overall: number; quality: number; aesthetic: number; storyConsistency: number; promptAdherence: number; emotionImpact: number; reasoning?: string }> {
-  return await apiCall<any>('/canvas/review/score', { projectId, episodesId, nodeId }, { cancelToken, timeout: 60000 })
+): Promise<NodeScoreResult> {
+  // CR-02(review-60): 返回信封内 data.score 本体,非 apiCall 整 envelope。旧版
+  // `apiCall<any>` 把 {code,data,message} 整信封交回,调用方读 score.overall 恒
+  // undefined(UI「总分 undefined」),且 envelope 污染 node.data.aiScore 下游
+  // (VariantWall 读 aiScore.overall/dimensions)。移除 any 让形状错配在边界暴露。
+  const json = await apiCall<{ code: number; data?: { score?: NodeScoreResult }; msg?: string }>(
+    '/canvas/review/score',
+    { projectId, episodesId, nodeId },
+    { cancelToken, timeout: 60000 },
+  )
+  const score = json.data?.score
+  if (score == null) {
+    // apiCall 对 code 404(资产/分镜不存在)原样透传信封不抛错——统一转
+    // business 错误交调用方 catch → toast「评分失败」。
+    throw new ApiError(json.msg || '评分失败', 'business', json.code)
+  }
+  return score
 }
 
 // ─── Canvas Health (兜底轮询) ───────────────────────────────
