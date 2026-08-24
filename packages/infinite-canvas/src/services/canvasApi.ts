@@ -219,6 +219,11 @@ export interface AssetDetail {
   imageState: string | null
   imageModel: string | null
   resolution: string | null
+  /**
+   * 62-05 UI-GREY-1 裁定：服务端 search select('a.*') 已透传 o_assets.createdAt；
+   * 批量选定 winner 规则的『最新』排序键首位，未来 updated_at 列落地后前移。
+   */
+  createdAt?: number | null
 }
 
 /**
