@@ -138,9 +138,18 @@ test.describe('phase61-debt 拖入清偿', () => {
     // (合成面不依赖卡片存活;真实面 dragend 仍发,视图已切不回 assets)
     await dropOnPane(page, 700, 400)
 
+    // WR-03(review-61): 第二次 POST 完成门——dropOnPane 返回只保证浏览器 fetch 已
+    // 发起,getCalls 走 page.request 独立连接,与浏览器 fetch 无 happens-before 保证;
+    // 立即读数在 CPU 抖动下可为 1。先 poll 到恰 2 条再读明细断言(用例 1 的
+    // graph-poll 门同理——以副作用收口,不赌请求竞速)。
+    await expect
+      .poll(async () => (await getCalls(page))
+        .filter((c) => c.method === 'POST' && c.path === '/api/canvas/v2/nodes/').length,
+        { timeout: 10_000 })
+      .toBe(2)
     // 该路由恰 2 条调用记录(顺序即时间;mock 不记 response,以副作用断言)
-    const calls = await getCalls(page)
-    const nodeCalls = calls.filter((c) => c.method === 'POST' && c.path === '/api/canvas/v2/nodes/')
+    const nodeCalls = (await getCalls(page))
+      .filter((c) => c.method === 'POST' && c.path === '/api/canvas/v2/nodes/')
     expect(nodeCalls.length).toBe(2)
     expect(nodeCalls[0].body.nodeId).toBe('asset-90001')
     expect(nodeCalls[1].body.nodeId).toBe('asset-90001')
