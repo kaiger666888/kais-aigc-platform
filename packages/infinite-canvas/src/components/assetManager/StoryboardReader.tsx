@@ -13,6 +13,22 @@ import { useMemo, useState } from 'react'
 import { resolveMediaUrl } from '../../utils/mediaUrl'
 import type { AssetItem } from './assetManagerData'
 
+/** P09 shot-list 正文（canvas_sync._merge_shot_script 并入）。 */
+interface ShotScript {
+  intent?: string
+  shot_intent?: string
+  video_prompt?: string
+  dialogue_text?: string
+  dialogue_note?: string
+  pacing?: string
+  composition?: string
+  audio_design?: string
+  camera_move_motivation?: string
+  lighting_layers?: string
+  atmosphere_lock?: string
+  narrative_justification?: string
+}
+
 interface BoardShot {
   shot_id: string
   thumbnail?: string | null
@@ -27,6 +43,7 @@ interface BoardShot {
   emotion?: string
   action_note?: string
   preview_clip?: string | null
+  script?: ShotScript
 }
 
 interface BoardScene {
@@ -56,6 +73,11 @@ function parseBoard(meta: string | null | undefined): Board | null {
 /** meta 是否携带可渲染的 board 结构（AssetDetail 决定走阅读器还是常规布局）。 */
 export function hasBoard(meta: string | null | undefined): boolean {
   return parseBoard(meta) != null
+}
+
+/** 任一镜携带 shot 正文（决定是否显示「尚未导入」脚注）。 */
+function hasAnyScript(board: Board): boolean {
+  return board.scenes!.some((sc) => sc.shots.some((sh) => sh.script && Object.keys(sh.script).length > 0))
 }
 
 /** Shot 竖排场记板条：S01 小字 / B01 大字 / → 转场出点。 */
@@ -88,29 +110,46 @@ function ShotThumb({ src }: { src: string }) {
 }
 
 function ShotRow({ shot }: { shot: BoardShot }) {
+  const sc = shot.script || {}
   const fields: Array<[string, string]> = ([
     ['景别', shot.framing || shot.shot_scale || ''],
-    ['运镜', shot.camera_motion || ''],
+    ['运镜', shot.camera_motion || sc.camera_move_motivation || ''],
     ['时长', shot.duration_sec ? `${shot.duration_sec}s` : ''],
+    ['节奏', sc.pacing || ''],
     ['情绪', shot.emotion || ''],
     ['人物', Array.isArray(shot.characters) ? shot.characters.join(' / ') : ''],
     ['动作', shot.action_note || ''],
   ] as Array<[string, string]>).filter(([, v]) => v)
-  const dlg = shot.dialogue_summary || ''
+  // 对白优先正文（dialogue_text 全量），回退板级摘要。
+  const dlg = sc.dialogue_text || shot.dialogue_summary || ''
   return (
     <div className="am-sb-shot">
       <Slate shot={shot} />
       <ShotThumb src={shot.thumbnail || ''} />
       <div className="am-sb-shot__fields">
+        {sc.intent || sc.shot_intent ? (
+          <p className="am-sb-f am-sb-f--intent">{sc.intent || sc.shot_intent}</p>
+        ) : null}
         {fields.map(([k, v]) => (
           <div className="am-sb-f" key={k}>
             <span className="am-sb-f__k">{k}</span>
             <span className="am-sb-f__v">{v}</span>
           </div>
         ))}
+        {sc.composition ? (
+          <div className="am-sb-f">
+            <span className="am-sb-f__k">构图</span>
+            <span className="am-sb-f__v">{sc.composition}</span>
+          </div>
+        ) : null}
       </div>
       <div className="am-sb-shot__dlg">
-        {dlg ? <p>{dlg}</p> : <p className="am-sb-shot__dlg--none">无对白（音效驱动）</p>}
+        {dlg ? (
+          <p>{dlg}{sc.dialogue_note ? <i className="am-sb-dlg-note">{sc.dialogue_note}</i> : null}</p>
+        ) : (
+          <p className="am-sb-shot__dlg--none">无对白（音效驱动）</p>
+        )}
+        {sc.audio_design ? <p className="am-sb-dlg-sound">{sc.audio_design}</p> : null}
         {shot.preview_clip ? (
           <a
             className="am-sb-shot__clip"
@@ -120,6 +159,12 @@ function ShotRow({ shot }: { shot: BoardShot }) {
           >🎞 预览片段</a>
       ) : null}
       </div>
+      {sc.video_prompt ? (
+        <details className="am-sb-shot__vp">
+          <summary>video_prompt</summary>
+          <p>{sc.video_prompt}</p>
+        </details>
+      ) : null}
     </div>
   )
 }
@@ -160,9 +205,11 @@ export default function StoryboardReader({
         </section>
       ))}
 
-      <p className="am-sb-foot">
-        镜头级正文（video_prompt / 声音设计）在分镜分解产物中，尚未导入资产库 —— 当前为板级视图。
-      </p>
+      {hasAnyScript(board) ? null : (
+        <p className="am-sb-foot">
+          镜头级正文（video_prompt / 声音设计）在分镜分解产物中，尚未导入资产库 —— 当前为板级视图。
+        </p>
+      )}
     </div>
   )
 }

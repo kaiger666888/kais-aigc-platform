@@ -718,3 +718,16 @@
   .am-sb-thumb{width:100%;grid-column:2}
   .am-sb-shot__fields,.am-sb-shot__dlg{grid-column:2}
 }
+
+/* 镜级正文（shot.script）：意图行 / 对白注 / 声音 / video_prompt 折叠 */
+.am-sb-f--intent{font-size:12.5px;color:var(--cv-text-secondary);margin:0 0 2px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.am-sb-dlg-note{display:block;font-style:normal;font-size:11px;color:var(--cv-text-tertiary);margin-top:2px}
+.am-sb-dlg-sound{border-left-color:var(--cv-line-strong)!important;
+  color:var(--cv-text-tertiary)!important;font-size:11.5px!important}
+.am-sb-shot__vp{grid-column:1/-1;border-top:1px dashed var(--cv-line-panel);padding-top:6px}
+.am-sb-shot__vp summary{cursor:pointer;font-family:var(--cv-font-mono);font-size:10.5px;
+  color:var(--cv-text-tertiary);letter-spacing:.5px}
+.am-sb-shot__vp summary:hover{color:var(--cv-mod-text)}
+.am-sb-shot__vp p{font:11.5px/1.8 var(--cv-font-mono);color:var(--cv-text-tertiary);
+  white-space:pre-wrap;word-break:break-all;margin:6px 0 0}
