@@ -212,7 +212,30 @@ Plans:
   4. 既有三态流转零回归:AssetLibrary 分组互斥、取消选定恢复、场景/声纹手动选定规则、G13 首尾分选在层级视图下语义保持(负向断言/e2e 锁死)。
   5. e2e 覆盖三条新链路(层级导航 / 层级化选定 / 冗余配置读+写)+ 既有资产管理 e2e 全量回归零破坏。
 
-**Plans**: TBD (via plan-phase)
+**Plans**: 7 (via plan-phase)
+Plans:
+**Wave 1** *(62-01/02/03 并行,文件零交叠)*
+
+- [ ] 62-01-PLAN.md — 共享地基: groupCanvasLinkage 提取(双前缀反查/判定式单套)+ generationConfigKeys 键面常量(runner 实码 11+3+18 口径)+ 纯函数单测
+- [ ] 62-02-PLAN.md — 服务端: generation_config_overrides 表(PK 三列)+ store CRUD + generation-config 路由(GET 三源合并/PUT 两段式 + requirement.json best-effort 三态 writeState)+ node:test
+- [ ] 62-03-PLAN.md — mock 扩面: PATCH assets-registry/select-winner/generation-config mock + rich search preset(默认字节等价 61 fixture)
+
+**Wave 2** *(blocked on 62-01)*
+
+- [ ] 62-04-PLAN.md — 层级视图 UI: 第 5 Tab「资产层级」(域树/组卡/计数芯片/单件桶/双徽标)+ selectGroupWinner 共享提取(D-05 单组全语义+fire-and-forget)+ renderAssetCard 模式参数化
+
+**Wave 3** *(blocked on 62-04)*
+
+- [ ] 62-05-PLAN.md — 层级化选定: C4 批量决策(arm-confirm)/场景声纹手动规则/winner mtime-最新规则(单组 auto-init 同步升级)/createdAt 透传(UI-GREY-1)
+
+**Wave 4** *(blocked on 62-02/04/05)*
+
+- [ ] 62-06-PLAN.md — 冗余配置 UI: C8 rail(三源角标/钳制双道/写徽标三态/锁定区 19 键口径)+ 层级视图第三栏挂载
+
+**Wave 5** *(blocked on 62-02/03/04/05/06)*
+
+- [ ] 62-07-PLAN.md — e2e 三文件(层级/选定/冗余配置,D-04 跨源契约+D-05 勿断 applied:true+D-12 键面契约)+ 全量回归(52/55/61)+ verify-phase-62 聚合门(S/B/F)
+
 **UI hint**: yes
 
 ## Progress
@@ -226,7 +249,7 @@ Phases execute in numeric order: 58 → 59 → 60 → 61 → 62 (60/61/62 parall
 | 59. 窄触发 stale 级联 | 4/4 | Complete    | 2026-08-23 |
 | 60. 保存后面板保持 | 5/5 | Complete    | 2026-08-24 |
 | 61. 审计清债 TD-3/4/5 | 5/5 | Complete   | 2026-08-24 |
-| 62. 资产层级与选定逻辑 | 0/? | Not Started |  |
+| 62. 资产层级与选定逻辑 | 0/7 | Planning Complete |  |
 
 ## Requirement → Phase Coverage (18/18)
 
