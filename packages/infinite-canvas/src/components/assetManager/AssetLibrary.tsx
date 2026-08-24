@@ -41,6 +41,7 @@ import {
 // 资产库与资产层级两视图同调用点（HIER-04：单组行为两路径一致）。
 import {
   deselectAsset,
+  pickLatestActive,
   restoreAsset,
   selectGroupWinner,
 } from './assetHierarchy'
@@ -588,7 +589,10 @@ export default function AssetLibrary() {
       const hasPrimary = activeGroup.some((d) => !!d.isPrimaryView)
       // 场景/声纹不自动选定——豁免判定走共享导出（62-01 提取，式不变）。
       if (!hasPrimary && activeGroup.length > 0 && !isSceneGroup(activeGroup) && !isVoiceGroup(activeGroup)) {
-        needsInit.push(activeGroup[0].id)
+        // 62-05 D-06：自动初始化取首 → 最新非淘汰（升级为批量选定同规则；
+        // HIER-04 回归锚收窄为「每组仍恰一 winner」——checker FLAG 3，62-07 e2e 以此断言）。
+        // pickLatestActive 对非空 activeGroup 恒非 null（外层已判 activeGroup.length > 0）。
+        needsInit.push(pickLatestActive(activeGroup)!.id)
       }
     }
 
