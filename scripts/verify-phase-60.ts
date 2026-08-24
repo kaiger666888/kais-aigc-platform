@@ -241,8 +241,8 @@ async function main(): Promise<void> {
   // 旧版 `apiCall<any>` 把整 envelope({code,data,message})当返回值,UI 读
   // score.overall 恒 undefined(「总分 undefined」)且污染 node.data.aiScore。
   assert(
-    canvasApiSrc.includes("json.data.score"),
-    "S9 CR-02: canvasApi.requestNodeScore 拆信封返回 json.data.score(非整 envelope)",
+    canvasApiSrc.includes("json.data?.score"),
+    "S9 CR-02: canvasApi.requestNodeScore 拆信封返回 json.data?.score(非整 envelope)",
   );
 
   // S10 WR-01(review-60): diagnose save-v2 失败时层1/层1锚点显式 SKIP——旧版
