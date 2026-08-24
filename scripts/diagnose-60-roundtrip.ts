@@ -265,44 +265,49 @@ async function main(): Promise<number> {
       adaptedC = adaptV2Graph(wire)
     } else {
       const sv = await saveV2(scopePid, scopeEid, wire)
-      if (sv.status === 200 && sv.json?.code === 200) {
-        probeWrote = true // CR-01: wire 已落库——finally 按原图恢复
-      }
       if (sv.status !== 200 || sv.json?.code !== 200) {
-        note("roundtrip save-v2", false, `HTTP ${sv.status} code=${sv.json?.code}: ${JSON.stringify(sv.json).slice(0, 200)}——wire 未落库,后续层 diff 按失败计`)
+        // WR-01(review-60): save 失败 → wire 未落库,后续 loadC 读到的只是未
+        // 触碰的服务器态——旧版仍照跑层1 diff/锚点抽检,层1 会 vacuous PASS
+        // (误导性「服务端重组稳定性 PASS」)或把并发写 spuriously FAIL 误归因
+        // 「服务端漂移」。现显式 SKIP 层1;层2/3 由 serverLayerAvailable 门控
+        // 一并跳过(失败已 note FAIL 记账:strict → exit 1,非 strict 如实打印
+        // 保持既有契约)。
+        note("roundtrip save-v2", false, `HTTP ${sv.status} code=${sv.json?.code}: ${JSON.stringify(sv.json).slice(0, 200)}——wire 未落库,层1/层1锚点显式 SKIP(save 未成功不空跑服务器层 diff)`)
         serverLayerAvailable = false
-        adaptedC = adaptedA // 未落库:无 C 可比,保持引用以跳过层 diff 空跑
-      }
-      const lc = await loadV2(scopePid, scopeEid)
-      if (lc.status !== 200 || lc.json?.code !== 200) {
-        note("roundtrip load-v2(C)", false, `HTTP ${lc.status} code=${lc.json?.code}`)
-        adaptedC = adaptedA
-        serverLayerAvailable = false
+        adaptedC = adaptedA // 未落库:无 C 可比,层 diff 全跳过
       } else {
-        const loadC = lc.json.data as V2GraphLike
-        lastKnownServer = loadC // CR-01: 刷新恢复守卫基准(自家写后的已观测服务器态)
-        adaptedC = adaptV2Graph(loadC)
-        const cIds = idSet(loadC.nodes)
+        probeWrote = true // CR-01: wire 已落库——finally 按原图恢复
+        const lc = await loadV2(scopePid, scopeEid)
+        if (lc.status !== 200 || lc.json?.code !== 200) {
+          note("roundtrip load-v2(C)", false, `HTTP ${lc.status} code=${lc.json?.code}——层1/层1锚点 SKIP(无 C 可读);恢复守卫基准停留 loadA(自家写入未被复核,漂移即保守中止)`)
+          adaptedC = adaptedA
+          serverLayerAvailable = false
+        } else {
+          const loadC = lc.json.data as V2GraphLike
+          lastKnownServer = loadC // CR-01: 刷新恢复守卫基准(自家写后的已观测服务器态)
+          adaptedC = adaptV2Graph(loadC)
+          const cIds = idSet(loadC.nodes)
 
-        // ── (c) 层1 V2:服务端重组稳定性 ──
-        const [a2c, c2a] = diffSets(aIds, cIds)
-        note("层1 V2 id(服务端重组稳定性)", a2c.length === 0 && c2a.length === 0,
-          `loadA ${aIds.size} ids vs loadC ${cIds.size} ids,双向差集 loadA→loadC=${a2c.length}${a2c.length ? `[${a2c.join(",")}]` : ""} loadC→loadA=${c2a.length}${c2a.length ? `[${c2a.join(",")}]` : ""}`)
-        // 归因器:wire→loadC 纯透传差集(层1 非零时区分服务端漂移 vs 客户端折叠)
-        const [w2c, c2w] = diffSets(wireIds, cIds)
-        if (a2c.length > 0 || c2a.length > 0) {
-          note("层1 归因(wire→loadC 服务端纯透传)", w2c.length === 0 && c2w.length === 0,
-            `差集=${w2c.length + c2w.length}${w2c.length || c2w.length ? `(wire→loadC=[${w2c.join(",")}] loadC→wire=[${c2w.join(",")}])` : " =0:层1 漂移来自客户端 serialize/adapter 折叠,非服务端"}`)
+          // ── (c) 层1 V2:服务端重组稳定性 ──
+          const [a2c, c2a] = diffSets(aIds, cIds)
+          note("层1 V2 id(服务端重组稳定性)", a2c.length === 0 && c2a.length === 0,
+            `loadA ${aIds.size} ids vs loadC ${cIds.size} ids,双向差集 loadA→loadC=${a2c.length}${a2c.length ? `[${a2c.join(",")}]` : ""} loadC→loadA=${c2a.length}${c2a.length ? `[${c2a.join(",")}]` : ""}`)
+          // 归因器:wire→loadC 纯透传差集(层1 非零时区分服务端漂移 vs 客户端折叠)
+          const [w2c, c2w] = diffSets(wireIds, cIds)
+          if (a2c.length > 0 || c2a.length > 0) {
+            note("层1 归因(wire→loadC 服务端纯透传)", w2c.length === 0 && c2w.length === 0,
+              `差集=${w2c.length + c2w.length}${w2c.length || c2w.length ? `(wire→loadC=[${w2c.join(",")}] loadC→wire=[${c2w.join(",")}])` : " =0:层1 漂移来自客户端 serialize/adapter 折叠,非服务端"}`)
+          }
+
+          // V2 侧锚点抽检:首个非 evt 节点在 loadC 同 id 存在
+          const anchorV2 = aAssetLike[0]
+          if (anchorV2 != null) {
+            note("层1 锚点抽检(V2 首个非 evt 节点)", cIds.has(anchorV2.id),
+              `${anchorV2.id}(type=${anchorV2.type}) 在 loadC ${cIds.has(anchorV2.id) ? "同 id 存在" : "缺失"}`)
+          }
+
+          // 层2/层3 用 adaptedC(上面已构造)
         }
-
-        // V2 侧锚点抽检:首个非 evt 节点在 loadC 同 id 存在
-        const anchorV2 = aAssetLike[0]
-        if (anchorV2 != null) {
-          note("层1 锚点抽检(V2 首个非 evt 节点)", cIds.has(anchorV2.id),
-            `${anchorV2.id}(type=${anchorV2.type}) 在 loadC ${cIds.has(anchorV2.id) ? "同 id 存在" : "缺失"}`)
-        }
-
-        // 层2/层3 用 adaptedC(上面已构造)
       }
     }
 

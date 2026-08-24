@@ -245,6 +245,14 @@ async function main(): Promise<void> {
     "S9 CR-02: canvasApi.requestNodeScore 拆信封返回 json.data.score(非整 envelope)",
   );
 
+  // S10 WR-01(review-60): diagnose save-v2 失败时层1/层1锚点显式 SKIP——旧版
+  // save 失败仍对未落库的服务器态跑层1 diff,vacuous PASS(「服务端重组稳定性
+  // PASS」)或把并发写 spuriously FAIL 误归因「服务端漂移」。
+  assert(
+    read("scripts/diagnose-60-roundtrip.ts").includes("层1/层1锚点显式 SKIP"),
+    "S10 WR-01: diagnose save-v2 失败时层1/层1锚点显式 SKIP(不空跑 vacuous PASS)",
+  );
+
   // ═══ B — 行为门段(spawn 子进程) ══════════════════════════════════════════
   console.log("\n=== B 行为门: 根 tsc / reloadAnchor vitest / canvas build(dist 纪律) / phase60 e2e 四用例 ===");
   runCmd("root tsc --noEmit", ".", "npx tsc --noEmit", 2);
