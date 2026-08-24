@@ -23,7 +23,7 @@ findings:
   warning: 3
   info: 6
   total: 9
-status: issues_found
+status: resolved
 ---
 
 # Phase 61: Code Review Report
@@ -156,3 +156,13 @@ const nodeCalls = (await getCalls(page))
 _Reviewed: 2026-08-24T06:24:15Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
+
+
+---
+
+## Fix Resolution (2026-08-24)
+
+3 warnings 全部修复(见 61-REVIEW-FIX.md):WR-01 22987eb3 + r2 scope 守卫 7e67de58、
+WR-02 beef3d10、WR-03 7b4a78e2。修复后全套门绿:verify:phase-61 18/18 + tsc clean +
+build ok + phase61 e2e 3/3 + phase55-nav standalone 5/5。Quick re-review 判定三 fix
+质量 ok(r2 发现的 WR-01 scope 缺口已闭合)。6 INFO 不阻断,留档原报告。
