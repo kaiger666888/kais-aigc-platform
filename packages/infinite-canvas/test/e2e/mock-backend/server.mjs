@@ -211,6 +211,48 @@ app.post('/api/canvas/v2/save-v2', (req, res) => {
   }, 5)
 })
 
+// 61-01 DEBT-01: 镜像真实 nodes.ts L48-97 最小语义(400 载荷非法 / 409 查重 /
+// 200 append + node:created 回放)——拖入持久化通道的 mock 面。真侧是
+// zod nodeInputSchema 门 + validateNodeData + 单行 UPSERT + broadcastToProject;
+// mock 只锁 e2e 消费的最小契约:同 id 二次 POST → 409「节点已存在」。
+app.post('/api/canvas/v2/nodes/', (req, res) => {
+  const { projectId, episodesId, node } = req.body ?? {}
+  if (
+    node == null || typeof node !== 'object' ||
+    typeof node.id !== 'string' ||
+    typeof node.position?.x !== 'number' || !Number.isFinite(node.position.x) ||
+    typeof node.position?.y !== 'number' || !Number.isFinite(node.position.y)
+  ) {
+    return res.json({ code: 400, message: '节点载荷非法' })
+  }
+  if ((state.canvas.nodes ?? []).some((n) => n.id === node.id)) {
+    return res.json({ code: 409, message: `节点 ${node.id} 已存在` })
+  }
+  state.canvas.nodes.push({ ...node })
+  logCall('POST', '/api/canvas/v2/nodes/', { projectId, episodesId, nodeId: node.id, x: node.position.x, y: node.position.y }, null)
+  res.json({ code: 200, data: { node } })
+  // save-v2 同款 5ms 回放:广播携带落库后的真值节点(e2e 断言 truth-first 三点一线)
+  setTimeout(() => {
+    broadcastToProject(projectId, 'node:created', { node: state.canvas.nodes.at(-1) })
+  }, 5)
+})
+
+// 61-01 DEBT-01: 资产中心数据面——useRealAssets 唯一数据源 POST /v1/assets-registry/search。
+// 返回 2 条固定 AssetDetail fixture(id 90001/90002,filePath 非空供缩略图渲染);
+// 不校验查询参数(客户端分页 limit 200,fixture 2 条 < 200 自然收敛,不会二次翻页)。
+app.post('/api/v1/assets-registry/search', (req, res) => {
+  logCall('POST', '/api/v1/assets-registry/search', req.body ?? {}, null)
+  res.json({
+    code: 200,
+    data: {
+      assets: [
+        { id: 90001, uuid: 'e2e-asset-90001', name: 'E2E拖入资产A', type: 'character', prompt: null, describe: null, projectId: 1, characterId: null, viewAngle: 'front', isPrimaryView: true, model: null, tags: null, state: 'active', meta: null, filePath: '/oss/e2e/asset-a.png', imageState: null, imageModel: null, resolution: null },
+        { id: 90002, uuid: 'e2e-asset-90002', name: 'E2E拖入资产B', type: 'character', prompt: null, describe: null, projectId: 1, characterId: null, viewAngle: 'front', isPrimaryView: false, model: null, tags: null, state: 'active', meta: null, filePath: '/oss/e2e/asset-b.png', imageState: null, imageModel: null, resolution: null },
+      ],
+    },
+  })
+})
+
 // Phase 56 G16 豁免回路 mock(56-05 g15-ops):受理即 200 applied。
 app.post('/api/canvas/v2/g15-ops', (req, res) => {
   logCall('POST', '/api/canvas/v2/g15-ops', req.body ?? {}, null)
