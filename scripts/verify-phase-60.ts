@@ -253,6 +253,15 @@ async function main(): Promise<void> {
     "S10 WR-01: diagnose save-v2 失败时层1/层1锚点显式 SKIP(不空跑 vacuous PASS)",
   );
 
+  // S11 WR-02(review-60): mock health per-scope eventCount——scopeEvents 按
+  // projectId:episodesId 计数,不再把所有 save 归到 scope 1/1(跨 scope 污染
+  // 触发假「远端更新」reload)。真侧 health.ts 不吐 eventCount 为 FLAG-2 锁死
+  // 分歧(S3),mock 保留 eventCount 使 e2e 可行为覆盖 health-poll 通道。
+  assert(
+    read("packages/infinite-canvas/test/e2e/mock-backend/server.mjs").includes("scopeEvents"),
+    "S11 WR-02: mock health per-scope eventCount(scopeEvents 按 projectId:episodesId 归账)",
+  );
+
   // ═══ B — 行为门段(spawn 子进程) ══════════════════════════════════════════
   console.log("\n=== B 行为门: 根 tsc / reloadAnchor vitest / canvas build(dist 纪律) / phase60 e2e 四用例 ===");
   runCmd("root tsc --noEmit", ".", "npx tsc --noEmit", 2);

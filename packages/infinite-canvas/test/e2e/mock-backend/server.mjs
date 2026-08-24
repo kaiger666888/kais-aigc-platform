@@ -134,6 +134,15 @@ const state = {
     failSecondNode: false,
   },
   activeRuns: new Set(),  // runId 集合; reset 时清空,orchestrate 循环检查
+  // WR-02(review-60): per-scope 保存事件计数——save-v2 按请求的 (projectId,
+  // episodesId) 归账,health 逐 scope 各吐各的 eventCount(旧版把所有 save 记到
+  // scope 1/1 头上: 其他 project 的保存会抬 1/1 的 eventCount,页面 health-poll
+  // 基线若在抬升前学到 → 假「检测到 pipeline 远端更新」toast + reload——phase 60
+  // 要消灭的假 reload 类)。
+  // 与真实后端的已知分歧(保持记录,FLAG-2 锁死真侧禁改): 真实 health.ts 不吐
+  // eventCount(第二 reload 通道在产线是死的);mock 保留 eventCount 使 e2e 能
+  // 行为覆盖 health-poll 通道。零事件的 scope 不出现在 scopes(更贴真形)。
+  scopeEvents: new Map(),  // key `${projectId}:${episodesId}` → { eventCount, lastEventId, lastEventAt }
 }
 
 function reset() {
@@ -144,6 +153,7 @@ function reset() {
     variantGroups: [],
   }
   state.calls = []
+  state.scopeEvents = new Map() // WR-02: per-scope 计数随 reset 清零
 }
 
 function logCall(method, path, body, response) {
@@ -181,6 +191,17 @@ app.post('/api/canvas/v2/load-v2', (req, res) => {
 app.post('/api/canvas/v2/save-v2', (req, res) => {
   const { projectId, episodesId, graph, savedBy } = req.body
   state.canvas = graph?.nodes?.length ? graph : state.canvas
+  // WR-02: per-scope 事件计数(health 观测面)——按请求的 (projectId, episodesId)
+  // 归账,不再全局混计(跨 scope 污染 scope 1/1 的 eventCount)。
+  if (projectId != null && episodesId != null) {
+    const key = `${projectId}:${episodesId}`
+    const prev = state.scopeEvents.get(key) ?? { eventCount: 0, lastEventId: 0, lastEventAt: Date.now() }
+    state.scopeEvents.set(key, {
+      eventCount: prev.eventCount + 1,
+      lastEventId: prev.lastEventId + 1,
+      lastEventAt: Date.now(),
+    })
+  }
   // 60-02: body 记 savedBy(?? null)——e2e 断言客户端真的发了身份的观测面(60-04 用例 1)。
   logCall('POST', '/api/canvas/v2/save-v2', { projectId, episodesId, nodeCount: graph?.nodes?.length, savedBy: req.body?.savedBy ?? null }, null)
   res.json({ code: 200, data: null })
@@ -196,23 +217,24 @@ app.post('/api/canvas/v2/g15-ops', (req, res) => {
   res.json({ code: 200, data: { action: req.body?.action, applied: true } })
 })
 
-// Health 端点 mock — 用于前端兜底轮询。返回当前 state.canvas 节点数作为 eventCount。
+// Health 端点 mock — 用于前端兜底轮询。WR-02(review-60): per-scope eventCount
+// (scopeEvents 按 projectId:episodesId 计数,只吐发生过保存的 scope);真实后端
+// 不吐 eventCount(FLAG-2,mock/real 分歧有意保留——mock 使 e2e 可行为覆盖
+// health-poll 通道)。
 app.get('/api/canvas/v2/health', (req, res) => {
-  const totalEvents = state.calls.filter((c) => c.path === '/api/canvas/v2/save-v2').length
+  const scopes = [...state.scopeEvents.entries()].map(([key, ev]) => {
+    const [projectId, episodesId] = key.split(':').map(Number)
+    return { projectId, episodesId, eventCount: ev.eventCount, lastEventId: ev.lastEventId, lastEventAt: ev.lastEventAt }
+  })
+  const totalEvents = scopes.reduce((sum, s) => sum + s.eventCount, 0)
   res.json({
     code: 200,
     data: {
       timestamp: Date.now(),
       canvas: {
-        totalScopes: 1,
+        totalScopes: scopes.length,
         totalEvents,
-        scopes: [{
-          projectId: 1,
-          episodesId: 1,
-          eventCount: totalEvents,
-          lastEventId: totalEvents,
-          lastEventAt: Date.now(),
-        }],
+        scopes,
       },
     },
   })
