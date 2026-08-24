@@ -226,15 +226,15 @@ Plans:
 
 **Wave 3** *(blocked on 62-04)*
 
-- [ ] 62-05-PLAN.md — 层级化选定: C4 批量决策(arm-confirm)/场景声纹手动规则/winner mtime-最新规则(单组 auto-init 同步升级)/createdAt 透传(UI-GREY-1)
+- [x] 62-05-PLAN.md — 层级化选定: C4 批量决策(arm-confirm)/场景声纹手动规则/winner mtime-最新规则(单组 auto-init 同步升级)/createdAt 透传(UI-GREY-1)
 
 **Wave 4** *(blocked on 62-02/04/05)*
 
-- [ ] 62-06-PLAN.md — 冗余配置 UI: C8 rail(三源角标/钳制双道/写徽标三态/锁定区 19 键口径)+ 层级视图第三栏挂载
+- [x] 62-06-PLAN.md — 冗余配置 UI: C8 rail(三源角标/钳制双道/写徽标三态/锁定区 19 键口径)+ 层级视图第三栏挂载
 
 **Wave 5** *(blocked on 62-02/03/04/05/06)*
 
-- [ ] 62-07-PLAN.md — e2e 三文件(层级/选定/冗余配置,D-04 跨源契约+D-05 勿断 applied:true+D-12 键面契约)+ 全量回归(52/55/61)+ verify-phase-62 聚合门(S/B/F)
+- [x] 62-07-PLAN.md — e2e 三文件(层级/选定/冗余配置,D-04 跨源契约+D-05 勿断 applied:true+D-12 键面契约)+ 全量回归(52/55/61)+ verify-phase-62 聚合门(S/B/F)
 
 **UI hint**: yes
 
@@ -249,7 +249,7 @@ Phases execute in numeric order: 58 → 59 → 60 → 61 → 62 (60/61/62 parall
 | 59. 窄触发 stale 级联 | 4/4 | Complete    | 2026-08-23 |
 | 60. 保存后面板保持 | 5/5 | Complete    | 2026-08-24 |
 | 61. 审计清债 TD-3/4/5 | 5/5 | Complete   | 2026-08-24 |
-| 62. 资产层级与选定逻辑 | 4/7 | In Progress|  |
+| 62. 资产层级与选定逻辑 | 7/7 | Complete   | 2026-08-24 |
 
 ## Requirement → Phase Coverage (18/18)
 
