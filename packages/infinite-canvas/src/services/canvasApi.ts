@@ -1286,7 +1286,12 @@ export async function fetchGenerationConfig(
   episodesId: number,
 ): Promise<{ rows: ConfigRow[]; fileState: string }> {
   const query = `?projectId=${encodeURIComponent(projectId)}&episodesId=${encodeURIComponent(episodesId)}`
-  const res = await fetch(`${API_BASE}/canvas/v2/generation-config${query}`, { method: 'GET' })
+  // cache:'no-store'——配置读必须新鲜：三源合并结果随覆盖层写入/文件形态即时变，
+  // 启发式 HTTP 缓存会在「收起再展开/重进层级」时回吐旧行（62-07 e2e 实测抓到）。
+  const res = await fetch(`${API_BASE}/canvas/v2/generation-config${query}`, {
+    method: 'GET',
+    cache: 'no-store',
+  })
   if (!res.ok) throw new ApiError(`HTTP ${res.status}`, 'network', res.status)
   const json = await res.json()
   return json.data as { rows: ConfigRow[]; fileState: string }

@@ -44,8 +44,8 @@ const PRE_CAP1_KEYS = [
 async function loadHierarchyWithConfig(page, { fileShape = null } = {}) {
   await page.goto(HIER_URL, { waitUntil: 'networkidle' })
   await page.request.post('/__mock/reset')
-  const cfg = { assetFixture: 'rich' }
-  if (fileShape) cfg.generationConfig = { fileShape }
+  // fileShape 为 /__mock/config 顶层键（server.mjs:791 直读，非嵌套）。
+  const cfg = { assetFixture: 'rich', ...(fileShape ? { fileShape } : {}) }
   await page.request.post('/__mock/config', { data: cfg })
   await page.goto(HIER_URL, { waitUntil: 'networkidle' })
   await page.getByRole('button', { name: '资产层级', exact: true }).click()
@@ -109,7 +109,8 @@ test.describe('phase62 redundancy-config', () => {
     await openRail(page)
     const tk = page.locator('[data-testid="config-row"][data-phase-key="p01_hook.topic_kernel"]')
     await expect(tk).toHaveAttribute('data-source', 'snapshot')
-    await expect(tk.locator('[data-testid="config-source-chip"]')).toContainText('无 v2.5 键')
+    // 每行两个 SourceChip(pre/final 各一)——strict mode 取 first。
+    await expect(tk.locator('[data-testid="config-source-chip"]').first()).toContainText('无 v2.5 键')
     await expect(tk.locator('[data-testid="config-pre-input"]')).toHaveValue('1')
     const flat = page.locator('[data-testid="config-row"][data-phase-key="p02_outline"]')
     await expect(flat.locator('[data-testid="config-pre-input"]')).toHaveValue('3')
@@ -197,7 +198,8 @@ test.describe('phase62 redundancy-config', () => {
     await expect(lockedRows).toHaveCount(2)
     await expect(lockedRows.nth(0)).toHaveAttribute('data-phase-key', 'p10_voice.tts')
     await expect(lockedRows.nth(0)).toContainText('钉死 1')
-    await expect(lockedRows.nth(1)).toContainText('报告 / 审计类 · 18 键')
+    await expect(lockedRows.nth(1)).toContainText('报告/审计类 · 管线固定')
+    await expect(lockedRows.nth(1)).toContainText('18 键')
     // 不可交互 DOM 断言:锁定行内无任何 input 元素。
     expect(await section.locator('input').count()).toBe(0)
   })
