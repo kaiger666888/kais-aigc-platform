@@ -23,6 +23,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useCanvasStore } from '../../store/canvasStore'
 import { useVariantPickerStore } from '../variants/variantPickerStore'
 import { updateAsset, ASSET_DRAG_MIME, type AssetDetail, type AssetDragPayload } from '../../services/canvasApi'
+// 62-01：分组轴/反查/三态判定式共享提取（纯移动）——本组件内本地定义已删除，
+// 判定式全仓单套（D-04），双前缀反查增量见 groupCanvasLinkage.ts 头注释。
+import {
+  findVariantGroupForAsset,
+  getGroupDisplayInfo,
+  getGroupKey,
+  groupOrder,
+  isAssetEliminated,
+  isAssetPending,
+  isAssetSelected,
+  isSceneGroup,
+  isVoiceGroup,
+  resolveAssetNodeId,
+} from './groupCanvasLinkage'
 import { resolveMediaUrl } from '../../utils/mediaUrl'
 import { useRealAssets } from './useRealAssets'
 import DialoguePanel from './DialoguePanel'
@@ -235,151 +249,12 @@ function Thumb({ item, portraitUrl }: { item: AssetItem; portraitUrl?: string | 
   return <span className="am-card__emoji">{item.emoji}</span>
 }
 
-/**
- * 安全解析 meta JSON 字符串 → Record（一次 parse 拿全部字段，供 getGroupKey 热路径复用）。
- * assetManagerData.ts 内已有 parseMetaSubtype / parseCostumeMeta，但前者未导出且二者各
- * 只返回部分字段；这里用一个通用解析器避免重复 JSON.parse，并保持本文件自洽。
- */
-function parseMetaFields(meta?: string | null): Record<string, unknown> | null {
-  if (!meta) return null
-  try {
-    const p = JSON.parse(meta)
-    return p && typeof p === 'object' ? (p as Record<string, unknown>) : null
-  } catch {
-    return null
-  }
-}
-
-/** 安全读取 meta 解析结果中的字符串字段（非字符串 / 空串 → undefined）。 */
-function metaStr(meta: Record<string, unknown> | null, key: string): string | undefined {
-  const v = meta?.[key]
-  return typeof v === 'string' && v.trim() ? v.trim() : undefined
-}
-
-/**
- * 分组键 —— 决定"哪几个资产互斥（选定其一则同组其余淘汰）"。
- * 角色：characterId = "shenzhiyi" / "luyanzhou"；场景：characterId 存场景 ID 如 "S01"。
- *
- * 角色类资产按 `characterId + meta.subtype` **分层细分**互斥组，而非统一归一组——
- * 否则选定某换装 Turnaround 时，会把同角色的概念图、灰底 Turnaround、全部分集服化道
- * 一并错误淘汰。各层互斥范围：
- *   - costume_design（分集服化道）→ 按 episode + scene 细分（每集每场景独立互斥）
- *   - costume_turnaround（换装 TR）→ 按 costume_type 细分
- *   - turnaround_sheet / base_turnaround / 有 costume_set → 基线 TR（同角色灰底变体互斥）
- *   - character_bible → 同角色 Bible 互斥
- *   - voice_print → 同角色声纹互斥
- *   - 其余（概念图 character_design / character_concept / subtype 空）→ 同角色概念图互斥
- */
-function getGroupKey(d: AssetDetail): string {
-  // keyframe（首尾帧）按 characterId + name 前缀分组
-  // 例如 S01_first_v1 和 S01_last_v1 是不同的帧，不应混在一组
-  if (d.type === 'keyframe' && d.characterId) {
-    // name 形如 "S01_first_v1"，取 _v 前的部分作为子组键
-    const base = d.name?.replace(/_v\d+$/, '') || ''
-    return `keyframe:${d.characterId}:${base}`
-  }
-  // 角色类资产按 characterId + subtype 层级细分互斥组
-  if (d.characterId) {
-    const meta = parseMetaFields(d.meta)
-    const subtype = metaStr(meta, 'subtype')
-    const costumeType = metaStr(meta, 'costume_type')
-    const costumeSet = metaStr(meta, 'costume_set')
-    const episode = metaStr(meta, 'episode')
-    const scene = metaStr(meta, 'scene')
-
-    // 分集服化道：按 episode + scene 细分（每集每场景独立互斥）
-    if (subtype === 'costume_design') {
-      return `char:${d.characterId}:costume_design:${episode || ''}:${scene || ''}`
-    }
-    // 换装 Turnaround：按 costume_type 细分
-    if (subtype === 'costume_turnaround') {
-      return `char:${d.characterId}:costume_tr:${costumeType || ''}`
-    }
-    // 灰底 / 基线 Turnaround（subtype=turnaround_sheet/base_turnaround 或带 costume_set）
-    if (subtype === 'turnaround_sheet' || subtype === 'base_turnaround' || costumeSet) {
-      return `char:${d.characterId}:baseline_tr`
-    }
-    // 角色 Bible
-    if (subtype === 'character_bible') {
-      return `char:${d.characterId}:bible`
-    }
-    // 声纹（voice_print）
-    if (subtype === 'voice_print') {
-      return `char:${d.characterId}:voice`
-    }
-    // 角色概念图（subtype 空 或 character_design/character_concept）
-    return `char:${d.characterId}:concept`
-  }
-  // 场景类资产按 name 分组
-  if (d.type === 'scene' || d.type === 'scene_variant' || d.type === 'scene_image') {
-    return `scene:${d.name}`
-  }
-  return `${d.type}:${d.name}`
-}
-
-/**
- * 分组可读标题 + 图标 —— 仅用于待选资产分组的展示，不参与三态流转逻辑。
- * 根据 getGroupKey 的前缀推断分组类型，给出人眼可读的标题与表情图标。
- */
-function getGroupDisplayInfo(d: AssetDetail): { title: string; emoji: string } {
-  const key = getGroupKey(d)
-  if (key.startsWith('char:')) {
-    // char:<charId>:<category>[:<sub>...] —— 提取角色名 + 层级可读标签
-    const parts = key.split(':')
-    const category = parts[2] ?? ''
-    const meta = parseMetaFields(d.meta)
-    // 角色中文名：优先 costume_design 的 meta.character；否则取 name 首个空格/·前的 token（去 v1 后缀）
-    const charName = metaStr(meta, 'character')
-      || (d.name || '').split(/[\s·]/)[0]?.replace(/v\d+$/i, '').trim()
-      || d.characterId || parts[1] || key
-
-    let catLabel = ''
-    let emoji = '🎭'
-    switch (category) {
-      case 'concept':    catLabel = '概念设定'; emoji = '👤'; break
-      case 'bible':      catLabel = '角色Bible'; emoji = '📖'; break
-      case 'baseline_tr': catLabel = '基线Turnaround'; emoji = '🔄'; break
-      case 'voice':      catLabel = '声纹'; emoji = '🎙️'; break
-      case 'costume_tr': {
-        const ct = metaStr(meta, 'costume_type') || parts[3] || ''
-        catLabel = ct ? `换装TR·${ct}` : '换装TR'; emoji = '👗'; break
-      }
-      case 'costume_design': {
-        const ep = metaStr(meta, 'episode') || parts[3] || ''
-        const sc = metaStr(meta, 'scene') || parts[4] || ''
-        const scope = [ep, sc].filter(Boolean).join('·')
-        catLabel = scope ? `服化道·${scope}` : '服化道'; emoji = '🧥'; break
-      }
-      default: catLabel = category || '角色'
-    }
-    return { title: `${charName} · ${catLabel}`, emoji }
-  }
-  if (key.startsWith('scene:')) {
-    return { title: d.name || key, emoji: '🏠' }
-  }
-  if (key.startsWith('keyframe:')) {
-    // keyframe:CHARID:BASE → 提取 BASE（shot_id 前缀）
-    const parts = key.split(':')
-    const base = parts[2] || d.name || key
-    return { title: base, emoji: '🎬' }
-  }
-  return { title: d.name || key, emoji: '📦' }
-}
-
 /** 待选资产分组容器（同组变体并列展示，便于对比选择）。 */
 interface CandidateGroup {
   key: string
   title: string
   emoji: string
   items: AssetDetail[]
-}
-
-/** 分组排序优先级：角色(char:) > 场景(scene:) > 分镜(keyframe:) > 其他。 */
-const groupOrder = (key: string): number => {
-  if (key.startsWith('char:')) return 0
-  if (key.startsWith('scene:')) return 1
-  if (key.startsWith('keyframe:')) return 2
-  return 3
 }
 
 /**
@@ -499,10 +374,11 @@ export default function AssetLibrary() {
   // 按 tab 拆分三态：选定 / 待选 / 淘汰。
   // isPrimaryView 从 SQLite 返回的是整数 0/1，需用 !! 转换；state 为 'eliminated' 即淘汰。
   const tabFiltered = useMemo(() => {
+    // D-04 判定式单套：三态判定改用 groupCanvasLinkage 共享导出（62-01 同式换名）。
     return filtered.filter((d) => {
-      if (tab === 'selected') return !!d.isPrimaryView && d.state !== 'eliminated'
-      if (tab === 'eliminated') return d.state === 'eliminated'
-      return !d.isPrimaryView && d.state !== 'eliminated' // candidate
+      if (tab === 'selected') return isAssetSelected(d)
+      if (tab === 'eliminated') return isAssetEliminated(d)
+      return isAssetPending(d)
     })
   }, [filtered, tab])
 
@@ -553,11 +429,8 @@ export default function AssetLibrary() {
       // 选定只能从非淘汰资产里挑；淘汰的不参与自动选定。
       const activeGroup = group.filter((d) => d.state !== 'eliminated')
       const hasPrimary = activeGroup.some((d) => !!d.isPrimaryView)
-      // 场景资产不自动选定——由用户手动选择
-      const isSceneGroup = activeGroup.some((d) => d.type === 'scene')
-      // 声纹资产也不自动选定——由用户手动选择
-      const isVoiceGroup = activeGroup.some((d) => d.type === 'voice' || d.type === 'audio')
-      if (!hasPrimary && activeGroup.length > 0 && !isSceneGroup && !isVoiceGroup) {
+      // 场景/声纹不自动选定——豁免判定走共享导出（62-01 提取，式不变）。
+      if (!hasPrimary && activeGroup.length > 0 && !isSceneGroup(activeGroup) && !isVoiceGroup(activeGroup)) {
         needsInit.push(activeGroup[0].id)
       }
     }
@@ -819,8 +692,10 @@ export default function AssetLibrary() {
   // 拍历史快照 → 设 focusAssetNodeId（画布侧 useEffect 监听并 fitView + 闪烁）→ 切画布视图。
   // 资产未放置时由画布侧 toast 提示（节点不存在）。
   const handleLocateOnCanvas = useCallback((a: AssetItem) => {
-    const nodeId = `asset-${a.id}`
+    // 62-01: 双前缀反查（a-oasset- 服务端建点补漏，RESEARCH D）；未命中实存节点
+    // 时沿用 asset-{id} 兜底——画布侧 toast 提示（现行为不变）。
     const store = useCanvasStore.getState()
+    const nodeId = (a.id != null ? resolveAssetNodeId(store.graph, a.id) : null) ?? `asset-${a.id}`
     store.navPushCallback?.()
     store.setFocusAssetNodeId(nodeId)
     store.setViewMode('canvas')
@@ -835,12 +710,12 @@ export default function AssetLibrary() {
     const store = useCanvasStore.getState()
     store.navPushCallback?.()
     const primary = group.items.find((d) => d.isPrimaryView) ?? group.items[0]
-    const nodeId = `asset-${primary.id}`
-    const vg = store.graph?.variantGroups.find(
-      (v) => v.variantNodeIds.includes(nodeId) || v.winnerNodeId === nodeId,
-    )
+    // 62-01: 反查提取为共享 util + 双前缀覆盖；行为增量仅「补 a-oasset- 节点」，
+    // 既有 asset- 路径逐字节一致。未实存时沿用拖入前缀兜底。
+    const nodeId = resolveAssetNodeId(store.graph, primary.id) ?? `asset-${primary.id}`
+    const vg = findVariantGroupForAsset(store.graph, primary.id)
     store.setFocusAssetNodeId(nodeId)
-    if (vg) useVariantPickerStore.getState().openWallByGroup(vg.id)
+    if (vg) useVariantPickerStore.getState().openWallByGroup(vg.groupId)
     store.setViewMode('canvas')
   }, [])
 
