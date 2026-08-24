@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-23)
 
 **Core value:** AI creative production pipeline that runs end-to-end, pluggable across multiple creative workflows via a published skill contract.
-**Current focus:** Phase 62 — 资产管理中心资产层级与选定逻辑 (61 已收官: 4/4 债清偿, 1 项拖入手感 UAT 延后)
+**Current focus:** v3.1 已收官（58-62 五 phase 全 verified + audit passed + archived）——下一里程碑待定
 
 ## Current Position
 
-Phase: 62 (资产管理中心资产层级与选定逻辑) — CONTEXT READY (62-CONTEXT/DISCUSSION-LOG by /goal session 14:32; planning 未开始)
-Plan: 0 of 0
-Status: Phase complete — ready for verification
-Last activity: 2026-08-24
+Phase: — (v3.1 收官, 下一里程碑未开)
+Plan: —
+Status: v3.1 shipped 2026-08-24 (18/18 reqs complete · 5/5 phases verified · verify:phase-62 27/27 · audit passed · milestones/v3.1-* archived)
+Last activity: 2026-08-25
 
-Progress: [█████████░] 88%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -229,6 +229,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-24T16:13:44.659Z
-Stopped at: Completed 62-07-PLAN.md — Phase 62 全部 7 plan 执行完毕,verify:phase-62 聚合门 27/27 exit 0
-Resume: 62 接管裁决 → /gsd-execute-phase 62 (planning 从 62-CONTEXT.md 起);milestone lifecycle 待 62 后
+Last session: 2026-08-25T00:20:00+08:00
+Stopped at: v3.1 里程碑完整收官（62 七 plan 两线接力交付 + audit passed + archive；主 ROADMAP 翻 ✅；HUMAN-UAT 挂起×3）
+Resume: 新里程碑规划（待用户定方向）；挂起 UAT: 60 面板连续性 / 61 拖入手感 / 62 层级视图+批量决策+配置面板观感

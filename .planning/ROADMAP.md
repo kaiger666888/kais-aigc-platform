@@ -15,7 +15,7 @@
 - ✅ **v2.0 Canvas Sync Permanence** — Phases 42-47 (shipped 2026-07-16)
 - ✅ **v2.1 候选资产配套 (candidate-asset-completeness)** — Phases 48-50 (shipped 2026-08-19)
 - ✅ **v3.0 画布创作体验 (Canvas Creative Experience for kmc)** — Phases 51-57 (shipped 2026-08-22, audit passed)
-- 🚧 **v3.1 重生成闭环深化 (regen-loop-deepening)** — Phases 58-62 (in progress; 62 为 08-24 /goal 扩入)
+- ✅ **v3.1 重生成闭环深化 (regen-loop-deepening)** — Phases 58-62 (shipped 2026-08-24, audit passed)
 
 ## Phases
 
@@ -32,7 +32,7 @@
 - Integer phases (42-47): v2.0 (shipped)
 - Integer phases (48-50): v2.1 (shipped)
 - Integer phases (51-57): v3.0 (shipped 2026-08-22 — audit passed; Phase 52 externally owned, code-on-master, user-accepted)
-- Integer phases (58-62): **v3.1 (current)**
+- Integer phases (58-62): **v3.1 (shipped 2026-08-24)**
 - Decimal phases (e.g., 58.1): Urgent insertions
 
 Decimal phases appear between their surrounding integers in numeric order.
@@ -70,7 +70,7 @@ Audit: **passed** (305/305 verify assertions · 435/435 vitest · 3× tsc clean 
 
 </details>
 
-### 🚧 v3.1 重生成闭环深化 (regen-loop-deepening) — In Progress
+### ✅ v3.1 重生成闭环深化 (regen-loop-deepening) — SHIPPED
 
 **Milestone Goal:** 付清 v3.0 收尾锁定的三笔「生成-迭代闭环」欠账——窄触发 stale 级联、全配方持久化、保存后面板保持——并顺带清掉审计三笔低优先债 (TD-3/4/5)。全部改动限 kap 仓画布侧，无跨仓库依赖。
 
