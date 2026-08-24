@@ -37,6 +37,13 @@ import {
   isVoiceGroup,
   resolveAssetNodeId,
 } from './groupCanvasLinkage'
+// 62-04：三态流转 handler 提取为共享（含 D-05 画布 best-effort 同步分支）——
+// 资产库与资产层级两视图同调用点（HIER-04：单组行为两路径一致）。
+import {
+  deselectAsset,
+  restoreAsset,
+  selectGroupWinner,
+} from './assetHierarchy'
 import { resolveMediaUrl } from '../../utils/mediaUrl'
 import { useRealAssets } from './useRealAssets'
 import DialoguePanel from './DialoguePanel'
@@ -275,6 +282,156 @@ const ALWAYS_SHOW_SUBTYPES: ReadonlySet<AssetSubtype> = new Set([
   // 管线产出（P06+）：count=0 时也以灰色不可点击显示，让用户知道分类存在
   'spatio_temporal_script', 'shot_list', 'video_clips', 'master_timeline', 'master_mp4',
 ])
+
+// ─── 62-04: renderCard 提取为模块级导出 renderAssetCard（模式参数化） ──────
+//
+// checker FLAG D2 裁定：复用 = 两处增量（模式参数 + 单件阶段徽标），非 100% 逐字：
+//   a. 三态按钮门控 —— mode='library' 沿用 deps.tab 门控（资产库路径行为字节等价，
+//      既有 466 用例全绿锚）；mode='hierarchy' 按卡自身三态出按钮
+//      （★ 选定 / ✕ 取消选定 / ↻ 恢复，语义与库路径三按钮原样）。
+//   b. opts.singletonPhase —— 单件桶卡右上角阶段徽标（hier-card-phase）。
+// 其余 JSX（拖入 / 定位 / 双击详情 / 类名 / .am-card 断言面）逐字搬迁，留居本文件
+// （P1-P9 无独立 AssetCard.tsx 位点，不新建）。
+
+/** 单件桶卡阶段徽标（增量之二；tooltip 区分「资产 meta 直读」/「按子类型推导」，D-01 防启发式漂移）。 */
+export interface AssetCardSingletonPhase {
+  phaseCode: string
+  source: 'meta' | 'derived'
+}
+
+/** renderAssetCard 依赖注入（组件闭包显式化；资产库/层级两视图各自构造）。 */
+export interface AssetCardDeps {
+  /** library=资产库（deps.tab 三态门控，字节等价）；hierarchy=资产层级（按卡自身三态出按钮）。 */
+  mode: 'library' | 'hierarchy'
+  /** 资产库模式当前三态 tab；层级模式忽略。 */
+  tab?: AssetTab
+  assets: AssetDetail[]
+  patchLocal: (assetId: number, patch: Partial<AssetDetail>) => void
+  reload: () => void
+  showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void
+  onSelect: (assetId: number, groupKey: string) => void | Promise<void>
+  onDeselect: (d: AssetDetail) => void | Promise<void>
+  onRestore: (d: AssetDetail) => void | Promise<void>
+  /** 📍 定位到画布（双前缀反查 + focus + 切画布视图；两视图同一行为）。 */
+  onLocate: (a: AssetItem) => void
+  openAssetDetail: (uuid: string) => void
+  charPortraitMap: Map<string, string>
+}
+
+/** 单张资产卡片渲染（资产库三 tab 与层级视图 L3 共用同一份 JSX；容器由调用方决定）。 */
+export function renderAssetCard(
+  d: AssetDetail,
+  deps: AssetCardDeps,
+  opts?: { singletonPhase?: AssetCardSingletonPhase },
+) {
+  const a = assetDetailToItem(d)
+  // 无图文档型资产：用更精确的子类型 emoji 替代类型默认 emoji（👤/📦），
+  // 让 Notion 文档（创作需求/故事框架/分集剧本/场景设定/服化道/音色总谱/BGM总谱/角色文字设定）
+  // 一眼可辨为文字资产，而非误判为「缺图的角色设定图 / 通用占位」。
+  if (!a.filePath) {
+    const st = inferSubtype(d)
+    if (st !== 'unknown') a.emoji = SUBTYPE_EMOJI[st]
+  }
+  const groupKey = getGroupKey(d)
+  const isKey = a.type === 'prop_key'
+  // 增量 a：三态按钮门控。library → deps.tab 门控（与提取前逐字节同构）；
+  // hierarchy → 按卡自身三态（isAsset* 为 D-04 单套判定式共享导出）。
+  const showSelect = deps.mode === 'hierarchy' ? isAssetPending(d) : deps.tab === 'candidate'
+  const showDeselect = deps.mode === 'hierarchy' ? isAssetSelected(d) : deps.tab === 'selected'
+  const showRestore = deps.mode === 'hierarchy' ? isAssetEliminated(d) : deps.tab === 'eliminated'
+  return (
+    <div
+      key={a.uuid}
+      className="am-card"
+      data-uuid={a.uuid}
+      style={cssVars({ '--cardc': `var(${modalityVar(a.modality)})`, '--cardw': `var(${modalityWeakVar(a.modality)})` })}
+      draggable
+      onDragStart={(e) => {
+        // 61-01 (DEBT-01): dragstart 写 MIME 载荷——拖入是 anchor='source'
+        // 唯一活调用方(D-01 sole-caller);「＋ 画布」stub 按钮已退役。
+        if (a.id == null) {
+          e.preventDefault()
+          deps.showToast('该资产缺少数字 id,无法拖入', 'warning')
+          return
+        }
+        e.dataTransfer.setData(
+          ASSET_DRAG_MIME,
+          JSON.stringify({
+            id: a.id, uuid: a.uuid, name: a.name,
+            assetType: a.type, filePath: a.filePath ?? null,
+          } as AssetDragPayload),
+        )
+        e.dataTransfer.effectAllowed = 'copy'
+      }}
+      onClick={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => { e.stopPropagation(); deps.openAssetDetail(a.uuid) }}
+    >
+      {/* 选定资产徽标 */}
+      {a.isPrimaryView && <span className="am-card__primary-flag">★ 选定</span>}
+
+      {isKey && <span className="am-card__keyflag">🔒 关键</span>}
+      {a.reuses ? <span className="am-card__reuse am-badge am-badge--reuse">{a.reuses} 集</span> : null}
+
+      {/* 增量 b：单件桶卡阶段徽标 —— 右上角 mono 芯片（.am-badge 既有词汇 + 内联定位，
+          零新全局类）；与「N 集」复用徽标同位错开（reuses 在上时顺移 26px）。 */}
+      {opts?.singletonPhase && (
+        <span
+          className="am-badge"
+          data-testid="hier-card-phase"
+          title={opts.singletonPhase.source === 'meta' ? '资产 meta 直读' : '按子类型推导'}
+          style={{ position: 'absolute', top: a.reuses ? 33 : 7, right: 7, zIndex: 2 }}
+        >{opts.singletonPhase.phaseCode}</span>
+      )}
+
+      {/* 【资产↔画布交叉联动】定位到画布上对应节点（未放置时画布侧 toast 提示） */}
+      <button
+        className="am-card__locate"
+        onClick={(e) => { e.stopPropagation(); deps.onLocate(a) }}
+        title="在画布上定位此资产"
+      >📍 定位</button>
+
+      {/* 待选资产（层级视图：待选态卡）下显示「设为选定」按钮 */}
+      {showSelect && (
+        <button
+          className="am-card__select-btn"
+          onClick={(e) => { e.stopPropagation(); void deps.onSelect(d.id, groupKey) }}
+          title="设为选定资产（同组仅保留一个）"
+        >★ 选定</button>
+      )}
+
+      {/* 选定资产（层级视图：选定态卡）下显示「取消选定」按钮（退回待选，同组淘汰自动恢复） */}
+      {showDeselect && (
+        <button
+          className="am-card__deselect-btn"
+          onClick={(e) => { e.stopPropagation(); void deps.onDeselect(d) }}
+          title="退回待选资产（同组淘汰将一并恢复）"
+        >✕ 取消选定</button>
+      )}
+
+      {/* 淘汰资产（层级视图：淘汰态卡）下显示「恢复待选」按钮 */}
+      {showRestore && (
+        <button
+          className="am-card__select-btn"
+          onClick={(e) => { e.stopPropagation(); void deps.onRestore(d) }}
+          title="恢复到待选资产"
+        >↻ 恢复</button>
+      )}
+
+      <div
+        className="am-card__thumb"
+        style={(a.type === 'voice' || a.type === 'audio') ? { aspectRatio: 'auto', height: 200 } : undefined}
+      ><Thumb item={a} portraitUrl={a.type === 'voice' || a.type === 'audio' ? (a.characterId ? deps.charPortraitMap.get(a.characterId) : null) : null} /></div>
+      <div className="am-card__typebar" />
+      <div className="am-card__body">
+        <div className="am-card__name">{a.name}</div>
+        <div className="am-card__meta">
+          <span className="am-card__typetag">{TYPE_LABEL[a.type] ?? a.type}</span>
+          <span className="am-card__scope">{a.scope === 'library' ? '全局资产' : '项目资产'}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function AssetLibrary() {
   const rawOpenAssetDetail = useCanvasStore((s) => s.openAssetDetail)
@@ -719,159 +876,43 @@ export default function AssetLibrary() {
     store.setViewMode('canvas')
   }, [])
 
-  // 待选→选定：新选资产置 selected，同组其余所有变体自动淘汰（三态流转）。
-  // 全程乐观更新——绝不 reload（避免列表闪烁/跳顶），仅在后端失败时回滚。
-  const handleSelect = async (assetId: number, groupKey: string) => {
-    const sameGroup = assets.filter((d) => getGroupKey(d) === groupKey)
-    // 同组中除新选资产外的所有其他变体（旧选定 + 待选）全部淘汰
-    const others = sameGroup.filter((d) => d.id !== assetId)
-
-    // 1. 乐观更新 UI：其余变体 → 淘汰；新选 → 选定。
-    for (const d of others) {
-      patchLocal(d.id, { isPrimaryView: false, state: 'eliminated' })
-    }
-    patchLocal(assetId, { isPrimaryView: true, state: 'active' })
-
-    // 2. 后端同步（不 reload；失败时整体回滚到真实状态）。
-    try {
-      for (const d of others) {
-        try { await updateAsset(d.id, { isPrimaryView: false, state: 'eliminated' }) } catch { /* 忽略单项失败 */ }
-      }
-      await updateAsset(assetId, { isPrimaryView: true, state: 'active' })
-      const groupInfo = getGroupDisplayInfo(assets.find((d) => d.id === assetId)!)
-      showToast(`已设为选定资产 · ${groupInfo.title}（${others.length} 个变体已自动淘汰）`, 'success')
-    } catch (err) {
-      showToast('设置失败: ' + (err as Error).message, 'error')
-      await reload()
-    }
+  // 待选→选定（62-04 提取共享）：全语义在 assetHierarchy.selectGroupWinner
+  // （同组乐观淘汰 → winner 乐观选定 → updateAsset 循环 → 成功/失败 toast + reload 回滚），
+  // 资产库与层级视图同调用点（HIER-04）。本薄壳仅注入 ctx —— syncCanvas 携带画布
+  // best-effort 同步参数（D-05：组映射画布且 winner 有节点时 fire-and-forget
+  // select-winner，失败仅 toast「画布侧同步失败」不回滚；projectId/episodesId
+  // 未就绪时不触发）。
+  const handleSelect = (assetId: number, groupKey: string) => {
+    const s = useCanvasStore.getState()
+    const syncCanvas = (projectId != null && s.episodesId != null)
+      ? { projectId, episodesId: s.episodesId, graph: s.graph }
+      : undefined
+    return selectGroupWinner(assetId, groupKey, { assets, patchLocal, reload, showToast, syncCanvas })
   }
 
-  // 单张资产卡片渲染（selected / candidate / eliminated 三 tab 完全共用同一份 JSX，
-  // 仅外层容器不同：candidate 套分组容器，其余平铺网格）。
-  const renderCard = (d: AssetDetail) => {
-    const a = assetDetailToItem(d)
-    // 无图文档型资产：用更精确的子类型 emoji 替代类型默认 emoji（👤/📦），
-    // 让 Notion 文档（创作需求/故事框架/分集剧本/场景设定/服化道/音色总谱/BGM总谱/角色文字设定）
-    // 一眼可辨为文字资产，而非误判为「缺图的角色设定图 / 通用占位」。
-    if (!a.filePath) {
-      const st = inferSubtype(d)
-      if (st !== 'unknown') a.emoji = SUBTYPE_EMOJI[st]
-    }
-    const groupKey = getGroupKey(d)
-    const isKey = a.type === 'prop_key'
-    return (
-      <div
-        key={a.uuid}
-        className="am-card"
-        data-uuid={a.uuid}
-        style={cssVars({ '--cardc': `var(${modalityVar(a.modality)})`, '--cardw': `var(${modalityWeakVar(a.modality)})` })}
-        draggable
-        onDragStart={(e) => {
-          // 61-01 (DEBT-01): dragstart 写 MIME 载荷——拖入是 anchor='source'
-          // 唯一活调用方(D-01 sole-caller);「＋ 画布」stub 按钮已退役。
-          if (a.id == null) {
-            e.preventDefault()
-            showToast('该资产缺少数字 id,无法拖入', 'warning')
-            return
-          }
-          e.dataTransfer.setData(
-            ASSET_DRAG_MIME,
-            JSON.stringify({
-              id: a.id, uuid: a.uuid, name: a.name,
-              assetType: a.type, filePath: a.filePath ?? null,
-            } as AssetDragPayload),
-          )
-          e.dataTransfer.effectAllowed = 'copy'
-        }}
-        onClick={(e) => e.stopPropagation()}
-        onDoubleClick={(e) => { e.stopPropagation(); openAssetDetail(a.uuid) }}
-      >
-        {/* 选定资产徽标 */}
-        {a.isPrimaryView && <span className="am-card__primary-flag">★ 选定</span>}
+  // 取消选定 / 恢复待选（62-04 提取共享）：renderCard 内联体 → deselectAsset/
+  // restoreAsset 具名 handler，toast 文案与乐观行为逐字保留（库路径锚）。
+  const handleDeselect = (d: AssetDetail) =>
+    deselectAsset(d, { assets, patchLocal, reload, showToast })
+  const handleRestore = (d: AssetDetail) =>
+    restoreAsset(d, { assets, patchLocal, reload, showToast })
 
-        {isKey && <span className="am-card__keyflag">🔒 关键</span>}
-        {a.reuses ? <span className="am-card__reuse am-badge am-badge--reuse">{a.reuses} 集</span> : null}
-
-        {/* 【资产↔画布交叉联动】定位到画布上对应节点（未放置时画布侧 toast 提示） */}
-        <button
-          className="am-card__locate"
-          onClick={(e) => { e.stopPropagation(); handleLocateOnCanvas(a) }}
-          title="在画布上定位此资产"
-        >📍 定位</button>
-
-        {/* 待选资产 tab 下显示「设为选定」按钮 */}
-        {tab === 'candidate' && (
-          <button
-            className="am-card__select-btn"
-            onClick={(e) => { e.stopPropagation(); void handleSelect(d.id, groupKey) }}
-            title="设为选定资产（同组仅保留一个）"
-          >★ 选定</button>
-        )}
-
-        {/* 选定资产 tab 下显示「取消选定」按钮（退回待选，同组淘汰自动恢复） */}
-        {tab === 'selected' && (
-          <button
-            className="am-card__deselect-btn"
-            onClick={async (e) => {
-              e.stopPropagation()
-              // 同组被淘汰的兄弟变体（不含自身）将随取消选定一并恢复为待选。
-              const eliminated = assets.filter(
-                (dd) => getGroupKey(dd) === groupKey && dd.id !== d.id && dd.state === 'eliminated',
-              )
-              // 乐观更新 UI：该资产 → 待选；同组淘汰 → 恢复待选。
-              patchLocal(d.id, { isPrimaryView: false, state: 'active' })
-              for (const dd of eliminated) patchLocal(dd.id, { state: 'active' })
-              // 后端同步（不 reload；失败时回滚）。
-              try {
-                await updateAsset(d.id, { isPrimaryView: false, state: 'active' })
-                for (const dd of eliminated) {
-                  try { await updateAsset(dd.id, { state: 'active' }) } catch { /* 忽略单项失败 */ }
-                }
-                showToast(`已退回待选 · ${getGroupDisplayInfo(d).title}（${eliminated.length} 个淘汰变体已恢复）`, 'success')
-              } catch (err) {
-                showToast('操作失败: ' + (err as Error).message, 'error')
-                await reload()
-              }
-            }}
-            title="退回待选资产（同组淘汰将一并恢复）"
-          >✕ 取消选定</button>
-        )}
-
-        {/* 淘汰资产 tab 下显示「恢复待选」按钮 */}
-        {tab === 'eliminated' && (
-          <button
-            className="am-card__select-btn"
-            onClick={async (e) => {
-              e.stopPropagation()
-              // 乐观更新 UI：淘汰 → 待选。
-              patchLocal(d.id, { state: 'active', isPrimaryView: false })
-              try {
-                await updateAsset(d.id, { state: 'active' })
-                showToast('已恢复到待选', 'success')
-              } catch (err) {
-                showToast('恢复失败: ' + (err as Error).message, 'error')
-                await reload()
-              }
-            }}
-            title="恢复到待选资产"
-          >↻ 恢复</button>
-        )}
-
-        <div
-          className="am-card__thumb"
-          style={(a.type === 'voice' || a.type === 'audio') ? { aspectRatio: 'auto', height: 200 } : undefined}
-        ><Thumb item={a} portraitUrl={a.type === 'voice' || a.type === 'audio' ? (a.characterId ? charPortraitMap.get(a.characterId) : null) : null} /></div>
-        <div className="am-card__typebar" />
-        <div className="am-card__body">
-          <div className="am-card__name">{a.name}</div>
-          <div className="am-card__meta">
-            <span className="am-card__typetag">{TYPE_LABEL[a.type] ?? a.type}</span>
-            <span className="am-card__scope">{a.scope === 'library' ? '全局资产' : '项目资产'}</span>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  // 单张资产卡片渲染：模块级 renderAssetCard 的资产库薄壳（mode='library'，
+  // 三态按钮沿 tab 门控 —— 行为与提取前字节等价，HIER-04 库路径锚）。
+  const renderCard = (d: AssetDetail) => renderAssetCard(d, {
+    mode: 'library',
+    tab,
+    assets,
+    patchLocal,
+    reload,
+    showToast,
+    onSelect: handleSelect,
+    onDeselect: handleDeselect,
+    onRestore: handleRestore,
+    onLocate: handleLocateOnCanvas,
+    openAssetDetail,
+    charPortraitMap,
+  })
 
   return (
     <div className="am-lib">
