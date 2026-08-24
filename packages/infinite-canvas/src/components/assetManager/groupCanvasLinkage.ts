@@ -4,7 +4,7 @@
  * 62-01：AssetLibrary 共享提取（parseMetaFields/metaStr/getGroupKey/
  * getGroupDisplayInfo/groupOrder 纯移动，三态判定式与场景/声纹豁免式同式换名导出，
  * 资产库路径行为逐字节一致——HIER-04 纯移动前提）+ 双前缀反查 util。
- * 本文件同时是 62-04 层级派生函数家（域指派/单件桶/计数聚合纯函数后续落此）。
+ * 本文件同时是 62-04 层级派生函数家（域指派 / 阶段徽标 / 单件桶 / 计数聚合纯函数，见文件尾）。
  *
  * 双节点 id 约定（RESEARCH D 实测，两前缀都必须查，只查其一漏一半节点）：
  *   - 客户端拖入建点：`asset-${payload.id}`（FlowCanvas drop 链，data 袋带 assetId/assetUuid）
@@ -15,6 +15,10 @@
  */
 import type { AssetDetail } from '../../services/canvasApi'
 import type { FlowGraphV3 } from '@kais/flowgraph-v3'
+// 62-04 层级派生：域指派表/阶段映射表（generationConfigKeys）+ 子类型推导
+// （assetManagerData 纯函数族——同为无 React/无 store 的数据层，无环）。
+import { inferSubtype } from './assetManagerData'
+import { PHASE_BY_SUBTYPE, domainOfType, type AssetDomain } from './generationConfigKeys'
 
 /**
  * 安全解析 meta JSON 字符串 → Record（一次 parse 拿全部字段，供 getGroupKey 热路径复用）。
@@ -253,4 +257,162 @@ export function findVariantGroupForAsset(
   const ref: AssetVariantGroupRef = { groupId: vg.id, size: vg.variantNodeIds.length }
   if (vg.winnerNodeId != null) ref.winnerNodeId = vg.winnerNodeId
   return ref
+}
+
+// ─── 62-04 层级派生（域指派 / 阶段徽标 / 单件桶 / 计数聚合） ──
+//
+// 纯函数家红线沿用：零 React / 零 store。计数聚合全部经 isAssetSelected/
+// isAssetPending/isAssetEliminated 三式（D-04 判定式单套，禁止第二套）；
+// 域指派经 domainOfType（TYPE_DOMAIN 表）；阶段映射经 PHASE_BY_SUBTYPE。
+
+/** 资产阶段徽标信息（C6-1）。source 区分「资产 meta 直读」/「按子类型推导」（D-01 防启发式漂移）。 */
+export interface AssetPhaseInfo {
+  /** 阶段码（如 'P09'）；空串 = 不渲染徽标。 */
+  phaseCode: string
+  source: 'meta' | 'derived'
+  /** 报告/审计类：不进单件桶显式节点（D-03），计入域级计数。仅 derived 查表路径可 true。 */
+  reportAudit: boolean
+}
+
+/**
+ * 阶段徽标推导：meta.phaseCode 直读优先（T-62-12：仅接受 ^P\d{2}$ 形态，
+ * 异常值回落查表）；缺省 inferSubtype → PHASE_BY_SUBTYPE 查表（source 'derived'）；
+ * 未命中表 → 空 phaseCode（UI 不渲染徽标）。
+ */
+export function assetPhaseOf(d: AssetDetail): AssetPhaseInfo {
+  // 直读：T-62-12 防注入——任意字符串不透传，仅 ^P\d{2}$ 形态（P01..P99 量级）。
+  const direct = metaStr(parseMetaFields(d.meta), 'phaseCode')
+  if (direct && /^P\d{2}$/.test(direct)) {
+    return { phaseCode: direct, source: 'meta', reportAudit: false }
+  }
+  const entry = PHASE_BY_SUBTYPE[inferSubtype(d)]
+  if (entry) {
+    return { phaseCode: entry.phaseCode, source: 'derived', reportAudit: entry.reportAudit === true }
+  }
+  return { phaseCode: '', source: 'derived', reportAudit: false }
+}
+
+/** 三态计数聚合（C7 计数芯片与 data-count-* 属性同源；total = 成员总数）。 */
+export interface HierarchyCounts {
+  selected: number
+  pending: number
+  eliminated: number
+  total: number
+}
+
+/** 计数聚合——判定式单套红线：三态全部经 isAsset* 共享导出，零内联判定。 */
+function countsOf(items: AssetDetail[]): HierarchyCounts {
+  let selected = 0
+  let pending = 0
+  let eliminated = 0
+  for (const d of items) {
+    if (isAssetSelected(d)) selected++
+    else if (isAssetEliminated(d)) eliminated++
+    else if (isAssetPending(d)) pending++
+  }
+  return { selected, pending, eliminated, total: items.length }
+}
+
+/** L2 候选组卡模型（getGroupKey 唯一分组轴，D-02）。 */
+export interface HierarchyGroup {
+  key: string
+  title: string
+  emoji: string
+  counts: HierarchyCounts
+  items: AssetDetail[]
+  /** 场景组（✋ 手动选择豁免批量选定，D-07；62-05 消费）。 */
+  isManualScene: boolean
+  /** 声纹组（同上豁免）。 */
+  isManualVoice: boolean
+  /** 组含选定者（title ★ 前缀信号）。 */
+  hasPrimary: boolean
+}
+
+/** 单件桶模型（域内 size===1 且非 reportAudit 成员；桶空则 items 为空数组）。 */
+export interface HierarchySingletons {
+  counts: HierarchyCounts
+  items: AssetDetail[]
+}
+
+/** L1 域节点模型。三域固定纲：恒在场（空域 counts 全 0、groups/singletons 空，树灰态可点）。 */
+export interface HierarchyDomainNode {
+  domain: AssetDomain
+  /** 域级计数（含 reportAudit 排除项与全部组成员，D-03）。 */
+  counts: HierarchyCounts
+  groups: HierarchyGroup[]
+  /** 恒排本域末尾（UI-SPEC Layout）。 */
+  singletons: HierarchySingletons
+}
+
+/** buildHierarchyModel 输出：固定序三域（setting/media/text）+ 全量计数。 */
+export interface HierarchyModel {
+  domains: HierarchyDomainNode[]
+  all: HierarchyCounts
+}
+
+/** L1 固定纲域序（UI-SPEC 层间指派规则：设定资产 → 媒体产物 → 文本产物）。 */
+const DOMAIN_ORDER: readonly AssetDomain[] = ['setting', 'media', 'text']
+
+/**
+ * 层级模型派生（62-04 Task 3 只做渲染与接线，本函数承载全部数据派生）：
+ *   - 分组轴 = getGroupKey；域 = domainOfType(d.type)（type-first，未列类型兜底 media）。
+ *   - 组排序 = groupOrder(key) + title 自然序（既有 candidateGroups 排序式）。
+ *   - 单件桶 = 域内 size===1 且 !assetPhaseOf(d).reportAudit 的成员；
+ *     reportAudit 资产不进桶渲染集但计入域 total（D-03）。
+ *   - 组/域/桶/全量计数全部经 isAsset* 三式（D-04 单套）。
+ */
+export function buildHierarchyModel(assets: AssetDetail[]): HierarchyModel {
+  const byDomain = new Map<AssetDomain, Map<string, AssetDetail[]>>()
+  for (const dom of DOMAIN_ORDER) byDomain.set(dom, new Map())
+  for (const d of assets) {
+    const dom = domainOfType(d.type ?? '')
+    let groups = byDomain.get(dom)
+    if (!groups) {
+      groups = new Map()
+      byDomain.set(dom, groups)
+    }
+    const key = getGroupKey(d)
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key)!.push(d)
+  }
+
+  const domains: HierarchyDomainNode[] = DOMAIN_ORDER.map((domain) => {
+    const groupMap = byDomain.get(domain)!
+    const groupNodes: HierarchyGroup[] = []
+    const singletonItems: AssetDetail[] = []
+    for (const [key, items] of groupMap) {
+      if (items.length === 1) {
+        // 单件桶候选（size===1 组）；reportAudit 资产不进桶渲染集（D-03），
+        // 其计数经 domainItems 聚合仍计入域 total。
+        if (!assetPhaseOf(items[0]).reportAudit) singletonItems.push(items[0])
+        continue
+      }
+      const info = getGroupDisplayInfo(items[0])
+      const counts = countsOf(items)
+      groupNodes.push({
+        key,
+        title: info.title,
+        emoji: info.emoji,
+        counts,
+        items,
+        isManualScene: isSceneGroup(items),
+        isManualVoice: isVoiceGroup(items),
+        hasPrimary: counts.selected > 0,
+      })
+    }
+    groupNodes.sort((a, b) => {
+      const ord = groupOrder(a.key) - groupOrder(b.key)
+      if (ord !== 0) return ord
+      return a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' })
+    })
+    const domainItems = [...groupMap.values()].flat()
+    return {
+      domain,
+      counts: countsOf(domainItems),
+      groups: groupNodes,
+      singletons: { counts: countsOf(singletonItems), items: singletonItems },
+    }
+  })
+
+  return { domains, all: countsOf(assets) }
 }

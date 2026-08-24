@@ -1,5 +1,6 @@
 /**
- * groupCanvasLinkage 单测（62-01）—— 分组轴 / 双前缀反查 / 三态判定式 纯函数契约。
+ * groupCanvasLinkage 单测（62-01 + 62-04 追加）—— 分组轴 / 双前缀反查 / 三态判定式 /
+ * 阶段徽标推导 / 层级模型派生（域指派·单件桶·计数聚合）纯函数契约。
  *
  * 零网络零 DOM：fixture 手造 AssetDetail（字段面 = canvasApi.ts AssetDetail）。
  * 双前缀反查为 RESEARCH D 实测增量的回归锁——现实现只查 asset- 前缀会漏服务端
@@ -23,6 +24,8 @@ import {
   canvasNodeIdsForAsset,
   resolveAssetNodeId,
   findVariantGroupForAsset,
+  assetPhaseOf,
+  buildHierarchyModel,
 } from '../groupCanvasLinkage'
 
 // ─── fixture ──────────────────────────────────────────────
@@ -284,5 +287,132 @@ describe('isSceneGroup / isVoiceGroup（自动初始化豁免式提取）', () =
     expect(isVoiceGroup([detail({ type: 'audio' })])).toBe(true)
     expect(isVoiceGroup([detail({ type: 'character' })])).toBe(false)
     expect(isVoiceGroup([])).toBe(false)
+  })
+})
+
+// ─── 62-04 层级派生（assetPhaseOf / buildHierarchyModel） ──
+
+describe('assetPhaseOf（D-01 阶段徽标推导）', () => {
+  it('meta.phaseCode 直读 ^P\\d{2}$ 命中 → source meta（直读路径 reportAudit 恒 false）', () => {
+    expect(assetPhaseOf(detail({ meta: meta({ phaseCode: 'P09' }) })))
+      .toEqual({ phaseCode: 'P09', source: 'meta', reportAudit: false })
+    expect(assetPhaseOf(detail({ meta: meta({ phaseCode: 'P13' }) })))
+      .toEqual({ phaseCode: 'P13', source: 'meta', reportAudit: false })
+  })
+
+  it('T-62-12：异常 phaseCode（P9 / p09 / P009 / 任意文案）不透传，回落查表 → derived', () => {
+    // type=character + filePath → character_concept → P04（证明走了查表而非直读）
+    expect(assetPhaseOf(detail({ filePath: '/x/a.png', meta: meta({ phaseCode: 'P9' }) })))
+      .toEqual({ phaseCode: 'P04', source: 'derived', reportAudit: false })
+    expect(assetPhaseOf(detail({ filePath: '/x/a.png', meta: meta({ phaseCode: '<script>' }) })))
+      .toEqual({ phaseCode: 'P04', source: 'derived', reportAudit: false })
+    expect(assetPhaseOf(detail({ filePath: '/x/a.png', meta: meta({ phaseCode: 'P009' }) })))
+      .toEqual({ phaseCode: 'P04', source: 'derived', reportAudit: false })
+  })
+
+  it('缺省 meta → inferSubtype 查表 derived：keyframe_first→P09 / delivery_package→P13+reportAudit / 未命中→空徽标', () => {
+    expect(assetPhaseOf(detail({ type: 'keyframe', characterId: 'sz', name: 'S01_first_v1' })))
+      .toEqual({ phaseCode: 'P09', source: 'derived', reportAudit: false })
+    expect(assetPhaseOf(detail({ type: 'delivery', name: '交付 package' })))
+      .toEqual({ phaseCode: 'P13', source: 'derived', reportAudit: true })
+    // type=audio 无标记 → subtype unknown → 不入表 → 空 phaseCode（UI 不渲染徽标）
+    expect(assetPhaseOf(detail({ type: 'audio', name: 'foley_01' })))
+      .toEqual({ phaseCode: '', source: 'derived', reportAudit: false })
+  })
+})
+
+describe('buildHierarchyModel（域指派 / 单件桶 / 计数聚合）', () => {
+  // fixture：三域 × 三态 × 场景组 / 声纹组 / keyframe 组 / reportAudit / meta 直读（15 条）
+  const I = (v: 0 | 1) => v as unknown as boolean
+  const fx = [
+    // setting · char 概念组（3 条：1 选定 + 1 待选 + 1 淘汰且 isPrimaryView=1——不变量格）
+    detail({ id: 1, name: '沈知意 v1', type: 'character', characterId: 'sz', filePath: '/x/sz1.png', isPrimaryView: I(1), state: 'active', meta: meta({ phaseCode: 'P09' }) }),
+    detail({ id: 2, name: '沈知意 v2', type: 'character', characterId: 'sz', filePath: '/x/sz2.png', isPrimaryView: I(0), state: 'active' }),
+    detail({ id: 3, name: '沈知意 v3', type: 'character', characterId: 'sz', filePath: '/x/sz3.png', isPrimaryView: I(1), state: 'eliminated' }),
+    // setting · keyframe 组（S01_first_v1/v2 剥版本后缀同组）
+    detail({ id: 4, type: 'keyframe', characterId: 'sz', name: 'S01_first_v1', isPrimaryView: I(0), state: 'active' }),
+    detail({ id: 5, type: 'keyframe', characterId: 'sz', name: 'S01_first_v2', isPrimaryView: I(1), state: 'active' }),
+    // setting · 场景组（同 name 才同组——分组轴按 name）
+    detail({ id: 6, type: 'scene', name: '宴会厅', isPrimaryView: I(0), state: 'active' }),
+    detail({ id: 7, type: 'scene', name: '宴会厅', isPrimaryView: I(0), state: 'active' }),
+    // media · 视频组（3 条）
+    detail({ id: 8, type: 'video', name: 'EP01', isPrimaryView: I(1), state: 'active' }),
+    detail({ id: 9, type: 'video', name: 'EP01', isPrimaryView: I(0), state: 'active' }),
+    detail({ id: 10, type: 'video', name: 'EP01', isPrimaryView: I(0), state: 'active' }),
+    // media · 声纹组（voice + meta.subtype=voice_print → char:sz:voice）
+    detail({ id: 11, type: 'voice', characterId: 'sz', name: '沈知意声纹 v1', isPrimaryView: I(0), state: 'active', meta: meta({ subtype: 'voice_print' }) }),
+    detail({ id: 12, type: 'voice', characterId: 'sz', name: '沈知意声纹 v2', isPrimaryView: I(0), state: 'active', meta: meta({ subtype: 'voice_print' }) }),
+    // media · 单件（audio unknown → 空 phaseCode 徽标）
+    detail({ id: 13, type: 'audio', name: 'foley_01', isPrimaryView: I(0), state: 'active' }),
+    // text · 单件（requirement → pipeline_requirement → P01）
+    detail({ id: 14, type: 'requirement', name: '创作需求', isPrimaryView: I(0), state: 'active', meta: meta({ subtype: 'requirement' }) }),
+    // text · reportAudit（delivery_package：不进单件桶，计入域 total——D-03）
+    detail({ id: 15, type: 'delivery', name: '交付 package', isPrimaryView: I(0), state: 'active' }),
+  ]
+  const model = buildHierarchyModel(fx)
+  const byDomain = (dom: 'setting' | 'media' | 'text') =>
+    model.domains.find((n) => n.domain === dom)!
+
+  it('三域固定纲（空域也在场）；域计数公式含整数 0/1 与「淘汰且 isPrimaryView=1 仅计淘汰」不变量', () => {
+    expect(model.domains.map((n) => n.domain)).toEqual(['setting', 'media', 'text'])
+    // setting = char{1,1,1} + keyframe{1,1,0} + scene{0,2,0}
+    expect(byDomain('setting').counts).toEqual({ selected: 2, pending: 4, eliminated: 1, total: 7 })
+    // media = video{1,2,0} + voice{0,2,0} + audio 单件{0,1,0}
+    expect(byDomain('media').counts).toEqual({ selected: 1, pending: 5, eliminated: 0, total: 6 })
+    // text = requirement 单件 + delivery(reportAudit)
+    expect(byDomain('text').counts).toEqual({ selected: 0, pending: 2, eliminated: 0, total: 2 })
+    // 全量（pending = setting 4 + media 5 + text 2 = 11）
+    expect(model.all).toEqual({ selected: 3, pending: 11, eliminated: 1, total: 15 })
+    // D-04 DAG 一致性：pending ≡ total - selected - eliminated（三域 + 全量）
+    for (const n of [...model.domains]) {
+      expect(n.counts.pending).toBe(n.counts.total - n.counts.selected - n.counts.eliminated)
+    }
+  })
+
+  it('D-03：reportAudit 资产不在 singletons.items 但计入域 total', () => {
+    const text = byDomain('text')
+    expect(text.singletons.items.map((d) => d.id)).toEqual([14])
+    expect(text.singletons.counts).toEqual({ selected: 0, pending: 1, eliminated: 0, total: 1 })
+    expect(text.counts.total).toBe(2) // delivery(id 15) 计入域 total
+    expect(text.groups).toHaveLength(0) // size===1 组不产组卡
+  })
+
+  it('keyframe 组键剥 _v 后同组；scene/voice 组 isManual 标志（D-07 豁免面）', () => {
+    const setting = byDomain('setting')
+    const kf = setting.groups.find((g) => g.key === 'keyframe:sz:S01_first')!
+    expect(kf.items.map((d) => d.id)).toEqual([4, 5])
+    expect(kf.counts).toEqual({ selected: 1, pending: 1, eliminated: 0, total: 2 })
+    expect(kf.isManualScene).toBe(false)
+    expect(kf.isManualVoice).toBe(false)
+
+    const scene = setting.groups.find((g) => g.key === 'scene:宴会厅')!
+    expect(scene.isManualScene).toBe(true)
+    expect(scene.isManualVoice).toBe(false)
+
+    const voice = byDomain('media').groups.find((g) => g.key === 'char:sz:voice')!
+    expect(voice.isManualVoice).toBe(true)
+    expect(voice.isManualScene).toBe(false)
+
+    // 组含选定者 → hasPrimary（title ★ 前缀信号源）
+    expect(setting.groups.find((g) => g.key === 'char:sz:concept')!.hasPrimary).toBe(true)
+    expect(scene.hasPrimary).toBe(false)
+  })
+
+  it('组排序 char < scene < keyframe < other；size===1 组不产组卡（入单件桶或 D-03 吞并）', () => {
+    expect(byDomain('setting').groups.map((g) => g.key))
+      .toEqual(['char:sz:concept', 'scene:宴会厅', 'keyframe:sz:S01_first'])
+    // media：char: 前缀声纹组（groupOrder=0）先于 video:（other=3）
+    expect(byDomain('media').groups.map((g) => g.key))
+      .toEqual(['char:sz:voice', 'video:EP01'])
+    for (const n of model.domains) {
+      for (const g of n.groups) expect(g.items.length).toBeGreaterThanOrEqual(2)
+    }
+  })
+
+  it('未列 DB type 兜底 media 域（domainOfType 表内行为经 buildHierarchyModel 透传）', () => {
+    const m = buildHierarchyModel([detail({ id: 21, type: 'exotic_new_type', name: 'X', isPrimaryView: I(0), state: 'active' })])
+    expect(m.domains.find((n) => n.domain === 'media')!.singletons.items.map((d) => d.id)).toEqual([21])
+    expect(m.domains.find((n) => n.domain === 'setting')!.counts.total).toBe(0)
+    expect(m.domains.find((n) => n.domain === 'text')!.counts.total).toBe(0)
   })
 })
