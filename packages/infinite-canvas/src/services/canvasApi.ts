@@ -1243,6 +1243,97 @@ export async function placeAssetNode(
 }
 
 
+// ─── 冗余配置 (Phase 62 HIER-03 · C8 RedundancyConfigRail, 62-06) ──────────
+
+/**
+ * GET /api/canvas/v2/generation-config rows 元素（62-02 路由契约形状：
+ * 服务端完成 D-09 三源合并，UI 只消费不推断）。
+ */
+export interface ConfigRow {
+  /** khs phase_key（嵌套 'p09_shotlist.shot_list' / 扁平 'p02_outline'）。 */
+  phaseKey: string
+  tier: 'llm' | 'engine' | 'deterministic' | 'text'
+  /** 中文显示名（UI-SPEC Copywriting phase_key 显示名表逐字）。 */
+  label: string
+  pre: number
+  final: number
+  /** 行级来源 = 两旋钮中较强源（D-09：override > requirement > legacy/snapshot）。 */
+  source: 'override' | 'requirement' | 'snapshot' | 'legacy'
+  /** 文件面为 v2.5 前旧形态（无 v2.5 键）标志——「无 v2.5 键」角标数据。 */
+  sourceLegacy?: boolean
+  /** 14 键全部可写（unwired 键亦 true——写覆盖层允许，标注运行时暂不消费）。 */
+  editable: boolean
+  /** 占位未接线（键面存在，运行时暂不消费覆盖层）。 */
+  unwired?: boolean
+  /** GPU 成本护栏标注（p11_video 特有）。 */
+  gpuHint?: boolean
+  /** 行内注记（如 shot_list「转场随分镜表候选整体」）。 */
+  note?: string
+}
+
+/** PUT overrides 写结果（D-08 两段式：覆盖层恒落库，文件面 best-effort 三态如实）。 */
+export type GenerationConfigWriteState = 'override' | 'synced' | 'file-fail'
+
+/**
+ * GET /api/canvas/v2/generation-config?projectId=&episodesId= — 冗余配置
+ * 三源合并 rows + fileState（62-02 契约）。
+ *
+ * GET 沿 updateAsset/fetchGateState 原生 fetch 范式（apiCall 仅支持 POST body）；
+ * 判错看 HTTP status（62-02 信封陷阱：error 信封 body.code 恒 400，不作依据）。
+ */
+export async function fetchGenerationConfig(
+  projectId: number,
+  episodesId: number,
+): Promise<{ rows: ConfigRow[]; fileState: string }> {
+  const query = `?projectId=${encodeURIComponent(projectId)}&episodesId=${encodeURIComponent(episodesId)}`
+  const res = await fetch(`${API_BASE}/canvas/v2/generation-config${query}`, { method: 'GET' })
+  if (!res.ok) throw new ApiError(`HTTP ${res.status}`, 'network', res.status)
+  const json = await res.json()
+  return json.data as { rows: ConfigRow[]; fileState: string }
+}
+
+/**
+ * PUT /api/canvas/v2/generation-config/overrides/:phaseKey — D-08 两段式写：
+ * body { projectId, episodesId, nCandidates, finalCandidates } →
+ * { phaseKey, writeState }。writeState 服务端判定，UI 只映射徽标不推断
+ * （绝不假成功）。
+ * 400（白名单外 / preCap1 越界）时抛 ApiError，message 优先承载服务端
+ * body.message 文案（D-10 后端道：调用方 toast 同文案，与前端钳制同串）。
+ */
+export async function putGenerationConfigOverride(
+  projectId: number,
+  episodesId: number,
+  phaseKey: string,
+  values: { nCandidates: number; finalCandidates: number },
+): Promise<{ phaseKey: string; writeState: GenerationConfigWriteState }> {
+  const res = await fetch(
+    `${API_BASE}/canvas/v2/generation-config/overrides/${encodeURIComponent(phaseKey)}`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        projectId,
+        episodesId,
+        nCandidates: values.nCandidates,
+        finalCandidates: values.finalCandidates,
+      }),
+    },
+  )
+  if (!res.ok) {
+    // 判错看 HTTP status；body.message（服务端 zod/钳制文案）优先作 message 供 toast 同文案。
+    let message = `HTTP ${res.status}`
+    try {
+      const body = await res.json()
+      if (typeof body?.message === 'string' && body.message) message = body.message
+    } catch {
+      // body 不可解析时保留 HTTP 状态文案
+    }
+    throw new ApiError(message, 'network', res.status)
+  }
+  const json = await res.json()
+  return json.data as { phaseKey: string; writeState: GenerationConfigWriteState }
+}
+
 /**
  * 分镜故事板（storyboard board）—— p10b 组装的全景分镜板 JSON。
  * GET /api/v1/storyboard/:projectId/:episodesId 返回 { scenes[], stats }。
