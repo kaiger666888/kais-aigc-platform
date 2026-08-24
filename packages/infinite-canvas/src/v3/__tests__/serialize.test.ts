@@ -509,3 +509,83 @@ describe('Phase 58: 全配方反向覆盖 + delete 传播', () => {
     expect(win.data.prompt).toBe('A')
   })
 })
+
+// ─── Phase 61-03（DEBT-03）：五字段 meta save→reload 往返保真 ────────────────
+// 51-REVIEW I1：写侧 flattenMeta {...rest} 摊平无缺口，读侧 buildMeta 漏拣导致
+// reload 后 meta 5 字段(emotion/promptMeta/murchGrade/archetype/viewAngle)静默丢失。
+// 断言全部打在 adapt∘serialize 之后的 canonical meta 层（back.graph.nodes[i].meta.*）；
+// serializeGraphToV2 第二参传 null——纯 flattenMeta 输出、无 raw 袋兜底，才暴露真
+// 读侧缺口（带 raw 袋时 {...raw,...flattenMeta} 透传会假绿，Pitfall 4；
+// 禁断 wire body / rawData 层——Anti-Pattern 警示）。
+
+describe('DEBT-03(61-03): 五字段 meta save→reload 往返保真', () => {
+  it('DEBT-03(61-03): 五字段 meta save→reload 往返保真(raw=null 最严格档)', () => {
+    const PROMPT_FACETS = {
+      subject: '林晚站在天台边缘', action: '回眸', camera: 'dolly-in',
+      scene: '雨夜天台', lighting: '低调侧光', style: '电影感写实', text: '无字幕',
+    }
+    const g3 = minimalGraph(
+      [
+        asset({
+          id: 'n_script5', stage: 'script', modality: 'text', phaseIndex: 1,
+          meta: { stage: 'script', hookType: '悬念', emotion: 7 }, // number（Pitfall 3 双类型）
+        }),
+        asset({
+          id: 'n_sb5', stage: 'storyboard', phaseIndex: 2, durationS: 4,
+          meta: { stage: 'storyboard', shotId: 'shot-005', shotType: 'close-up', durationS: 4, promptMeta: PROMPT_FACETS },
+        }),
+        asset({
+          id: 'n_video5', stage: 'video', modality: 'video', phaseIndex: 4,
+          meta: { stage: 'video', shotId: 'shot-005', murchGrade: 'A' },
+        }),
+        asset({
+          id: 'n_global5', stage: 'global', scope: 'global', phaseIndex: 0,
+          meta: { stage: 'global', assetType: 'role', archetype: 'sage', viewAngle: 'front' },
+        }),
+        asset({
+          id: 'n_voice5', stage: 'voice', modality: 'audio', phaseIndex: 5,
+          meta: { stage: 'voice', shotId: 'shot-005', emotion: '激动' }, // string（双类型另一半）
+        }),
+      ],
+      [],
+    )
+    // 第二参 null 是关键：无 raw 袋兜底，wire 层只剩 flattenMeta 摊平产物（Pitfall 4）
+    const wire = serializeGraphToV2(g3, null, undefined)
+    // JSON 往返切引用链（T-61-09：防 promptMeta 深引用别名假绿）
+    const back = adaptV2Graph(JSON.parse(JSON.stringify(wire)))
+
+    const metaOf = (id: string): AssetStageMeta => {
+      const n = back.graph.nodes.find((x) => x.id === id)
+      if (n == null || n.kind !== 'asset') throw new Error(`节点 ${id} 未以资产形态往返存活`)
+      return n.meta
+    }
+
+    // script emotion：number 保真（typeof 正断言，Pitfall 3）
+    const mScript = metaOf('n_script5')
+    if (mScript.stage !== 'script') throw new Error(`stage=${mScript.stage}`)
+    expect(mScript.emotion).toBe(7)
+    expect(typeof mScript.emotion).toBe('number')
+
+    // storyboard promptMeta：7-facet deep equal 原对象
+    const mSb = metaOf('n_sb5')
+    if (mSb.stage !== 'storyboard') throw new Error(`stage=${mSb.stage}`)
+    expect(mSb.promptMeta).toEqual(PROMPT_FACETS)
+
+    // video murchGrade
+    const mVideo = metaOf('n_video5')
+    if (mVideo.stage !== 'video') throw new Error(`stage=${mVideo.stage}`)
+    expect(mVideo.murchGrade).toBe('A')
+
+    // global archetype + viewAngle
+    const mGlobal = metaOf('n_global5')
+    if (mGlobal.stage !== 'global') throw new Error(`stage=${mGlobal.stage}`)
+    expect(mGlobal.archetype).toBe('sage')
+    expect(mGlobal.viewAngle).toBe('front')
+
+    // audio emotion：string 保真（双类型契约另一半回归锁）
+    const mVoice = metaOf('n_voice5')
+    if (mVoice.stage !== 'voice') throw new Error(`stage=${mVoice.stage}`)
+    expect(mVoice.emotion).toBe('激动')
+    expect(typeof mVoice.emotion).toBe('string')
+  })
+})
