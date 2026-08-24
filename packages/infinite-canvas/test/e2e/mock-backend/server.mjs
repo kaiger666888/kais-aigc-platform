@@ -13,6 +13,13 @@
  *  - POST /api/canvas/projectData    → 项目剧本数据
  *  - GET  /api/v1/skills/:id/node-types → Skill 注册表
  *
+ * Phase 62 (资产层级/选定/冗余配置) mock 扩面:
+ *  - PATCH /api/v1/assets-registry/:id        → 资产更新 (白名单 isPrimaryView/state/tags)
+ *  - POST /api/canvas/v2/variant-groups/:groupId/select-winner → 变体组选定 (镜像 select-winner.ts)
+ *  - GET  /api/canvas/v2/generation-config    → 冗余配置三源合并读 (查表生成)
+ *  - PUT  /api/canvas/v2/generation-config/overrides/:phaseKey → 覆盖层写 (writeState 可注入)
+ *  多组 search fixture 经 /__mock/config { assetFixture:'rich' } 激活,/__mock/reset 归位默认。
+ *
  * WebSocket 命名空间: /ws/projects
  *  - 广播 node:state / execution:progress / orchestrate:start/progress/done / node:preview
  *  - Phase 59: execute(body 含 regenSource)回放 node:updated { node, changedFields:["data.stale"] }
@@ -120,6 +127,108 @@ const DEFAULT_EDGES = [
   { id: 'e5', source: 'asset-1', target: 'audio-1', data: { dataType: 'audio' } },
 ]
 
+// ─── Phase 62 fixtures(资产层级/选定/冗余配置)──────────────
+
+// 62-03: 默认 search fixture——原 search 路由内联字面量原样抽取(字节等价,
+// phase61-debt 的 .am-card 可见性断言零扰动)。PATCH 写通道命中默认行时先
+// structuredClone 物化到 state.fixtureAssets 再改,本常量永不原地突变。
+const DEFAULT_ASSET_FIXTURE = [
+  { id: 90001, uuid: 'e2e-asset-90001', name: 'E2E拖入资产A', type: 'character', prompt: null, describe: null, projectId: 1, characterId: null, viewAngle: 'front', isPrimaryView: true, model: null, tags: null, state: 'active', meta: null, filePath: '/oss/e2e/asset-a.png', imageState: null, imageModel: null, resolution: null },
+  { id: 90002, uuid: 'e2e-asset-90002', name: 'E2E拖入资产B', type: 'character', prompt: null, describe: null, projectId: 1, characterId: null, viewAngle: 'front', isPrimaryView: false, model: null, tags: null, state: 'active', meta: null, filePath: '/oss/e2e/asset-b.png', imageState: null, imageModel: null, resolution: null },
+]
+
+// 62-03: 内存 variantGroups 注册表(select-winner mock 直查此表——「图未加载不是
+// 失败模式」的 mock 等价物)。vg-e2e-1 成员指向 rich fixture 的 asset-91001/91002;
+// e2e 用 rich 前必注入。__mock/config { fixtureVariantGroups:[...] } 可覆盖注入自定义组。
+const DEFAULT_VARIANT_GROUPS = [
+  { groupId: 'vg-e2e-1', variantNodeIds: ['asset-91001', 'asset-91002'], winnerNodeId: null, selectMode: 'single' },
+]
+
+// 62-03: 冗余配置 14 键内联精简表(11 嵌套——transition 已并入 shot_list(RESEARCH F 漂移 2)
+// + 3 扁平)。mock 只锁 UI 断言面不背键面一致性责任——键集与真表一致由 62-07 S-门对
+// generationConfigKeys.ts 锁;此处 tier/label 与 UI-SPEC phase_key 显示名表对齐。
+const GENERATION_CONFIG_MOCK_KEYS = [
+  { phaseKey: 'p01_hook.topic_kernel', tier: 'llm', label: '选题钩子·题核' },
+  { phaseKey: 'p06_script.spatio_temporal', tier: 'llm', label: '时空剧本' },
+  { phaseKey: 'p09_shotlist.shot_list', tier: 'llm', label: '分镜列表·参数' },
+  { phaseKey: 'p11_video.video_render', tier: 'engine', label: '视频渲染', gpuHint: 'GPU 成本护栏 · 谨慎调高' },
+  { phaseKey: 'p07_style.style_vector', tier: 'deterministic', label: '风格·风格向量', preCap1: true },
+  { phaseKey: 'p07_style.color_intent', tier: 'deterministic', label: '风格·色彩意图', preCap1: true },
+  { phaseKey: 'p12_compose.master_timeline', tier: 'deterministic', label: '合成·主时间线', preCap1: true },
+  { phaseKey: 'p12_compose.audio_mix', tier: 'deterministic', label: '合成·混音', preCap1: true },
+  { phaseKey: 'p13_master.master_mp4', tier: 'deterministic', label: '母版·成片', preCap1: true },
+  { phaseKey: 'p12_audio.bgm', tier: 'engine', label: '音频·BGM', unwired: true },
+  { phaseKey: 'p12_audio.foley', tier: 'engine', label: '音频·Foley', unwired: true },
+  { phaseKey: 'p01_hook', tier: 'text', label: '选题钩子（文本候选）' },
+  { phaseKey: 'p02_outline', tier: 'text', label: '故事大纲（文本候选）' },
+  { phaseKey: 'p03_script', tier: 'text', label: '剧本（文本候选）' },
+]
+
+// 快照默认(runner 实码口径):嵌套键 pre=final=1;扁平键 pre=3、p02/p03 final=1、
+// p01 不落数字 final 键 → final 缺省=pre(_vision_review.py 哨兵语义)。
+function snapshotDefaults(phaseKey) {
+  if (!phaseKey.includes('.')) {
+    if (phaseKey === 'p01_hook') return { pre: 3, final: 3 }
+    return { pre: 3, final: 1 }
+  }
+  return { pre: 1, final: 1 }
+}
+
+/**
+ * 62-03: Phase 62 层级/三态/计数断言面 fixture(rich preset);组键对齐 62-01
+ * getGroupKey 词表(char:/scene:/keyframe:/type:name)。期望组键集:
+ *   char:shenzhiyi:concept ×3(1 selected + 2 pending)/ scene:宴会厅 ×2(手动组)/
+ *   char:shenzhiyi:voice ×2(手动组,meta.subtype='voice_print')/
+ *   keyframe:S01:S01_first ×2(剥 _v 同键;meta.phaseCode='P09' 直读样本)/
+ *   video:SH01 ×1 / outline:* ×1(isPrimaryView=true)/ document:* ×1(reportAudit 单件)。
+ * 每条含完整 AssetDetail 形状 + createdAt(排序键面,UI-GREY-1)+ filePath 非空(除文档型)。
+ */
+function buildRichFixture() {
+  const t0 = 1756000000000
+  const row = (id, extra) => ({
+    id,
+    uuid: `e2e-rich-${id}`,
+    name: null,
+    type: null,
+    prompt: null,
+    describe: null,
+    projectId: 1,
+    characterId: null,
+    viewAngle: null,
+    isPrimaryView: false,
+    model: null,
+    tags: null,
+    state: 'active',
+    meta: null,
+    filePath: `/oss/e2e/rich-${id}.png`,
+    imageState: null,
+    imageModel: null,
+    resolution: null,
+    createdAt: t0 + id * 1000,
+    ...extra,
+  })
+  return [
+    // char 组 char:shenzhiyi:concept(meta.subtype 缺省 → concept 键)
+    row(91001, { name: '沈知意·概念设定A', type: 'character', characterId: 'shenzhiyi', viewAngle: 'front', isPrimaryView: true }),
+    row(91002, { name: '沈知意·概念设定B', type: 'character', characterId: 'shenzhiyi', viewAngle: 'front' }),
+    row(91003, { name: '沈知意·概念设定C', type: 'character', characterId: 'shenzhiyi', viewAngle: 'front' }),
+    // scene 手动组 scene:宴会厅(getGroupKey 场景分支按 name 分组——name 必须同串)
+    row(91004, { name: '宴会厅', type: 'scene' }),
+    row(91005, { name: '宴会厅', type: 'scene' }),
+    // voice 手动组 char:shenzhiyi:voice(getGroupKey 仅经 meta.subtype='voice_print' 到达)
+    row(91006, { name: '沈知意·声纹A', type: 'voice', characterId: 'shenzhiyi', meta: '{"subtype":"voice_print"}', filePath: '/oss/e2e/rich-91006.mp3' }),
+    row(91007, { name: '沈知意·声纹B', type: 'voice', characterId: 'shenzhiyi', meta: '{"subtype":"voice_print"}', filePath: '/oss/e2e/rich-91007.mp3' }),
+    // keyframe 组 keyframe:S01:S01_first(剥 _v 后同键)+ phaseCode 直读样本
+    row(91008, { name: 'S01_first_v1', type: 'keyframe', characterId: 'S01', meta: '{"phaseCode":"P09"}' }),
+    row(91009, { name: 'S01_first_v2', type: 'keyframe', characterId: 'S01', meta: '{"phaseCode":"P09"}' }),
+    // 媒体单件 video:SH01
+    row(91010, { name: 'SH01', type: 'video', filePath: '/oss/e2e/rich-91010.mp4' }),
+    // 文本单件(outline,文档型 filePath 空;isPrimaryView=true)
+    row(91011, { name: '故事大纲v1', type: 'outline', isPrimaryView: true, filePath: null }),
+    // reportAudit 单件(meta.subtype='delivery_package';文档型 filePath 空)
+    row(91012, { name: '交付包审计报告', type: 'document', meta: '{"subtype":"delivery_package","phaseCode":"P13"}', filePath: null }),
+  ]
+}
 const state = {
   canvas: {
     nodes: structuredClone(DEFAULT_NODES),
@@ -143,6 +252,13 @@ const state = {
   // eventCount(第二 reload 通道在产线是死的);mock 保留 eventCount 使 e2e 能
   // 行为覆盖 health-poll 通道。零事件的 scope 不出现在 scopes(更贴真形)。
   scopeEvents: new Map(),  // key `${projectId}:${episodesId}` → { eventCount, lastEventId, lastEventAt }
+  // ─── Phase 62 (62-03) 扩展态 ────────────────────────────
+  // null = 用 DEFAULT_ASSET_FIXTURE(默认路径字节等价 61);'rich' 注入后为 buildRichFixture() 数组
+  fixtureAssets: null,
+  fixtureVariantGroups: structuredClone(DEFAULT_VARIANT_GROUPS),
+  // 冗余配置 mock 态:fileShape 由 /__mock/config { fileShape } 注入('not-found'|'requirement-v25'|'legacy');
+  // overrides 由 PUT 覆盖层写累积;writeState 三态经 /__mock/config { genCfgWriteState } 注入(读侧在 state.config)。
+  generationConfig: { overrides: {}, fileShape: 'not-found' },
 }
 
 function reset() {
@@ -154,6 +270,10 @@ function reset() {
   }
   state.calls = []
   state.scopeEvents = new Map() // WR-02: per-scope 计数随 reset 清零
+  // 62-03: Phase 62 扩展态归位(fixture 回默认;config 归位由下方 keepConfig 分支负责)
+  state.fixtureAssets = null
+  state.fixtureVariantGroups = structuredClone(DEFAULT_VARIANT_GROUPS)
+  state.generationConfig = { overrides: {}, fileShape: 'not-found' }
 }
 
 function logCall(method, path, body, response) {
@@ -250,19 +370,40 @@ app.post('/api/canvas/v2/nodes/', (req, res) => {
 })
 
 // 61-01 DEBT-01: 资产中心数据面——useRealAssets 唯一数据源 POST /v1/assets-registry/search。
-// 返回 2 条固定 AssetDetail fixture(id 90001/90002,filePath 非空供缩略图渲染);
-// 不校验查询参数(客户端分页 limit 200,fixture 2 条 < 200 自然收敛,不会二次翻页)。
+// 默认返回 DEFAULT_ASSET_FIXTURE 2 条(id 90001/90002,filePath 非空供缩略图渲染)——
+// 与 61 版内联字面量字节等价,phase61-debt 回归锚零扰动。
+// 62-03: rich 多组 fixture 经 POST /__mock/config { assetFixture:'rich' } 激活
+// (state.fixtureAssets),/__mock/reset 归位 null=默认。不校验查询参数(客户端分页
+// limit 200,默认 2 条/rich 12 条 < 200 自然收敛,不会二次翻页)。
 app.post('/api/v1/assets-registry/search', (req, res) => {
   logCall('POST', '/api/v1/assets-registry/search', req.body ?? {}, null)
   res.json({
     code: 200,
     data: {
-      assets: [
-        { id: 90001, uuid: 'e2e-asset-90001', name: 'E2E拖入资产A', type: 'character', prompt: null, describe: null, projectId: 1, characterId: null, viewAngle: 'front', isPrimaryView: true, model: null, tags: null, state: 'active', meta: null, filePath: '/oss/e2e/asset-a.png', imageState: null, imageModel: null, resolution: null },
-        { id: 90002, uuid: 'e2e-asset-90002', name: 'E2E拖入资产B', type: 'character', prompt: null, describe: null, projectId: 1, characterId: null, viewAngle: 'front', isPrimaryView: false, model: null, tags: null, state: 'active', meta: null, filePath: '/oss/e2e/asset-b.png', imageState: null, imageModel: null, resolution: null },
-      ],
+      assets: state.fixtureAssets ?? DEFAULT_ASSET_FIXTURE,
     },
   })
+})
+
+// 62-03: PATCH assets-registry mock——镜像真端点 src/routes/v1/assets-registry/index.ts
+// 最小写语义(白名单 isPrimaryView/state/tags;响应 { code, data:{ asset } })。
+// 刻意不模拟服务端 PATCH-linkage 联动(RESEARCH C:真侧 isPrimaryView=true 会自动
+// applyRegistrySelectionToCanvas;mock 保持两通道分离——客户端 select-winner POST 的
+// 真实增量 = 恰一次调用可观测,D-05 断言纪律按「POST 发出 + 最终态正确」写)。
+// logCall 全尝试记录惯例(含 404 未命中,e2e 恰-N 计数断言面);写时物化:
+// 默认 fixture 首次被写先 clone 到 state.fixtureAssets,DEFAULT_ASSET_FIXTURE 永不原地突变。
+app.patch('/api/v1/assets-registry/:id', (req, res) => {
+  logCall('PATCH', `/api/v1/assets-registry/${req.params.id}`, req.body ?? {}, null)
+  if (state.fixtureAssets == null) state.fixtureAssets = structuredClone(DEFAULT_ASSET_FIXTURE)
+  const row = state.fixtureAssets.find((a) => a.id === Number(req.params.id))
+  if (!row) {
+    return res.status(404).json({ code: 404, message: '资产不存在' })
+  }
+  const body = req.body ?? {}
+  for (const key of ['isPrimaryView', 'state', 'tags']) {
+    if (key in body) row[key] = body[key]
+  }
+  res.json({ code: 200, data: { asset: row } })
 })
 
 // Phase 56 G16 豁免回路 mock(56-05 g15-ops):受理即 200 applied。
@@ -527,7 +668,31 @@ app.post('/__mock/emit', (req, res) => {
 })
 app.get('/__mock/calls', (req, res) => res.json(state.calls))
 app.post('/__mock/config', (req, res) => {
-  state.config = { ...state.config, ...req.body }
+  const body = req.body ?? {}
+  // ─── Phase 62 (62-03) 注入旋钮(特殊键先消费,再照旧并入 state.config 供观测)───
+  if ('assetFixture' in body) {
+    // 'rich' → 多组 fixture;null/其他 → 清回默认 2 条
+    state.fixtureAssets = body.assetFixture === 'rich' ? buildRichFixture() : null
+    if (body.assetFixture === 'rich') {
+      // rich preset 同步挂上 variantGroups 注册表(reset 已归位,此处幂等兜底)
+      state.fixtureVariantGroups = structuredClone(DEFAULT_VARIANT_GROUPS)
+    }
+  }
+  if ('fixtureVariantGroups' in body) {
+    // 自定义组注入(null/非数组 → 归位内置注册表)
+    state.fixtureVariantGroups = Array.isArray(body.fixtureVariantGroups)
+      ? body.fixtureVariantGroups
+      : structuredClone(DEFAULT_VARIANT_GROUPS)
+  }
+  if ('fileShape' in body) {
+    // 冗余配置文件形态三档('not-found'|'requirement-v25'|'legacy';非法值归位 not-found)
+    state.generationConfig.fileShape = ['not-found', 'requirement-v25', 'legacy'].includes(body.fileShape)
+      ? body.fileShape
+      : 'not-found'
+  }
+  // genCfgWriteState('override'|'synced'|'file-fail')/ failSelectWinner(500 注入)/
+  // orchDelay 等既有旋钮走通用合并——读侧直接查 state.config。
+  state.config = { ...state.config, ...body }
   res.json({ ok: true, config: state.config })
 })
 
