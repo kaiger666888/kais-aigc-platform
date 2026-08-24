@@ -15,12 +15,14 @@
  *   - 淘汰→待选：手动恢复。
  *
  * 点击卡片 → openAssetDetail(uuid)（store 驱动切到详情子视图）。
- * 卡片 hover「添加到画布」→ 画布联动（占位 · TODO 待后端 place 端点）。
+ * 卡片拖拽到画布 → 61-01 (DEBT-01) 拖入链:dragstart 写 ASSET_DRAG_MIME 载荷 →
+ * 「画布」页签 dragover 切视图 → 面板 drop 落节点(POST /canvas/v2/nodes/ 落库);
+ * 「＋ 画布」stub 按钮已退役——拖入是 anchor='source' 唯一活调用方(D-01 sole-caller)。
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useCanvasStore } from '../../store/canvasStore'
 import { useVariantPickerStore } from '../variants/variantPickerStore'
-import { placeAssetOnCanvas, updateAsset, type AssetDetail } from '../../services/canvasApi'
+import { updateAsset, ASSET_DRAG_MIME, type AssetDetail, type AssetDragPayload } from '../../services/canvasApi'
 import { resolveMediaUrl } from '../../utils/mediaUrl'
 import { useRealAssets } from './useRealAssets'
 import DialoguePanel from './DialoguePanel'
@@ -404,7 +406,6 @@ export default function AssetLibrary() {
   const rawCloseAssetDetail = useCanvasStore((s) => s.closeAssetDetail)
   const showToast = useCanvasStore((s) => s.showToast)
   const projectId = useCanvasStore((s) => s.projectId)
-  const episodesId = useCanvasStore((s) => s.episodesId)
   // 对白资产（P10 voice_clips）不在 assets-registry，而是存在于 canvas graph，
   // 与 DialoguePanel / StoryboardTimeline 同源，故直接消费 store 的 graph。
   const graph = useCanvasStore((s) => s.graph)
@@ -814,16 +815,6 @@ export default function AssetLibrary() {
     )
   }
 
-  const handleAddToCanvas = async (a: AssetItem) => {
-    if (!projectId || episodesId == null) {
-      showToast('请先在顶栏选择项目和剧集，再添加到画布', 'warning')
-      return
-    }
-    // TODO(backend): placeAssetOnCanvas 真实持久化待 POST /api/v1/assets/:uuid/place 落地。
-    await placeAssetOnCanvas(projectId, episodesId, a.uuid)
-    showToast(`已添加到画布 · ${a.name}（占位 · 待后端 place 端点）`, 'success')
-  }
-
   // 【资产↔画布交叉联动】从资产库卡片「定位」到画布上对应节点（asset-{id}）并高亮。
   // 拍历史快照 → 设 focusAssetNodeId（画布侧 useEffect 监听并 fitView + 闪烁）→ 切画布视图。
   // 资产未放置时由画布侧 toast 提示（节点不存在）。
@@ -899,6 +890,24 @@ export default function AssetLibrary() {
         className="am-card"
         data-uuid={a.uuid}
         style={cssVars({ '--cardc': `var(${modalityVar(a.modality)})`, '--cardw': `var(${modalityWeakVar(a.modality)})` })}
+        draggable
+        onDragStart={(e) => {
+          // 61-01 (DEBT-01): dragstart 写 MIME 载荷——拖入是 anchor='source'
+          // 唯一活调用方(D-01 sole-caller);「＋ 画布」stub 按钮已退役。
+          if (a.id == null) {
+            e.preventDefault()
+            showToast('该资产缺少数字 id,无法拖入', 'warning')
+            return
+          }
+          e.dataTransfer.setData(
+            ASSET_DRAG_MIME,
+            JSON.stringify({
+              id: a.id, uuid: a.uuid, name: a.name,
+              assetType: a.type, filePath: a.filePath ?? null,
+            } as AssetDragPayload),
+          )
+          e.dataTransfer.effectAllowed = 'copy'
+        }}
         onClick={(e) => e.stopPropagation()}
         onDoubleClick={(e) => { e.stopPropagation(); openAssetDetail(a.uuid) }}
       >
@@ -907,12 +916,6 @@ export default function AssetLibrary() {
 
         {isKey && <span className="am-card__keyflag">🔒 关键</span>}
         {a.reuses ? <span className="am-card__reuse am-badge am-badge--reuse">{a.reuses} 集</span> : null}
-
-        <button
-          className="am-card__add"
-          onClick={(e) => { e.stopPropagation(); void handleAddToCanvas(a) }}
-          title="添加到当前画布"
-        >＋ 画布</button>
 
         {/* 【资产↔画布交叉联动】定位到画布上对应节点（未放置时画布侧 toast 提示） */}
         <button

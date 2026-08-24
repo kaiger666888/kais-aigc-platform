@@ -1172,8 +1172,9 @@ export async function listIterationPlans(
 // 资产管理中心的 API 接缝。现网 `/api/v1/assets-registry` 已有基础 CRUD（见上方
 // searchAssets / fetchAssetDetail / fetchProjectAssets），但缺少组合关系
 // (o_asset_composition) 与搭配预设 (o_loadout) —— 见 /tmp/asset-manager-design.md §3/§4。
-// 下面两个函数为**前瞻接缝**：标注 TODO，待后端落地后实现真实调用；
-// 当前由 assetManager/assetManagerData.ts 的 mock 数据驱动 UI。
+// fetchAssetComposition 为**前瞻接缝**：标注 TODO，待后端落地后实现真实调用。
+// (61-01 DEBT-01:原「投放资产到画布」恒 true 占位已退役——该入口改走下方
+// placeAssetNode 的 POST /canvas/v2/nodes/ 真封装,拖入为唯一活调用方。)
 
 export interface AssetCompositionEntry {
   parentUuid: string
@@ -1193,19 +1194,47 @@ export async function fetchAssetComposition(_uuid: string): Promise<AssetComposi
   return null
 }
 
+// 61-01 (DEBT-01): 资产卡片 HTML5 拖拽的 dataTransfer MIME 类型。载荷为
+// AssetDragPayload 的 JSON;异源页面伪造同 MIME drop 由 onDrop 字段强校验兜底
+// (T-61-03:最坏效果=经服务端 zod 门的节点创建,与用户点击等权,无提权面)。
+export const ASSET_DRAG_MIME = 'application/x-kais-asset'
+
+/** 拖拽载荷(卡片 dragstart 写入 dataTransfer;onDrop defensively 解析)。 */
+export interface AssetDragPayload {
+  id: number
+  uuid: string
+  name: string
+  assetType: string
+  filePath: string | null
+}
+
 /**
- * TODO(backend): 把资产库的资产「投放」到当前画布 —— 在 (projectId, episodesId) 下
- * 创建一个引用该 assetUuid 的画布节点。计划端点：POST /api/v1/assets/:uuid/place。
- * 当前仅触发一次 store 的乐观节点插入（见 AssetLibrary 的 onPlaceToCanvas），
- * 真实持久化待后端落地。返回 true 表示已（乐观）处理。
+ * 61-01 (DEBT-01): 把拖入资产作为画布节点落库——既有 POST /api/canvas/v2/nodes/
+ * 的真封装,替代已退役的恒 true 投放占位函数。
+ * 通道 = 服务端真值(zod nodeInputSchema 门 + validateNodeData + node:created 广播
+ * → 客户端 addNodeFromSocket canonical 写回);客户端本地写会重演 I5 ephemeral
+ * 陷阱(graph:saved 全量 reload 抹掉未落库节点),故必须走服务端。
+ * 409(同 id 已在画布)→ {ok:false,status:409};其余失败同样结构化返回——拖入是
+ * fire-action,错误全部 toast 化,绝不向调用方 throw(T-61-04 不静默不吞)。
  */
-export async function placeAssetOnCanvas(
-  _projectId: number,
-  _episodesId: number,
-  _assetUuid: string,
-): Promise<boolean> {
-  // TODO: await apiCall('/v1/assets-registry/place', { projectId, episodesId, assetUuid })
-  return true
+export async function placeAssetNode(
+  projectId: number,
+  episodesId: number,
+  node: Record<string, unknown>,
+): Promise<{ ok: true } | { ok: false; status: number; message: string }> {
+  try {
+    await apiCall('/canvas/v2/nodes/', { projectId, episodesId, node })
+    return { ok: true }
+  } catch (err) {
+    if (err instanceof ApiError && err.code === 409) {
+      return { ok: false, status: 409, message: '已在画布' }
+    }
+    return {
+      ok: false,
+      status: err instanceof ApiError ? (err.code ?? 0) : 0,
+      message: err instanceof Error ? err.message : String(err),
+    }
+  }
 }
 
 

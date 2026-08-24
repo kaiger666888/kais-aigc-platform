@@ -48,7 +48,7 @@ import { useCanvasStore, type ViewMode } from '../store/canvasStore'
 import { ToastContainer } from '../hooks/useToast'
 import { serializeGraphToV2 } from '../v3/serialize'
 import { getLayoutedElements } from '../utils/autoLayout'
-import { loadCanvasGraph, saveCanvasGraph, convertProjectData, fetchSkillNodeTypes, orchestrateCanvas, fetchCanvasHealth, fetchGateState } from '../services/canvasApi'
+import { loadCanvasGraph, saveCanvasGraph, convertProjectData, fetchSkillNodeTypes, orchestrateCanvas, fetchCanvasHealth, fetchGateState, placeAssetNode, ASSET_DRAG_MIME, type AssetDragPayload } from '../services/canvasApi'
 // 60-02 (D-01): graph:saved 自回声判定身份(详见 clientTabId.ts 头注释)
 import { getClientTabId } from '../services/clientTabId'
 import { useGateStore, resolveRepresentativeNodeId } from '../store/gateStore'
@@ -416,6 +416,74 @@ function CanvasInner() {
       triggerStaleCascade([stale.triggerAssetId])
     },
   })
+
+  // 61-01 (DEBT-01): 资产卡片拖入 drop 处理器——placeNewAsset(anchor='source') 的
+  // 唯一活调用方(D-01 sole-caller纪律)。落点 = screenToFlowPosition(拖放点) 源锚定
+  // (A2 裁定注记:PLACE_GRID.source=4px 既有语义胜出,CONTEXT「8px」措辞不落地为
+  // 代码改动,placeNewAsset 本体零改动)。写回走服务端广播 node:created →
+  // onNewAsset → addNodeFromSocket(WRITE-03 canonical),本 handler 零 setNodes;
+  // 服务端 position 即本方 position,真相优先,勿二次偏移(Anti-Pattern 3)。
+  const handleAssetDrop = useCallback(async (event: React.DragEvent) => {
+    // 非 asset 拖拽(如文件拖入)静默忽略——只处理本应用卡片写入的 MIME
+    if (!event.dataTransfer.types.includes(ASSET_DRAG_MIME)) return
+    event.preventDefault()
+    // T-61-01/T-61-03:dataTransfer 载荷 defensively 解析(字段类型强校验)
+    let payload: AssetDragPayload | null = null
+    try {
+      payload = JSON.parse(event.dataTransfer.getData(ASSET_DRAG_MIME)) as AssetDragPayload
+    } catch {
+      payload = null
+    }
+    if (
+      payload == null || typeof payload !== 'object' ||
+      typeof payload.id !== 'number' || !Number.isFinite(payload.id) ||
+      typeof payload.uuid !== 'string' || typeof payload.name !== 'string'
+    ) {
+      showToast('拖入载荷无效', 'warning')
+      return
+    }
+    if (!projectId || episodesId == null) {
+      showToast('请先在顶栏选择项目和剧集,再拖入资产', 'warning')
+      return
+    }
+    const flowPoint = reactFlow.screenToFlowPosition({ x: event.clientX, y: event.clientY })
+    const position = placeNewAsset({
+      sourcePosition: flowPoint,
+      viewportCenter: reactFlow.screenToFlowPosition({
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2,
+      }),
+      anchor: 'source',
+    })
+    // id 约定与 handleLocateOnCanvas 的 asset-${a.id} 同源(Pitfall 8);
+    // label/assetType 给非空字符串即满足 canvasAssetSchema min(1).nullish()。
+    const node = {
+      id: `asset-${payload.id}`,
+      type: 'asset',
+      branchId: 'main',
+      phaseIndex: 0,
+      phaseName: 'asset',
+      position,
+      size: { width: 240, height: 160 },
+      state: 'idle',
+      data: {
+        label: payload.name || payload.uuid,
+        assetType: payload.assetType,
+        filePath: payload.filePath ?? null,
+      },
+    }
+    const result = await placeAssetNode(projectId, episodesId, node)
+    if (result.ok) {
+      // 成功路径零本地写:服务端广播 node:created → onNewAsset → addNodeFromSocket
+      // (服务端 position 即本方 position,真相优先,勿二次偏移——Anti-Pattern 3)
+      return
+    }
+    if (result.status === 409) {
+      showToast('该资产已在画布上', 'info')
+    } else {
+      showToast('放置失败: ' + result.message, 'error')
+    }
+  }, [projectId, episodesId, reactFlow, showToast])
 
   /**
    * 加载流程（SPEC-step5 B.8 接线）：全部走 store.loadInitialGraph ——
@@ -983,7 +1051,22 @@ function CanvasInner() {
 
           {/* 视图模式切换 */}
           <div style={{ display: 'flex', gap: 2, background: theme.bg.input, borderRadius: 7, padding: 2, border: `1px solid ${theme.border.default}` }}>
-            <ViewModeButton active={viewMode === 'canvas'} onClick={() => handleSetViewMode('canvas')}>
+            <ViewModeButton
+              active={viewMode === 'canvas'}
+              onClick={() => handleSetViewMode('canvas')}
+              onDragOver={(e) => {
+                // 61-01 (DEBT-01 / P3 裁定):视图互斥下(资产中心与 ReactFlow 不同时
+                // 挂载)拖入必经页签 dragover 切视图——卡片 dragstart 置 MIME 载荷 →
+                // 拖到「画布」页签上 dragover 即切画布;Chromium 拖拽会话跨源元素卸载
+                // 存活(dragend 仍发),合成事件面由 e2e 驱动,真实手感有 :10588
+                // manual UAT 行兜底。直用 store setViewMode(幂等,dragover 连发无害;
+                // handleSetViewMode 的 nav 快照适合点击,不适合拖拽 hover 高频路径)。
+                if (e.dataTransfer.types.includes(ASSET_DRAG_MIME)) {
+                  e.preventDefault()
+                  useCanvasStore.getState().setViewMode('canvas')
+                }
+              }}
+            >
               <UiIcon kind="graph" size={13} />画布
             </ViewModeButton>
             <ViewModeButton active={viewMode === 'timeline'} onClick={() => handleSetViewMode('timeline')}>
@@ -1094,6 +1177,14 @@ function CanvasInner() {
           onSelectionChange={onSelectionChange}
           onMoveEnd={handleMoveEnd}
           onInit={() => setRfReady(true)}
+          onDragOver={(e) => {
+            // 61-01 (DEBT-01): 资产拖入——允许 drop 并显式 copy 光标语义
+            if (e.dataTransfer.types.includes(ASSET_DRAG_MIME)) {
+              e.preventDefault()
+              e.dataTransfer.dropEffect = 'copy'
+            }
+          }}
+          onDrop={handleAssetDrop}
           fitView={!deepLinkPending && hasData && !persistedViewport}
           fitViewOptions={{ padding: 0.15, minZoom: FITVIEW_MIN_ZOOM, maxZoom: 1.5, duration: 600 }}
           minZoom={0.05}
@@ -1354,10 +1445,17 @@ function NavArrowButton({ onClick, disabled, title, label }: { onClick: () => vo
   )
 }
 
-function ViewModeButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+// 61-01 (DEBT-01): onDragOver 仅「画布」页签使用(拖入切视图入口),其余按钮不传。
+function ViewModeButton({ active, onClick, onDragOver, children }: {
+  active: boolean
+  onClick: () => void
+  onDragOver?: (e: React.DragEvent) => void
+  children: React.ReactNode
+}) {
   return (
     <button
       onClick={onClick}
+      onDragOver={onDragOver}
       style={{
         display: 'inline-flex',
         alignItems: 'center',

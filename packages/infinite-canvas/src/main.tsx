@@ -48,6 +48,19 @@ if (typeof window !== 'undefined' && new URLSearchParams(window.location.search)
     // 在 setGraph 节点换血时被 RF 清空,FlowCanvas L621),对称断言须读 store.selectedNode
     // 真锚(setGraph L452 与 detailNode 相邻行同语义重锚;testMode 门内零运行时影响)。
     getSelectedNode: () => useCanvasStore.getState().selectedNode,
+    // 61-01 (DEBT-01): drop 锚换算只读桥——e2e 有界断言面(60-04 getDetailNode 同型
+    // seam)。与 paneFlowCenter 同基准:pane rect 原点 + live viewport transform
+    // (顶栏 48px 偏移已含在 rect.top),即 screenToFlowPosition(p) 的等价换算。
+    screenToFlow: (p: { x: number; y: number }): { x: number; y: number } | null => {
+      const v = getLiveViewport()
+      if (v == null || !Number.isFinite(v.zoom) || v.zoom <= 0) return null
+      const pane = document.querySelector('.react-flow')
+      const rect = pane?.getBoundingClientRect()
+      return {
+        x: (p.x - (rect?.left ?? 0) - v.x) / v.zoom,
+        y: (p.y - (rect?.top ?? 0) - v.y) / v.zoom,
+      }
+    },
     // 56-06:scored 事件模拟(scored 死信修复链的 e2e 驱动面)
     emitScored: (nodeId: string, aiScore: unknown): void => {
       useCanvasStore.getState().applySocketScored(nodeId, aiScore)

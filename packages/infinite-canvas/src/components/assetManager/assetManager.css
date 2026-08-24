@@ -106,9 +106,7 @@
 .am-card__keyflag{position:absolute;top:7px;left:7px;z-index:2;font-family:var(--cv-font-mono);font-size:9px;
   color:var(--cv-mod-text);background:rgba(10,11,14,.7);padding:3px 7px;border-radius:10px}
 .am-card__reuse{position:absolute;top:7px;right:7px;z-index:2}
-.am-card__add{position:absolute;bottom:46px;right:7px;z-index:3;display:none;align-items:center;gap:4px;font-size:10px;
-  color:var(--cv-text-on-accent);background:var(--cv-mod-image);padding:4px 9px;border-radius:14px;font-weight:600}
-.am-card:hover .am-card__add{display:flex}
+/* 61-01 DEBT-01:原「＋ 画布」按钮样式随按钮一并退役(拖入取代 stub 入口) */
 .am-card__locate{position:absolute;bottom:46px;left:7px;z-index:3;display:none;align-items:center;gap:4px;font-size:10px;
   color:var(--cv-text-on-accent);background:var(--cv-mod-video,#5b8def);padding:4px 9px;border-radius:14px;font-weight:600;
   cursor:pointer;border:none}
