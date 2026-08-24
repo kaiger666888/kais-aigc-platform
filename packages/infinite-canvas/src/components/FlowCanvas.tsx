@@ -475,7 +475,17 @@ function CanvasInner() {
     const result = await placeAssetNode(projectId, episodesId, node)
     if (result.ok) {
       // 成功路径零本地写:服务端广播 node:created → onNewAsset → addNodeFromSocket
-      // (服务端 position 即本方 position,真相优先,勿二次偏移——Anti-Pattern 3)
+      // (服务端 position 即本方 position,真相优先,勿二次偏移——Anti-Pattern 3)。
+      // WR-01(review-61): socket 断线降级补写——eventReplay 未启用且 health 不吐
+      // eventCount,广播不可达时节点已落库却不可见,重拖只得误导性 409。2s 有界窗口
+      // 后 canonical 图仍无该节点 → 走与广播同源的 addNodeFromSocket 幂等补写
+      // (先查 graph 防 double-add;同 id 重播 store 内部亦去重),不发明新写路径。
+      window.setTimeout(() => {
+        const st = useCanvasStore.getState()
+        if (st.graph != null && !st.graph.nodes.some((n) => n.id === node.id)) {
+          st.addNodeFromSocket(node, position)
+        }
+      }, 2000)
       return
     }
     if (result.status === 409) {
