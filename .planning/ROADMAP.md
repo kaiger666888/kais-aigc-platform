@@ -216,13 +216,13 @@ Plans:
 Plans:
 **Wave 1** *(62-01/02/03 并行,文件零交叠)*
 
-- [ ] 62-01-PLAN.md — 共享地基: groupCanvasLinkage 提取(双前缀反查/判定式单套)+ generationConfigKeys 键面常量(runner 实码 11+3+18 口径)+ 纯函数单测
-- [ ] 62-02-PLAN.md — 服务端: generation_config_overrides 表(PK 三列)+ store CRUD + generation-config 路由(GET 三源合并/PUT 两段式 + requirement.json best-effort 三态 writeState)+ node:test
-- [ ] 62-03-PLAN.md — mock 扩面: PATCH assets-registry/select-winner/generation-config mock + rich search preset(默认字节等价 61 fixture)
+- [x] 62-01-PLAN.md — 共享地基: groupCanvasLinkage 提取(双前缀反查/判定式单套)+ generationConfigKeys 键面常量(runner 实码 11+3+18 口径)+ 纯函数单测
+- [x] 62-02-PLAN.md — 服务端: generation_config_overrides 表(PK 三列)+ store CRUD + generation-config 路由(GET 三源合并/PUT 两段式 + requirement.json best-effort 三态 writeState)+ node:test
+- [x] 62-03-PLAN.md — mock 扩面: PATCH assets-registry/select-winner/generation-config mock + rich search preset(默认字节等价 61 fixture)
 
 **Wave 2** *(blocked on 62-01)*
 
-- [ ] 62-04-PLAN.md — 层级视图 UI: 第 5 Tab「资产层级」(域树/组卡/计数芯片/单件桶/双徽标)+ selectGroupWinner 共享提取(D-05 单组全语义+fire-and-forget)+ renderAssetCard 模式参数化
+- [x] 62-04-PLAN.md — 层级视图 UI: 第 5 Tab「资产层级」(域树/组卡/计数芯片/单件桶/双徽标)+ selectGroupWinner 共享提取(D-05 单组全语义+fire-and-forget)+ renderAssetCard 模式参数化
 
 **Wave 3** *(blocked on 62-04)*
 
@@ -249,7 +249,7 @@ Phases execute in numeric order: 58 → 59 → 60 → 61 → 62 (60/61/62 parall
 | 59. 窄触发 stale 级联 | 4/4 | Complete    | 2026-08-23 |
 | 60. 保存后面板保持 | 5/5 | Complete    | 2026-08-24 |
 | 61. 审计清债 TD-3/4/5 | 5/5 | Complete   | 2026-08-24 |
-| 62. 资产层级与选定逻辑 | 3/7 | Executing |  |
+| 62. 资产层级与选定逻辑 | 4/7 | In Progress|  |
 
 ## Requirement → Phase Coverage (18/18)
 
