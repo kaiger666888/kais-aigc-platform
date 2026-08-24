@@ -23,6 +23,7 @@ import { theme, v3theme } from '../theme/catppuccin'
 import { METADATA_LABELS } from '../constants'
 import type { AssetNodeV3, FlowGraphV3 } from '@kais/flowgraph-v3'
 import { UiIcon } from './canvas/icons'
+import DualTierStrip from './DualTierStrip'
 import { convertProjectData } from '../services/canvasApi'
 import { fetchProjectAssets } from './assetManager/useRealAssets'
 import { SCENE_COLORS as VT_SCENE_COLORS, sceneNumOf, sceneColorOf, formatTotalDuration } from '../utils/sceneGrouping'
@@ -99,6 +100,8 @@ export interface StoryboardShot {
   }
   /** P11 视频产物（.mp4）路径 — 经 resolveMediaUrl 后供 <video> 播放。 */
   videoUrl?: string | null
+  /** 终渲时长（秒，video 节点 duration_sec 实测）——双层时间轴成品层/漂移用；缺 = 未终渲。 */
+  finalDurationS?: number
   /** 首帧图：优先 P11 video 节点 thumbnailUrl，兜底 storyboard 场景图。 */
   firstFrame?: string | null
   /** 尾帧图：P11 I-frame `*_frame_last` 节点（多数分镜缺失）。 */
@@ -160,7 +163,7 @@ interface FrameVariant {
 }
 
 /** 带累计起止时间的分镜（时间轴几何用）。 */
-interface TimedShot extends StoryboardShot {
+export interface TimedShot extends StoryboardShot {
   startSec: number
   endSec: number
   /** 布局用时长（durationS 缺失时兜底，保证块有最小可见高度）。 */
@@ -392,7 +395,7 @@ export function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<str
   }
 
   // Pass 2：P11 video / I-frame 节点 → 按 shotKey 建映射（storyboard↔video 无 link）
-  const videoByShot = new Map<string, { filePath: string | null; thumbnail: string | null }>()
+  const videoByShot = new Map<string, { filePath: string | null; thumbnail: string | null; durationS?: number }>()
   const lastFrameByShot = new Map<string, string>()
   for (const node of graph.nodes) {
     if (node.kind !== 'asset') continue
@@ -403,7 +406,13 @@ export function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<str
     // P11 视频产物（.mp4 等）— 首帧缩略取其 thumbnailUrl
     if (node.stage === 'video' || (filePath && /\.(mp4|mov|webm|mkv)$/i.test(filePath))) {
       const key = shotKeyFromCandidates(raw.shot_id, raw.label, node.id, filePath)
-      if (key && !videoByShot.has(key)) videoByShot.set(key, { filePath, thumbnail: thumb })
+      if (key && !videoByShot.has(key)) {
+        const vdur = (raw.duration_sec as number) ?? node.media.durationS
+        videoByShot.set(key, {
+          filePath, thumbnail: thumb,
+          durationS: typeof vdur === 'number' && isFinite(vdur) && vdur > 0 ? vdur : undefined,
+        })
+      }
       continue
     }
     // P11 末帧抽帧（`*_frame_last.*`）— 尾帧图（多数分镜缺失）
@@ -419,6 +428,7 @@ export function extractShots(graph: FlowGraphV3 | null, rawDataByNodeId: Map<str
     const v = key ? videoByShot.get(key) : undefined
     if (v) {
       shot.videoUrl = v.filePath
+      shot.finalDurationS = v.durationS
       shot.firstFrame = v.thumbnail ?? shot.thumbnail
     } else {
       shot.firstFrame = shot.thumbnail
@@ -2509,6 +2519,8 @@ export default function StoryboardTimeline() {
   const graph = useCanvasStore((s) => s.graph)
   const setDetailNode = useCanvasStore((s) => s.setDetailNode)
   const setSelectedNode = useCanvasStore((s) => s.setSelectedNode)
+  // 双层时间轴选中态绑定：selectShot 写的是 store.selectedNode（detailNode 仅双击详情）
+  const selectedNodeIdForStrip = useCanvasStore((s) => s.selectedNode?.id) ?? null
   const detailNode = useCanvasStore((s) => s.detailNode)
   const rawDataByNodeId = useCanvasStore((s) => s.rawDataByNodeId)
   const projectId = useCanvasStore((s) => s.projectId)
@@ -2938,6 +2950,13 @@ export default function StoryboardTimeline() {
           </>
         )}
       </div>
+
+      {/* 同轴双层时间轴总览带（预演 ⇄ 成品，镜列对齐 + 漂移拉杆；点击选镜联动列表/播放器） */}
+      <DualTierStrip
+        shots={shots}
+        selectedNodeId={selectedNodeIdForStrip ?? detailNode?.id ?? null}
+        onSelectShot={selectShot}
+      />
 
       {/* 主体：左=播放器（恒在左）+分镜列表，右=竖幅时间轴（固定宽度，可折叠）。
           横/竖版均 flexDirection:row；竖版播放器固定宽 portraitPlayerW，无视频时常驻占位。 */}
