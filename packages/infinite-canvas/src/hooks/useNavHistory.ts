@@ -41,7 +41,8 @@ export interface NavViewport {
 
 export interface NavSnapshot {
   viewMode: ViewMode
-  assetView: 'library' | 'detail' | 'character' | 'scene_shot' | 'dialogue' | 'documents'
+  // 62-04：镜像 canvasStore.assetView 联合（追加 'hierarchy' 第 5 Tab；默认仍 'library'）
+  assetView: 'library' | 'detail' | 'character' | 'scene_shot' | 'dialogue' | 'documents' | 'hierarchy'
   selectedNodeId: string | null
   detailNodeId: string | null
   selectedAssetUuid: string | null

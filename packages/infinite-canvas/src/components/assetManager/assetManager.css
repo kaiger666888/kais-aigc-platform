@@ -729,3 +729,28 @@
 .am-sb-shot__vp summary:hover{color:var(--cv-mod-text)}
 .am-sb-shot__vp p{font:11.5px/1.8 var(--cv-font-mono);color:var(--cv-text-tertiary);
   white-space:pre-wrap;word-break:break-all;margin:6px 0 0}
+
+/* ──────────────── 视图 · 资产层级（62-04 第 5 Tab assetView='hierarchy'） ────────────────
+   L1 域树 220px + L2/L3 主区；冗余配置右栏（340px）62-06 落，届时栅格改三列。
+   全部走既有 --cv-*/am-* 词汇（UI-SPEC Visual Language 表），零新全局 token；
+   新增派生类仅 .am-hier 栅格 + .am-group--singleton modifier + hier-toolbar/计数芯片。 */
+.am-hier{display:grid;grid-template-columns:220px 1fr;height:100%}
+.am-hier__main{display:flex;flex-direction:column;min-width:0;min-height:0}
+.am-hier__toolbar{display:flex;align-items:center;gap:8px;padding:11px 16px;
+  border-bottom:1px solid var(--cv-line-panel);flex-wrap:wrap}
+/* C7 计数芯片：★N 青（--cv-mod-image）/ ○N 中性 / ✕N 玫（--cv-mod-video）+ 灰 mono「共 N」
+   —— 图标词汇取自既有三态 tab 前缀，配色语义与 .am-pipe__verdict--cont/--cut 一脉。 */
+.am-hier__counts{display:inline-flex;align-items:center;gap:7px;
+  font-family:var(--cv-font-mono);font-size:10.5px;white-space:nowrap}
+.am-hier__c--sel{color:var(--cv-mod-image)}
+.am-hier__c--cut{color:var(--cv-mod-video)}
+.am-hier__c--total{color:var(--cv-text-tertiary)}
+/* 域树节点内紧凑版（220px 窄栏；替换默认 .am-tree-node__n 单计数位） */
+.am-hier__counts--tree{margin-left:auto;gap:5px;font-size:9.5px}
+/* 单件桶（C3 单件变体）：非互斥组——去金竖条与金渐变底，弱化为普通分组容器 */
+.am-group--singleton{border-left-color:var(--cv-line-panel);background:none}
+/* C6-2 VG 徽标 chip：可点（开变体墙），青弱底/青字（.am-badge 基底上的派生态） */
+.am-hier__vg{cursor:pointer;border:none;transition:filter .12s}
+.am-hier__vg:hover{filter:brightness(1.15)}
+/* 响应式沿 .am-lib 同款断点（≤880px 左树隐藏；.am-tree{display:none} 既有规则全局生效） */
+@media (max-width:880px){.am-hier{grid-template-columns:1fr}}

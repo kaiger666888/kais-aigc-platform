@@ -192,8 +192,10 @@ interface CanvasState {
 
   // 资产管理子视图 + 选中资产（assets 视图内部状态；详情由 Library 卡片点击驱动）
   // 5 Tab：library 资产库 · character 角色 · scene_shot 场景与分镜 · dialogue 对白 · documents 创作文档(Notion)
-  assetView: 'library' | 'detail' | 'character' | 'scene_shot' | 'dialogue' | 'documents'
-  setAssetView: (view: 'library' | 'detail' | 'character' | 'scene_shot' | 'dialogue' | 'documents') => void
+  // 62-04：追加 'hierarchy' 资产层级（第 5 Tab）——HIER-04 锚：默认值仍 'library'
+  // （下方实现区 assetView: 'library' 不动），既有 4 Tab 与资产库行为零扰动。
+  assetView: 'library' | 'detail' | 'character' | 'scene_shot' | 'dialogue' | 'documents' | 'hierarchy'
+  setAssetView: (view: 'library' | 'detail' | 'character' | 'scene_shot' | 'dialogue' | 'documents' | 'hierarchy') => void
   selectedAssetUuid: string | null
   setSelectedAssetUuid: (uuid: string | null) => void
   /** 打开某资产的详情（同时设选中 + 切到 detail 子视图） */

@@ -12,19 +12,22 @@ import { useCallback } from 'react'
 import { useCanvasStore } from '../../store/canvasStore'
 import { UiIcon } from '../canvas/icons'
 import AssetLibrary from './AssetLibrary'
+import AssetHierarchy from './AssetHierarchy'
 import AssetDetail from './AssetDetail'
 import CharacterWardrobe from './CharacterWardrobe'
 import SceneShotManager from './SceneShotManager'
 import DocumentPanel from './DocumentPanel'
 import './assetManager.css'
 
-type AssetView = 'library' | 'character' | 'scene_shot' | 'documents'
+type AssetView = 'library' | 'character' | 'scene_shot' | 'documents' | 'hierarchy'
 
 const TABS: Array<{ key: AssetView; label: string }> = [
   { key: 'library', label: '资产库' },
   { key: 'character', label: '角色管理' },
   { key: 'scene_shot', label: '场景管理' },
   { key: 'documents', label: '创作文档' },
+  // 62-04：第 5 Tab「资产层级」——三域折叠树 + 组卡 + 单件桶（HIER-04：默认视图仍 library）
+  { key: 'hierarchy', label: '资产层级' },
 ]
 
 export default function AssetManager() {
@@ -74,6 +77,7 @@ export default function AssetManager() {
         {assetView === 'character' && <CharacterWardrobe />}
         {assetView === 'scene_shot' && <SceneShotManager />}
         {assetView === 'documents' && <DocumentPanel />}
+        {assetView === 'hierarchy' && <AssetHierarchy />}
       </div>
 
       {/* 右侧详情 drawer — selectedAssetUuid 不为空时弹出 */}
