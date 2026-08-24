@@ -487,8 +487,13 @@ function CanvasInner() {
       // eventCount,广播不可达时节点已落库却不可见,重拖只得误导性 409。2s 有界窗口
       // 后 canonical 图仍无该节点 → 走与广播同源的 addNodeFromSocket 幂等补写
       // (先查 graph 防 double-add;同 id 重播 store 内部亦去重),不发明新写路径。
+      // fix-r2(review-61): scope 守卫(与 59-fix CR-02 同法)——2s 窗口内切换
+      // episodes 后 st.graph 已是他集,无守卫会把本集节点补进他集本地视图并随
+      // 下次全图 save 落库(跨集数据污染);确定性 id 跨集复用,无碰撞盾。闭包
+      // 捕获 drop 时 scope,触发时与 store 当前 scope 逐字段比对,不匹配静默弃。
       window.setTimeout(() => {
         const st = useCanvasStore.getState()
+        if (st.projectId !== projectId || st.episodesId !== episodesId) return
         if (st.graph != null && !st.graph.nodes.some((n) => n.id === node.id)) {
           st.addNodeFromSocket(node, position)
         }
