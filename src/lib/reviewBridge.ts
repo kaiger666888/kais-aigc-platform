@@ -16,7 +16,7 @@
  *     an error. `result` is stored atomically into
  *     `metadata_json.review_result` and the terminal state is COMPLETE.
  *     Platform-side auth was removed (no token in transit).
- *  2. `GET /api/v1/reviews?status=&type=&source=&limit=&cursor=` has NO
+ *  2. `GET /api/v1/reviews/?status=&type=&source=&limit=&cursor=` has NO
  *     content_ref filter parameter — candidates must be filtered CLIENT-SIDE
  *     from `data.items[]`. Envelope: `{ data: { items, next_cursor,
  *     has_more } }`; `limit` truncates, so the bridge paginates via
@@ -179,7 +179,8 @@ export async function resolveOpenReviewForSelection(
         limit: "100",
       });
       if (cursor !== null) qs.set("cursor", cursor);
-      const listResp = await fetchImpl(`${baseUrl}/api/v1/reviews?${qs.toString()}`, {
+      // 尾斜杠(61-02/54-01 同陷阱):/api/v1/reviews 无斜杠 307 → Location 丢端口 → 404;带斜杠直连 200。
+      const listResp = await fetchImpl(`${baseUrl}/api/v1/reviews/?${qs.toString()}`, {
         signal: AbortSignal.timeout(timeoutMs),
       });
       if (!listResp.ok) {
