@@ -219,12 +219,16 @@ app.post('/api/canvas/v2/nodes/', (req, res) => {
   const { projectId, episodesId, node } = req.body ?? {}
   // 观测面:每次尝试都落 /__mock/calls(含 409 二次拖入——e2e 恰-2-条计数断言;
   // 与 load/orchestrate/execute 的全请求记录惯例一致,不记 response 以副作用断言)。
+  // WR-02(review-61): data 袋联动键 assetId/assetUuid 防御性提取入记录——e2e 断言
+  // 拖入 POST 真携带注册表主键(StoryboardTimeline.assetIdOf 联动链的 wire 证据)。
   logCall('POST', '/api/canvas/v2/nodes/', {
     projectId,
     episodesId,
     nodeId: typeof node?.id === 'string' ? node.id : null,
     x: typeof node?.position?.x === 'number' ? node.position.x : null,
     y: typeof node?.position?.y === 'number' ? node.position.y : null,
+    assetId: typeof node?.data?.assetId === 'number' ? node.data.assetId : null,
+    assetUuid: typeof node?.data?.assetUuid === 'string' ? node.data.assetUuid : null,
   }, null)
   if (
     node == null || typeof node !== 'object' ||

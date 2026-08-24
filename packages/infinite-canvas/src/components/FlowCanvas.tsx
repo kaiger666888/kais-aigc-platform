@@ -470,6 +470,13 @@ function CanvasInner() {
         label: payload.name || payload.uuid,
         assetType: payload.assetType,
         filePath: payload.filePath ?? null,
+        // WR-02(review-61): 注册表主键入 data 袋——StoryboardTimeline.assetIdOf
+        // (raw.assetId ?? raw.asset_id)的画布↔注册表联动与 canvasApi「filePath
+        // 缺失时按 assetId 异步补全」链路对拖入节点复活;assetUuid 供跨 id 方案
+        // (pipeline 形如 a-scene_refs-S01)的同资产查重。data 袋服务端为
+        // z.record(z.string(), z.any()) 非 strict 透传,零契约风险。
+        assetId: payload.id,
+        assetUuid: payload.uuid,
       },
     }
     const result = await placeAssetNode(projectId, episodesId, node)

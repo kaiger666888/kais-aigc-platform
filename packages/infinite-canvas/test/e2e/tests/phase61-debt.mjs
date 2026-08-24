@@ -114,6 +114,10 @@ test.describe('phase61-debt 拖入清偿', () => {
     const nodeCalls = calls.filter((c) => c.method === 'POST' && c.path === '/api/canvas/v2/nodes/')
     expect(nodeCalls.length).toBe(1)
     expect(nodeCalls[0].body.nodeId).toBe('asset-90001')
+    // WR-02(review-61): data 袋携带注册表主键——assetIdOf 联动 + filePath 补全链
+    // 的 wire 证据(mock logCall 防御性提取;fixture 首卡 = id 90001 / uuid e2e-asset-90001)
+    expect(nodeCalls[0].body.assetId).toBe(90001)
+    expect(nodeCalls[0].body.assetUuid).toBe('e2e-asset-90001')
     const node = await page.evaluate(() =>
       window.__kaisCanvas?.getGraph()?.nodes.find((x) => x.id === 'asset-90001'))
     expect(nodeCalls[0].body.x).toBe(node.position.x)
