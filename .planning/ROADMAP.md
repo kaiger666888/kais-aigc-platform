@@ -189,7 +189,7 @@ Plans:
 
 **Wave 1** *(four debts parallel, zero files_modified overlap — D-03)*
 
-- [ ] 61-01-PLAN.md — DEBT-01: 资产中心拖入接线(卡片 draggable + 页签 dragover 切视图 + ReactFlow onDrop → placeNewAsset(source) + placeAssetNode 真封装)+ stub 链退役 + mock 两路由 + phase61 e2e 三用例
+- [x] 61-01-PLAN.md — DEBT-01: 资产中心拖入接线(卡片 draggable + 页签 dragover 切视图 + ReactFlow onDrop → placeNewAsset(source) + placeAssetNode 真封装)+ stub 链退役 + mock 两路由 + phase61 e2e 三用例
 - [ ] 61-02-PLAN.md — DEBT-02: reviewBridge L182 尾斜杠一字修 + 契约注释同步 + node:test 回归锁(字面量正反双断言 + 分页双跳)
 - [ ] 61-03-PLAN.md — DEBT-03: buildMeta 四分支 5 字段读回(script emotion number 陷阱)+ migrate 单测 + adapt∘serialize 往返(raw=null 档)+ 三面收口
 - [ ] 61-04-PLAN.md — DEBT-04: Branch A 裁定成文(61-DEBT-04-VERDICT.md: 证据链 + I5 原文 + 静态锁规格,零代码改动)
@@ -208,7 +208,7 @@ Phases execute in numeric order: 58 → 59 → 60 → 61 (60/61 parallel-safe if
 | 58. 全配方持久化 | 4/4 | Complete    | 2026-08-23 |
 | 59. 窄触发 stale 级联 | 4/4 | Complete    | 2026-08-23 |
 | 60. 保存后面板保持 | 5/5 | Complete    | 2026-08-24 |
-| 61. 审计清债 TD-3/4/5 | 0/5 | Not started | - |
+| 61. 审计清债 TD-3/4/5 | 1/5 | In Progress|  |
 
 ## Requirement → Phase Coverage (13/13)
 

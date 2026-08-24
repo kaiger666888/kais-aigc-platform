@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: 重生成闭环深化
 status: executing
-stopped_at: Completed 60-05-PLAN.md (verify 门 16/16 + probe 真机 13/13 + D-12 复跑 18/18;Phase 60 全 5 plan 完成,ready for verification)
-last_updated: "2026-08-24T05:01:12.091Z"
-last_activity: 2026-08-24 -- Phase 61 planning complete
+stopped_at: Completed 61-01-PLAN.md (DEBT-01 拖入全链+stub 退役+3 e2e 绿;61-02 next)
+last_updated: "2026-08-24T05:17:29.637Z"
+last_activity: 2026-08-24
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 18
-  completed_plans: 13
-  percent: 72
+  completed_plans: 14
+  percent: 75
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-23)
 
 **Core value:** AI creative production pipeline that runs end-to-end, pluggable across multiple creative workflows via a published skill contract.
-**Current focus:** Phase 61 — 审计清债 td 3/4/5 (audit debt clearance)
+**Current focus:** Phase 61 — 审计清债 TD-3/4/5
 
 ## Current Position
 
-Phase: 61
-Plan: Not started
+Phase: 61 (审计清债 TD-3/4/5) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-08-24 -- Phase 61 planning complete
+Last activity: 2026-08-24
 
-Progress: [██████████] 100%
+Progress: [████████░░] 78%
 
 ## Performance Metrics
 
@@ -78,6 +78,7 @@ Progress: [██████████] 100%
 | Phase 60 P03 | 9min | 2 tasks | 3 files |
 | Phase 60 P04 | 19min | 2 tasks | 2 files |
 | Phase 60 P05 | 11min | 2 tasks | 5 files |
+| Phase 61 P01 | 18min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -153,6 +154,8 @@ Progress: [██████████] 100%
 - [Phase 60]: 60-04 D-12 回归绿: 五文件(phase52 三件套 3+2+4 + phase59 全 5 + phase60 4)18/18 单次串行零红零 flake + 补充 phase58-recipe 8/8(共享 saveCanvasGraph/savedBy 通道);SC1-SC3 实时性断言未受 savedBy 改动影响 — 计划 verify 门;phase55-nav 噪音面未触碰
 - [Phase ?]: 60-05 Phase 60 收口: verify:phase-60 聚合门 16/16(S1-S7 静态锁含 FLAG-1 次序/FLAG-2 双向/FLAG-4 零命中 + B 行为门 + D dispatch exit2→WARN 分级 + F 三变异样本 0/3 unexpectedly passed 锁可失败证明)+ probe-60-real 真机 13/13(savedBy 回显双断言/浏览器段面板保持+静默+零 reload/净足迹 0) — PANEL-01/PANEL-02 validated
 - [Phase ?]: 60-05 D 段 WARN 分级契约: diagnose --strict exit 2(环境 SKIP)计 WARN 不计 FAIL+SUMMARY 补验提示——不假绿不硬红;F 段锁与自检同源(checkFlag 纯函数跑内存变异样本,不写盘)
+- [Phase 61]: 61-01: 拖入切视图走「画布」页签 dragover → store setViewMode 直调(幂等,不走 handleSetViewMode nav 快照——那是点击语义;P3 裁定,e2e 合成 DragEvent 三步序列驱动,同一 DataTransfer 挂 window.__e2eDt)
+- [Phase 61]: 61-01: A2 裁定落地——placeNewAsset 本体零改动(4px source 网格既有语义胜过 CONTEXT 8px 措辞);onDrop 前置 MIME types 守卫防文件拖入误 toast;mock /nodes logCall 全尝试记录(409 可观测);ApiError 判 409 用 .code(plan 文字 .status 是笔误)
 
 ### Pending Todos
 
@@ -206,6 +209,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-24T00:46:44.585Z
-Stopped at: Completed 60-05-PLAN.md (verify 门 16/16 + probe 真机 13/13 + D-12 复跑 18/18;Phase 60 全 5 plan 完成,ready for verification)
+Last session: 2026-08-24T05:17:29.629Z
+Stopped at: Completed 61-01-PLAN.md (DEBT-01 拖入全链+stub 退役+3 e2e 绿;61-02 next)
 Resume: `/gsd-execute-phase 60`（下一步 60-03 Branch A 永久锁 / 60-04 e2e 四用例;60-02 savedBy 机制面已落地）
