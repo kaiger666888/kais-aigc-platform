@@ -412,6 +412,110 @@ app.post('/api/canvas/v2/g15-ops', (req, res) => {
   res.json({ code: 200, data: { action: req.body?.action, applied: true } })
 })
 
+// ─── Phase 62 — select-winner / generation-config (62-03) ──
+
+// 62-03: 镜像 src/routes/canvas/v2/select-winner.ts 200/404/409/400 形状
+// (真端点契约:RESEARCH C;客户端 canvasApi.ts:482 非 2xx 抛 ApiError——错误分支
+// 必须同时给 HTTP status 与 body code 信封)。不模拟服务端 PATCH-linkage 联动——
+// D-05 断言纪律(RESEARCH C):客户端 POST 在常见路径是幂等 no-op,**勿断 applied:true**,
+// e2e 只断「恰一次调用 + body winnerNodeId 为画布节点 id」。
+app.post('/api/canvas/v2/variant-groups/:groupId/select-winner', (req, res) => {
+  const { projectId, episodesId, winnerNodeId, frameSlot } = req.body ?? {}
+  const groupId = req.params.groupId
+  // 观测面:全尝试记录(logCall 先行)——e2e 恰-N 断言 body winnerNodeId 为
+  // asset-/a-oasset- 前缀画布节点 id(非 registry 主键)
+  logCall('POST', `/api/canvas/v2/variant-groups/${groupId}/select-winner`, {
+    projectId: projectId ?? null,
+    episodesId: episodesId ?? null,
+    groupId,
+    winnerNodeId: typeof winnerNodeId === 'string' ? winnerNodeId : null,
+    frameSlot: frameSlot ?? null,
+  }, null)
+  // 可注入失败开关(/__mock/config { failSelectWinner:true } → toast 断言面)
+  if (state.config.failSelectWinner === true) {
+    return res.status(500).json({ code: 500, message: '选定操作失败' })
+  }
+  if (typeof winnerNodeId !== 'string' || !winnerNodeId) {
+    return res.status(400).json({ code: 400, message: 'winnerNodeId 载荷非法' })
+  }
+  const group = (state.fixtureVariantGroups ?? []).find((g) => g.groupId === groupId)
+  if (!group) {
+    return res.status(404).json({ code: 404, message: '变体组不存在' })
+  }
+  if (group.selectMode !== 'single') {
+    return res.status(409).json({ code: 409, message: '组非 single 模式' })
+  }
+  if (!(group.variantNodeIds ?? []).includes(winnerNodeId)) {
+    return res.status(409).json({ code: 409, message: 'winner 不在组内' })
+  }
+  if (group.winnerNodeId === winnerNodeId) {
+    // 幂等分支(镜像 select-winner.ts:111-117):重选同 winner 不携带新信息
+    return res.json({ code: 200, data: { groupId, winnerNodeId, applied: false } })
+  }
+  group.winnerNodeId = winnerNodeId
+  res.json({ code: 200, data: { groupId, winnerNodeId, applied: true } })
+})
+
+// 62-03: 冗余配置读侧 mock(UI-SPEC C8 锁形)。**不复制** 62-02 服务端三源合并实现:
+// 按 /__mock/config 注入的 fileShape 三档(not-found/requirement-v25/legacy)+ 内存
+// overrides 直接查表生成(e2e 只锁 UI 断言面;合并算法由 62-02 node:test 锁)。
+app.get('/api/canvas/v2/generation-config', (req, res) => {
+  const overrides = state.generationConfig.overrides ?? {}
+  const rows = GENERATION_CONFIG_MOCK_KEYS.map((k) => {
+    const row = { phaseKey: k.phaseKey, tier: k.tier, label: k.label }
+    if (k.preCap1) {
+      row.editable = false
+      row.lockReason = '确定性派生 · pre 固定为 1'
+    } else if (k.unwired) {
+      row.editable = false
+      row.lockReason = '占位未接线 · 运行时暂不消费'
+      row.unwired = true
+    } else {
+      row.editable = true
+    }
+    if (k.gpuHint) row.gpuHint = k.gpuHint
+    const snap = snapshotDefaults(k.phaseKey)
+    const ov = overrides[k.phaseKey]
+    if (ov) {
+      return { ...row, pre: ov.nCandidates, final: ov.finalCandidates, source: 'override' }
+    }
+    if (state.generationConfig.fileShape === 'requirement-v25') {
+      // 「实测值」样本:全键 { pre:2, final:1 }
+      return { ...row, pre: 2, final: 1, source: 'requirement' }
+    }
+    if (state.generationConfig.fileShape === 'legacy') {
+      // 旧形态 requirement.json 无 v2.5 键 → 显示快照默认 + sourceLegacy 标注(62-06 契约)
+      return { ...row, pre: snap.pre, final: snap.final, source: 'snapshot', sourceLegacy: true }
+    }
+    return { ...row, pre: snap.pre, final: snap.final, source: 'snapshot' }
+  })
+  res.json({ code: 200, data: { rows, fileState: state.generationConfig.fileShape } })
+})
+
+// 62-03: 冗余配置写侧 mock(UI-SPEC C8 / D-08 两段式)。logCall 载荷保真;
+// preCap1 键 nCandidates>1 → 400「确定性派生 · pre 固定为 1」(前端禁用只是第一道);
+// writeState 经 /__mock/config { genCfgWriteState:'synced'|'file-fail' } 注入 fixture 态。
+app.put('/api/canvas/v2/generation-config/overrides/:phaseKey', (req, res) => {
+  const { projectId, episodesId, nCandidates, finalCandidates } = req.body ?? {}
+  const phaseKey = req.params.phaseKey
+  logCall('PUT', `/api/canvas/v2/generation-config/overrides/${phaseKey}`, {
+    projectId: projectId ?? null,
+    episodesId: episodesId ?? null,
+    phaseKey,
+    nCandidates: nCandidates ?? null,
+    finalCandidates: finalCandidates ?? null,
+  }, null)
+  const keyDef = GENERATION_CONFIG_MOCK_KEYS.find((k) => k.phaseKey === phaseKey)
+  if (!keyDef) {
+    return res.status(400).json({ code: 400, message: `未知 phase_key: ${phaseKey}` })
+  }
+  if (keyDef.preCap1 && Number(nCandidates) > 1) {
+    return res.status(400).json({ code: 400, message: '确定性派生 · pre 固定为 1' })
+  }
+  state.generationConfig.overrides[phaseKey] = { nCandidates, finalCandidates }
+  res.json({ code: 200, data: { phaseKey, writeState: state.config.genCfgWriteState ?? 'override' } })
+})
+
 // Health 端点 mock — 用于前端兜底轮询。WR-02(review-60): per-scope eventCount
 // (scopeEvents 按 projectId:episodesId 计数,只吐发生过保存的 scope);真实后端
 // 不吐 eventCount(FLAG-2,mock/real 分歧有意保留——mock 使 e2e 可行为覆盖
