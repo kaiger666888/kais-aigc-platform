@@ -44,20 +44,20 @@ import { test, expect } from '../helpers.mjs'
  *   char:shenzhiyi:voice      media     0/2/0/2              meta.subtype='voice_print'
  *                                                       才达键;手动组·零自动选定(负向)
  *   keyframe:S01:S01_first    setting   1/1/0/2              自动 winner=91009(mtime 最新)
- *   单件桶 media = [e2e-rich-91010(video:SH01,自动★,P11 推导),
- *                  e2e-rich-91012(document,自动★,P13 meta 直读)];text = [e2e-rich-91011
- *   (outline,fixture ★,subtype unknown 无徽标)]。
+ *   单件桶 media = [e2e-rich-91010(video:SH01,自动★,P11 推导)];text = [e2e-rich-91011
+ *   (outline,fixture ★,subtype unknown 无徽标)];91012(document,自动★,P13 meta 直读)
+ *   为 reportAudit——不进桶、层级视图零卡片渲染,仅计入域 total(D-03)。
  *   域聚合(setting 2/5/0 sum=7 · media 2/2/0 sum=4 含 91012 · text 1/0/0 sum=1;
  *   全量 5/7/0 sum=12)。
  *
- *   ⚠️ FIXME(62-07 收尾裁定项):rich fixture 的 reportAudit 样本(91012,
- *   62-03 注释意图「reportAudit 单件·不进桶」)实际不可达 reportAudit 路径——
- *   ① fixture meta.phaseCode='P13' 使 assetPhaseOf 走 meta 直读早退(reportAudit 恒
- *   false,仅 PHASE_BY_SUBTYPE 查表路径可产 true);② inferSubtype 无 type='document'
- *   分支且 metaSub='delivery_package' 不在 Notion 短路表 → 'unknown' 不入表。故
- *   D-03 排除面(「reportAudit 卡不在任何桶」)对本 fixture 断言不出;本文件先钉
- *   现状(91012 在 media 桶 + 计入域 total),排除面留 62-07 收尾对齐(fixture 去
- *   phaseCode + inferSubtype/短路表补 delivery_package 二选一)后改回负向断言。
+ *   修复记录(62-07 Task A,orchestrator 裁定走 src 修复非 fixture 规避):前置版曾钉
+ *   「91012 在 media 桶」现状——reportAudit 对该样本不可达的根因有二:① inferSubtype
+ *   无 type='document' 分支且 metaSub='delivery_package' 不在 Notion 短路表(subtype
+ *   'unknown' 不入表);② assetPhaseOf meta 直读早退硬编码 reportAudit:false。已修:
+ *   inferSubtype 补 delivery_package 短路键 + type='document' 兜底(assetManagerData.ts,
+ *   AssetItem 镜像函数同改保持等价),assetPhaseOf 的 reportAudit 改为恒由
+ *   PHASE_BY_SUBTYPE 查表决定(groupCanvasLinkage.ts;徽标文案/来源仍 meta 优先,D-01
+ *   语义不变)——91012 现查表得 P13+reportAudit:true,本文件按 D-03 原意断言负向面。
  */
 
 const HIER_URL = `/?${new URLSearchParams({ projectId: '1', episodesId: '1', testMode: '1' }).toString()}`
@@ -295,7 +295,7 @@ test.describe('phase62-hierarchy 资产层级', () => {
     expect(domCounts).toEqual({ sel: 1, pend: 2, elim: 0 })
   })
 
-  test('singletons-bucket: 桶内 size=1 成员清单钉死(reportAudit 排除面=FIXME 62-07 收尾)', async ({ page }) => {
+  test('singletons-bucket: 桶内 size=1 非 reportAudit 成员清单钉死(D-03 排除面负向)', async ({ page }) => {
     await loadHierarchy(page)
 
     const snap = await page.evaluate(() => {
@@ -309,20 +309,20 @@ test.describe('phase62-hierarchy 资产层级', () => {
         media: bucketOf('media'),
         text: bucketOf('text'),
         settingBucketCount: document.querySelectorAll('[data-testid="hier-singletons"][data-domain="setting"]').length,
-        deliveryCardInBucketCount: document.querySelectorAll('.am-card[data-uuid="e2e-rich-91012"]').length,
+        deliveryCardInHierarchyCount: document.querySelectorAll('.am-card[data-uuid="e2e-rich-91012"]').length,
       }
     })
 
-    // 桶内 uuid 清单断言(现状,见头部 FIXME):media = video:SH01 + document(91012 的
-    // reportAudit 排除对本 fixture 不可达——meta.phaseCode='P13' 直读早退 + inferSubtype
-    // 'document'→unknown 不入表,排除面留 62-07 收尾对齐后改回负向);text = outline(91011)
-    expect(snap.media).toEqual(['e2e-rich-91010', 'e2e-rich-91012'])
+    // 桶内 uuid 清单断言(修复后 D-03 原意):media = video:SH01(91010)——91012 为
+    // reportAudit(inferSubtype 'delivery_package' → PHASE_BY_SUBTYPE P13+reportAudit,
+    // 见头部修复记录),不进桶;text = outline(91011)
+    expect(snap.media).toEqual(['e2e-rich-91010'])
     expect(snap.text).toEqual(['e2e-rich-91011'])
     // setting 域无 size=1 组 → 空桶整卡不渲染(C3「桶空则整卡不渲染」)
     expect(snap.settingBucketCount).toBe(0)
-    // D-03 计入面互证:91012 计入 media 域 total 由用例 2 三态和=4 锁定(双面闭环的
-    // 计入侧;排除侧见上方 FIXME)。
-    expect(snap.deliveryCardInBucketCount).toBe(1)
+    // D-03 双面闭环·排除侧:reportAudit 资产卡在层级视图全页零渲染(无组卡/无桶卡);
+    // 计入侧由用例 2 锁定(media 三态和=4 含 91012)。
+    expect(snap.deliveryCardInHierarchyCount).toBe(0)
   })
 
   test('collapse-toggle: 单组折叠往返 + 折叠全部/展开全部', async ({ page }) => {
@@ -351,28 +351,22 @@ test.describe('phase62-hierarchy 资产层级', () => {
     // 全部徽标(组头 hier-group-phase + 单件卡 hier-card-phase)文本均 ^P\d{2}$
     // (T-62-12 直读白名单 + PHASE_BY_SUBTYPE 查表两路产物都受检):
     // 4 组头(char P04 推导/scene P07 推导/voice P10 推导/keyframe P09 直读)
-    // + 2 单件卡(video P11 推导/doc P13 直读)
+    // + 1 单件卡(video P11 推导;91012 reportAudit 不渲染卡,D-03——徽标数=5)
     const badges = await page.evaluate(() =>
       [...document.querySelectorAll('[data-testid="hier-group-phase"], [data-testid="hier-card-phase"]')]
         .map((el) => el.textContent.trim()))
-    expect(badges.length).toBe(6)
+    expect(badges.length).toBe(5)
     for (const t of badges) expect(t).toMatch(/^P\d{2}$/)
 
     // 推导样本(单件卡):91010 video → P11(video_clips 查表),tooltip「按子类型推导」
-    // (media 桶现含两卡——经 data-uuid 精确锚定,见头部 FIXME)
+    // (media 桶修复后仅此一卡)
     const cardBadge = page.locator('.am-card[data-uuid="e2e-rich-91010"] [data-testid="hier-card-phase"]')
     await expect(cardBadge).toHaveText('P11')
     await cardBadge.hover()
     expect(await cardBadge.getAttribute('title')).toBe('按子类型推导')
 
-    // meta 直读样本(单件卡):91012 document meta.phaseCode='P13' 直读(早退于查表,
-    // reportAudit 不可达——见 FIXME;此处只锁 D-01 直读/推导 tooltip 可辨)
-    const docBadge = page.locator('.am-card[data-uuid="e2e-rich-91012"] [data-testid="hier-card-phase"]')
-    await expect(docBadge).toHaveText('P13')
-    await docBadge.hover()
-    expect(await docBadge.getAttribute('title')).toBe('资产 meta 直读')
-
     // meta 直读样本(组头):keyframe 组 meta.phaseCode='P09' 直读优先于查表
+    // (直读路径 reportAudit 解耦见头部修复记录——直读只接管文案,不影响排除面)
     const kfBadge = page.locator('[data-testid="hier-group"][data-group-key="keyframe:S01:S01_first"] [data-testid="hier-group-phase"]')
     await expect(kfBadge).toHaveText('P09')
     await kfBadge.hover()

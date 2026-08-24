@@ -472,6 +472,11 @@ export function inferSubtype(d: AssetDetail): AssetSubtype {
   if (metaSub === 'costume_design') return 'costume_design'
   if (metaSub === 'voice_profile') return 'voice_profile'
   if (metaSub === 'bgm_design') return 'bgm_design'
+  // 报告/审计类交付包（62-07 收尾修复）：真实报告类资产 DB type='document'（无图），
+  // meta.subtype='delivery_package' 标注——此前两路都不命中落 'unknown'，
+  // PHASE_BY_SUBTYPE 查表（P13 + reportAudit:true）永不可达，D-03 单件桶排除面失效。
+  // 短路表补键 + 下方 type==='document' 兜底分支双路命中。
+  if (metaSub === 'delivery_package') return 'delivery_package'
   // character_bible（type=character，无图）由下方 character 分支按 !filePath 判定。
 
   // ── 音频：Foley / BGM 独立音轨（Notion §5c/§5d，复用 audio DB type）──
@@ -596,6 +601,12 @@ export function inferSubtype(d: AssetDetail): AssetSubtype {
     const nm = (d.name || '').toLowerCase()
     if (nm.includes('package') || nm.includes('包')) return 'delivery_package'
     return 'master_mp4'
+  }
+  if (d.type === 'document') {
+    // 文档型报告资产兜底（62-07）：type='document' 未带 subtype 时仍按报告/审计类
+    // 交付包归类（PHASE_BY_SUBTYPE P13 + reportAudit=true → 不进单件桶显式节点，
+    // 计入域 total——D-03）。
+    return 'delivery_package'
   }
   return 'unknown'
 }
@@ -1283,6 +1294,8 @@ function inferSubtypeFromItem(a: AssetItem): AssetSubtype {
   if (metaSub === 'costume_design') return 'costume_design'
   if (metaSub === 'voice_profile') return 'voice_profile'
   if (metaSub === 'bgm_design') return 'bgm_design'
+  // 报告/审计类交付包 —— 与 inferSubtype(AssetDetail) 保持等价（62-07 收尾修复）
+  if (metaSub === 'delivery_package') return 'delivery_package'
   if (t === 'audio') {
     if (metaSub === 'foley_stem') return 'foley_stem'
     if (metaSub === 'bgm_track') return 'bgm_track'
@@ -1366,6 +1379,8 @@ function inferSubtypeFromItem(a: AssetItem): AssetSubtype {
     if (nm.includes('package') || nm.includes('包')) return 'delivery_package'
     return 'master_mp4'
   }
+  // type='document' 兜底 —— 与 inferSubtype(AssetDetail) 保持等价（62-07 收尾修复）
+  if (t === 'document') return 'delivery_package'
   return 'unknown'
 }
 

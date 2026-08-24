@@ -270,7 +270,9 @@ export interface AssetPhaseInfo {
   /** 阶段码（如 'P09'）；空串 = 不渲染徽标。 */
   phaseCode: string
   source: 'meta' | 'derived'
-  /** 报告/审计类：不进单件桶显式节点（D-03），计入域级计数。仅 derived 查表路径可 true。 */
+  /** 报告/审计类：不进单件桶显式节点（D-03），计入域级计数。
+   *  恒由 PHASE_BY_SUBTYPE 查表唯一决定（与阶段码来源解耦——62-07 收尾修复：
+   *  meta 直读早退仅决定徽标文案/来源，不再硬编码 false 压制查表结果）。 */
   reportAudit: boolean
 }
 
@@ -278,16 +280,20 @@ export interface AssetPhaseInfo {
  * 阶段徽标推导：meta.phaseCode 直读优先（T-62-12：仅接受 ^P\d{2}$ 形态，
  * 异常值回落查表）；缺省 inferSubtype → PHASE_BY_SUBTYPE 查表（source 'derived'）；
  * 未命中表 → 空 phaseCode（UI 不渲染徽标）。
+ * reportAudit 两路同源查表（D-03）：直读路径只接管徽标文案，报告/审计标志
+ * 仍由子类型表决定——否则带 meta.phaseCode 的真实报告类资产（type='document'
+ * + subtype='delivery_package'）永远到不了 reportAudit:true。
  */
 export function assetPhaseOf(d: AssetDetail): AssetPhaseInfo {
+  const entry = PHASE_BY_SUBTYPE[inferSubtype(d)]
+  const reportAudit = entry?.reportAudit === true
   // 直读：T-62-12 防注入——任意字符串不透传，仅 ^P\d{2}$ 形态（P01..P99 量级）。
   const direct = metaStr(parseMetaFields(d.meta), 'phaseCode')
   if (direct && /^P\d{2}$/.test(direct)) {
-    return { phaseCode: direct, source: 'meta', reportAudit: false }
+    return { phaseCode: direct, source: 'meta', reportAudit }
   }
-  const entry = PHASE_BY_SUBTYPE[inferSubtype(d)]
   if (entry) {
-    return { phaseCode: entry.phaseCode, source: 'derived', reportAudit: entry.reportAudit === true }
+    return { phaseCode: entry.phaseCode, source: 'derived', reportAudit }
   }
   return { phaseCode: '', source: 'derived', reportAudit: false }
 }

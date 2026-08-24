@@ -27,6 +27,7 @@ import {
   assetPhaseOf,
   buildHierarchyModel,
 } from '../groupCanvasLinkage'
+import { inferSubtype } from '../assetManagerData'
 
 // ─── fixture ──────────────────────────────────────────────
 
@@ -293,11 +294,29 @@ describe('isSceneGroup / isVoiceGroup（自动初始化豁免式提取）', () =
 // ─── 62-04 层级派生（assetPhaseOf / buildHierarchyModel） ──
 
 describe('assetPhaseOf（D-01 阶段徽标推导）', () => {
-  it('meta.phaseCode 直读 ^P\\d{2}$ 命中 → source meta（直读路径 reportAudit 恒 false）', () => {
+  it('meta.phaseCode 直读 ^P\\d{2}$ 命中 → source meta（reportAudit 恒由查表决定,与来源解耦）', () => {
+    // 非 reportAudit 子类型（character_bible）直读/查表两路 reportAudit 均 false
     expect(assetPhaseOf(detail({ meta: meta({ phaseCode: 'P09' }) })))
       .toEqual({ phaseCode: 'P09', source: 'meta', reportAudit: false })
     expect(assetPhaseOf(detail({ meta: meta({ phaseCode: 'P13' }) })))
       .toEqual({ phaseCode: 'P13', source: 'meta', reportAudit: false })
+    // 62-07 收尾修复回归锁：真实报告类资产（type='document' + subtype='delivery_package'
+    // + phaseCode='P13'）——徽标仍 meta 直读（D-01），reportAudit 经查表可达 true（D-03
+    // 单件桶排除面对该形状生效;修复前早退硬编码 false 使排除面永不可达）
+    expect(assetPhaseOf(detail({
+      type: 'document',
+      meta: meta({ subtype: 'delivery_package', phaseCode: 'P13' }),
+    }))).toEqual({ phaseCode: 'P13', source: 'meta', reportAudit: true })
+  })
+
+  it('inferSubtype document/delivery_package 双路命中（62-07 修复锚）', () => {
+    expect(inferSubtype(detail({ type: 'document', meta: meta({ subtype: 'delivery_package' }) })))
+      .toBe('delivery_package')
+    // 无 subtype 兜底:type='document' 裸类型也归报告/审计类交付包
+    expect(inferSubtype(detail({ type: 'document' }))).toBe('delivery_package')
+    // 查表路径:P13 + reportAudit:true(derived)
+    expect(assetPhaseOf(detail({ type: 'document' })))
+      .toEqual({ phaseCode: 'P13', source: 'derived', reportAudit: true })
   })
 
   it('T-62-12：异常 phaseCode（P9 / p09 / P009 / 任意文案）不透传，回落查表 → derived', () => {
