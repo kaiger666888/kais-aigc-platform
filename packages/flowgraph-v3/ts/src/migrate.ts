@@ -252,6 +252,9 @@ function buildMeta(v2: FlowNodeV2, stage: Stage, ctx: Ctx): AssetStageMeta {
         ...(d.hookType != null ? { hookType: d.hookType } : {}),
         ...(d.hookIntensity != null ? { hookIntensity: d.hookIntensity } : {}),
         ...(d.premise != null ? { premise: d.premise } : {}),
+        // 【61-03/DEBT-03】wire emotion 双类型：script=number / audio=string（Pitfall 3）。
+        // typeof 守卫即静态网（勿 cast），错配值不进 meta（宽容降级，同 stale 风格）。
+        ...(d.emotion != null && typeof d.emotion === 'number' ? { emotion: d.emotion } : {}),
       };
     case 'storyboard':
       if (d.shotType == null)
@@ -266,6 +269,8 @@ function buildMeta(v2: FlowNodeV2, stage: Stage, ctx: Ctx): AssetStageMeta {
         ...(d.framing != null ? { framing: d.framing } : {}),
         ...(d.composition != null ? { composition: d.composition } : {}),
         ...(d.pacing != null ? { pacing: d.pacing } : {}),
+        // 【61-03/DEBT-03】7-facet 画面描述读回（51-REVIEW I1 漏拣字段）
+        ...(d.promptMeta != null ? { promptMeta: d.promptMeta } : {}),
       };
     case 'keyframe':
       return { stage: 'keyframe', shotId: ctx.shotIdOf(v2) };
@@ -274,6 +279,8 @@ function buildMeta(v2: FlowNodeV2, stage: Stage, ctx: Ctx): AssetStageMeta {
         stage: 'video',
         shotId: ctx.shotIdOf(v2),
         ...(d.observedEndState != null ? { observedEndState: d.observedEndState } : {}),
+        // 【61-03/DEBT-03】Murch 评级读回（51-REVIEW I1 漏拣字段）
+        ...(d.murchGrade != null ? { murchGrade: d.murchGrade } : {}),
       };
     case 'voice':
     case 'foley':
@@ -281,7 +288,7 @@ function buildMeta(v2: FlowNodeV2, stage: Stage, ctx: Ctx): AssetStageMeta {
       return {
         stage,
         ...(d.shotId != null ? { shotId: d.shotId } : {}),
-        ...(d.emotion != null ? { emotion: d.emotion } : {}),
+        ...(d.emotion != null && typeof d.emotion === 'string' ? { emotion: d.emotion } : {}), // 【61-03】wire emotion 双类型守卫：audio=string（script=number）
         ...(d.speaker != null ? { speaker: d.speaker } : {}),
       };
     case 'global': {
@@ -303,6 +310,9 @@ function buildMeta(v2: FlowNodeV2, stage: Stage, ctx: Ctx): AssetStageMeta {
       }
       return {
         stage: 'global',
+        // 【61-03/DEBT-03】archetype/viewAngle 读回（51-REVIEW I1 漏拣字段）
+        ...(d.archetype != null ? { archetype: d.archetype } : {}),
+        ...(d.viewAngle != null ? { viewAngle: d.viewAngle } : {}),
         assetType: assetType as 'role' | 'tool' | 'scene' | 'lora' | 'worldview',
       };
     }

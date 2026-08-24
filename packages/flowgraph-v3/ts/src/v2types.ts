@@ -15,7 +15,7 @@
  *   isWinner / reviewStatus / aiScore（节点级）
  *   links[].dataType（含 'sequence' 与 ensure_reference_link 形态）
  */
-import type { FlowBranchV2, NodeState, ReviewStatus, AIScore } from './types.js';
+import type { FlowBranchV2, NodeState, ReviewStatus, AIScore, PromptFacets } from './types.js';
 
 /** V2 节点类型枚举（§14 左列全覆盖 + scene_image 场景图）。 */
 export type FlowNodeV2Type =
@@ -56,7 +56,12 @@ export interface FlowNodeV2Data {
   framing?: string;
   composition?: string;
   pacing?: string;
-  emotion?: string;
+  /**
+   * 【61-03/DEBT-03 双类型 wire 契约,Pitfall 3】同名不同型：script 节点 number /
+   * audio(voice·foley·bgm) 节点 string。buildMeta 按 stage 分支读回（typeof 守卫，
+   * 勿 cast），错配值由 zod strict 判别联合打回（回归网）。
+   */
+  emotion?: string | number;
   speaker?: string;
   hookType?: string;
   hookIntensity?: number;
@@ -67,6 +72,14 @@ export interface FlowNodeV2Data {
   isMasterTimeline?: boolean;
   edlRef?: string;
   observedEndState?: string;
+  // —— 【61-03/DEBT-03】buildMeta 读回新消费的描述性字段（进 meta，非配方）——
+  /** storyboard 7-facet 画面描述（→ meta.promptMeta，types.ts PromptFacets，正逆向同构）。 */
+  promptMeta?: PromptFacets;
+  /** video Murch 评级（→ meta.murchGrade）。 */
+  murchGrade?: string;
+  /** global 角色原型 / 视角（→ meta.archetype / meta.viewAngle）。 */
+  archetype?: string;
+  viewAngle?: string;
   [key: string]: unknown; // 【待与旧库对齐】未消费字段不进 V3
 }
 

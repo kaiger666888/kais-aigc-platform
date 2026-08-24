@@ -11,8 +11,9 @@ import type {
   EventNodeV3,
   FlowGraphV3,
   FlowLinkV3,
+  PromptFacets,
 } from '../src/types.js';
-import type { FlowGraphV2Export, FlowNodeV2Data } from '../src/v2types.js';
+import type { FlowGraphV2Export, FlowNodeV2, FlowNodeV2Data } from '../src/v2types.js';
 
 const v2 = v2Sample as FlowGraphV2Export;
 const { graph, report } = migrateV2toV3(v2);
@@ -507,5 +508,87 @@ describe('Phase 58: recipeParams 全集提取（窄通道解除）', () => {
     expect(
       rep.importedSeedEvents.some((s) => s.assetNodeId === 'n_video_x' && s.reason === 'orphan_no_recipe_no_causal_input'),
     ).toBe(false);
+  });
+})
+
+describe('DEBT-03 buildMeta 5 字段读回(61-03)', () => {
+  // 51-REVIEW I1：写侧 serialize flattenMeta {...rest} 摊平无缺口，读侧 buildMeta
+  // 漏拣——save→reload 后 meta 5 字段(emotion/promptMeta/murchGrade/archetype/viewAngle)
+  // 静默丢失。本组按 stage 分支直测 buildMeta 读回，每用例过 validateFlowGraphV3
+  //（zod strict 判别联合 = 类型错配回归网）。
+  const migrateOne = (type: FlowNodeV2['type'], data: FlowNodeV2Data, id = 'n_x') =>
+    migrateV2toV3({
+      meta: { projectId: 1, episodesId: 1, createdAt: 0, updatedAt: 0 },
+      nodes: [{ id, type, branchId: 'br_main', data, state: 'success' }],
+      links: [],
+    });
+
+  /** 7-facet 完整合法对象（键集照 types.ts PromptFacets）。 */
+  const PROMPT_FACETS: PromptFacets = {
+    subject: '林晚站在天台边缘',
+    action: '回眸',
+    camera: 'dolly-in',
+    scene: '雨夜天台',
+    lighting: '低调侧光',
+    style: '电影感写实',
+    text: '无字幕',
+  };
+
+  it('a. script: data.emotion=7(number) → meta.emotion 保真且 typeof === "number"（Pitfall 3 正断言）', () => {
+    const { graph: g } = migrateOne('script', { emotion: 7, hookType: '悬念' }, 'n_script_e');
+    const meta = asset(g, 'n_script_e').meta;
+    if (meta.stage !== 'script') throw new Error(`stage=${meta.stage}`);
+    expect(meta.emotion).toBe(7);
+    expect(typeof meta.emotion).toBe('number'); // script 契约是 number，非 string
+    expect(meta.hookType).toBe('悬念');
+    expect(validateFlowGraphV3(g).ok).toBe(true);
+  });
+
+  it('b. storyboard: data.promptMeta → meta.promptMeta toEqual 原对象（deep equal）', () => {
+    const { graph: g } = migrateOne('storyboard', { shotType: 'close-up', durationS: 4, promptMeta: PROMPT_FACETS }, 'n_sb_e');
+    const meta = asset(g, 'n_sb_e').meta;
+    if (meta.stage !== 'storyboard') throw new Error(`stage=${meta.stage}`);
+    expect(meta.promptMeta).toEqual(PROMPT_FACETS);
+    expect(meta.shotType).toBe('close-up');
+    expect(validateFlowGraphV3(g).ok).toBe(true);
+  });
+
+  it('c. video: data.murchGrade → meta.murchGrade', () => {
+    const { graph: g } = migrateOne('video', { shotId: 'shot-001', murchGrade: 'A' }, 'n_video_e');
+    const meta = asset(g, 'n_video_e').meta;
+    if (meta.stage !== 'video') throw new Error(`stage=${meta.stage}`);
+    expect(meta.murchGrade).toBe('A');
+    expect(meta.shotId).toBe('shot-001');
+    expect(validateFlowGraphV3(g).ok).toBe(true);
+  });
+
+  it('d. global: data.archetype/viewAngle → meta 双字段读回', () => {
+    const { graph: g } = migrateOne('asset', { assetType: 'role', archetype: 'sage', viewAngle: 'front' }, 'n_global_e');
+    const meta = asset(g, 'n_global_e').meta;
+    if (meta.stage !== 'global') throw new Error(`stage=${meta.stage}`);
+    expect(meta.assetType).toBe('role');
+    expect(meta.archetype).toBe('sage');
+    expect(meta.viewAngle).toBe('front');
+    expect(validateFlowGraphV3(g).ok).toBe(true);
+  });
+
+  it('e. audio 回归锁: audioType voice + data.emotion(string) → stage voice 且 meta.emotion string（双类型契约另一半）', () => {
+    const { graph: g } = migrateOne('audio', { audioType: 'voice', emotion: '激动' }, 'n_audio_e');
+    const a = asset(g, 'n_audio_e');
+    expect(a.stage).toBe('voice');
+    const meta = a.meta;
+    if (meta.stage !== 'voice') throw new Error(`stage=${meta.stage}`);
+    expect(meta.emotion).toBe('激动');
+    expect(typeof meta.emotion).toBe('string');
+    expect(validateFlowGraphV3(g).ok).toBe(true);
+  });
+
+  it('f. 负向: script data 无 emotion → meta 不含 emotion 键（undefined）', () => {
+    const { graph: g } = migrateOne('script', { hookType: '悬念' }, 'n_script_ne');
+    const meta = asset(g, 'n_script_ne').meta;
+    if (meta.stage !== 'script') throw new Error(`stage=${meta.stage}`);
+    expect(meta.emotion).toBeUndefined();
+    expect('emotion' in meta).toBe(false); // 条件展开：缺省不写键
+    expect(validateFlowGraphV3(g).ok).toBe(true);
   });
 })
