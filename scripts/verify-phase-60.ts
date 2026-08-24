@@ -23,6 +23,9 @@
  *     S6 D-03: canvasStore.ts 含 '[panel-persist]' warn + setGraph 重锚行
  *        rfNodes.find 语义保持(n.id === 与 ?? null 共存,两锚同形)。
  *     S7 useCanvasSocket.ts graph:saved payload 类型含 savedBy?(wire 类型链)。
+ *     S8-S11(review-60 fixes): CR-01 两探针恢复守卫(lastKnownServer 漂移
+ *        核对,并发写不盲覆盖)/ CR-02 requestNodeScore 拆信封 / WR-01 save
+ *        失败层1 显式 SKIP / WR-02 mock health per-scope eventCount。
  *   B 行为门段(spawn 子进程,49-01 教训: 不与父进程共享 knex/事件循环):
  *     根 tsc --noEmit / reloadAnchor vitest(八 case 永久锁)/ canvas
  *     npm run build(dist 纪律: e2e 跑 build 产物非源码)/ phase60 e2e
@@ -217,6 +220,20 @@ async function main(): Promise<void> {
     assert(
       socketSrc.includes("savedBy?: string") && regBlock.includes("savedBy?: string"),
       "S7: useCanvasSocket graph:saved payload 类型含 savedBy?(回调签名 + 注册块 wire 类型链)",
+    );
+  }
+
+  // S8 CR-01(review-60): 两个真机探针的恢复守卫——恢复前核对服务器态 === 探针
+  // 最后已知态(lastKnownServer),漂移(并发写)→ 放弃恢复不盲写(净足迹≠0 时
+  // FAIL + exit 1 交人工对账)。旧版 finally 无条件回存原图,会静默覆盖探针窗口
+  // 内 kmc pipeline/画布客户端的并发写(数据丢失向量)。
+  {
+    const diagSrc = read("scripts/diagnose-60-roundtrip.ts");
+    const probeSrc = read("packages/infinite-canvas/test/e2e/probe-60-real.mjs");
+    assert(
+      diagSrc.includes("lastKnownServer") && diagSrc.includes("并发写入被保留") &&
+        probeSrc.includes("lastKnownServer") && probeSrc.includes("并发写入被保留"),
+      "S8 CR-01: diagnose-60-roundtrip + probe-60-real 恢复守卫(lastKnownServer 漂移核对,并发写不盲覆盖)",
     );
   }
 

@@ -16,11 +16,15 @@
 //     (两条 reload toast 精确串零命中)/load-v2 响应计数不变(零 reload,
 //     PANEL-01 决定性真机信号)。
 //
-//   finally 零足迹恢复(恢复即被测语义,probe-59-real 范式): saveV2 原图回存 →
-//   ≤15s 轮询 load-v2,stripUpdatedAt 深比对全等 + firstDiff 诊断(净足迹=0;
-//   footprint 失败 → note FAIL → exitCode 1)。两次探针性保存均回存原图内容
-//   (T-60-08 mitigate);浏览器段保存为当前已部署真相的序列化往返,无破坏性
-//   操作(T-60-10 accept)。
+//   finally 零足迹恢复(恢复即被测语义,probe-59-real 范式 + review-60 CR-01
+//   恢复守卫): 恢复前先 load-v2 核对当前服务器态 === 探针最后已知态
+//   lastKnownServer(自家每次成功写库后刷新观测);漂移 = 探针窗口内有并发写
+//   (kmc pipeline/画布客户端)→ 放弃恢复、保留并发写入、note FAIL → exitCode 1
+//   交人工对账(不盲写覆盖——静默数据丢失向量)。无漂移且探针写过库 → saveV2
+//   原图回存 → ≤15s 轮询 load-v2,stripUpdatedAt 深比对全等 + firstDiff 诊断
+//   (净足迹=0;footprint 失败 → note FAIL → exitCode 1)。探针未写库 → 跳过
+//   回存。两次探针性保存均回存原图内容(T-60-08 mitigate);浏览器段保存为
+//   当前已部署真相的序列化往返,无破坏性操作(T-60-10 accept)。
 //
 //   部署前置纪律(地雷 #10:10588 跑 build 产物,须 rebuild+restart;真机探针
 //   依赖 60-02 savedBy 代码已部署——协议段断言的就是部署产物行为):
@@ -112,6 +116,16 @@ let socket = null
 let browser = null
 let originalGraph = null
 let scope = null
+// CR-01(review-60)恢复守卫: 探针(含其浏览器页)是否真实写过库 + 最后已观测
+// 服务器态(自家每次成功写库后 load-v2 刷新)。finally 恢复前核对当前态 ===
+// lastKnownServer;漂移(并发写)→ 放弃恢复、保留并发写入、FAIL + exitCode 1
+// (不盲写覆盖——静默数据丢失向量)。
+let probeWrote = false
+let lastKnownServer = null
+const observeServer = async () => {
+  const l = await loadV2(scope.pid, scope.eid)
+  if (l.status === 200 && l.json?.code === 200) lastKnownServer = l.json.data
+}
 try {
   // 前置:逐 scope 探测可达性与 V3 可加载性(不可达 → SKIP,非假绿)
   for (const [pid, eid] of SCOPES) {
@@ -129,6 +143,7 @@ try {
     process.exit(1)
   }
   originalGraph = scope.graph
+  lastKnownServer = originalGraph // CR-01: 初始观测(捕获时刻的服务器态)
   const pid = scope.pid
   const eid = scope.eid
   console.log(`  选定 scope ${pid}/${eid}: nodes=${originalGraph.nodes.length}(非 evt ${originalGraph.nodes.filter((n) => !isEvt(n)).length}),links=${(originalGraph.links ?? []).length}`)
@@ -156,6 +171,7 @@ try {
   console.log('\n── 段一 协议段: save-v2 带/不带 savedBy 的广播回显(服务端契约)──')
   let idx = savedEvents.length
   const save1 = await saveV2(pid, eid, originalGraph, 'tab_probe60')
+  if (save1.status === 200 && save1.json?.code === 200) { probeWrote = true; await observeServer() }
   const ev1 = await waitSaved(idx)
   note('段一 保存(带身份)', save1.status === 200 && save1.json?.code === 200, `save-v2 HTTP ${save1.status} code=${save1.json?.code}`)
   note('段一 回显(savedBy=tab_probe60)',
@@ -164,6 +180,7 @@ try {
 
   idx = savedEvents.length
   const save2 = await saveV2(pid, eid, originalGraph)
+  if (save2.status === 200 && save2.json?.code === 200) { probeWrote = true; await observeServer() }
   const ev2 = await waitSaved(idx)
   note('段一 保存(不带身份)', save2.status === 200 && save2.json?.code === 200, `save-v2 HTTP ${save2.status} code=${save2.json?.code}`)
   note('段一 回显(无 savedBy 键)',
@@ -248,6 +265,9 @@ try {
     const respPromise = page.waitForResponse((r) => r.url().includes('/api/canvas/v2/save-v2'), { timeout: 30_000 })
     await saveBtn.click()
     const resp = await respPromise
+    // CR-01: 浏览器保存落库后立即刷新恢复守卫基准(先于后续断言——断言抛错也
+    // 不丢观测;页面保存走 saveCanvasGraph,HTTP 200 即已落库)。
+    if (resp.status() === 200) { probeWrote = true; await observeServer() }
     let savedByWire = null
     try { savedByWire = JSON.parse(resp.request().postData() ?? 'null')?.savedBy ?? null } catch { /* non-json */ }
     note('段二 保存 200', resp.status() === 200, `save-v2 HTTP ${resp.status()}`)
@@ -282,21 +302,37 @@ try {
     if (!originalGraph) { console.error('恢复: 无捕获原图可恢复(前置失败)'); failures.push('恢复: 无捕获原图') }
   } else {
     try {
-      const r = await saveV2(scope.pid, scope.eid, originalGraph)
-      let restored = false
-      let diff = ''
-      const deadline = Date.now() + 15_000
-      while (Date.now() < deadline) {
-        const l = await loadV2(scope.pid, scope.eid)
-        if (l.status === 200) {
-          restored = deepEqual(originalGraph, l.json.data)
-          if (!restored) diff = firstDiff(originalGraph, l.json.data) ?? ''
-          if (restored) break
+      // CR-01 恢复守卫: 恢复前核对当前服务器态 === 探针最后已观测态(自家最后
+      // 一次写库后的 load-v2)。漂移 = 探针窗口内有并发写(kmc pipeline/其他
+      // 画布客户端)——无条件回存会静默覆盖并发写(数据丢失),故放弃恢复、保留
+      // 并发写入、标记失败交人工对账。仅无漂移时才回存(或确认无需回存)。
+      const pre = await loadV2(scope.pid, scope.eid)
+      if (pre.status !== 200 || pre.json?.code !== 200) {
+        note('恢复(净足迹)', false, `恢复前核对 load-v2 失败: HTTP ${pre.status} code=${pre.json?.code}——不盲写回存,人工核查!(CR-01)`)
+      } else if (!deepEqual(lastKnownServer, pre.json.data)) {
+        const drift = firstDiff(lastKnownServer, pre.json.data) ?? ''
+        note('恢复(净足迹)', false,
+          `检测到服务器态漂移(探针最后已知态 ≠ 当前态,净足迹≠0): ${drift}——` +
+          '疑似并发写入(kmc pipeline/画布客户端);放弃恢复、并发写入被保留,需人工对账!(CR-01)')
+      } else if (!probeWrote) {
+        note('恢复(净足迹)', true, '探针未写库且服务器态无漂移——无需恢复,净足迹=0')
+      } else {
+        const r = await saveV2(scope.pid, scope.eid, originalGraph)
+        let restored = false
+        let diff = ''
+        const deadline = Date.now() + 15_000
+        while (Date.now() < deadline) {
+          const l = await loadV2(scope.pid, scope.eid)
+          if (l.status === 200) {
+            restored = deepEqual(originalGraph, l.json.data)
+            if (!restored) diff = firstDiff(originalGraph, l.json.data) ?? ''
+            if (restored) break
+          }
+          await new Promise((res) => setTimeout(res, 500))
         }
-        await new Promise((res) => setTimeout(res, 500))
+        note('恢复(净足迹)', r.status === 200 && restored,
+          `原图回存 HTTP ${r.status};load-v2 深比对原图:${restored ? '全等(剔 meta.updatedAt/lastEventId,净足迹=0)' : '漂移 → ' + diff}`)
       }
-      note('恢复(净足迹)', r.status === 200 && restored,
-        `原图回存 HTTP ${r.status};load-v2 深比对原图:${restored ? '全等(剔 meta.updatedAt/lastEventId,净足迹=0)' : '漂移 → ' + diff}`)
     } catch (err) {
       note('恢复(净足迹)', false, `恢复复核失败: ${err.message}——人工核查!`)
     }

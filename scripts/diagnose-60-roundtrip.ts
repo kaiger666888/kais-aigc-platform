@@ -29,9 +29,14 @@
  *       (detailNode 重锚的最小情形)+ V2 侧首个非 evt 节点同检。
  *   (d) exit 契约: --strict 时任一层差集非空 → exit 1;:10588 不可达 → exit 2;
  *       零漂移 → exit 0。默认(无 flag)只打印报告 exit 0。
- *   (e) finally 零足迹(T-60-01a): saveV2(pid, eid, loadA 原图 verbatim) → ≤15s
- *       轮询 load-v2,stripUpdatedAt 深比对全等;不等 → firstDiff 输出 + exit 1
- *       (footprint 失败即探针失败,probe-59-real 同款纪律)。
+ *   (e) finally 零足迹(T-60-01a + review-60 CR-01 恢复守卫): 恢复前先 load-v2
+ *       核对当前服务器态 === 探针最后已知态 lastKnownServer(初始 loadA,写库
+ *       成功后刷新为 loadC);漂移 = 探针窗口内有并发写(kmc pipeline/画布客户端)
+ *       → 放弃恢复、保留并发写入、FAIL + exit 1 交人工对账(不盲写覆盖——静默
+ *       数据丢失向量);无漂移且探针写过库 → saveV2(pid, eid, loadA 原图
+ *       verbatim) → ≤15s 轮询 load-v2,stripUpdatedAt 深比对全等;不等 →
+ *       firstDiff 输出 + exit 1(footprint 失败即探针失败,probe-59-real 同款
+ *       纪律);探针未写库 → 跳过回存(净足迹=0,不再制造无谓写库+广播)。
  *
  * ⚠ 导入纪律(probe 实测,2026-08-24): adapter.ts/serialize.ts 内部 import
  * '@kais/flowgraph-v3'(exports-only 包)——root tsconfig moduleResolution:"Node"
@@ -231,6 +236,11 @@ async function main(): Promise<number> {
 
   let footprintRestored = false
   let footprintDiff = ""
+  // CR-01(review-60)恢复守卫: 探针是否真实写过库 + 最后已观测的服务器态(写库
+  // 成功后随 loadC 刷新)。finally 恢复前核对当前态 === lastKnownServer;漂移
+  // (并发写)→ 放弃恢复而非盲写覆盖(静默数据丢失),FAIL + exit 1 交人工对账。
+  let probeWrote = false
+  let lastKnownServer: V2GraphLike = loadA
 
   try {
     // ── (b) roundtrip 复现客户端全链 ──
@@ -255,6 +265,9 @@ async function main(): Promise<number> {
       adaptedC = adaptV2Graph(wire)
     } else {
       const sv = await saveV2(scopePid, scopeEid, wire)
+      if (sv.status === 200 && sv.json?.code === 200) {
+        probeWrote = true // CR-01: wire 已落库——finally 按原图恢复
+      }
       if (sv.status !== 200 || sv.json?.code !== 200) {
         note("roundtrip save-v2", false, `HTTP ${sv.status} code=${sv.json?.code}: ${JSON.stringify(sv.json).slice(0, 200)}——wire 未落库,后续层 diff 按失败计`)
         serverLayerAvailable = false
@@ -267,6 +280,7 @@ async function main(): Promise<number> {
         serverLayerAvailable = false
       } else {
         const loadC = lc.json.data as V2GraphLike
+        lastKnownServer = loadC // CR-01: 刷新恢复守卫基准(自家写后的已观测服务器态)
         adaptedC = adaptV2Graph(loadC)
         const cIds = idSet(loadC.nodes)
 
@@ -326,23 +340,40 @@ async function main(): Promise<number> {
     console.error(`PROBE FAILED: ${(err as Error).message}`)
     failures.push(`probe crash: ${(err as Error).message}`)
   } finally {
-    // ── (e) 零足迹恢复:原图回存 → load-v2 stripUpdatedAt 深比对全等 ──
+    // ── (e) 零足迹恢复(CR-01 守卫: 恢复前核对无并发写,漂移即中止不盲写)──
     try {
-      const r = await saveV2(scopePid, scopeEid, loadA)
-      let restored = false
-      const deadline = Date.now() + 15_000
-      while (Date.now() < deadline) {
-        const l = await loadV2(scopePid, scopeEid)
-        if (l.status === 200) {
-          restored = deepEqual(loadA, l.json.data)
-          if (!restored) footprintDiff = firstDiff(loadA, l.json.data) ?? ""
-          if (restored) break
+      const pre = await loadV2(scopePid, scopeEid)
+      if (pre.status !== 200 || pre.json?.code !== 200) {
+        note("恢复(净足迹)", false,
+          `恢复前核对 load-v2 失败: HTTP ${pre.status} code=${pre.json?.code}——不盲写回存,人工核查!(CR-01)`)
+      } else if (!deepEqual(lastKnownServer, pre.json.data)) {
+        footprintDiff = firstDiff(lastKnownServer, pre.json.data) ?? ""
+        note("恢复(净足迹)", false,
+          `检测到服务器态漂移(探针最后已知态 ≠ 当前态,净足迹≠0): ${footprintDiff}——` +
+          "疑似并发写入(kmc pipeline/画布客户端)或探针自身写入未被复核;" +
+          "放弃恢复、并发写入被保留,需人工对账!(CR-01)")
+      } else if (!probeWrote) {
+        // 探针未写库(save 失败或客户端折叠守卫触发):无足迹可恢复,也不再制造
+        // 一次无谓写库+广播(旧版此处无条件回存 loadA,本身即对 :10588 的扰动)。
+        footprintRestored = true
+        note("恢复(净足迹)", true, "探针未写库且服务器态无漂移——无需恢复,净足迹=0")
+      } else {
+        const r = await saveV2(scopePid, scopeEid, loadA)
+        let restored = false
+        const deadline = Date.now() + 15_000
+        while (Date.now() < deadline) {
+          const l = await loadV2(scopePid, scopeEid)
+          if (l.status === 200) {
+            restored = deepEqual(loadA, l.json.data)
+            if (!restored) footprintDiff = firstDiff(loadA, l.json.data) ?? ""
+            if (restored) break
+          }
+          await new Promise((res) => setTimeout(res, 500))
         }
-        await new Promise((res) => setTimeout(res, 500))
+        footprintRestored = r.status === 200 && restored
+        note("恢复(净足迹)", footprintRestored,
+          `原图回存 HTTP ${r.status};load-v2 深比对原图:${restored ? "全等(剔 meta.updatedAt,净足迹=0)" : "漂移 → " + footprintDiff}`)
       }
-      footprintRestored = r.status === 200 && restored
-      note("恢复(净足迹)", footprintRestored,
-        `原图回存 HTTP ${r.status};load-v2 深比对原图:${restored ? "全等(剔 meta.updatedAt,净足迹=0)" : "漂移 → " + footprintDiff}`)
     } catch (err) {
       note("恢复(净足迹)", false, `恢复复核失败: ${(err as Error).message}——人工核查!`)
     }
