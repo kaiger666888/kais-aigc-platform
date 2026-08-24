@@ -160,7 +160,7 @@ Plans:
 
 **Wave 2** *(blocked on 60-01)*
 
-- [ ] 60-03-PLAN.md — reload 重锚语义: D-03 锚丢失诚实收起 warn + D-07 对称锁 + 诊断分支修复(A 仅锁不修 / B 定层修 id 漂移,roundtrip 零漂移门收口)
+- [x] 60-03-PLAN.md — reload 重锚语义: D-03 锚丢失诚实收起 warn + D-07 对称锁 + 诊断分支修复(A 仅锁不修 / B 定层修 id 漂移,roundtrip 零漂移门收口)
 
 **Wave 3** *(blocked on 60-02 + 60-03)*
 
@@ -195,7 +195,7 @@ Phases execute in numeric order: 58 → 59 → 60 → 61 (60/61 parallel-safe if
 |-------|----------------|--------|-----------|
 | 58. 全配方持久化 | 4/4 | Complete    | 2026-08-23 |
 | 59. 窄触发 stale 级联 | 4/4 | Complete    | 2026-08-23 |
-| 60. 保存后面板保持 | 2/5 | In Progress|  |
+| 60. 保存后面板保持 | 3/5 | In Progress|  |
 | 61. 审计清债 TD-3/4/5 | 0/TBD | Not started | - |
 
 ## Requirement → Phase Coverage (13/13)

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: 重生成闭环深化
 status: executing
-stopped_at: Completed 60-02-PLAN.md (D-01 savedBy 契约+客户端跳过落地;下一步 60-03/60-04)
-last_updated: "2026-08-23T23:52:28.367Z"
-last_activity: 2026-08-23
+stopped_at: Completed 60-03-PLAN.md (Branch A 永久锁落地;下一步 60-04 e2e 四用例)
+last_updated: "2026-08-24T00:04:35.342Z"
+last_activity: 2026-08-24
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 13
-  completed_plans: 10
+  completed_plans: 11
   percent: 50
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-08-23)
 ## Current Position
 
 Phase: 60 (保存后面板保持) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
-Last activity: 2026-08-23
+Last activity: 2026-08-24
 
-Progress: [████████░░] 77%
+Progress: [█████████░] 85%
 
 ## Performance Metrics
 
@@ -75,6 +75,7 @@ Progress: [████████░░] 77%
 | Phase 59 P59-04 | 49 | 3 tasks | 5 files |
 | Phase 60 P01 | 15min | 2 tasks | 3 files |
 | Phase 60 P02 | 6min | 2 tasks tasks | 7 files files |
+| Phase 60 P03 | 9min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -142,6 +143,8 @@ Progress: [████████░░] 77%
 - [Phase 60]: 60-02 onGraphSaved 最终块序(scope 后): 基线重置无条件先行(FLAG-1)→ selfEcho 命中静默早退(D-01/D-05)→ toast → loadCanvas;60-05 S2 静态锁锚定此序 — FlowCanvas.tsx
 - [Phase 60]: 60-02 savedBy 条件展开回显:kmc pipeline 等不传身份的调用广播形状逐键不变(向后兼容);canvasApi 单点附加身份,六调用方零改动全覆盖(含 rerun 先存再跑,Pitfall 5 根治) — save-v2.ts/canvasApi.ts
 - [Phase 60]: 60-02 mock graph:saved 抑制旋钮退役(四处删),59 SC4 改走真实回声路径自然通过(全 5 用例绿)= rerun 保存真带 savedBy 的行为证明;59 Known Issue #1 角标复活竞态 reload 侧根因销案(D-08) — server.mjs/phase59-stale-cascade.mjs
+- [Phase 60]: 60-03 Branch A 逐字执行: warn 副作用置于 set() 更新器外(get() 预读锚态),重锚行 L442-447 字节级不变——serialize/adapter/canvasRelationalStore 三文件 diff 零(裁定如实性验收项)
+- [Phase 60]: 60-03 reloadAnchor 八 case 永久锁落地(D-03 warn 默认串+D-07 together-or-not-at-all+no-warn-spam 转移守卫+roundtrip-lock evt_ 子集单列非空先证);真机 --strict 门复跑 exit 0 三层零漂移,PANEL-02 id 稳定前提成立
 
 ### Pending Todos
 
@@ -195,6 +198,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-23T23:52:28.359Z
-Stopped at: Completed 60-02-PLAN.md (D-01 savedBy 契约+客户端跳过落地;下一步 60-03/60-04)
+Last session: 2026-08-24T00:04:35.333Z
+Stopped at: Completed 60-03-PLAN.md (Branch A 永久锁落地;下一步 60-04 e2e 四用例)
 Resume: `/gsd-execute-phase 60`（下一步 60-03 Branch A 永久锁 / 60-04 e2e 四用例;60-02 savedBy 机制面已落地）
