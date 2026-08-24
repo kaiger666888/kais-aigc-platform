@@ -22,7 +22,8 @@ export type AssetType =
   | 'prop' | 'prop_key' | 'prop_consumable'
   | 'style' | 'audio'
   // 粗粒度（现网 registry 真实数据）
-  | 'clip' | 'voice' | 'video' | 'storyboard' | 'script_phase' | 'outline' | 'topic' | 'delivery'
+  | 'clip' | 'voice' | 'video' | 'storyboard' | 'storyboard_board'
+  | 'script_phase' | 'outline' | 'topic' | 'delivery'
 
 export type AssetModality = 'image' | 'text' | 'audio' | 'video'
 export type AssetScope = 'library' | 'series' | 'project'
@@ -214,6 +215,7 @@ export const TYPE_LABEL: Record<AssetType, string> = {
   style: '风格', audio: '音频',
   // 粗粒度（现网 registry 真实数据）
   clip: '片段', voice: '声纹', video: '视频', storyboard: '分镜',
+  storyboard_board: '分镜板',
   script_phase: '剧本', outline: '大纲', topic: '选题', delivery: '交付',
 }
 
@@ -248,7 +250,7 @@ export const modalityWeakVar = (m: AssetModality): string => modalityVar(m) + '-
 export function modalityOfType(type: string): AssetModality {
   if (['voice', 'audio'].includes(type)) return 'audio'
   if (['video', 'clip'].includes(type)) return 'video'
-  if (['script_phase', 'outline', 'topic', 'style', 'delivery'].includes(type)) return 'text'
+  if (['script_phase', 'outline', 'topic', 'style', 'delivery', 'storyboard_board'].includes(type)) return 'text'
   return 'image' // character/scene/prop/costume/accessory/storyboard/...
 }
 
@@ -258,7 +260,7 @@ export function emojiOfType(type: string): string {
     character: '👤', scene: '🌆', scene_variant: '🌗', prop: '📦', prop_key: '🗝️',
     prop_consumable: '🥫', costume: '👘', accessory: '💍', style: '🎨', audio: '🎵',
     voice: '🎙️', video: '🎬', clip: '🎞️', storyboard: '🎬', script_phase: '📝',
-    outline: '🗂️', topic: '💡', delivery: '📦',
+    outline: '🗂️', topic: '💡', delivery: '📦', storyboard_board: '📜',
   }
   return map[type] ?? '📦'
 }
@@ -279,6 +281,7 @@ export const REAL_TYPE_GROUPS: TypeGroup[] = [
   ]},
   { group: '文本产物', items: [
     { t: 'script_phase', ic: '📝', n: '剧本' },
+    { t: 'storyboard_board', ic: '📜', n: '分镜板' },
     { t: 'outline', ic: '🗂️', n: '大纲' },
     { t: 'topic', ic: '💡', n: '选题' },
     { t: 'delivery', ic: '📦', n: '交付' },

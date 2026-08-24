@@ -7,6 +7,7 @@ import { useCanvasStore } from '../../store/canvasStore'
 import { resolveMediaUrl } from '../../utils/mediaUrl'
 import { useRealAssets } from './useRealAssets'
 import AssetChainTrace from './AssetChainTrace'
+import StoryboardReader, { hasBoard } from './StoryboardReader'
 import {
   ASSETS, COMPOSITIONS, APPEARS, EPISODES, TYPE_LABEL,
   assetByUuid, assetDetailToItem, modalityVar,
@@ -86,6 +87,11 @@ export default function AssetDetail() {
         </div>
       </div>
     )
+  }
+
+  // 分镜板（storyboard_board）→ 专用阅读器视图；meta 无 scenes 结构时回退常规布局。
+  if (a.type === 'storyboard_board' && hasBoard(a.meta)) {
+    return <StoryboardReader item={a} onBack={closeAssetDetail} />
   }
 
   const appears = APPEARS[a.uuid]
