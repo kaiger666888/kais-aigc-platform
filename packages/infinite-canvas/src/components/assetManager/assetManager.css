@@ -754,3 +754,19 @@
 .am-hier__vg:hover{filter:brightness(1.15)}
 /* 响应式沿 .am-lib 同款断点（≤880px 左树隐藏；.am-tree{display:none} 既有规则全局生效） */
 @media (max-width:880px){.am-hier{grid-template-columns:1fr}}
+
+/* ── C4 批量决策条 + 组 checkbox + 手动 chip（62-05，D-06/D-07） ──
+   全既有 token；armed 态玫实底（UI-SPEC C4 destructive 位），手动 chip 沿
+   --cv-mod-audio 音频模态弱底词汇（.am-voice-badge 同源）。 */
+.am-hier__batch{display:flex;align-items:center;gap:10px;padding:9px 16px;flex-wrap:wrap;
+  border-bottom:1px solid var(--cv-line-panel);background:var(--cv-bg-panel)}
+.am-hier__batch-n{font-family:var(--cv-font-mono);font-size:11px;color:var(--cv-text-secondary)}
+/* 批量淘汰：.am-btn--ghost 基底 + 玫红 hover；armed 态玫实底（防误触确认位） */
+.am-hier__batch-eliminate:hover{color:var(--cv-mod-video);border-color:var(--cv-mod-video)}
+.am-hier__batch-eliminate[data-armed='true']{background:var(--cv-mod-video);
+  color:var(--cv-text-on-accent);border-color:var(--cv-mod-video)}
+/* 组 checkbox（组卡 header 首位；accent = 青，选定系词汇） */
+.am-hier__group-check{display:inline-flex;align-items:center;flex:none;cursor:pointer}
+.am-hier__group-check input[type=checkbox]{accent-color:var(--cv-mod-image);cursor:pointer}
+/* D-07 手动组 chip：.am-badge 基底 + --cv-mod-audio 弱底（场景/声纹手动选择标注） */
+.am-hier__manual-chip{background:var(--cv-mod-audio-weak);color:var(--cv-mod-audio);cursor:default}

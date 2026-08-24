@@ -9,9 +9,9 @@
  * 画布 best-effort 同步），与资产库同调用点（HIER-04）。
  * 数据源 useRealAssets 与资产库同一模块级缓存（同源计数）。
  * 冗余配置右栏（340px，toolbar「⚙ 冗余配置」）62-06 落——本 plan 栅格两列，
- * 不渲染第三列。批量决策条/组 checkbox（C4）62-05 落。
+ * 不渲染第三列。批量决策条/组 checkbox/手动 chip（C4，D-06/D-07）62-05 已落。
  */
-import { Fragment, useCallback, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useCanvasStore } from '../../store/canvasStore'
 import { useVariantPickerStore } from '../variants/variantPickerStore'
 import type { AssetDetail } from '../../services/canvasApi'
@@ -26,7 +26,13 @@ import {
   type HierarchyGroup,
 } from './groupCanvasLinkage'
 import type { AssetDomain } from './generationConfigKeys'
-import { deselectAsset, restoreAsset, selectGroupWinner } from './assetHierarchy'
+import {
+  deselectAsset,
+  restoreAsset,
+  runBatchEliminate,
+  runBatchSelect,
+  selectGroupWinner,
+} from './assetHierarchy'
 import { renderAssetCard, type AssetCardDeps, type AssetCardSingletonPhase } from './AssetLibrary'
 import { useRealAssets } from './useRealAssets'
 import { inferSubtype, type AssetItem } from './assetManagerData'
@@ -75,6 +81,39 @@ export default function AssetHierarchy() {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
   /** 域树节点折叠（C2 parent 节点；树无第三级，折叠仅收纳视觉态）。 */
   const [collapsedDomains, setCollapsedDomains] = useState<Set<AssetDomain>>(new Set())
+
+  // ── C4 批量决策 state（D-06/D-07，62-05） ──
+  /** 组多选：选中组 key 集；≥1 时 toolbar 下方渲染批量条。 */
+  const [selectedGroupKeys, setSelectedGroupKeys] = useState<Set<string>>(new Set())
+  /** 批量淘汰 armed 态（两段式 arm-confirm：首击武装文案变确认，5s 未二击自动解除）。 */
+  const [armedEliminate, setArmedEliminate] = useState(false)
+  const armTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const disarmEliminate = useCallback(() => {
+    if (armTimerRef.current) { clearTimeout(armTimerRef.current); armTimerRef.current = null }
+    setArmedEliminate(false)
+  }, [])
+  const armEliminate = useCallback(() => {
+    if (armTimerRef.current) clearTimeout(armTimerRef.current)
+    setArmedEliminate(true)
+    armTimerRef.current = setTimeout(() => {
+      armTimerRef.current = null
+      setArmedEliminate(false)
+    }, 5000)
+  }, [])
+  // unmount 清理 timer。
+  useEffect(() => () => { if (armTimerRef.current) clearTimeout(armTimerRef.current) }, [])
+  // 选择集变化 → 解除武装（armed 文案内嵌组数 N，选择变了旧意图即失效）。
+  useEffect(() => { disarmEliminate() }, [selectedGroupKeys, disarmEliminate])
+
+  const toggleGroupSelect = useCallback((key: string) => {
+    setSelectedGroupKeys((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }, [])
 
   const toggleGroup = useCallback((key: string) => {
     setCollapsedGroups((prev) => {
@@ -160,13 +199,39 @@ export default function AssetHierarchy() {
     () => ({ assets, patchLocal, reload, showToast }),
     [assets, patchLocal, reload, showToast],
   )
-  const handleSelect = useCallback((assetId: number, groupKey: string) => {
+  /** D-05 syncCanvas 注入：projectId/episodesId 均就绪（number）才构造，否则 undefined。 */
+  const ctxWithSync = useCallback(() => {
     const s = useCanvasStore.getState()
     const syncCanvas = (projectId != null && s.episodesId != null)
       ? { projectId, episodesId: s.episodesId, graph: s.graph }
       : undefined
-    return selectGroupWinner(assetId, groupKey, { ...baseCtx(), syncCanvas })
+    return { ...baseCtx(), syncCanvas }
   }, [baseCtx, projectId])
+  const handleSelect = useCallback((assetId: number, groupKey: string) => {
+    return selectGroupWinner(assetId, groupKey, ctxWithSync())
+  }, [ctxWithSync])
+
+  // ── C4 批量决策（62-05）：选中组对象从全模型取（用户显式勾选，不受搜索/域过滤影响） ──
+  const selectedGroups = useMemo(
+    () => model.domains.flatMap((n) => n.groups).filter((g) => selectedGroupKeys.has(g.key)),
+    [model, selectedGroupKeys],
+  )
+  /** 批量选定（D-06）：逐组走共享 selectGroupWinner（含 D-05 画布同步）；执行后清选择集。 */
+  const handleBatchSelect = useCallback(async () => {
+    await runBatchSelect(selectedGroups, ctxWithSync())
+    setSelectedGroupKeys(new Set())
+  }, [selectedGroups, ctxWithSync])
+  /** 批量淘汰（D-06）：两段式 arm-confirm——首击武装（5s 自动解除），二击执行后立即复位
+   *  并清选择集。淘汰不走 winner 选定，无需画布同步 ctx。 */
+  const handleBatchEliminate = useCallback(async () => {
+    if (!armedEliminate) {
+      armEliminate()
+      return
+    }
+    disarmEliminate()
+    await runBatchEliminate(selectedGroups, baseCtx())
+    setSelectedGroupKeys(new Set())
+  }, [armedEliminate, armEliminate, disarmEliminate, selectedGroups, baseCtx])
 
   /** L3 卡 deps（层级模式：三态按钮按卡自身状态出）。 */
   const hierDeps: AssetCardDeps = {
@@ -215,7 +280,17 @@ export default function AssetHierarchy() {
         data-count-filtered-out={filteredOut}
       >
         <div className="am-group__header">
-          {/* 组 checkbox（C4/D-06）62-05 落——本 plan 渲染 null 占位，不留死按钮 */}
+          {/* 组 checkbox（C4/D-06，62-05 落位）：组层多选入口；单件桶无 checkbox（无批量决策意义）。
+              手动组不禁用——批量淘汰可用（D-07 只绑批量选定）。 */}
+          <label className="am-hier__group-check" title="选中该组参与批量选定 / 批量淘汰">
+            <input
+              type="checkbox"
+              data-testid="hier-group-check"
+              data-group-key={g.key}
+              checked={selectedGroupKeys.has(g.key)}
+              onChange={() => toggleGroupSelect(g.key)}
+            />
+          </label>
           <span className="am-group__emoji">{g.emoji}</span>
           <span className="am-group__title">{g.hasPrimary ? `★ ${g.title}` : g.title}</span>
           {/* C6-1 阶段徽标：组首推导（空 phaseCode 不渲染）；tooltip 区分直读/推导 */}
@@ -245,6 +320,14 @@ export default function AssetHierarchy() {
             >
               去画布选片 →
             </button>
+          )}
+          {/* D-07 手动组标注：场景/声纹组恒显（批量选定跳过且 toast 明示；checkbox 不禁用）。 */}
+          {(g.isManualScene || g.isManualVoice) && (
+            <span
+              className="am-badge am-hier__manual-chip"
+              data-testid="hier-manual-chip"
+              title="场景/声纹不参与批量选定 · 需逐组手动选择"
+            >✋ 手动选择</span>
           )}
           <span className="am-group__count"><CountChips counts={g.counts} /></span>
           <span
@@ -374,6 +457,29 @@ export default function AssetHierarchy() {
             刷新
           </button>
         </div>
+
+        {/* ── C4 批量决策条（D-06/D-07）：in-flow 粘条（非浮层），选中组 ≥1 渲染 ── */}
+        {selectedGroupKeys.size > 0 && (
+          <div className="am-hier__batch" data-testid="hier-batch-bar">
+            <span className="am-hier__batch-n">已选 {selectedGroupKeys.size} 组</span>
+            <button
+              className="am-btn am-btn--primary"
+              data-testid="hier-batch-select"
+              onClick={handleBatchSelect}
+            >批量选定</button>
+            <button
+              className="am-btn am-btn--ghost am-hier__batch-eliminate"
+              data-testid="hier-batch-eliminate"
+              data-armed={armedEliminate ? 'true' : 'false'}
+              onClick={handleBatchEliminate}
+            >{armedEliminate ? `确认淘汰 ${selectedGroupKeys.size} 组待选？` : '批量淘汰'}</button>
+            <button
+              className="am-btn am-btn--ghost"
+              data-testid="hier-batch-clear"
+              onClick={() => { disarmEliminate(); setSelectedGroupKeys(new Set()) }}
+            >清除</button>
+          </div>
+        )}
 
         <div className="am-scroll" style={{ flex: 1, overflowY: 'auto' }}>
           {loading ? (
