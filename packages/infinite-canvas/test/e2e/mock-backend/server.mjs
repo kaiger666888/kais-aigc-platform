@@ -217,6 +217,15 @@ app.post('/api/canvas/v2/save-v2', (req, res) => {
 // mock 只锁 e2e 消费的最小契约:同 id 二次 POST → 409「节点已存在」。
 app.post('/api/canvas/v2/nodes/', (req, res) => {
   const { projectId, episodesId, node } = req.body ?? {}
+  // 观测面:每次尝试都落 /__mock/calls(含 409 二次拖入——e2e 恰-2-条计数断言;
+  // 与 load/orchestrate/execute 的全请求记录惯例一致,不记 response 以副作用断言)。
+  logCall('POST', '/api/canvas/v2/nodes/', {
+    projectId,
+    episodesId,
+    nodeId: typeof node?.id === 'string' ? node.id : null,
+    x: typeof node?.position?.x === 'number' ? node.position.x : null,
+    y: typeof node?.position?.y === 'number' ? node.position.y : null,
+  }, null)
   if (
     node == null || typeof node !== 'object' ||
     typeof node.id !== 'string' ||
@@ -229,7 +238,6 @@ app.post('/api/canvas/v2/nodes/', (req, res) => {
     return res.json({ code: 409, message: `节点 ${node.id} 已存在` })
   }
   state.canvas.nodes.push({ ...node })
-  logCall('POST', '/api/canvas/v2/nodes/', { projectId, episodesId, nodeId: node.id, x: node.position.x, y: node.position.y }, null)
   res.json({ code: 200, data: { node } })
   // save-v2 同款 5ms 回放:广播携带落库后的真值节点(e2e 断言 truth-first 三点一线)
   setTimeout(() => {
