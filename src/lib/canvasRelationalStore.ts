@@ -1059,3 +1059,95 @@ export async function getAllScopes(): Promise<Array<{ projectId: number; episode
   }
   return result;
 }
+
+// ─── Generation Config Overrides (62-02 D-08①) ────
+//
+// pre/final 冗余配置权威覆盖层(generation_config_overrides,复合主键
+// project_id + episodes_id + phase_key)。n_candidates/final_candidates
+// 均可空列支持「半覆盖」(只覆盖一个旋钮)——khs resolver 两旋钮独立解析语义。
+// 两值全 null 的 upsert 等价于删行(null = 清除该旋钮覆盖)。
+
+export interface GenerationConfigOverrideRow {
+  projectId: number;
+  episodesId: number;
+  phaseKey: string;
+  nCandidates: number | null;
+  finalCandidates: number | null;
+  updatedAt: number;
+}
+
+/** 按 scope 列全行,主键序(phase_key 字典序)。 */
+export async function listGenerationConfigOverrides(
+  scope: Scope,
+): Promise<GenerationConfigOverrideRow[]> {
+  const rows: any[] = await db("generation_config_overrides")
+    .where({
+      project_id: scope.projectId,
+      episodes_id: scope.episodesId,
+    })
+    .orderBy("phase_key", "asc");
+  return rows.map((r) => ({
+    projectId: r.project_id,
+    episodesId: r.episodes_id,
+    phaseKey: r.phase_key,
+    nCandidates: r.n_candidates ?? null,
+    finalCandidates: r.final_candidates ?? null,
+    updatedAt: r.updated_at,
+  }));
+}
+
+/**
+ * UPSERT 单行(onConflict 三列 merge)。两值全 null → DELETE 该行;
+ * 半覆盖(null 单值)原样落列。沿 upsertNode 的 raw ON CONFLICT 形态。
+ */
+export async function upsertGenerationConfigOverride(
+  scope: Scope,
+  phaseKey: string,
+  values: { nCandidates: number | null; finalCandidates: number | null },
+): Promise<void> {
+  const { projectId, episodesId } = scope;
+
+  if (values.nCandidates == null && values.finalCandidates == null) {
+    await db("generation_config_overrides")
+      .where({
+        project_id: projectId,
+        episodes_id: episodesId,
+        phase_key: phaseKey,
+      })
+      .del();
+    return;
+  }
+
+  // SQLite UPSERT (ON CONFLICT ... DO UPDATE)
+  await db.raw(
+    `INSERT INTO generation_config_overrides
+       (project_id, episodes_id, phase_key, n_candidates, final_candidates, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(project_id, episodes_id, phase_key) DO UPDATE SET
+       n_candidates=excluded.n_candidates,
+       final_candidates=excluded.final_candidates,
+       updated_at=excluded.updated_at`,
+    [
+      projectId,
+      episodesId,
+      phaseKey,
+      values.nCandidates ?? null,
+      values.finalCandidates ?? null,
+      now(),
+    ],
+  );
+}
+
+/** DELETE 单行(scope + phaseKey)。 */
+export async function deleteGenerationConfigOverride(
+  scope: Scope,
+  phaseKey: string,
+): Promise<void> {
+  await db("generation_config_overrides")
+    .where({
+      project_id: scope.projectId,
+      episodes_id: scope.episodesId,
+      phase_key: phaseKey,
+    })
+    .del();
+}

@@ -1380,6 +1380,21 @@ export default async (knex: Knex, forceInit: boolean = false): Promise<void> => 
         );
       },
     },
+    {
+      // 62-02 D-08①: kap 权威覆盖层,pre/final 冗余配置两段式第一段;
+      // boot 幂等建表,已部署实例重启即得(RESEARCH A 零迁移风险)。
+      name: "generation_config_overrides",
+      builder: (table) => {
+        table.integer("project_id").notNullable();
+        table.integer("episodes_id").notNullable();
+        table.string("phase_key", 64).notNullable(); // "p01_hook.topic_kernel" 形态
+        table.integer("n_candidates"); // null = 未覆盖该旋钮(半覆盖)
+        table.integer("final_candidates");
+        table.bigInteger("updated_at").notNullable();
+        table.primary(["project_id", "episodes_id", "phase_key"]);
+        table.index(["project_id", "episodes_id"], "idx_gco_scope");
+      },
+    },
   ];
 
   // Migrate old snapshot data to relational tables on first creation
