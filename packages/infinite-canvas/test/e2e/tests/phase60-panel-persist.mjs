@@ -25,6 +25,11 @@ import { test, expect, loadCanvas, nodeSelector, getCalls, switchToCanvasView } 
  * 断言纪律(UI-SPEC §7): 零新增 data-testid(仅引用既有 detail-panel /
  * stale-rerun-btn / prompt-regenerate / prompt-section);脉动/装饰性不断言
  * (59-UI-SPEC §2 flake-bait 沿袭);宽度断言容差 ±2px。
+ *
+ * D-12 回归记录(2026-08-24,单次串行五文件 18/18 + 补充 phase58 8/8,零红零 flake;
+ * 根 tsc --noEmit 干净,dist 构建): phase52-regen 3 + phase52-reroll 2 +
+ * phase52-stale-panel 4 + phase59-stale-cascade 5 + phase60-panel-persist 4 +
+ * phase58-recipe 8(共享 saveCanvasGraph/savedBy 通道的补充面)。
  */
 
 const TRIG = 'trig-1'
