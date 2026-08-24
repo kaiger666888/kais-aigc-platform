@@ -29,7 +29,7 @@
 
 - [x] **DEBT-01**: `placeNewAsset(anchor='source')` 获得活调用方(资产中心/画布入口放置新资产),附 e2e
 - [x] **DEBT-02**: reviewBridge 列表 URL 尾斜杠修正,307 中间跳消除,回归测试锁死
-- [ ] **DEBT-03**: `buildMeta` 读回 5 个持久化字段(emotion/promptMeta/murchGrade/archetype/viewAngle),save→reload meta 往返保真 (51-REVIEW I1)
+- [x] **DEBT-03**: `buildMeta` 读回 5 个持久化字段(emotion/promptMeta/murchGrade/archetype/viewAngle),save→reload meta 往返保真 (51-REVIEW I1)
 - [ ] **DEBT-04**: `node:created` 写入 canonical graph(V3 资产构造)或显式文档化为 ephemeral 并留守护注释 (51-REVIEW I5)
 
 ## Future Requirements
@@ -77,5 +77,5 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PANEL-02 | Phase 60 | Complete |
 | DEBT-01 | Phase 61 | Complete |
 | DEBT-02 | Phase 61 | Complete |
-| DEBT-03 | Phase 61 | Pending |
+| DEBT-03 | Phase 61 | Complete |
 | DEBT-04 | Phase 61 | Pending |

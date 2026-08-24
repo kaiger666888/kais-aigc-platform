@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: 重生成闭环深化
 status: executing
-stopped_at: Completed 61-02-PLAN.md (DEBT-02 一字修+回归锁 3 用例绿;61-03 next)
-last_updated: "2026-08-24T05:26:22.871Z"
+stopped_at: Completed 61-03-PLAN.md (DEBT-03 buildMeta 5 字段读回+双侧往返测试三面绿;61-04 next)
+last_updated: "2026-08-24T05:42:45.694Z"
 last_activity: 2026-08-24
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 18
-  completed_plans: 15
-  percent: 75
+  completed_plans: 16
+  percent: 89
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-08-23)
 ## Current Position
 
 Phase: 61 (审计清债 TD-3/4/5) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-08-24
 
-Progress: [████████░░] 83%
+Progress: [█████████░] 89%
 
 ## Performance Metrics
 
@@ -80,6 +80,7 @@ Progress: [████████░░] 83%
 | Phase 60 P05 | 11min | 2 tasks | 5 files |
 | Phase 61 P01 | 18min | 3 tasks | 7 files |
 | Phase 61 P02 | 5min | 2 tasks | 2 files |
+| Phase 61 P03 | 12min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -159,6 +160,8 @@ Progress: [████████░░] 83%
 - [Phase 61]: 61-01: A2 裁定落地——placeNewAsset 本体零改动(4px source 网格既有语义胜过 CONTEXT 8px 措辞);onDrop 前置 MIME types 守卫防文件拖入误 toast;mock /nodes logCall 全尝试记录(409 可观测);ApiError 判 409 用 .code(plan 文字 .status 是笔误)
 - [Phase 61]: 61-02: DEBT-02 回归锁双形态——node:test 注入 fetchImpl 断言 URL 字面量(正反双断言防 Pitfall 2 假绿,删斜杠必红已变异实证 2 red 后还原)+ 61-05 聚合门静态 grep;测试框架按 planner 勘正用 node:test(根仓无 vitest)
 - [Phase 61]: 61-02: 改动面严格只动 path 字面量——L182 reviews? → reviews/?(54-01 同款注释)+ 模块头 L19 契约注释同步;baseUrl/分页/approve 零改动;修完仓内 reviews 列表调用点 100% 带尾斜杠
+- [Phase 61]: 61-03: DEBT-03 读回修复落 migrate buildMeta 分支内(非客户端补丁)——V3 直通/fixture 图无 rawData 袋,客户端补丁救不了
+- [Phase 61]: 61-03: emotion 双类型 typeof 守卫(script=number/audio=string)替代 cast;v2types 诚实 wire 契约 string|number + 四新消费字段声明(promptMeta/murchGrade/archetype/viewAngle);tsc 静态网与 zod strict 双网保留,grep 五句式计数仍 6
 
 ### Pending Todos
 
@@ -212,6 +215,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-24T05:26:22.861Z
-Stopped at: Completed 61-02-PLAN.md (DEBT-02 一字修+回归锁 3 用例绿;61-03 next)
-Resume: `/gsd-execute-phase 60`（下一步 60-03 Branch A 永久锁 / 60-04 e2e 四用例;60-02 savedBy 机制面已落地）
+Last session: 2026-08-24T05:42:45.686Z
+Stopped at: Completed 61-03-PLAN.md (DEBT-03 buildMeta 5 字段读回+双侧往返测试三面绿;61-04 next)
+Resume: `/gsd-execute-phase 61`（下一步 61-04 DEBT-04 Branch A 裁定成文;61-05 聚合门收口待 Wave 2）
