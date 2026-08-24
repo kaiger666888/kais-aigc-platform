@@ -309,4 +309,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-24 — Phase 60 保存后面板保持 complete (v3.1 3/4; 1 项肉眼 UAT 挂起: panelWidth/滚动连续性)*
+*Last updated: 2026-08-24 — Phase 61 审计清债 complete (v3.1 4/5: 58-61 收官, 62 为 /goal 扩入待裁决; 挂起 UAT×2: 60 面板连续性 + 61 拖入手感; 61 验证 4/4 债全绿 e2e 3/3+node:test 3/3+139/139+19/19+聚合门 18/18, review 3W+1r2 全修含跨集 scope 守卫)*

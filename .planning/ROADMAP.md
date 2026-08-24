@@ -15,7 +15,7 @@
 - ✅ **v2.0 Canvas Sync Permanence** — Phases 42-47 (shipped 2026-07-16)
 - ✅ **v2.1 候选资产配套 (candidate-asset-completeness)** — Phases 48-50 (shipped 2026-08-19)
 - ✅ **v3.0 画布创作体验 (Canvas Creative Experience for kmc)** — Phases 51-57 (shipped 2026-08-22, audit passed)
-- 🚧 **v3.1 重生成闭环深化 (regen-loop-deepening)** — Phases 58-61 (in progress)
+- 🚧 **v3.1 重生成闭环深化 (regen-loop-deepening)** — Phases 58-62 (in progress; 62 为 08-24 /goal 扩入)
 
 ## Phases
 
