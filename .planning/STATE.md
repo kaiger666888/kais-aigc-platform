@@ -2,7 +2,7 @@
 gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: 重生成闭环深化
-status: verifying
+status: completed
 stopped_at: Phase 61 fully closed (execute→review fix×2→verify→UAT defer); v3.1 scope expanded to 58-62 by /goal session (Phase 62 context ready, no plans)
 last_updated: "2026-08-24T13:43:48.183Z"
 last_activity: 2026-08-24

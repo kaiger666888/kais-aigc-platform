@@ -83,7 +83,7 @@ Audit: **passed** (305/305 verify assertions · 435/435 vitest · 3× tsc clean 
 - [x] **Phase 59: 窄触发 stale 级联 (Narrow-Trigger Stale Cascade)** — 面板编辑重生成 + 换 seed 重跑两条路径按请求关联自动标下游 stale;编排/批量路径零影响(负向断言锁死) (completed 2026-08-23)
 - [x] **Phase 60: 保存后面板保持 (Post-Save Panel Persistence)** — canvasStore reload 链保 `detailNode`,真机保存 200 后详情面板不收起,锚定语义等价 (completed 2026-08-24)
 - [x] **Phase 61: 审计清债 TD-3/4/5 (Audit Debt Clearance)** — placeNewAsset 活调用方 + reviewBridge 尾斜杠 307 消除 + buildMeta 5 字段读回 + node:created canonical-or-document (completed 2026-08-24)
-- [ ] **Phase 62: 资产管理中心资产层级与选定逻辑 (Asset Hierarchy & Selection)** — 三层资产层级视图(阶段/类型→候选组→候选) + 层级化选定逻辑 + 画布内 pre/final 冗余配置入口(2026-08-24 /goal 扩入;改动仍限 kap 仓画布侧,kmc 仓配合面由 khs v2.5 处理)
+- [x] **Phase 62: 资产管理中心资产层级与选定逻辑 (Asset Hierarchy & Selection)** — 三层资产层级视图(阶段/类型→候选组→候选) + 层级化选定逻辑 + 画布内 pre/final 冗余配置入口(2026-08-24 /goal 扩入;改动仍限 kap 仓画布侧,kmc 仓配合面由 khs v2.5 处理)
 
 **Architecture decisions (v3.1):**
 
