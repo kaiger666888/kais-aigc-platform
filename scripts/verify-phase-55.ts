@@ -130,7 +130,7 @@ function main(): void {
   assert(indexMap.size >= 20, `S-parse: _PHASE_INDEX_MAP ${indexMap.size} 条`, [...indexMap.entries()].slice(0, 3).map(([k, v]) => `${k}=${v}`).join(","));
   assert(typeMap.size >= 20, `S-parse: _PHASE_TYPE_MAP ${typeMap.size} 条`, [...typeMap.keys()].slice(0, 3).join(","));
   assert(zones.length >= 20, `S-parse: ZONE_PHASES ${zones.length} 条`, zones.slice(0, 2).map((z) => z.prefix).join(","));
-  assert(khsIds.length === 23, `S-parse: khs PHASE_REGISTRY 23 活跃 id (2026-08-24 +p11a5)`, String(khsIds.length));
+  assert(khsIds.length === 24, `S-parse: khs PHASE_REGISTRY 24 活跃 id (2026-08-25 +p11a5, ICA M2 +p036)`, String(khsIds.length));
 
   const khsPrefixOfId = (id: string): string => id.match(/^p\d+[a-z0-9]*/)?.[0] ?? "";
   const khsActive = new Set(khsIds.map(khsPrefixOfId).filter(Boolean));
@@ -142,7 +142,7 @@ function main(): void {
   const onlyInKhs = [...khsActive].filter((x) => !kapKhs.has(x)).sort();
   assert(onlyInKap.length === 0, `A: 无 only-in-kap`, onlyInKap.join(",") || undefined);
   assert(onlyInKhs.length === 0, `A: 无 only-in-khs`, onlyInKhs.join(",") || undefined);
-  assert(PHASE_REGISTRY.length === 23, `A: kap 注册表恰 23 条 (+p11a5)`, String(PHASE_REGISTRY.length));
+  assert(PHASE_REGISTRY.length === 24, `A: kap 注册表恰 24 条 (+p11a5, ICA M2 8839d49b +p036)`, String(PHASE_REGISTRY.length));
 
   console.log("\n=== B 编号(_PHASE_INDEX_MAP 逐条) ===");
   const mismatches: string[] = [];

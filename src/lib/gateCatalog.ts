@@ -114,7 +114,8 @@ function entry(
 
 export const GATE_CATALOG: readonly GateEntry[] = [
   entry("p01_hook_topic", "blocking", ["creative_source"], ["hook-topic", "outline"], 3600, { maxRetries: 2, backoffSec: 300 }),
-  entry("p02_outline", "blocking", ["creative_source"], ["outline"], 3600, { maxRetries: 2, backoffSec: 300 }),
+  // ICA M1 (2026-08-25 27c7dce): creative-contracts 追加锁定 — 契约清单 Gate 2 逐条确认期间不得变异
+  entry("p02_outline", "blocking", ["creative_source"], ["outline", "creative-contracts"], 3600, { maxRetries: 2, backoffSec: 300 }),
   entry("p03_script_audit", "blocking", ["script_auditor", "compliance_gate"], ["spatio-temporal-script", "temp-dialogue"], 7200, { maxRetries: 3, backoffSec: 600 }),
   entry("p04_character_design", "blocking", ["character_designer", "visual_executor"], ["character-bible", "character-assets"], 3600, { maxRetries: 2, backoffSec: 300 }),
   entry("p06_spatio_temporal_script", "blocking", ["creative_source"], ["spatio-temporal-script", "temp-dialogue"], 3600, { maxRetries: 2, backoffSec: 300 }),
