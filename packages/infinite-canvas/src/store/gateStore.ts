@@ -23,6 +23,9 @@ export interface GateStateGate {
   /** foldDisplayState 产物:pending/approve/reject/waive;auto = 服务端
    * 诊断为自动通过(AUTO 放行)但无 review 记录的合成态。 */
   display: 'pending' | 'approve' | 'reject' | 'waive' | 'auto'
+  /** 门模式(gateCatalog.mode 镜像,73-01)。webhook = 异步哨兵(p11b
+   *  tripwire):呈现真实 review 态但从不参与 blocking 竞争。 */
+  mode?: 'blocking' | 'webhook' | 'polling'
   reviewId?: number
   updatedAt?: string
   note?: string

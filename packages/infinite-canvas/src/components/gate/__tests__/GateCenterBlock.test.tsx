@@ -121,4 +121,40 @@ describe('GateCenterBlock 三操作闭环(54-07)', () => {
     const toasts = useCanvasStore.getState().toasts
     expect(toasts.length).toBeGreaterThan(0)
   })
+
+  it('73-01: webhook 哨兵门 pending 呈现「异步哨兵」,不抢「等你决策」', () => {
+    useGateStore.setState({
+      snapshot: {
+        projectId: 7, episodesId: 3, fetchedAt: Date.now(), degrade: false,
+        blocking: { gateId: 'p13-gate', reviewId: 3, phaseId: 'p13_delivery', label: '成片交付' },
+        gates: [
+          { gateId: 'p11b-gate', phaseId: 'p11b_final_render', label: '最终渲染', display: 'pending', mode: 'webhook', reviewId: 99 },
+          { gateId: 'p13-gate', phaseId: 'p13_delivery', label: '成片交付', display: 'pending', reviewId: 3 },
+        ],
+      },
+    })
+    render(<GateCenterBlock />)
+    expect(stateText('p11b-gate')).toContain('异步哨兵')
+    expect(stateText('p11b-gate')).not.toContain('等你决策')
+    // 真人工门不受影响
+    expect(stateText('p13-gate')).toContain('等你决策')
+    // 哨兵行不加呼吸动画类(非人工焦点)
+    const row = container!.querySelector('[data-testid="gate-row-p11b-gate"] .cv-gate-row-breathe')
+    expect(row).toBeNull()
+  })
+
+  it('73-01: 红线 reject 墓碑上浮红态「驳回」(非 auto 静默)', () => {
+    useGateStore.setState({
+      snapshot: {
+        projectId: 7, episodesId: 3, fetchedAt: Date.now(), degrade: false, blocking: null,
+        gates: [
+          { gateId: 'p13_delivery_redline_emotion', phaseId: 'p13_delivery_redline_emotion', label: '情绪红线', display: 'reject', reviewId: 70, note: '红线:情绪脱敏违规' },
+          { gateId: 'p13_delivery_redline_no_cold_open', phaseId: 'p13_delivery_redline_no_cold_open', label: '无冷开场红线', display: 'auto' },
+        ],
+      },
+    })
+    render(<GateCenterBlock />)
+    expect(stateText('p13_delivery_redline_emotion')).toContain('驳回')
+    expect(stateText('p13_delivery_redline_no_cold_open')).toContain('自动扫描')
+  })
 })

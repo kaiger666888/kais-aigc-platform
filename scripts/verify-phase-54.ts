@@ -265,6 +265,36 @@ async function runSpollerSection(): Promise<void> {
     const pRev = await svc4.pollNow(scope);
     assert(pRev.degrade === false, "S-poller: 平台恢复 → degrade=false");
     svc4.stop();
+
+    // 73-01 F19/F20:webhook 哨兵不参与 blocking;红线 reject 墓碑上浮不污染 p13。
+    const sentinelPages = new Map<string, FakePage>([["", {
+      items: [
+        // p11b 哨兵残留(id 99 最大——若参与竞争必抢走 blocking)
+        reviewItem(99, "p11b-gate", "ep-ccport-test01/p11b_final_render", "APPROVING"),
+        reviewItem(3, "p13-gate", "ep-ccport-test01/p13_delivery", "APPROVING"),
+        // khs 红线 reject 墓碑(detector 别名;content_ref 指向 p13)
+        reviewItem(70, "redline_emotion_desensitize", "ep-ccport-test01/p13_delivery", "COMPLETE", { metadata: { review_result: { decision: "reject", reason: "红线:情绪脱敏违规" } } }),
+      ],
+      hasMore: false,
+    }]]);
+    const svc5 = new GateStateService({
+      fetchImpl: fakeListFetch(sentinelPages),
+      nodesReader: async () => PROBE_NODES,
+      broadcast: () => {},
+      intervalMs: 1e9,
+      logger: { info: () => {}, warn: () => {} },
+    });
+    const p5 = await svc5.pollNow(scope);
+    const p11b = p5.gates.find((g) => g.gateId === "p11b-gate");
+    assert(p11b?.mode === "webhook" && p11b?.display === "pending" && p11b?.reviewId === 99, "S-poller: p11b 哨兵呈现真实态(pending+reviewId)+mode=webhook");
+    assert(p5.blocking != null && p5.blocking.gateId === "p13-gate" && p5.blocking.reviewId === 3, "S-poller: p11b(id 99)不参与 blocking 竞争(73-01 F19)");
+    const rlEmotion = p5.gates.find((g) => g.gateId === "p13_delivery_redline_emotion");
+    assert(rlEmotion?.display === "reject" && rlEmotion?.reviewId === 70, "S-poller: 红线 reject 墓碑上浮红态(73-01 F20)");
+    const p13v5 = p5.gates.find((g) => g.gateId === "p13-gate");
+    assert(p13v5?.display === "pending" && p13v5?.reviewId === 3, "S-poller: 红线墓碑不污染 p13-gate 分派池(别名直达红线门)");
+    const rlOthers = p5.gates.filter((g) => g.phaseId.includes("_redline_") && g.gateId !== "p13_delivery_redline_emotion");
+    assert(rlOthers.length === 2 && rlOthers.every((g) => g.display === "auto"), "S-poller: 无墓碑红线仍恒 auto");
+    svc5.stop();
   } finally {
     svc.stop();
   }

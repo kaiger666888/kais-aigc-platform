@@ -105,7 +105,15 @@ export default function GateCenterBlock(): React.ReactElement | null {
     pendingGate === g.gateId ? g.display : (overrides[g.gateId] ?? g.display)
   const rowWorking = (g: GateStateGate): boolean => pendingGate === g.gateId
   const isBlockingRow = (g: GateStateGate): boolean => blocking != null && g.gateId === blocking.gateId
-  const hasPendingWork = gates.some((g) => g.display === 'pending' && g.reviewId != null)
+  /** 73-01 F19:webhook 门(p11b 哨兵)pending 呈现「异步哨兵」而非「等你决策」
+   *  ——kmc 对 webhook 门不停车,这里不是人工决策点。 */
+  const isSentinel = (g: GateStateGate): boolean => g.mode === 'webhook'
+  const rowStateLabel = (g: GateStateGate): string => {
+    const disp = rowDisplay(g)
+    if (isSentinel(g) && disp === 'pending') return '异步哨兵'
+    return DISPLAY_LABEL[disp]
+  }
+  const hasPendingWork = gates.some((g) => g.display === 'pending' && g.reviewId != null && !isSentinel(g))
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}>
@@ -172,16 +180,17 @@ export default function GateCenterBlock(): React.ReactElement | null {
                 }}
               >
                 <span
-                  className={isBlock && disp === 'pending' ? 'cv-gate-row-breathe' : undefined}
+                  className={isBlock && disp === 'pending' && !isSentinel(g) ? 'cv-gate-row-breathe' : undefined}
                   style={{
                     width: 10, height: 10, borderRadius: '50%', background: color, flexShrink: 0,
+                    ...(isSentinel(g) ? { opacity: 0.5 } : {}),
                   }}
                 />
                 <span style={{ fontSize: 12, flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {g.label}
                 </span>
                 <span data-testid={`gate-state-${g.gateId}`} style={{ fontSize: 11, fontWeight: 600, color, flexShrink: 0 }}>
-                  {rowWorking(g) ? '处理中…' : DISPLAY_LABEL[disp]}
+                  {rowWorking(g) ? '处理中…' : rowStateLabel(g)}
                 </span>
                 <span style={{ fontSize: 10, fontFamily: 'var(--cv-font-mono, monospace)', color: theme.text.tertiary, flexShrink: 0 }}>
                   {g.reviewId != null ? `#${g.reviewId}` : g.phaseId.replace(/_/g, '').slice(0, 10)}
@@ -208,7 +217,7 @@ export default function GateCenterBlock(): React.ReactElement | null {
           )
         })}
         <div style={{ padding: '10px 16px', fontSize: 10, color: theme.text.tertiary, fontFamily: 'var(--cv-font-mono, monospace)' }}>
-          p13 红线子门为本地自动扫描，不进入人工决策。
+          p13 红线子门为本地自动扫描（驳回会上浮红态）；p11b 最终渲染为异步哨兵，不参与人工决策。
         </div>
       </div>
 

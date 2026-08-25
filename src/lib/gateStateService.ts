@@ -32,6 +32,9 @@ export interface GateStateGate {
   phaseId: string;
   label: string;
   display: "pending" | "approve" | "reject" | "waive" | "auto";
+  /** 73-01:门模式镜像(gateCatalog.mode)。webhook=异步哨兵(p11b tripwire):
+   *  呈现真实态但不参与 blocking 竞争,动作条永不以其为目标。 */
+  mode: "blocking" | "webhook" | "polling";
   reviewId?: number;
   updatedAt?: string;
   note?: string;
@@ -117,6 +120,15 @@ export function fullPhaseTokenOfItem(item: PlatformReviewItem): string | null {
   if (legacyPhase != null) return fullPhaseToken(legacyPhase);
   return fullPhaseToken(type);
 }
+
+/** 红线 legacy 别名(detector 名)→ 红线条目(73-01 红线上浮通道):
+ *  khs 红线 reject 时提交 type=redline_* 的墓碑 review,按别名直接路由到
+ *  对应红线门——不经 token 分派(否则别名折叠成 "p13" 会污染 p13-gate 池)。 */
+const REDLINE_ALIAS_TO_PHASE: ReadonlyMap<string, string> = new Map(
+  Object.entries(LEGACY_GATE_ID_TO_PHASE_ID)
+    .filter(([, phaseId]) => phaseId.includes("_redline_"))
+    .map(([alias, phaseId]) => [alias, phaseId]),
+);
 
 function asString(v: unknown): string | undefined {
   return typeof v === "string" ? v : undefined;
@@ -346,10 +358,13 @@ export class GateStateService {
     return { items, truncated: true };
   }
 
-  /** 16 门组装:分派最新 review → fold;红线恒 auto;从未提交 pending。 */
+  /** 16 门组装:分派最新 review → fold;红线无墓碑恒 auto(有 reject 墓碑上浮红态);
+   *  webhook 门(p11b 哨兵)呈现真实态但不参与 blocking(73-01,review F19)。 */
   private buildPayload(scope: GateScope, refs: Set<string>, items: PlatformReviewItem[]): GateStatePayload {
     // 每门最新 review(review id 最大;WR-01 等值分派)。
     const latestByToken = new Map<string, { item: PlatformReviewItem; id: number }>();
+    // 红线墓碑分派(按 legacy 别名键;73-01 F20 红线上浮)。
+    const latestRedlineByAlias = new Map<string, { item: PlatformReviewItem; id: number }>();
     for (const item of items) {
       const id = Number(item.id);
       if (!Number.isInteger(id)) continue;
@@ -358,6 +373,13 @@ export class GateStateService {
       const slash = ref.lastIndexOf("/");
       if (slash < 0) continue;
       if (!refs.has(ref.slice(0, slash))) continue;
+      const type = asString(item.type)!;
+      // 红线墓碑:按 detector 别名直达红线门,不进 token 池(防折叠污染 p13)。
+      if (REDLINE_ALIAS_TO_PHASE.has(type)) {
+        const prevR = latestRedlineByAlias.get(type);
+        if (prevR == null || id > prevR.id) latestRedlineByAlias.set(type, { item, id });
+        continue;
+      }
       const typeToken = fullPhaseTokenOfItem(item);
       const refToken = fullPhaseToken(ref.slice(slash + 1));
       // content_ref phase segment token 与 type token 等值(桥接同源约束)。
@@ -370,13 +392,37 @@ export class GateStateService {
       const gateId = entry.isRedline ? entry.phaseId : entry.derivedGateId;
       const label = GATE_DISPLAY_NAMES[gateId] ?? entry.phaseId;
       if (entry.isRedline) {
-        // 红线:静态自动扫描态,从不 submit_review。
-        return { gateId, phaseId: entry.phaseId, label, display: "auto" as const };
+        // 红线(73-01 F20):静态自动扫描态;khs 红线 reject 墓碑上浮为 reject
+        // 红态(非阻塞——红线修复在内容侧,画布动作条无意义)。从不参与 blocking。
+        const alias = Object.entries(LEGACY_GATE_ID_TO_PHASE_ID).find(
+          ([, phaseId]) => phaseId === entry.phaseId,
+        )?.[0];
+        const tombstone = alias != null ? latestRedlineByAlias.get(alias) : undefined;
+        if (tombstone == null) {
+          return { gateId, phaseId: entry.phaseId, label, display: "auto" as const, mode: entry.mode };
+        }
+        const rMeta = (tombstone.item.metadata ?? {}) as { review_result?: { decision?: unknown; reason?: unknown } };
+        const fold = foldDisplayState(
+          String(tombstone.item.state ?? ""),
+          asString(tombstone.item.disposition) ?? null,
+          rMeta.review_result == null ? null : { decision: asString(rMeta.review_result.decision) ?? "" },
+        );
+        const rReason = asString(rMeta.review_result?.reason);
+        return {
+          gateId,
+          phaseId: entry.phaseId,
+          label,
+          display: fold,
+          mode: entry.mode,
+          reviewId: tombstone.id,
+          updatedAt: asString(tombstone.item.updated_at),
+          ...(rReason != null && rReason.length > 0 ? { note: rReason.slice(0, NOTE_MAX_CHARS) } : {}),
+        };
       }
       const token = fullPhaseToken(entry.phaseId)!;
       const latest = latestByToken.get(token);
       if (latest == null) {
-        return { gateId, phaseId: entry.phaseId, label, display: "pending" as const };
+        return { gateId, phaseId: entry.phaseId, label, display: "pending" as const, mode: entry.mode };
       }
       const meta = (latest.item.metadata ?? {}) as { review_result?: { decision?: unknown; reason?: unknown } };
       const rawResult = meta.review_result ?? null;
@@ -396,6 +442,7 @@ export class GateStateService {
         phaseId: entry.phaseId,
         label,
         display,
+        mode: entry.mode,
         reviewId: latest.id,
         updatedAt: asString(latest.item.updated_at),
         ...(note != null ? { note } : {}),
@@ -403,8 +450,12 @@ export class GateStateService {
     });
 
     // blocking:pending 且有 reviewId 的最大 reviewId 者(唯一人工焦点)。
+    // 73-01 F19:webhook 哨兵门(p11b)永不参与 blocking 竞争——kmc 对 p11b
+    // webhook 不停车,reject 回滚承诺对它是谎言;26 条 APPROVING 残留曾凭
+    // 最大 reviewId 抢占阻塞焦点。
     let blocking: GateBlocking | null = null;
     for (const g of gates) {
+      if (g.mode !== "blocking") continue;
       if (g.display !== "pending" || g.reviewId == null) continue;
       if (blocking == null || g.reviewId > blocking.reviewId) {
         blocking = { gateId: g.gateId, reviewId: g.reviewId, phaseId: g.phaseId, label: g.label };
@@ -445,6 +496,7 @@ export class GateStateService {
             phaseId: entry.phaseId,
             label: GATE_DISPLAY_NAMES[entry.isRedline ? entry.phaseId : entry.derivedGateId] ?? entry.phaseId,
             display: "pending" as const,
+            mode: entry.mode,
           })),
         }
       : { ...prev, degrade: true };
