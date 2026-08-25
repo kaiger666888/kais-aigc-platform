@@ -102,12 +102,15 @@ export function verdictLabel(v: string): string {
 }
 
 /**
- * 量纲归一 → 0-1 域。scale 'percent' /100;缺省 'unit' 原样;
- * 非有限/非 number → 0;越界钳制 [0,1]。
+ * 量纲归一 → 0-1 域。scale 'percent' /100;'ten' /10(khs p11a0 iframe-qc
+ * 真实档位,68-01 F13);缺省 'unit' 原样;非有限/非 number → 0;越界钳制 [0,1]。
  */
-export function normalizeScore(v: unknown, scale?: 'unit' | 'percent'): number {
+export function normalizeScore(
+  v: unknown,
+  scale?: 'unit' | 'percent' | 'ten',
+): number {
   if (typeof v !== 'number' || !Number.isFinite(v)) return 0
-  let n = scale === 'percent' ? v / 100 : v
+  let n = scale === 'percent' ? v / 100 : scale === 'ten' ? v / 10 : v
   if (n > 1) n = 1
   if (n < 0) n = 0
   return n

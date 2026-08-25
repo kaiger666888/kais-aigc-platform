@@ -4,17 +4,34 @@
     "groupKey": "name:p01/hook-topic",
     "variantId": "v2",
     "selected": false,
-    "score": { "overall": 0.72, "dimensions": { "hook_strength": 0.72 }, "scale": "unit" },
+    "score": {
+      "overall": 0.72,
+      "dimensions": {
+        "hook_strength": 0.72
+      },
+      "scale": "unit"
+    },
     "prompt": "hook 文案:开场三秒冷开场,主角雨夜独行遭遇伏击",
     "seed": 40213,
-    "extras": { "frame_breakdown_3sec": "0-1s 空镜雨巷 / 1-3s 脚步声渐近" }
+    "extras": {
+      "frame_breakdown_3sec": "0-1s 空镜雨巷 / 1-3s 脚步声渐近"
+    }
   },
   {
     "source": "p03_nbest",
     "groupKey": "name:p03/script-nbest",
     "variantId": "k2",
     "selected": true,
-    "score": { "overall": 0.83, "dimensions": { "drama": 0.85, "rhythm": 0.8, "character": 0.82, "logic": 0.84 }, "scale": "unit" },
+    "score": {
+      "overall": 0.83,
+      "dimensions": {
+        "drama": 0.85,
+        "rhythm": 0.8,
+        "character": 0.82,
+        "logic": 0.84
+      },
+      "scale": "unit"
+    },
     "prompt": "剧本变体 K=3 第 2 名 — 反转结构前置版",
     "filePath": "/oss/kmc/ep01/P03/script_v2.txt",
     "thumbnailUrl": "/oss/kmc/ep01/P03/script_v2.png"
@@ -26,7 +43,14 @@
     "shotId": "shot_012",
     "frameSlot": "first",
     "selected": true,
-    "score": { "overall": 0.87, "dimensions": { "framing": 87, "camera": 88 }, "scale": "percent" },
+    "score": {
+      "overall": 8,
+      "dimensions": {
+        "framing": 8,
+        "camera": 7
+      },
+      "scale": "ten"
+    },
     "prompt": "雨夜巷战,主角拔刀,低角度仰拍,霓虹反光湿地",
     "filePath": "/oss/kmc/ep01/P11/shot_012_first_v1.png",
     "seed": 99001
@@ -37,7 +61,13 @@
     "variantId": "v1",
     "shotId": "shot_018",
     "selected": true,
-    "score": { "overall": 0.91, "dimensions": { "qwen_eye": 0.91 }, "scale": "unit" },
+    "score": {
+      "overall": 0.91,
+      "dimensions": {
+        "qwen_eye": 0.91
+      },
+      "scale": "unit"
+    },
     "durationSec": 4.2,
     "prompt": "预览变体 v1 — 节奏原速,追击走廊调度",
     "filePath": "/oss/kmc/ep01/P11a/shot_018_v1.mp4",

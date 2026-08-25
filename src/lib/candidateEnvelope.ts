@@ -50,14 +50,40 @@ export type CandidateSource = z.infer<typeof candidateSourceSchema>;
 
 /**
  * Score envelope. `scale` declares the producer's unit so the wall can
- * normalize for display without guessing: "unit" = 0..1, "percent" = 0..100
- * (the p11a0 iframe-qc slots score 0..100 ints today).
+ * normalize for display without guessing.
+ *
+ * 68-01 (v3.2 VDR-02②/F13) 域修正:三档 scale,overall 域随档位 superRefine
+ * 交叉校验——旧 schema 恒 max(1),percent(0..100) 整条拒收自相矛盾。
+ * khs 真实形态锚点:p03/p11a 0..1 float;p11a0 iframe-qc int 0..10
+ * (p11a0_iframe_qc.py `_coerce_score: max(0, min(10, int(raw)))`,合格线 6
+ * ——2026-08-24 实核,旧注释的「0..100 ints」是错的);percent 暂无真实
+ * 生产者,保留档位为前向兼容。
  */
-export const candidateScoreSchema = z.object({
-  overall: z.number().min(0).max(1),
-  dimensions: z.record(z.string(), z.number()).optional(),
-  scale: z.enum(["unit", "percent"]).default("unit"),
-});
+export const candidateScoreScaleSchema = z.enum(["unit", "percent", "ten"]);
+export type CandidateScoreScale = z.infer<typeof candidateScoreScaleSchema>;
+
+const SCORE_MAX_BY_SCALE: Record<CandidateScoreScale, number> = {
+  unit: 1,
+  percent: 100,
+  ten: 10,
+};
+
+export const candidateScoreSchema = z
+  .object({
+    overall: z.number().min(0),
+    dimensions: z.record(z.string(), z.number()).optional(),
+    scale: candidateScoreScaleSchema.default("unit"),
+  })
+  .superRefine((s, ctx) => {
+    const max = SCORE_MAX_BY_SCALE[s.scale];
+    if (s.overall > max) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["overall"],
+        message: `overall ${s.overall} 越界:scale="${s.scale}" 域为 0..${max}`,
+      });
+    }
+  });
 export type CandidateScore = z.infer<typeof candidateScoreSchema>;
 
 /**
@@ -78,6 +104,15 @@ export const candidateEnvelopeSchema = z.looseObject({
   seed: z.number().int().optional(),
   filePath: z.string().optional(),
   thumbnailUrl: z.string().optional(),
+  // ── 68-01 (v3.2 VDR-01/F10/F39):khs2 v2.5(27-02/27-03, 08-24)候选契约
+  // 演进键重冻结——finalists/final_rank/dropped/selection_meta 在 slot 本体
+  // 或审计通道(p01/p02/p09),render_variants 在 take-log。此前这些键只在
+  // looseObject 容忍层(解析即丢),Wave B 契约重启时必须显式进类型。
+  // 元素结构 per-phase 异构(khs 各 phase 自定义),此处只契约容器形状。
+  finalists: z.array(z.record(z.string(), z.unknown())).optional(),
+  final_rank: z.array(z.record(z.string(), z.unknown())).optional(),
+  dropped: z.array(z.record(z.string(), z.unknown())).optional(),
+  selection_meta: z.record(z.string(), z.unknown()).optional(),
   extras: z.record(z.string(), z.unknown()).default({}),
 });
 export type CandidateEnvelope = z.infer<typeof candidateEnvelopeSchema>;
@@ -94,12 +129,27 @@ export type TakeVerdict = z.infer<typeof takeVerdictSchema>;
 
 export const takeLogEntrySchema = z.object({
   take_n: z.number().int().optional(),
-  shot_id: z.string(),
+  /**
+   * 68-01 (VDR-03 真实样本校验发现的漂移):khs p11b take_log 实际写
+   * shot_index(子代理产物 + p11b setdefault),shot_id 不总在——钟馗 ep01
+   * 生产 take-log 全量无 shot_id。schema 改为双键皆可选,消费侧以
+   * verdict/take_n 为主键、shot_index 为镜头定位回退。
+   */
+  shot_id: z.string().optional(),
+  shot_index: z.number().int().optional(),
   changed_variable: z.string().optional(),
-  seed: z.number().int().optional(),
+  // 真实落盘 seed 常为 null(钟馗 ep01 生产样本)——optional 不吃 null
+  seed: z.number().int().nullish(),
   verdict: takeVerdictSchema,
   evidence: z.string().optional(),
   timestamp: z.string().optional(),
+  /**
+   * 68-01 (v3.2 F10):khs2 27-03 attempt-redundancy 元数据——p11b pre>1 时
+   * 每 shot 记 {shot_index, shot_id, requested_pre, variant_attempted,
+   * selected_variant, succeeded};final>1 只留档不放大 slot(p12 单镜单
+   * clip 契约)。旧 schema 整条拒收带该键的 take-log(khs v2.5 落盘即有)。
+   */
+  render_variants: z.array(z.record(z.string(), z.unknown())).optional(),
 });
 export type TakeLogEntry = z.infer<typeof takeLogEntrySchema>;
 

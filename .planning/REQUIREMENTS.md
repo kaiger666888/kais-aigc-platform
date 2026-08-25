@@ -63,7 +63,7 @@ Explicitly excluded. Documented to prevent scope creep.
 
 | Feature | Reason |
 |---------|--------|
-| 53 Wave B (khs envelope 映射/manifest transport/G15 数据源) | khs2 v2.4 Phase 25 验收未过 (TD-1 gate);khs 侧改造不进本期 |
+| 53 Wave B (khs envelope 映射/manifest transport/G15 数据源) | ~~khs2 v2.4 Phase 25 验收未过~~ **2026-08-25 更正:F25 gate 已于 08-23 满足**(v3.2 68 复核,见 v3.2-ROADMAP-DRAFT F06/F07);延期真实理由=待排期,实施归 v3.2 Phase 69 |
 | 重生成参数域之外的 prompt 语义辅助 (LLM 改写建议等) | 本期只做持久化与真值通道,不做生成辅助 |
 | 跨组共享候选的精确归组语义 | 52-VERIFICATION 遗留,留待变体域 (Wave B 后) 裁定 |
 | 移动端 / 非 kmc 消费侧改动 | 改动限 kap 仓画布侧 |

@@ -185,19 +185,106 @@ async function main(): Promise<void> {
   assert(true, "S1e-2: round-trip lossless — overall/scale/prompt/seed/duration survive (5/5)");
   const flfEnv = envelope.parseCandidateEnvelope(waveB[2]);
   assert(
-    flfEnv?.score?.scale === "percent" && flfEnv?.score?.overall === 0.87,
-    "S1e-3: percent scale preserved verbatim (never rewritten to unit)",
+    flfEnv?.score?.scale === "ten" && flfEnv?.score?.overall === 8,
+    "S1e-3: ten scale(int 0..10)preserved verbatim — khs p11a0 真实形态(68-01 F13)",
     JSON.stringify(flfEnv?.score),
   );
   const dims = flfEnv?.score?.dimensions as Record<string, number> | undefined;
   assert(
-    dims != null && dims.framing === 87 && dims.camera === 88,
+    dims != null && dims.framing === 8 && dims.camera === 7,
     "S1e-4: dimensions record survives round-trip",
   );
+  // 68-01 (F13):score 域随 scale 交叉校验——percent 档 overall>100 / ten 档
+  // overall>10 / unit 档 >1 必须拒收(旧恒 max(1) 对 percent 自相矛盾)。
+  assert(
+    envelope.candidateScoreSchema.safeParse({ overall: 87, scale: "percent" }).success === true &&
+    envelope.candidateScoreSchema.safeParse({ overall: 101, scale: "percent" }).success === false &&
+    envelope.candidateScoreSchema.safeParse({ overall: 9, scale: "ten" }).success === true &&
+    envelope.candidateScoreSchema.safeParse({ overall: 11, scale: "ten" }).success === false &&
+    envelope.candidateScoreSchema.safeParse({ overall: 1.1, scale: "unit" }).success === false,
+    "S1e-5: score 域按 scale 档位校验(unit≤1/ten≤10/percent≤100)",
+  );
+  // 68-01 (VDR-01/F10):khs2 v2.5 演进键进 schema 类型(finalists/final_rank/
+  // dropped/selection_meta/render_variants)——不再是 loose 容忍层黑箱。
+  const v25 = envelope.parseCandidateEnvelope({
+    source: "p01_hook", groupKey: "name:p01/hook-topic", variantId: "v1",
+    selected: false,
+    finalists: [{ rank: 1, score: 0.72 }],
+    final_rank: [{ rank: 1, index: 0, score: 0.72 }],
+    dropped: [{ index: 1, score: 0.1 }],
+    selection_meta: { mode: "heuristic", n_candidates: 2 },
+  });
+  assert(
+    v25 != null && Array.isArray(v25.finalists) && v25.finalists.length === 1 &&
+    Array.isArray(v25.final_rank) && Array.isArray(v25.dropped) &&
+    v25.selection_meta != null && (v25.selection_meta as Record<string, unknown>).mode === "heuristic",
+    "S1e-6: v2.5 finalists/final_rank/dropped/selection_meta 进类型(khs 27-02 落盘形状)",
+  );
+  assert(
+    envelope.takeLogEntrySchema.safeParse({
+      shot_id: "S01", verdict: "keep",
+      render_variants: [{ shot_id: "S01", requested_pre: 3, succeeded: true }],
+    }).success === true,
+    "S1e-7: take-log render_variants 进类型(khs 27-03 落盘形状)",
+  );
+
+  // ── S1f (68-01 VDR-03):真实落库样本双源校验——fixture 自说自话不再是
+  // 唯一依据。khs .pipeline-assets take-log.json(生产集)逐条过
+  // takeLogEntrySchema;生产库 canvas_nodes 的 a-flf 行过
+  // parseCandidateEnvelope(canonical groupKey 真值)。缺样本 WARN 不 FAIL
+  // (环境无 khs 仓/无生产库时降级)。
+  try {
+    const khsRoot = process.env.KAIS_HERMES_SKILLS_PATH ?? "/data/workspace/kais-hermes-skills";
+    const takeLogPath = `${khsRoot}/skills/kais-movie-pipeline/episodes/ep-zhongkui-ep01/.pipeline-assets/take-log.json`;
+    if (fs.existsSync(takeLogPath)) {
+      const tl = JSON.parse(fs.readFileSync(takeLogPath, "utf8")) as {
+        value?: { takes?: unknown[] }; takes?: unknown[];
+      };
+      const takes = tl.value?.takes ?? tl.takes ?? [];
+      let okCount = 0;
+      for (const t of takes) {
+        if (envelope.takeLogEntrySchema.safeParse(t).success) okCount++;
+      }
+      assert(
+        takes.length > 0 && okCount === takes.length,
+        `S1f-1: 真实 take-log(钟馗 ep01)${okCount}/${takes.length} 条过 schema`,
+      );
+    } else {
+      results.push({ name: "S1f-1: khs take-log 样本不可达(跳过)", pass: true });
+    }
+    // 生产库 a-flf 节点(90 个)——legacy 形状真值
+    const { DatabaseSync } = await import("node:sqlite");
+    const dbPath = path.join(REPO_ROOT, "data/db2.sqlite");
+    if (fs.existsSync(dbPath)) {
+      const db = new DatabaseSync(dbPath, { readOnly: true });
+      const rows = db
+        .prepare(
+          "SELECT data FROM canvas_nodes WHERE id LIKE 'a-flf-%' AND data IS NOT NULL LIMIT 5",
+        )
+        .all() as Array<{ data: string }>;
+      db.close();
+      if (rows.length > 0) {
+        let canon = 0;
+        for (const r of rows) {
+          const env = envelope.parseCandidateEnvelope(JSON.parse(r.data));
+          if (env != null && /^shot:[A-Za-z0-9_-]+:(first|last)$/.test(env.groupKey)) canon++;
+        }
+        assert(
+          canon === rows.length,
+          `S1f-2: 生产库 a-flf 样本 ${canon}/${rows.length} 解析为 canonical groupKey`,
+        );
+      } else {
+        results.push({ name: "S1f-2: 生产库无 a-flf 行(跳过)", pass: true });
+      }
+    } else {
+      results.push({ name: "S1f-2: 生产库不可达(跳过)", pass: true });
+    }
+  } catch (err) {
+    assert(false, "S1f: 真实样本双源校验异常", String(err));
+  }
 
   // f) unknown-key tolerance — today's shapes must never 400 (T-53-01-01)
-  const withUnknown = { ...legacy[0], foo: "bar" };
-  let tolerated = false;
+  const withUnknown = { ...legacy[0], foo: "bar" };  let tolerated = false;
   try {
     tolerated = envelope.parseCandidateEnvelope(withUnknown) != null;
   } catch {
