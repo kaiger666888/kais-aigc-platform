@@ -16,6 +16,7 @@ import {
   replayManifestWriteback,
 } from "@/lib/manifestWriteback";
 import { ensureDrainStarted, drainOnce } from "@/lib/writebackQueue";
+import { getGateStateService } from "@/lib/gateStateService";
 
 const router = express.Router();
 
@@ -177,13 +178,20 @@ router.post(
       // phase. Fire-and-forget: never awaited (the response is not blocked)
       // and the bridge swallows internally; .catch is the second backstop.
       // The idempotent branch above deliberately does NOT reach this point.
+      // 70-01/70-02 (v3.2 F08):variantNumber(真 v{N})+ shotId/frameSlot
+      // (cand:shot:{sid}:{slot} 组 id 解析)——choose 载荷按 phase id 空间
+      // 构造,不再裸 v{数组位置}。
+      const _shotMatch = /^cand:shot:([^:]+):(first|last)$/.exec(groupId);
       void resolveOpenReviewForSelection({
         projectId,
         episodesId,
         groupId,
         winnerNodeId,
         variantIndex: result.variantIndex,
+        variantNumber: result.variantNumber,
         winnerPhaseName: result.winnerPhaseName,
+        shotId: _shotMatch?.[1],
+        frameSlot: frameSlot ?? (_shotMatch?.[2] as "first" | "last" | undefined) ?? null,
       }).catch(() => {});
 
       // [53-04] manifest writeback hook — VAR-03 kap half (D-09 same-slot
@@ -191,15 +199,25 @@ router.post(
       // discipline as the bridge above: void + never-throws internally +
       // .catch backstop. Idempotent branch above does NOT reach here either
       // (Pitfall 5 — re-selecting the current winner carries no new info).
+      // 69-01 (WBI-01):episodeRefs 从 gateStateService 画布探针解析(FS
+      // transport 定位真实剧集目录;未解析时 legacy 双形态兜底)。
+      const _wbScope = { projectId, episodesId };
+      const _wbSvc = getGateStateService();
+      _wbSvc.ensureScope(_wbScope);
+      const _wbRefs =
+        _wbSvc.episodeRefsFor(_wbScope) ?? new Set([`ep${episodesId}`, String(episodesId)]);
       bootWritebackDrain();
       void enqueueManifestWriteback({
         projectId,
         episodesId,
         groupId,
         winnerNodeId,
-        variantIndex: result.variantIndex,
+        // 70-02 (F08-②):manifest 消费 p11a0/p11b 的 int N = 真 v{N} 编号,
+        // 非 variantIndex 数组位置(成员缺失时错位)。
+        variantIndex: result.variantNumber,
         frameSlot,
         source,
+        episodeRefs: [..._wbRefs],
       }).catch(() => {});
 
       broadcastToProject(projectId, "variant:selected", {

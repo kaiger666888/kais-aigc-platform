@@ -20,6 +20,10 @@ export PORT
 # 引擎容器 docker-compose.real.yml 绑 0.0.0.0:8002(本机可达 127.0.0.1)。
 # 外部已 export 时尊重外部值(测试环境指向别的引擎)。
 export GOLD_TEAM_URL="${GOLD_TEAM_URL:-http://127.0.0.1:8002}"
+# 69-01 (v3.2 WBI-01):manifest 回写通道通电——画布换选真实覆写 khs episode
+# 的 iframe-manifest/hook-candidates(70-02 真 v{N} 编号已修,链路完整)。
+export KMC_MANIFEST_TRANSPORT="${KMC_MANIFEST_TRANSPORT:-fs}"
+export KMC_EPISODES_ROOT="${KMC_EPISODES_ROOT:-/data/workspace/kais-hermes-skills/skills/kais-movie-pipeline/episodes}"
 LOG=data/serve/production.log
 PIDFILE=data/serve/production.pid
 
@@ -56,4 +60,4 @@ PID="$(cat "$PIDFILE")"
 kill -0 "$PID" 2>/dev/null || { echo "✗ 启动失败,查 $LOG"; tail -5 "$LOG"; exit 1; }
 echo "[serve-production] ✅ pid=$PID → http://localhost:$PORT (log: $LOG)"
 echo "[serve-production] 引擎 env 实证:"
-tr '\0' '\n' < "/proc/$PID/environ" | grep -E '^GOLD_TEAM_URL=' || { echo "✗ env 未注入!"; exit 1; }
+tr '\0' '\n' < "/proc/$PID/environ" | grep -E '^(GOLD_TEAM_URL|KMC_MANIFEST_TRANSPORT)=' || { echo "✗ env 未注入!"; exit 1; }

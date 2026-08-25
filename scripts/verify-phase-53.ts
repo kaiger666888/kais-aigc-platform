@@ -721,6 +721,74 @@ async function main(): Promise<void> {
   );
   fs.rmSync(childPath2, { force: true });
 
+  // ── S3g (69-01 WBI-01):FS transport 真实现 — tmp episode 脚手架真写 ──
+  console.log("\n=== S3g FsEpisodeManifestTransport real write (69-01 WBI-01) ===");
+  {
+    const mw = await import("../src/lib/manifestWriteback");
+    const tmpEp = fs.mkdtempSync(path.join(os.tmpdir(), "verify53-fs-transport-"));
+    const prevT = process.env.KMC_MANIFEST_TRANSPORT;
+    const prevR = process.env.KMC_EPISODES_ROOT;
+    try {
+      fs.mkdirSync(path.join(tmpEp, "ep-probe-01", "assets", "P11"), { recursive: true });
+      fs.mkdirSync(path.join(tmpEp, "ep-probe-01", ".pipeline-assets"), { recursive: true });
+      fs.writeFileSync(
+        path.join(tmpEp, "ep-probe-01", "assets", "P11", "iframe-manifest.json"),
+        JSON.stringify([
+          { shot_id: "S01_B01", selected_first_variant: 1, selected_last_variant: 2 },
+          { shot_id: "S02_B01", selected_first_variant: 3 },
+        ]),
+      );
+      fs.writeFileSync(
+        path.join(tmpEp, "ep-probe-01", ".pipeline-assets", "hook-candidates.json"),
+        JSON.stringify({ value: { type: "hook_candidates", variants: [], chosen_variant_id: "v1" } }),
+      );
+      process.env.KMC_MANIFEST_TRANSPORT = "fs";
+      process.env.KMC_EPISODES_ROOT = tmpEp;
+      const t = mw.getManifestTransport();
+      assert(t != null, "S3g-1: KMC_MANIFEST_TRANSPORT=fs 解析出 transport");
+      const params = {
+        projectId: 1, episodesId: 1, groupId: "cand:shot:S01_B01:first", winnerNodeId: "a-flf-S01_B01-first-v3",
+        variantIndex: 3, episodeRefs: ["ep-probe-01", "ep1"],
+      };
+      await t!.writeSelection(params, mw.targetForParams({ ...params, frameSlot: "first" }));
+      const manifest = JSON.parse(
+        fs.readFileSync(path.join(tmpEp, "ep-probe-01", "assets", "P11", "iframe-manifest.json"), "utf8"),
+      ) as Array<Record<string, unknown>>;
+      assert(
+        manifest[0]?.selected_first_variant === 3 && manifest[0]?.selected_last_variant === 2,
+        "S3g-2: S01_B01 first 覆写为 3,last 不动(其余 entry 不动)",
+        JSON.stringify(manifest[0]),
+      );
+      // 幂等:同值再写 → no-op 不炸
+      await t!.writeSelection(params, mw.targetForParams({ ...params, frameSlot: "first" }));
+      assert(true, "S3g-3: 同值重写幂等 no-op");
+      // chosen_variant_id:p01 域 → hook-candidates value.chosen_variant_id = "v{N}"
+      await t!.writeSelection(
+        { ...params, groupId: "cand:name:p01/hook-topic" },
+        mw.targetForParams({ ...params }),
+      );
+      const hc = JSON.parse(
+        fs.readFileSync(path.join(tmpEp, "ep-probe-01", ".pipeline-assets", "hook-candidates.json"), "utf8"),
+      ) as { value: { chosen_variant_id?: string } };
+      assert(hc.value?.chosen_variant_id === "v3", "S3g-4: p01 chosen_variant_id 写为 string v3(ADR-1)");
+      // episodeRefs 兜底:不存在的 ref → throw(fail-closed 可入队重放)
+      let threw = false;
+      try {
+        await t!.writeSelection(
+          { ...params, episodeRefs: ["ep-none"] },
+          mw.targetForParams({ ...params, frameSlot: "first" }),
+        );
+      } catch {
+        threw = true;
+      }
+      assert(threw, "S3g-5: episode 目录解析失败 loudly throw(通道故障≠未开通)");
+    } finally {
+      if (prevT == null) delete process.env.KMC_MANIFEST_TRANSPORT; else process.env.KMC_MANIFEST_TRANSPORT = prevT;
+      if (prevR == null) delete process.env.KMC_EPISODES_ROOT; else process.env.KMC_EPISODES_ROOT = prevR;
+      fs.rmSync(tmpEp, { recursive: true, force: true });
+    }
+  }
+
   // ═══ S4 — VAR-02 wall source shapes + entries (53-02/05/06/07) ════════════
   console.log("\n=== S4 variant wall source shapes + entries (53-07 fill) ===");
   const wallSrc = read("packages/infinite-canvas/src/components/variants/VariantWall.tsx");

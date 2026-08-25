@@ -374,6 +374,9 @@ export interface SelectWinnerResult {
   winnerNodeId: string;
   /** 1-based position of the winner inside group.variantNodeIds; 0 unless status is updated/idempotent. */
   variantIndex: number;
+  /** 70-02 (v3.2 F08-②):真 v{N} 编号(从 winner 节点 data.variant/id 尾缀
+   *  解析;legacy 组回退数组位置)。reviewBridge/manifestWriteback 消费。 */
+  variantNumber: number;
   /** Winner node phase_name (e.g. "p11_first_last_frames") for the 49-02 review bridge; null when unknown. */
   winnerPhaseName: string | null;
   /** o_assets.id the winner node maps to (data.oAssetId, or the a-oasset-<id> prefix); null when unmapped. */
@@ -460,6 +463,7 @@ export async function selectWinnerInGroup(
     groupId,
     winnerNodeId,
     variantIndex: 0,
+    variantNumber: 0,
     winnerPhaseName: null,
     winnerOAssetId: null,
     memberOAssetIds: [],
@@ -491,6 +495,7 @@ export async function selectWinnerInGroup(
   let winnerPhaseName: string | null = null;
   let winnerOAssetId: number | null = null;
   let lockedMemberId: string | null = null;
+  let winnerVariantNumber: number | null = null; // 70-02: 真 v{N}(非数组位置)
   for (const memberId of variantNodeIds) {
     const row = memberRows.find((r) => r.id === memberId);
     if (!row) continue;
@@ -503,6 +508,14 @@ export async function selectWinnerInGroup(
     if (memberId === winnerNodeId) {
       winnerPhaseName = row.phase_name ?? null;
       winnerOAssetId = oAssetId;
+      // 70-02 (v3.2 F08-②):variantIndex=数组位置,成员缺失/淘汰时错位选错片。
+      // 真 v{N} 从 winner 自身解析:node data.variant("v3")优先,id 尾缀
+      // (-v3)兜底,数组位置终回退(legacy 组)。
+      const dv = data?.variant;
+      const fromData = typeof dv === "string" ? /^v(\d+)$/.exec(dv) : null;
+      const fromId = /-v(\d+)$/.exec(memberId);
+      if (fromData != null) winnerVariantNumber = Number(fromData[1]);
+      else if (fromId != null) winnerVariantNumber = Number(fromId[1]);
     }
   }
   if (lockedMemberId !== null) return reject("locked");
@@ -515,6 +528,7 @@ export async function selectWinnerInGroup(
       groupId,
       winnerNodeId,
       variantIndex,
+      variantNumber: winnerVariantNumber ?? variantIndex,
       winnerPhaseName,
       winnerOAssetId,
       memberOAssetIds,
@@ -549,6 +563,7 @@ export async function selectWinnerInGroup(
     groupId,
     winnerNodeId,
     variantIndex,
+    variantNumber: winnerVariantNumber ?? variantIndex,
     winnerPhaseName,
     winnerOAssetId,
     memberOAssetIds,

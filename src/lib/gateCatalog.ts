@@ -60,6 +60,17 @@ export function isRedlineKey(phaseId: string): boolean {
   return REDLINE_SUFFIX_RE.test(phaseId);
 }
 
+/**
+ * 完整 sub-phase token(gateStateService 同源):"p11a0_iframe_qc"→"p11a0"、
+ * "p11c-gate"→"p11c"——比 leadingPhaseToken(/^p\d+/ 把 p11a0/p11a/p11b/p11c
+ * 全折叠成 "p11")更细。70-03 (v3.2 F18) reviewBridge 相位匹配迁移至此:
+ * p11a0 的换选绝不能批到同剧集 open 的 p11c 门上(=全量豁免放行)。
+ */
+export function fullPhaseToken(value: string): string | null {
+  const m = /^p\d+[a-z0-9]*/.exec(value.trim().toLowerCase());
+  return m === null ? null : m[0];
+}
+
 /** legacy 原始 gate_id → phase_id(gate_config.py L136-158 抄录,8 条)。 */
 export const LEGACY_GATE_ID_TO_PHASE_ID: Readonly<Record<string, string>> = {
   "topic-gate": "p01_hook_topic",

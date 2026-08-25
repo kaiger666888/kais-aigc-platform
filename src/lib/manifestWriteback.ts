@@ -24,6 +24,8 @@
  * 依赖 transport 自身幂等)。
  */
 
+import { promises as fsp } from "node:fs";
+import path from "node:path";
 import { enqueueWriteback, type WritebackQueueRow } from "./writebackQueue";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -36,6 +38,12 @@ export interface ManifestWritebackParams {
   variantIndex: number
   frameSlot?: "first" | "last"
   source?: string
+  /**
+   * 69-01 (v3.2 WBI-01):episode 候选集(gateStateService 画布探针,WR-01
+   * 同源)——FS transport 在 episodes/ 下按 refs 定位真实剧集目录
+   * (ep-zhongkui-ep01 形,裸 ep{id} 合不上)。
+   */
+  episodeRefs?: string[]
 }
 
 export interface ManifestWriteTarget {
@@ -54,12 +62,117 @@ export interface ManifestTransport {
 
 // ─── Transport resolution(Wave B 挂接点)──────────────────────────────────
 
+/**
+ * 69-01 (v3.2 WBI-01):FS 直写实现——画布换选真实到达 kmc 消费面。
+ *
+ * 写点(两处,均为 khs 真实消费面):
+ *  - `assets/P11/iframe-manifest.json`(p11a0 产物,list per shot):entry 按
+ *    shot_id 匹配后覆写 selected_first_variant / selected_last_variant(int,
+ *    p11b `_load_iframe_manifest` 消费);
+ *  - `.pipeline-assets/hook-candidates.json`(p01 slot,value 包裹):
+ *    value.chosen_variant_id = "v{N}"(string,ADR-1 裁定;_creative_hook_
+ *    selector 按 variant_id string 校验消费)。
+ *
+ * 幂等 = 目标值已相等 → no-op;原子写 tmp+rename(khs _write_manifest_atomic
+ * 同款)。episode 目录按 episodeRefs 在 KMC_EPISODES_ROOT 下解析(取第一个
+ * 存在的 ep-* 目录);解析不到 → throw(入队重放,通道故障 ≠ 未开通)。
+ */
+class FsEpisodeManifestTransport implements ManifestTransport {
+  constructor(private readonly episodesRoot: string) {}
+
+  async writeSelection(
+    params: ManifestWritebackParams,
+    target: ManifestWriteTarget,
+  ): Promise<void> {
+    const epDir = await this.resolveEpisodeDir(params);
+    if (target.field === "chosen_variant_id") {
+      await this.writeHookCandidates(epDir, `v${target.value}`);
+    } else {
+      const shotId = shotIdOfGroup(params.groupId);
+      if (shotId == null) {
+        throw new Error(
+          `无法从 groupId ${params.groupId} 解析 shot_id(FS transport 只支持 shot: 组)`,
+        );
+      }
+      await this.writeIframeManifest(epDir, shotId, target.field, target.value);
+    }
+  }
+
+  private async resolveEpisodeDir(params: ManifestWritebackParams): Promise<string> {
+    const refs = params.episodeRefs ?? [`ep${params.episodesId}`, String(params.episodesId)];
+    for (const ref of refs) {
+      if (!/^[A-Za-z0-9_-]+$/.test(ref)) continue; // 路径安全:目录名单词
+      const dir = path.join(this.episodesRoot, ref);
+      try {
+        const st = await fsp.stat(dir);
+        if (st.isDirectory()) return dir;
+      } catch {
+        // try next ref
+      }
+    }
+    throw new Error(
+      `episode 目录解析失败(refs=${refs.join(",")} root=${this.episodesRoot})`,
+    );
+  }
+
+  /** iframe-manifest.json:list entry 按 shot_id 匹配 → entry[field]=value。 */
+  private async writeIframeManifest(
+    epDir: string,
+    shotId: string,
+    field: "selected_first_variant" | "selected_last_variant",
+    value: number,
+  ): Promise<void> {
+    const file = path.join(epDir, "assets", "P11", "iframe-manifest.json");
+    const manifest = JSON.parse(await fsp.readFile(file, "utf8")) as Array<Record<string, unknown>>;
+    if (!Array.isArray(manifest)) throw new Error(`${file} 非 list 形状`);
+    const entry = manifest.find((e) => e != null && e.shot_id === shotId);
+    if (entry == null) throw new Error(`${file} 无 shot_id=${shotId} entry`);
+    if (entry[field] === value) return; // 幂等 no-op
+    entry[field] = value;
+    await atomicWriteJson(file, manifest);
+  }
+
+  /** hook-candidates.json slot:value.chosen_variant_id = "v{N}"。 */
+  private async writeHookCandidates(epDir: string, variantId: string): Promise<void> {
+    const file = path.join(epDir, ".pipeline-assets", "hook-candidates.json");
+    const doc = JSON.parse(await fsp.readFile(file, "utf8")) as {
+      value?: Record<string, unknown>;
+    } & Record<string, unknown>;
+    const value = (doc.value ??= {});
+    if (value["chosen_variant_id"] === variantId) return; // 幂等 no-op
+    value["chosen_variant_id"] = variantId;
+    value["resolved_at"] = new Date().toISOString();
+    await atomicWriteJson(file, doc);
+  }
+}
+
+function shotIdOfGroup(groupId: string): string | null {
+  const m = /^cand:shot:([^:]+):(?:first|last)$/.exec(groupId);
+  return m ? m[1]! : null;
+}
+
+async function atomicWriteJson(file: string, data: unknown): Promise<void> {
+  const tmp = `${file}.kap-writeback-${process.pid}-${Date.now()}.tmp`;
+  await fsp.writeFile(tmp, JSON.stringify(data, undefined, 2), "utf8");
+  await fsp.rename(tmp, file);
+}
+
 export function getManifestTransport(): ManifestTransport | null {
-  // Wave A:无实现。Wave B:按 KMC_MANIFEST_TRANSPORT(env)分派 FS/HTTP 实现。
+  // 69-01 (WBI-01):KMC_MANIFEST_TRANSPORT=fs → FS 直写 episode workdir。
+  // 未配置 = 通道未开通(warn-once + no-op,不入队——避免每笔选定灌成 8 次
+  // 重试 failed 行)。FS 路径约束(V12):必须限定在 episode workdir 内——
+  // KMC_EPISODES_ROOT 之外的路径不写。
   const configured = process.env.KMC_MANIFEST_TRANSPORT;
-  if (!configured) return null;
-  // 已配置但无实现注册——视为未开通(warn-once 路径),不猜通道。
-  return null;
+  if (configured !== "fs") {
+    if (configured != null && configured !== "") {
+      // 配置了但不认识的值——按未开通处理,不猜通道
+      console.warn(`[manifestWriteback] 未知 KMC_MANIFEST_TRANSPORT=${configured}(支持: fs)`);
+    }
+    return null;
+  }
+  const root = process.env.KMC_EPISODES_ROOT
+    ?? "/data/workspace/kais-hermes-skills/skills/kais-movie-pipeline/episodes";
+  return new FsEpisodeManifestTransport(root);
 }
 
 // ─── Target mapping(D-11 权威字段名)──────────────────────────────────────

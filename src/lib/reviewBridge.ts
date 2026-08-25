@@ -62,13 +62,27 @@
  * endpoints without booting the app.
  */
 
+import { LEGACY_GATE_ID_TO_PHASE_ID, fullPhaseToken } from "./gateCatalog";
+
 export interface ReviewBridgeParams {
   projectId: number;
   episodesId: number;
   groupId: string;
   winnerNodeId: string;
-  variantIndex: number;           // 1-based (SelectWinnerResult.variantIndex)
+  variantIndex: number;           // 1-based array position (legacy, kept for response compat)
   winnerPhaseName: string | null; // e.g. "p11_first_last_frames"; null → info skip
+  /**
+   * 70-01/70-02 (v3.2 F08):真 v{N} 编号(从 winner 节点解析,非数组位置)——
+   * choose 载荷与 result.selected 用它;缺省回退 variantIndex。
+   */
+  variantNumber?: number;
+  /**
+   * 70-01 (F08-①):choose 作用域载荷所需——shot_id + frame_slot(从
+   * cand:shot:{sid}:{slot} 组 id 解析,路由层传入)。缺省时 p11a0 域载荷
+   * 退化为裸 v{N}(fail-closed,宁可不带作用域不构造错误作用域)。
+   */
+  shotId?: string;
+  frameSlot?: "first" | "last" | null;
 }
 
 export interface ReviewBridgeDeps {
@@ -113,11 +127,15 @@ export interface EpisodePhaseCandidate {
 /**
  * 三维 fail-closed 候选过滤(Phase 54-01 抽取导出,gateStateService 与
  * gate-ops 共用):
- *   a. item.type 的 leading phase token 与 phaseToken **等值**(WR-01:绝不
- *      前缀匹配——p1 与 p11a0 必须互斥);
+ *   a. item.type 的相位 token 与 phaseToken **等值**(WR-01:绝不前缀匹配
+ *      ——p1 与 p11a0 必须互斥);
  *   b. content_ref episode segment(最后一个 "/" 之前)∈ episodeRefs;
- *   c. content_ref phase segment 的 leading token 与 phaseToken 等值。
+ *   c. content_ref phase segment 的 token 与 phaseToken 等值。
  * 任何字段非 string → false(missed 是良性,wrong 不是)。
+ *
+ * 70-03 (v3.2 F18):token 语义从 leadingPhaseToken(/^p\d+/ 折叠)迁移到
+ * fullPhaseToken(p+digits+字母尾缀)——p11a0/p11a/p11b/p11c 各自独立匹配,
+ * 「资产点击静默错批同剧集 open 的 p11c 门」路径被此过滤天然锁死。
  */
 export function filterEpisodePhaseCandidates<T extends EpisodePhaseCandidate>(
   items: T[],
@@ -126,15 +144,49 @@ export function filterEpisodePhaseCandidates<T extends EpisodePhaseCandidate>(
 ): T[] {
   return items.filter((item) => {
     if (typeof item.type !== "string" || typeof item.content_ref !== "string") return false;
-    if (leadingPhaseToken(item.type) !== phaseToken) return false;
+    const typeToken = tokenOfGateType(item.type);
+    if (typeToken !== phaseToken) return false;
     const ref = item.content_ref;
     const slash = ref.lastIndexOf("/");
     if (slash < 0) return false;
     const episodeSegment = ref.slice(0, slash);
     const phaseSegment = ref.slice(slash + 1);
     if (!episodeRefs.has(episodeSegment)) return false;
-    return leadingPhaseToken(phaseSegment) === phaseToken;
+    return fullPhaseToken(phaseSegment) === phaseToken;
   });
+}
+
+/** gate type 的完整 token(legacy 别名优先——topic-gate → p01)。 */
+function tokenOfGateType(gateType: string): string | null {
+  const legacy = LEGACY_GATE_ID_TO_PHASE_ID[gateType];
+  return fullPhaseToken(legacy ?? gateType);
+}
+
+/** winner phase_name 的完整 token("p11a0_iframe_qc" → "p11a0")。 */
+function tokenOfPhaseName(phaseName: string): string | null {
+  return fullPhaseToken(phaseName.split("_", 1)[0] ?? phaseName);
+}
+
+/**
+ * 70-01 (v3.2 F08-①/④):按目标 phase 的 id 空间构造 choose 载荷——
+ * khs chosen_from_outcome 按 per-phase finalists id 集(string)校验,
+ * 裸 "v{N}" 对 p11a0("{sid}:{ft}:v{N}")与 p11a("{sid}:{vid}")恒不命中
+ * → warn 回落 rank#1 却表面 approve 成功(F08 根因)。ADR-1(v3.2 变体域)
+ * 定 string finalist id 为全线路标。
+ */
+function choosePayloadForToken(
+  token: string,
+  vN: number,
+  shotId: string | undefined,
+  frameSlot: "first" | "last" | null | undefined,
+): string {
+  if (token === "p11a0" && shotId != null && (frameSlot === "first" || frameSlot === "last")) {
+    return `${shotId}:${frameSlot}:v${vN}`;
+  }
+  if (token === "p11a" && shotId != null) {
+    return `${shotId}:v${vN}`;
+  }
+  return `v${vN}`; // p01 及其余域:variant_id 空间
 }
 
 /**
@@ -156,7 +208,8 @@ export async function resolveOpenReviewForSelection(
 
     // Phase token derivation — no usable phase name means the selection
     // cannot be correlated to any kmc gate (common case → info skip).
-    const phaseToken = derivePhaseToken(params.winnerPhaseName);
+    // 70-03 (F18):fullPhaseToken——p11a0/p11a/p11b/p11c 独立分派。
+    const phaseToken = tokenOfPhaseName(params.winnerPhaseName ?? "");
     if (phaseToken === null) {
       logger.info(`${LOG_PREFIX} winnerPhaseName 为空，跳过 review 桥接`);
       return;
@@ -241,7 +294,11 @@ export async function resolveOpenReviewForSelection(
     }
 
     // 3. Exactly one hit → approve with the chosen variant.
+    //    70-01 (F08-①):choose 载荷按 phase id 空间构造(scoped);70-02
+    //    (F08-②):v{N} 用 winner 节点的真编号 variantNumber(非数组位置)。
     const target = candidates[0];
+    const vN = params.variantNumber ?? params.variantIndex;
+    const chooseId = choosePayloadForToken(phaseToken, vN, params.shotId, params.frameSlot);
     const approveResp = await fetchImpl(
       `${baseUrl}/api/v1/reviews/${target.id}/approve`,
       {
@@ -249,10 +306,10 @@ export async function resolveOpenReviewForSelection(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           comment:
-            `choose:v${params.variantIndex} ` +
+            `choose:${chooseId} ` +
             `(canvas group ${params.groupId} winner ${params.winnerNodeId}, ` +
             `project ${params.projectId}/${params.episodesId})`,
-          result: { selected: [params.variantIndex] },
+          result: { selected: [vN] },
         }),
         signal: AbortSignal.timeout(timeoutMs),
       },
@@ -266,7 +323,7 @@ export async function resolveOpenReviewForSelection(
       return;
     }
     logger.info(
-      `${LOG_PREFIX} review ${target.id} 已 approve（choose:v${params.variantIndex}，` +
+      `${LOG_PREFIX} review ${target.id} 已 approve（choose:${chooseId}，` +
       `gate ${target.type}）`,
     );
   } catch (err) {

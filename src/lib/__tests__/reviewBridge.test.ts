@@ -88,3 +88,66 @@ test("winnerPhaseName 为空 → 不发列表请求(回归网)", async () => {
   });
   assert.equal(urls.length, 0, `phaseToken 门应在列表请求前 skip,实际出站 ${urls.length}: ${JSON.stringify(urls)}`);
 });
+
+// ── 70-01/02/03 (v3.2 F08/F18):作用域载荷 + 真编号 + 全 token 防错批 ─────
+
+/** 记录 approve body 的 fetch(列表页返回给定 items)。 */
+const mkApproveFetch = (
+  captured: Array<{ url: string; body: any }>,
+  items: unknown[],
+): typeof fetch =>
+  (async (url: unknown, init?: RequestInit) => {
+    const u = String(url);
+    captured.push({ url: u, body: init?.body ? JSON.parse(String(init.body)) : null });
+    if (u.includes("/api/v1/reviews/")) {
+      return { ok: true, status: 200, json: async () => ({ data: { items, next_cursor: null, has_more: false } }) } as unknown as Response;
+    }
+    return { ok: true, status: 200, json: async () => ({}) } as unknown as Response;
+  }) as unknown as typeof fetch;
+
+test("70-01: p11a0 换选 choose 载荷带完整作用域 {sid}:{ft}:v{N} (F08-①)", async () => {
+  const cap: Array<{ url: string; body: any }> = [];
+  const items = [
+    { id: 31, type: "p11a0-gate", content_ref: "ep1/p11a0_iframe_qc", state: "APPROVING" },
+  ];
+  await resolveOpenReviewForSelection(
+    { ...mkParams, winnerPhaseName: "p11a0_iframe_qc", variantNumber: 3, shotId: "S01_B01", frameSlot: "first" },
+    { baseUrl: "http://mock-review", fetchImpl: mkApproveFetch(cap, items), logger: silentLogger },
+  );
+  const approve = cap.find((c) => c.url.includes("/approve"));
+  assert.ok(approve != null, `应发出 approve,实际出站 ${JSON.stringify(cap.map((c) => c.url))}`);
+  assert.match(
+    String(approve.body.comment),
+    /choose:S01_B01:first:v3 /,
+    `p11a0 域载荷须为 {sid}:{ft}:v{N},实际: ${approve.body.comment}`,
+  );
+  assert.deepEqual(approve.body.result.selected, [3], "result.selected 用真编号 variantNumber");
+});
+
+test("70-03: p11a0 换选绝不批同剧集 open 的 p11c 门 (F18 错批负向锁)", async () => {
+  const cap: Array<{ url: string; body: any }> = [];
+  const items = [
+    // 同剧集、相位不同:p11c 开着——旧 leading 折叠(p11a0→p11)时这是候选
+    { id: 32, type: "p11c-gate", content_ref: "ep1/p11c_video_qc", state: "APPROVING" },
+  ];
+  await resolveOpenReviewForSelection(
+    { ...mkParams, winnerPhaseName: "p11a0_iframe_qc", variantNumber: 2, shotId: "S01", frameSlot: "first" },
+    { baseUrl: "http://mock-review", fetchImpl: mkApproveFetch(cap, items), logger: silentLogger },
+  );
+  const approve = cap.find((c) => c.url.includes("/approve"));
+  assert.equal(approve, undefined, "p11a0 选定不得批到 p11c 门(=全量豁免放行)");
+});
+
+test("70-01: p01 域载荷退化为裸 v{N}(variant_id 空间)", async () => {
+  const cap: Array<{ url: string; body: any }> = [];
+  const items = [
+    { id: 33, type: "topic-gate", content_ref: "ep1/p01_hook_topic", state: "APPROVING" },
+  ];
+  await resolveOpenReviewForSelection(
+    { ...mkParams, winnerPhaseName: "p01_hook_topic", variantNumber: 2 },
+    { baseUrl: "http://mock-review", fetchImpl: mkApproveFetch(cap, items), logger: silentLogger },
+  );
+  const approve = cap.find((c) => c.url.includes("/approve"));
+  assert.ok(approve != null, "legacy 别名 topic-gate 应命中 p01");
+  assert.match(String(approve.body.comment), /choose:v2 /, `p01 域载荷为 v{N},实际: ${approve.body.comment}`);
+});
