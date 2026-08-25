@@ -207,9 +207,13 @@ services:
   # 路由: 根据工作流类型分发到 primary 或 auxiliary
   # ---------------------------------------------------------------------------
   kais-gold-team:
-    build:
-      context: ../kais-gold-team
-      dockerfile: ${AIGC_PLATFORM_DOCKERFILE:-/home/kai/.openclaw/workspace/kais-aigc-platform/docker/gold-team/Dockerfile}
+    # 2026-08-25 (ETS-03): 引擎真值源已收编 — 禁止从 ../kais-gold-team 构建分叉引擎。
+    # 旧 build.context 指向主仓旧布局(top-level requirements.txt 已不存在)且
+    # dockerfile 默认路径指向已废弃的 openclaw workspace,今天根本 build 不通;
+    # 误起只会静默换掉无白名单的旧实现。唯一构建路径 = docker-compose.real.yml
+    # (context docker/gold-team, 与主仓 src/v6 逐文件 md5 对齐, 39bb666)。
+    # v9 若需 gold-team,一律复用生产镜像;本地无此镜像时 compose 会响亮报错。
+    image: kais-gold-team:real
     container_name: kais-gold-team
     restart: unless-stopped
     ports:
