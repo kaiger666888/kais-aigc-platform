@@ -1,0 +1,114 @@
+# ci.yml — KAP 基础 CI 底线（Phase 0 / P1，2026-08-25）
+#
+# 评估报告（2026-08-25 glm-ci-gates-eval.md）结论：本仓零件齐全（tsc/esbuild/
+# node:test/verify:*），缺的只是「有人在你 push 时跑它们」。迭代模式是直推
+# master —— 所以触发分支必须是 master（debug.yml 曾写 main/dev，结构性永不
+# 触发，2.5 个月零 run）。
+#
+# 步骤全部本机 dry-run 实测后才写入：
+#   npx tsc --noEmit                        → exit 0（strict 已开，~2.4s）
+#   npm run build:server                    → exit 0；产物 data/serve/app.js，
+#                                             data/serve/ 已在 .gitignore（63 行），
+#                                             不污染 checkout
+#   node --import tsx --test "src/**/*.test.ts"
+#                                          → 42 tests / 0 fail（glob 由 node
+#                                             自展开，yml 里必须保留引号）
+#   npm run verify:schema-drift             → 10/10
+#   npm run verify:phase-65                 → 31/31
+#
+# 跨仓步骤 verify:manifest-contract 依赖兄弟仓 kais-hermes-skills（private）
+# 的 manifest 套件 + hermes-agent 的 tools 包（plugins 导入链需要）。GitHub
+# hosted runner 上拿不到本机路径，等价 CI 形态：
+#   - 用 KMC_PAT secret（对 private 仓有读权限的 PAT）checkout 兄弟仓
+#   - hermes-agent 是 public fork，默认 token 即可
+#   - 干净环境实测套件还需要 pip: pytest httpx pyjwt pydantic ruamel.yaml
+#     requests rich numpy pyyaml + PYTHONPATH=hermes-agent
+#   - 未配 KMC_PAT 时该步跳过并打 ::warning::（不静默、不假绿）
+
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    env:
+      # 间接探测 secret 是否存在（secrets 不能直接进 if 条件）
+      KMC_PAT: ${{ secrets.KMC_PAT }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check (tsc --noEmit, strict)
+        run: npx tsc --noEmit
+
+      - name: Build check (esbuild bundle → data/serve/, gitignored)
+        run: npm run build:server
+
+      - name: Unit tests (node:test, src/**)
+        run: node --import tsx --test "src/**/*.test.ts"
+
+      - name: Verify schema drift
+        run: npm run verify:schema-drift
+
+      - name: Verify phase-65 contract
+        run: npm run verify:phase-65
+
+      # ── 跨仓 manifest 契约（可选，需 KMC_PAT secret）──────────────────
+      - name: Checkout sibling KMC repo (manifest contract source)
+        if: env.KMC_PAT != ''
+        uses: actions/checkout@v4
+        with:
+          repository: kaiger666888/kais-hermes-skills
+          token: ${{ secrets.KMC_PAT }}
+          path: .ci-sibling/kais-hermes-skills
+
+      - name: Checkout hermes-agent (provides `tools` package)
+        if: env.KMC_PAT != ''
+        uses: actions/checkout@v4
+        with:
+          repository: kaiger666888/hermes-agent
+          path: .ci-sibling/hermes-agent
+
+      - name: Set up Python (manifest suite)
+        if: env.KMC_PAT != ''
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install manifest-suite Python deps
+        if: env.KMC_PAT != ''
+        run: >-
+          python3 -m pip install pytest httpx pyjwt pydantic ruamel.yaml
+          requests rich numpy pyyaml
+
+      - name: Verify manifest contract (cross-repo)
+        if: env.KMC_PAT != ''
+        env:
+          KAIS_HERMES_SKILLS_PATH: ${{ github.workspace }}/.ci-sibling/kais-hermes-skills
+          # conftest 会把 KMC 仓根插到 sys.path 最前，KMC 的 plugins
+          # namespace 包优先于 hermes-agent 的同名 regular 包
+          PYTHONPATH: ${{ github.workspace }}/.ci-sibling/hermes-agent
+        run: npm run verify:manifest-contract
+
+      - name: Notice — manifest contract skipped (no KMC_PAT)
+        if: env.KMC_PAT == ''
+        run: >-
+          echo "::warning::verify:manifest-contract skipped — configure the
+          KMC_PAT secret (PAT with read access to private
+          kaiger666888/kais-hermes-skills) to enable the cross-repo contract
+          step."
