@@ -51,7 +51,12 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        # --legacy-peer-deps：收尾 dry-run 实测裸 npm ci 报 ERESOLVE ——
+        # @rmp135/sql-ts@2.2.0 peerOptional sqlite3@^5.1.7 与根依赖
+        # sqlite3@^6.0.1 冲突；现有 node_modules 即按此方式安装。
+        # 另注：lockfile 509 项 resolved 指向 registry.npmmirror.com（公开
+        # 可达）；如 CI 拉取抖动，根治办法是对官方源重建 lockfile。
+        run: npm ci --legacy-peer-deps
 
       - name: Type check (tsc --noEmit, strict)
         run: npx tsc --noEmit
