@@ -1,10 +1,15 @@
 /**
- * AI 图片评分器 — 调用智谱 GLM-4V-Flash 对图片进行 5 维度评分
+ * AI 图片评分器 — 调用智谱 GLM 视觉模型对图片进行 5 维度评分
+ * 08-25 起模型/API 面 configurable:data/config/model-config.json(配置 Tab),
+ * 优先级 文件 > env(ZHIPU_API_KEY) > 内置默认(见 src/lib/modelConfig.ts)。
  */
 import { readFile } from "fs/promises";
+import { resolveEffectiveModelConfig } from "@/lib/modelConfig";
 
-const ZHIPU_API_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
-const ZHIPU_API_KEY = process.env.ZHIPU_API_KEY || "";
+/** 评分端点 = apiBase + /chat/completions(每调用解算,配置改动即时生效)。 */
+function scorerEndpoint(apiBase: string): string {
+  return `${apiBase.replace(/\/+$/, "")}/chat/completions`;
+}
 
 export interface AIScoreResult {
   overall: number;
@@ -59,13 +64,14 @@ async function imageToBase64(imagePath: string): Promise<{ base64: string; mimeT
 }
 
 /**
- * 调用 GLM-4V-Flash 评分
+ * 调用 GLM 视觉模型评分（模型/端点/密钥经 model-config 解算）
  */
 export async function scoreImage(imagePath: string, _prompt?: string): Promise<AIScoreResult> {
   const { base64, mimeType } = await imageToBase64(imagePath);
+  const { config } = resolveEffectiveModelConfig();
 
   const body = {
-    model: "glm-4v-flash",
+    model: config.scorerVisionModel,
     messages: [
       {
         role: "user",
@@ -79,11 +85,11 @@ export async function scoreImage(imagePath: string, _prompt?: string): Promise<A
     max_tokens: 500,
   };
 
-  const res = await fetch(ZHIPU_API_URL, {
+  const res = await fetch(scorerEndpoint(config.apiBase), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${ZHIPU_API_KEY}`,
+      Authorization: `Bearer ${config.apiKey}`,
     },
     body: JSON.stringify(body),
   });
@@ -178,9 +184,10 @@ async function scoreDualImage(
 ): Promise<AIScoreResult> {
   const [{ base64: base64_1, mimeType: mime1 }, { base64: base64_2, mimeType: mime2 }] =
     await Promise.all([imageToBase64(image1Path), imageToBase64(image2Path)]);
+  const { config } = resolveEffectiveModelConfig();
 
   const body = {
-    model: "glm-4v-flash",
+    model: config.scorerVisionModel,
     messages: [
       {
         role: "user",
@@ -195,11 +202,11 @@ async function scoreDualImage(
     max_tokens: 500,
   };
 
-  const res = await fetch(ZHIPU_API_URL, {
+  const res = await fetch(scorerEndpoint(config.apiBase), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${ZHIPU_API_KEY}`,
+      Authorization: `Bearer ${config.apiKey}`,
     },
     body: JSON.stringify(body),
   });

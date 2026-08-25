@@ -259,11 +259,10 @@ export function findVariantGroupForAsset(
   return ref
 }
 
-// ─── 62-04 层级派生（域指派 / 阶段徽标 / 单件桶 / 计数聚合） ──
+// ─── 阶段徽标推导（62-04；08-25 选片决策视图退役后 buildHierarchyModel/
+//    域计数聚合随视图移除，assetPhaseOf 保留——资产库树/组头/卡徽标消费） ──
 //
-// 纯函数家红线沿用：零 React / 零 store。计数聚合全部经 isAssetSelected/
-// isAssetPending/isAssetEliminated 三式（D-04 判定式单套，禁止第二套）；
-// 域指派经 domainOfType（TYPE_DOMAIN 表）；阶段映射经 PHASE_BY_SUBTYPE。
+// 纯函数家红线沿用：零 React / 零 store；阶段映射经 PHASE_BY_SUBTYPE。
 
 /** 资产阶段徽标信息（C6-1）。source 区分「资产 meta 直读」/「按子类型推导」（D-01 防启发式漂移）。 */
 export interface AssetPhaseInfo {
@@ -296,129 +295,4 @@ export function assetPhaseOf(d: AssetDetail): AssetPhaseInfo {
     return { phaseCode: entry.phaseCode, source: 'derived', reportAudit }
   }
   return { phaseCode: '', source: 'derived', reportAudit: false }
-}
-
-/** 三态计数聚合（C7 计数芯片与 data-count-* 属性同源；total = 成员总数）。 */
-export interface HierarchyCounts {
-  selected: number
-  pending: number
-  eliminated: number
-  total: number
-}
-
-/** 计数聚合——判定式单套红线：三态全部经 isAsset* 共享导出，零内联判定。 */
-function countsOf(items: AssetDetail[]): HierarchyCounts {
-  let selected = 0
-  let pending = 0
-  let eliminated = 0
-  for (const d of items) {
-    if (isAssetSelected(d)) selected++
-    else if (isAssetEliminated(d)) eliminated++
-    else if (isAssetPending(d)) pending++
-  }
-  return { selected, pending, eliminated, total: items.length }
-}
-
-/** L2 候选组卡模型（getGroupKey 唯一分组轴，D-02）。 */
-export interface HierarchyGroup {
-  key: string
-  title: string
-  emoji: string
-  counts: HierarchyCounts
-  items: AssetDetail[]
-  /** 场景组（✋ 手动选择豁免批量选定，D-07；62-05 消费）。 */
-  isManualScene: boolean
-  /** 声纹组（同上豁免）。 */
-  isManualVoice: boolean
-  /** 组含选定者（title ★ 前缀信号）。 */
-  hasPrimary: boolean
-}
-
-/** 单件桶模型（域内 size===1 且非 reportAudit 成员；桶空则 items 为空数组）。 */
-export interface HierarchySingletons {
-  counts: HierarchyCounts
-  items: AssetDetail[]
-}
-
-/** L1 域节点模型。三域固定纲：恒在场（空域 counts 全 0、groups/singletons 空，树灰态可点）。 */
-export interface HierarchyDomainNode {
-  domain: AssetDomain
-  /** 域级计数（含 reportAudit 排除项与全部组成员，D-03）。 */
-  counts: HierarchyCounts
-  groups: HierarchyGroup[]
-  /** 恒排本域末尾（UI-SPEC Layout）。 */
-  singletons: HierarchySingletons
-}
-
-/** buildHierarchyModel 输出：固定序三域（setting/media/text）+ 全量计数。 */
-export interface HierarchyModel {
-  domains: HierarchyDomainNode[]
-  all: HierarchyCounts
-}
-
-/** L1 固定纲域序（UI-SPEC 层间指派规则：设定资产 → 媒体产物 → 文本产物）。 */
-const DOMAIN_ORDER: readonly AssetDomain[] = ['setting', 'media', 'text']
-
-/**
- * 层级模型派生（62-04 Task 3 只做渲染与接线，本函数承载全部数据派生）：
- *   - 分组轴 = getGroupKey；域 = domainOfType(d.type)（type-first，未列类型兜底 media）。
- *   - 组排序 = groupOrder(key) + title 自然序（既有 candidateGroups 排序式）。
- *   - 单件桶 = 域内 size===1 且 !assetPhaseOf(d).reportAudit 的成员；
- *     reportAudit 资产不进桶渲染集但计入域 total（D-03）。
- *   - 组/域/桶/全量计数全部经 isAsset* 三式（D-04 单套）。
- */
-export function buildHierarchyModel(assets: AssetDetail[]): HierarchyModel {
-  const byDomain = new Map<AssetDomain, Map<string, AssetDetail[]>>()
-  for (const dom of DOMAIN_ORDER) byDomain.set(dom, new Map())
-  for (const d of assets) {
-    const dom = domainOfType(d.type ?? '')
-    let groups = byDomain.get(dom)
-    if (!groups) {
-      groups = new Map()
-      byDomain.set(dom, groups)
-    }
-    const key = getGroupKey(d)
-    if (!groups.has(key)) groups.set(key, [])
-    groups.get(key)!.push(d)
-  }
-
-  const domains: HierarchyDomainNode[] = DOMAIN_ORDER.map((domain) => {
-    const groupMap = byDomain.get(domain)!
-    const groupNodes: HierarchyGroup[] = []
-    const singletonItems: AssetDetail[] = []
-    for (const [key, items] of groupMap) {
-      if (items.length === 1) {
-        // 单件桶候选（size===1 组）；reportAudit 资产不进桶渲染集（D-03），
-        // 其计数经 domainItems 聚合仍计入域 total。
-        if (!assetPhaseOf(items[0]).reportAudit) singletonItems.push(items[0])
-        continue
-      }
-      const info = getGroupDisplayInfo(items[0])
-      const counts = countsOf(items)
-      groupNodes.push({
-        key,
-        title: info.title,
-        emoji: info.emoji,
-        counts,
-        items,
-        isManualScene: isSceneGroup(items),
-        isManualVoice: isVoiceGroup(items),
-        hasPrimary: counts.selected > 0,
-      })
-    }
-    groupNodes.sort((a, b) => {
-      const ord = groupOrder(a.key) - groupOrder(b.key)
-      if (ord !== 0) return ord
-      return a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' })
-    })
-    const domainItems = [...groupMap.values()].flat()
-    return {
-      domain,
-      counts: countsOf(domainItems),
-      groups: groupNodes,
-      singletons: { counts: countsOf(singletonItems), items: singletonItems },
-    }
-  })
-
-  return { domains, all: countsOf(assets) }
 }

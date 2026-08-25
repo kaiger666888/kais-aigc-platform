@@ -26,6 +26,7 @@ import { updateAsset, ASSET_DRAG_MIME, type AssetDetail, type AssetDragPayload }
 // 62-01：分组轴/反查/三态判定式共享提取（纯移动）——本组件内本地定义已删除，
 // 判定式全仓单套（D-04），双前缀反查增量见 groupCanvasLinkage.ts 头注释。
 import {
+  assetPhaseOf,
   findVariantGroupForAsset,
   getGroupDisplayInfo,
   getGroupKey,
@@ -56,6 +57,7 @@ import {
   SUBTYPE_LABEL, SUBTYPE_EMOJI, LEVEL_LABEL,
   type AssetItem, type AssetType, type AssetLevel, type AssetSubtype,
 } from './assetManagerData'
+import { PHASE_BY_SUBTYPE } from './generationConfigKeys'
 
 type AssetTab = 'selected' | 'candidate' | 'eliminated'
 
@@ -286,25 +288,23 @@ const ALWAYS_SHOW_SUBTYPES: ReadonlySet<AssetSubtype> = new Set([
 
 // ─── 62-04: renderCard 提取为模块级导出 renderAssetCard（模式参数化） ──────
 //
-// checker FLAG D2 裁定：复用 = 两处增量（模式参数 + 单件阶段徽标），非 100% 逐字：
-//   a. 三态按钮门控 —— mode='library' 沿用 deps.tab 门控（资产库路径行为字节等价，
-//      既有 466 用例全绿锚）；mode='hierarchy' 按卡自身三态出按钮
-//      （★ 选定 / ✕ 取消选定 / ↻ 恢复，语义与库路径三按钮原样）。
-//   b. opts.singletonPhase —— 单件桶卡右上角阶段徽标（hier-card-phase）。
+// 62-04 曾以 mode 参数双视图共用（library/hierarchy 门控分叉）；08-25 选片决策
+// 视图退役后单调用点，mode 层移除——三态按钮回归 deps.tab 门控（资产库路径
+// 行为字节等价，既有用例全绿锚）。opts.phase（08-25 资产库阶段标识）保留：
+// 平铺网格卡右上角阶段徽标（lib-card-phase）。
 // 其余 JSX（拖入 / 定位 / 双击详情 / 类名 / .am-card 断言面）逐字搬迁，留居本文件
 // （P1-P9 无独立 AssetCard.tsx 位点，不新建）。
 
-/** 单件桶卡阶段徽标（增量之二；tooltip 区分「资产 meta 直读」/「按子类型推导」，D-01 防启发式漂移）。 */
-export interface AssetCardSingletonPhase {
+/** 资产卡阶段徽标（层级单件桶 + 资产库平铺网格共用；tooltip 区分「资产 meta 直读」/
+ *  「按子类型推导」，D-01 防启发式漂移）。 */
+export interface AssetCardPhase {
   phaseCode: string
   source: 'meta' | 'derived'
 }
 
-/** renderAssetCard 依赖注入（组件闭包显式化；资产库/层级两视图各自构造）。 */
+/** renderAssetCard 依赖注入（组件闭包显式化；资产库视图构造）。 */
 export interface AssetCardDeps {
-  /** library=资产库（deps.tab 三态门控，字节等价）；hierarchy=资产层级（按卡自身三态出按钮）。 */
-  mode: 'library' | 'hierarchy'
-  /** 资产库模式当前三态 tab；层级模式忽略。 */
+  /** 当前三态 tab（三态按钮门控）。 */
   tab?: AssetTab
   assets: AssetDetail[]
   patchLocal: (assetId: number, patch: Partial<AssetDetail>) => void
@@ -319,11 +319,13 @@ export interface AssetCardDeps {
   charPortraitMap: Map<string, string>
 }
 
-/** 单张资产卡片渲染（资产库三 tab 与层级视图 L3 共用同一份 JSX；容器由调用方决定）。 */
+/** 单张资产卡片渲染（资产库三 tab 与层级视图 L3 共用同一份 JSX；容器由调用方决定）。
+ *  opts.phase —— 平铺网格卡（资产库选定/淘汰 tab）与层级单件桶卡右上角阶段徽标；
+ *  testid 按视图分词汇（lib-card-phase / hier-card-phase），e2e 断言面互不串。 */
 export function renderAssetCard(
   d: AssetDetail,
   deps: AssetCardDeps,
-  opts?: { singletonPhase?: AssetCardSingletonPhase },
+  opts?: { phase?: AssetCardPhase },
 ) {
   const a = assetDetailToItem(d)
   // 无图文档型资产：用更精确的子类型 emoji 替代类型默认 emoji（👤/📦），
@@ -335,11 +337,10 @@ export function renderAssetCard(
   }
   const groupKey = getGroupKey(d)
   const isKey = a.type === 'prop_key'
-  // 增量 a：三态按钮门控。library → deps.tab 门控（与提取前逐字节同构）；
-  // hierarchy → 按卡自身三态（isAsset* 为 D-04 单套判定式共享导出）。
-  const showSelect = deps.mode === 'hierarchy' ? isAssetPending(d) : deps.tab === 'candidate'
-  const showDeselect = deps.mode === 'hierarchy' ? isAssetSelected(d) : deps.tab === 'selected'
-  const showRestore = deps.mode === 'hierarchy' ? isAssetEliminated(d) : deps.tab === 'eliminated'
+  // 三态按钮门控（deps.tab；与提取前逐字节同构）。
+  const showSelect = deps.tab === 'candidate'
+  const showDeselect = deps.tab === 'selected'
+  const showRestore = deps.tab === 'eliminated'
   return (
     <div
       key={a.uuid}
@@ -373,15 +374,16 @@ export function renderAssetCard(
       {isKey && <span className="am-card__keyflag">🔒 关键</span>}
       {a.reuses ? <span className="am-card__reuse am-badge am-badge--reuse">{a.reuses} 集</span> : null}
 
-      {/* 增量 b：单件桶卡阶段徽标 —— 右上角 mono 芯片（.am-badge 既有词汇 + 内联定位，
-          零新全局类）；与「N 集」复用徽标同位错开（reuses 在上时顺移 26px）。 */}
-      {opts?.singletonPhase && (
+      {/* 阶段徽标 —— 右上角 mono 芯片（.am-badge 既有词汇 + 内联定位，零新全局类）；
+          与「N 集」复用徽标同位错开（reuses 在上时顺移 26px）。
+          层级单件桶（hier-card-phase，62-04）与资产库平铺网格（lib-card-phase）同渲染。 */}
+      {opts?.phase && (
         <span
           className="am-badge"
-          data-testid="hier-card-phase"
-          title={opts.singletonPhase.source === 'meta' ? '资产 meta 直读' : '按子类型推导'}
+          data-testid="lib-card-phase"
+          title={opts.phase.source === 'meta' ? '资产 meta 直读' : '按子类型推导'}
           style={{ position: 'absolute', top: a.reuses ? 33 : 7, right: 7, zIndex: 2 }}
-        >{opts.singletonPhase.phaseCode}</span>
+        >{opts.phase.phaseCode}</span>
       )}
 
       {/* 【资产↔画布交叉联动】定位到画布上对应节点（未放置时画布侧 toast 提示） */}
@@ -856,12 +858,15 @@ export default function AssetLibrary() {
     setLevelFilter(null); setEntityFilter({ type: 'subtype', id: st })
     setTypeFilter(null); setTagFilter(null)
   }
-  /** 渲染一个 subtype 条目；count=0 时仅 ALWAYS_SHOW 子类型以灰色不可点击显示。 */
+  /** 渲染一个 subtype 条目；count=0 时仅 ALWAYS_SHOW 子类型以灰色不可点击显示。
+   *  每行带管线阶段号 chip（PHASE_BY_SUBTYPE 静态查表；表未收录的子类型不渲染 chip）——
+   *  count=0 的占位行同显，chip 兼答「跑哪个阶段会产出这类资产」。 */
   const renderSubtypeNode = (st: AssetSubtype, always = false) => {
     const n = sub(st)
     const empty = n === 0
     if (empty && !always && !ALWAYS_SHOW_SUBTYPES.has(st)) return null
     const showEmpty = empty && (always || ALWAYS_SHOW_SUBTYPES.has(st))
+    const phaseCode = PHASE_BY_SUBTYPE[st]?.phaseCode
     return (
       <button
         key={st}
@@ -870,6 +875,7 @@ export default function AssetLibrary() {
         onClick={showEmpty ? undefined : () => clickSubtype(st)}
       >
         <span className="am-tree-node__ic">{SUBTYPE_EMOJI[st]}</span>{SUBTYPE_LABEL[st]}
+        {phaseCode && <span className="am-tree-node__phase" data-testid="lib-tree-phase" title={`产自管线阶段 ${phaseCode}`}>{phaseCode}</span>}
         <span className="am-tree-node__n">{n}</span>
       </button>
     )
@@ -927,10 +933,10 @@ export default function AssetLibrary() {
   const handleRestore = (d: AssetDetail) =>
     restoreAsset(d, { assets, patchLocal, reload, showToast })
 
-  // 单张资产卡片渲染：模块级 renderAssetCard 的资产库薄壳（mode='library'，
-  // 三态按钮沿 tab 门控 —— 行为与提取前字节等价，HIER-04 库路径锚）。
-  const renderCard = (d: AssetDetail) => renderAssetCard(d, {
-    mode: 'library',
+  // 单张资产卡片渲染：模块级 renderAssetCard 的资产库薄壳（三态按钮沿 tab
+  // 门控 —— 行为与提取前字节等价）。opts 透传阶段徽标（平铺网格卡；
+  // 候选组卡不带——组头已示阶段）。
+  const renderCard = (d: AssetDetail, opts?: { phase?: AssetCardPhase }) => renderAssetCard(d, {
     tab,
     assets,
     patchLocal,
@@ -942,7 +948,7 @@ export default function AssetLibrary() {
     onLocate: handleLocateOnCanvas,
     openAssetDetail,
     charPortraitMap,
-  })
+  }, opts)
 
   return (
     <div className="am-lib">
@@ -1037,6 +1043,7 @@ export default function AssetLibrary() {
                 onClick={() => clickSubtype('scene_base')}
               >
                 <span className="am-tree-node__ic">▦</span>全部场景设定
+                <span className="am-tree-node__phase" data-testid="lib-tree-phase" title="产自管线阶段 P07">P07</span>
                 <span className="am-tree-node__n">{sub('scene_base')}</span>
               </button>
               {/* Notion 场景设定文档（场景级文字描述，区别于 scene_base 设定图） */}
@@ -1090,6 +1097,7 @@ export default function AssetLibrary() {
                 }}
               >
                 <span className="am-tree-node__ic">🗣️</span>对白
+                <span className="am-tree-node__phase" data-testid="lib-tree-phase" title="产自管线阶段 P10">P10</span>
                 <span className="am-tree-node__n">{dialogueCount}</span>
               </button>
               {/* ⑥ 场景角度图（分镜级参考）—— 从场景级移到分镜级 */}
@@ -1211,6 +1219,7 @@ export default function AssetLibrary() {
                 }}
               >
                 <span className="am-tree-node__ic">🎚️</span>混音音轨
+                <span className="am-tree-node__phase" data-testid="lib-tree-phase" title="产自管线阶段 P12">P12</span>
                 <span className="am-tree-node__n">{audioStemsTotal}</span>
               </button>
               {renderSubtypeNode('master_mp4', true)}
@@ -1300,11 +1309,21 @@ export default function AssetLibrary() {
           ) : tab === 'candidate' && candidateGroups.length > 0 ? (
             // 待选资产：按类型分组展示（同组变体并列对比，便于择优选定）
             <div className="am-groups">
-              {candidateGroups.map((group) => (
+              {candidateGroups.map((group) => {
+                // 组头阶段徽标（与选片决策视图 C6-1 同式：组首推导；空 phaseCode 不渲染）
+                const gp = assetPhaseOf(group.items[0])
+                return (
                 <div key={group.key} className="am-group" data-group-key={group.key}>
                   <div className="am-group__header">
                     <span className="am-group__emoji">{group.emoji}</span>
                     <span className="am-group__title">{group.title}</span>
+                    {gp.phaseCode && (
+                      <span
+                        className="am-badge"
+                        data-testid="lib-group-phase"
+                        title={gp.source === 'meta' ? '资产 meta 直读' : '按子类型推导'}
+                      >{gp.phaseCode}</span>
+                    )}
                     <span className="am-group__count">{group.items.length} 个变体</span>
                     <span className="am-group__hint" title="互斥组 · 选定其一则同组其余自动淘汰">⚙ 互斥组 · 选定其一则同组其余自动淘汰</span>
                     <button
@@ -1320,12 +1339,16 @@ export default function AssetLibrary() {
                     {group.items.map((d) => renderCard(d))}
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           ) : (
-            // 选定 / 淘汰 tab：保持原平铺网格
+            // 选定 / 淘汰 tab：保持原平铺网格；每卡带阶段徽标（该资产产自哪个管线阶段）
             <div className="am-grid">
-              {tabFiltered.map((d) => renderCard(d))}
+              {tabFiltered.map((d) => {
+                const p = assetPhaseOf(d)
+                return renderCard(d, p.phaseCode ? { phase: { phaseCode: p.phaseCode, source: p.source } } : undefined)
+              })}
             </div>
           )}
         </div>

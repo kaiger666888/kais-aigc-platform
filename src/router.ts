@@ -174,6 +174,8 @@ import route170 from "./routes/v1/trellis2/status";
 import route171 from "./routes/v1/tts/health";
 import route172 from "./routes/v1/tts/speak";
 import route173 from "./routes/v1/tts/status";
+// 08-25 配置 Tab:GLM 模型配置(文件面 data/config/model-config.json)
+import route174 from "./routes/canvas/v2/model-config";
 
 export default async (app: Express) => {
   app.use("/api/assets/addAssets", route1);
@@ -349,4 +351,5 @@ export default async (app: Express) => {
   app.use("/api/v1/tts/health", route171);
   app.use("/api/v1/tts/speak", route172);
   app.use("/api/v1/tts/status", route173);
+  app.use("/api/canvas/v2/model-config", route174);
 }

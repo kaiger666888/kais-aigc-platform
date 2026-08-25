@@ -1,11 +1,15 @@
 import { test, expect, getCalls } from '../helpers.mjs'
 
 /**
- * Phase 62-07 Task 2 — phase62-redundancy-config e2e（七用例，HIER-03 冗余配置链）。
+ * phase62-redundancy-config e2e（HIER-03 冗余配置链;08-25 迁配置 Tab 后改道）。
+ *
+ * 08-25 起 rail 内嵌「配置」Tab（ConfigPanel）常驻——原层级视图第三栏 + ⚙ 开合
+ * 交互退役;用例 a 由「开合往返」改为「配置 Tab 进入即 rail 可见 + 离开卸载」;
+ * 其余用例断言面（config-row/角标/写徽标/钳制/锁定区）零改动。
  *
  * 用例地图(-g 组词,62-07 PLAN Task 2(2)):
- *  a toggle-default-collapsed : config-rail 默认不在场;点 config-toggle 开 → rail 可见;
- *                               再点收起 → rail 卸载(负向)。
+ *  a toggle-default-collapsed : 配置 Tab 点击 → config-view + config-rail 可见;
+ *                               切回资产库 → rail 卸载(负向)。
  *  b rows-complete (D-12)     : fileShape=requirement-v25 → config-row 恰 14 行
  *                               (11 嵌套+3 扁平);p09_shotlist.transition 无独立行
  *                               (漂移锁);shot_list 行 note「转场随分镜表候选整体」可见。
@@ -41,22 +45,30 @@ const PRE_CAP1_KEYS = [
   'p12_compose.master_timeline', 'p12_compose.audio_mix', 'p13_master.master_mp4',
 ]
 
-async function loadHierarchyWithConfig(page, { fileShape = null } = {}) {
+async function loadConfigTab(page, { fileShape = null } = {}) {
   await page.goto(HIER_URL, { waitUntil: 'networkidle' })
   await page.request.post('/__mock/reset')
   // fileShape 为 /__mock/config 顶层键（server.mjs:791 直读，非嵌套）。
   const cfg = { assetFixture: 'rich', ...(fileShape ? { fileShape } : {}) }
   await page.request.post('/__mock/config', { data: cfg })
   await page.goto(HIER_URL, { waitUntil: 'networkidle' })
-  await page.getByRole('button', { name: '资产层级', exact: true }).click()
-  await expect(page.locator('[data-testid="hierarchy-view"]')).toBeVisible()
+  await page.getByRole('button', { name: '配置', exact: true }).click()
+  await expect(page.getByTestId('config-view')).toBeVisible()
 }
 
 async function openRail(page) {
-  await page.getByTestId('config-toggle').click()
+  // 配置 Tab 常驻 rail(选择项目后);卸载重挂经 Tab 切换驱动。
   await expect(page.getByTestId('config-rail')).toBeVisible()
   // rows 加载完成门:14 行齐(D-12 完整性前提)。
   await expect(page.getByTestId('config-row')).toHaveCount(14)
+}
+
+/** 卸载重挂 rail(原 config-toggle 收起/再开的替代:经 Tab 往返)。 */
+async function remountRail(page) {
+  await page.getByRole('button', { name: '资产库', exact: true }).click()
+  await expect(page.getByTestId('config-rail')).toHaveCount(0)
+  await page.getByRole('button', { name: '配置', exact: true }).click()
+  await openRail(page)
 }
 
 /** PUT overrides 调用记录。 */
@@ -68,16 +80,15 @@ async function putCallsFor(page, phaseKey) {
 }
 
 test.describe('phase62 redundancy-config', () => {
-  test('a toggle-default-collapsed: 默认收起 → 开合往返', async ({ page }) => {
-    await loadHierarchyWithConfig(page)
-    await expect(page.getByTestId('config-rail')).toHaveCount(0)
+  test('a config-tab-mount: 配置 Tab 进入即 rail 可见 → 离开卸载', async ({ page }) => {
+    await loadConfigTab(page)
     await openRail(page)
-    await page.getByTestId('config-toggle').click()
+    await page.getByRole('button', { name: '资产库', exact: true }).click()
     await expect(page.getByTestId('config-rail')).toHaveCount(0)
   })
 
   test('b rows-complete: 14 行 + transition 无独立行 + note 在场 (D-12)', async ({ page }) => {
-    await loadHierarchyWithConfig(page, { fileShape: 'requirement-v25' })
+    await loadConfigTab(page, { fileShape: 'requirement-v25' })
     await openRail(page)
     for (const key of [...NESTED_KEYS, ...FLAT_KEYS]) {
       await expect(page.locator(`[data-testid="config-row"][data-phase-key="${key}"]`)).toHaveCount(1)
@@ -92,20 +103,19 @@ test.describe('phase62 redundancy-config', () => {
   })
 
   test('c three-source-priority: override > requirement > legacy 快照回落', async ({ page }) => {
-    await loadHierarchyWithConfig(page, { fileShape: 'requirement-v25' })
+    await loadConfigTab(page, { fileShape: 'requirement-v25' })
     await openRail(page)
     // override 源:直接经服务写一条(与 UI 保存同端点),读侧重载后行角标翻转。
     await page.request.put('/api/canvas/v2/generation-config/overrides/p06_script.spatio_temporal', {
       data: { projectId: 1, episodesId: 1, nCandidates: 4, finalCandidates: 2 },
     })
-    await page.getByTestId('config-toggle').click() // 收起
-    await openRail(page)
+    await remountRail(page)
     const p06 = page.locator('[data-testid="config-row"][data-phase-key="p06_script.spatio_temporal"]')
     await expect(p06).toHaveAttribute('data-source', 'override')
     await expect(p06.locator('[data-testid="config-pre-input"]')).toHaveValue('4')
 
     // legacy 档:快照默认 + 「无 v2.5 键」角标(嵌套 1/1;扁平 pre=3 final=1)。
-    await loadHierarchyWithConfig(page, { fileShape: 'legacy' })
+    await loadConfigTab(page, { fileShape: 'legacy' })
     await openRail(page)
     const tk = page.locator('[data-testid="config-row"][data-phase-key="p01_hook.topic_kernel"]')
     await expect(tk).toHaveAttribute('data-source', 'snapshot')
@@ -118,7 +128,7 @@ test.describe('phase62 redundancy-config', () => {
   })
 
   test('d pre-cap-locked-inputs: 5 确定性键钉 1 禁用 + 占位 chip', async ({ page }) => {
-    await loadHierarchyWithConfig(page, { fileShape: 'not-found' })
+    await loadConfigTab(page, { fileShape: 'not-found' })
     await openRail(page)
     for (const key of PRE_CAP1_KEYS) {
       const row = page.locator(`[data-testid="config-row"][data-phase-key="${key}"]`)
@@ -136,7 +146,7 @@ test.describe('phase62 redundancy-config', () => {
   })
 
   test('e write-roundtrip: PUT 载荷保真 + synced/file-fail 双徽标', async ({ page }) => {
-    await loadHierarchyWithConfig(page, { fileShape: 'requirement-v25' })
+    await loadConfigTab(page, { fileShape: 'requirement-v25' })
     await openRail(page)
     // 编辑 p06 行 pre=3/final=2 → dirty → 保存。
     const p06 = page.locator('[data-testid="config-row"][data-phase-key="p06_script.spatio_temporal"]')
@@ -171,7 +181,7 @@ test.describe('phase62 redundancy-config', () => {
   })
 
   test('f clamp-frontend-and-backend: final>pre 禁存+文案;后端 400 兜底独立可证', async ({ page }) => {
-    await loadHierarchyWithConfig(page, { fileShape: 'requirement-v25' })
+    await loadConfigTab(page, { fileShape: 'requirement-v25' })
     await openRail(page)
     // 前端第一道:p06 final>pre → save disabled + 行内越界文案。
     const p06 = page.locator('[data-testid="config-row"][data-phase-key="p06_script.spatio_temporal"]')
@@ -189,7 +199,7 @@ test.describe('phase62 redundancy-config', () => {
   })
 
   test('g locked-section: 「不可配键 · 19」+ 恰 2 禁用行无 input', async ({ page }) => {
-    await loadHierarchyWithConfig(page, { fileShape: 'not-found' })
+    await loadConfigTab(page, { fileShape: 'not-found' })
     await openRail(page)
     const section = page.getByTestId('config-locked-section')
     await expect(section.locator('summary')).toContainText('不可配键 · 19')

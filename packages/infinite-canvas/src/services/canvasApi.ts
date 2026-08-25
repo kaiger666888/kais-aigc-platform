@@ -1354,6 +1354,58 @@ export async function putGenerationConfigOverride(
   return json.data as { phaseKey: string; writeState: GenerationConfigWriteState }
 }
 
+// ─── GLM 模型配置 (08-25 配置 Tab · data/config/model-config.json) ─────────
+
+/** GLM 模型配置五字段（服务端 src/lib/modelConfig.ts 同形状）。 */
+export interface ModelConfig {
+  /** 图片评分视觉模型（ai-scorer；默认 glm-4v-flash）。 */
+  scorerVisionModel: string
+  /** 文本模型默认（hermes-adapter callLLM；默认 glm-5.1）。 */
+  textModel: string
+  /** 视觉模型默认（hermes-adapter；原 ZHIPU_VISION_MODEL，默认 glm-4.6v）。 */
+  visionModel: string
+  /** API Base（默认 https://open.bigmodel.cn/api/paas/v4）。 */
+  apiBase: string
+  /** API Key（缺省回落 env ZHIPU_API_KEY / OPENAI_API_KEY）。 */
+  apiKey: string
+}
+
+/** 每字段生效来源（GET 附带；apiKey 常见 'env'——文件未覆盖时）。 */
+export type ModelConfigSource = Record<keyof ModelConfig, 'file' | 'env' | 'default'>
+
+/** GET /api/canvas/v2/model-config — 生效视图 + 每字段来源。 */
+export async function fetchModelConfig(): Promise<{ config: ModelConfig; source: ModelConfigSource }> {
+  // cache:'no-store' 同 generation-config 范式：配置读必须新鲜。
+  const res = await fetch(`${API_BASE}/canvas/v2/model-config`, { method: 'GET', cache: 'no-store' })
+  if (!res.ok) throw new ApiError(`HTTP ${res.status}`, 'network', res.status)
+  const json = await res.json()
+  return json.data as { config: ModelConfig; source: ModelConfigSource }
+}
+
+/**
+ * PUT /api/canvas/v2/model-config — 全量写（空串 = 回落默认/env）。
+ * 400（apiBase 非 http(s)）时抛 ApiError，message 优先承载服务端文案。
+ */
+export async function putModelConfig(config: ModelConfig): Promise<{ config: ModelConfig; source: ModelConfigSource }> {
+  const res = await fetch(`${API_BASE}/canvas/v2/model-config`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config),
+  })
+  if (!res.ok) {
+    let message = `HTTP ${res.status}`
+    try {
+      const body = await res.json()
+      if (typeof body?.message === 'string' && body.message) message = body.message
+    } catch {
+      // body 不可解析时保留 HTTP 状态文案
+    }
+    throw new ApiError(message, 'network', res.status)
+  }
+  const json = await res.json()
+  return json.data as { config: ModelConfig; source: ModelConfigSource }
+}
+
 /**
  * 分镜故事板（storyboard board）—— p10b 组装的全景分镜板 JSON。
  * GET /api/v1/storyboard/:projectId/:episodesId 返回 { scenes[], stats }。

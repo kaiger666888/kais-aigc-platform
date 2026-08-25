@@ -18,6 +18,7 @@
  *  - POST /api/canvas/v2/variant-groups/:groupId/select-winner → 变体组选定 (镜像 select-winner.ts)
  *  - GET  /api/canvas/v2/generation-config    → 冗余配置三源合并读 (查表生成)
  *  - PUT  /api/canvas/v2/generation-config/overrides/:phaseKey → 覆盖层写 (writeState 可注入)
+ *  - GET/PUT /api/canvas/v2/model-config      → GLM 模型配置 (08-25 配置 Tab;内存)
  *  多组 search fixture 经 /__mock/config { assetFixture:'rich' } 激活,/__mock/reset 归位默认。
  *
  * WebSocket 命名空间: /ws/projects
@@ -274,6 +275,7 @@ function reset() {
   state.fixtureAssets = null
   state.fixtureVariantGroups = structuredClone(DEFAULT_VARIANT_GROUPS)
   state.generationConfig = { overrides: {}, fileShape: 'not-found' }
+  state.modelConfig = null // 08-25 GLM 模型配置归默认
 }
 
 function logCall(method, path, body, response) {
@@ -520,6 +522,37 @@ app.put('/api/canvas/v2/generation-config/overrides/:phaseKey', (req, res) => {
 // (scopeEvents 按 projectId:episodesId 计数,只吐发生过保存的 scope);真实后端
 // 不吐 eventCount(FLAG-2,mock/real 分歧有意保留——mock 使 e2e 可行为覆盖
 // health-poll 通道)。
+// ─── 08-25 — GLM 模型配置 (配置 Tab;内存态,reset 归默认) ──
+const MODEL_CONFIG_DEFAULT = {
+  scorerVisionModel: 'glm-4v-flash',
+  textModel: 'glm-5.1',
+  visionModel: 'glm-4.6v',
+  apiBase: 'https://open.bigmodel.cn/api/paas/v4',
+  apiKey: '',
+}
+app.get('/api/canvas/v2/model-config', (req, res) => {
+  const config = { ...MODEL_CONFIG_DEFAULT, ...(state.modelConfig ?? {}) }
+  const source = {}
+  for (const k of Object.keys(MODEL_CONFIG_DEFAULT)) {
+    source[k] = state.modelConfig?.[k] != null ? 'file' : k === 'apiKey' ? 'default' : 'default'
+  }
+  res.json({ code: 0, data: { config, source } })
+})
+app.put('/api/canvas/v2/model-config', (req, res) => {
+  logCall('PUT', '/api/canvas/v2/model-config', req.body ?? {}, null)
+  // 与主服务 zod 同语义:apiBase 非空须 http(s)://。
+  if (req.body?.apiBase && !/^https?:\/\//.test(req.body.apiBase)) {
+    return res.status(400).json({ code: 400, message: 'apiBase 须为 http(s):// 开头' })
+  }
+  state.modelConfig = { ...(state.modelConfig ?? {}), ...req.body }
+  const config = { ...MODEL_CONFIG_DEFAULT, ...state.modelConfig }
+  const source = {}
+  for (const k of Object.keys(MODEL_CONFIG_DEFAULT)) {
+    source[k] = state.modelConfig?.[k] != null ? 'file' : 'default'
+  }
+  res.json({ code: 0, data: { saved: state.modelConfig, config, source } })
+})
+
 app.get('/api/canvas/v2/health', (req, res) => {
   const scopes = [...state.scopeEvents.entries()].map(([key, ev]) => {
     const [projectId, episodesId] = key.split(':').map(Number)

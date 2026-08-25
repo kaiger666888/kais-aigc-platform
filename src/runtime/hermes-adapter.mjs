@@ -23,6 +23,9 @@
 
 import { readFile } from 'node:fs/promises';
 import { basename, extname } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 
 const HERMES_URL = process.env.HERMES_MCP_URL || '';
 const HERMES_KEY = process.env.HERMES_MCP_API_KEY || '';
@@ -33,12 +36,34 @@ const HERMES_TIMEOUT = 60000;
 const DEFAULT_TEXT_MODEL = 'glm-5.1';
 const DEFAULT_VISION_MODEL = 'glm-4.6v';  // v3.0: 统一升级,可经 ZHIPU_VISION_MODEL 覆盖
 
+// ─── GLM 模型配置面(08-25 配置 Tab) ────────────────────────
+// 与 kap 服务端 src/lib/modelConfig.ts 同文件:data/config/model-config.json
+// (相对仓库根——本文件按 import 自身位置向上寻 kais-aigc-platform 根,cwd 无关)。
+// 优先级:显式 options > 配置文件 > env(ZHIPU_VISION_MODEL) > 内置默认。
+// 文件缺失/损坏一律静默回落(与 lib 侧 readModelConfigRaw 同语义)。
+function readModelConfigDefaults() {
+  try {
+    // src/runtime/ → 上两级即仓库根(脚本经 tsx 从任意 cwd 跑时也稳)
+    const repoRoot = join(dirname(dirname(dirname(fileURLToPath(import.meta.url)))));
+    const raw = readFileSync(join(repoRoot, 'data', 'config', 'model-config.json'), 'utf-8');
+    const parsed = JSON.parse(raw);
+    return {
+      textModel: typeof parsed.textModel === 'string' && parsed.textModel.trim() ? parsed.textModel.trim() : null,
+      visionModel: typeof parsed.visionModel === 'string' && parsed.visionModel.trim() ? parsed.visionModel.trim() : null,
+      apiBase: typeof parsed.apiBase === 'string' && parsed.apiBase.trim() ? parsed.apiBase.trim() : null,
+    };
+  } catch {
+    return { textModel: null, visionModel: null, apiBase: null };
+  }
+}
+const MODEL_CONFIG = readModelConfigDefaults();
+
 /**
  * 返回当前生效的视觉模型名（单一来源，避免 5 处硬编码碎片）。
  * @returns {string}
  */
 export function getDefaultVisionModel() {
-  return process.env.ZHIPU_VISION_MODEL || DEFAULT_VISION_MODEL;
+  return MODEL_CONFIG.visionModel || process.env.ZHIPU_VISION_MODEL || DEFAULT_VISION_MODEL;
 }
 
 /**
@@ -46,7 +71,7 @@ export function getDefaultVisionModel() {
  * @returns {string}
  */
 export function getDefaultTextModel() {
-  return process.env.OPENAI_TEXT_MODEL || DEFAULT_TEXT_MODEL;
+  return MODEL_CONFIG.textModel || process.env.OPENAI_TEXT_MODEL || DEFAULT_TEXT_MODEL;
 }
 
 // ─── imagePathToDataUrl (file:// → base64 data URL) ───────
@@ -305,7 +330,7 @@ export async function callLLM(arg1, arg2) {
   }
 
   // Fallback: direct ZHIPU API call
-  const apiBase = options.apiBase || process.env.OPENAI_BASE_URL || 'https://open.bigmodel.cn/api/paas/v4';
+  const apiBase = options.apiBase || MODEL_CONFIG.apiBase || process.env.OPENAI_BASE_URL || 'https://open.bigmodel.cn/api/paas/v4';
   const apiKey = options.apiKey || process.env.ZHIPU_API_KEY || process.env.OPENAI_API_KEY || '';
   // 自动检测: multimodal prompt 默认走视觉模型
   const defaultModel = Array.isArray(prompt) ? getDefaultVisionModel() : getDefaultTextModel();
@@ -404,7 +429,7 @@ export async function callEmbedding(text, options = {}) {
   }
 
   const model = options.model || 'embedding-3';
-  const apiBase = options.apiBase || process.env.OPENAI_BASE_URL || 'https://open.bigmodel.cn/api/paas/v4';
+  const apiBase = options.apiBase || MODEL_CONFIG.apiBase || process.env.OPENAI_BASE_URL || 'https://open.bigmodel.cn/api/paas/v4';
   const apiKey = options.apiKey || process.env.ZHIPU_API_KEY || process.env.OPENAI_API_KEY || '';
 
   if (!apiKey) {

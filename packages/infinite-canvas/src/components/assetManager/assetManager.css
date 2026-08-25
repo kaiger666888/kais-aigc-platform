@@ -70,6 +70,10 @@
 .am-tree-node__ic{width:17px;text-align:center;font-size:13px}
 .am-tree-node__n{margin-left:auto;font-family:var(--cv-font-mono);font-size:10.5px;color:var(--cv-text-tertiary)}
 .am-tree-node.is-on .am-tree-node__n{color:var(--cv-mod-image)}
+/* 管线阶段号 chip（08-25 资产库阶段标识）：子类型行的管线坐标，置标签与计数之间。
+   mono 弱化处理——读作数据列而非徽章；颜色随行状态继承（选中行不破色）。 */
+.am-tree-node__phase{flex:0 0 auto;font-family:var(--cv-font-mono);font-size:9px;letter-spacing:.02em;
+  color:inherit;opacity:.62;padding:1px 4px;border-radius:4px;background:var(--cv-bg-overlay)}
 .am-lib__main{display:flex;flex-direction:column;min-width:0;min-height:0}
 .am-lib__toolbar{display:flex;align-items:center;gap:8px;padding:11px 16px;border-bottom:1px solid var(--cv-line-panel);flex-wrap:wrap}
 .am-lib__count{margin-left:auto;font-size:11.5px;color:var(--cv-text-tertiary);font-family:var(--cv-font-mono)}
@@ -730,60 +734,15 @@
 .am-sb-shot__vp p{font:11.5px/1.8 var(--cv-font-mono);color:var(--cv-text-tertiary);
   white-space:pre-wrap;word-break:break-all;margin:6px 0 0}
 
-/* ──────────────── 视图 · 资产层级（62-04 第 5 Tab assetView='hierarchy'） ────────────────
-   L1 域树 220px + L2/L3 主区；冗余配置右栏（340px）62-06 落，届时栅格改三列。
-   全部走既有 --cv-*/am-* 词汇（UI-SPEC Visual Language 表），零新全局 token；
-   新增派生类仅 .am-hier 栅格 + .am-group--singleton modifier + hier-toolbar/计数芯片。 */
-.am-hier{display:grid;grid-template-columns:220px 1fr;height:100%}
-.am-hier__main{display:flex;flex-direction:column;min-width:0;min-height:0}
-.am-hier__toolbar{display:flex;align-items:center;gap:8px;padding:11px 16px;
-  border-bottom:1px solid var(--cv-line-panel);flex-wrap:wrap}
-/* C7 计数芯片：★N 青（--cv-mod-image）/ ○N 中性 / ✕N 玫（--cv-mod-video）+ 灰 mono「共 N」
-   —— 图标词汇取自既有三态 tab 前缀，配色语义与 .am-pipe__verdict--cont/--cut 一脉。 */
-.am-hier__counts{display:inline-flex;align-items:center;gap:7px;
-  font-family:var(--cv-font-mono);font-size:10.5px;white-space:nowrap}
-.am-hier__c--sel{color:var(--cv-mod-image)}
-.am-hier__c--cut{color:var(--cv-mod-video)}
-.am-hier__c--total{color:var(--cv-text-tertiary)}
-/* 域树节点内紧凑版（220px 窄栏；替换默认 .am-tree-node__n 单计数位） */
-.am-hier__counts--tree{margin-left:auto;gap:5px;font-size:9.5px}
-/* 单件桶（C3 单件变体）：非互斥组——去金竖条与金渐变底，弱化为普通分组容器 */
-.am-group--singleton{border-left-color:var(--cv-line-panel);background:none}
-/* C6-2 VG 徽标 chip：可点（开变体墙），青弱底/青字（.am-badge 基底上的派生态） */
-.am-hier__vg{cursor:pointer;border:none;transition:filter .12s}
-.am-hier__vg:hover{filter:brightness(1.15)}
-/* 响应式沿 .am-lib 同款断点（≤880px 左树隐藏；.am-tree{display:none} 既有规则全局生效） */
-@media (max-width:880px){.am-hier{grid-template-columns:1fr}}
-
-/* ── C4 批量决策条 + 组 checkbox + 手动 chip（62-05，D-06/D-07） ──
-   全既有 token；armed 态玫实底（UI-SPEC C4 destructive 位），手动 chip 沿
-   --cv-mod-audio 音频模态弱底词汇（.am-voice-badge 同源）。 */
-.am-hier__batch{display:flex;align-items:center;gap:10px;padding:9px 16px;flex-wrap:wrap;
-  border-bottom:1px solid var(--cv-line-panel);background:var(--cv-bg-panel)}
-.am-hier__batch-n{font-family:var(--cv-font-mono);font-size:11px;color:var(--cv-text-secondary)}
-/* 批量淘汰：.am-btn--ghost 基底 + 玫红 hover；armed 态玫实底（防误触确认位） */
-.am-hier__batch-eliminate:hover{color:var(--cv-mod-video);border-color:var(--cv-mod-video)}
-.am-hier__batch-eliminate[data-armed='true']{background:var(--cv-mod-video);
-  color:var(--cv-text-on-accent);border-color:var(--cv-mod-video)}
-/* 组 checkbox（组卡 header 首位；accent = 青，选定系词汇） */
-.am-hier__group-check{display:inline-flex;align-items:center;flex:none;cursor:pointer}
-.am-hier__group-check input[type=checkbox]{accent-color:var(--cv-mod-image);cursor:pointer}
-/* D-07 手动组 chip：.am-badge 基底 + --cv-mod-audio 弱底（场景/声纹手动选择标注） */
-.am-hier__manual-chip{background:var(--cv-mod-audio-weak);color:var(--cv-mod-audio);cursor:default}
-
-/* ──────────────── C8 · 冗余配置右栏（62-06，HIER-03） ────────────────
+/* ──────────────── C8 · 冗余配置 rail（62-06；08-25 起内嵌配置 Tab） ────────────────
    .am-cfg-rail 列容器 + 行/divider + 来源角标 chip + 写徽标——全既有 --cv-* /
    am-* 词汇（UI-SPEC Visual Language 表），零新全局 token；写徽标 600 字重
    （Typography 表「600 for 写徽标」）。确定性派生档位 = 玫弱底警示；
    来源角标 override 青 / requirement 金 / snapshot 中性 / legacy 虚线边。 */
-/* 开第三列：220px 1fr 340px（transition 缓入；栅格列数变化时浏览器按离散插值
-   呈现，rail 自带 am-cfg-in 滑入动画防跳变） */
-.am-hier--cfg{grid-template-columns:220px minmax(0,1fr) 340px;transition:grid-template-columns .18s ease}
-.am-hier__config-toggle.is-on{color:var(--cv-mod-image);border-color:rgba(86,184,154,.35);
-  background:var(--cv-mod-image-weak)}
+/* 内嵌配置 Tab：rail 原为层级视图第三栏（border-left + 滑入动画），嵌入后
+   去边线/动画，宽度自适应容器（不再钉 340px）。 */
 .am-cfg-rail{display:flex;flex-direction:column;min-height:0;min-width:0;background:var(--cv-bg-panel);
-  border-left:1px solid var(--cv-line-panel);overflow-y:auto;animation:am-cfg-in .18s ease-out}
-@keyframes am-cfg-in{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:none}}
+  overflow-y:auto}
 .am-cfg__head{display:flex;align-items:center;gap:8px;padding:12px 12px 8px;flex-wrap:wrap}
 /* 文件面状态码（requirement / legacy / not-found）——mono 灰 chip，非文案契约面 */
 .am-cfg__filestate{margin-left:auto;font-family:var(--cv-font-mono);font-size:9px;
@@ -838,10 +797,40 @@
   opacity:.45;cursor:not-allowed}
 .am-cfg__locked-row + .am-cfg__locked-row{border-top:1px dashed var(--cv-line-canvas)}
 .am-cfg__lock-count{font-family:var(--cv-font-mono);font-size:9.5px;color:var(--cv-text-tertiary)}
+
+/* ──────────────── 配置 Tab（08-25 · ConfigPanel） ────────────────
+   内容列 ≤760px 居中（表单最优行宽），纵向滚动；两节卡（GLM 模型 / 冗余配置）。
+   全既有 --cv-*/am-* 词汇，零新 token；字段 = 标签行(含来源角标) + 输入 + 注记。 */
+.am-config{height:100%;overflow-y:auto;padding:18px 16px 28px}
+.am-config__col{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.am-config__section{background:var(--cv-bg-panel);border:1px solid var(--cv-line-panel);
+  border-radius:10px;overflow:hidden}
+.am-config__h{display:flex;align-items:flex-start;gap:10px;padding:13px 14px 11px;
+  border-bottom:1px solid var(--cv-line-panel)}
+.am-config__h-ic{font-size:16px;line-height:1.4;flex:0 0 auto}
+.am-config__h-title{font-size:13px;font-weight:600;color:var(--cv-text-primary)}
+.am-config__h-sub{font-size:10.5px;color:var(--cv-text-tertiary);margin-top:3px;line-height:1.5}
+/* GLM 字段栅格：两列（≤880px 单列）；mono 输入沿用 --cv-bg-card 输入面词汇 */
+.am-mc__fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;padding:14px}
+.am-mc__field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.am-mc__label{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--cv-text-secondary)}
+.am-mc__input{background:var(--cv-bg-card);border:1px solid var(--cv-line-panel);border-radius:7px;
+  padding:7px 10px;color:var(--cv-text-primary);font-size:12px;width:100%;transition:border-color .15s}
+.am-mc__input:focus{border-color:var(--cv-line-strong);outline:none}
+.am-mc__input--mono{font-family:var(--cv-font-mono);font-size:11.5px}
+.am-mc__input::placeholder{color:var(--cv-text-disabled)}
+.am-mc__note{font-size:9.5px;color:var(--cv-text-tertiary)}
+/* 来源角标（file 青 / env 金 / default 中性——沿冗余配置来源角标配色语义） */
+.am-mc__src{font-family:var(--cv-font-mono);font-size:8.5px;padding:1px 6px;border-radius:8px;
+  white-space:nowrap;cursor:help;background:var(--cv-bg-overlay);color:var(--cv-text-tertiary)}
+.am-mc__src--file{color:var(--cv-mod-image);background:var(--cv-mod-image-weak)}
+.am-mc__src--env{color:var(--cv-mod-text);background:var(--cv-mod-text-weak)}
+.am-mc__foot{display:flex;align-items:center;gap:8px;padding:11px 14px;
+  border-top:1px solid var(--cv-line-panel)}
+.am-mc__spacer{flex:1 1 auto}
 /* ≤880px rail 整宽下挂区（沿既有断点词汇；左树由全局 .am-tree 规则隐藏） */
 @media (max-width:880px){
-  .am-hier--cfg{grid-template-columns:1fr}
-  .am-cfg-rail{border-left:none;border-top:1px solid var(--cv-line-panel)}
+  .am-config__col{max-width:none}
 }
 
 /* ── 文字资产阅读器（.am-rd）──────────────────────────────

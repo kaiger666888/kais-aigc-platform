@@ -176,6 +176,7 @@ export const PHASE_BY_SUBTYPE: Partial<Record<AssetSubtype, PhaseBySubtypeEntry>
   turnaround_view: { phaseCode: 'P04' },
   costume_temporal_variant: { phaseCode: 'P04' },
   costume_turnaround: { phaseCode: 'P04' },
+  costume_design: { phaseCode: 'P04' },
   character_bible: { phaseCode: 'P04' },
   spatio_temporal_script: { phaseCode: 'P06' },
   // P07 场景设计族
