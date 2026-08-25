@@ -142,6 +142,8 @@ export const TYPE_DOMAIN: Record<string, AssetDomain> = {
   requirement: 'text',
   story: 'text',
   script: 'text',
+  // 62-07 报告类资产（type='document'）按文档语义归文本域（此前兜底 media 误染玫）
+  document: 'text',
 }
 
 /** type → 域（未列类型兜底 media）。 */

@@ -1,5 +1,8 @@
 /**
- * 创作文档面板 —— Notion 设计文档嵌入视图 (AssetManager 第 4 个 Tab)
+ * Notion 文档面板 —— Notion 设计文档在线视图（AssetManager 第 4 个 Tab，
+ * 08-25 命名收口：Tab 标签由「创作文档」改「Notion 文档」，按真值源命名——
+ * 本面板直连 Notion API 读在线真值；注册表快照（o_assets）侧的文字阅读在
+ * 资产库详情 TextReader，两者经阅读器「Notion 在线版 →」互链）
  *
  * 左栏: 文档树侧栏 (主页面下的 7 个 Notion 子页面目录)
  * 右栏: 文档内容渲染区 (Markdown 风格渲染 Notion block)

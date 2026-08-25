@@ -843,3 +843,51 @@
   .am-hier--cfg{grid-template-columns:1fr}
   .am-cfg-rail{border-left:none;border-top:1px solid var(--cv-line-panel)}
 }
+
+/* ── 文字资产阅读器（.am-rd）──────────────────────────────
+   稿纸列：单一 ≤46em 阅读栏居中（中文剧本最优行宽），正文 14.5px/1.95。
+   accent = --cv-mod-text（文本模态金）——与 StoryboardReader 同语言，
+   这块面板就是 text modality 的具象化。键序即阅读序。
+   前缀 am-rd 特意避开 DocumentPanel 既有的 .am-doc-* 命名空间
+   （Notion 块渲染器先占——08-25 曾撞 .am-doc-p 同特异性互踩）。 */
+.am-rd{height:100%;min-height:0;overflow-y:auto;padding:22px 26px 40px;
+  display:flex;flex-direction:column;gap:16px}
+.am-rd-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.am-rd-head__t{display:flex;align-items:baseline;gap:10px;font-size:17px;min-width:0}
+.am-rd-head__emoji{font-size:22px}
+.am-rd-head__prov{margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+  font-family:var(--cv-font-mono);font-size:11.5px;color:var(--cv-text-tertiary)}
+.am-rd-chip{color:var(--cv-mod-text);background:var(--cv-mod-text-weak);
+  border-radius:4px;padding:2px 7px;font-size:10.5px}
+.am-rd-head__link{background:none;border:none;padding:0;cursor:pointer;
+  font:inherit;color:var(--cv-mod-text)}
+.am-rd-head__link:hover,.am-rd-head__link:focus-visible{text-decoration:underline}
+/* 稿纸列 */
+.am-rd-col{width:100%;max-width:46em;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+/* 正文流 */
+.am-rd-prose{font-size:14.5px;line-height:1.95;color:var(--cv-text-primary);letter-spacing:.01em}
+.am-rd-p{margin:0 0 .7em}
+.am-rd-li{position:relative;margin:0 0 .45em;padding-left:1.15em}
+.am-rd-li::before{content:"·";position:absolute;left:.2em;color:var(--cv-mod-text-dim)}
+.am-rd-h{display:flex;align-items:center;gap:10px;margin:1em 0 .45em;
+  font-size:12.5px;font-weight:600;letter-spacing:.08em;color:var(--cv-mod-text)}
+.am-rd-h::after{content:"";flex:1;height:1px;background:var(--cv-line-strong);opacity:.6}
+.am-rd-h--1{font-size:14px}
+.am-rd-h--3{font-size:11.5px;letter-spacing:.1em}
+.am-rd-hr{border:none;height:1px;background:var(--cv-line-panel);margin:.7em 0}
+/* 键值行（短字段；.am-sb-f 同语法，阅读栏宽键位） */
+.am-rd-f{display:flex;gap:10px;font-size:13px;line-height:1.75;align-items:baseline}
+.am-rd-f__k{flex:0 0 64px;color:var(--cv-text-tertiary);font-size:11.5px}
+.am-rd-f__v{color:var(--cv-text-secondary);word-break:break-word;min-width:0}
+/* 字符串数组（钩子检查/层级规划） */
+.am-rd-list{margin:6px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:5px}
+.am-rd-list li{position:relative;padding-left:1.15em;font-size:13px;line-height:1.75;
+  color:var(--cv-text-secondary)}
+.am-rd-list li::before{content:"·";position:absolute;left:.2em;color:var(--cv-mod-text-dim)}
+/* 对象数组（分集梗概卡）：金色竖条 + mono 徽标行 */
+.am-rd-recs{display:flex;flex-direction:column;gap:9px;margin-top:6px}
+.am-rd-rec{border-left:2px solid var(--cv-mod-text-dim);padding:2px 0 2px 12px;
+  display:flex;flex-direction:column;gap:3px}
+.am-rd-rec__h{display:flex;gap:9px;align-items:baseline;min-width:0;flex-wrap:wrap}
+.am-rd-rec__chip{font-family:var(--cv-font-mono);font-size:11.5px;color:var(--cv-mod-text)}
+.am-rd-rec__t{font-size:12.5px;color:var(--cv-text-primary)}

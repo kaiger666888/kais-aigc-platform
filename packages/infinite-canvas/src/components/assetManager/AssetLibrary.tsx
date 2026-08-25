@@ -540,6 +540,32 @@ export default function AssetLibrary() {
     })
   }, [filtered, tab])
 
+  // ── 三态默认落位（08-24 缺口③：三态错位）──
+  // 用户未显式选过 tab 时，当前筛选面若「选定」为空，自动落到最有信息量的 tab
+  //（待选 > 淘汰）。治「树计数 78、网格全空」——典型：Notion 文档导入
+  // isPrimaryView=0 全落待选 / 服化道批量淘汰后全落淘汰，默认「选定」只剩空网格。
+  // 用户一旦亲手切过 tab，即视为表达意图，不再自动跟随。
+  const userTouchedTabRef = useRef(false)
+  const userSetTab = useCallback((t: AssetTab) => {
+    userTouchedTabRef.current = true
+    setTab(t)
+  }, [])
+  useEffect(() => {
+    if (userTouchedTabRef.current || loading) return
+    if (filtered.length === 0) return
+    const counts = {
+      selected: 0, candidate: 0, eliminated: 0,
+    } as Record<AssetTab, number>
+    for (const d of filtered) {
+      if (isAssetSelected(d)) counts.selected++
+      else if (isAssetEliminated(d)) counts.eliminated++
+      else counts.candidate++
+    }
+    if (tab === 'selected' && counts.selected === 0) {
+      setTab(counts.candidate > 0 ? 'candidate' : 'eliminated')
+    }
+  }, [filtered, loading, tab])
+
   // 待选资产按 getGroupKey 分组 —— 让用户一眼识别同组变体、便于对比选择。
   // 仅 candidate tab 启用；selected（每组仅 1 张无对比需求）/eliminated（回收站）仍是平铺网格。
   const candidateGroups = useMemo<CandidateGroup[]>(() => {
@@ -1208,19 +1234,19 @@ export default function AssetLibrary() {
           <div className="am-scope">
             <button
               className={tab === 'selected' ? 'is-on' : ''}
-              onClick={() => setTab('selected')}
+              onClick={() => userSetTab('selected')}
             >
               ★ 选定资产
             </button>
             <button
               className={tab === 'candidate' ? 'is-on' : ''}
-              onClick={() => setTab('candidate')}
+              onClick={() => userSetTab('candidate')}
             >
               ○ 待选资产
             </button>
             <button
               className={tab === 'eliminated' ? 'is-on' : ''}
-              onClick={() => setTab('eliminated')}
+              onClick={() => userSetTab('eliminated')}
             >
               ✕ 淘汰资产
             </button>

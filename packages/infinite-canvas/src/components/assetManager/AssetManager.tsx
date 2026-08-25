@@ -7,6 +7,13 @@
  * 「场景管理」合并了原「场景管理」(多视角设定图) 与「首尾帧流水线」(分镜级首尾帧 + 连续性判定)。
  * 资产详情改为右侧 drawer（selectedAssetUuid != null 时弹出），不再独占整个视图。
  * 双击资产库卡片弹出，点击资产库空白区域关闭。
+ *
+ * Tab 命名（2026-08-25 命名收口）：
+ *   - 第 4 Tab 「Notion 文档」——按真值源命名（直连 Notion API，非注册表快照）；
+ *     注册表侧的文字阅读在资产库详情 TextReader（稿纸列），两家的关系在阅读器
+ *     provenance + 「Notion 在线版 →」互链，不再是隐形平行宇宙。
+ *   - 第 5 Tab 「选片决策」——按职能命名（候选组三态流转/批量决策/冗余配置），
+ *     不再与资产库左树（「资产层级」筛选器）共用同名造成「两棵重复的树」误读。
  */
 import { useCallback } from 'react'
 import { useCanvasStore } from '../../store/canvasStore'
@@ -25,9 +32,9 @@ const TABS: Array<{ key: AssetView; label: string }> = [
   { key: 'library', label: '资产库' },
   { key: 'character', label: '角色管理' },
   { key: 'scene_shot', label: '场景管理' },
-  { key: 'documents', label: '创作文档' },
-  // 62-04：第 5 Tab「资产层级」——三域折叠树 + 组卡 + 单件桶（HIER-04：默认视图仍 library）
-  { key: 'hierarchy', label: '资产层级' },
+  { key: 'documents', label: 'Notion 文档' },
+  // 62-04：第 5 Tab（原标签「资产层级」，08-25 改「选片决策」）——三域折叠树 + 组卡 + 单件桶（HIER-04：默认视图仍 library）
+  { key: 'hierarchy', label: '选片决策' },
 ]
 
 export default function AssetManager() {

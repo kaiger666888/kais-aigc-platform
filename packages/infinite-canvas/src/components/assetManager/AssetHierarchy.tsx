@@ -1,5 +1,6 @@
 /**
- * 视图 · 资产层级（62-04，第 5 Tab assetView='hierarchy'）—— 三层资产组织：
+ * 视图 · 选片决策（62-04 落地，第 5 Tab assetView='hierarchy'；原标签「资产层级」
+ * 08-25 命名收口改名——按职能命名，避免与资产库左树同名）—— 三层资产组织：
  *   L1 域导航树（左栏 220px：全部 + 设定资产/媒体产物/文本产物 固定纲，C2）
  *   L2 候选组折叠卡（getGroupKey 轴，C3）+ 每域末尾「单件资产」桶（C3 单件变体）
  *   L3 候选卡（复用 renderAssetCard，层级模式按卡自身三态出按钮，C5）
@@ -393,10 +394,12 @@ export default function AssetHierarchy() {
       className={`am-hier${configOpen ? ' am-hier--cfg' : ''}`}
       data-testid="hierarchy-view"
     >
-      {/* ── L1 域导航树（C2；.am-tree 既有词汇原样） ── */}
+      {/* ── L1 域导航树（C2；.am-tree 既有词汇原样）──
+          树头「按域筛选」（08-25 命名收口：本视图 Tab 已改名「选片决策」，
+          树是域过滤器，不再与资产库左树的「资产层级」同名混读） */}
       <aside className="am-tree">
         <div className="am-tree-group">
-          <div className="am-tree-group__h"><span>资产层级</span></div>
+          <div className="am-tree-group__h"><span>按域筛选</span></div>
           <button
             className={`am-tree-node ${domainFilter.size === 0 ? 'is-on' : ''}`}
             data-testid="hier-all-node"

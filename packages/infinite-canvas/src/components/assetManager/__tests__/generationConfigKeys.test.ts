@@ -110,7 +110,9 @@ describe('TYPE_DOMAIN / domainOfType', () => {
       'prop_consumable', 'costume', 'accessory', 'keyframe']
     const mediaTypes = ['video', 'clip', 'audio', 'voice', 'storyboard']
     const textTypes = ['script_phase', 'outline', 'topic', 'storyboard_board', 'delivery',
-      'style', 'requirement', 'story', 'script']
+      'style', 'requirement', 'story', 'script',
+      // 08-25：document（62-07 报告类）按文档语义归文本域，此前兜底 media 误染玫
+      'document']
     for (const t of settingTypes) expect(TYPE_DOMAIN[t], t).toBe('setting')
     for (const t of mediaTypes) expect(TYPE_DOMAIN[t], t).toBe('media')
     for (const t of textTypes) expect(TYPE_DOMAIN[t], t).toBe('text')

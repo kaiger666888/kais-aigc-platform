@@ -8,9 +8,10 @@ import { resolveMediaUrl } from '../../utils/mediaUrl'
 import { useRealAssets } from './useRealAssets'
 import AssetChainTrace from './AssetChainTrace'
 import StoryboardReader, { hasBoard } from './StoryboardReader'
+import TextReader, { parseDocumentMeta } from './TextReader'
 import {
   ASSETS, COMPOSITIONS, APPEARS, EPISODES, TYPE_LABEL,
-  assetByUuid, assetDetailToItem, modalityVar,
+  assetByUuid, assetDetailToItem, isDocumentAsset, modalityVar,
   type AssetItem,
 } from './assetManagerData'
 
@@ -33,12 +34,17 @@ export default function AssetDetail() {
   const { assets: realAssets } = useRealAssets(projectId)
 
   // 取数：真实资产优先（资产库进入），否则回退 mock（角色衣柜/场景管理进入）。
+  // realDetail 一并保留：TextReader 门控（isDocumentAsset 吃 AssetDetail）与
+  // provenance（createdAt）都用真实行。
+  const realDetail = useMemo(() => {
+    if (!uuid) return undefined
+    return realAssets.find((d) => (d.uuid || `id-${d.id}`) === uuid)
+  }, [uuid, realAssets])
   const a = useMemo<AssetItem | undefined>(() => {
     if (!uuid) return undefined
-    const real = realAssets.find((d) => (d.uuid || `id-${d.id}`) === uuid)
-    if (real) return assetDetailToItem(real)
+    if (realDetail) return assetDetailToItem(realDetail)
     return assetByUuid(uuid)
-  }, [uuid, realAssets])
+  }, [uuid, realDetail])
 
   // 生成链路需要同项目全部资产做跨资产关联推断。
   const allItems = useMemo<AssetItem[]>(() => realAssets.map(assetDetailToItem), [realAssets])
@@ -92,6 +98,12 @@ export default function AssetDetail() {
   // 分镜板（storyboard_board）→ 专用阅读器视图；meta 无 scenes 结构时回退常规布局。
   if (a.type === 'storyboard_board' && hasBoard(a.meta)) {
     return <StoryboardReader item={a} onBack={closeAssetDetail} />
+  }
+
+  // 文档型资产（Notion 导入 8 类创意文档）→ 文字阅读器（稿纸列）；
+  // meta 无可展示字段（parseDocumentMeta null）时回退常规布局。
+  if (realDetail && isDocumentAsset(realDetail) && parseDocumentMeta(realDetail.meta)) {
+    return <TextReader item={a} detail={realDetail} onBack={closeAssetDetail} />
   }
 
   const appears = APPEARS[a.uuid]

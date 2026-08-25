@@ -24,6 +24,8 @@ export type AssetType =
   // 粗粒度（现网 registry 真实数据）
   | 'clip' | 'voice' | 'video' | 'storyboard' | 'storyboard_board'
   | 'script_phase' | 'outline' | 'topic' | 'delivery'
+  // Notion 文档型资产的真实 DB type（meta.subtype 短路前的裸 type 也能正确显示）
+  | 'script' | 'story' | 'requirement' | 'document'
 
 export type AssetModality = 'image' | 'text' | 'audio' | 'video'
 export type AssetScope = 'library' | 'series' | 'project'
@@ -217,6 +219,8 @@ export const TYPE_LABEL: Record<AssetType, string> = {
   clip: '片段', voice: '声纹', video: '视频', storyboard: '分镜',
   storyboard_board: '分镜板',
   script_phase: '剧本', outline: '大纲', topic: '选题', delivery: '交付',
+  // Notion 文档型 DB type（08-24 缺口②：此前不在映射 → 卡片/详情 typetag 空白）
+  script: '剧本', story: '故事框架', requirement: '创作需求', document: '文档',
 }
 
 export const SLOT_LABEL: Record<EquipSlot, string> = {
@@ -250,7 +254,11 @@ export const modalityWeakVar = (m: AssetModality): string => modalityVar(m) + '-
 export function modalityOfType(type: string): AssetModality {
   if (['voice', 'audio'].includes(type)) return 'audio'
   if (['video', 'clip'].includes(type)) return 'video'
-  if (['script_phase', 'outline', 'topic', 'style', 'delivery', 'storyboard_board'].includes(type)) return 'text'
+  if ([
+    'script_phase', 'outline', 'topic', 'style', 'delivery', 'storyboard_board',
+    // Notion 文档型 DB type（08-24 缺口②：此前落 image → 文字资产误染青色）
+    'script', 'story', 'requirement', 'document',
+  ].includes(type)) return 'text'
   return 'image' // character/scene/prop/costume/accessory/storyboard/...
 }
 
@@ -261,6 +269,7 @@ export function emojiOfType(type: string): string {
     prop_consumable: '🥫', costume: '👘', accessory: '💍', style: '🎨', audio: '🎵',
     voice: '🎙️', video: '🎬', clip: '🎞️', storyboard: '🎬', script_phase: '📝',
     outline: '🗂️', topic: '💡', delivery: '📦', storyboard_board: '📜',
+    script: '📝', story: '📐', requirement: '📋', document: '📄',
   }
   return map[type] ?? '📦'
 }
@@ -608,6 +617,12 @@ export function inferSubtype(d: AssetDetail): AssetSubtype {
     // 计入域 total——D-03）。
     return 'delivery_package'
   }
+  // ── Notion 文档型资产裸 type 兜底 ──
+  // meta.subtype 短路表在上面；此处兜住「DB type 对但 meta.subtype 缺失」的行
+  //（否则落 'unknown'，树计数/阅读器门控全失效）。
+  if (d.type === 'script') return 'episode_script'
+  if (d.type === 'story') return 'story_framework'
+  if (d.type === 'requirement') return 'pipeline_requirement'
   return 'unknown'
 }
 
@@ -1381,6 +1396,10 @@ function inferSubtypeFromItem(a: AssetItem): AssetSubtype {
   }
   // type='document' 兜底 —— 与 inferSubtype(AssetDetail) 保持等价（62-07 收尾修复）
   if (t === 'document') return 'delivery_package'
+  // ── Notion 文档型裸 type 兜底 —— 与 inferSubtype(AssetDetail) 保持等价 ──
+  if (t === 'script') return 'episode_script'
+  if (t === 'story') return 'story_framework'
+  if (t === 'requirement') return 'pipeline_requirement'
   return 'unknown'
 }
 
@@ -1485,5 +1504,26 @@ export const LEVEL_LABEL: Record<AssetLevel, string> = {
   scene: '场景级',
   shot: '分镜级',
   pipeline: '管线产出',
+}
+
+// ─── 文档型资产（文字资产阅读器门控） ──────────────────────
+//
+// 这些子类型的 meta 载有可读正文/字段（Notion 导入 8 类创意文档），
+// 详情走 TextReader（稿纸列）而非通用媒体布局（08-24 缺口①：剧本正文零展示）。
+
+/** 文档型子类型集合（TextReader 适用面）。 */
+export const DOC_SUBTYPES: ReadonlySet<string> = new Set([
+  'episode_script', 'story_framework', 'pipeline_requirement',
+  'scene_design', 'costume_design', 'character_bible',
+  'voice_profile', 'bgm_design',
+])
+
+/**
+ * 资产是否走文字阅读器：文档型子类型命中（meta.subtype 或裸 type 兜底均
+ * 经 inferSubtype 归一）。meta 是否真有可展示字段由 TextReader 内
+ * parseDocumentMeta 再判（空则回退通用布局，双保险）。
+ */
+export function isDocumentAsset(d: AssetDetail): boolean {
+  return DOC_SUBTYPES.has(inferSubtype(d))
 }
 
