@@ -592,15 +592,16 @@ export const DAG_NODES: readonly DagNodeDef[] = [
   // P11a 预览质检（qwen-eye advisory）：变体首帧 vs shot intent；P14 聚合。
   { id: 'preview-qc', label: '预览质检', phaseCode: 'P11a', phaseIndex: 14, group: 'post', dim: true,
     match: { phaseIndex: 14, idIncludes: 'preview-qc' }, expectedCount: 1 },
-  // ── P11a.5 预演音频+成片（提案 2026-08-23；管线侧未落地 → 恒 pending「规划中」）──
+  // ── P11a.5 预演音频+成片（khs a046d47 2026-08-24 落地;PRG-02 2026-08-25 接通数据源）──
   // 环境音生成（foley 泳道前移到预演级）：按 shot-list 场景环境线索 + 预演夹画面
-  // 参考生成场景级环境底噪，产出 ambient-stems。
+  // 参考生成场景级环境底噪，产出 ambient-stems。khs 工件节点 a-ambient_stems-*。
   { id: 'ambient-stems', label: '环境音生成', phaseCode: 'P11a.5', phaseIndex: 14.5, group: 'post',
     match: { idIncludes: 'ambient' }, expectedCount: 'dynamic' },
   // 预演混音：voice-clips（TTS）与 ambient-stems 两两 pairwise amix（3+ 路并行 amix
-  // 会挂死——KMC 权威 pitfall），产出 preview-mix。
+  // 会挂死——KMC 权威 pitfall），产出 preview-mix。khs 工件节点 a-preview_mix_path
+  // （下划线——match 对齐 canvas_sync out_key 形,连字符形恒不命中）。
   { id: 'preview-amix', label: '预演混音', phaseCode: 'P11a.5', phaseIndex: 14.5, group: 'post',
-    match: { idIncludes: 'preview-mix' }, expectedCount: 'dynamic' },
+    match: { idIncludes: 'preview_mix' }, expectedCount: 'dynamic' },
   // 预演成片：preview-clips concat + preview-mix mux（纯 CPU ~3min），产出 roughcut-mp4。
   { id: 'rough-cut', label: '预演成片', phaseCode: 'P11a.5', phaseIndex: 14.5, group: 'post',
     match: { idIncludes: 'roughcut' }, expectedCount: 'dynamic' },

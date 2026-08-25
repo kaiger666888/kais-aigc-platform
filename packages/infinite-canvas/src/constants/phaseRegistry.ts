@@ -59,7 +59,7 @@ export const PHASE_REGISTRY: readonly PipelinePhaseDef[] = [
   { sortKey: 6, code: 'P07', name: '场景图生成', group: 'production', phaseIndex: 7, khsPrefix: 'p07', prefix: 'p07', canvasType: 'asset', assetType: 'scene', label: 'P07 · 视觉+风格化' },
   { sortKey: 7, code: 'P08', name: '场景选择', group: 'production', phaseIndex: 8, sub: true, khsPrefix: 'p08', prefix: 'p08', canvasType: 'asset', assetType: 'scene', label: 'P08 · 场景选择' },
   { sortKey: 8, code: 'P09', name: '分镜拆解', group: 'production', phaseIndex: 9, khsPrefix: 'p09', prefix: 'p09', canvasType: 'storyboard', assetType: 'storyboard', label: 'P09 · 分镜拆解' },
-  { sortKey: 9, code: 'P09b', name: '镜头审计', group: 'production', phaseIndex: 10, sub: true, khsPrefix: 'p09b', prefix: 'p09b', canvasType: 'storyboard', assetType: 'storyboard', label: 'P09b · 分镜审计' },
+  { sortKey: 9, code: 'P09b', name: '镜头审计', group: 'production', phaseIndex: 10, sub: true, khsPrefix: 'p09b', prefix: 'p09b', canvasType: 'script', assetType: 'script_phase', label: 'P09b · 分镜审计' },
   { sortKey: 9.5, code: 'P09c', name: '分镜故事板', group: 'production', phaseIndex: 10, sub: true, khsPrefix: 'p09c', prefix: 'p09c', canvasType: 'storyboard', assetType: 'storyboard', label: 'P09c · 分镜故事板' },
   { sortKey: 10, code: 'P10', name: '语音合成', group: 'post', phaseIndex: 11, khsPrefix: 'p10', prefix: 'p10', canvasType: 'audio', assetType: 'voice', label: 'P10 · 语音' },
   { sortKey: 11, code: 'P10c', name: '语音审计', group: 'post', phaseIndex: 12, sub: true, khsPrefix: 'p10c', prefix: 'p10c', canvasType: 'audio', assetType: 'voice', label: 'P10c · 语音审计' },
@@ -67,15 +67,19 @@ export const PHASE_REGISTRY: readonly PipelinePhaseDef[] = [
   // 无 ZONE_PHASES 条目 → label 合成(契约断言 C 对无 zone 条目的跳过)。
   { sortKey: 12.5, code: 'P11a0', name: '条件帧审核', group: 'post', phaseIndex: 14, sub: true, khsPrefix: 'p11a0', prefix: 'p11a', canvasType: 'video', assetType: 'video', label: 'P11a0 · 条件帧审核' },
   { sortKey: 12, code: 'P11a', name: '片段预览', group: 'post', phaseIndex: 14, khsPrefix: 'p11a', prefix: 'p11a', canvasType: 'video', assetType: 'video', label: 'P11a · 预览片段' },
+  // P11a.5 预演音频+成片 (khs a046d47 2026-08-24; PRG-01 2026-08-25 跟进) —
+  // 真相位(四工件槽: ambient_stems/preview_mix_path/roughcut_path/roughcut_meta),
+  // 独立 zone(prefix='p11a5')、共 p11 phaseIndex;非 sub。
+  { sortKey: 12.7, code: 'P11a.5', name: '预演音频+成片', group: 'post', phaseIndex: 14, khsPrefix: 'p11a5', prefix: 'p11a5', canvasType: 'video', assetType: 'video', label: 'P11a.5 · 预演音频+成片' },
   { sortKey: 13, code: 'P11b', name: '片段生成', group: 'post', phaseIndex: 14, khsPrefix: 'p11b', prefix: 'p11b', canvasType: 'video', assetType: 'video', label: 'P11b · 最终渲染' },
-  { sortKey: 13.5, code: 'P11c', name: '视频质检', group: 'post', phaseIndex: 14, sub: true, khsPrefix: 'p11c', prefix: 'p11c', canvasType: 'video', assetType: 'video', label: 'P11c · 视频质检' },
+  { sortKey: 13.5, code: 'P11c', name: '视频质检', group: 'post', phaseIndex: 14, sub: true, khsPrefix: 'p11c', prefix: 'p11c', canvasType: 'script', assetType: 'script_phase', label: 'P11c · 视频质检' },
   // P12 拆分(2026-08-09):p12a/p12b 共 phaseIndex 15 lane 但不设 sub——
   // 各自承载资产(EDL/混音),P11a/P11b 共 lane 先例。
-  { sortKey: 14, code: 'P12a', name: '时间线合成', group: 'post', phaseIndex: 15, khsPrefix: 'p12a', prefix: 'p12a', canvasType: 'video', assetType: 'clip', label: 'P12a · 时间线合成' },
-  { sortKey: 14.5, code: 'P12b', name: '音频合成', group: 'post', phaseIndex: 15, khsPrefix: 'p12b', prefix: 'p12b', canvasType: 'audio', assetType: 'mix', label: 'P12b · 音频合成' },
-  { sortKey: 15, code: 'P13', name: '交付', group: 'post', phaseIndex: 16, khsPrefix: 'p13', prefix: 'p13', canvasType: 'video', assetType: 'delivery', label: 'P13 · 交付' },
+  { sortKey: 14, code: 'P12a', name: '时间线合成', group: 'post', phaseIndex: 15, khsPrefix: 'p12a', prefix: 'p12a', canvasType: 'script', assetType: 'clip', label: 'P12a · 时间线合成' },
+  { sortKey: 14.5, code: 'P12b', name: '音频合成', group: 'post', phaseIndex: 15, khsPrefix: 'p12b', prefix: 'p12b', canvasType: 'audio', assetType: 'voice', label: 'P12b · 音频合成' },
+  { sortKey: 15, code: 'P13', name: '交付', group: 'post', phaseIndex: 16, khsPrefix: 'p13', prefix: 'p13', canvasType: 'script', assetType: 'delivery', label: 'P13 · 交付' },
   { sortKey: 16, code: 'P14', name: '质量审计', group: 'post', phaseIndex: 17, khsPrefix: 'p14', prefix: 'p14', canvasType: 'script', assetType: 'script_phase', label: 'P14 · 质量审计' },
-  { sortKey: 17, code: 'P15', name: '反馈', group: 'post', phaseIndex: 18, khsPrefix: 'p15', prefix: 'p15', canvasType: 'script', assetType: 'script_phase', label: 'P15 · 跨集反思' },
+  { sortKey: 17, code: 'P15', name: '反馈', group: 'post', phaseIndex: 18, khsPrefix: 'p15', prefix: 'p15', canvasType: 'script', assetType: 'feedback', label: 'P15 · 跨集反思' },
 ]
 
 /** khs 保留编号但已注销的单体 phase(W6 后无节点写入)。 */
