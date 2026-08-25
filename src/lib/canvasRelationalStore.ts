@@ -249,7 +249,12 @@ export async function listLinks(scope: Scope): Promise<FlowLinkV2[]> {
     target: r.target_id,
     branchId: r.branch_id,
     dataType: r.data_type,
-    ...(r.link_type && { linkType: r.link_type }),
+    ...(r.link_type && {
+      linkType: r.link_type,
+      // 71-05 (v3.2 F37):data 袋重建——前端 CanvasEdge 读 data?.linkType
+      // 画序列蓝线;关系层无通用 data 列,往返保真靠顶层列 + 读时重建。
+      data: { linkType: r.link_type } as FlowLinkV2["data"],
+    }),
     ...(r.ref_type && { refType: r.ref_type }),
     ...(r.is_explore && { isExplore: true }),
     ...(r.is_inactive && { isInactive: true }),

@@ -185,6 +185,28 @@ async function persistOutput(
       `[_simulate] nodeId=${nodeId} filePath 落库失败(成功态保留):`,
       persistErr?.message,
     );
+    return;
+  }
+  // 71-03 (v3.2 COX-03):画布重生产物回流 kmc——append 到 episode 的
+  // canvas-takes.jsonl(kmc 可消费留痕)。best-effort:episodeRefs 从
+  // gateStateService 画布探针取,失败不影响成功态。
+  try {
+    const { getGateStateService } = await import("@/lib/gateStateService");
+    const scope = { projectId, episodesId };
+    const svc = getGateStateService();
+    svc.ensureScope(scope);
+    const refs = svc.episodeRefsFor(scope);
+    const { appendCanvasTakeFlowback } = await import("@/lib/manifestWriteback");
+    void appendCanvasTakeFlowback({
+      projectId,
+      episodesId,
+      episodeRefs: refs != null ? [...refs] : undefined,
+      nodeId,
+      nodeType: String(node.type ?? ""),
+      filePath: outputUrl,
+    });
+  } catch {
+    // 回流是 best-effort 附属通道——任何失败不碰成功路径
   }
 }
 

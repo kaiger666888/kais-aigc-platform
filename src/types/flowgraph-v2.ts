@@ -54,6 +54,11 @@ export interface FlowLinkV2 {
   linkType?: string;
   /** 引用类型：KMC 11 种 ref_type (input / character_ref / scene_ref / ...) */
   refType?: string;
+  /**
+   * 71-05 (v3.2 F37):前端兼容 data 袋——CanvasEdge 读 data?.linkType 画
+   * 序列蓝线。关系层持久位是顶层 link_type 列,listLinks 读时重建本袋。
+   */
+  data?: { linkType?: string } & Record<string, unknown>;
 }
 
 // ─── 分支 ──────────────────────────────────────

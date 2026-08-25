@@ -1433,6 +1433,11 @@ export async function extractShotTimelineArtifacts(
       target: sbNodes[i].id,
       branchId: "main",
       dataType: "data",
+      // 71-05 (v3.2 F37/COX-05):顶层 linkType 是关系层持久位(canvas_links.
+      // link_type 列)——此前只写 data 袋,而 canvas_links 无通用 data 列,
+      // 全量保存往返后序列蓝线即丢(WR-01 codified 未修项)。双写:data 袋
+      // 供前端 CanvasEdge 读取,顶层供 upsertLink/saveFullGraph 落列。
+      linkType: "sequence",
       data: { linkType: "sequence" },
     };
     sequenceLinks.push(link);
@@ -2162,6 +2167,20 @@ export default router.post(
             },
           ],
         });
+        // 71-04 (v3.2 F36/COX-04):replace 的图真值同步落到 v2 关系层——
+        // legacy 事件路径只写 blob,canvas_variant_groups 不清就成了幽灵
+        // 组(成员已删/winner 悬空)。saveFullGraph 的 delete-absent 语义
+        // (chunkedDelete)天然复用,两实现从此同构。merge 模式不动关系层
+        // (blob 合并集是关系层的子集,delete-absent 会误删 v2 画布节点)。
+        try {
+          const { saveFullGraph } = await import("@/lib/canvasRelationalStore");
+          await saveFullGraph({ projectId, episodesId }, graph);
+        } catch (relErr) {
+          console.warn(
+            "[import-from-dir] replace 关系层同步失败(blob 已写,变体组可能残留):",
+            (relErr as Error).message,
+          );
+        }
       } else {
         // 合并模式：加载已有画布，追加新节点
         const row = await u

@@ -157,6 +157,62 @@ async function atomicWriteJson(file: string, data: unknown): Promise<void> {
   await fsp.rename(tmp, file);
 }
 
+// ─── 71-03 (v3.2 COX-03):画布重生产物回流 kmc ─────────────────────────────
+
+export interface CanvasTakeFlowbackEntry {
+  projectId: number;
+  episodesId: number;
+  /** episode 候选集(画布探针;缺省 legacy 双形态)。 */
+  episodeRefs?: string[];
+  nodeId: string;
+  nodeType: string;
+  filePath: string;
+  prompt?: string;
+  taskId?: string;
+}
+
+/**
+ * 71-03 (COX-03/R-40-01):画布重生成产物(node.data.filePath 变更)append 到
+ * khs episode 的 `.pipeline-assets/canvas-takes.jsonl`——kmc 后续 phase 可
+ * 感知画布 take 的可消费留痕(p11b skip-if-mp4 与画布 take 的关系由此
+ * 显式化:kmc 侧读该文件决定是否复用画布产物,不复用零影响)。
+ * best-effort never-throws:回流失败只 warn(画布产物真值已在 kap 库)。
+ * 通道未开通(KMC_MANIFEST_TRANSPORT≠fs)时静默跳过——与 writeSelection
+ * 同一开关,避免开两条独立 env。
+ */
+export async function appendCanvasTakeFlowback(entry: CanvasTakeFlowbackEntry): Promise<void> {
+  try {
+    const transport = getManifestTransport();
+    if (transport == null) return; // 通道未开通 ≠ 故障
+    const root = process.env.KMC_EPISODES_ROOT
+      ?? "/data/workspace/kais-hermes-skills/skills/kais-movie-pipeline/episodes";
+    const refs = entry.episodeRefs ?? [`ep${entry.episodesId}`, String(entry.episodesId)];
+    let epDir: string | null = null;
+    for (const ref of refs) {
+      if (!/^[A-Za-z0-9_-]+$/.test(ref)) continue;
+      const dir = path.join(root, ref);
+      try {
+        const st = await fsp.stat(dir);
+        if (st.isDirectory()) { epDir = dir; break; }
+      } catch { /* next */ }
+    }
+    if (epDir == null) return; // episode 不在本机(远端画布)——无从回流,静默
+    const file = path.join(epDir, ".pipeline-assets", "canvas-takes.jsonl");
+    const line = JSON.stringify({
+      recorded_at: new Date().toISOString(),
+      project_id: entry.projectId,
+      node_id: entry.nodeId,
+      node_type: entry.nodeType,
+      file_path: entry.filePath,
+      ...(entry.prompt != null ? { prompt: entry.prompt } : {}),
+      ...(entry.taskId != null ? { task_id: entry.taskId } : {}),
+    });
+    await fsp.appendFile(file, line + "\n", "utf8");
+  } catch (err) {
+    console.warn("[manifestWriteback] canvas take 回流失败(降级丢弃):", err);
+  }
+}
+
 export function getManifestTransport(): ManifestTransport | null {
   // 69-01 (WBI-01):KMC_MANIFEST_TRANSPORT=fs → FS 直写 episode workdir。
   // 未配置 = 通道未开通(warn-once + no-op,不入队——避免每笔选定灌成 8 次
