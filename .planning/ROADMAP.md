@@ -16,6 +16,7 @@
 - ✅ **v2.1 候选资产配套 (candidate-asset-completeness)** — Phases 48-50 (shipped 2026-08-19)
 - ✅ **v3.0 画布创作体验 (Canvas Creative Experience for kmc)** — Phases 51-57 (shipped 2026-08-22, audit passed)
 - ✅ **v3.1 重生成闭环深化 (regen-loop-deepening)** — Phases 58-62 (shipped 2026-08-24, audit passed)
+- 🔄 **v3.2 跨仓协调清偿 (cross-repo-coordination-debt-clearance)** — Phases 63-73 (executed 2026-08-25 回溯立项, 3 项待真机 carry-forward, audit pending)
 
 ## Phases
 
@@ -33,6 +34,7 @@
 - Integer phases (48-50): v2.1 (shipped)
 - Integer phases (51-57): v3.0 (shipped 2026-08-22 — audit passed; Phase 52 externally owned, code-on-master, user-accepted)
 - Integer phases (58-62): **v3.1 (shipped 2026-08-24)**
+- Integer phases (63-73): **v3.2 (executed 2026-08-25, 回溯立项同日)**
 - Decimal phases (e.g., 58.1): Urgent insertions
 
 Decimal phases appear between their surrounding integers in numeric order.
@@ -69,6 +71,40 @@ See [milestones/](milestones/) for per-milestone ROADMAP/REQUIREMENTS/AUDIT arch
 Audit: **passed** (305/305 verify assertions · 435/435 vitest · 3× tsc clean · live probes ok). Full detail: [milestones/v3.0-ROADMAP.md](milestones/v3.0-ROADMAP.md) · [milestones/v3.0-MILESTONE-AUDIT.md](milestones/v3.0-MILESTONE-AUDIT.md)
 
 </details>
+
+### 🔄 v3.2 跨仓协调清偿 (cross-repo-coordination-debt-clearance) — CURRENT
+
+**Milestone Goal:** 付清 08-25 12-agent 双仓复审确认的 40 条跨仓协调欠账（15 high/16 med/9 low），四仓合围（kap / khs2 / kais-gold-team / kais-review-platform），终结「verify 门绿但链路断」的假成功模式。纯清偿性里程碑，零新能力。
+
+**Created:** 2026-08-25（回溯立项）
+**Source:** 08-25 12-agent fan-out 双仓复审 40 findings → F01-F40 全落 phase（40/40 覆盖，无遗漏）。
+**Evidence annex:** [v3.2-ROADMAP-DRAFT.md](v3.2-ROADMAP-DRAFT.md)（F01-F40 findings 索引 + 逐 phase 执行证据 + 验证矩阵）
+**ADRs:** [adrs/adr-v3.2-variant-domain.md](adrs/adr-v3.2-variant-domain.md)（三 ADR: chosen_variant_id=string finalist id / score scale 三档 unit/ten/percent / 归组一主两从）
+
+**⚠️ 回溯立项（retrospective formalization）:** 11/11 phases 已于 2026-08-25 当天在授权代执行下完成（四仓 24 commits: kap 12 · khs 6 · gold-team 2 · review-platform 1），本 ROADMAP 按已交付终态固化，非前瞻规划。验证矩阵全绿：verify-53 102/102 · 54 62/62 · 55 18/18 · 56 89/89 · 65 31/31 · canvas vitest 496/496 · khs 三目录 831+ · review-platform 443+（基线外零新失败）· 生产 :10588 pid 2680419 GOLD_TEAM_URL+KMC_MANIFEST_TRANSPORT=fs 双 env 实证 · review-api 容器重建部署。⏸ 3 项待真机 carry-forward（WBX-05 / 70-05 CHS-05 / QVR-03 存量部），代码链全通，随下次活体管线自然覆盖。
+
+**v3.2 Phases:**
+
+- [x] **Phase 63: 引擎真值源收编 (Engine Truth-Source Consolidation)** — gold-team 容器真值四文件回灌入仓 (47/50 md5) + v9 compose 钉 real 镜像 + khs assets 5.0Pro 清零 (completed 2026-08-25)
+- [x] **Phase 64: p11a5 相位跟进与注册表契约门 (p11a5 Registry Catch-up)** — 注册表 22→23 + TYPE_MAP 契约门 F 组 + 六处类型分叉修正; verify:phase-55 12/14 红→18/18 绿 (completed 2026-08-25)
+- [x] **Phase 65: 重生成引擎契约对齐 (Regen Engine Contract Alignment)** — Stage→TaskType 对照引擎消费契约 + video 首帧/tts text/图像配方保真 (ratio/modelVersion 键名/seed 真值) + bgm/foley 走 kap 内部端点 (completed 2026-08-25)
+- [x] **Phase 66: 生产通电与真机闭环 (Production Power-On)** — serve-production.sh 双 env + 真机探针 9/9 cloud-jimeng 真渲染 + 52 时代验证口径回溯标注 (completed 2026-08-25)
+- [x] **Phase 67: G15/G16 豁免桥三仓闭环 (Waive Bridge 3-Repo Closure)** — review-platform `/api/v1/g15/ops` 端点 + khs 逐镜头子集豁免消费端 + kap 桥诚实化 (⏸ WBX-05 UAT 11 待真机) (completed 2026-08-25)
+- [x] **Phase 68: 变体域契约重对齐 (Variant Domain Contract Realignment)** — v2.5 键重冻结 + 三档 scale + S1f 双源验证门 + 三 ADR + Wave B 失实理由销账; verify-53 97→102 (completed 2026-08-25)
+- [x] **Phase 69: Wave B 实施——manifest transport 与真实数据源 (Wave B Implementation)** — FS transport 通电 + G15 真实数据源 + khs 五源落盘 + requeue 并集消费 (completed 2026-08-25)
+- [x] **Phase 70: 换选通道端到端 (Choose/Swap Channel E2E)** — per-phase id 空间 + variantNumber 真编号 + fullPhaseToken 防错批 + selected ADR-1 (⏸ 70-05 G13 换选 e2e 待真机) (completed 2026-08-25)
+- [x] **Phase 71: 画布↔kmc 共存语义 (Canvas↔kmc Coexistence)** — 裁决②a 画布为配方真值: `_kmc_prompt` 哨兵 + stale 两仓统一 + canvas-takes 产物回流 + replace/sequence 收口 (completed 2026-08-25)
+- [x] **Phase 72: QC 与评分可视化真数据 (QC & Score Visualization Real-Data)** — 判定数组透传 + aiScore 生产者 + DIM_LABELS 修真 + 五值 verdict + registerAuditToken 扩展 + 声纹 metaSub (⏸ QVR-03 存量回填待下次 sync) (completed 2026-08-25)
+- [x] **Phase 73: 门中心语义细化与调度欠账 (Gate Center Semantics & Scheduling Debt)** — p11b 异步哨兵 + 红线 reject 墓碑上浮 + qwen-eye 队列优先 + status-check v2 关系表 (completed 2026-08-25)
+
+**裁决点 (6, 全落):** ①bgm/foley 走 kap 内部端点 (65) ②a 画布为配方真值 (71) ③chosen_variant_id=string finalist id (68/70) ④review-platform 新增 /api/v1/g15/ops (67) ⑤a 判定数组节点保留不展开 (72) ⑥11 phase 全量立项。③⑤详见 ADR，①②④⑥ 记录于 [v3.2-ROADMAP-DRAFT.md](v3.2-ROADMAP-DRAFT.md) 裁决表。
+
+**里程碑级守护:**
+
+- **COORD-01 (v3.0 延续)** — 跨仓变更必须双向销账。
+- **COORD-02 (新) 端到端数据链验证纪律** — 每个跨仓 phase 的 verify 门必须含「生产数据命中」断言（端点 curl 非 404 / 消费端 grep 有生产者 / 生产库行数>0），「映射表字面量命中」不再单独作为通过依据——本轮 15 条 high 中 8 条由此漏网。
+- **COORD-03 (新) 契约冻结时效** — 任何冻结契约引用对侧仓状态时（如 Wave B gate），verify 门定期复查引用是否过期（gate 满足后 deferral 文档自动标红）。
+- **回归锁** — 52/55/59/62 既有 verify 门全绿为每 phase 完成前置；64 完成后 verify:phase-55 恢复其「跨仓漂移告警」设计职能。
 
 ### ✅ v3.1 重生成闭环深化 (regen-loop-deepening) — SHIPPED
 
@@ -238,10 +274,226 @@ Plans:
 
 **UI hint**: yes
 
+### Phase 63: 引擎真值源收编 (Engine Truth-Source Consolidation)
+
+**Goal**: 结束「引擎真值只活在一个未溯源的容器镜像里」的状态。容器 /app 内模型政策代码（t2i 白名单 {5.0, 5.0lite}、i2i 强制 4.6、cloud 直通 passthrough、image_refine ref_images 兜底）回灌 kais-gold-team 仓留 git 历史；处置 v9 compose 从分叉仓构建抢 :8002 的隐患；清掉 khs2 assets/ 的 5.0Pro 残留。回灌后「按仓重建镜像」必须与现役容器行为等价。
+**Depends on**: Nothing（全里程碑地基，Wave 1）
+**Repo ownership**: kais-gold-team（主）· kap（compose）· khs2（assets 清零）
+**Requirements**: ETS-01, ETS-02, ETS-03, ETS-04 (F04/F34/F40)
+**Status**: ✅ Complete (2026-08-25)
+**Evidence**: gold-team b0e8839 现场保全 + 39bb666 回灌（47/50 md5 逐一相等 + 3 有意保留，重建镜像策略断言过）；kap 938f26e5 v9 compose 钉 `kais-gold-team:real` 镜像；khs 37631a1 assets 5.0Pro 清零。
+**Success Criteria** (what must be TRUE):
+
+  1. 容器内四文件（executor.py / cloud_jimeng.py / cloud_base.py / workflow_builder.py）与仓 HEAD md5 逐一相等；`git log -S '_I2I_MODEL'` / `-S 'model_version'` 在仓内有历史。
+  2. 按仓 rebuild 镜像隔离拉起，实测 `_T2I_ALLOWED_MODELS={'5.0','5.0lite'}`、`_I2I_MODEL='4.6'` + image_refine 冒烟 completed——重建即等价。
+  3. docker-compose.v9.yml 不再从 ../kais-gold-team 分叉仓构建抢 :8002，v9 误起不再能静默替换白名单实现。
+  4. khs2 活代码路径 `grep -rn '5\.0Pro'` 零命中（deprecated 留档例外带标注）。
+
+**Plans**: 已执行（回溯立项，plans 建议见 draft）
+
+### Phase 64: p11a5 相位跟进与注册表契约门 (p11a5 Registry Catch-up)
+
+**Goal**: khs2 已落地第 23 个活跃相位 p11a5_preview_audio，kap 22-phase 注册表与 canvas_sync 工件映射双双未跟进——verify:phase-55 12/14 红、p11a5 产物画布零节点、DAG 恒 pending。让跨仓相位漂移告警门回绿且测得出更多漂移（canvasType/assetType 纳入门内）。
+**Depends on**: Nothing（Wave 1，快速止血项）
+**Repo ownership**: kap（注册表+verify 门）· khs2（前缀正则+工件映射+retro 测试）
+**Requirements**: PRG-01, PRG-02, PRG-03 (F22/F23/F24)
+**Status**: ✅ Complete (2026-08-25)
+**Evidence**: kap 736889db（注册表 22→23 + TYPE_MAP 契约门 F 组 + 6 处类型分叉修正）；khs b432bba（no-fold+四工件+zone+retro）；verify:phase-55 **12/14 红 → 18/18 绿**；khs 11/11。
+**Success Criteria** (what must be TRUE):
+
+  1. verify:phase-55 全绿：phaseRegistry 含 p11a5 全套条目，khs 23 活跃 id 与 kap 注册表等值，only-in-khs 为空。
+  2. khs `_PHASE_PREFIX_RE` 对 p11a5_preview_audio 提取 `p11a5`（不再折叠 p11a），`_PHASE_OUTPUT_MAP` 注册其四工件（ambient_stems/preview_mix_path/roughcut_path/roughcut_meta）；retro 与五个 registry↔map 一致性测试全绿；真实 episode 跑 p11a5 后画布出现四工件节点、DAG P11a.5 子图不再恒 pending。
+  3. PHASE_REGISTRY canvasType/assetType 23 条目与 khs 实际值逐条相等（p09b/p11c/p12a/p12b/p13/p15 六处历史分叉修正）；verify:phase-55 新增两字段断言组，khs 侧改值必变红。
+
+**Plans**: 已执行（回溯立项）
+
+### Phase 65: 重生成引擎契约对齐 (Regen Engine Contract Alignment)
+
+**Goal**: 59-01 的 NODE_TYPE_TO_TASKType 映射只验证了字面量存在，从未对照引擎对每类 TaskType 的实际消费参数。补齐四类断点：video 缺 image 参必失败、TTS 引擎读 text 而 kap 只送 prompt、bgm/foley 被引擎 v1.5 起 direct reject、图像配方几何/键名/丢弃/seed 四处保真断层。修完之后「补上 env」才有意义。
+**Depends on**: Phase 63（契约对照权威面=收编后的仓，非容器黑盒）
+**Repo ownership**: kap（_simulate.ts/_engine.ts/canvasApi extra 通道）
+**Requirements**: REA-01, REA-02, REA-03, REA-04, REA-05, REA-06 (F02/F03)
+**Status**: ✅ Complete (2026-08-25)
+**Evidence**: 4b182d8d 契约对齐（video 首帧/tts text/bgm+foley 诚实拒绝/ratio 推导/modelVersion 键名翻译/seed 真值）；65-04 余量 bc9d783a（bgm→ACE-Step 异步+轮询 / foley→SA3 同步，同 commit 排雷 _promptAnchor 误注册路由）；verify:phase-65 31/31。
+**Success Criteria** (what must be TRUE):
+
+  1. 映射表驱动契约测试：verify 逐 TaskType 对照引擎 executor 消费参数（image/text/ratio/model_version/ref_images），映射表新增类型而参数不满足时断言红——终结「五键命中」式字面量验证。
+  2. video/video_final 重生成请求体携带 image 参（referenceImages 通道 canvasApi extra→submitEngineTask），引擎侧不再缺参 FAILED。
+  3. audio/voice→tts 请求体携带引擎读的 text 键（prompt→text 显式映射），不再对空文本合成。
+  4. bgm/foley 按裁决①走 kap 内部端点（bgm→/api/v1/ace/generate 异步+轮询 / foley→/stableaudio/generate 同步），不再投递引擎必拒任务还报「已提交」。
+  5. 图像重生成携带 ratio（九键配方补几何键或资产尺寸推导）；modelVersion→model_version 键名翻译送出；cloud 不消费的键 UI 明示，不再静默丢弃。
+  6. seed 语义修正：cloud 路径 seed 不影响产物时不再作为装饰真值回写 canonical，画布配方不再记录从未影响产物的 seed。
+
+**Plans**: 已执行（回溯立项）
+
+### Phase 66: 生产通电与真机闭环 (Production Power-On)
+
+**Goal**: 把已修好的 canvas→引擎链真正插上电：生产 10588 加载 GOLD_TEAM_URL，分类型灰度放开重生成，用真机证据关掉「有 success 无产物」的假成功时代；同时回溯标注 52 时代的验证口径。
+**Depends on**: Phase 63 + Phase 65（先修映射再通电，否则 video/TTS 从静默假变 loudly 翻车）
+**Repo ownership**: kap（部署契约+文档）
+**Requirements**: PWR-01, PWR-02, PWR-03, PWR-04 (F01/F33)
+**Status**: ✅ Complete (2026-08-25)
+**Evidence**: 4e60b9c8（serve-production.sh + 66-02 真机断点 model_preference 顶层字段——静态 review 双漏、真机探针抓到）；probe-66 零足迹 9/9（40s cloud-jimeng 真渲染）；生产 :10588 pid 2680419 GOLD_TEAM_URL 双 env 实证。
+**Success Criteria** (what must be TRUE):
+
+  1. 生产启动路径显式加载引擎 env（serve-production.sh export 落死）；重启后 `/proc/<pid>/environ` 含 GOLD_TEAM_URL，verify 断言锁死「env 缺失时启动告警」而非静默 simulateOnly。
+  2. 灰度次序留档：image 先行（65 完成即开），video/tts 随 65-02 完成放开；灰度开关显式存在，未放开类型 UI 明示而非假提交。
+  3. 真机 e2e：画布发起图像重生成 → :8002 出现 `canvas-*` 任务并 completed → 产物落盘 → node.data.filePath 更新 → 前端新图回贴；probe 脚本可重跑、零足迹。
+  4. 文档回溯：52-07-SUMMARY 与 v3.0-MILESTONE-AUDIT TD 注记补注「当时建立在 simulate 链上，真实闭环 66 完成」。
+
+**Plans**: 已执行（回溯立项）
+
+### Phase 67: G15/G16 豁免桥三仓闭环 (Waive Bridge 3-Repo Closure)
+
+**Goal**: 豁免通道 ship 了 UI 却投递到全网不存在的 /api/v1/g15/ops（404→队列无限重放→toast 报「已豁免 N 条」）。三仓合围：review-platform 补服务端、khs2 补逐镜头豁免消费端（终结「子集被放大成全量」错放行）、kap 桥诚实化；附带修掉 review-platform web UI/batch 绕过 decision 持久化缺口。
+**Depends on**: Nothing（Wave 1；WB-03 为当日止血项先行）
+**Repo ownership**: kais-review-platform（端点）· khs2（消费端）· kap（桥诚实化）
+**Requirements**: WBX-01, WBX-02, WBX-03, WBX-04, WBX-05 (F09/F14/F15/F16/F27)
+**Status**: ✅ Complete (2026-08-25)
+**Evidence**: kap 3312a0c1（WBX-03 止血）+ 4bf51216/ce1f571（桥 episodeRefs 接通）；review-platform 7eea588（/api/v1/g15/ops fail-closed 匹配 + union 幂等 + approve carry-forward + 六路径 decision 补洞，容器已重建部署，10 用例）；khs runner 注入 + p10c/p11c 子集优先（空=legacy 全量，双侧测试「豁免 5 失败镜中的 2 个→只 2 个 waived」）。
+**⏸ Pending (待真机)**: WBX-05 UAT 11 真机 drill（khs p10c-gate 收到 comment 后状态正确 + G16 听审批量豁免端到端）——代码链全通，留下集活体管线自然覆盖。
+**Success Criteria** (what must be TRUE):
+
+  1. 豁免操作服务端端点真实存在（裁决④a）：kap g15Bridge POST 不再 404；per-shot waive / requeue 行为有 API 契约文档与测试。
+  2. khs2 逐镜头豁免消费端成立：waived_shot_ids 有了生产者，p11c/p10c 读 per-shot 子集豁免（operator 豁免 5 个失败镜中的 2 个→只 2 个进 waived，其余照常阻塞），不再 approve=全量一刀切。
+  3. kap 桥诚实化：delivered=false 不再成功 toast（乐观标记回滚），队列重放有上限与死信可见；drain 读取 payload 不再丢 gate 字段（排队的 p10c-gate 豁免不再错发成缺省 p11c-gate）。
+  4. review-platform web UI（htmx 单条 / batch / API batch）全部写 metadata.review_result.decision，「web UI reject → kmc 不阻、kap 反显示 approve」三方读法不一致消除。
+  5. v3.0 UAT 登记项 11 真机通过；G16 听审批量豁免端到端：工作台勾选 → khs p10c 下一轮 waived 状态正确。〔⏸ 待真机〕
+
+**Plans**: 已执行（回溯立项）
+
+### Phase 68: 变体域契约重对齐 (Variant Domain Contract Realignment)
+
+**Goal**: Wave A 契约冻结于 08-21，khs2 v2.5（08-24）演进出了 finalists/final_n/final_rank/dropped/selection_meta/render_variants，kap 信封契约/fixture/推导器零跟进；加上 score schema 自相矛盾、chosen_variant_id 类型相悖、归组键三套词表并存——Wave B 若照旧契约开工必然返工。本 phase 纸面/契约层：重冻结+三项裁定+文档销账。
+**Depends on**: Nothing（Wave 1，纸面先行，可与所有 phase 并行）
+**Repo ownership**: kap（契约/schema/verify）· khs2（词表真相源确认）
+**Requirements**: VDR-01, VDR-02, VDR-03, VDR-04 (F06/F10/F11/F12/F13/F39)
+**Status**: ✅ Complete (2026-08-25)
+**Evidence**: v2.5 键（finalists/final_rank/dropped/selection_meta/render_variants）进五源信封 schema + 三档 scale（unit/ten/percent，ten=真实 0..10）+ S1f 双源验证门首跑即抓真漂移（khs take-log 实际写 shot_index + seed:null）+ 三 ADR + Wave B 失实理由三处更正；verify-53 97→**102/102**。
+**Success Criteria** (what must be TRUE):
+
+  1. candidateEnvelope 契约重冻结并对 khs2 v2.5 实际产出形状逐源验证：新五键进入五源信封 schema，take-log 信封含 render_variants；dropped 候选在墙上有区分，final_rank 名次语义保留。
+  2. 三项裁定落 ADR：①chosen_variant_id=string finalist id（per-phase id 空间，全线统一）；②candidateScoreSchema percent 域修正（三档 scale，p11a0 的 0..10 信封不再被拒收整条丢弃）；③跨组共享候选归组真相源唯一化（khs 短横线形主 + kap canonicalFlfGroupKey 单点映射，一主两从）。
+  3. verify 门补端到端形状断言：fixture 与 khs2 真实产出（take-log + 落库样本）双源校验，schema 拒收即红——不再只有 fixture 自说自话。
+  4. 文档销账：Wave B「验收未过 (TD-1)」失实理由更新为「gate 已于 08-23 满足，待排期」；52-VERIFICATION 跨组归组遗留指向本 phase ADR。
+
+**Plans**: 已执行（回溯立项）
+
+### Phase 69: Wave B 实施——manifest transport 与真实数据源 (Wave B Implementation)
+
+**Goal**: Wave B 三件套从零到一：manifest 回写通道（getManifestTransport 恒 null→真实现，画布换选真正到达 kmc manifest）、G15 分诊面板真实数据源（fixture 硬编码行→take-log/failed-shots 真实消费）、requeue khs 消费端（delivered=true 不再只是送达语义）。khs2 半部（envelope/field-map）一并认领。
+**Depends on**: Phase 68（契约重冻结后开工，防二次返工）
+**Repo ownership**: kap（transport/数据源）· khs2（envelope 映射+requeue 消费）
+**Requirements**: WBI-01, WBI-02, WBI-03, WBI-04 (F07/F35)
+**Status**: ✅ Complete (2026-08-25)
+**Evidence**: FS transport 真实现并通电（`KMC_MANIFEST_TRANSPORT=fs` 生产实证：iframe-manifest/hook-candidates chosen 覆写 + 原子写 tmp+rename + 幂等同值 no-op，S3g 真写 5 断言）；graphG15Source 消费 failed-shots/per_shot/take-log 派生（fixture 降级为显式测试模式）；khs 五源落盘（p03 script-candidates / p11a preview-candidates 新生产者 + _CANDIDATE_FILES 注册）；requeue 消费端（runner→p11c→p11b 重渲集并集，explicit shots 即使 waived 也重渲）；WBI-04 envelope 映射按 68 契约对齐。
+**Success Criteria** (what must be TRUE):
+
+  1. 画布变体墙换选 winner → khs manifest selected_first/last_variant 被覆写 → 下一轮 p11b 消费新选定渲染——全链留痕可断言，「画布已选定但管线用旧的」假闭环消除。
+  2. G15TriagePanel 数据源切换为真实 take-log/failed-shots（五源在 khs _CANDIDATE_FILES 全注册，p03_nbest/p11a_preview/p11b_take 三源补生产路径），fixture 降级为显式测试模式。
+  3. requeue 消费端在 khs2 落地：面板点「重渲」→ 镜头真实进入重渲队列，delivered=true 从送达语义升级为消费确认。
+  4. khs2 侧 envelope 映射（field-map）按 68 契约完成，活体 episode 数据回放验证信封解析零 fallback-null。
+
+**Plans**: 已执行（回溯立项）
+
+### Phase 70: 换选通道端到端 (Choose/Swap Channel E2E)
+
+**Goal**: operator 从任何面（变体墙 select-winner / gate-ops / 平台）换选今天全部静默无效：choose:v{N} 缺 {sid}:{ft} 作用域、variantIndex=数组位置≠v{N} 真编号、reviewBridge 相位 token 折叠恒失配、selected 是 int 而 khs 校验 string。四处断点一次修通，换选→manifest→渲染全链闭环。
+**Depends on**: Phase 68（chosen_variant_id 类型裁定先行）
+**Repo ownership**: kap（reviewBridge/gate-ops/变体索引）· review-platform（selected 类型）
+**Requirements**: CHS-01, CHS-02, CHS-03, CHS-04, CHS-05 (F08/F17/F18)
+**Status**: ✅ Complete (2026-08-25)
+**Evidence**: choose 载荷按 phase id 空间（p11a0 `{sid}:{ft}:v{N}` / p11a `{sid}:v{N}` / p01 `v{N}`）+ variantNumber 真 v{N}（节点 variant 字段→id 后缀→index 兜底，非数组位置）+ fullPhaseToken 防错批（p11a0→p11c 错批=全量豁免放行的负向锁）+ selected 按 ADR-1 string finalist id；reviewBridge node:test 3→6。
+**⏸ Pending (待真机)**: 70-05 G13 换选端到端真机断言（变体墙换选→gate 批准→manifest 覆写→p11b 下一轮渲新帧）——代码链全通，待活体管线。
+**Success Criteria** (what must be TRUE):
+
+  1. choose 载荷携带完整作用域 id（per-phase id 空间），khs p11a0 rsplit 解析真实命中，manifest 覆写发生。
+  2. 变体索引从节点 variant 字段解析真 v{N} 编号（非组成员数组位置），变体缺失/淘汰不再错位选错片——缺员组负向断言。
+  3. reviewBridge 相位匹配迁移 fullPhaseToken（/^p\d+[a-z0-9]*/），p11a0/p11a/p11b/p11c 各自独立匹配；「资产点击静默错批同剧集 open 的 p11c 门」错批路径负向断言锁死。
+  4. selected 通道类型按 ADR-1 落地（string finalist id），khs chosen_from_outcome 等值校验通过，不再 warn 回落 rank#1 却表面 approve 成功。
+  5. 端到端真机断言：G13 条件帧换选 → gate 批准 → manifest selected_* 覆写 → p11b 下一轮渲的是新帧。〔⏸ 待真机〕
+
+**Plans**: 已执行（回溯立项）
+
+### Phase 71: 画布↔kmc 共存语义 (Canvas↔kmc Coexistence)
+
+**Goal**: 两条全量替换写路径互相踩踏：khs canvas_sync 删建 a-* 节点抹掉画布 prompt 编辑并误清 stale，n-* 节点 stale 又永久残留；画布重生产物从不回流 kmc。先裁决共存模型（裁决②），再实现 merge 语义、stale 生命周期两仓统一、产物回流（复用 69 的 transport），并收口两条 replace 实现分叉。
+**Depends on**: Phase 69（产物回流复用 manifest transport）；Kai 裁决先行（裁决②a 落地）
+**Repo ownership**: khs2（canvas_sync merge）· kap（stale 链/replace 统一）
+**Requirements**: COX-01, COX-02, COX-03, COX-04, COX-05 (F05/F36/F37)
+**Status**: ✅ Complete (2026-08-25)
+**Evidence**: 裁决②a 画布为配方真值——khs B-4 删建抢救用户 prompt 编辑（`_kmc_prompt` 哨兵，往返测试「雨夜改推近」存活）+ kmc 重同步 upsert 集中清 stale（n-* 不再残留）；kap canvas-takes.jsonl 产物回流 + import replace 关系层同步（幽灵变体组收口）+ sequence linkType 往返存活（顶层列+data 袋双写/读时重建）。
+**Success Criteria** (what must be TRUE):
+
+  1. 共存模型按裁决②a 落地并有用例锁死：用户画布改 prompt 重生成 → kmc 重跑该 phase → 画布 prompt 编辑不再被静默蒸发（`_kmc_prompt` 哨兵保留编辑）；「stale 消失但 kmc 用旧配方渲染=假性解决」场景负向断言排除。
+  2. stale 生命周期两仓统一：kmc 重跑完成 → kap 侧对应 stale 角标真实消除（upsert 集中清），n-* 节点不再永久残留 stale。
+  3. 画布重生产物回流 kmc：node.data.filePath 变更经 transport 写 canvas-takes.jsonl（kmc 可感知位置），kmc 后续 phase 可选消费画布 take。
+  4. import-from-dir 的 replace 与 saveGraph 全量路径行为统一：canvas_variant_groups 关系层同步清理（chunkedDelete 复用），重导入后无幽灵变体组/winner 悬空。
+  5. sequence 边语义往返存活：linkType 顶层列+data 袋双写/读时重建，khs 导入→用户保存→序列蓝线不丢；往返保真断言入 verify。
+
+**Plans**: 已执行（回溯立项）
+
+### Phase 72: QC 与评分可视化真数据 (QC & Score Visualization Real-Data)
+
+**Goal**: 56 的四条「真数据」链路三条断在生产数据上：G16 工作台只认顶层 clips（khs 写嵌套层）、眼/耳角标 join 零命中（per-item 数组被 canvas_sync 打散）、雷达图链路无生产者（aiScore.dimensions 全库 0 行）。打通判定数组透传契约、评分生产者、词表对齐与扩展面——56 的 SC 从「e2e 注入形状通过」升级为「生产库命中>0」。
+**Depends on**: Nothing（填隙波次；词表部分弱依赖 68 裁定）
+**Repo ownership**: khs2（canvas_sync 透传/aiScore 写入侧）· kap（join/词表/雷达生产者）
+**Requirements**: QVR-01..QVR-07 (F25/F26/F28/F29/F30/F31/F32)
+**Status**: ✅ Complete (2026-08-25)
+**Evidence**: F26 判定数组透传（canvas_sync 概览节点整块挂 fidelity_check/per_shot，detectItems 三形状）+ F28 aiScore 生产者（p03 scores 0..1 / p14 quality_audit 0..100 审计分数→节点顶层，雷达数据链从零起步）+ F29 DIM_LABELS 修真（logic/social_resonance_depth/requirement_conformance/info_package_density）+ 词表门源码锚点提取（首跑即抓 2 处真漂移）+ F32 五值 verdict（join/角标/工作台三处）+ F31 registerAuditToken 扩展契约 + F30 声纹 metaSub + F25 G16 嵌套层读取。
+**⏸ Pending (待真机)**: QVR-03 存量集回填——存量 episode aiScore 回填待下次 canvas_sync 自然发生（producer 已上线+测试绿）。
+**Success Criteria** (what must be TRUE):
+
+  1. 判定数组透传契约成立（裁决⑤a 节点保留不展开）：p10c fidelity_check.clips 与 p11c per_shot 以 kap join 可读形状落画布，生产库存在携带 clips/per_shot 的节点——契约测试用生产样本而非注入形状。
+  2. 眼/耳 verdict 角标对真实 kmc 数据命中：活体 episode 同步后角标渲染数 > 0（五值全呈现），shot_id join / shot_index→shot_{N} 兜底有命中率断言。
+  3. aiScore.dimensions 有了真实生产者（p03/p14 审计分数→节点顶层），ScoreRadar 对真实审计分数渲染，≥3 维真实到达；雷达数据链从零起步。〔存量集回填 ⏸ 待下次 sync〕
+  4. DIM_LABELS 与 khs 实际键逐一对齐；verify 门修真（源码锚点提取，includes 恒真与后缀正则漏检修正），词表漂移必红。
+  5. verdict 词表三值→五值+未评态：skipped/error 呈现「未评」（非静默消失）、must_fix 呈现「必修」，不再与 pass/warn/fail 混同或丢弃。
+  6. QC 接入扩展契约发布：registerAuditToken 可注册词表，khs 后续新增审计 phase（storyboard-qc/master-qc 先行接入）无需改 kap 源码。
+  7. voice 剧场入口键对齐：subtype 从 o_assets.meta 同步画布节点，声纹两级试听对真实数据可达（生产库 metaSub 0→命中 > 0）。
+
+**Plans**: 已执行（回溯立项）
+
+### Phase 73: 门中心语义细化与调度欠账 (Gate Center Semantics & Scheduling Debt)
+
+**Goal**: 收尾批：门中心对 p11b webhook tripwire 与硬门无差别对待（reject 承诺回滚但 kmc 根本没停车）+ 26 条 APPROVING 残留参与阻塞竞争；红线三门恒显 auto 而真实 rejected 不上浮；qwen-eye KAP 宕机兜底绕 GPU 队列（08-23 死锁五层根因的未根治项）；khs2 status-check 脚本 v1 读法误报。四件低危但真实的欠账一次清完。
+**Depends on**: Nothing（Wave 1 可并入任意批次）
+**Repo ownership**: kap（门中心呈现）· khs2（残留清理/兜底入队/status-check）
+**Requirements**: GCX-01, GCX-02, GCX-03, GCX-04 (F19/F20/F21/F38)
+**Status**: ✅ Complete (2026-08-25)
+**Evidence**: F19 p11b webhook 哨兵（不参与 blocking / 「异步哨兵」呈现 / 存量 26+9 条 APPROVING 实清至 0 + resolve-stale-gates.py 收官工具）+ F20 红线 reject 墓碑上浮（khs 提交 / kap type=detector 别名路由+submit+立即 reject 409 幂等 / p13 防污染）+ F21 qwen-eye 队列优先（200/4xx 拒绝不绕队 + 0/5xx flock lease 受控拉起 only-lease-holder owns——08-23 接力死锁根治）+ F38 status-check v2 关系表（canvas_nodes/canvas_links 主，legacy 兜底）。
+**Success Criteria** (what must be TRUE):
+
+  1. p11b(webhook mode)在门中心以「异步哨兵」形态呈现、不参与 blocking 竞争；GateCenterBlock 对 webhook 门不再承诺「驳回将回滚重跑」；存量 26+9 条 ep-zhongkui-ep01 p11b APPROVING 残留实清零（resolve-stale-gates.py 收官工具）。
+  2. 红线三门呈现真实态：kmc 红线 reject（真阻/真回滚）时 kap 门中心可见（墓碑上浮），不再恒显 auto。
+  3. qwen-eye KAP 宕机兜底改走 GPU 队列（或带 lease 检查的受控拉起），不再裸 subprocess kap-llm.sh 绕队——08-23 接力死锁根治项销账。
+  4. canvas-status-check.py 改读 v2 关系表（或 kv_canvasEvent 加 type 过滤只取整图行），v2 项目排障不再误报。
+
+**Plans**: 已执行（回溯立项）
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 58 → 59 → 60 → 61 → 62 (60/61/62 parallel-safe if ever needed)
+- v3.1 (58-62): 58 → 59 → 60 → 61 → 62 (60/61/62 parallel-safe if ever needed)
+- v3.2 (63-73): 批次依赖图（回溯立项——实际已于 2026-08-25 当天全量执行完毕）: Wave 1 地基+止血 (63/64/67/68/73 全并行) → Wave 2 引擎链串行 (65 依赖 63 → 66 依赖 63+65) → Wave 3 变体域 (69 ∥ 70, gate on 68) → Wave 4 共存语义 (71, gate on 69) ；72 填隙无硬依赖
+
+### v3.2 Progress (11/11 phases executed 2026-08-25)
+
+| Phase | Plans | Status | Completed |
+|-------|-------|--------|-----------|
+| 63. 引擎真值源收编 | 已执行 | Complete | 2026-08-25 |
+| 64. p11a5 相位跟进 | 已执行 | Complete | 2026-08-25 |
+| 65. 重生成引擎契约对齐 | 已执行 | Complete | 2026-08-25 |
+| 66. 生产通电与真机闭环 | 已执行 | Complete | 2026-08-25 |
+| 67. 豁免桥三仓闭环 | 已执行 | Complete (⏸ WBX-05 待真机) | 2026-08-25 |
+| 68. 变体域契约重对齐 | 已执行 | Complete | 2026-08-25 |
+| 69. Wave B 实施 | 已执行 | Complete | 2026-08-25 |
+| 70. 换选通道端到端 | 已执行 | Complete (⏸ 70-05 待真机) | 2026-08-25 |
+| 71. 画布↔kmc 共存语义 | 已执行 | Complete | 2026-08-25 |
+| 72. QC/评分可视化真数据 | 已执行 | Complete (⏸ QVR-03 存量回填) | 2026-08-25 |
+| 73. 门中心语义+调度欠账 | 已执行 | Complete | 2026-08-25 |
+
+### v3.1 Progress (shipped)
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -251,7 +503,27 @@ Phases execute in numeric order: 58 → 59 → 60 → 61 → 62 (60/61/62 parall
 | 61. 审计清债 TD-3/4/5 | 5/5 | Complete   | 2026-08-24 |
 | 62. 资产层级与选定逻辑 | 7/7 | Complete   | 2026-08-24 |
 
-## Requirement → Phase Coverage (18/18)
+## Requirement → Phase Coverage
+
+### v3.2 (51/51 mapped; 49 Complete + 2 Pending-真机)
+
+| Phase | Requirements |
+|---|---|
+| 63 | ETS-01, ETS-02, ETS-03, ETS-04 |
+| 64 | PRG-01, PRG-02, PRG-03 |
+| 65 | REA-01, REA-02, REA-03, REA-04, REA-05, REA-06 |
+| 66 | PWR-01, PWR-02, PWR-03, PWR-04 |
+| 67 | WBX-01, WBX-02, WBX-03, WBX-04, WBX-05 (⏸) |
+| 68 | VDR-01, VDR-02, VDR-03, VDR-04 |
+| 69 | WBI-01, WBI-02, WBI-03, WBI-04 |
+| 70 | CHS-01, CHS-02, CHS-03, CHS-04, CHS-05 (⏸) |
+| 71 | COX-01, COX-02, COX-03, COX-04, COX-05 |
+| 72 | QVR-01..QVR-07 (QVR-03 存量部 ⏸) |
+| 73 | GCX-01, GCX-02, GCX-03, GCX-04 |
+
+Findings 覆盖: F01-F40 全部落 phase（40/40，见 [v3.2-ROADMAP-DRAFT.md](v3.2-ROADMAP-DRAFT.md) 索引表）。
+
+### v3.1 (18/18)
 
 | Phase | Requirements |
 |---|---|
@@ -261,7 +533,16 @@ Phases execute in numeric order: 58 → 59 → 60 → 61 → 62 (60/61/62 parall
 | 61 | DEBT-01, DEBT-02, DEBT-03, DEBT-04 |
 | 62 | HIER-01, HIER-02, HIER-03, HIER-04, HIER-05 |
 
-## Deferred (out of v3.1 scope — see REQUIREMENTS.md)
+## Deferred / Carry-forward
+
+### v3.2 carry-forward (待真机, 随活体管线自然覆盖)
+
+- **WBX-05** UAT 11 真机 drill (khs p10c-gate comment 状态 + G16 批量豁免端到端) — 代码链全通
+- **70-05 / CHS-05** G13 换选端到端真机断言 (manifest 覆写→p11b 渲新帧) — 代码链全通
+- **QVR-03 存量部** 存量 episode aiScore 回填 (下次 canvas_sync 自然发生) — producer 已上线
+- v3.2 HUMAN-UAT 视觉/交互签收 — 随 milestone audit 一并处理
+
+### v3.1-era deferred (out of v3.1 scope — see REQUIREMENTS.md)
 
 - 53 Wave B / 变体域 (VAR-01k/03k/04k) — gated on khs2 v2.4 Phase 25 验收 (TD-1)
 - 重生成参数域之外的 prompt 语义辅助 (LLM 改写建议等)

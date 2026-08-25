@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: 跨仓协调清偿
-status: planning
-last_updated: "2026-08-25T07:20:35.292Z"
+status: verifying
+last_updated: "2026-08-25T12:00:00.000Z"
 last_activity: 2026-08-25
 progress:
-  total_phases: 0
-  completed_phases: 0
+  total_phases: 11
+  completed_phases: 11
   total_plans: 0
   completed_plans: 0
-  percent: 0
+  percent: 100
 ---
 
 # Project State
@@ -20,14 +20,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-23)
 
 **Core value:** AI creative production pipeline that runs end-to-end, pluggable across multiple creative workflows via a published skill contract.
-**Current focus:** v3.1 已收官（58-62 五 phase 全 verified + audit passed + archived）——下一里程碑待定
+**Current focus:** v3.2 回溯立项——11/11 phases 63-73 已于 2026-08-25 执行完毕（四仓 24 commits，验证矩阵全绿），3 项待真机 carry-forward；milestone audit 待跑
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-08-25 — Milestone v3.2 started
+Phase: 63-73 (all complete — executed 2026-08-25, 回溯立项同日固化)
+Plan: — (回溯立项: 执行先于立项, plans 建议与执行证据见 v3.2-ROADMAP-DRAFT.md)
+Status: Verifying — milestone audit 待 /gsd-complete-milestone
+Stopped at: v3.2 回溯立项 — 11/11 phases 63-73 已于 2026-08-25 执行完毕 (四仓 24 commits, 验证矩阵全绿); ⏸ WBX-05/CHS-05/QVR-03 存量部 待活体管线; milestone audit 待 /gsd-complete-milestone
+Last activity: 2026-08-25 — Milestone v3.2 roadmap created (retrospective formalization)
 
 ## Performance Metrics
 
@@ -87,6 +88,7 @@ Last activity: 2026-08-25 — Milestone v3.2 started
 
 ### Roadmap Evolution
 
+- **v3.2 roadmap created (2026-08-25, 回溯立项):** 11 phases (63-73) derived from 51 requirements across 11 categories, 源于 08-25 12-agent fan-out 双仓复审 40 findings (15 high/16 med/9 low, F01-F40 全落 phase)。**特殊性: 全部 phase 已于立项当日授权代执行完毕**（四仓 24 commits: kap 12 · khs 6 · gold-team 2 · review-platform 1），ROADMAP 按已交付终态固化非前瞻规划。批次依赖: Wave 1 地基+止血 (63 引擎真值源/64 p11a5 注册表/67 豁免桥/68 变体域契约/73 门中心收尾 全并行) → Wave 2 引擎链 (65 契约对齐 依赖 63 → 66 生产通电 依赖 63+65) → Wave 3 变体域 (69 Wave B ∥ 70 换选, gate on 68) → Wave 4 (71 共存语义, gate on 69+裁决②a)；72 QC 真数据填隙无硬依赖。5+1 裁决点全落 (三 ADR: .planning/adrs/adr-v3.2-variant-domain.md)。⏸ 3 项待真机 carry-forward: WBX-05 UAT 11 / 70-05 G13 换选 e2e / QVR-03 存量回填 (随下次活体管线自然覆盖)。验证矩阵: verify-53 102/102 · 54 62/62 · 55 18/18 · 56 89/89 · 65 31/31 · canvas 496/496 · khs 831+ · review-platform 443+ · 生产 :10588 双 env 实证。里程碑级守护新增 COORD-02 端到端数据链验证纪律 + COORD-03 契约冻结时效。draft (findings 索引+证据 annex) 原地保留: v3.2-ROADMAP-DRAFT.md。
 - **v3.1 roadmap created (2026-08-23):** 4 phases (58-61) derived from 13 requirements across 4 categories (RECIPE 4 / STALE 3 / PANEL 2 / DEBT 4)。Order 58 RECIPE → 59 STALE → 60 PANEL → 61 DEBT:RECIPE 与 STALE 都动 execute.ts 请求体与两条重生成路径(panel-edit-regen / reroll-seed),先定数据通道最终形状(全配方字段进 EventNodeV3.params)再挂 per-request 关联级联,避免同文件二次返工;STALE 锁定最小方案(executeNode extra channel,仅两条窄路径触发,orchestrate/batch 零影响负向断言锁死);PANEL(canvasStore reload 保 detailNode)与 DEBT 四项均 parallel-safe,串行排在末两位。全部改动限 kap 仓画布侧,e2e 落 packages/infinite-canvas/test/e2e/tests/。
 - **v3.0 shipped (2026-08-22):** 7 phases (51-57), 46 plans. 写路径地基统一 canonical V3 graph (51) + prompt 编辑→重生成闭环 code landed (52, externally owned) + 候选变体契约/变体墙/G15 批量操作 (53 Wave A) + 16-gate 中心三仓回写链 (54) + 22-phase 导航与 93 镜规模 (55) + 审核 radar/角标/G16 配音工作台 (56) + 制片门户/p13 交付页/deep-link/taxonomy 重对齐 (57)。Milestone audit **passed** (f9280e0c): 305/305 verify assertions · 435/435 vitest · 3× tsc clean · live probes ok · khs plugins/ 0 dirty。Deferred: 53 Wave B (khs2 v2.4 Phase 25 gate) + Phase 52 verification materials (owning session)。Archives: milestones/v3.0-ROADMAP.md + v3.0-MILESTONE-AUDIT.md。
 - **v2.1 roadmap created (2026-08-19):** 3 phases (48-50) derived from 12 requirements across 4 categories (INGEST 4 / SELECT 4 / PHASE 2 / GUARD 2). Serial chain 48→49→50: Phase 48 = o_assets 分组契约源头 (ingest 建组 + assetType 真值源 + workflow_phase 写入); Phase 49 = 选定回写闭环 (select-winner 端点 + 前端接线 + 资产中心联动 + kmc review resolve 桥接); Phase 50 = 存量回填 (与 Phase 47 模式一致) + 契约守护 (GUARD-01/02 + verify-phase-50)。kmc 侧零修改,桥接只读消费 manifest/review 协议。
@@ -226,6 +228,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-25T00:20:00+08:00
-Stopped at: v3.1 里程碑完整收官（62 七 plan 两线接力交付 + audit passed + archive；主 ROADMAP 翻 ✅；HUMAN-UAT 挂起×3）
-Resume: 新里程碑规划（待用户定方向）；挂起 UAT: 60 面板连续性 / 61 拖入手感 / 62 层级视图+批量决策+配置面板观感
+Last session: 2026-08-25
+Stopped at: v3.2 回溯立项 — 11/11 phases 63-73 已于 2026-08-25 执行完毕 (四仓 24 commits, 验证矩阵全绿); ⏸ WBX-05/CHS-05/QVR-03 存量部 待活体管线; milestone audit 待 /gsd-complete-milestone
+Resume: 跑 /gsd-complete-milestone (v3.2 milestone audit); 挂起真机项随下次活体管线自然覆盖; 历史挂起 UAT: 60 面板连续性 / 61 拖入手感 / 62 层级视图+批量决策+配置面板观感
