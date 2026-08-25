@@ -416,12 +416,18 @@ export interface KmcSlotEntry {
 }
 
 export const KMC_SLOT_REGISTRY: readonly KmcSlotEntry[] = [
-  { phaseCode: 'P01',  inputs: ['requirement'],                          outputs: ['topic-kernel', 'hook-design'] },
+  // ICA M2 (2026-08-25): hook-intent 是 P01 在 v2 层从 hook-design 确定性提取的
+  // 稳定意图承诺（C4b 承诺/实例分离），flag-gated 产出（缺省 key 缺失 → dormant 安全）。
+  { phaseCode: 'P01',  inputs: ['requirement'],                          outputs: ['topic-kernel', 'hook-design', 'hook-intent'] },
   { phaseCode: 'P02',  inputs: ['topic-kernel'],                         outputs: ['story-framework'] },
   { phaseCode: 'P03',  inputs: ['story-framework'],                      outputs: ['script-draft', 'audit-report'] },
   // P03.5 86ke 戏剧事件打磨：读 script-draft + story-framework（beat 级 event_type），
   //写 script-draft-polished + dramatic-polish-report（degrade 时 polished=原文）。
   { phaseCode: 'P03.5', inputs: ['script-draft', 'story-framework'],    outputs: ['script-draft-polished', 'dramatic-polish-report'] },
+  // ICA M2 (2026-08-25): P03.6 钩子再实例化（C4b 派生失效协议）。
+  // flag-gated（consistency.layer=v2）：从锁定剧本 + hook-intent 派生出 hook-spec。
+  // hook-intent 在 P01 提取（稳定意图承诺），hook-spec 在 p036 再实例化（派生实例）。
+  { phaseCode: 'P03.6', inputs: ['script-draft-polished', 'hook-intent'], outputs: ['hook-spec'] },
   // P04 读序：运行时优先 script-draft-polished、fallback script-draft（KMC p04 run() 实现；
   //registry 里保持 script-draft 单输入以维持 P03 lineage 拓扑）。
   { phaseCode: 'P04',  inputs: ['script-draft'],                         outputs: ['character-bible', 'character-design-images', 'character-assets'] },
@@ -522,6 +528,10 @@ export const DAG_NODES: readonly DagNodeDef[] = [
     match: { phaseIndex: 1, idIncludes: 'topic_kernel' }, expectedCount: 'dynamic' },
   { id: 'hook-candidates', label: '钩子候选', phaseCode: 'P01', phaseIndex: 1, group: 'research',
     match: { phaseIndex: 1, idIncludes: 'hook_design' }, expectedCount: 'dynamic' },
+  // ICA M2 (2026-08-25): hook-intent — P01 v2 层从 hook-design 确定性提取的稳定意图承诺。
+  // flag-gated（缺省 key 缺失 → match 0 节点 → dormant 安全）。
+  { id: 'hook-intent', label: '钩子意图', phaseCode: 'P01', phaseIndex: 1, group: 'research', dim: true,
+    match: { phaseIndex: 1, idIncludes: 'hook_intent' }, expectedCount: 1 },
   // ── P02 大纲（research） ──
   { id: 'story-framework', label: '故事框架', phaseCode: 'P02', phaseIndex: 2, group: 'research',
     match: { phaseIndex: 2 }, expectedCount: 'dynamic' },
@@ -536,6 +546,11 @@ export const DAG_NODES: readonly DagNodeDef[] = [
     match: { phaseIndex: 3, idIncludes: 'script_draft_polished' }, expectedCount: 1 },
   { id: 'dramatic-polish-report', label: '戏剧打磨报告', phaseCode: 'P03.5', phaseIndex: 3, group: 'story', dim: true,
     match: { phaseIndex: 3, idIncludes: 'dramatic_polish_report' }, expectedCount: 1 },
+  // ICA M2 (2026-08-25): P03.6 钩子再实例化 — C4b 派生失效协议。
+  // hook-spec = 从锁定剧本再实例化的开场规格（承诺型资产的派生实例）。
+  // flag-gated（v2 层才产出）；旧 episode 无 → match 0 节点 → pending。
+  { id: 'hook-spec', label: '钩子规格', phaseCode: 'P03.6', phaseIndex: 3, group: 'story', dim: true,
+    match: { phaseIndex: 3, idIncludes: 'hook_spec' }, expectedCount: 1 },
   // ── P04 角色设计（story） ──
   { id: 'character-bible', label: '角色设定', phaseCode: 'P04', phaseIndex: 4, group: 'story',
     match: { idPrefix: 'notion-character_bible', assetType: 'character', turnaroundAbsent: true, artifactsOnly: false },
@@ -669,6 +684,9 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   { from: 'script-draft', to: 'script-draft-polished' },
   { from: 'story-framework', to: 'script-draft-polished' },
   { from: 'script-draft-polished', to: 'dramatic-polish-report' },
+  // P03.5 → P03.6：打磨剧本 + 钩子意图 → 钩子规格（ICA C4b 派生失效协议）
+  { from: 'script-draft-polished', to: 'hook-spec' },
+  { from: 'hook-intent', to: 'hook-spec' },
   // P03.5 → P04：打磨剧本 → 角色设定（运行时读序 polished 优先，见 KMC p04 run()）
   { from: 'script-draft-polished', to: 'character-bible' },
   // P03 → P04：剧本初稿 → 角色设定（fallback 读序：P03.5 degrade 时 P04 读原文）
@@ -717,6 +735,9 @@ export const DAG_EDGES: readonly DagEdgeDef[] = [
   { from: 'shot-list', to: 'shot-audit' },
   // P01 → P09b：钩子候选 → 镜头审计（P09b INPUT_SLOTS 含 hook-design = hook-candidates）
   { from: 'hook-candidates', to: 'shot-audit' },
+  // ICA M2 (2026-08-25): P03.6 → P09b：钩子规格 → 镜头审计（运行时读序优先 hook-spec，
+  // fallback hook-design；INPUT_SLOTS 保持 hook-design 维持 lineage 拓扑）。
+  { from: 'hook-spec', to: 'shot-audit' },
   // P09 → P10：分镜表 → 语音片段（数据流 + 门控双边）
   // 数据流：P10 INPUT_SLOTS 含 shot-list（真读 shot-list）；门控：P09b depends_on 通过才跑 P10
   // P10c 语音审计已内联到 P10（sub gate，不单列 DAG 节点）；P10 voice-clips 直接流向 P11a
@@ -1121,6 +1142,9 @@ export function validateDagEdges(): string[] {
     // INPUT_SLOTS 保持 script-draft 单值以维持 P03 lineage，故这条运行时
     // 读序边走 design-intent 豁免。
     ['script-draft-polished|character-bible', 'P04 运行时读序优先 script-draft-polished（KMC p04 run()），registry INPUT_SLOTS 保持 script-draft 维持 lineage'],
+    // ICA M2 (2026-08-25): hook-spec → shot-audit（P09b 运行时读序优先 hook-spec、
+    // fallback hook-design；INPUT_SLOTS 保持 hook-design 维持 P01 lineage）。
+    ['hook-spec|shot-audit', 'P09b 运行时读序优先 hook-spec（ICA C4b 派生失效协议），registry INPUT_SLOTS 保持 hook-design 维持 lineage'],
   ])
 
   for (const e of DAG_EDGES) {

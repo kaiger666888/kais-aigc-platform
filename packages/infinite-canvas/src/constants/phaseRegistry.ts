@@ -54,6 +54,9 @@ export const PHASE_REGISTRY: readonly PipelinePhaseDef[] = [
   { sortKey: 2, code: 'P02', name: '大纲', group: 'research', phaseIndex: 2, khsPrefix: 'p02', prefix: 'p02', canvasType: 'script', assetType: 'outline', label: 'P02 · 大纲' },
   { sortKey: 3, code: 'P03', name: '剧本审计', group: 'story', phaseIndex: 3, khsPrefix: 'p03', prefix: 'p03', canvasType: 'script', assetType: 'script_phase', label: 'P03 · 剧本+审计' },
   { sortKey: 3.5, code: 'P03.5', name: '戏剧事件打磨', group: 'story', phaseIndex: 3, sub: true, khsPrefix: 'p035', prefix: 'p035', canvasType: 'script', assetType: 'script_phase', label: 'P03.5 · 戏剧事件打磨' },
+  // ICA M2 (2026-08-25): P03.6 钩子再实例化 — C4b 派生失效协议。
+  // flag-gated（consistency.layer=v2 时才产出 hook-spec），sub 共 p03 lane。
+  { sortKey: 3.6, code: 'P03.6', name: '钩子再实例化', group: 'story', phaseIndex: 3, sub: true, khsPrefix: 'p036', prefix: 'p036', canvasType: 'script', assetType: 'script_phase', label: 'P03.6 · 钩子再实例化' },
   { sortKey: 4, code: 'P04', name: '角色设计', group: 'story', phaseIndex: 4, khsPrefix: 'p04', prefix: 'p04', canvasType: 'asset', assetType: 'character', label: 'P04 · 角色设计' },
   { sortKey: 5, code: 'P06', name: '时空剧本', group: 'production', phaseIndex: 6, khsPrefix: 'p06', prefix: 'p06', canvasType: 'script', assetType: 'script_phase', label: 'P06 · 运镜+终审' },
   { sortKey: 6, code: 'P07', name: '场景图生成', group: 'production', phaseIndex: 7, khsPrefix: 'p07', prefix: 'p07', canvasType: 'asset', assetType: 'scene', label: 'P07 · 视觉+风格化' },
