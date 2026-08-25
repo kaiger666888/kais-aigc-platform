@@ -4,16 +4,16 @@
  * reviewBridge 同构纪律(P1/P2 逐条复刻):deps 注入 + never-throws +
  * fail-closed 匹配。两通道:
  *
- *  1. waive(豁免)= approve-with-comment 扩展语义。协议参照(reviewBridge
- *     L12-18):approve = POST /api/v1/reviews/{id}/approve,body
- *     {comment, result?};409 = review 已在别处 resolve(视为已处理,非错误)。
- *     ⚠️ WBX-03(2026-08-25 review F09/F14/F27):本桥当前 POST 的
- *     /api/v1/g15/ops 在 review-platform 侧**尚不存在**(全网 404)——
- *     送达恒 false,操作只能入 canvas_writeback_queue 重放(≤8 次)。
- *     端点落地(67-02)前 delivered=true 不可达;UI 已按 delivered=false
- *     诚实降级(不再报成功)。G15 的 waive 对应 G15(p11c-gate)review 的
- *     approve,comment 携带 `g15:waive:{shotId}` 标记 + 豁免理由。
- *  2. requeue(重渲)= 冻结新 action。
+ *  1. waive(豁免)= per-shot 子集语义(67-02 起服务端落地)。协议:
+ *     POST /api/v1/g15/ops(review-platform g15_ops.py),服务端 fail-closed
+ *     匹配 APPROVING review(type==gate + content_ref episode 段 ∈
+ *     episodeRefs),waived_shot_ids union 进 review_result(幂等);404=无
+ *     开着的门,409=歧义/已在别处处理(视为已送达)。review 不转终态——
+ *     operator approve(web/telegram)才是终态,approve 端点 carry-forward
+ *     豁免子集。kmc 侧 runner_hooks 67-03 把 waived_shot_ids 注入 outcome,
+ *     p10c/p11c 消费子集(不再 approve=全量一刀切,F15 终结)。
+ *  2. requeue(重渲)= 留痕语义:服务端合并 requeue_shot_ids 进
+ *     review_result;kmc 重渲消费端 v3.2 Phase 69 落地(当前仅记录)。
  *
  * DOCUMENTED PROTOCOL GAP(冻结):kmc 侧 requeue 指令消费端 Wave B 才存在
  * (gated on khs2 v2.4 Phase 25 验收)。当前 delivered=true 仅代表指令送达
@@ -40,6 +40,12 @@ export interface G15BridgeParams {
    * (409 幂等/队列/重放)。白名单在 route zod 层(本层不校验形态)。
    */
   gate?: string;
+  /**
+   * 67-02 (v3.2 WBX-01):episode 候选集(gateStateService 画布探针解析,
+   * WR-01 同源)。kmc content_ref 用真实目录名(ep-zhongkui-ep01),仅靠
+   * `ep${episodesId}` 合不上——服务端按 content_ref episode 段 ∈ refs 匹配。
+   */
+  episodeRefs?: string[];
 }
 
 export interface G15BridgeDeps {
@@ -102,10 +108,11 @@ export async function dispatchG15Op(
         : `${gateId}:requeue:${params.shotIds.join(",")}`;
 
     // G15 缺省 p11c-gate(G16 经 gate:'p10c-gate' 复用,56-05 D-11)。
-    // review-platform 无按 content_ref 的服务端过滤
-    // (reviewBridge WR-02 已核),桥侧先列表后匹配——本 Wave A 通道为
-    // 指令送达语义:直接 POST approve 通道的 G15 扩展形状(批量 comment),
-    // review 列表匹配闭环与 Wave B 的 kmc 消费端一并对齐。
+    // 67-02 (v3.2 WBX-01):/api/v1/g15/ops 已在 review-platform 落地——
+    // 服务端按 APPROVING + type==gate + content_ref episode 段 ∈ refs
+    // fail-closed 匹配(0 命中 404/歧义 409),waive 子集 union 进
+    // review_result.waived_shot_ids(幂等),kmc poller 67-03 消费。
+    // episodeRefs 由调用方(route)从 gateStateService 画布探针解析传入。
     const res = await fetchImpl(`${baseUrl}/api/v1/g15/ops`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -116,6 +123,9 @@ export async function dispatchG15Op(
         shotIds: params.shotIds,
         comment,
         gate: gateId,
+        ...(params.episodeRefs != null && params.episodeRefs.length > 0
+          ? { episodeRefs: params.episodeRefs }
+          : {}),
       }),
       signal: AbortSignal.timeout(timeoutMs),
     });

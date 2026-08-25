@@ -6,6 +6,7 @@ import { db } from "@/utils/db";
 import { dispatchG15Op } from "@/lib/g15Bridge";
 import { enqueueWriteback, ensureDrainStarted, drainOnce } from "@/lib/writebackQueue";
 import { getManifestTransport, replayManifestWriteback } from "@/lib/manifestWriteback";
+import { getGateStateService } from "@/lib/gateStateService";
 
 const router = express.Router();
 
@@ -50,12 +51,14 @@ function bootG15Drain(): void {
         // g15_waive / g15_requeue 重放:按行 payload 重发桥指令。
         // 56-05/WBX-03:gate 必须从 payload 透传——此前解构丢 gate,排队的
         // p10c-gate 豁免重放时被 dispatchG15Op 缺省成 p11c-gate(错门豁免)。
+        // 67-02:episodeRefs 同随 payload 透传(入队时快照的重放同源)。
         const payload = JSON.parse(row.payload) as {
           projectId: number;
           episodesId: number;
           action: "waive" | "requeue";
           shotIds: string[];
           gate?: string;
+          episodeRefs?: string[];
         };
         const r = await dispatchG15Op(payload);
         return r.delivered;
@@ -73,9 +76,20 @@ router.post("/", async (req, res) => {
   }
   const { projectId, episodesId, action, shotIds, gate } = parse.data;
 
+  // 67-02 (WBX-01):episodeRefs 从 gateStateService 画布探针取(WR-01 同源
+  // ——kmc content_ref 用 ep-zhongkui-ep01 目录名,裸 ep{id} 合不上)。
+  // 未解析过(服务未轮询该 scope)先兜底 legacy 双形态,并异步触发一次
+  // pollNow 供后续操作用;refs 随入队 payload 持久化,drain 重放同源。
+  const scope = { projectId, episodesId };
+  const svc = getGateStateService();
+  svc.ensureScope(scope);
+  const refs = svc.episodeRefsFor(scope) ?? new Set([`ep${episodesId}`, String(episodesId)]);
+  if (svc.episodeRefsFor(scope) == null) void svc.pollNow(scope).catch(() => {});
+  const episodeRefs = [...refs];
+
   try {
     bootG15Drain();
-    const result = await dispatchG15Op({ projectId, episodesId, action, shotIds, gate });
+    const result = await dispatchG15Op({ projectId, episodesId, action, shotIds, gate, episodeRefs });
     let queued = 0;
     if (!result.delivered) {
       // D-10/Pitfall 4:入队失败降级 warn——响应仍是 200(操作已受理)
@@ -84,8 +98,8 @@ router.post("/", async (req, res) => {
           projectId,
           episodesId,
           action: action === "waive" ? "g15_waive" : "g15_requeue",
-          // 56-05:gate 入队透传;旧行无 gate 字段 = 缺省 p11c-gate(回放天然正确)
-          payload: { projectId, episodesId, action, shotIds, gate, lastReason: result.reason },
+          // 56-05:gate 入队透传;67-02:episodeRefs 一并入队(重放同源)
+          payload: { projectId, episodesId, action, shotIds, gate, episodeRefs, lastReason: result.reason },
         });
         queued = 1;
       } catch (queueErr) {
