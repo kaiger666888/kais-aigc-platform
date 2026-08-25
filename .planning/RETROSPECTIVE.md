@@ -162,6 +162,36 @@
 
 **Carry forward:** Phase 53 Wave B(khs2 v2.4 Phase 25 gated);52 验证材料欠账(外部会话);TD-1..8(register 见 v3.0-MILESTONE-AUDIT);人工 UAT §7(14 项真机走查)。
 
+## Milestone: v3.2 — 跨仓协调清偿 (2026-08-25)
+
+**Shipped:** 2026-08-25 (单日: 执行→立项→审计→归档)
+**Phases:** 63-73 (11) | **Repos:** kap + khs2 + gold-team + review-platform (四仓 27+ commits)
+
+### What Was Built
+12-agent 复审 40 findings (15 high) 的全量清偿: 引擎真值源收编+生产通电(终结 simulateOnly 假成功)·豁免桥三仓闭环(g15/ops+子集豁免)·变体域契约重冻结+Wave B 实施(FS transport 通电+换选四断点)·画布↔kmc 共存语义(_kmc_prompt 哨兵+产物回流)·QC/评分真数据(aiScore 生产者+五值 verdict)·门中心收尾(p11b 哨兵+qwen-eye 不绕队)。
+
+### What Worked
+- **回溯立项模式**: 授权代执行→draft 留证→正式立项固化——避免了 40 findings 逐条走 GSD phase 的流程开销,同时保留全部可追溯性(门+commit+ADR)。
+- **漂移告警门当值**: 审计重跑时 verify-54/55 与 3 个 vitest pin 全部正确报警并行会话的 ICA M1/M2 漂移——门不是摆设。
+- **COORD-02 端到端纪律二次自证**: 审计抓到「验 spawn pid ≠ 验监听者」的生产端口事故,当场修复+脚本硬化。
+
+### What Was Inefficient
+- 执行时点的「全绿」快照 6h 后就被并行会话打破(pin 滞后×2 类)——跨仓 pin 类断言的维护方约定仍缺失(谁改注册表谁更新全部 pin)。
+- 生产被绕过脚本手动重启而无告警,静默回退 5.5h——需要端口/进程监控而非仅启动时验证。
+
+### Patterns Established
+- 回溯立项(retrospective formalization): draft→执行→立项→同日审计归档
+- serve-production.sh 三重实证: 端口归属 pid==pidfile + /health + 监听进程 environ
+- per-phase id 空间 (`{sid}:{ft}:v{N}`) + fullPhaseToken 防错批——跨相位同名门的隔离范式
+
+### Key Lessons
+- 验证断言要锚定「真实服务面」(监听者/消费端/生产数据),不能锚定「我启动的东西」(spawn pid)。
+- 契约计数 pin 是漂移告警的代价: 注册表演进方必须同步全部 pin(kap verify-55 + 3 个 vitest 文件),否则下一个会话的审计就要替你销账。
+
+### Cost Observations
+- Model mix: 主力 Opus 4.8 (1M ctx), audit 子代理 Sonnet; 单会话完成执行+立项+审计+归档
+- Notable: 12-agent fan-out 复审(journal wf_86c8a137)+ 40 finding 对抗复核的产出/成本比极高——一次投入防了 8 条「门绿链断」
+
 ## Cross-Milestone Trends
 
 | Metric | v1.1 | v1.5 | v1.6 |
