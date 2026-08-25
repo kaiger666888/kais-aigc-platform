@@ -14,15 +14,27 @@
  * 纯模块零 React import。
  */
 
-/** p03 五维 + p14 八维 + 常见派生键 → 中文。 */
+/** p03 审计维 + p14 八维 + 常见派生键 → 中文。
+ *
+ * 72-03 (v3.2 F29) 对齐 khs 真值:
+ *  - p03 scores 四维 = drama/rhythm/character/logic(p03_script_audit.py:1322
+ *    prompt 行;旧镜像漏 logic);D6/D7 顶层键 = reversal_depth /
+ *    social_resonance_depth(:1328/:1332,旧镜像 social_resonance 少 _depth
+ *    后缀——substring 命中掩盖了漂移)。
+ *  - p14 八维第 8 维 = requirement_conformance(p14_quality_audit.py JSON
+ *    模板;旧镜像的 master 不在 khs 实际维度集,仅作派生键保留)。
+ */
 export const DIM_LABELS: Readonly<Record<string, string>> = {
-  // p03 五维(剧本审计)
+  // p03 scores 四维 + D6/D7 顶层维(剧本审计)
   drama: '戏剧性',
   rhythm: '节奏',
   character: '人物',
+  logic: '逻辑',
   reversal_depth: '反转深度',
+  social_resonance_depth: '社会共鸣深度',
+  // legacy 键(story-framework 上游仍用短形;显示层兼容)
   social_resonance: '社会共鸣',
-  // p14 八维(成片质量审计;master 为整体项)
+  // p14 八维(成片质量审计)
   hook_quality: '钩子质量',
   narrative_design: '叙事设计',
   shot_breakdown: '分镜拆解',
@@ -30,6 +42,10 @@ export const DIM_LABELS: Readonly<Record<string, string>> = {
   character_consistency: '角色一致性',
   audio_voice: '音频配音',
   visual_rendering: '视觉渲染',
+  requirement_conformance: '需求符合度',
+  // p14 可选第 9 维(86ke 注入的 theory_check 第二层,仅当输入含新字段时产出)
+  info_package_density: '信息密度',
+  // 派生/整体项(khs 实际审计不产,聚合层用)
   master: '整体',
   overall: '综合',
 }
@@ -54,11 +70,17 @@ export const VIEW_LABELS: Readonly<Record<string, string>> = {
   reference: '参考图',
 }
 
-/** qwen-eye/qwen-ear verdict 三值 → 中文(PASS/WARN/FAIL 大小写均命中)。 */
+/** qwen-eye/qwen-ear verdict 词表 → 中文(72-05/v3.2 F32:三值闭集扩到 khs
+ * 真实五值+解析失败态——SKIPPED 不再与 PASS 混同、ERROR/MUST_FIX 不再被
+ * 三值过滤器静默丢弃。未知值原样返回(fail-soft)。 */
 export const VERDICT_LABELS: Readonly<Record<string, string>> = {
   PASS: '通过',
   WARN: '留意',
   FAIL: '不过',
+  ERROR: '异常',
+  SKIPPED: '未评',
+  MUST_FIX: '必修',
+  PARSE_FAIL: '解析失败',
 }
 
 function lookup(table: Readonly<Record<string, string>>, key: string): string {

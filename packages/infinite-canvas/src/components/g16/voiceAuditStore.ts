@@ -17,7 +17,8 @@ export interface VoiceClip {
   shotId: string
   path: string
   transcript: string
-  verdict: 'pass' | 'warn' | 'fail'
+  /** 72-05 (F32):三值 → 五值(ERROR/SKIPPED 不再整行静默丢弃)。 */
+  verdict: 'pass' | 'warn' | 'fail' | 'error' | 'skipped'
   similarity?: number
   reason?: string
   speaker?: string
@@ -41,12 +42,25 @@ function toVerdict(v: unknown): VoiceClip['verdict'] | null {
   if (s === 'PASS') return 'pass'
   if (s === 'WARN') return 'warn'
   if (s === 'FAIL') return 'fail'
+  if (s === 'ERROR') return 'error'
+  if (s === 'SKIPPED') return 'skipped'
   return null
 }
 
-/** raw 袋 → VoiceClip[](防御式:键序 clips/findings;域外 verdict 过滤)。 */
+/** raw 袋 → VoiceClip[](防御式:键序 clips/findings + fidelity_check.clips
+ * 嵌套层;域外 verdict 过滤)。72-01 (v3.2 F25):khs p10c 真实形状 clips 挂在
+ * fidelity_check 下(audit.fidelity_check.clips),旧顶层读法恒空——工作台
+ * 听审列表因此对真实数据零行。 */
 export function deriveClips(raw: Record<string, unknown>): VoiceClip[] {
-  const candidates = [raw.clips, raw.findings]
+  // 72-01 F25:p10c_voice_audit.py 真实槽形——fidelity_check{clips: []}
+  const fid = raw.fidelity_check
+  const candidates = [
+    raw.clips,
+    raw.findings,
+    fid != null && typeof fid === 'object' && !Array.isArray(fid)
+      ? (fid as Record<string, unknown>).clips
+      : undefined,
+  ]
   for (const c of candidates) {
     if (!Array.isArray(c)) continue
     const out: VoiceClip[] = []

@@ -27,6 +27,9 @@ const VERDICT_COLOR: Record<string, string> = {
   pass: v3theme.signal.approved,
   warn: v3theme.signal.running,
   fail: v3theme.signal.rejected,
+  // 72-05 (F32):五值——审计异常≠内容不过(紫);未评灰。
+  error: v3theme.signal.locked,
+  skipped: v3theme.signal.pending,
 }
 
 export default function G16VoiceWorkbench(): React.ReactElement | null {

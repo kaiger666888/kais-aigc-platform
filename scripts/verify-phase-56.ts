@@ -75,26 +75,41 @@ function main(): void {
 
   // ═══ S-vocabulary(khs 零漂移对照) ══════════════════════════════════════
   console.log("\n=== S-vocabulary: scoreVocabulary ≡ khs 维度 token ===");
-  const p03 = ["drama", "rhythm", "character", "reversal_depth", "social_resonance"];
-  const p14 = ["hook_quality", "narrative_design", "shot_breakdown", "scene_planning", "character_consistency", "audio_voice", "visual_rendering", "master"];
-  for (const k of [...p03, ...p14]) {
-    assert(k in DIM_LABELS, `S-vocab: 包内镜像含 ${k}`, DIM_LABELS[k]);
-  }
+  // 72-03 (v3.2 F29) 修真:不再硬编码维度清单 + substring 恒真匹配——
+  // 改为从 khs 源码的 prompt/JSON 模板提取真实维度键,提取不到即 FAIL
+  // (锚点漂移本身是信号)。旧 substring 法让 social_resonance 永远命中
+  // social_resonance_depth、requirement_conformance 被后缀过滤漏掉,
+  // 词表漂了门仍绿。
   const khsP03 = path.join(KHS_ROOT, "skills/kais-movie-pipeline/pipeline/phases/p03_script_audit.py");
   const khsP14 = path.join(KHS_ROOT, "skills/kais-movie-pipeline/pipeline/phases/p14_quality_audit.py");
-  if (fs.existsSync(khsP03) && fs.existsSync(khsP14)) {
-    const p03Src = fs.readFileSync(khsP03, "utf8");
-    const p14Src = fs.readFileSync(khsP14, "utf8");
-    for (const k of p03) assertWarn(p03Src.includes(k), `S-vocab: khs p03 仍含 ${k}(删除/改名 → WARN 不 FAIL)`, undefined);
-    for (const k of p14) assertWarn(p14Src.includes(k), `S-vocab: khs p14 仍含 ${k}`, undefined);
-    // khs 新增维度未镜像 = FAIL(零漂移治理;p14 维度经 json 模板键提取)
-    const p14New = [...p14Src.matchAll(/"(\w+)":\s*\{/g)].map((m) => m[1]!)
-      .filter((k) => k.length > 3 && k.startsWith("hook_") || /_quality$|_design$|_breakdown$|_planning$|_consistency$|_voice$|_rendering$/.test(k) && k !== "master");
-    for (const k of p14New) {
-      assert(k in DIM_LABELS, `S-vocab: khs p14 新增维度未镜像: ${k}`);
+  assert(fs.existsSync(khsP03) && fs.existsSync(khsP14), "S-vocab: khs p03/p14 源可达(KAIS_HERMES_SKILLS_PATH)");
+  const p03Src = fs.readFileSync(khsP03, "utf8");
+  const p14Src = fs.readFileSync(khsP14, "utf8");
+  // p03:scores 四维(prompt 行 braces 内逗号 token)+ D6/D7 顶层维
+  // ('"reversal_depth": (0-1' 形锚点)
+  const scoresLine = p03Src.match(/"scores":\s*\{([^}]*)\}/)?.[1] ?? "";
+  const p03Scores = [...scoresLine.matchAll(/([a-z_]+)\s+\(0-1/g)].map((m) => m[1]!);
+  assert(p03Scores.length >= 4, `S-vocab: p03 scores 四维提取命中(锚点漂移=红) — ${p03Scores.join(",")}`);
+  const p03Top = [...p03Src.matchAll(/"([a-z_]+)":\s*\(0-1/g)].map((m) => m[1]!)
+    // total_score 是加权聚合量(p03 prompt 第二行),非雷达维度
+    .filter((k) => k !== "total_score");;
+  // p14:JSON 模板维度键('"dim":{"score":0' 形)
+  const p14Dims = [...p14Src.matchAll(/"([a-z_]+)":\s*\{"score"/g)].map((m) => m[1]!);
+  assert(p14Dims.length >= 8, `S-vocab: p14 八维提取命中(锚点漂移=红) — ${p14Dims.join(",")}`);
+  for (const k of [...p03Scores, ...p03Top, ...p14Dims]) {
+    assert(k in DIM_LABELS, `S-vocab: 包内镜像含 ${k}(khs 新增/改名维度未镜像)`, DIM_LABELS[k]);
+  }
+  // 反向:镜像里 khs 已不产的 p14 维度键 → WARN(保留派生键 master/overall 豁免)
+  for (const k of Object.keys(DIM_LABELS)) {
+    if (["master", "overall", "social_resonance"].includes(k)) continue;
+    if (k.startsWith("hook_") || k.endsWith("_quality") || k.endsWith("_design") || k.endsWith("_conformance")) {
+      assertWarn(p14Src.includes(`"${k}"`), `S-vocab: khs p14 已不含 ${k}(删除?镜像待清)`, undefined);
     }
-  } else {
-    assertWarn(false, "S-vocab: khs 源文件不可达(KAIS_HERMES_SKILLS_PATH)", khsP03);
+  }
+  // F32:verdict 五值闭集(must_fix 为画布 QC 槽真实值;PARSE_FAIL 为 p11c)
+  const vocabSrc = fs.readFileSync(path.join(PKG, "utils/scoreVocabulary.ts"), "utf8");
+  for (const v of ["PASS", "WARN", "FAIL", "ERROR", "SKIPPED", "MUST_FIX", "PARSE_FAIL"]) {
+    assert(vocabSrc.includes(`${v}: `), `S-vocab: VERDICT_LABELS 含 ${v}(五值+解析失败,非三值闭集)`);
   }
 
   // ═══ S-badge ════════════════════════════════════════════════════════════

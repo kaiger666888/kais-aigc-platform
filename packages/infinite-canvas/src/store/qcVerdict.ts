@@ -7,18 +7,29 @@
  * (khs 同步形状漂移不炸画布)。资产 raw 袋自带 qc_verdict/verdict 直读优先
  * (shortcut 演进位,khs 未来直写无缝)。
  *
+ * 72-01/72-05 (v3.2 F26/F32) 修真——原三断点:
+ *  a) per_shot 真形是 dict(p11c_video_qc.py per_shot:{sid:rec})非 array,
+ *     LIST_KEYS 只认 array → 眼审恒零命中;clips 嵌在 fidelity_check 下
+ *     (p10c_voice_audit.py audit.fidelity_check.clips)非顶层 → 耳审恒零命中。
+ *     现两者都识别(rec 自带 shot_id 键)。
+ *  b) verdict 三值闭集把 SKIPPED/ERROR/MUST_FIX 静默丢掉(生产库 11 skipped/
+ *     2 error 真实存在)→ 扩到五值+must_fix,normalizeVerdict 不再吞。
+ *  c) AUDIT_VOCAB 闭集 → registerAuditToken() 可注册(khs 新增审计 phase
+ *     无需改 kap 源码,QVR-06 扩展契约)。
+ *
  * 纯模块零 React;消费侧 memo(useMemo),不在 store 持久化。
  */
 import type { FlowGraphV3 } from '@kais/flowgraph-v3'
 
 export interface QcVerdict {
   judge: 'eye' | 'ear';
-  verdict: 'pass' | 'warn' | 'fail';
+  /** 五值+必修(72-05 F32):skipped=未评,error=审计异常,must_fix=必修。 */
+  verdict: 'pass' | 'warn' | 'fail' | 'error' | 'skipped' | 'must_fix';
 }
 
 type RawBag = Record<string, unknown>
 
-const AUDIT_VOCAB: ReadonlyArray<{ token: string; judge: 'eye' | 'ear' }> = [
+const AUDIT_VOCAB: Array<{ token: string; judge: 'eye' | 'ear' }> = [
   { token: 'voice-audit', judge: 'ear' },
   { token: 'voice_audit', judge: 'ear' },
   { token: 'video-qc', judge: 'eye' },
@@ -27,7 +38,17 @@ const AUDIT_VOCAB: ReadonlyArray<{ token: string; judge: 'eye' | 'ear' }> = [
   { token: 'preview_qc', judge: 'eye' },
 ]
 
-/** per-item 列表探测键序(形状各异;识别不了返回 null)。 */
+/**
+ * QVR-06 (F31) 扩展契约:注册新的审计节点识别 token(khs 新增审计 phase 时
+ * 由调用方注册,如 registerAuditToken('storyboard-qc', 'eye'))。幂等。
+ */
+export function registerAuditToken(token: string, judge: 'eye' | 'ear'): void {
+  if (typeof token !== 'string' || token.length === 0) return
+  if (AUDIT_VOCAB.some((e) => e.token === token)) return
+  AUDIT_VOCAB.push({ token, judge })
+}
+
+/** per-item 列表探测键序(array 形;dict 形 per_shot 单独处理)。 */
 const LIST_KEYS = ['clips', 'per_shot', 'shots', 'items', 'variants'] as const
 
 /** shortcut 直读键序(资产自带 verdict 时优先)。 */
@@ -42,6 +63,11 @@ function normalizeVerdict(v: unknown): QcVerdict['verdict'] | null {
   if (s === 'PASS') return 'pass'
   if (s === 'WARN') return 'warn'
   if (s === 'FAIL') return 'fail'
+  // 72-05 F32:p10c/p11c 真实五值(ERROR/SKIPPED)+画布 QC 槽 must_fix——
+  // 旧三值闭集在此返回 null 把整个 item 静默丢弃。
+  if (s === 'ERROR') return 'error'
+  if (s === 'SKIPPED') return 'skipped'
+  if (s === 'MUST_FIX') return 'must_fix'
   return null
 }
 
@@ -53,22 +79,52 @@ function auditJudgeOf(nodeId: string, raw: RawBag): 'eye' | 'ear' | null {
   return null
 }
 
-/** 从 raw 袋探测 per-item 列表(item 需含 shot_id + verdict 才命中)。 */
+/** 单条 per-item 记录 → {shotId, verdict}(需两者齐备,否则 null)。 */
+function itemOf(it: unknown): { shotId: string; verdict: QcVerdict['verdict'] } | null {
+  if (!isRecord(it)) return null
+  const shotId = typeof it.shot_id === 'string' ? it.shot_id : (typeof it.shotId === 'string' ? it.shotId : null)
+  const verdict = normalizeVerdict(it.verdict)
+  if (shotId == null || verdict == null) return null
+  return { shotId, verdict }
+}
+
+/** 从 raw 袋探测 per-item 列表(72-01 F26 修真:array/dict/嵌套三形)。 */
 function detectItems(raw: RawBag): Array<{ shotId: string; verdict: QcVerdict['verdict'] }> | null {
+  const found: Array<{ shotId: string; verdict: QcVerdict['verdict'] }> = []
+  // 形 1:顶层 array(clips/shots/items/variants…)
   for (const key of LIST_KEYS) {
     const list = raw[key]
     if (!Array.isArray(list)) continue
-    const items: Array<{ shotId: string; verdict: QcVerdict['verdict'] }> = []
     for (const it of list) {
-      if (!isRecord(it)) continue
-      const shotId = typeof it.shot_id === 'string' ? it.shot_id : (typeof it.shotId === 'string' ? it.shotId : null)
-      const verdict = normalizeVerdict(it.verdict)
-      if (shotId == null || verdict == null) continue
-      items.push({ shotId, verdict })
+      const rec = itemOf(it)
+      if (rec != null) found.push(rec)
     }
-    if (items.length > 0) return items
+    if (found.length > 0) return found
   }
-  return null
+  // 形 2:p11c per_shot 为 dict {sid: rec}——rec 自带 shot_id;缺失时回退
+  // dict 键作 shot_id(旧实现只认 array,眼审 join 因此恒零命中)。
+  const perShot = raw.per_shot
+  if (isRecord(perShot)) {
+    for (const [sid, it] of Object.entries(perShot)) {
+      const verdict = isRecord(it) ? normalizeVerdict(it.verdict) : null
+      const recShotId = isRecord(it) && typeof it.shot_id === 'string' ? it.shot_id : null
+      if (verdict != null && (recShotId != null || sid.length > 0)) {
+        found.push({ shotId: recShotId ?? sid, verdict })
+      }
+    }
+    if (found.length > 0) return found
+  }
+  // 形 3:p10c fidelity_check.clips 嵌套层(clips 挂在 fidelity_check 下,
+  // 非顶层)——旧实现耳审 join 因此恒零命中。
+  const fid = raw.fidelity_check
+  if (isRecord(fid) && Array.isArray(fid.clips)) {
+    for (const it of fid.clips) {
+      const rec = itemOf(it)
+      if (rec != null) found.push(rec)
+    }
+    if (found.length > 0) return found
+  }
+  return found.length > 0 ? found : null
 }
 
 /**
@@ -113,7 +169,7 @@ export function deriveQcVerdicts(
     if (judge == null) continue
     const items = detectItems(d)
     if (items == null) {
-      console.warn(`[qcVerdict] 审计节点 ${n.id} 无可识别 per-item 列表(键序 ${LIST_KEYS.join('/')}),跳过`)
+      console.warn(`[qcVerdict] 审计节点 ${n.id} 无可识别 per-item 列表(键序 ${LIST_KEYS.join('/')}/per_shot dict/fidelity_check.clips),跳过`)
       continue
     }
     for (const item of items) {

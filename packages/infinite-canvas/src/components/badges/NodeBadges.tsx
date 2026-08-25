@@ -101,21 +101,26 @@ export default function NodeBadges({ nodeId, asset, lod, verdicts }: NodeBadgesP
         style={{ position: 'absolute', bottom: off, left: off + badge.tri + 2, display: 'flex', gap: 4 }}
       >
         {ordered.map((v, i) => {
+          // 72-05 F32 五值形色双编码:pass 绿实线 / warn 黄虚线 / fail 红实线+
+          // 光环 / must_fix 红实线+光环(必修语义同 fail) / error 紫虚线(审计
+          // 异常≠内容不过) / skipped 灰虚线(未评)。judge 身份仍不走颜色。
           const ring =
             v.verdict === 'pass' ? v3theme.signal.approved
-              : v.verdict === 'fail' ? v3theme.signal.rejected
-                : v3theme.signal.running
+              : v.verdict === 'fail' || v.verdict === 'must_fix' ? v3theme.signal.rejected
+                : v.verdict === 'error' ? v3theme.signal.locked
+                  : v.verdict === 'warn' ? v3theme.signal.running
+                    : v3theme.signal.pending
           const label = `${v.judge === 'eye' ? '眼审' : '耳审'} ${verdictLabel(v.verdict)}`
           return (
             <span key={`${v.judge}-${i}`} title={label} style={{ position: 'relative', width: badge.dot, height: badge.dot, display: 'inline-block' }}>
               <svg width={badge.dot} height={badge.dot} viewBox="0 0 10 10" aria-label={label} style={{ position: 'absolute', inset: 0, display: 'block' }}>
                 <circle cx="5" cy="5" r="4.6" fill="var(--cv-bg-overlay, #1E2128)" />
-                {v.verdict === 'fail' && (
+                {(v.verdict === 'fail' || v.verdict === 'must_fix') && (
                   <circle cx="5" cy="5" r="5.4" fill="none" stroke={ring} strokeOpacity={0.4} strokeWidth={1} />
                 )}
                 <circle
                   cx="5" cy="5" r="4" fill="none" stroke={ring} strokeWidth={1.5}
-                  strokeDasharray={v.verdict === 'warn' ? '2 1.5' : undefined}
+                  strokeDasharray={v.verdict === 'warn' || v.verdict === 'error' || v.verdict === 'skipped' ? '2 1.5' : undefined}
                 />
               </svg>
               <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--cv-text-primary, #EDEEF1)' }}>

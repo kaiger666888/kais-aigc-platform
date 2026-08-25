@@ -5,7 +5,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { AssetNodeV3, FlowGraphV3 } from '@kais/flowgraph-v3'
-import { deriveQcVerdicts } from '../qcVerdict'
+import { deriveQcVerdicts, registerAuditToken } from '../qcVerdict'
 
 function assetNode(id: string): AssetNodeV3 {
   return {
@@ -82,5 +82,54 @@ describe('deriveQcVerdicts(56-01 眼/耳 verdict 派生)', () => {
   it('graph null / raw null → 空 Map 不 throw', () => {
     expect(deriveQcVerdicts(null, null).size).toBe(0)
     expect(deriveQcVerdicts(graphOf([assetNode('a')]), null).size).toBe(0)
+  })
+
+  // ── 72-01/72-05 (v3.2 F26/F32):khs 真实形状修真 ─────────────────────────
+
+  it('F26: p11c per_shot 为 dict {sid:rec} 形(非 array)→ 眼审 join 命中', () => {
+    const g = graphOf([assetNode('a-video-qc-real'), assetNode('a-S01')])
+    const raw = new Map([
+      // khs p11c_video_qc.py 真实 slot 形状:per_shot 是 dict
+      ['a-video-qc-real', { phase: 'p11c', per_shot: { S01: { shot_id: 'S01', verdict: 'pass' }, S02: { shot_id: 'S02', verdict: 'fail' } } }],
+      ['a-S01', { shot_id: 'S01' }],
+    ])
+    const m = deriveQcVerdicts(g, raw)
+    expect(m.get('a-S01')).toEqual([{ judge: 'eye', verdict: 'pass' }])
+  })
+
+  it('F26: p10c clips 嵌在 fidelity_check 下(非顶层)→ 耳审 join 命中', () => {
+    const g = graphOf([assetNode('a-voice-audit-real'), assetNode('a-S02')])
+    const raw = new Map([
+      // khs p10c_voice_audit.py 真实 slot 形状:fidelity_check.clips 嵌套层
+      ['a-voice-audit-real', { phase: 'p10c', fidelity_check: { check: 'transcription_fidelity', clips: [{ id: 'wav1', shot_id: 'S02', verdict: 'WARN' }] } }],
+      ['a-S02', { shot_id: 'S02' }],
+    ])
+    const m = deriveQcVerdicts(g, raw)
+    expect(m.get('a-S02')).toEqual([{ judge: 'ear', verdict: 'warn' }])
+  })
+
+  it('F32: 五值 verdict(ERROR/SKIPPED/MUST_FIX)不再被静默丢弃', () => {
+    const g = graphOf([assetNode('a-va-5'), assetNode('a-vq-5'), assetNode('a-x5')])
+    const raw = new Map([
+      ['a-va-5', { phase: 'p10c_voice_audit', clips: [{ shot_id: 'X5', verdict: 'ERROR' }, { shot_id: 'X5', verdict: 'SKIPPED' }] }],
+      ['a-vq-5', { phase: 'p11c_video_qc', shots: [{ shot_id: 'X5', verdict: 'MUST_FIX' }] }],
+      ['a-x5', { shot_id: 'X5' }],
+    ])
+    const m = deriveQcVerdicts(g, raw)
+    const v = m.get('a-x5')!
+    expect(v).toContainEqual({ judge: 'ear', verdict: 'error' })
+    expect(v).toContainEqual({ judge: 'ear', verdict: 'skipped' })
+    expect(v).toContainEqual({ judge: 'eye', verdict: 'must_fix' })
+  })
+
+  it('QVR-06: registerAuditToken 扩展词表(khs 新审计 phase 无需改源码)', () => {
+    registerAuditToken('storyboard-qc', 'eye')
+    const g = graphOf([assetNode('a-storyboard-qc-9'), assetNode('a-y9')])
+    const raw = new Map([
+      ['a-storyboard-qc-9', { clips: [{ shot_id: 'Y9', verdict: 'PASS' }] }],
+      ['a-y9', { shot_id: 'Y9' }],
+    ])
+    const m = deriveQcVerdicts(g, raw)
+    expect(m.get('a-y9')).toEqual([{ judge: 'eye', verdict: 'pass' }])
   })
 })
