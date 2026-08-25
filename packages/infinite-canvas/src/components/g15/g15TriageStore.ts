@@ -113,11 +113,107 @@ const fixtureRows: G15Row[] = [
   },
 ]
 
-/** 默认 fixture 源(Wave B 换真实端点:G15 挂载点在 g15TriageStore.load)。 */
+/** 默认 fixture 源(69-02 (WBI-02) 起降级为显式测试/开发模式:画布无
+ * take-log/failed-shots 数据时的兜底;面板 open 时若 graph 在场,注入
+ * graphG15Source 真实源——fixture 不再冒充生产数据)。 */
 export const fixtureG15Source: G15Source = {
   async loadRows() {
     return fixtureRows.map((r) => ({ ...r, takes: r.takes?.map((t) => ({ ...t })) }))
   },
+}
+
+// ─── 69-02 (v3.2 WBI-02/F35):真实数据源 — graph raw 袋派生 ────────────────
+
+type RawBag = Record<string, unknown>
+type GraphLike = { nodes: Array<{ id: string; kind?: string }> }
+
+function isRecord(v: unknown): v is RawBag {
+  return v != null && typeof v === 'object' && !Array.isArray(v)
+}
+
+/**
+ * 真实源:画布 take-log / failed-shots / video-qc slot 节点的 raw 袋派生
+ * (khs canvas_sync 落库,契约见 53-01 candidateEnvelope + 72-01 透传)。
+ * 行 = failed-shots 未豁免失败镜(per_shot fail 兜底);takes 按 shot 归并
+ * 为展开证据(take-log 的 shot_id 缺失时按 shot_index 组装 shot_{N})。
+ * 空数据返回空数组(面板空态 = 真没失败镜,而非假 fixture 行)。
+ */
+export function graphG15Source(graph: GraphLike | null, raw: Map<string, RawBag> | null): G15Source {
+  return {
+    async loadRows() {
+      const rows = new Map<string, G15Row>()
+      const takesByShot = new Map<string, G15TakeEntry[]>()
+      const rowOf = (shotId: string, phase: string): G15Row => {
+        let r = rows.get(shotId)
+        if (r == null) {
+          r = { shotId, phase, category: 'unknown', reason: '' }
+          rows.set(shotId, r)
+        }
+        return r
+      }
+      for (const n of graph?.nodes ?? []) {
+        const d = raw?.get(n.id)
+        if (!isRecord(d)) continue
+        // failed-shots slot:{failures: [{shot_id, error, waived}]}
+        if (Array.isArray(d.failures)) {
+          for (const f of d.failures) {
+            if (!isRecord(f) || typeof f.shot_id !== 'string') continue
+            if (f.waived === true) continue // operator 已豁免——不再分诊
+            const error = typeof f.error === 'string' ? f.error : ''
+            const r = rowOf(f.shot_id, 'p11c')
+            r.category = classifyG15({ error })
+            r.reason = error
+            r.rawError = error
+          }
+        }
+        // video-qc slot:per_shot dict {sid: {verdict, reasons}} —fail 兜底
+        // (failed-shots 之外的 qwen fail;waived_shot_ids 已豁免的跳过)
+        const perShot = d.per_shot
+        if (isRecord(perShot)) {
+          const waived = new Set(Array.isArray(d.waived_shot_ids) ? d.waived_shot_ids.map(String) : [])
+          for (const [sid, rec] of Object.entries(perShot)) {
+            if (!isRecord(rec)) continue
+            const shotId = typeof rec.shot_id === 'string' ? rec.shot_id : sid
+            if (String(rec.verdict).toLowerCase() !== 'fail' || waived.has(shotId)) continue
+            if (rows.has(shotId)) continue // failed-shots 行已覆盖
+            const reason = typeof rec.reasons === 'string' ? rec.reasons : 'qwen-eye fail'
+            const r = rowOf(shotId, 'p11c')
+            r.category = 'qc_vision_fail'
+            r.reason = reason
+            r.rawError = reason
+          }
+        }
+        // take-log slot:{takes: [...], render_variants: [...]} —证据层
+        if (Array.isArray(d.takes)) {
+          for (const t of d.takes) {
+            if (!isRecord(t)) continue
+            const shotId =
+              typeof t.shot_id === 'string' && t.shot_id.length > 0
+                ? t.shot_id
+                : typeof t.shot_index === 'number' ? `shot_${t.shot_index}` : null
+            if (shotId == null) continue
+            const arr = takesByShot.get(shotId) ?? []
+            arr.push({
+              take_n: typeof t.take_n === 'number' ? t.take_n : undefined,
+              shot_id: shotId,
+              changed_variable: typeof t.changed_variable === 'string' ? t.changed_variable : undefined,
+              seed: typeof t.seed === 'number' ? t.seed : undefined,
+              verdict: typeof t.verdict === 'string' ? t.verdict : undefined,
+              evidence: typeof t.evidence === 'string' ? t.evidence : undefined,
+              timestamp: typeof t.timestamp === 'string' ? t.timestamp : undefined,
+            })
+            takesByShot.set(shotId, arr)
+          }
+        }
+      }
+      const out = [...rows.values()]
+      for (const r of out) {
+        const takes = takesByShot.get(r.shotId)
+        if (takes != null && takes.length > 0) r.takes = takes
+      }
+      return out
+    },
+  }
 }
 
 // ─── Store(开关态 + 选择状态机 + 处置态)───────────────────────────────────

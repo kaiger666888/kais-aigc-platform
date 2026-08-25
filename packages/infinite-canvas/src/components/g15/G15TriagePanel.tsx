@@ -11,7 +11,7 @@
  */
 import { useEffect, useState } from 'react'
 import { v3theme, theme } from '../../theme/catppuccin'
-import { useG15TriageStore, type G15Category, type G15Row } from './g15TriageStore'
+import { useG15TriageStore, graphG15Source, type G15Category, type G15Row } from './g15TriageStore'
 import { useCanvasStore } from '../../store/canvasStore'
 import { g15Ops } from '../../services/canvasApi'
 
@@ -54,6 +54,19 @@ export default function G15TriagePanel(): React.ReactElement | null {
   const projectId = useCanvasStore((s) => s.projectId) ?? 0
   const episodesId = useCanvasStore((s) => s.episodesId) ?? 0
   const showToast = useCanvasStore((s) => s.showToast)
+  // 69-02 (v3.2 WBI-02/F35):真实数据源——画布在场即注入 graphG15Source
+  // (take-log/failed-shots/video-qc raw 袋派生);fixture 退为无画布时的
+  // 开发兜底,不再冒充生产数据。
+  const graph = useCanvasStore((s) => s.graph)
+  const rawDataByNodeId = useCanvasStore((s) => s.rawDataByNodeId)
+  const setSource = useG15TriageStore((s) => s.setSource)
+  const reload = useG15TriageStore((s) => s.load)
+  useEffect(() => {
+    if (open && graph != null && rawDataByNodeId != null) {
+      setSource(graphG15Source(graph, rawDataByNodeId))
+      void reload() // 源切换后强制重载(fixture 行不残留)
+    }
+  }, [open, graph, rawDataByNodeId, setSource, reload])
 
   const [confirming, setConfirming] = useState<'requeue' | null>(null)
 
