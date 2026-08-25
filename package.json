@@ -55,7 +55,8 @@
     "verify:phase-62": "npx tsx scripts/verify-phase-62.ts",
     "verify:qwen-tts": "npx tsx scripts/verify-qwen-tts.ts",
     "verify:save-v2-legacy": "npx tsx scripts/canvas/verify-save-v2-legacy-asset.ts",
-    "verify:schema-drift": "npx tsx scripts/canvas/verify-schema-drift.ts"
+    "verify:schema-drift": "npx tsx scripts/canvas/verify-schema-drift.ts",
+    "verify:phase-65": "tsx scripts/verify-phase-65.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.35",

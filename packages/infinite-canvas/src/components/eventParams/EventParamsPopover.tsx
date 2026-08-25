@@ -109,9 +109,13 @@ export default function EventParamsPopover({ anchor, onClose }: Props): React.Re
         // 下游标 stale(STALE-02);换 seed 语义本身仍由 params.seed 透传承担。
         regenSource: 'reroll-seed',
       })
-      // 提交成功 → 新 seed 回写 canonical（防 reload 回旧值；持久化等下一次 save，地雷 #12 裁定）
-      updateEventParams(anchor.eventId, { seed: newSeed })
-      showToast(`已提交换 seed 重跑（seed ${newSeed}）`, 'success')
+      // 65-03 (REA-06):不再把新 seed 回写 canonical——image 任务全部强制
+      // model_preference=cloud,dreamina CLI 不吃 seed,新 seed 从不影响产物;
+      // 回写会让画布配方记录一个从未生效的装饰性 seed,误导按 seed 假定确定性
+      // 重放的消费方。seed 仅随本次请求透传(params.seed,本地引擎路径仍生效);
+      // reload 后显示旧值是诚实行为。seedDecorative flag 方案已否——九键
+      // round-trip 表(RECIPE_ROUNDTRIP_KEYS)会剥未知键,flag 存不下来。
+      showToast(`已提交换 seed 重跑（seed ${newSeed}，cloud 引擎不影响产物）`, 'success')
     } catch (err) {
       showToast(`重跑提交失败: ${(err as Error).message}`, 'error')
     } finally {

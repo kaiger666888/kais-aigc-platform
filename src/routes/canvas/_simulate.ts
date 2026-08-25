@@ -13,15 +13,17 @@ import { submitEngineTask, pollEngineTask, type TaskType } from "./_engine";
  *   - asset        → image_draw
  *   - storyboard   → image_draw(ref 化的 image_draw_ipadapter 是 storyboardPreview
  *                    专用路径,A4 裁定不解析上游参考,最小实现)
- *   - video        → video_final
- *   - audio        → tts
+ *   - video        → video_final(65-02:必须携带首帧 imageRef,引擎
+ *                    executor.py:508-511 对 VIDEO_* 硬性要求 params.image)
+ *   - audio/voice  → tts(65-02:台词走 params.text 通道,引擎读 text 非 prompt)
  *   - global       → image_draw(59-01:面板重生成主力资产,Pitfall 6)
  *   - keyframe     → image_draw(59-01:V3 Stage 映射补齐)
- *   - voice        → tts(59-01:V3 Stage 映射补齐)
- *   - foley        → sfx(59-01:V3 Stage 映射补齐)
- *   - bgm          → music(59-01:V3 Stage 映射补齐)
  *   - mix/composite → 有意不进表(59-01 A2 裁定:引擎无混音/合成 TaskType,
  *                    维持 simulateOnly 守批量路径稳定)
+ *   - bgm/foley    → 65-02 (REA-04) 从表移除:引擎 v1.5 起 MUSIC/SFX 直接拒收
+ *                    (executor.py:591-594,指向 kap 自家 /api/v1/ace/generate
+ *                    与 /stableaudio/generate)。画布侧显式报「不支持」而非投递
+ *                    必拒任务还报已提交;内部端点接线留 65-04。
  *
  * 59-01 行为变化声明:
  *   - readNode 关系表化:v2 项目改走 canvasRelationalStore.listNodes(旧
@@ -43,12 +45,11 @@ const NODE_TYPE_TO_TASK_TYPE: Record<string, TaskType> = {
   storyboard: "image_draw",
   video: "video_final",
   audio: "tts",
-  // 59-01 V3 Stage 映射补齐(字面量风格照既有五行)
+  // 59-01 V3 Stage 映射补齐(字面量风格照既有五行);bgm/foley 有意不进表
+  // (REA-04:引擎 MUSIC/SFX 直接拒收,见 simulateExecution 显式报错分支)
   global: "image_draw",
   keyframe: "image_draw",
   voice: "tts",
-  foley: "sfx",
-  bgm: "music",
 };
 
 /**
@@ -76,6 +77,48 @@ function filterClientParams(
 
 function randomDelay(): number {
   return 5000 + Math.floor(Math.random() * 10000);
+}
+
+// ─── 65-02/65-03 (REA-02/03/05): 任务参数推导 ─────────────────────────────
+
+/**
+ * 节点产物路径:优先 data.filePath(v2 真值,59-01 A1 成功落库位),回退
+ * V3 media(thumbnail→original)。供 video 首帧 imageRef / refine 参考。
+ */
+function extractNodeAssetPath(node: Record<string, any> | null): string | null {
+  if (!node) return null;
+  const data = (node.data ?? {}) as Record<string, any>;
+  if (typeof data.filePath === "string" && data.filePath) return data.filePath;
+  const v3 = data.v3 as Record<string, any> | undefined;
+  const media = v3?.media as Record<string, any> | undefined;
+  const mediaPath = media?.original ?? media?.thumbnail;
+  return typeof mediaPath === "string" && mediaPath ? mediaPath : null;
+}
+
+/** cloud-jimeng _VALID_RATIOS(cloud_jimeng.py:42)镜像 — 65 契约门锁同步。 */
+const DREAMINA_VALID_RATIOS: ReadonlyArray<[string, number]> = [
+  ["1:1", 1], ["16:9", 16 / 9], ["9:16", 9 / 16], ["3:2", 3 / 2],
+  ["2:3", 2 / 3], ["4:3", 4 / 3], ["3:4", 3 / 4], ["21:9", 21 / 9],
+];
+
+/**
+ * 节点像素几何 → dreamina 合法 ratio 串(相对误差最小者)。
+ * 缺几何返回 null(引擎缺省 1:1——竖屏资产回方图的 REA-05 根因,有几何必送)。
+ */
+function pickDreaminaRatio(node: Record<string, any> | null): string | null {
+  if (!node) return null;
+  const data = (node.data ?? {}) as Record<string, any>;
+  const w = Number(data.width ?? data.v3?.media?.width);
+  const h = Number(data.height ?? data.v3?.media?.height);
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return null;
+  const target = w / h;
+  let best: string | null = null;
+  let bestErr = Number.POSITIVE_INFINITY;
+  for (const [label, r] of DREAMINA_VALID_RATIOS) {
+    const err = Math.abs(Math.log(target / r));
+    if (err < bestErr) { bestErr = err; best = label; }
+  }
+  return best;
 }
 
 /**
@@ -162,6 +205,16 @@ export async function simulateExecution(
     return simulateOnly(projectId, nodeId);
   }
 
+  // 65-02 (REA-04):bgm/foley 显式不支持——引擎 v1.5 起 MUSIC/SFX 直接拒收
+  // (指向 kap 自家 /api/v1/ace /stableaudio 端点,接线留 65-04)。旧实现投递
+  // 必拒任务且 execute 层先报「已提交」成功 toast = 假成功;现在 loudly 翻车。
+  if (nodeType === "bgm" || nodeType === "foley") {
+    throw new Error(
+      `画布重生成暂不支持 ${nodeType === "bgm" ? "BGM 配乐" : "音效"}——` +
+      `引擎已停收 MUSIC/SFX(改走 /api/v1/${nodeType === "bgm" ? "ace" : "stableaudio"}/generate,接线规划 65-04)`,
+    );
+  }
+
   // GOLD_TEAM_URL 未配置 → 降级模拟,保持 v1.7 行为
   if (!process.env.GOLD_TEAM_URL) {
     console.log(`[_simulate] GOLD_TEAM_URL 未配置,nodeId=${nodeId} 降级为模拟`);
@@ -184,6 +237,17 @@ export async function simulateExecution(
   // model_preference 服务端常量后置平铺同向(类型受控/服务端设置的键总是赢)。
   const clientParams = filterClientParams(overrides?.params);
   if (overrides?.seed != null) delete clientParams.seed;
+
+  // 65-02 (REA-02):video 首帧 = 节点现有产物(extractNodeAssetPath)。引擎对
+  // VIDEO_* 硬性要求 params.image;无产物节点在 _engine 侧 fail-fast 抛错。
+  const isVideoTask = taskType === "video_final" || taskType === "video_preview";
+  const imageRef = isVideoTask ? extractNodeAssetPath(node) ?? undefined : undefined;
+  // 65-02 (REA-03):tts 台词 — 引擎读 params.text(executor.py:192),prompt
+  // 通道继续并行携带(日志/未来本地栈)。
+  const text = taskType === "tts" || taskType.startsWith("tts_") ? prompt : undefined;
+  // 65-03 (REA-05):图像任务显式几何 — 有节点几何必送,缺省引擎恒 1:1 方图。
+  const ratio = taskType.startsWith("image") ? pickDreaminaRatio(node) ?? undefined : undefined;
+
   try {
     const taskId = await submitEngineTask({
       taskType,
@@ -191,6 +255,9 @@ export async function simulateExecution(
       projectId,
       episodesId,
       nodeId,
+      imageRef,
+      text,
+      ratio,
       metadata: {
         nodeType,
         originalNodeId: nodeId,

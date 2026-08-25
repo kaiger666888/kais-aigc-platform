@@ -1,7 +1,7 @@
 /**
  * phaseRegistry 单测(Phase 55-01 / NAV-01)。
  *
- * 注册表完整性不变量:22 条 / code·khsPrefix 唯一 / 成功标准 1 前缀清单
+ * 注册表完整性不变量:23 条(Phase 64 +p11a5) / code·khsPrefix 唯一 / 成功标准 1 前缀清单
  * 全在 / 注销前缀不在 / p11a0 折叠(sub + 共 phaseIndex + prefix)/ p12a·p12b
  * 非 sub 共 lane / phaseIndex 逐条对 khs _PHASE_INDEX_MAP 嵌入值 / group
  * 覆盖 / sortKey 升序后 ZONE_PHASES lane 内顺序成立。
@@ -22,10 +22,10 @@ const byKhs = (khsPrefix: string): PipelinePhaseDef => {
 }
 
 describe('phaseRegistry(55-01 NAV-01)', () => {
-  it('恰好 22 条;code 与 khsPrefix 各自唯一', () => {
-    expect(PHASE_REGISTRY).toHaveLength(22)
-    expect(new Set(PHASE_REGISTRY.map((p) => p.code)).size).toBe(22)
-    expect(new Set(PHASE_REGISTRY.map((p) => p.khsPrefix)).size).toBe(22)
+  it('恰好 23 条;code 与 khsPrefix 各自唯一(64 后 22→23)', () => {
+    expect(PHASE_REGISTRY).toHaveLength(23)
+    expect(new Set(PHASE_REGISTRY.map((p) => p.code)).size).toBe(23)
+    expect(new Set(PHASE_REGISTRY.map((p) => p.khsPrefix)).size).toBe(23)
   })
 
   it('成功标准 1 前缀清单全存在', () => {

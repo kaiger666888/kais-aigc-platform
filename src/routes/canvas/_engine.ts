@@ -39,6 +39,16 @@ export interface EngineTaskSubmitInput {
   episodesId: number;
   nodeId: string;
   referenceImages?: string[];
+  /**
+   * 65-02 (REA-02):video 任务的首帧源图 / image_refine 的底图 — 引擎
+   * executor.py:508-511 对 VIDEO_FINAL/VIDEO_PREVIEW 硬性要求 params.image,
+   * 缺参必 FAILED。/oss/ web 路径经 ossToEnginePath 翻译。
+   */
+  imageRef?: string;
+  /** 65-02 (REA-03):tts 台词 — 引擎 executor.py:192 读 params.text(非 prompt)。 */
+  text?: string;
+  /** 65-03 (REA-05):cloud-jimeng 几何 — params.ratio 显式优先于 workflow 默认 1:1。 */
+  ratio?: string;
   metadata?: Record<string, unknown>;
   callbackUrl?: string;
 }
@@ -104,6 +114,9 @@ export function ossToEnginePath(input: string): string | null {
 const RESERVED_PARAM_KEYS = new Set([
   "ref_images", "model_preference", "prompt",
   "nodeId", "projectId", "episodesId", "nodeType", "originalNodeId",
+  // 65 (REA-02/03/05):image/text/ratio/model_version 改由服务端通道显式设置
+  // (imageRef/text/ratio 输入 + modelVersion 翻译),客户端同名键一律剔除。
+  "image", "text", "ratio", "model_version",
 ]);
 
 function scrubReservedParams(
@@ -129,6 +142,31 @@ export async function submitEngineTask(
   const translatedRefs = (input.referenceImages ?? [])
     .map((r) => ossToEnginePath(r))
     .filter((r): r is string => r !== null);
+  // 65-02 (REA-02):video 首帧翻译。引擎对 VIDEO_* 硬性要求 params.image
+  // (executor.py:508-511)——翻译失败时 fail-fast 抛错,不提交注定 FAILED 的任务
+  // 再让用户等 960s 超时(「loudly 翻车」优于静默假提交)。
+  const isVideo = input.taskType === "video_final" || input.taskType === "video_preview";
+  let translatedImage: string | null = null;
+  if (input.imageRef != null) {
+    translatedImage = ossToEnginePath(input.imageRef);
+    if (translatedImage == null) {
+      throw new Error(
+        `video/refine 源图路径引擎不可达: ${input.imageRef}(非白名单根或文件不存在)`,
+      );
+    }
+  } else if (isVideo) {
+    throw new Error(
+      "video 任务缺少首帧源图(imageRef)——画布视频重生成需要节点现有产物作首帧",
+    );
+  }
+  // 65-03 (REA-05):recipe 九键的 modelVersion(kap canonical camelCase)翻译为
+  // 引擎 cloud 直通表的下划线键 model_version(cloud_jimeng.py:133);不翻译则
+  // 模型选择永远到不了引擎,t2i 恒走默认 5.0、分层策略无从表达。
+  const scrubbed = scrubReservedParams(input.metadata);
+  const modelVersion = typeof scrubbed.modelVersion === "string" || typeof scrubbed.modelVersion === "number"
+    ? String(scrubbed.modelVersion)
+    : undefined;
+  delete scrubbed.modelVersion;
   const payload: Record<string, any> = {
     task_id: taskId,
     type: input.taskType,
@@ -141,6 +179,14 @@ export async function submitEngineTask(
       // 59-01 断点④:引擎 v6 cloud 直通表键名 ref_images(executor.py:703-717),
       // 不是旧 reference_images;仅非空数组时展开。
       ...(translatedRefs.length > 0 ? { ref_images: translatedRefs } : {}),
+      // 65-02 (REA-02):video 首帧(image_refine 底图同键)。
+      ...(translatedImage != null ? { image: translatedImage } : {}),
+      // 65-02 (REA-03):tts 台词走引擎真正消费的 text 键(prompt 仍并行携带,
+      // 供非 tts 任务与引擎侧日志;旧实现只送 prompt 导致对空文本合成)。
+      ...(input.text != null ? { text: input.text } : {}),
+      // 65-03 (REA-05):显式几何(cloud_jimeng params.ratio 优先,缺省引擎
+      // 从 workflow 默认 1024x1024 推出 '1:1' —— 竖屏资产恒回方图的根因)。
+      ...(input.ratio != null ? { ratio: input.ratio } : {}),
       // 59-01 REGEN-02 seed 通道:调用方经 input.metadata 平铺即达 params.seed
       // (59-02 接线 reroll-seed 时直接生效);本地引擎读 params.seed,完成时
       // 写入 metadata.seed。cloud 路径 dreamina CLI 不接受 seed,seed 只落
@@ -148,7 +194,8 @@ export async function submitEngineTask(
       // 59-fix CR-01:metadata 先经 scrubReservedParams 剔除服务端保留键再平铺
       // ——上方服务端显式设置的 projectId/episodesId/nodeId/prompt/ref_images
       // 不可被覆盖,非 image 任务也不会被注入 model_preference。
-      ...scrubReservedParams(input.metadata),
+      ...scrubbed,
+      ...(modelVersion != null ? { model_version: modelVersion } : {}),
       // 59-01 A3 裁定:平台政策 2026-08-19 — image 任务(t2i 5.0 / i2i 4.6 白名单)
       // 走 :8002 gateway cloud-jimeng;model_preference 服务端常量非用户输入
       // (T-59-03 accept)。taskType 以 "image" 开头时平铺,video/tts 等不动。

@@ -2,7 +2,7 @@
  * pipelineModel 单测(Phase 55-03 / NAV-01:D-04 单源消费 + D-03 未映射兜底)。
  *
  * 行为契约:
- *  - PIPELINE_PHASES 即 phaseRegistry(22 条,P09c/P12a/P12b/P11a0 在列);
+ *  - PIPELINE_PHASES 即 phaseRegistry(23 条(64 后),P09c/P12a/P12b/P11a0 在列);
  *  - PHASE_GROUPS 由注册表派生(逐条 e.phaseIndex→e.group;注销 lane 5/13 无映射);
  *  - derivePipelineModels 对未注册 phaseIndex(99/13)产出唯一「未映射」条目,
  *    不 throw,warn 按索引聚合一条(模块级 Set 去重,不重复 warn);
@@ -24,8 +24,8 @@ function nodeWith(phaseIndex: number, id?: string): Node {
 }
 
 describe('phase 词汇单源(55-03 D-04)', () => {
-  it('PIPELINE_PHASES === 22 条注册表,P09c/P12a/P12b/P11a0 在列', () => {
-    expect(PIPELINE_PHASES).toHaveLength(22)
+  it('PIPELINE_PHASES === 23 条注册表,P09c/P12a/P12b/P11a0/P11a5 在列(64)', () => {
+    expect(PIPELINE_PHASES).toHaveLength(23)
     const codes = PIPELINE_PHASES.map((p) => p.code)
     for (const code of ['P09c', 'P12a', 'P12b', 'P11a0']) {
       expect(codes, code).toContain(code)
