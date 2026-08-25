@@ -28,6 +28,9 @@ LOG=data/serve/production.log
 PIDFILE=data/serve/production.pid
 
 # ── 停止旧实例(按 pidfile + 端口兜底)──────────────────────────────
+# 端口兜底 2026-08-25 补(审计事故):10:42 有人绕过本脚本裸启动 app.js 占住
+# :10588,13:41 本脚本 stop 只按 pidfile 杀 → 新实例 EADDRINUSE 变无监听僵尸,
+# 端口被无 env 旧实例服务 5.5h(simulateOnly 回潮)。端口归属者必须一并停掉。
 stop_existing() {
   if [ -f "$PIDFILE" ]; then
     local old; old="$(cat "$PIDFILE" 2>/dev/null || true)"
@@ -38,6 +41,19 @@ stop_existing() {
       kill -0 "$old" 2>/dev/null && { echo "…强杀"; kill -9 "$old" || true; }
     fi
     rm -f "$PIDFILE"
+  fi
+  # 端口兜底:杀掉一切仍监听 :$PORT 的进程(含绕过本脚本的手动实例)
+  local port_pids
+  port_pids="$(ss -ltnp "sport = :$PORT" 2>/dev/null | grep -oP 'pid=\K[0-9]+' | sort -u || true)"
+  if [ -n "$port_pids" ]; then
+    for p in $port_pids; do
+      echo "[serve-production] 端口 $PORT 仍被 pid=$p 占用,停止之"
+      kill "$p" || true
+    done
+    for _ in $(seq 1 20); do
+      [ -z "$(ss -ltnp "sport = :$PORT" 2>/dev/null | grep -oP 'pid=\K[0-9]+' || true)" ] && break
+      sleep 0.5
+    done
   fi
 }
 
@@ -58,6 +74,17 @@ echo $! > "$PIDFILE"
 sleep 2
 PID="$(cat "$PIDFILE")"
 kill -0 "$PID" 2>/dev/null || { echo "✗ 启动失败,查 $LOG"; tail -5 "$LOG"; exit 1; }
-echo "[serve-production] ✅ pid=$PID → http://localhost:$PORT (log: $LOG)"
+# 端口归属实证(2026-08-25 事故教训):spawn pid 活着 ≠ 在服务。EADDRINUSE 下
+# 全局异常 handler 只记日志不退出,spawn pid 存活但端口被别人占——必须断言
+# 监听者就是本 pid,否则按失败处理并清理自己(不留无监听僵尸)。
+PORT_OWNER="$(ss -ltnp "sport = :$PORT" 2>/dev/null | grep -oP 'pid=\K[0-9]+' | sort -u | tr '\n' ' ' | sed 's/ *$//')"
+if [ "$PORT_OWNER" != "$PID" ]; then
+  echo "✗ 端口 $PORT 归属 pid=[$PORT_OWNER] ≠ 启动 pid=$PID (EADDRINUSE/启动失败),清理本次实例"
+  kill "$PID" 2>/dev/null || true
+  tail -5 "$LOG"; exit 1
+fi
+curl -fsS -m 5 "http://127.0.0.1:$PORT/health" >/dev/null 2>&1 \
+  || { echo "✗ /health 不通(启动未就绪?),查 $LOG"; tail -5 "$LOG"; exit 1; }
+echo "[serve-production] ✅ pid=$PID (端口归属+health 已验) → http://localhost:$PORT (log: $LOG)"
 echo "[serve-production] 引擎 env 实证:"
 tr '\0' '\n' < "/proc/$PID/environ" | grep -E '^(GOLD_TEAM_URL|KMC_MANIFEST_TRANSPORT)=' || { echo "✗ env 未注入!"; exit 1; }
