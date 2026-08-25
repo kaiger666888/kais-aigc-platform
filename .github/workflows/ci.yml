@@ -16,14 +16,16 @@
 #   npm run verify:schema-drift             → 10/10
 #   npm run verify:phase-65                 → 31/31
 #
-# 跨仓步骤 verify:manifest-contract 依赖兄弟仓 kais-hermes-skills（private）
-# 的 manifest 套件 + hermes-agent 的 tools 包（plugins 导入链需要）。GitHub
-# hosted runner 上拿不到本机路径，等价 CI 形态：
-#   - 用 KMC_PAT secret（对 private 仓有读权限的 PAT）checkout 兄弟仓
-#   - hermes-agent 是 public fork，默认 token 即可
-#   - 干净环境实测套件还需要 pip: pytest httpx pyjwt pydantic ruamel.yaml
-#     requests rich numpy pyyaml + PYTHONPATH=hermes-agent
-#   - 未配 KMC_PAT 时该步跳过并打 ::warning::（不静默、不假绿）
+# 跨仓契约（schema-drift / phase-65 / manifest-contract）依赖两个 private
+# 兄弟仓。鉴权用只读 deploy key（非个人 PAT）：每仓一把 ed25519，read_only，
+# 公钥挂在目标仓 Settings→Deploy keys，私钥只存于 Actions secrets：
+#   CROSS_REPO_KEY_SKILLS   → kais-hermes-skills
+#   CROSS_REPO_KEY_GOLDTEAM → kais-gold-team
+# （GitHub 禁止同一把 deploy key 挂第二仓，故两把。）hermes-agent 是 public
+# fork，默认匿名 checkout 即可。
+# 干净环境实测套件还需要 pip: pytest httpx pyjwt pydantic ruamel.yaml
+#   requests rich numpy pyyaml + PYTHONPATH=hermes-agent
+# 缺 key 时对应步骤跳过并打 ::warning::（不静默、不假绿）。2026-08-25 已配齐。
 
 name: CI
 
@@ -39,7 +41,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # 间接探测 secret 是否存在（secrets 不能直接进 if 条件）
-      KMC_PAT: ${{ secrets.KMC_PAT }}
+      CROSS_KEY_SKILLS: ${{ secrets.CROSS_REPO_KEY_SKILLS }}
+      CROSS_KEY_GOLD: ${{ secrets.CROSS_REPO_KEY_GOLDTEAM }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -67,59 +70,59 @@ jobs:
       - name: Unit tests (node:test, src/**)
         run: node --import tsx --test "src/**/*.test.ts"
 
-      # ── 跨仓契约（可选，需 KMC_PAT secret）──────────────────
+      # ── 跨仓契约（可选，需只读 deploy key secrets）──────────
       # verify:schema-drift 硬编码兄弟仓 KMC 路径、verify:phase-65 硬编码
       # gold-team 路径（各自脚本支持 env 覆盖，首跑实证 hosted 必红）
       # —— 全部收进本条件门。
       - name: Checkout sibling KMC repo (contract source)
-        if: env.KMC_PAT != ''
+        if: env.CROSS_KEY_SKILLS != ''
         uses: actions/checkout@v4
         with:
           repository: kaiger666888/kais-hermes-skills
-          token: ${{ secrets.KMC_PAT }}
+          ssh-key: ${{ secrets.CROSS_REPO_KEY_SKILLS }}
           path: .ci-sibling/kais-hermes-skills
 
       - name: Checkout hermes-agent (provides `tools` package)
-        if: env.KMC_PAT != ''
+        if: env.CROSS_KEY_SKILLS != ''
         uses: actions/checkout@v4
         with:
           repository: kaiger666888/hermes-agent
           path: .ci-sibling/hermes-agent
 
       - name: Set up Python (manifest suite)
-        if: env.KMC_PAT != ''
+        if: env.CROSS_KEY_SKILLS != ''
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Install manifest-suite Python deps
-        if: env.KMC_PAT != ''
+        if: env.CROSS_KEY_SKILLS != ''
         run: >-
           python3 -m pip install pytest httpx pyjwt pydantic ruamel.yaml
           requests rich numpy pyyaml
 
       - name: Checkout gold-team repo (engine contract source)
-        if: env.KMC_PAT != ''
+        if: env.CROSS_KEY_GOLD != ''
         uses: actions/checkout@v4
         with:
           repository: kaiger666888/kais-gold-team
-          token: ${{ secrets.KMC_PAT }}
+          ssh-key: ${{ secrets.CROSS_REPO_KEY_GOLDTEAM }}
           path: .ci-sibling/kais-gold-team
 
       - name: Verify schema drift (cross-repo)
-        if: env.KMC_PAT != ''
+        if: env.CROSS_KEY_SKILLS != ''
         env:
           KAIS_HERMES_SKILLS_PATH: ${{ github.workspace }}/.ci-sibling/kais-hermes-skills
         run: npm run verify:schema-drift
 
       - name: Verify phase-65 contract (needs gold-team repo)
-        if: env.KMC_PAT != ''
+        if: env.CROSS_KEY_GOLD != ''
         env:
           KAIS_GOLD_TEAM_PATH: ${{ github.workspace }}/.ci-sibling/kais-gold-team
         run: npm run verify:phase-65
 
       - name: Verify manifest contract (cross-repo)
-        if: env.KMC_PAT != ''
+        if: env.CROSS_KEY_SKILLS != ''
         env:
           KAIS_HERMES_SKILLS_PATH: ${{ github.workspace }}/.ci-sibling/kais-hermes-skills
           # conftest 会把 KMC 仓根插到 sys.path 最前，KMC 的 plugins
@@ -127,10 +130,9 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/.ci-sibling/hermes-agent
         run: npm run verify:manifest-contract
 
-      - name: Notice — cross-repo contracts skipped (no KMC_PAT)
-        if: env.KMC_PAT == ''
+      - name: Notice — cross-repo contracts skipped (deploy key missing)
+        if: env.CROSS_KEY_SKILLS == '' || env.CROSS_KEY_GOLD == ''
         run: >-
-          echo "::warning::verify:schema-drift + verify:phase-65 +
-          verify:manifest-contract skipped — configure the KMC_PAT secret
-          (PAT with read access to kaiger666888 private repos) to enable the
-          cross-repo contract steps."
+          echo "::warning::some cross-repo contract steps skipped — set the
+          CROSS_REPO_KEY_SKILLS / CROSS_REPO_KEY_GOLDTEAM secrets (read-only
+          deploy keys for the respective private repos) to enable them."
