@@ -2,9 +2,10 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: 跨仓协调清偿
-status: verifying
-last_updated: "2026-08-25T12:00:00.000Z"
-last_activity: 2026-08-25
+status: Awaiting next milestone
+stopped_at: v3.2 收官归档 — audit passed (49/51+2 env-gated, 集成 7/7, 审计双事故当场关闭); ⏸ WBX-05/CHS-05/QVR-03 存量部 待活体管线自然覆盖; 下一里程碑待定
+last_updated: "2026-08-25T11:31:58.804Z"
+last_activity: 2026-08-25 — Milestone v3.2 completed and archived
 progress:
   total_phases: 11
   completed_phases: 11
@@ -20,15 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-23)
 
 **Core value:** AI creative production pipeline that runs end-to-end, pluggable across multiple creative workflows via a published skill contract.
-**Current focus:** v3.2 回溯立项——11/11 phases 63-73 已于 2026-08-25 执行完毕（四仓 24 commits，验证矩阵全绿），3 项待真机 carry-forward；milestone audit 待跑
+**Current focus:** v3.2 已收官归档（audit passed）——3 项待活体管线 carry-forward；下一里程碑待 /gsd-new-milestone
 
 ## Current Position
 
-Phase: 63-73 (all complete — executed 2026-08-25, 回溯立项同日固化)
-Plan: — (回溯立项: 执行先于立项, plans 建议与执行证据见 v3.2-ROADMAP-DRAFT.md)
-Status: Verifying — milestone audit 待 /gsd-complete-milestone
-Stopped at: v3.2 回溯立项 — 11/11 phases 63-73 已于 2026-08-25 执行完毕 (四仓 24 commits, 验证矩阵全绿); ⏸ WBX-05/CHS-05/QVR-03 存量部 待活体管线; milestone audit 待 /gsd-complete-milestone
-Last activity: 2026-08-25 — Milestone v3.2 roadmap created (retrospective formalization)
+Phase: Milestone v3.2 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-08-25 — Milestone v3.2 completed and archived
 
 ## Performance Metrics
 
@@ -191,6 +191,15 @@ None blocking v3.1 start. Carry-forward items below in Deferred Items.
 
 ## Deferred Items
 
+Items acknowledged and deferred at v3.2 milestone close on 2026-08-25 (audit-open quick-task 4 条,状态文件 missing 但工作已交付,见 Quick Tasks Completed 表):
+
+| Category | Item | Status | Deferred At |
+|----------|------|--------|-------------|
+| quick_task | 260703-iw6-ltx-pose-video-pipeline | delivered (STATE 表 ✅;"dev server 需重启"残留早已 moot) | v3.2 close |
+| quick_task | 260712-lkw-schema-ui-backfill | delivered (STATE 表 ✅) | v3.2 close |
+| quick_task | 260723-pn1-formalize-shot-analysis-vendor-proven-dr | delivered (STATE 表 ✅ 已活体验证) | v3.2 close |
+| quick_task | 260724-jsj-shot-analysis-goldteam | delivered (STATE 表 ✅;"待容器 redeploy"已被 v3.2 Phase 63 real 镜像重建覆盖, moot) | v3.2 close |
+
 Items acknowledged and carried forward from previous milestone close:
 
 | Category | Item | Status | Deferred At |
@@ -231,3 +240,7 @@ Items acknowledged and carried forward from previous milestone close:
 Last session: 2026-08-25
 Stopped at: v3.2 回溯立项 — 11/11 phases 63-73 已于 2026-08-25 执行完毕 (四仓 24 commits, 验证矩阵全绿); ⏸ WBX-05/CHS-05/QVR-03 存量部 待活体管线; milestone audit 待 /gsd-complete-milestone
 Resume: 跑 /gsd-complete-milestone (v3.2 milestone audit); 挂起真机项随下次活体管线自然覆盖; 历史挂起 UAT: 60 面板连续性 / 61 拖入手感 / 62 层级视图+批量决策+配置面板观感
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone

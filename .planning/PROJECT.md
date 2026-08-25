@@ -8,18 +8,13 @@ AI 短剧全链路制作平台，通过 kais-gold-team 统一执行引擎编排 
 
 让 AI 短剧制作流程跑通——从角色设计、剧本生成、分镜、视频生成到后期制作的完整管线能够自动执行并产出可交付的成片。
 
-## Current Milestone: v3.2 跨仓协调清偿 (cross-repo-coordination-debt-clearance)
+## Current Milestone: 待定 (v3.2 已于 2026-08-25 收官归档; 下一里程碑待 /gsd-new-milestone)
+
+## Shipped: v3.2 跨仓协调清偿 (cross-repo-coordination-debt-clearance) — 2026-08-25
 
 **Goal:** 付清 08-25 12-agent 双仓复审确认的 40 条跨仓协调欠账（15 high/16 med/9 low），四仓合围（kap / khs2 / gold-team / review-platform），终结「verify 门绿但链路断」的假成功模式。
 
-**Target features:**
-- **引擎真值源收编+通电** — gold-team 容器真值回灌入仓 (Phase 63)、Stage→TaskType 契约对齐+图像配方保真 (Phase 65)、生产 GOLD_TEAM_URL 真机闭环 (Phase 66)
-- **豁免桥三仓闭环** — review-platform `/api/v1/g15/ops` 端点 + khs 逐镜头子集豁免消费端 + kap 桥诚实化 (Phase 67)
-- **变体域契约+Wave B 实施** — v2.5 契约重冻结+三 ADR (Phase 68)、FS manifest transport 通电+G15 真数据源+requeue 消费 (Phase 69)、换选四断点修通 (Phase 70)
-- **画布↔kmc 共存语义** — 画布为配方真值 (`_kmc_prompt` 哨兵) + stale 两仓统一 + 产物回流 + replace 收口 (Phase 71)
-- **QC/评分真数据+门中心收尾** — 判定数组透传 + aiScore 生产者 + 词表修真 (Phase 72)、p11b 哨兵+红线墓碑+qwen-eye 队列优先 (Phase 73)
-
-**Key context:** 回溯立项——11/11 phases 已于 2026-08-25 当天执行完毕（四仓 24 commits；验证矩阵 verify-53 102/102 · 54 62/62 · 55 18/18 · 56 89/89 · 65 31/31 · canvas 496/496 · khs 831+ · review-platform 443+；生产 :10588 GOLD_TEAM_URL+KMC_MANIFEST_TRANSPORT=fs 双 env 实证）。5+1 裁决点全落（ADR: [adrs/adr-v3.2-variant-domain.md](adrs/adr-v3.2-variant-domain.md)）。⏸ 3 项待真机 drill：WBX-05 UAT 11 / 70-05 G13 换选 e2e / 72 存量 aiScore 回填（下次活体管线自然覆盖）。F01-F40 全索引+审查源：[v3.2-ROADMAP-DRAFT.md](v3.2-ROADMAP-DRAFT.md)。
+**Outcome:** 11 phases (63-73) 回溯立项单日收官, 49/51 reqs Complete + 2 待真机 (WBX-05/CHS-05), audit passed (integration 7/7)。引擎真值源收编+生产通电 (probe-66 真渲染 9/9) · 豁免桥三仓闭环 (g15/ops 上线+子集豁免) · 变体域契约+Wave B (FS transport 通电+换选四断点) · 画布↔kmc 共存 (_kmc_prompt 哨兵+产物回流) · QC/评分真数据+门中心收尾 (aiScore 生产者+词表修真+p11b 哨兵)。验证矩阵: verify-53 102/102 · 54 62/62 · 55 18/18 · 56 89/89 · 65 31/31 · canvas 496/496 · khs 831+ · review-platform 443+。里程碑级守护 COORD-02 (端到端数据链验证) / COORD-03 (契约冻结时效) 成文,并在审计中二次自我验证有效 (生产端口事故+ICA pin 漂移均被审计重跑抓到)。⏸ 3 项待活体管线: WBX-05 UAT 11 / CHS-05 G13 换选 e2e / QVR-03 存量回填。Archives: milestones/v3.2-{ROADMAP,REQUIREMENTS,MILESTONE-AUDIT}.md + v3.2-ROADMAP-DRAFT.md (F01-F40 索引) + adrs/adr-v3.2-variant-domain.md。
 
 ## Shipped: v3.1 重生成闭环深化 (regen-loop-deepening) — 2026-08-24
 
@@ -319,4 +314,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-25 — v3.2 跨仓协调清偿立项（回溯：11/11 phases 63-73 已于 08-25 执行完毕, 四仓 24 commits, 验证矩阵全绿, 3 项待真机 carry-forward）。v3.1 shipped 2026-08-24 (58-62, 18/18 reqs, audit passed)。*
+*Last updated: 2026-08-25 after v3.2 milestone — 跨仓协调清偿 shipped (11 phases 63-73, 49/51 reqs, audit passed; 3 项待活体管线 carry-forward)。下一里程碑待定。*

@@ -1,5 +1,28 @@
 # Milestones
 
+## v3.2 跨仓协调清偿 (Shipped: 2026-08-25)
+
+**Status:** ✅ Archived (audit passed)
+**Phases:** 63–73 (11 phases; 回溯立项——全部已于 2026-08-25 当天授权代执行完毕,无 GSD plan 目录,证据=验证矩阵+四仓 commits) | **Requirements:** 49/51 Complete + 2 environment-gated (WBX-05/CHS-05) + QVR-03 存量部
+**四仓 commits:** kap 17 · khs 7 · gold-team 2 · review-platform 1
+**验证矩阵:** verify:phase-53 102/102 · 54 62/62 · 55 18/18 · 56 89/89 · 65 31/31 · canvas vitest 496/496 · reviewBridge node:test 6/6 · khs pytest 831+ · review-platform 443+ · 生产 :10588 单实例三 env 实证 · g15/ops 活探针 405/422
+**Archive:** [milestones/v3.2-ROADMAP.md](milestones/v3.2-ROADMAP.md) · [milestones/v3.2-REQUIREMENTS.md](milestones/v3.2-REQUIREMENTS.md) · [milestones/v3.2-MILESTONE-AUDIT.md](milestones/v3.2-MILESTONE-AUDIT.md) · 证据附录 [v3.2-ROADMAP-DRAFT.md](../v3.2-ROADMAP-DRAFT.md) · [adrs/adr-v3.2-variant-domain.md](../adrs/adr-v3.2-variant-domain.md)
+
+**Key accomplishments:**
+
+1. **引擎真值源收编+生产通电** — gold-team 容器真值回灌入仓(47/50 md5)+v9 compose 钉 real 镜像;Stage→TaskType 对照引擎消费契约(video image 参/tts text/图像配方保真);serve-production.sh 正规启动路径+双 env 通电,probe-66 零足迹 9/9 cloud-jimeng 真渲染——终结两天 simulateOnly 假成功(F01)。
+2. **豁免桥三仓闭环** — review-platform /api/v1/g15/ops 上线(fail-closed 匹配/union 幂等/approve carry-forward)+khs 逐镜头子集豁免(豁免 5 失败镜中 2 个→只 2 个 waived,不再子集放大全量)+kap 桥诚实化+六路径 decision 持久化补洞(F09/F14/F15/F16/F27)。
+3. **变体域契约+Wave B 实施** — v2.5 键重冻结+score 三档 scale+三 ADR(chosen_variant_id=string finalist id 等);FS manifest transport 通电(换选→khs manifest 覆写,原子写/幂等)+G15 真实数据源+requeue 并集消费;换选四断点修通(per-phase id 空间+variantNumber 真编号+fullPhaseToken 防错批)(F07/F08/F10-13/F17/F18/F35)。
+4. **画布↔kmc 共存语义** — 裁决②a 画布为配方真值:_kmc_prompt 哨兵保用户画布编辑+stale 两仓统一+canvas-takes 产物回流+replace 关系层同步+sequence 往返存活(F05/F36/F37)。
+5. **QC/评分真数据+门中心收尾** — 判定数组三形状透传+aiScore 生产者+词表源码锚点修真+五值 verdict;p11b 哨兵不抢 blocking(26+9 条 APPROVING 清零)+红线 reject 墓碑上浮+qwen-eye 队列拒绝不绕队(F19-32/F38)。
+6. **审计双事故当场关闭** — ①生产端口占用(EADDRINUSE 僵尸双假绿 5.5h)→脚本端口兜底+归属实证;②并行会话 ICA M1/M2 pin 滞后→双向销账复绿。两起都是 COORD-02「端到端验证」纪律的再证明。
+
+**Known deferred items at close:** 3 (WBX-05 UAT 11 / CHS-05 G13 换选 e2e / QVR-03 存量 aiScore 回填 — 全部待活体管线自然覆盖,见 STATE.md Deferred Items 与 v3.2-MILESTONE-AUDIT.md)
+
+**Stats:** Timeline: 2026-08-25 单日 (执行→立项→审计→归档); audit passed (49/51+2 env-gated, integration 7/7); 回顾性里程碑 — 40 findings (15 high) 全落 phase 全清偿
+
+---
+
 ## v3.0 画布创作体验 / Canvas Creative Experience for kmc (Shipped: 2026-08-22)
 
 **Status:** ✅ Archived
@@ -37,6 +60,7 @@
 - Known deferred items at close: ① SC-4 kmc 消费侧半环 (review-platform 无 chosen_variant_id + COMPLETE≠resolved/closed, 跨仓库债务, [49-HUMAN-UAT G-1]) ② HUMAN-UAT 浏览器目检 4 项 (48/49 各 2) ③ WR-10 registry maxId+1 竞态 (pre-existing)
 
 **Archive:**
+
 - Roadmap: [milestones/v2.1-ROADMAP.md](milestones/v2.1-ROADMAP.md)
 - Requirements: [milestones/v2.1-REQUIREMENTS.md](milestones/v2.1-REQUIREMENTS.md)
 - Audit: [v2.1-MILESTONE-AUDIT.md](v2.1-MILESTONE-AUDIT.md)
