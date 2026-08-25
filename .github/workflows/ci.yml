@@ -67,14 +67,14 @@ jobs:
       - name: Unit tests (node:test, src/**)
         run: node --import tsx --test "src/**/*.test.ts"
 
-      - name: Verify schema drift
-        run: npm run verify:schema-drift
-
-      - name: Verify phase-65 contract
+      - name: Verify phase-65 contract (offline)
         run: npm run verify:phase-65
 
-      # ── 跨仓 manifest 契约（可选，需 KMC_PAT secret）──────────────────
-      - name: Checkout sibling KMC repo (manifest contract source)
+      # ── 跨仓契约（可选，需 KMC_PAT secret）──────────────────
+      # verify:schema-drift 同样硬编码依赖兄弟仓（SIBLING_ROOT 默认
+      # /data/workspace/...，脚本 :29 支持 KAIS_HERMES_SKILLS_PATH 覆盖），
+      # hosted runner 无此路径 —— 首跑实证必红，故与 manifest-contract 同门。
+      - name: Checkout sibling KMC repo (contract source)
         if: env.KMC_PAT != ''
         uses: actions/checkout@v4
         with:
@@ -101,6 +101,12 @@ jobs:
           python3 -m pip install pytest httpx pyjwt pydantic ruamel.yaml
           requests rich numpy pyyaml
 
+      - name: Verify schema drift (cross-repo)
+        if: env.KMC_PAT != ''
+        env:
+          KAIS_HERMES_SKILLS_PATH: ${{ github.workspace }}/.ci-sibling/kais-hermes-skills
+        run: npm run verify:schema-drift
+
       - name: Verify manifest contract (cross-repo)
         if: env.KMC_PAT != ''
         env:
@@ -110,10 +116,10 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/.ci-sibling/hermes-agent
         run: npm run verify:manifest-contract
 
-      - name: Notice — manifest contract skipped (no KMC_PAT)
+      - name: Notice — cross-repo contracts skipped (no KMC_PAT)
         if: env.KMC_PAT == ''
         run: >-
-          echo "::warning::verify:manifest-contract skipped — configure the
-          KMC_PAT secret (PAT with read access to private
-          kaiger666888/kais-hermes-skills) to enable the cross-repo contract
-          step."
+          echo "::warning::verify:schema-drift + verify:manifest-contract
+          skipped — configure the KMC_PAT secret (PAT with read access to
+          private kaiger666888/kais-hermes-skills) to enable the cross-repo
+          contract steps."
