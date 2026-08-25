@@ -574,9 +574,9 @@ describe('fixtureSource', () => {
   })
 })
 
-// ─── 55-03:23 phaseIndex 合成图零未映射(成功标准 1 fixture 口径;Phase 64 后 22→23) ─────────
+// ─── 55-03:24 phaseIndex 合成图零未映射(fixture 口径;64 +p11a5, ICA M2 +p036) ─────────
 
-describe('phase registry 覆盖：23 phaseIndex 合成 V2 图零未映射（55-03 A1/A3）', () => {
+describe('phase registry 覆盖：24 phaseIndex 合成 V2 图零未映射（55-03 A1/A3）', () => {
   function synthetic22PhaseV2() {
     const nodes: Array<Record<string, unknown>> = []
     PHASE_REGISTRY.forEach((e, i) => {
@@ -606,7 +606,7 @@ describe('phase registry 覆盖：23 phaseIndex 合成 V2 图零未映射（55-0
     }
   }
 
-  it('23 条目全覆盖：零「未映射」+ phaseCatalog zone 胜出逐条一致', () => {
+  it('24 条目全覆盖：零「未映射」+ phaseCatalog zone 胜出逐条一致', () => {
     const { graph, phaseCatalog } = adaptV2Graph(synthetic22PhaseV2())
     // zone 被抽进 catalog;asset 22→23 全保留 + 每资产 1 个 event chip(44 total)
     // 消费链:V3 → RF 节点壳 → derivePipelineModels
@@ -617,7 +617,7 @@ describe('phase registry 覆盖：23 phaseIndex 合成 V2 图零未映射（55-0
     const models = derivePipelineModels(rfNodes)
     const unmapped = models.filter((m) => m.def.unmapped === true || m.def.name.includes('未映射'))
     expect(unmapped).toHaveLength(0)
-    expect(models).toHaveLength(23)
+    expect(models).toHaveLength(24)
     // phaseCatalog:zone phaseName 胜出;catalog 按 phaseIndex(lane)键控——
     // 共 lane 条目(p035/p03、p09b/p09c、p11a0/p11a/p11a5/p11b/p11c、p12a/p12b)
     // 断言宿主条目(sortKey 最小者,即 lane 主条目)的 label。
