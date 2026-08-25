@@ -389,6 +389,18 @@ export default async function startServe(randomPort: Boolean = false) {
       const address = server.address();
       const realPort = typeof address === "string" ? address : address?.port;
       console.log(`[服务启动成功]: http://localhost:${realPort}`);
+      // 66-01 (PWR-01, review F01):引擎 env 缺失必须响亮告警——此前静默
+      // simulateOnly,画布重生成有 success toast 无产物,生产 :10588 上线两天
+      // 无人察觉。启动可见 + 明确后果说明,杜绝静默假成功通道。
+      if (!process.env.GOLD_TEAM_URL) {
+        console.warn(
+          "⚠️  [GOLD_TEAM_URL 未配置] 画布重生成/预览全部走 simulateOnly 模拟通道" +
+          "(有进度有 success 无真实产物)。需真实引擎:启动时 export " +
+          "GOLD_TEAM_URL=http://127.0.0.1:8002(scripts/serve-production.sh 已内置)。",
+        );
+      } else {
+        console.log(`[引擎通道]: GOLD_TEAM_URL=${process.env.GOLD_TEAM_URL} — 画布重生成走真实引擎`);
+      }
       resolve(realPort);
     });
   });

@@ -171,6 +171,12 @@ export async function submitEngineTask(
     task_id: taskId,
     type: input.taskType,
     priority: "normal",
+    // 66-02 真机修正(PWR-03 探针实证):model_preference 是引擎 TaskCreateRequest
+    // 的**顶层字段**(models/task.py:67,router 读 req.model_preference),塞
+    // params 袋里路由永远读不到 → AUTO → local comfyui → Mock Engine 3s 假渲染
+    // (canvas-a-p04-art4-* 首个真机任务实证,model_name='Mock Engine')。
+    // 59-01 A3 裁定语义不变:image 任务(t2i 5.0/i2i 4.6 白名单)强制 cloud-jimeng。
+    ...(input.taskType.startsWith("image") ? { model_preference: "cloud" } : {}),
     params: {
       projectId: input.projectId,
       episodesId: input.episodesId,
@@ -196,10 +202,6 @@ export async function submitEngineTask(
       // 不可被覆盖,非 image 任务也不会被注入 model_preference。
       ...scrubbed,
       ...(modelVersion != null ? { model_version: modelVersion } : {}),
-      // 59-01 A3 裁定:平台政策 2026-08-19 — image 任务(t2i 5.0 / i2i 4.6 白名单)
-      // 走 :8002 gateway cloud-jimeng;model_preference 服务端常量非用户输入
-      // (T-59-03 accept)。taskType 以 "image" 开头时平铺,video/tts 等不动。
-      ...(input.taskType.startsWith("image") ? { model_preference: "cloud" } : {}),
     },
   };
   if (input.callbackUrl) payload.callback_url = input.callbackUrl;

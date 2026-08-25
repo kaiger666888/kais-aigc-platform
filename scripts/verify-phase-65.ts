@@ -75,6 +75,12 @@ function main(): void {
 
   console.log("\n=== D 模型政策与键名(camelCase→snake_case) ===");
   assert(engineTs.includes('taskType.startsWith("image") ? { model_preference: "cloud" }'), "D: kap image* 强制 model_preference=cloud");
+  // 66-02 真机修正锁:model_preference 必须在 payload **顶层**(引擎 TaskCreateRequest
+  // 顶层字段 models/task.py:67)——塞 params 袋路由读不到 → AUTO → local Mock 假渲染。
+  assert(
+    /model_preference: "cloud" \} : \{\}\),\s*\n\s*params: \{/.test(engineTs),
+    "D: model_preference 位于 payload 顶层(紧邻 params 键;66-02 探针实证位形)",
+  );
   assert(/modelVersion[\s\S]{0,120}model_version/.test(engineTs), "D: kap modelVersion→model_version 键名翻译(cloud_jimeng.py:133 读下划线键)");
   const reserved = engineTs.match(/RESERVED_PARAM_KEYS = new Set\(\[([\s\S]*?)\]\)/)?.[1] ?? "";
   for (const k of ["image", "text", "ratio", "model_version"]) {
