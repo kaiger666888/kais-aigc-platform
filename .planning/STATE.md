@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.1
-milestone_name: 重生成闭环深化
-status: verifying
-stopped_at: "Completed 62-07-PLAN.md — Phase 62 全部 7 plan 执行完毕,verify:phase-62 聚合门 27/27 exit 0"
-last_updated: "2026-08-24T16:13:44.667Z"
-last_activity: 2026-08-24
+milestone: v3.2
+milestone_name: 跨仓协调清偿
+status: planning
+last_updated: "2026-08-25T07:20:35.292Z"
+last_activity: 2026-08-25
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 25
-  completed_plans: 25
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,12 +24,10 @@ See: .planning/PROJECT.md (updated 2026-08-23)
 
 ## Current Position
 
-Phase: — (v3.1 收官, 下一里程碑未开)
+Phase: Not started (defining requirements)
 Plan: —
-Status: v3.1 shipped 2026-08-24 (18/18 reqs complete · 5/5 phases verified · verify:phase-62 27/27 · audit passed · milestones/v3.1-* archived)
-Last activity: 2026-08-25
-
-Progress: [██████████] 100%
+Status: Defining requirements
+Last activity: 2026-08-25 — Milestone v3.2 started
 
 ## Performance Metrics
 

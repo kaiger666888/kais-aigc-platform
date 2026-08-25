@@ -8,19 +8,24 @@ AI 短剧全链路制作平台，通过 kais-gold-team 统一执行引擎编排 
 
 让 AI 短剧制作流程跑通——从角色设计、剧本生成、分镜、视频生成到后期制作的完整管线能够自动执行并产出可交付的成片。
 
-## Current Milestone: v3.1 重生成闭环深化 (regen-loop-deepening)
+## Current Milestone: v3.2 跨仓协调清偿 (cross-repo-coordination-debt-clearance)
+
+**Goal:** 付清 08-25 12-agent 双仓复审确认的 40 条跨仓协调欠账（15 high/16 med/9 low），四仓合围（kap / khs2 / gold-team / review-platform），终结「verify 门绿但链路断」的假成功模式。
+
+**Target features:**
+- **引擎真值源收编+通电** — gold-team 容器真值回灌入仓 (Phase 63)、Stage→TaskType 契约对齐+图像配方保真 (Phase 65)、生产 GOLD_TEAM_URL 真机闭环 (Phase 66)
+- **豁免桥三仓闭环** — review-platform `/api/v1/g15/ops` 端点 + khs 逐镜头子集豁免消费端 + kap 桥诚实化 (Phase 67)
+- **变体域契约+Wave B 实施** — v2.5 契约重冻结+三 ADR (Phase 68)、FS manifest transport 通电+G15 真数据源+requeue 消费 (Phase 69)、换选四断点修通 (Phase 70)
+- **画布↔kmc 共存语义** — 画布为配方真值 (`_kmc_prompt` 哨兵) + stale 两仓统一 + 产物回流 + replace 收口 (Phase 71)
+- **QC/评分真数据+门中心收尾** — 判定数组透传 + aiScore 生产者 + 词表修真 (Phase 72)、p11b 哨兵+红线墓碑+qwen-eye 队列优先 (Phase 73)
+
+**Key context:** 回溯立项——11/11 phases 已于 2026-08-25 当天执行完毕（四仓 24 commits；验证矩阵 verify-53 102/102 · 54 62/62 · 55 18/18 · 56 89/89 · 65 31/31 · canvas 496/496 · khs 831+ · review-platform 443+；生产 :10588 GOLD_TEAM_URL+KMC_MANIFEST_TRANSPORT=fs 双 env 实证）。5+1 裁决点全落（ADR: [adrs/adr-v3.2-variant-domain.md](adrs/adr-v3.2-variant-domain.md)）。⏸ 3 项待真机 drill：WBX-05 UAT 11 / 70-05 G13 换选 e2e / 72 存量 aiScore 回填（下次活体管线自然覆盖）。F01-F40 全索引+审查源：[v3.2-ROADMAP-DRAFT.md](v3.2-ROADMAP-DRAFT.md)。
+
+## Shipped: v3.1 重生成闭环深化 (regen-loop-deepening) — 2026-08-24
 
 **Goal:** 付清 v3.0 收尾锁定的三笔「生成-迭代闭环」欠账——窄触发 stale 级联、全配方持久化、保存后面板保持——并顺带清掉审计三笔低优先债 (TD-3/4/5)。
 
-**Target features:**
-- **窄触发 stale 级联** — 仅面板编辑重生成 / 换 seed 重跑两条路径按请求关联把下游标 stale；Phase 37 批量执行零影响
-- **全配方持久化** — steps/cfg/sampler/lora/quant 等全量高级字段进出 `EventNodeV3.params`，编辑即真值，重生成直接消费
-- **保存后面板保持** — reload 链保 `detailNode`，真机保存 200 后面板不收起，与 mock 行为对齐
-- **TD-3/4/5 清债** — `placeNewAsset` 无调用方、reviewBridge 无尾斜杠 307 陷阱、51-REVIEW I1 buildMeta round-trip + I5 node:created 派生直写
-
-**Key context:** khs2 v2.4 Phase 25 gate 未过 → 53 Wave B (TD-1) 继续留在范围外；本期全部改动限 kap 仓画布侧，无跨仓库依赖。
-
-v3.0 画布创作体验 shipped 2026-08-22 (audit passed f9280e0c; 305/305 verify; Phase 52 verification materials delivered 2026-08-22 by owning session — carry-forward closed). Archive: milestones/v3.0-{ROADMAP,REQUIREMENTS,MILESTONE-AUDIT}.md.
+**Outcome:** 5 phases (58-62), 25 plans, 18/18 reqs, audit passed。窄触发 stale 级联 (execute 链四断点修真, verify:phase-59 89/89) + 九键全配方持久化 (三方集合相等防漂移门, verify:phase-58 25/25) + 保存后面板保持 (savedBy 自回声跳过, verify:phase-60 20/20) + 三债清偿 (verify:phase-61 18/18) + 62 资产层级 (三层视图/批量决策/冗余配置入口, verify:phase-62 27/27)。挂起 UAT×3: 60 面板连续性 / 61 拖入手感 / 62 层级+批量+配置观感。
 
 ## Shipped: v3.0 画布创作体验 (Canvas Creative Experience for kmc)
 
@@ -43,6 +48,11 @@ v3.0 画布创作体验 shipped 2026-08-22 (audit passed f9280e0c; 305/305 verif
 
 <!-- Shipped and confirmed. -->
 
+- ✓ 引擎真值源收编+生产通电 (ETS-01..04 / REA-01..06 / PWR-01..04: gold-team 回灌 47/50 md5+v9 compose 钉 real 镜像; Stage→TaskType 对照引擎消费契约+图像配方保真 ratio/model_version 键名/seed 真值; serve-production.sh 双 env, probe-66 零足迹 9/9 cloud-jimeng 真渲染) — v3.2 Phases 63/65/66
+- ✓ 豁免桥三仓闭环 (WBX-01..04: /api/v1/g15/ops fail-closed 匹配+union 幂等+approve carry-forward+六路径 decision 补洞, 容器已重建; khs 子集豁免 p10c/p11c 双侧测试锁「豁免 5 失败镜中的 2 个→只 2 个 waived」; drain gate 字段修) — v3.2 Phase 67
+- ✓ 变体域契约+Wave B 实施 (VDR-01..04 / WBI-01..04 / CHS-01..04: v2.5 键+三档 scale+S1f 双源门首跑即抓 take-log 真漂移; FS transport 真写 5 断言+五源落盘+requeue 并集消费; 换选按 phase id 空间+variantNumber 真编号+fullPhaseToken 防错批负向锁) — v3.2 Phases 68/69/70
+- ✓ 画布↔kmc 共存语义 (COX-01..05: `_kmc_prompt` 哨兵保用户画布编辑+upsert 集中清 stale+canvas-takes.jsonl 产物回流+import replace 关系层同步+sequence linkType 往返存活) — v3.2 Phase 71
+- ✓ QC/评分真数据+门中心收尾 (QVR-01..07 / GCX-01..04: 判定数组透传三形状+aiScore 生产者 p03/p14→雷达+DIM_LABELS 源码锚点修真+五值 verdict; p11b 哨兵不抢 blocking+红线 reject 墓碑上浮+qwen-eye 队列拒绝不绕队+26+9 条 APPROVING 实清零) — v3.2 Phases 72/73
 - ✓ 保存后面板保持 (PANEL-01/02: savedBy tabId 自回声跳过+mock/真机契约对齐; Branch A 证据裁定 reload 链锚安全仅上锁; verify:phase-60 20/20 + e2e 4/4 + probe 真机 13/13 零足迹; 顺带修 requestNodeScore 信封 bug) — v3.1 Phase 60
 - ✓ 窄触发 stale 级联 + execute 链四断点修真 (STALE-01/02/03: 面板重生成/换 seed 重跑→下游 stale 角标+一键重跑, 编排/批量零波及负向锁死; D-06 ①outputs.image ②/mnt/agents/output→/oss/ ③假成功→真错误 ④ref_images 对齐 + REGEN-02 seed 透传; workdir 防穿越/仓库暴露三向守卫; verify:phase-59 89/89 + e2e 5/5 + probe 真机零足迹) — v3.1 Phase 59
 - ✓ 全配方持久化 (§14 窄通道→九键全量: steps/cfg/quant/sageAttention/lora 面板编辑+migrate/serialize 往返+delete 传播+regen 整袋透传; 三方集合相等防漂移门 verify:phase-58 25/25) — v3.1 Phase 58
@@ -309,4 +319,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-08-25 — v3.1 重生成闭环深化 shipped (Phases 58-62, 18/18 reqs, audit passed, milestones/v3.1-* archived)。62 资产层级: 三层视图/批量决策/冗余配置入口, e2e 8+7+7, verify:phase-62 27/27, review clean。挂起 UAT×3: 60 面板连续性 / 61 拖入手感 / 62 层级+批量+配置观感*
+*Last updated: 2026-08-25 — v3.2 跨仓协调清偿立项（回溯：11/11 phases 63-73 已于 08-25 执行完毕, 四仓 24 commits, 验证矩阵全绿, 3 项待真机 carry-forward）。v3.1 shipped 2026-08-24 (58-62, 18/18 reqs, audit passed)。*
