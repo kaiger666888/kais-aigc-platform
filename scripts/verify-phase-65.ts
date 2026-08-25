@@ -68,10 +68,21 @@ function main(): void {
   assert(/text:\s*input\.text/.test(engineTs), "B: kap _engine 平铺 text 键");
   assert(/taskType === "tts"[\s\S]{0,80}prompt/.test(simulate) || /tts"\s*\|\|\s*taskType\.startsWith\("tts_"\)/.test(simulate), "B: kap _simulate 对 tts 任务把 prompt 同时送 text 通道");
 
-  console.log("\n=== C 音频边界(引擎拒收 MUSIC/SFX → kap 不投递) ===");
+  console.log("\n=== C 音频边界(引擎拒收 MUSIC/SFX → kap 内部音频端点) ===");
   const mapBody = simulate.match(/NODE_TYPE_TO_TASK_TYPE[^{]*\{([\s\S]*?)\}/)?.[1] ?? "";
-  assert(!/"music"|: "sfx"/.test(mapBody), "C: kap 映射表零 music/sfx 值(不再投递必拒任务)");
-  assert(/nodeType === "bgm" \|\| nodeType === "foley"/.test(simulate) && /throw new Error/.test(simulate.slice(simulate.indexOf('nodeType === "bgm"'))), "C: kap bgm/foley 显式报不支持(loudly 翻车,非假提交)");
+  assert(!/"music"|: "sfx"/.test(mapBody), "C: kap 映射表零 music/sfx 值(不投引擎必拒任务)");
+  // 65-04 (REA-04 余量):65-02 的显式报错分支升级为真实接线——bgm→ACE-Step
+  // (/ace/generate 异步+status 轮询),foley→SA3(/stableaudio/generate 同步)。
+  assert(
+    /nodeType === "bgm" \|\| nodeType === "foley"/.test(simulate) &&
+    /regenerateInternalAudio/.test(simulate) &&
+    simulate.includes("/api/v1/ace/generate") &&
+    simulate.includes("/api/v1/ace/status/") &&
+    simulate.includes("/api/v1/stableaudio/generate"),
+    "C: kap bgm/foley 接内部音频端点(65-04:ACE 音乐+轮询/SA3 音效)",
+  );
+  assert(/instrumental: true/.test(simulate), "C: bgm 走 ACE instrumental(画布 BGM 无歌词,不产人声)");
+  assert(/if \(outputUrl === undefined\) throw new Error\("ACE 轮询窗口耗尽/.test(simulate), "C: ACE 轮询有界(窗口耗尽 loudly 失败,非永挂)");
 
   console.log("\n=== D 模型政策与键名(camelCase→snake_case) ===");
   assert(engineTs.includes('taskType.startsWith("image") ? { model_preference: "cloud" }'), "D: kap image* 强制 model_preference=cloud");

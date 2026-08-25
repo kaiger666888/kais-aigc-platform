@@ -67,7 +67,7 @@ import {
   adaptH3Canvas,
   getTurboSteps,
 } from "./config";
-import { withFirstFrameAnchor } from "./promptAnchor";
+import { withFirstFrameAnchor } from "./_promptAnchor";
 
 const router = express.Router();
 

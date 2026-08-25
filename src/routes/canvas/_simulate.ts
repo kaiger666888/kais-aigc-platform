@@ -21,9 +21,9 @@ import { submitEngineTask, pollEngineTask, type TaskType } from "./_engine";
  *   - mix/composite → 有意不进表(59-01 A2 裁定:引擎无混音/合成 TaskType,
  *                    维持 simulateOnly 守批量路径稳定)
  *   - bgm/foley    → 65-02 (REA-04) 从表移除:引擎 v1.5 起 MUSIC/SFX 直接拒收
- *                    (executor.py:591-594,指向 kap 自家 /api/v1/ace/generate
- *                    与 /stableaudio/generate)。画布侧显式报「不支持」而非投递
- *                    必拒任务还报已提交;内部端点接线留 65-04。
+ *                    (executor.py:591-594)。65-04 接线:改走 kap 自家音频端点
+ *                    ——bgm→/api/v1/ace/generate(ACE-Step,异步+轮询 status),
+ *                    foley→/api/v1/stableaudio/generate(SA3,同步)。不走引擎。
  *
  * 59-01 行为变化声明:
  *   - readNode 关系表化:v2 项目改走 canvasRelationalStore.listNodes(旧
@@ -164,6 +164,116 @@ async function simulateOnly(projectId: number, nodeId: string): Promise<void> {
 }
 
 /**
+ * 成功产物落库+广播(59-01 A1 裁定,65-04 抽出复用):/oss/ 或端点 URL 写回
+ * 节点 data.filePath,reload 可见(与 import 链 filePath 语义一致)。外裹
+ * try/catch console.error,落库失败不得把成功翻成 error。
+ */
+async function persistOutput(
+  projectId: number,
+  episodesId: number,
+  nodeId: string,
+  node: Record<string, any> | null,
+  outputUrl: string,
+): Promise<void> {
+  broadcastToProject(projectId, "node:preview", { nodeId, thumbnailUrl: outputUrl });
+  if (!node) return;
+  try {
+    const data = { ...(node.data ?? {}), filePath: outputUrl };
+    await upsertNode({ projectId, episodesId }, { ...(node as any), data });
+  } catch (persistErr: any) {
+    console.error(
+      `[_simulate] nodeId=${nodeId} filePath 落库失败(成功态保留):`,
+      persistErr?.message,
+    );
+  }
+}
+
+/**
+ * 65-04 (REA-04 余量):bgm/foley 重生成走 kap 自家音频端点(HTTP 自调,
+ * 复用端点的 GPU 串行队列语义)。
+ *   - bgm  → POST /api/v1/ace/generate(202 异步)→ 轮询 /ace/status/:id
+ *            至 completed → outputs[0].download_url;
+ *   - foley→ POST /api/v1/stableaudio/generate(SA3 同步)→ data.audio_url。
+ * 产物 URL 写回 data.filePath(与图像 /oss/ 同一落库通道)。失败 rethrow
+ * (execute.ts error 广播接管——诚实失败,不假成功)。
+ */
+async function regenerateInternalAudio(
+  projectId: number,
+  nodeId: string,
+  episodesId: number,
+  node: Record<string, any> | null,
+  nodeType: "bgm" | "foley",
+  prompt: string,
+): Promise<void> {
+  // 自调基址:生产/开发同进程 PORT(serve-production.sh PORT=10588)
+  const selfBase = `http://127.0.0.1:${process.env.PORT ?? "10588"}`;
+  // 节点时长(data.duration 秒)可用则透传,否则走端点默认(bgm 60s / foley 30s)
+  const duration = Number(node?.data?.duration);
+
+  broadcastToProject(projectId, "execution:progress", { nodeId, state: "running", progress: 0.1 });
+
+  let outputUrl: string | undefined;
+  if (nodeType === "bgm") {
+    // ACE-Step 音乐:instrumental(画布 BGM 无歌词);duration 1..600
+    const body: Record<string, unknown> = { prompt, instrumental: true };
+    if (Number.isFinite(duration) && duration >= 1 && duration <= 600) body.duration = duration;
+    const submit = await fetch(`${selfBase}/api/v1/ace/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(20_000),
+    }).then((r) => r.json() as Promise<{ code: number; data?: { task_id?: string }; message?: string }>);
+    if (submit?.code !== 200 || !submit.data?.task_id) {
+      throw new Error(`ACE 提交失败: ${submit?.message ?? "无 task_id"}`);
+    }
+    const taskId = submit.data.task_id;
+    const deadline = Date.now() + 10 * 60_000;
+    let elapsed = 0;
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 4_000));
+      elapsed += 4;
+      broadcastToProject(projectId, "execution:progress", {
+        nodeId, state: "running", progress: Math.min(0.9, 0.1 + elapsed / 120),
+      });
+      const st = await fetch(`${selfBase}/api/v1/ace/status/${encodeURIComponent(taskId)}`, {
+        signal: AbortSignal.timeout(8_000),
+      }).then((r) => r.json() as Promise<{
+        code: number;
+        data?: { status?: string; error?: string; outputs?: Array<{ download_url?: string }> };
+      }>);
+      if (st?.data?.status === "completed") {
+        const url = st.data.outputs?.[0]?.download_url;
+        if (!url) throw new Error("ACE 完成但无音频输出");
+        outputUrl = url;
+        break;
+      }
+      if (st?.data?.status === "failed") {
+        throw new Error(`ACE 生成失败: ${st.data.error ?? "未知错误"}`);
+      }
+      // queued/running/unknown → 继续轮询
+    }
+    if (outputUrl === undefined) throw new Error("ACE 轮询窗口耗尽(10 分钟)");
+  } else {
+    // Stable Audio 3 音效:同步端点(内部轮询至完成);seconds_total 1..380
+    const body: Record<string, unknown> = { prompt };
+    if (Number.isFinite(duration) && duration >= 1 && duration <= 380) body.seconds_total = duration;
+    const gen = await fetch(`${selfBase}/api/v1/stableaudio/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(10 * 60_000),
+    }).then((r) => r.json() as Promise<{ code: number; data?: { audio_url?: string }; message?: string }>);
+    if (gen?.code !== 200 || !gen.data?.audio_url) {
+      throw new Error(`Stable Audio 生成失败: ${gen?.message ?? "无 audio_url"}`);
+    }
+    outputUrl = gen.data.audio_url;
+  }
+
+  broadcastToProject(projectId, "execution:progress", { nodeId, state: "running", progress: 1.0 });
+  await persistOutput(projectId, episodesId, nodeId, node, outputUrl);
+}
+
+/**
  * 执行单个节点。
  *
  * 当 `GOLD_TEAM_URL` 配置时,走真实引擎;否则降级为模拟。
@@ -205,14 +315,18 @@ export async function simulateExecution(
     return simulateOnly(projectId, nodeId);
   }
 
-  // 65-02 (REA-04):bgm/foley 显式不支持——引擎 v1.5 起 MUSIC/SFX 直接拒收
-  // (指向 kap 自家 /api/v1/ace /stableaudio 端点,接线留 65-04)。旧实现投递
-  // 必拒任务且 execute 层先报「已提交」成功 toast = 假成功;现在 loudly 翻车。
+  // 65-04 (REA-04 余量):bgm/foley 改走 kap 自家音频端点——引擎 v1.5 起
+  // MUSIC/SFX 直接拒收(executor.py:591-594),不再投递必拒任务。65-02 时代的
+  // 显式报错分支升级为真实接线:bgm→ACE-Step(异步 202+status 轮询),
+  // foley→Stable Audio 3(同步)。两条端点自带 GPU 全局串行队列
+  // (gpuVramManager gpuIndex=1),无需引擎 env。
   if (nodeType === "bgm" || nodeType === "foley") {
-    throw new Error(
-      `画布重生成暂不支持 ${nodeType === "bgm" ? "BGM 配乐" : "音效"}——` +
-      `引擎已停收 MUSIC/SFX(改走 /api/v1/${nodeType === "bgm" ? "ace" : "stableaudio"}/generate,接线规划 65-04)`,
-    );
+    const audioPrompt = overrides?.prompt ?? extractPrompt(node ?? {});
+    if (!audioPrompt) {
+      console.log(`[_simulate] nodeId=${nodeId} 音频节点无 prompt,降级为模拟`);
+      return simulateOnly(projectId, nodeId);
+    }
+    return regenerateInternalAudio(projectId, nodeId, episodesId, node, nodeType, audioPrompt);
   }
 
   // GOLD_TEAM_URL 未配置 → 降级模拟,保持 v1.7 行为
@@ -285,27 +399,8 @@ export async function simulateExecution(
       progress: 1.0,
     });
     if (result?.outputUrl) {
-      broadcastToProject(projectId, "node:preview", {
-        nodeId,
-        thumbnailUrl: result.outputUrl,
-      });
-      // 59-01 A1 裁定:成功产物 filePath 落库——/oss/ web 路径写回节点 data,
-      // reload 可见(与 import 链 filePath 语义一致)。外裹 try/catch
-      // console.error,落库失败不得把成功翻成 error。
-      if (node) {
-        try {
-          const data = { ...(node.data ?? {}), filePath: result.outputUrl };
-          await upsertNode(
-            { projectId, episodesId },
-            { ...(node as any), data },
-          );
-        } catch (persistErr: any) {
-          console.error(
-            `[_simulate] nodeId=${nodeId} filePath 落库失败(成功态保留):`,
-            persistErr?.message,
-          );
-        }
-      }
+      // 59-01 A1 裁定:成功产物 filePath 落库(65-04 起与音频端点共用 helper)
+      await persistOutput(projectId, episodesId, nodeId, node, result.outputUrl);
     }
   } catch (err: any) {
     // 59-01 D-06③ 断点③:去 simulateOnly 假成功降级。console.error 保留

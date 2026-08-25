@@ -101,7 +101,7 @@ import {
   type H3UseCasePreset,
   type H3MotionLevel,
 } from "./config";
-import { withFirstFrameAnchor } from "./promptAnchor";
+import { withFirstFrameAnchor } from "./_promptAnchor";
 // 复用 replace-audio 的辅助函数 (这些函数仅新增了 export 关键字, 逻辑未变更)
 import {
   LTX_AMBIENT,
