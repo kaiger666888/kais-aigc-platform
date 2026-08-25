@@ -507,6 +507,16 @@ export async function selectVariantWinner(
  * selectVariantWinner 模型:非 2xx 一律抛 ApiError,批量部分失败由端点
  * 事务语义定义(53-07 契约)。
  */
+/** g15-ops 响应体(WBX-03:delivered 必读——false = 未送达仅入队,非成功)。 */
+export interface G15OpsResult {
+  action: 'waive' | 'requeue'
+  shotIds: string[]
+  applied: number
+  queued: number
+  /** 桥真实送达(review-platform 端点回执);false 时操作未生效 */
+  delivered: boolean
+}
+
 export async function g15Ops(
   projectId: number,
   episodesId: number,
@@ -515,8 +525,13 @@ export async function g15Ops(
   cancelToken?: CancelToken,
   /** 56-05 (D-11):目标 gate(缺省 G15 p11c-gate;G16 听审传 'p10c-gate') */
   gate?: string,
-): Promise<void> {
-  await apiCall<void>('/canvas/v2/g15-ops', { projectId, episodesId, action, shotIds, ...(gate != null ? { gate } : {}) }, { cancelToken })
+): Promise<G15OpsResult> {
+  const json = await apiCall<{ data: G15OpsResult }>(
+    '/canvas/v2/g15-ops',
+    { projectId, episodesId, action, shotIds, ...(gate != null ? { gate } : {}) },
+    { cancelToken },
+  )
+  return json.data
 }
 
 // ─── Gate 中心(Phase 54-04 GATE-02;54-05 服务端对接) ───────────────────

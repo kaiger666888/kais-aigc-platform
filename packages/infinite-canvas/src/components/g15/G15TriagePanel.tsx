@@ -77,7 +77,19 @@ export default function G15TriagePanel(): React.ReactElement | null {
     }
     markRows(selectedIds, action === 'waive' ? 'waived' : 'requeued') // 乐观
     try {
-      await g15Ops(projectId, episodesId, action, selectedIds)
+      const r = await g15Ops(projectId, episodesId, action, selectedIds)
+      // WBX-03:delivered=false = 桥未送达(端点 404/超时),仅入重试队列——
+      // 不是成功。回滚乐观标记,toast 如实告知。
+      if (!r.delivered) {
+        unmarkRows(selectedIds)
+        showToast(
+          r.queued > 0
+            ? `未送达（已入重试队列）——${action === 'waive' ? '豁免' : '重渲'}尚未生效`
+            : `未送达且入队失败: ${(action === 'waive' ? '豁免' : '重渲')}请重试`,
+          'error',
+        )
+        return
+      }
       showToast(`已${action === 'waive' ? '豁免' : '下发重渲'} ${selectedIds.length} 个镜头`, 'success')
     } catch (err) {
       unmarkRows(selectedIds) // 回滚

@@ -47,12 +47,15 @@ function bootG15Drain(): void {
           if (manifestTransport == null) return true; // 通道未开通——跳过不误标
           return replayManifestWriteback(row, manifestTransport);
         }
-        // g15_waive / g15_requeue 重放:按行 payload 重发桥指令
+        // g15_waive / g15_requeue 重放:按行 payload 重发桥指令。
+        // 56-05/WBX-03:gate 必须从 payload 透传——此前解构丢 gate,排队的
+        // p10c-gate 豁免重放时被 dispatchG15Op 缺省成 p11c-gate(错门豁免)。
         const payload = JSON.parse(row.payload) as {
           projectId: number;
           episodesId: number;
           action: "waive" | "requeue";
           shotIds: string[];
+          gate?: string;
         };
         const r = await dispatchG15Op(payload);
         return r.delivered;
@@ -102,7 +105,7 @@ router.post("/", async (req, res) => {
 
     return res
       .status(200)
-      .send(success({ action, shotIds, applied: result.delivered ? shotIds.length : 0, queued }));
+      .send(success({ action, shotIds, applied: result.delivered ? shotIds.length : 0, queued, delivered: result.delivered }));
   } catch (err) {
     console.error("[canvas:v2/g15-ops] 操作失败:", err);
     return res.status(500).send(error("G15 操作失败"));

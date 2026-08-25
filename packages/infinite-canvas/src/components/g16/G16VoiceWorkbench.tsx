@@ -162,7 +162,19 @@ export default function G16VoiceWorkbench(): React.ReactElement | null {
     store.markWaived(ids)
     try {
       const shotIds = ids.map((id) => store.rows.find((r) => r.id === id)?.shotId ?? id)
-      await g15Ops(projectId, episodesId, 'waive', shotIds, undefined, 'p10c-gate')
+      const r = await g15Ops(projectId, episodesId, 'waive', shotIds, undefined, 'p10c-gate')
+      // WBX-03:delivered=false = 桥未送达(端点 404/超时),仅入重试队列——
+      // 不是成功。回滚乐观标记,toast 如实告知;通道恢复前豁免不会生效。
+      if (!r.delivered) {
+        useVoiceAuditStore.getState().unmark(ids)
+        showToast(
+          r.queued > 0
+            ? `未送达（已入重试队列）——豁免尚未生效，恢复后再试`
+            : '豁免未送达且入队失败，请重试',
+          'error',
+        )
+        return
+      }
       showToast(`已豁免 ${ids.length} 条（p10c 配音听审）`, 'success')
     } catch {
       useVoiceAuditStore.getState().unmark(ids)

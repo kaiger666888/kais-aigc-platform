@@ -4,11 +4,15 @@
  * reviewBridge 同构纪律(P1/P2 逐条复刻):deps 注入 + never-throws +
  * fail-closed 匹配。两通道:
  *
- *  1. waive(豁免)= approve-with-comment 扩展语义。已核协议(reviewBridge
+ *  1. waive(豁免)= approve-with-comment 扩展语义。协议参照(reviewBridge
  *     L12-18):approve = POST /api/v1/reviews/{id}/approve,body
  *     {comment, result?};409 = review 已在别处 resolve(视为已处理,非错误)。
- *     G15 的 waive 对应 G15(p11c-gate)review 的 approve,comment 携带
- *     `g15:waive:{shotId}` 标记 + 豁免理由。
+ *     ⚠️ WBX-03(2026-08-25 review F09/F14/F27):本桥当前 POST 的
+ *     /api/v1/g15/ops 在 review-platform 侧**尚不存在**(全网 404)——
+ *     送达恒 false,操作只能入 canvas_writeback_queue 重放(≤8 次)。
+ *     端点落地(67-02)前 delivered=true 不可达;UI 已按 delivered=false
+ *     诚实降级(不再报成功)。G15 的 waive 对应 G15(p11c-gate)review 的
+ *     approve,comment 携带 `g15:waive:{shotId}` 标记 + 豁免理由。
  *  2. requeue(重渲)= 冻结新 action。
  *
  * DOCUMENTED PROTOCOL GAP(冻结):kmc 侧 requeue 指令消费端 Wave B 才存在

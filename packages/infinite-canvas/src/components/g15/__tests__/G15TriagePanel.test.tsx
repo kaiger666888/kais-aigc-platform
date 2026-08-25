@@ -77,7 +77,8 @@ function check(shotId: string): void {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  apiG15.mockResolvedValue(undefined)
+  // WBX-03:g15Ops 返回结果对象——delivered=false 时 UI 回滚+如实 toast。
+  apiG15.mockResolvedValue({ action: 'waive', shotIds: [], applied: 0, queued: 0, delivered: true })
   resetStore()
 })
 
@@ -135,6 +136,24 @@ describe('G15TriagePanel — 分诊工作台', () => {
     // 仅 shot_003 回滚;首笔成功的 shot_001/002 维持已豁免
     expect(useG15TriageStore.getState().rowState['shot_003']).toBeUndefined()
     expect(useG15TriageStore.getState().rowState['shot_001']).toBe('waived')
+    unmount()
+  })
+
+  it('3b. WBX-03 未送达诚实化:delivered=false → 回滚 + 不出现成功文案', async () => {
+    render()
+    // 200 但桥未送达(端点 404 入队)——旧实现照样 toast「已豁免」(假成功)
+    apiG15.mockResolvedValueOnce({ action: 'waive', shotIds: ['shot_001', 'shot_002'], applied: 0, queued: 1, delivered: false })
+    check('shot_001')
+    check('shot_002')
+    await act(async () => {
+      ;(container?.querySelector('[data-testid="g15-batch-waive"]') as HTMLButtonElement)?.click()
+    })
+    expect(useCanvasStore.getState().showToast).toHaveBeenCalledWith(expect.stringContaining('未送达'), 'error')
+    const toasts = vi.mocked(useCanvasStore.getState().showToast).mock.calls.map((c) => c[0])
+    expect(toasts.some((t) => t.includes('已豁免'))).toBe(false)
+    // 回滚:delivered=false 不留乐观标记
+    expect(useG15TriageStore.getState().rowState['shot_001']).toBeUndefined()
+    expect(useG15TriageStore.getState().rowState['shot_002']).toBeUndefined()
     unmount()
   })
 
