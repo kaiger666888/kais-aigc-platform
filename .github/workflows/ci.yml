@@ -89,6 +89,21 @@ jobs:
           repository: kaiger666888/hermes-agent
           path: .ci-sibling/hermes-agent
 
+      # hermes-agent 的 plugins/ 是「常规包」(有 __init__.py)，其指向 KMC
+      # 插件的 symlink 农场从未进 git（本机手工建，PEP 420 下常规包恒压过
+      # KMC 的命名空间包 plugins/ —— 与 sys.path 顺序无关）。干净检出后
+      # 农场为空 → from plugins.review_gates... 必 ModuleNotFoundError。
+      # 此步按本地形态重建缺失链接（只补缺，不覆盖 hermes-agent 自有插件）。
+      - name: Rebuild hermes-agent plugin farm (untracked upstream)
+        if: env.CROSS_KEY_SKILLS != ''
+        run: |-
+          cd .ci-sibling/hermes-agent/plugins
+          for d in ../../kais-hermes-skills/plugins/*/; do
+            name=$(basename "$d")
+            [ -e "$name" ] || ln -s "../../kais-hermes-skills/plugins/$name" "$name"
+          done
+          ls -la | grep '\->' || true
+
       - name: Set up Python (manifest suite)
         if: env.CROSS_KEY_SKILLS != ''
         uses: actions/setup-python@v5
