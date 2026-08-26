@@ -192,7 +192,9 @@ export function alignH3FrameCount(n: number): number {
 //   2. patch_model.py 已执行（model.py 注入 ("block_loop", 0) 钩子）
 //   未满足时 model 用 stock speed 运行, 不报错。
 export const H3_TESPEED = {
-  enabled: true,          // 全局 patch 开关 (T8 工作流不再插入节点, 仅作就位标记)
+  // 2026-08-26: ComfyUI-TE-Speed-MiniMaxH3-OSS 已从 comfyui-primary 容器移除
+  // (model.py 无 block_loop 钩子), 节点类 TESpeedMiniMaxH3 已不存在; 置 false 防止 native 链路注入不存在节点导致 400。
+  enabled: false,         // 全局 patch 开关 (T8 工作流不再插入节点, 仅作就位标记)
   classType: "TESpeedMiniMaxH3",
   nodeId: "35",           // 历史: 旧原生链路插入节点 ID (T8 不再使用)
   // 参数（与基准测试一致，参考插件 README 默认值；T8 下仅作记录）
@@ -266,7 +268,7 @@ export const H3_TURBO = {
   // 路由下已跳拓扑到 native-sage 15 步 (见 H3_PREVIEW_MOTION_ROUTES), 此表仅服务
   // 显式 turbo=true 的直调 (thin routes / generate 平铺参数)。
   motionSteps: {
-    low: 4,       // 站立/对白/慢速移动
+    low: 6,       // 站立/对白/慢速移动
     medium: 8,    // 拥抱/行走/轻微动作 (2026-08-17: 4→8)
     high: 8,      // 追逐/赛车/打斗/快速运动
   },
@@ -529,7 +531,7 @@ export const H3_PROFILES: Record<H3ProfileName, H3ProfilePreset> = {
 //
 // 2026-08-17 档位重构 (API 精简): 只暴露主链路两档 (见 H3_EXPOSED_USE_CASES 白名单):
 //   preview-lock —— P11a 创意锁定预览, motion 跨拓扑路由 (见 H3_PREVIEW_MOTION_ROUTES):
-//                   low→turbo 4步 / medium→turbo 8步 / high→native-sage 15步;
+//                   low→turbo 6步 / medium→turbo 8步 / high→native-sage 15步;
 //                   音频 tts-only: 跳 LTX Foley, TTS 对白与 H3 原生环境音混音
 //                   (修复旧 skipFoley 路径静默丢弃 ttsAudio 的 bug)。
 //   final-shot   —— P11b 成片: native-sage 36 步 @1344×768 (默认分辨率), 完整
@@ -561,7 +563,7 @@ export interface H3UseCasePreset {
 
 export const H3_USE_CASES = {
   "preview-lock": {
-    label: "P11a 创意锁定预览 (motion 路由: low→turbo4 / medium→turbo8 / high→native-sage15; TTS-only 混音)",
+    label: "P11a 创意锁定预览 (motion 路由: low→turbo6 / medium→turbo8 / high→native-sage15; TTS-only 混音)",
     profile: "turbo",
     mode: "ref2va",
     motion: "medium",
@@ -621,12 +623,12 @@ export const H3_EXPOSED_USE_CASES: readonly H3UseCaseName[] = ["preview-lock", "
 // H3_PREVIEW_MOTION_ROUTES —— 预览档动态路由 (2026-08-17 新分档)
 // ============================================================
 // preview-lock 按 motion 跨拓扑解析 profile+steps (取代旧 getTurboSteps 4/4/8 全 T8):
-//   low    → turbo      4 步 (T8 Turbo LoRA, 站立/对白/慢速, ~140s)
+//   low    → turbo      6 步 (T8 Turbo LoRA, 站立/对白/慢速, ~140s)
 //   medium → turbo      8 步 (T8 Turbo LoRA, 行走/轻微动作; 4 步中动态偏软)
 //   high   → native-sage 15 步 (Native KSampler, 追逐/打斗; T8 低步数高动态崩坏, 跳拓扑)
 // 音频统一走 useCase.audio="tts-only"。调用方显式传 profile/steps 仍可覆盖 (显式优先)。
 export const H3_PREVIEW_MOTION_ROUTES: Record<H3MotionLevel, { profile: H3ProfileName; steps: number }> = {
-  low: { profile: "turbo", steps: 4 },
+  low: { profile: "turbo", steps: 6 },
   medium: { profile: "turbo", steps: 8 },
   high: { profile: "native-sage", steps: 15 },
 } as const;

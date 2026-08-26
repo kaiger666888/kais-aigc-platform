@@ -740,7 +740,7 @@ export default router.post(
       return res.status(400).send(error(`motion must be one of: low | medium | high (got "${motion}")`));
     }
     // 预览档动态路由 (2026-08-17): preview-lock 按 motion 跨拓扑解析 profile+steps
-    //   low→turbo 4步 / medium→turbo 8步 / high→native-sage 15 步。
+    //   low→turbo 6步 / medium→turbo 8步 / high→native-sage 15 步。
     // 显式传 profile/steps 仍可覆盖 (显式优先)。
     const motionRoute =
       rawUseCase === "preview-lock"
