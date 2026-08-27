@@ -409,6 +409,61 @@ export const H3_SIGMA_INTERP_NODES = {
 } as const;
 
 // ============================================================
+// H3_BLOCK_CACHE —— MiniMaxH3BlockCacheT8 (block-cache 模型补丁) 配置 (2026-08-27)
+// ============================================================
+// ComfyUI 容器插件节点, 三工况实测 (静态对白镜 36步 -52.6% / 高动态15步 -28.7% /
+// 高动态36步 -45.4%), 与 kitchen INT8 CUDA / SageAttention 共存无冲突。
+//
+// 注入拓扑 (唯一合法形状, 已实测): 在 native-sage 原生链路的 UNETLoader(12) 之后
+// 串接, 原 [12,0] 的全部消费者 (SigmaShift 21 等) 改接 [BC,0]:
+//   12: UNETLoader ──model──> 12_blockcache: MiniMaxH3BlockCacheT8 ──MODEL──> 21 (SigmaShift)
+// ⚠️ 仅 Native 链路可用 (KSamplerSelect+BasicScheduler+SigmaShift+SamplerCustomAdvanced 那套)。
+//   T8/DualClock 拓扑 (turbo profile) 未验证 —— 传 blockCache=on 直接忽略, 不报错。
+//
+// 默认关闭 —— API 参数 blockCache=on 开启 (灰度); threshold 可用 blockCacheThreshold 覆盖。
+// verbose 硬编码 true (从 ComfyUI 日志核对命中率)。
+export const H3_BLOCK_CACHE = {
+  classType: "MiniMaxH3BlockCacheT8",
+  nodeId: "12_blockcache",     // 紧跟 UNETLoader(12) 之后, 命名仿 14_lora/14_shift 槽位约定
+  residualDiffThreshold: 0.4,  // 残差差阈值: 低于此值复用缓存块 (实测生产参数)
+  startPercent: 0.08,          // 缓存窗口起点: 前 8% 步始终完整计算
+  endPercent: 0.95,            // 缓存窗口终点: 后 5% 步始终完整计算
+  maxConsecutiveHits: 2,       // 最多连续命中步数, 防误差累积
+  cacheDevice: "cpu",          // 缓存块存放: cpu 省显存
+  metricStride: 8,             // 残差度量采样步距
+  verbose: true,               // 硬编码 true — ComfyUI 日志核对命中率
+} as const;
+
+/**
+ * 解析 blockCache 开关 (multipart 字段值可能是任意字符串/布尔/数字)。
+ * 仅 "on"/"true"/"1" (大小写不敏感) 视为开启; 其余值一律关闭 (不报错)。
+ */
+export function parseH3BlockCacheFlag(raw: unknown): boolean {
+  const v = typeof raw === "string" ? raw.trim().toLowerCase() : raw;
+  return v === "on" || v === "true" || v === "1" || v === 1 || v === true;
+}
+
+/**
+ * 解析 blockCacheThreshold: 仅 [0,1] 合法浮点生效, 否则回落默认值并 WARN。
+ * 返回实际生效的 residual_diff_threshold。
+ */
+export function resolveH3BlockCacheThreshold(raw: unknown): number {
+  const v = typeof raw === "string" ? raw.trim() : raw;
+  const n = typeof v === "string" ? Number(v) : typeof v === "number" ? v : NaN;
+  const missing = v === undefined || v === null || v === "";
+  if (!missing && Number.isFinite(n) && n >= 0 && n <= 1) {
+    return n;
+  }
+  if (!missing) {
+    console.warn(
+      `[h3] invalid blockCacheThreshold "${String(raw)}" (must be a float in [0,1]) — ` +
+      `falling back to default ${H3_BLOCK_CACHE.residualDiffThreshold}`,
+    );
+  }
+  return H3_BLOCK_CACHE.residualDiffThreshold;
+}
+
+// ============================================================
 // H3_PROFILES —— 质量/速度 profile 预设 (T8 + native + KMC 搭配方案)
 // ============================================================
 // 配合 KMC 管线的八种生成档位 (调用方也可改用 useCase 分用途入口, 见 H3_USE_CASES):

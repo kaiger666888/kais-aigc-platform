@@ -21,6 +21,7 @@ import {
   H3_RESOLUTION_TABLE,
   H3_TOKEN_BUDGET_SAFE,
   H3_TOKEN_BUDGET_CRASH,
+  H3_BLOCK_CACHE,
   type H3UseCasePreset,
 } from "./config";
 
@@ -58,6 +59,19 @@ router.get("/", (_req, res) => {
         safeLine: H3_TOKEN_BUDGET_SAFE,
         crashLine: H3_TOKEN_BUDGET_CRASH,
         note: "tokens = width×height×length; >crashLine 400 拒绝, >safeLine 日志警告放行",
+      },
+      // block-cache 加速 (MiniMaxH3BlockCacheT8, 2026-08-27): 仅 native-sage 原生链路生效,
+      // turbo (T8/DualClock) 拓扑未验证 → 传参被忽略 (不报错)。默认关闭。
+      blockCache: {
+        supported: true,
+        param: "blockCache",
+        values: ["on", "true", "1"],
+        thresholdParam: "blockCacheThreshold",
+        defaultThreshold: H3_BLOCK_CACHE.residualDiffThreshold,
+        thresholdRange: [0, 1],
+        profiles: ["native-sage"],
+        node: H3_BLOCK_CACHE.classType,
+        note: "UNETLoader(12) 之后串接 block-cache 模型补丁; 默认关闭, 开启后响应带 blockCache/threshold 供审计",
       },
       // 预留档位 (未暴露, POST 传它们会 400)
       reserved: [

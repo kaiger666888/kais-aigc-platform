@@ -94,10 +94,13 @@ import {
   H3_PREVIEW_MOTION_ROUTES,
   H3_SIGMA_INTERP,
   H3_SIGMA_INTERP_NODES,
+  H3_BLOCK_CACHE,
   H3_DEFAULT_NEGATIVE,
   alignH3FrameCount,
   checkH3TokenBudget,
   getTurboSteps,
+  parseH3BlockCacheFlag,
+  resolveH3BlockCacheThreshold,
   type H3UseCasePreset,
   type H3MotionLevel,
 } from "./config";
@@ -150,7 +153,7 @@ function safeUnlink(p: string | null | undefined): void {
 //   - turbo 模式: 插入 14_lora (LoraLoaderBypassModelOnly), steps 由 motion 参数决定 (4~8)
 // T8 统一模型 fl2va_int8_convrot 覆盖所有 task_type (task_type="auto" 自动判定)。
 
-interface H3GenOpts {
+export interface H3GenOpts {
   mode: "t2va" | "i2va" | "ref2va";
   prompt: string;
   width: number;
@@ -184,11 +187,20 @@ interface H3GenOpts {
    * 仅 buildH3WorkflowNative 使用; T8 / LightX2V 工作流忽略。
    */
   nativeInterp?: boolean;
+  /**
+   * 原生链路 block-cache 加速 (MiniMaxH3BlockCacheT8, 2026-08-27, H3_BLOCK_CACHE)。
+   * true: 在 UNETLoader(12) 之后插入 12_blockcache, 原 [12,0] 消费者 (SigmaShift 21)
+   * 改接 [12_blockcache,0]。false/undefined: 不注入, 图与改动前逐字节等价。
+   * 仅 buildH3WorkflowNative 使用; T8 / LightX2V 工作流忽略 (turbo 拓扑未验证, 不报错)。
+   */
+  blockCache?: boolean;
+  /** residual_diff_threshold 覆盖 (默认 H3_BLOCK_CACHE.residualDiffThreshold=0.4); 仅 blockCache=true 时生效 */
+  blockCacheThreshold?: number;
   /** 负面提示词 (原生链路 KSampler 需占位; T8 忽略) */
   negativePrompt?: string;
 }
 
-function buildH3WorkflowT8(opts: H3GenOpts): Record<string, any> {
+export function buildH3WorkflowT8(opts: H3GenOpts): Record<string, any> {
   const {
     mode, prompt,
     width, height, length, seed,
@@ -317,13 +329,15 @@ function buildH3WorkflowT8(opts: H3GenOpts): Record<string, any> {
 //   - LoadImage 节点: i2va 首帧 = 节点 14; ref2va 参考图 = 节点 14/141/142...
 // ⚠️ native 模式不使用 Turbo LoRA, 不使用 T8 节点 (MiniMaxH3AudioConditioningT8 / DualClockSamplerT8 / AVDecodeT8)。
 // ⚠️ native 模式默认不插入 TESpeed 节点 (与 pre-T8 代码一致的行为; H3_TESPEED.enabled=true 仅表示全局 patch 就位)。
-function buildH3WorkflowNative(opts: H3GenOpts): Record<string, any> {
+export function buildH3WorkflowNative(opts: H3GenOpts): Record<string, any> {
   const {
     mode, prompt, negativePrompt = H3_DEFAULT_NEGATIVE,
     width, height, length, seed,
     stepsOverride,
     firstFrameFilename, refImageFilenames, filenamePrefix,
     nativeInterp,
+    blockCache,
+    blockCacheThreshold,
   } = opts;
 
   const isRef2va = mode === "ref2va";
@@ -332,6 +346,11 @@ function buildH3WorkflowNative(opts: H3GenOpts): Record<string, any> {
   const steps = stepsOverride || (isRef2va ? H3_NATIVE.r2vSteps : H3_NATIVE.t2vSteps);
   const samplerName = isRef2va ? H3_NATIVE.r2vSamplerName : H3_NATIVE.t2vSamplerName;
   const scheduler = isRef2va ? H3_NATIVE.r2vScheduler : H3_NATIVE.t2vScheduler;
+  // block-cache (MiniMaxH3BlockCacheT8, H3_BLOCK_CACHE): UNETLoader(12) 输出的来源 ——
+  // 开启时经 12_blockcache 中转 (原 [12,0] 的全部消费者 = SigmaShift 21, 改接 [12_blockcache,0]);
+  // 关闭时直连 [12,0], 图与改动前逐字节等价。
+  const useBlockCache = blockCache === true;
+  const unetSource: [string, number] = useBlockCache ? [H3_BLOCK_CACHE.nodeId, 0] : ["12", 0];
 
   const nodes: Record<string, any> = {
     // === 模型 / 文本编码器 / VAE ===
@@ -339,6 +358,23 @@ function buildH3WorkflowNative(opts: H3GenOpts): Record<string, any> {
     "11": { class_type: "VAELoader", inputs: { vae_name: H3_DEFAULTS.videoVaeName } },
     "12": { class_type: "UNETLoader", inputs: { unet_name: unetModel, weight_dtype: "default" } },
     "13": { class_type: "VAELoader", inputs: { vae_name: H3_DEFAULTS.audioVaeName } },
+
+    // === block-cache 模型补丁 (仅 blockCache=true; 12 → 12_blockcache → 21) ===
+    ...(useBlockCache ? {
+      [H3_BLOCK_CACHE.nodeId]: {
+        class_type: H3_BLOCK_CACHE.classType,
+        inputs: {
+          model: ["12", 0],
+          residual_diff_threshold: blockCacheThreshold ?? H3_BLOCK_CACHE.residualDiffThreshold,
+          start_percent: H3_BLOCK_CACHE.startPercent,
+          end_percent: H3_BLOCK_CACHE.endPercent,
+          max_consecutive_hits: H3_BLOCK_CACHE.maxConsecutiveHits,
+          cache_device: H3_BLOCK_CACHE.cacheDevice,
+          metric_stride: H3_BLOCK_CACHE.metricStride,
+          verbose: H3_BLOCK_CACHE.verbose,
+        },
+      },
+    } : {}),
   };
 
   // === LoadImage 节点 ===
@@ -396,10 +432,11 @@ function buildH3WorkflowNative(opts: H3GenOpts): Record<string, any> {
   }
 
   // === 噪声调度 (SigmaShift) ===
+  // model 来源 = unetSource: blockCache 开启时接 12_blockcache, 否则直连 12。
   nodes["21"] = {
     class_type: "MiniMaxH3SigmaShift",
     inputs: {
-      model: ["12", 0],
+      model: unetSource,
       shift_video: H3_DEFAULTS.shiftVideo,
       shift_audio: H3_DEFAULTS.shiftAudio,
     },
@@ -937,6 +974,19 @@ export default router.post(
     // native=true → KSampler+SigmaShift 链路。
     const effectiveNative = native;
 
+    // ── block-cache 灰度开关 (2026-08-27, H3_BLOCK_CACHE — MiniMaxH3BlockCacheT8) ──
+    // 仅 native-sage 原生链路生效; turbo (T8/DualClock) 拓扑未验证 → 传参被忽略 (不报错)。
+    // threshold 仅 [0,1] 合法浮点生效, 否则回落默认 0.4 (resolveH3BlockCacheThreshold 内 WARN)。
+    const blockCacheRequested = parseH3BlockCacheFlag(req.body.blockCache);
+    const blockCacheThreshold = resolveH3BlockCacheThreshold(req.body.blockCacheThreshold);
+    const blockCacheOn = blockCacheRequested && effectiveNative;
+    if (blockCacheRequested) {
+      console.log(
+        `[generate] blockCache=${blockCacheOn} threshold=${blockCacheThreshold}` +
+        (blockCacheOn ? " (native chain, MiniMaxH3BlockCacheT8)" : " (ignored: non-native topology)"),
+      );
+    }
+
     const nativeWfOpts = {
       mode,
       prompt,
@@ -951,6 +1001,8 @@ export default router.post(
       native: effectiveNative,
       tespeed,
       nativeInterp,
+      blockCache: blockCacheOn,         // 仅 native 链路 builder 读取 (T8/LightX2V 忽略)
+      blockCacheThreshold,              // 实际生效值 (请求覆盖或默认 0.4)
     };
     // SigmaShift + LoRA 工作流 (无 T8): LightX2V Turbo LoRA v1.0 (lightx2v-4/8) 或
     // LineartAnime LoRA (lineart-anime)。三者共享同一拓扑, 仅 LoRA 配置/steps/shift 不同。
@@ -1117,6 +1169,8 @@ export default router.post(
           profile: rawProfile,
           useCase: rawUseCase,
           turbo,
+          blockCache: blockCacheOn,
+          blockCacheThreshold,
           audioMode: audioMode ?? "native",
           videoUrl: `/mnt/agents/output/${outName}`,
           videoPath: deliverPath,
@@ -1307,6 +1361,8 @@ export default router.post(
         useCase: rawUseCase,
         audioMix,
         turbo,
+        blockCache: blockCacheOn,
+        blockCacheThreshold,
         videoUrl: outputUrl,
         videoPath: finalOutputPath,
         pipeline: {
