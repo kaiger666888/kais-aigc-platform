@@ -176,6 +176,8 @@ import route172 from "./routes/v1/tts/speak";
 import route173 from "./routes/v1/tts/status";
 // 08-25 配置 Tab:GLM 模型配置(文件面 data/config/model-config.json)
 import route174 from "./routes/canvas/v2/model-config";
+// 08-27 迭代平台 M3 金标轨(B 轨):score-p09 gap 打分 + APPLY 门
+import route175 from "./routes/canvas/v2/gold-gap";
 
 export default async (app: Express) => {
   app.use("/api/assets/addAssets", route1);
@@ -352,4 +354,5 @@ export default async (app: Express) => {
   app.use("/api/v1/tts/speak", route172);
   app.use("/api/v1/tts/status", route173);
   app.use("/api/canvas/v2/model-config", route174);
+  app.use("/api/canvas/v2/gold-gap", route175);
 }

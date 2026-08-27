@@ -40,6 +40,8 @@ import BlindSelectionOverlay from './variants/BlindSelection/BlindSelectionOverl
 import { useBlindSelectionStore } from './variants/BlindSelection/blindSelectionStore'
 import { buildBlindQueue } from './variants/BlindSelection/blindOrder'
 import G15TriagePanel from './g15/G15TriagePanel'
+// 迭代平台 M3 金标轨(B 轨)打分面板 — score-p09 + gold_auto APPLY 门
+import GoldPanel from './g15/GoldPanel'
 import { useG15TriageStore } from './g15/g15TriageStore'
 import EventParamsPopover from './eventParams/EventParamsPopover'
 import { useVariantPickerStore } from './variants/variantPickerStore'
@@ -147,6 +149,8 @@ function CanvasInner() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchNavOpen, setSearchNavOpen] = useState(false)
   const [branchPanelOpen, setBranchPanelOpen] = useState(false)
+  // 迭代平台 M3 金标轨(B 轨)面板开合(与 branchPanel 同款本地 useState 壳)
+  const [goldPanelOpen, setGoldPanelOpen] = useState(false)
 
   const nodes = useCanvasStore((s) => s.nodes)
   const edges = useCanvasStore((s) => s.edges)
@@ -1335,8 +1339,18 @@ function CanvasInner() {
               onClick={handleOpenBlindSelection}
               disabled={!projectId || nodes.length === 0}
               title="盲选迭代 — 蒙眼投票对照揭晓(迭代平台 A 轨)"
+              style={{ minHeight: 40, minWidth: 40 }}
             >
               🔮 盲选
+            </ToolbarButton>
+            {/* 迭代平台 M3 金标轨(B 轨):metrics.py 确定性 gap 对金标择优 */}
+            <ToolbarButton
+              onClick={() => setGoldPanelOpen(true)}
+              disabled={!projectId || nodes.length === 0}
+              title="金标轨 — 金标准距离打分择优(迭代平台 B 轨)"
+              style={{ minHeight: 40, minWidth: 40 }}
+            >
+              🥇 金标
             </ToolbarButton>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <span style={{ position: 'absolute', left: 9, display: 'flex', color: theme.text.tertiary, pointerEvents: 'none' }}>
@@ -1412,6 +1426,7 @@ function CanvasInner() {
         <BlindSelectionOverlay />
         {iteration.panelOpen && <IterationPanel />}
         <G15TriagePanel />
+        {goldPanelOpen && <GoldPanel onClose={() => setGoldPanelOpen(false)} />}
         {gateOpen && <GateCenterPanel />}
         {branchPanelOpen && <BranchPanel onClose={() => setBranchPanelOpen(false)} />}
         <GroupViewTheater />
@@ -1426,7 +1441,7 @@ function CanvasInner() {
   )
 }
 
-function ToolbarButton({ onClick, children, disabled, accent, title }: { onClick: () => void; children: React.ReactNode; disabled?: boolean; accent?: boolean; title?: string }) {
+function ToolbarButton({ onClick, children, disabled, accent, title, style }: { onClick: () => void; children: React.ReactNode; disabled?: boolean; accent?: boolean; title?: string; style?: React.CSSProperties }) {
   return (
     <button
       onClick={onClick}
@@ -1448,6 +1463,7 @@ function ToolbarButton({ onClick, children, disabled, accent, title }: { onClick
         opacity: disabled ? 0.5 : 1,
         boxShadow: accent && !disabled ? 'none' : 'var(--cv-shadow-card, 0 1px 2px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.04) inset)',
         transition: 'background 120ms var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1)), color 120ms var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1)), border-color 120ms var(--cv-e-out, cubic-bezier(0.2,0.8,0.2,1))',
+        ...style,
       }}
       onMouseEnter={(e) => { if (!disabled) { e.currentTarget.style.color = theme.text.primary; e.currentTarget.style.borderColor = theme.border.strong } }}
       onMouseLeave={(e) => { if (!accent) { e.currentTarget.style.color = disabled ? theme.text.disabled : theme.text.secondary; e.currentTarget.style.borderColor = theme.border.default } }}

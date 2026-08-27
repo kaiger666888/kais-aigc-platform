@@ -553,6 +553,107 @@ export async function g15Ops(
   return json.data
 }
 
+// ─── 金标轨(迭代平台 M3 / B 轨) ─────────────────────────────────────────
+
+/** 单指标 gap 行(后端 src/lib/goldGap.ts MetricGap 线上形态)。 */
+export interface GoldMetricGap {
+  key: string
+  ref: number
+  cand: number
+  gap01: number
+  weight: number
+  producer: string
+}
+
+/** 后端 GoldGapResult(spec §6:score_breakdown 逐项 producer 标注)。 */
+export interface GoldGapResult {
+  per_metric: GoldMetricGap[]
+  overall_gap01: number
+  standard_ref: string
+  scored_at: string
+}
+
+export interface GoldCandidateResult {
+  label: string
+  gap: GoldGapResult
+}
+
+/** applied 语义:'not_requested' 未请求 / 'applied' 已落 select-winner 闭环 /
+ *  'deferred_to_client' 通道未开通走 UI 补落 / 'rejected' apply 被拒(reason)。 */
+export type GoldApplyState = 'applied' | 'rejected' | 'deferred_to_client' | 'not_requested'
+
+export interface GoldGapScoreResult {
+  results: GoldCandidateResult[]
+  winnerLabel: string
+  standardRef: string
+  runId: string
+  applied: GoldApplyState
+  reason?: string
+  groupId?: string
+  winnerNodeId?: string
+}
+
+export interface GoldGapCandidateInput {
+  label: string
+  filePath: string
+}
+
+/**
+ * POST /api/canvas/v2/gold-gap/score-p09 — 候选 shot-list 对金标 p09 的
+ * 确定性 gap 打分(B 轨);apply 在场时把胜者转投 select-winner 最小闭环
+ * (gold_auto 账本)。打分可能耗时(python 桥),timeout 放大到 60s。
+ */
+export async function scoreP09GoldGap(
+  projectId: number,
+  episodesId: number,
+  candidateShotLists: GoldGapCandidateInput[],
+  opts: { standardRef?: string; apply?: { groupId: string; winnerNodeId: string }; cancelToken?: CancelToken } = {},
+): Promise<GoldGapScoreResult> {
+  const json = await apiCall<{ data: GoldGapScoreResult }>(
+    '/canvas/v2/gold-gap/score-p09',
+    {
+      projectId,
+      episodesId,
+      candidateShotLists,
+      ...(opts.standardRef != null && opts.standardRef !== '' ? { standardRef: opts.standardRef } : {}),
+      ...(opts.apply != null ? { apply: opts.apply } : {}),
+    },
+    { cancelToken: opts.cancelToken, timeout: 60_000 },
+  )
+  return json.data
+}
+
+/**
+ * GET /api/canvas/v2/gold-gap/default-standard — 当前缺省金标集名(M3 面板
+ * 标准集下拉只展示默认;失败返回 null 不抛,GET 裸 fetch 先例同上)。
+ */
+export async function fetchDefaultGoldStandard(
+  cancelToken?: CancelToken,
+): Promise<{ standardRef: string; p09Path: string } | null> {
+  const timeoutController = new AbortController()
+  const timeoutId = setTimeout(() => timeoutController.abort(), TIMEOUT_MS)
+  const signals: AbortSignal[] = [timeoutController.signal]
+  if (cancelToken) signals.push(cancelToken.signal)
+  const combined = new AbortController()
+  const onAbort = () => combined.abort()
+  signals.forEach((s) => {
+    if (s.aborted) combined.abort()
+    else s.addEventListener('abort', onAbort, { once: true })
+  })
+  try {
+    const res = await fetch(`${API_BASE}/canvas/v2/gold-gap/default-standard`, { signal: combined.signal })
+    if (!res.ok) return null
+    const json = await res.json()
+    if (json?.code !== 200 && json?.code !== 0) return null
+    return (json.data ?? null) as { standardRef: string; p09Path: string } | null
+  } catch {
+    return null
+  } finally {
+    clearTimeout(timeoutId)
+    signals.forEach((s) => s.removeEventListener('abort', onAbort))
+  }
+}
+
 // ─── Gate 中心(Phase 54-04 GATE-02;54-05 服务端对接) ───────────────────
 
 /** GET /api/canvas/v2/gate-state 响应 = socket payload + episodeRefs 诊断键。 */
