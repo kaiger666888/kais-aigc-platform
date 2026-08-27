@@ -24,6 +24,9 @@
  * - generate/config 经动态 import 加载 — env (COMFYUI_URL/OUTPUT_DIR) 必须先注入,
  *   config 在模块加载时读 env; stub ComfyUI 是本地 http server (axios 真连 stub,
  *   /prompt 捕获提交的工作流 JSON)。
+ *   round-2: setupCtx 对注入结果自检 (config 若被同进程提前 import → 模块缓存使 env
+ *   覆写失效, 请求会打到真 ComfyUI → fail-fast 报明原因); 所有 submittedWf 访问先做
+ *   存在性断言, 失败 detail 携带真实 status/body — 图未捕获是可读的失败, 不再吞栈。
  * - KAP_VRAM_SKIP=1 跳过显存预检 (不 spawn nvidia-smi, 不碰真 GPU);
  *   KAP_GPU_QUEUE_CROSSPROC=off — 进程内锁, 不与同机 prod server 互斥。
  */
@@ -156,6 +159,19 @@ export async function setupCtx(): Promise<TestCtx> {
   process.env.KAP_VRAM_SKIP = "1";           // 跳过显存预检, 不碰真 GPU
   process.env.KAP_GPU_QUEUE_CROSSPROC = "off"; // 进程内锁, 不与 prod server 互斥
   const cfg = await import("../config");
+  // env 注入自检 (round-2 缺陷B): config 若在本 setup 之前已被同进程其它入口 import
+  // (模块缓存), 上面的 env 覆写静默失效 → e2e 请求会打到真 ComfyUI/真输出目录,
+  // 全部请求 non-200 且零产物。fail-fast 报清楚, 而不是让后续断言各自莫名失败。
+  const expectStubUrl = `http://127.0.0.1:${stub.port}`;
+  if (cfg.H3_CONFIG.comfyuiUrl !== expectStubUrl || cfg.H3_CONFIG.outputDir !== tmpOutDir) {
+    await stub.close();
+    throw new Error(
+      `[blockCache.test] env 注入失效: config 模块在 setupCtx 之前已被加载 — ` +
+      `comfyuiUrl=${cfg.H3_CONFIG.comfyuiUrl} (期望 stub ${expectStubUrl}), ` +
+      `outputDir=${cfg.H3_CONFIG.outputDir} (期望 ${tmpOutDir})。` +
+      `入口脚本不得在调用测试前静态/动态 import 任何 minimax-h3 业务模块 (config/generate 等)。`,
+    );
+  }
   const gen = await import("../generate");
 
   const app = express();
@@ -183,11 +199,13 @@ export async function teardownCtx(): Promise<void> {
   await stub.close();
 }
 
-/** e2e: multipart POST /generate, 返回 {status, json} + 提交到 stub 的工作流 */
+/** e2e: multipart POST /generate, 返回 {status, json} + 提交到 stub 的工作流。
+ *  submittedWf 未捕获时 (请求被拒/基建故障) 调用方须先检查存在性 — desc 携带真实
+ *  status/body 供人定位, 杜绝 round-2 缺陷A 那种 undefined.includes 吞栈。 */
 async function postGenerate(
   ctx: TestCtx,
   fields: Record<string, string>,
-): Promise<{ status: number; json: any; submittedWf: Record<string, any> }> {
+): Promise<{ status: number; json: any; submittedWf?: Record<string, any>; desc: string }> {
   const before = ctx.stub.prompts.length;
   const form = new FormData();
   for (const [k, v] of Object.entries(fields)) form.append(k, v);
@@ -195,10 +213,19 @@ async function postGenerate(
     method: "POST",
     body: form,
   });
-  const json = await resp.json();
-  await sleep(50); // 等 handler 收尾 (锁释放)
-  const submitted = ctx.stub.prompts[before];
-  return { status: resp.status, json, submittedWf: submitted?.wf };
+  const json = await resp.json().catch(() => null);
+  // 因果序上 stub 在 handler 响应前必已收到 /prompt; 仍留有界等待 (≤2s) 兜慢收尾。
+  let submitted = ctx.stub.prompts[before];
+  for (let i = 0; i < 40 && !submitted; i++) {
+    await sleep(50);
+    submitted = ctx.stub.prompts[before];
+  }
+  return {
+    status: resp.status,
+    json,
+    submittedWf: submitted?.wf,
+    desc: `status=${resp.status} body=${JSON.stringify(json)?.slice(0, 300)}`,
+  };
 }
 
 /** 数一数图里还有多少输入槽仍直连 ["12",0] (blockCache=on 时应只剩 BC 节点自己的 model) */
@@ -446,12 +473,13 @@ export async function testHandlerE2e(): Promise<TestResult[]> {
   // ① 默认无参 (HTTP 级回归红线): 提交图与 golden 逐字节等价
   const dflt = await postGenerate(ctx, e2eBase);
   check(results, dflt.status === 200, `默认请求 200 (got ${dflt.status}: ${JSON.stringify(dflt.json).slice(0, 200)})`);
+  check(results, !!dflt.submittedWf, "默认请求: /prompt 提交图已捕获", dflt.desc);
   const goldenT2va = JSON.parse(loadGoldenText("native-t2va"));
   goldenT2va["16"].inputs.prompt = cfg.H3_DEFAULT_NEGATIVE;
   check(results,
-    dflt.submittedWf && serializeWf(dflt.submittedWf) === serializeWf(goldenT2va),
+    !!dflt.submittedWf && serializeWf(dflt.submittedWf) === serializeWf(goldenT2va),
     "e2e 默认请求提交到 ComfyUI 的图与 golden 逐字节等价 (除 handler 硬编码 negativePrompt)",
-    dflt.submittedWf ? diffHint(serializeWf(dflt.submittedWf), serializeWf(goldenT2va)) : "未捕获 /prompt");
+    dflt.submittedWf ? diffHint(serializeWf(dflt.submittedWf), serializeWf(goldenT2va)) : dflt.desc);
   check(results,
     dflt.json?.data?.blockCache === false && dflt.json?.data?.blockCacheThreshold === 0.4,
     "e2e 默认响应 payload: blockCache=false + threshold=0.4",
@@ -460,13 +488,16 @@ export async function testHandlerE2e(): Promise<TestResult[]> {
   // ② native-sage + blockCache=on + threshold=0.55
   const on = await postGenerate(ctx, { ...e2eBase, blockCache: "on", blockCacheThreshold: "0.55" });
   const bcNode = on.submittedWf?.[BC];
-  check(results, on.status === 200, `blockCache=on 请求 200 (got ${on.status})`);
+  check(results, on.status === 200, `blockCache=on 请求 200 (got ${on.status}: ${JSON.stringify(on.json).slice(0, 200)})`);
+  check(results, !!on.submittedWf, "blockCache=on 请求: /prompt 提交图已捕获", on.desc);
   check(results,
+    !!on.submittedWf &&
     bcNode?.class_type === "MiniMaxH3BlockCacheT8" &&
     bcNode?.inputs?.residual_diff_threshold === 0.55 &&
     JSON.stringify(bcNode?.inputs?.model) === JSON.stringify(["12", 0]) &&
     JSON.stringify(on.submittedWf["21"].inputs.model) === JSON.stringify([BC, 0]),
-    "e2e 提交图: BC 节点 + [12,0]→BC→21 接线 + threshold=0.55");
+    "e2e 提交图: BC 节点 + [12,0]→BC→21 接线 + threshold=0.55",
+    on.desc);
   check(results,
     on.json?.data?.blockCache === true && on.json?.data?.blockCacheThreshold === 0.55,
     "e2e payload: blockCache=true + blockCacheThreshold=0.55 (元数据可核验)",
@@ -476,10 +507,12 @@ export async function testHandlerE2e(): Promise<TestResult[]> {
   const turbo = await postGenerate(ctx, {
     ...e2eBase, profile: "turbo", steps: "8", blockCache: "on",
   });
-  check(results, turbo.status === 200, `turbo+blockCache=on 请求 200 (got ${turbo.status})`);
+  check(results, turbo.status === 200, `turbo+blockCache=on 请求 200 (got ${turbo.status}: ${JSON.stringify(turbo.json).slice(0, 200)})`);
+  check(results, !!turbo.submittedWf, "turbo 请求: /prompt 提交图已捕获", turbo.desc);
   check(results,
-    !JSON.stringify(turbo.submittedWf).includes("BlockCache"),
-    "e2e turbo 拓扑提交图不含 BlockCache 节点 (参数被忽略, 不报错)");
+    !!turbo.submittedWf && !JSON.stringify(turbo.submittedWf).includes("BlockCache"),
+    "e2e turbo 拓扑提交图不含 BlockCache 节点 (参数被忽略, 不报错)",
+    turbo.desc);
   check(results,
     turbo.json?.data?.blockCache === false && turbo.json?.data?.blockCacheThreshold === 0.4,
     "e2e turbo payload: blockCache=false (如实反映未注入)",
@@ -500,11 +533,11 @@ export async function testHandlerE2e(): Promise<TestResult[]> {
     "e2e 非法 threshold (1.5) 触发 WARN",
     warnings.join(" | "));
   check(results,
-    bad.status === 200 &&
+    bad.status === 200 && !!bad.submittedWf &&
     bad.submittedWf?.[BC]?.inputs?.residual_diff_threshold === 0.4 &&
     bad.json?.data?.blockCacheThreshold === 0.4,
     "e2e 非法 threshold 回落默认 0.4 (提交图 + payload 一致)",
-    `status=${bad.status} bc=${JSON.stringify(bad.submittedWf?.[BC]?.inputs?.residual_diff_threshold)}`);
+    `status=${bad.status} bc=${JSON.stringify(bad.submittedWf?.[BC]?.inputs?.residual_diff_threshold)} ${bad.desc}`);
 
   return results;
 }
