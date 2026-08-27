@@ -448,6 +448,139 @@ describe('【52-07】Pass 3 防御：变体组候选事件缺失（真机 9999 �
   })
 })
 
+describe('【Fix-2】无 isWinner 组：不伪造 winner（盲选待决）', () => {
+  // 真实后端 load-v2 形态：组内候选全部无 isWinner（未定组 = 盲选素材）。
+  // 旧行为伪造 winner=首候选：伪造值经 serialize（winnerNodeId != null 才写出）
+  // 回写持久化"用户从未做过的选定"，且前端盲选队列（winnerNodeId==null 过滤）
+  // 永远空队列。新语义锁死：winnerNodeId 字段缺省 + curation 不动 + 结构归并
+  // 照常（primary = 首个有合成事件的候选，仅承担边重指/配方合并）。
+  const mk = (id: string, extra: Record<string, unknown> = {}) => ({
+    id, type: 'video' as const, branchId: 'br_main', position: { x: 0, y: 0 }, size: { width: 260, height: 180 },
+    data: { label: id, ...extra } as FlowNodeV2Data, state: 'idle',
+  })
+  const varNode = (id: string): FlowNodeV2 => ({
+    id, type: 'variant', branchId: 'br_main', position: { x: 150, y: 200 }, size: { width: 200, height: 100 },
+    data: { label: id } as FlowNodeV2Data, state: 'idle',
+  })
+
+  it('无 isWinner → 组 winnerNodeId 字段缺省、无候选被标 selected/deprecated、主事件=首个有事件候选、边重指发生', () => {
+    const v2in: FlowGraphV2Export = {
+      meta: { projectId: 1, episodesId: 1, createdAt: 0, updatedAt: 0 },
+      nodes: [
+        mk('n_cand_a', { prompt: '配方A', seed: 1 }),
+        mk('n_cand_b', { prompt: '配方B', seed: 2 }),
+        varNode('n_var_u'),
+        mk('n_down'),
+      ],
+      links: [
+        { id: 'u1', source: 'n_cand_a', target: 'n_var_u', dataType: 'variant' },
+        { id: 'u2', source: 'n_cand_b', target: 'n_var_u', dataType: 'variant' },
+        { id: 'u3', source: 'n_cand_a', target: 'n_down', dataType: 'causal' },
+        { id: 'u4', source: 'n_cand_b', target: 'n_down', dataType: 'causal' },
+      ],
+      branches: [],
+    };
+    const { graph: g, report: rep } = migrateV2toV3(v2in);
+    const grp = g.variantGroups.find((x) => x.id === 'vg_n_var_u');
+    expect(grp).toBeDefined();
+    expect(grp!.variantNodeIds).toEqual(['n_cand_a', 'n_cand_b']);
+    expect(grp!.sourceEventId).toBe('evt_n_cand_a'); // 主事件 = 首个有合成事件的候选
+    expect(grp!.winnerNodeId).toBeUndefined();
+    expect('winnerNodeId' in grp!).toBe(false); // 字段缺省（非显式 undefined）
+
+    // 结构归并照常：evt_n_cand_b 并入主事件（多输出形态）
+    expect(g.nodes.find((n) => n.id === 'evt_n_cand_b')).toBeUndefined();
+    expect(linksBetween(g, 'evt_n_cand_a', 'n_cand_b').some((l) => l.role === 'output')).toBe(true);
+    expect(event(g, 'evt_n_cand_a').params.variantRecipes).toEqual([
+      { assetId: 'n_cand_b', prompt: '配方B', seed: 2 },
+    ]);
+    // 边重指：次候选下游边置灰，结构主候选下游边不置灰
+    expect(linksBetween(g, 'n_cand_b', 'evt_n_down')[0]?.isInactive).toBe(true);
+    expect(linksBetween(g, 'n_cand_a', 'evt_n_down')[0]?.isInactive).toBeUndefined();
+
+    // curation 不动（Pass 1 默认 candidate；不伪造 selected，也不伪造 deprecated）
+    expect(asset(g, 'n_cand_a').curation).toBe('candidate');
+    expect(asset(g, 'n_cand_b').curation).toBe('candidate');
+    // 组成员资格照常挂（结构）
+    expect(asset(g, 'n_cand_a').variantGroupId).toBe('vg_n_var_u');
+    expect(asset(g, 'n_cand_b').variantGroupId).toBe('vg_n_var_u');
+    // 告警语义 + 输出合法
+    expect(rep.warnings.some((w) => w.includes('n_var_u') && w.includes('winner 留空(盲选待决)'))).toBe(true);
+    expect(validateFlowGraphV3(g).ok).toBe(true);
+    expect(checkReferentialIntegrity(g)).toEqual([]);
+  });
+
+  it('无 isWinner 且全候选无事件 → 组不并、候选独立（现行为锁死）', () => {
+    // 全候选无事件的可达形态 = 事件被前组消费（52-07 共享候选）：组A（真 winner）
+    // 并掉 evt_b/evt_c 后，未定组遇 [b, c] 双双无事件 → skip 分支，整组不建。
+    const v2in: FlowGraphV2Export = {
+      meta: { projectId: 1, episodesId: 1, createdAt: 0, updatedAt: 0 },
+      nodes: [
+        { ...mk('n_cand_a', { prompt: '配方A' }), isWinner: true },
+        mk('n_cand_b', { prompt: '配方B' }),
+        mk('n_cand_c', { prompt: '配方C' }),
+        varNode('n_var_a'),
+        varNode('n_var_u'),
+      ],
+      links: [
+        { id: 'a1', source: 'n_cand_a', target: 'n_var_a', dataType: 'variant' },
+        { id: 'a2', source: 'n_cand_b', target: 'n_var_a', dataType: 'variant' },
+        { id: 'a3', source: 'n_cand_c', target: 'n_var_a', dataType: 'variant' },
+        { id: 'u1', source: 'n_cand_b', target: 'n_var_u', dataType: 'variant' },
+        { id: 'u2', source: 'n_cand_c', target: 'n_var_u', dataType: 'variant' },
+      ],
+      branches: [],
+    };
+    const { graph: g, report: rep } = migrateV2toV3(v2in);
+    // 组A（真 winner）正常归并：b/c 事件被消费
+    expect(g.variantGroups.find((x) => x.id === 'vg_n_var_a')).toBeDefined();
+    expect(g.nodes.find((n) => n.id === 'evt_n_cand_b')).toBeUndefined();
+    expect(g.nodes.find((n) => n.id === 'evt_n_cand_c')).toBeUndefined();
+    // 未定组不并：无 vg_n_var_u，走 skip 分支
+    expect(g.variantGroups.find((x) => x.id === 'vg_n_var_u')).toBeUndefined();
+    expect(rep.nodeMap.find((e) => e.v2NodeId === 'n_var_u')?.action).toBe(
+      'skipped_variant_merge_no_primary_event',
+    );
+    expect(rep.warnings.some((w) => w.includes('n_var_u') && w.includes('跳过多输出归组'))).toBe(true);
+    // 候选资产独立保留（不崩、不造悬空边）
+    expect(asset(g, 'n_cand_b').kind).toBe('asset');
+    expect(asset(g, 'n_cand_c').kind).toBe('asset');
+    expect(checkReferentialIntegrity(g)).toEqual([]);
+  });
+
+  it('有 isWinner → 现行为回归锚：winnerNodeId 写出 + curation selected/deprecated（局部小图锁死）', () => {
+    const v2in: FlowGraphV2Export = {
+      meta: { projectId: 1, episodesId: 1, createdAt: 0, updatedAt: 0 },
+      nodes: [
+        mk('n_cand_a', { prompt: '配方A' }),
+        mk('n_cand_b', { prompt: '配方B' }),
+        { ...mk('n_cand_w', { prompt: '配方W' }), isWinner: true },
+        varNode('n_var_d'),
+      ],
+      links: [
+        { id: 'd1', source: 'n_cand_a', target: 'n_var_d', dataType: 'variant' },
+        { id: 'd2', source: 'n_cand_w', target: 'n_var_d', dataType: 'variant' },
+        { id: 'd3', source: 'n_cand_b', target: 'n_var_d', dataType: 'variant' },
+      ],
+      branches: [],
+    };
+    const { graph: g } = migrateV2toV3(v2in);
+    const grp = g.variantGroups.find((x) => x.id === 'vg_n_var_d')!;
+    expect(grp.winnerNodeId).toBe('n_cand_w');
+    expect('winnerNodeId' in grp).toBe(true);
+    expect(grp.sourceEventId).toBe('evt_n_cand_w'); // 主事件 = winner 事件（非首候选）
+    expect(asset(g, 'n_cand_w').curation).toBe('selected');
+    expect(asset(g, 'n_cand_a').curation).toBe('deprecated');
+    expect(asset(g, 'n_cand_b').curation).toBe('deprecated');
+    // 落选者事件并入 winner 事件，配方留存
+    expect(g.nodes.find((n) => n.id === 'evt_n_cand_a')).toBeUndefined();
+    expect(event(g, 'evt_n_cand_w').params.variantRecipes).toEqual([
+      { assetId: 'n_cand_a', prompt: '配方A' },
+      { assetId: 'n_cand_b', prompt: '配方B' },
+    ]);
+  });
+})
+
 describe('Phase 58: recipeParams 全集提取（窄通道解除）', () => {
   // 单 video 节点局部图（L206-217 migrateStoryboard 同款 helper 范式）
   const migrateSingleNode = (data: FlowNodeV2Data, id = 'n_video_x') =>

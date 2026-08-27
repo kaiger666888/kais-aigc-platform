@@ -752,24 +752,33 @@ export function migrateV2toV3(v2: FlowGraphV2Export): {
       continue;
     }
 
-    // winner：候选中 isWinner===true（多个取首个并告警；没有则取首候选并告警）
+    // winner：候选中 isWinner===true（多个取首个并告警）。没有则 winner 留空——
+    // winner 语义 = 用户决策（types.ts：winnerNodeId? // 用户决策，持久化），migrate
+    // 无权伪造：伪造值会经 serialize（winnerNodeId != null 才写出）回写持久化，
+    // 且前端盲选队列按 winnerNodeId==null 过滤 → 伪造后永远空队列（Fix-2 2026-08-27）。
     const winners = candidates.filter((id) => v2Nodes.get(id)?.isWinner === true);
     if (winners.length > 1)
       warnings.push(`variant 节点 ${n.id}: 多个 isWinner 候选，取首个 ${winners[0]}`);
-    const winnerNodeId = winners[0] ?? candidates[0]!;
-    if (winners.length === 0)
-      warnings.push(`variant 节点 ${n.id}: 无 isWinner 候选，winner 默认首候选 ${winnerNodeId}`);
+    const winnerNodeId = winners[0];
+    if (winnerNodeId == null)
+      warnings.push(`variant 节点 ${n.id}: 无 isWinner 候选——winner 留空(盲选待决)`);
 
-    // 多输出归组：候选事件合并为 winner 的单事件（P12：一次生成事件的多个输出天然构成变体组）
+    // 多输出归组：候选事件合并为 primary 的单事件（P12：一次生成事件的多个输出天然构成变体组）
     // 52-07 防御(2026-08-22 真机实证):envelope 变体组可含无配方无因果入边的候选
     // (kmc sync 直写形态)→ 该候选无合成事件,eventIdOf/eventById 查无 —— 原非空
     // 断言在此 throw 使 migrate 整体降级空图(整个画布消失)。改为 warn + 跳过该
-    // 候选的事件合并;winner 无事件则整组不并(保留候选独立,不造悬空边)。
-    const primaryEventId = eventIdOf.get(winnerNodeId);
+    // 候选的事件合并;primary 无事件则整组不并(保留候选独立,不造悬空边)。
+    // Fix-2:结构性归并（边重指/配方合并）仍需主事件——primary = winner ?? 首个
+    // 有合成事件的候选(eventIdOf 命中者);无 winner 时 primary 仅承担结构职责,
+    // 不承载 winner 语义。全候选皆无事件 → 维持 skip 分支(候选独立保留)。
+    const primaryAnchorId = winnerNodeId ?? candidates.find((id) => eventIdOf.has(id));
+    const primaryEventId = primaryAnchorId != null ? eventIdOf.get(primaryAnchorId) : undefined;
     const primaryEvent = primaryEventId != null ? eventById.get(primaryEventId) : undefined;
     if (primaryEvent == null || primaryEventId == null) {
       warnings.push(
-        `variant 节点 ${n.id}: winner ${winnerNodeId} 无合成事件，跳过多输出归组（候选保留独立节点）`,
+        winnerNodeId != null
+          ? `variant 节点 ${n.id}: winner ${winnerNodeId} 无合成事件，跳过多输出归组（候选保留独立节点）`
+          : `variant 节点 ${n.id}: 候选均无合成事件，跳过多输出归组（候选保留独立节点）`,
       );
       nodeMap.push({
         v2NodeId: n.id,
@@ -781,7 +790,8 @@ export function migrateV2toV3(v2: FlowGraphV2Export): {
     }
     const variantRecipes: Array<Record<string, unknown>> = [];
     for (const candId of candidates) {
-      if (candId === winnerNodeId) continue;
+      // primary 自身不参与合并（真 winner 或结构主候选——否则会删掉主事件自身）
+      if (candId === winnerNodeId || candId === primaryAnchorId) continue;
       const candEventId = eventIdOf.get(candId);
       const candEvent = candEventId != null ? eventById.get(candEventId) : undefined;
       if (candEvent == null || candEventId == null) {
@@ -816,25 +826,30 @@ export function migrateV2toV3(v2: FlowGraphV2Export): {
     }
 
     // curation 与下游边置灰（§11 选定联动的迁移时点状态）
+    // Fix-2：无真 winner（盲选待决组）不动 curation——不伪造 selected（未决策），
+    // 也不伪造 deprecated（"淘汰"同样是用户决策的产物）；variantGroupId 是结构
+    // 成员资格，照常挂。边置灰的结构主候选随 primaryAnchorId（有事件那个）。
     const candSet = new Set(candidates);
     for (const candId of candidates) {
       const asset = assetById.get(candId)!;
-      asset.curation = candId === winnerNodeId ? 'selected' : 'deprecated';
+      if (winnerNodeId != null)
+        asset.curation = candId === winnerNodeId ? 'selected' : 'deprecated';
       asset.variantGroupId = `vg_${n.id}`;
     }
     for (const link of links) {
       if (!candSet.has(link.source)) continue;
-      if (link.source === winnerNodeId) delete link.isInactive;
+      if (link.source === primaryAnchorId) delete link.isInactive;
       else link.isInactive = true;
     }
 
     const group: VariantGroupV3 = {
       id: `vg_${n.id}`,
       branchId: n.branchId,
-      phaseIndex: n.phaseIndex ?? assetById.get(winnerNodeId)!.phaseIndex,
+      phaseIndex: n.phaseIndex ?? assetById.get(primaryAnchorId!)!.phaseIndex,
       sourceEventId: primaryEventId,
       variantNodeIds: candidates,
-      winnerNodeId,
+      // Fix-2：winner 未决 → 字段缺省（类型 optional；serialize 对 undefined 不写出）
+      ...(winnerNodeId != null ? { winnerNodeId } : {}),
       selectMode: 'single',
     };
     variantGroups.push(group);
