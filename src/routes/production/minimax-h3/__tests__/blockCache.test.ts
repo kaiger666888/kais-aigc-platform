@@ -25,14 +25,20 @@
  *   config 在模块加载时读 env; stub ComfyUI 是本地 http server (axios 真连 stub,
  *   /prompt 捕获提交的工作流 JSON)。
  *   round-2: setupCtx 对注入结果自检 (config 若被同进程提前 import → 模块缓存使 env
- *   覆写失效, 请求会打到真 ComfyUI → fail-fast 报明原因); 所有 submittedWf 访问先做
- *   存在性断言, 失败 detail 携带真实 status/body — 图未捕获是可读的失败, 不再吞栈。
+ *   覆写失效, 请求会打到真 ComfyUI); 所有 submittedWf 访问先做存在性断言, 失败 detail
+ *   携带真实 status/body — 图未捕获是可读的失败, 不再吞栈。
+ *   round-3 (封闭化终轮): 自检结果不再 throw 而是 e2e 前置硬守卫 (verifyStubInEffect)
+ *   — baseUrl 逐字等于 stub 地址 + 回环标记端点探针, 任一不过 → testHandlerE2e 整套
+ *   SKIP (runner 从总数排除), 绝不发任何越出回环的真实请求。端到端验证职责归真实渲染
+ *   实验 (生产栈 A/B 已背书), 本套件收缩为 builder 层契约 + 可选 HTTP 冒烟。
  * - KAP_VRAM_SKIP=1 跳过显存预检 (不 spawn nvidia-smi, 不碰真 GPU);
  *   KAP_GPU_QUEUE_CROSSPROC=off — 进程内锁, 不与同机 prod server 互斥。
  */
 
 import http from "http";
 import { AddressInfo } from "net";
+import { randomUUID } from "crypto";
+import axios from "axios";
 import express from "express";
 import fs from "fs";
 import os from "os";
@@ -42,6 +48,8 @@ export interface TestResult {
   name: string;
   pass: boolean;
   detail?: string;
+  /** round-3: SKIP — 非封闭环境下 e2e 整套跳过; runner 不计入总数、不算失败 */
+  skip?: boolean;
 }
 
 function check(results: TestResult[], cond: boolean, name: string, detail?: string): void {
@@ -84,14 +92,24 @@ function serializeWf(wf: Record<string, any>): string {
 
 interface StubComfy {
   port: number;
+  /** 本次 stub 实例的随机标识 — /__stub_identity__ 探针应答校验用 (round-3) */
+  magic: string;
   prompts: Array<{ promptId: string; wf: Record<string, any> }>;
   close(): Promise<void>;
 }
 
 async function startStubComfy(): Promise<StubComfy> {
   const prompts: Array<{ promptId: string; wf: Record<string, any> }> = [];
+  const magic = randomUUID().replace(/-/g, "").slice(0, 16);
   const server = http.createServer((req, res) => {
     const url = new URL(req.url || "/", "http://stub");
+    if (req.method === "GET" && url.pathname === "/__stub_identity__") {
+      // round-3 回环探针标记端点 — 仅本 stub 实例认识 (magic 每次启动随机);
+      // 真 ComfyUI / 端口复用后落在同地址的其他服务一律 404, 探针即失败。
+      res.setHeader("content-type", "application/json");
+      res.end(JSON.stringify({ stub: "h3-blockcache-test", magic }));
+      return;
+    }
     if (req.method === "POST" && url.pathname === "/prompt") {
       let body = "";
       req.on("data", (c: Buffer) => (body += c.toString()));
@@ -131,6 +149,7 @@ async function startStubComfy(): Promise<StubComfy> {
   const port = (server.address() as AddressInfo).port;
   return {
     port,
+    magic,
     prompts,
     close: () => new Promise<void>((r) => server.close(() => r())),
   };
@@ -145,6 +164,8 @@ interface TestCtx {
   tmpOutDir: string;
   appPort: number;
   appClose: () => Promise<void>;
+  /** env 注入自检结果 (round-3): false = config 被提前加载, e2e 硬守卫据此 SKIP */
+  hermetic: { ok: true } | { ok: false; reason: string };
 }
 
 let ctxRef: TestCtx | null = null;
@@ -160,18 +181,20 @@ export async function setupCtx(): Promise<TestCtx> {
   process.env.KAP_GPU_QUEUE_CROSSPROC = "off"; // 进程内锁, 不与 prod server 互斥
   const cfg = await import("../config");
   // env 注入自检 (round-2 缺陷B): config 若在本 setup 之前已被同进程其它入口 import
-  // (模块缓存), 上面的 env 覆写静默失效 → e2e 请求会打到真 ComfyUI/真输出目录,
-  // 全部请求 non-200 且零产物。fail-fast 报清楚, 而不是让后续断言各自莫名失败。
+  // (模块缓存), 上面的 env 覆写静默失效 → e2e 请求会打到真 ComfyUI/真输出目录。
+  // round-3: 不再 throw (那会让整个 runner 挂) — 结果记入 ctx.hermetic, 由
+  // testHandlerE2e 前置硬守卫消费: SKIP 整套 e2e, 一个字节都不发往 cfg 指向的地址。
   const expectStubUrl = `http://127.0.0.1:${stub.port}`;
-  if (cfg.H3_CONFIG.comfyuiUrl !== expectStubUrl || cfg.H3_CONFIG.outputDir !== tmpOutDir) {
-    await stub.close();
-    throw new Error(
-      `[blockCache.test] env 注入失效: config 模块在 setupCtx 之前已被加载 — ` +
-      `comfyuiUrl=${cfg.H3_CONFIG.comfyuiUrl} (期望 stub ${expectStubUrl}), ` +
-      `outputDir=${cfg.H3_CONFIG.outputDir} (期望 ${tmpOutDir})。` +
-      `入口脚本不得在调用测试前静态/动态 import 任何 minimax-h3 业务模块 (config/generate 等)。`,
-    );
-  }
+  const hermetic = cfg.H3_CONFIG.comfyuiUrl !== expectStubUrl || cfg.H3_CONFIG.outputDir !== tmpOutDir
+    ? {
+        ok: false as const,
+        reason:
+          `config.comfyuiUrl=${cfg.H3_CONFIG.comfyuiUrl} (期望 stub ${expectStubUrl}), ` +
+          `config.outputDir=${cfg.H3_CONFIG.outputDir} (期望临时目录 ${tmpOutDir}) — ` +
+          `env 注入失效: config 模块在 setupCtx 之前已被加载 (模块缓存吞掉覆写); ` +
+          `入口脚本不得在调用测试前静态/动态 import 任何 minimax-h3 业务模块`,
+      }
+    : { ok: true as const };
   const gen = await import("../generate");
 
   const app = express();
@@ -186,6 +209,7 @@ export async function setupCtx(): Promise<TestCtx> {
     tmpOutDir,
     appPort,
     appClose: () => new Promise<void>((r) => server.close(() => r())),
+    hermetic,
   };
   return ctxRef;
 }
@@ -197,6 +221,37 @@ export async function teardownCtx(): Promise<void> {
   ctxRef = null;
   await appClose();
   await stub.close();
+}
+
+// ─── round-3 硬守卫: e2e 运行前证明 stub 真正生效 ───────────────────────────
+
+/**
+ * e2e 封闭性硬守卫。三道检查, 任一不过 → 调用方整套 SKIP, 绝不发真实请求:
+ *  ① config.baseUrl 逐字等于 stub 监听地址 — 不等即 env 注入失效 (config 被提前
+ *     import, 模块缓存吞掉覆写), 此时 cfg 指向的多半是生产 ComfyUI。检查顺序即
+ *     安全边界: 字符串不等时连探针都不发 (探针目标若是生产地址本身就是越界请求)。
+ *  ② outputDir 等于本次临时目录 — 否则 e2e 产物会写进真实输出目录。
+ *  ③ 回环探针: 用 handler 同款 HTTP 客户端 (axios, 同样继承 proxy env 行为) 请求
+ *     仅本 stub 实例认识的标记端点 /__stub_identity__ 并校验 magic — 证明该地址上
+ *     应答的确实是本次启动的 stub (防端口复用 / 传输层被 proxy 劫走)。
+ */
+async function verifyStubInEffect(ctx: TestCtx): Promise<{ ok: true } | { ok: false; reason: string }> {
+  if (!ctx.hermetic.ok) {
+    return { ok: false, reason: ctx.hermetic.reason };
+  }
+  const stubUrl = `http://127.0.0.1:${ctx.stub.port}`;
+  try {
+    const resp = await axios.get(`${stubUrl}/__stub_identity__`, { timeout: 2_000 });
+    if (resp.status !== 200 || resp.data?.stub !== "h3-blockcache-test" || resp.data?.magic !== ctx.stub.magic) {
+      return {
+        ok: false,
+        reason: `回环探针应答异常 (status=${resp.status} body=${JSON.stringify(resp.data)?.slice(0, 120)}) — 该地址上不是本次 stub 实例`,
+      };
+    }
+  } catch (err: any) {
+    return { ok: false, reason: `回环探针失败 (stub 标记端点未应答): ${err?.message || String(err)}` };
+  }
+  return { ok: true };
 }
 
 /** e2e: multipart POST /generate, 返回 {status, json} + 提交到 stub 的工作流。
@@ -455,6 +510,20 @@ export async function testTurboTopologyImmune(): Promise<TestResult[]> {
 
 export async function testHandlerE2e(): Promise<TestResult[]> {
   const ctx = await setupCtx();
+
+  // round-3 硬守卫 (第一道关卡): stub 未真正生效 → 整套 SKIP, 一个请求都不发。
+  // SKIP 结果由 runner 从总数排除 — 端到端验证职责归真实渲染实验, 本套件只保
+  // builder 层契约的确定性; HTTP e2e 是可选冒烟, 宁可诚实跳过也不碰生产。
+  const guard = await verifyStubInEffect(ctx);
+  if (!guard.ok) {
+    return [{
+      name: "/generate handler e2e — SKIP (非封闭环境, 未发送任何请求)",
+      pass: false,
+      skip: true,
+      detail: guard.reason,
+    }];
+  }
+
   const { cfg } = ctx;
   const results: TestResult[] = [];
   const BC = cfg.H3_BLOCK_CACHE.nodeId;

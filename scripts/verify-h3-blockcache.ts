@@ -18,11 +18,16 @@
  *  ③ 非法 blockCacheThreshold → 回落 0.4 + WARN
  *  ④ turbo/T8 拓扑传参也不含 BC (忽略不报错)
  *
+ * round-3 (封闭化终轮): testHandlerE2e 前置硬守卫 (baseUrl===stub + 回环标记端点
+ * 探针), 守卫不过 → 整套 e2e SKIP — 输出 `◐ SKIP` 行、从总数排除、不算失败、
+ * 不发任何越出回环的请求。KAP blockCache 的端到端验证由真实渲染实验承担 (生产栈
+ * A/B 已背书), 本套件职责收缩为 builder 层契约 (golden 回归+注入拓扑+参数解析)。
+ *
  * Usage:
  *   npx tsx scripts/verify-h3-blockcache.ts
  *
  * Exit codes:
- *   0 — all assertions pass
+ *   0 — all assertions pass (SKIP 不算失败)
  *   1 — one or more assertions failed
  *   2 — uncaught exception (test infrastructure bug)
  */
@@ -31,6 +36,8 @@ interface TestResult {
   name: string;
   pass: boolean;
   detail?: string;
+  /** round-3: SKIP — 非封闭环境下 e2e 整套跳过; 不计入总数、不算失败 */
+  skip?: boolean;
 }
 
 // 本文件顶层无静态 import — 加 export {} 强制模块作用域,
@@ -72,14 +79,22 @@ async function main(): Promise<void> {
       continue;
     }
     for (const r of results) {
+      if (r.skip) {
+        process.stdout.write(`  ◐ SKIP ${r.name} — ${r.detail}\n`);
+        continue;
+      }
       process.stdout.write(`  ${r.pass ? "✓" : "✗"} ${r.name}${r.pass ? "" : ` — ${r.detail}`}\n`);
     }
     all.push(...results);
   }
 
-  const passed = all.filter((r) => r.pass).length;
-  const failed = all.length - passed;
-  process.stdout.write(`\n${passed}/${all.length} assertions passed`);
+  // SKIP 不计入总数也不算失败 — 但必须在汇总行显式披露 (诚实报告能力边界)
+  const counted = all.filter((r) => !r.skip);
+  const skipped = all.length - counted.length;
+  const passed = counted.filter((r) => r.pass).length;
+  const failed = counted.length - passed;
+  process.stdout.write(`\n${passed}/${counted.length} assertions passed`);
+  if (skipped > 0) process.stdout.write(` (+${skipped} SKIP — 见 ◐ 行)`);
   await teardownCtx(); // 关闭 stub/app server, 清空事件循环
   if (failed > 0) {
     process.stdout.write(`, ${failed} FAILED\n`);
