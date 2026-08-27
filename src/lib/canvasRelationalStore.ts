@@ -424,6 +424,20 @@ function extractOAssetIdFromNode(nodeId: string, data: Record<string, any>): num
 }
 
 /**
+ * Fix-3 (FIX-1b):剥壳——前端 V3 migrate 对合成 variant 节点重建组时组 id 一律
+ * `vg_<n.id>`，落到合成节点即 `vg_nvar_<后端组id>`（adapter Fix-1 已改为发后端
+ * 真值 id，但部署新前端后浏览器缓存的旧 SPA bundle 仍发 `vg_nvar_` 前缀 id）。
+ * DB 真值 id 一律是剥壳后的 <后端组id>（materialize 通道落库形态）。返回 null
+ * 表示非该命名空间（含剥壳后为空的退化形态），调用方不应重查。
+ */
+export function stripSynthVariantGroupId(groupId: string): string | null {
+  const PREFIX = "vg_nvar_";
+  if (!groupId.startsWith(PREFIX)) return null;
+  const canonical = groupId.slice(PREFIX.length);
+  return canonical.length > 0 ? canonical : null;
+}
+
+/**
  * SELECT-01 / D-01 / D-03: transactional winner selection for a variant
  * group, writing the two truth columns (winner_node_id + is_winner).
  *
@@ -475,7 +489,22 @@ export async function selectWinnerInGroup(
     swappedAssetIds: [],
   });
 
-  const group = await trxDb("canvas_variant_groups").where(groupWhere).first();
+  let group = await trxDb("canvas_variant_groups").where(groupWhere).first();
+  // Fix-3 (FIX-1b):not_found 且 id 带 `vg_nvar_` 前缀 → 剥壳重查一次；命中即以
+  // canonical id 继续原流程（groupId/groupWhere 随之改写，本函数回显与上游
+  // 响应/账本/广播全部对齐 DB 真值）。重查亦 not_found → 原样 not_found。
+  if (!group) {
+    const canonical = stripSynthVariantGroupId(groupId);
+    if (canonical != null) {
+      group = await trxDb("canvas_variant_groups")
+        .where({ ...groupWhere, id: canonical })
+        .first();
+      if (group) {
+        groupId = canonical;
+        groupWhere.id = canonical;
+      }
+    }
+  }
   if (!group) return reject("not_found");
   if ((group.select_mode ?? "single") !== "single") return reject("multi_mode");
 

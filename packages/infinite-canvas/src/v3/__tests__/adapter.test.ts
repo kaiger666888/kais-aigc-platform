@@ -685,3 +685,110 @@ describe('syntheticDetailNode：deprecated 资产的 RF 形状合成（52-08）'
     expect((n2.data as Record<string, unknown>).label).toBe(loser.id)
   })
 })
+
+// ─── Fix-3 (FIX-1)：合成 variant 组 id 还原（vg_nvar_ → 后端真值 id） ───
+
+/** 最小 V2 payload：两个 video 候选 + 一个后端组建组（可选 winner/selectMode）。 */
+function synthGroupPayload(
+  groupId: string,
+  opts: { winnerNodeId?: string; selectMode?: string } = {},
+) {
+  const cand = (id: string, seed: number) => ({
+    id, type: 'video', branchId: 'br_main', phaseIndex: 4, phaseName: 'video',
+    position: { x: 0, y: 0 }, size: { width: 240, height: 160 }, state: 'success',
+    data: { filePath: `/assets/v/${id}.mp4`, shotId: 'shot-002', prompt: 'p', seed, engine: 'wan2.2-i2v' },
+  })
+  return {
+    meta: {
+      version: '2', projectId: 7, episodesId: 101,
+      createdAt: '2026-06-01T00:00:00.000Z', updatedAt: '2026-06-01T01:00:00.000Z',
+    },
+    nodes: [cand('n_cand_a', 1001), cand('n_cand_b', 1002)],
+    links: [],
+    branches: [],
+    variantGroups: [{
+      id: groupId, phaseIndex: 4, branchId: 'br_main',
+      variantNodeIds: ['n_cand_a', 'n_cand_b'],
+      ...(opts.winnerNodeId != null ? { winnerNodeId: opts.winnerNodeId } : {}),
+      ...(opts.selectMode != null ? { selectMode: opts.selectMode } : {}),
+    }],
+  }
+}
+
+describe('Fix-3 FIX-1：合成 variant 组 id 还原（V3 组 id == 后端真值 id）', () => {
+  it('(a) 后端组 id=cand:…（无 winner）→ 组 id 还原，成员 variantGroupId 同步改名', () => {
+    const { graph, warnings } = adaptV2Graph(synthGroupPayload('cand:name:proj/p04/base_x'))
+    // 还原成功且无 vg_nvar_ 残留、无降级 warn
+    expect(graph.variantGroups.map((g) => g.id)).toEqual(['cand:name:proj/p04/base_x'])
+    expect(warnings.some((w) => w.includes('vg_nvar_'))).toBe(false)
+    for (const m of graph.variantGroups[0]!.variantNodeIds) {
+      const n = graph.nodes.find((x) => x.id === m)
+      expect(n && n.kind === 'asset' && n.variantGroupId).toBe('cand:name:proj/p04/base_x')
+    }
+    // 改名后的图仍过 zod + 引用完整性 0 issue
+    expect(validateFlowGraphV3(graph).ok).toBe(true)
+    expect(checkReferentialIntegrity(graph)).toEqual([])
+  })
+
+  it('(a-2) 无 winner 组 Fix-2 语义不破：curation 不伪造 selected/deprecated（还原前后一致）', () => {
+    const { graph } = adaptV2Graph(synthGroupPayload('cand:x'))
+    expect(graph.variantGroups[0]!.winnerNodeId).toBeUndefined()
+    for (const m of graph.variantGroups[0]!.variantNodeIds) {
+      const n = graph.nodes.find((x) => x.id === m)
+      const curation = n && n.kind === 'asset' ? n.curation : undefined
+      expect(curation).not.toBe('selected')
+      expect(curation).not.toBe('deprecated')
+      expect(curation).toBe('candidate') // migrate 候选默认态原样保留
+    }
+  })
+
+  it('(b) 用户手建 type:variant 节点（id=myvar）→ 组 id 保持 vg_myvar 不被误改', () => {
+    const cand = (id: string, seed: number) => ({
+      id, type: 'video', branchId: 'br_main', phaseIndex: 4, phaseName: 'video',
+      position: { x: 0, y: 0 }, size: { width: 240, height: 160 }, state: 'success',
+      data: { filePath: `/assets/v/${id}.mp4`, shotId: 'shot-002', prompt: 'p', seed, engine: 'wan2.2-i2v' },
+    })
+    const { graph } = adaptV2Graph({
+      meta: {
+        version: '2', projectId: 7, episodesId: 101,
+        createdAt: '2026-06-01T00:00:00.000Z', updatedAt: '2026-06-01T01:00:00.000Z',
+      },
+      nodes: [
+        cand('n_a', 1), cand('n_b', 2),
+        {
+          id: 'myvar', type: 'variant', branchId: 'br_main', phaseIndex: 4, phaseName: 'variant',
+          position: { x: 0, y: 0 }, size: { width: 100, height: 100 }, state: 'success', data: {},
+        },
+      ],
+      links: [
+        { id: 'lv1', source: 'n_a', target: 'myvar', branchId: 'br_main', dataType: 'variant' },
+        { id: 'lv2', source: 'n_b', target: 'myvar', branchId: 'br_main', dataType: 'variant' },
+      ],
+      branches: [],
+      variantGroups: [],
+    })
+    const g = graph.variantGroups.find((x) => x.id === 'vg_myvar')
+    expect(g).toBeDefined()
+    expect(g!.variantNodeIds.sort()).toEqual(['n_a', 'n_b'])
+    for (const m of g!.variantNodeIds) {
+      const n = graph.nodes.find((x) => x.id === m)
+      expect(n && n.kind === 'asset' && n.variantGroupId).toBe('vg_myvar')
+    }
+  })
+
+  it('(c) 带 winner 组 rename 后 winner/curation/selectMode 联动语义不变', () => {
+    const { graph } = adaptV2Graph(
+      synthGroupPayload('cand:y', { winnerNodeId: 'n_cand_a', selectMode: 'multi' }),
+    )
+    const g = graph.variantGroups[0]!
+    expect(g.id).toBe('cand:y')
+    expect(g.winnerNodeId).toBe('n_cand_a')
+    expect(g.selectMode).toBe('multi') // selectMode 后处理按迁移产物 id 匹配，先于 rename 生效不被破坏
+    const byId = new Map(graph.nodes.map((n) => [n.id, n]))
+    const a = byId.get('n_cand_a')
+    const b = byId.get('n_cand_b')
+    expect(a?.kind === 'asset' && a.curation).toBe('selected')
+    expect(b?.kind === 'asset' && b.curation).toBe('deprecated')
+    expect(validateFlowGraphV3(graph).ok).toBe(true)
+  })
+})

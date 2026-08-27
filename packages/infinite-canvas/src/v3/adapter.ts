@@ -351,6 +351,44 @@ function synthesizeVariantNodes(
   return { selectModeBySynthId }
 }
 
+// ─── Fix-3 (FIX-1): 合成组 id 还原 ────────────────────────
+
+const SYNTH_GROUP_PREFIX = 'vg_nvar_'
+
+/**
+ * Fix-3 (FIX-1):组 id 还原。migrate 对合成 variant 节点（synthesizeVariantNodes
+ * 产物 `nvar_<后端组id>`）重建组时组 id 一律 `vg_${n.id}`，产出 `vg_nvar_<后端组id>`，
+ * 与后端真值（canvas_variant_groups.id = <后端组id>）脱钩——盲选 overlay 以该 id
+ * POST select-winner 必 404（零写入）。此处确定性后处理：组 id 剥壳还原为后端
+ * 原始 id，成员 variantGroupId 引用同步改名。
+ *
+ * 判据安全性：后端组 id 只会是 cand:…（materialize 通道）等真值形态；用户手建
+ * variant 节点 id 不以 `nvar_` 开头，其组 `vg_<nodeId>` 不匹配前缀，不受影响。
+ * 不 throw（P22）：还原失败（剥壳后为空 / 组 id 撞车）降级保留 `vg_nvar_` id + warn。
+ */
+function restoreSynthGroupIds(graph: FlowGraphV3, warn: Warn): void {
+  const taken = new Set(graph.variantGroups.map((g) => g.id))
+  for (const g of graph.variantGroups) {
+    if (!g.id.startsWith(SYNTH_GROUP_PREFIX)) continue
+    const canonical = g.id.slice(SYNTH_GROUP_PREFIX.length)
+    if (canonical.length === 0) {
+      warn(`变体组 ${g.id}: 剥壳后组 id 为空，保留原 id`)
+      continue
+    }
+    if (taken.has(canonical)) {
+      warn(`变体组 ${g.id}: 还原 id ${canonical} 与既有组冲突，保留原 id`)
+      continue
+    }
+    taken.delete(g.id)
+    taken.add(canonical)
+    const oldId = g.id
+    g.id = canonical
+    for (const n of graph.nodes) {
+      if (n.kind === 'asset' && n.variantGroupId === oldId) n.variantGroupId = canonical
+    }
+  }
+}
+
 /** 后端分支 → V3 FlowBranchV2（zod strict：只留 id/name/parentBranchId/createdAt）。 */
 function normalizeBranch(raw: unknown, index: number, warn: Warn) {
   if (raw == null || typeof raw !== 'object') {
@@ -636,6 +674,10 @@ export function adaptV2Graph(raw: unknown): AdaptResult {
     const mode = selectModeBySynthId.get(g.id)
     if (mode) g.selectMode = mode
   }
+
+  // Fix-3 (FIX-1)：合成组 id `vg_nvar_<后端组id>` 还原为后端真值 id
+  // （还原后 V3 组 id == canvas_variant_groups.id，盲选投票不再 404）
+  restoreSynthGroupIds(graph, warn)
 
   // 引用完整性：迁移已自清，残留记 warnings（不静默透传）
   for (const issue of checkReferentialIntegrity(graph)) {

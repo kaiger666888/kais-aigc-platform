@@ -83,15 +83,20 @@ router.post(
       return res.status(400).send(error("参数校验失败", parse.error.issues));
     }
     const { projectId, episodesId, winnerNodeId, frameSlot, source, blind } = parse.data;
-    const groupId = req.params.groupId;
+    const requestedGroupId = req.params.groupId;
 
     try {
       const result = await selectWinnerInGroup(
         db,
         { projectId, episodesId },
-        groupId,
+        requestedGroupId,
         winnerNodeId,
       );
+      // Fix-3 (FIX-1b):旧 SPA bundle 过渡兼容——剥壳命中时 result.groupId 是
+      // DB 真值(canonical);其余路径与请求 id 相同(逐字节不变)。后续 404/409/
+      // 响应体、review bridge、manifest writeback、账本 group_key、广播统一
+      // 用 canonical,杜绝写 canonical 回显 vg_nvar_ 的错位。
+      const groupId = result.groupId;
 
       if (result.status === "not_found") {
         return res.status(404).send(error("变体组不存在", { groupId }));

@@ -287,8 +287,9 @@ export default function BlindSelectionOverlay(): React.ReactElement | null {
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: theme.text.secondary }}>
-                    {revealed ? (isPicked ? '✓ 你的盲选' : '另一侧') : `候选 ${i === 0 ? 'A' : i === 1 ? 'B' : i + 1}`}
+                  {/* Fix-3 (FIX-2):候选位号统一 A/B/C/D…（旧三元链第三候选起输出数字） */}
+                  <span data-testid="blind-candidate-label" style={{ fontSize: 12, fontWeight: 700, color: theme.text.secondary }}>
+                    {revealed ? (isPicked ? '✓ 你的盲选' : '另一侧') : `候选 ${String.fromCharCode(65 + i)}`}
                   </span>
                   {/* 揭晓页才渲染来源标签(voting 阶段 DOM 无此节点) */}
                   {revealed && (
