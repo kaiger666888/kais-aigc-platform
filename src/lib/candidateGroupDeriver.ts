@@ -11,8 +11,16 @@
  *   A. envelope:parseCandidateEnvelope(node.data) 出非空 groupKey 的信封
  *      (今日 = a-flf 条件帧 `{sid}_{slot}` 归一化为 `shot:{sid}:first|last`;
  *      Wave B 结构化 groupKey 到流后同一入口自动生效);
- *   B. 命名:`*_v{N}` 文件 + 同 dir 同 base 的 canonical 无后缀兄弟在节点集内
- *      → `name:{parentDir}/{base}`(Phase 48 WR-03 dir-aware 词表)。
+ *   B. 命名:`*_v{N}` 文件、同 dir 同 base → `name:{parentDir}/{base}`
+ *      (Phase 48 WR-03 dir-aware 词表)。两种族形态:
+ *      - 混合族(canonical 无后缀兄弟在节点集内):canonical 也是成员 + 默认
+ *        winner(与 candidateGrouping naming 通道 canonical-then-variant-asc
+ *        同序);
+ *      - 纯变体族(canonical 不在集内):Fix-1 前整族丢弃——kmc canvas_sync
+ *        只入库每族被选中的单一变体(数据源本性),在库历史项目 0 个
+ *        canonical 节点 → 盲选 overlay 0 组可选。现按 v{N} 数值序成组且
+ *        winnerNodeId 不设(未定组 = 盲选投票素材;materialize「NULL 才落
+ *        derived winner」语义天然兼容)。
  *   groupKey 词表与 candidateGrouping.ts L16-20 逐字节一致;首帧/尾帧 = 两个组
  *   (Pitfall 6/D-11)。
  *
@@ -109,8 +117,12 @@ export function deriveCandidateGroups(nodes: DeriveNode[]): DeriveResult {
     channelAclaimed.add(node.id);
   }
 
-  // ── 通道 B:命名(_v{N} + canonical 兄弟在集内)──
-  // 先建 filePath 索引供 canonical 兄弟查找
+  // ── 通道 B:命名(_v{N} 族;canonical 兄弟在集内 = 混合族,否则纯变体族)──
+  // Fix-1:纯 v{N} 族也成组。旧实现 canonical 无后缀兄弟不在节点集即整族
+  // 丢弃——kmc canvas_sync 只入库每族被选中的单一变体(数据源本性),在库
+  // 历史项目 119 个 (dir,base) 族全部是纯 v{N} 族(项目 1785508691757 实测)
+  // → 盲选 overlay 0 组可选。改为两段式:先按 groupKey 聚合变体,再按
+  // canonical 在场与否分派混合/纯族。
   const filePathIndex = new Set<string>();
   const filePathOwner = new Map<string, string>();
   for (const node of nodes) {
@@ -120,6 +132,14 @@ export function deriveCandidateGroups(nodes: DeriveNode[]): DeriveResult {
       if (!filePathOwner.has(fp)) filePathOwner.set(fp, node.id);
     }
   }
+
+  // 段 1:变体按 groupKey 聚合(保留节点入序;canonical 路径随行供段 2 判定)
+  interface NamingVariant {
+    nodeId: string;
+    variant: number;
+    canonical: string;
+  }
+  const variantsByGroup = new Map<string, NamingVariant[]>();
   for (const node of nodes) {
     if (channelAclaimed.has(node.id)) continue;
     const fp = typeof node.data?.filePath === "string" ? (node.data.filePath as string) : null;
@@ -128,14 +148,50 @@ export function deriveCandidateGroups(nodes: DeriveNode[]): DeriveResult {
     if (!parsed) continue;
     const { dir, ext } = splitPath(fp);
     const canonical = dir.length > 0 ? `${dir}/${parsed.base}${ext}` : `${parsed.base}${ext}`;
-    if (!filePathIndex.has(canonical)) continue; // canonical 兄弟不在节点集 → 不成组
     // /oss/ 是 kap 媒体根——命名通道 groupKey 相对媒体根(Phase 48 同构)
     const relDir = dir.startsWith("/oss/") ? dir.slice("/oss/".length) : dir;
     const groupKey = `name:${relDir}/${parsed.base}`;
-    claim(groupKey, node.id, "p03_nbest", false); // 命名通道无 selected 信号
-    // canonical 兄弟本身也是组成员(无后缀原版 = Phase 48 命名通道默认成员)
-    const canonicalOwner = filePathOwner.get(canonical);
-    if (canonicalOwner) claim(groupKey, canonicalOwner, "p03_nbest", false);
+    const arr = variantsByGroup.get(groupKey);
+    const entry: NamingVariant = { nodeId: node.id, variant: parsed.variant, canonical };
+    if (arr) arr.push(entry);
+    else variantsByGroup.set(groupKey, [entry]);
+  }
+
+  // 段 2:按族分派。混合族 = canonical 无后缀兄弟在节点集内(canonical 是
+  // 成员 + 默认 winner,canonical-then-N-asc 序,同 candidateGrouping naming
+  // 通道约定);纯变体族 = 集内无 canonical → 全体 v{N} 按 N 数值序成组,
+  // winner 不设(盲选投票素材);同 N 重复节点凑不成 ≥2 个不同 N,不成族。
+  for (const [groupKey, variants] of variantsByGroup) {
+    const owned = variants.filter((v) => filePathOwner.has(v.canonical));
+    if (owned.length > 0) {
+      // 混合族:canonical 兄弟本身也是组成员(无后缀原版 = 命名通道默认
+      // 成员);多 canonical(异扩展名亚族同 groupKey 的罕见角)逐个入组,
+      // 首见者为默认 winner。
+      const canonicalOwners = new Map<string, string>();
+      for (const v of owned) {
+        if (!canonicalOwners.has(v.canonical)) {
+          canonicalOwners.set(v.canonical, filePathOwner.get(v.canonical)!);
+        }
+      }
+      let firstCanonical = true;
+      for (const owner of canonicalOwners.values()) {
+        claim(groupKey, owner, "p03_nbest", firstCanonical);
+        firstCanonical = false;
+      }
+      for (const v of [...owned].sort((a, b) => a.variant - b.variant)) {
+        claim(groupKey, v.nodeId, "p03_nbest", false); // 命名通道变体无 selected 信号
+      }
+      continue;
+    }
+    // 纯变体族:≥2 个不同 N 才成族(单变体无墙义)
+    const distinctN = new Set(variants.map((v) => v.variant));
+    if (distinctN.size < 2) {
+      for (const v of variants) skipped.push({ nodeId: v.nodeId, reason: "single-variant-family" });
+      continue;
+    }
+    for (const v of [...variants].sort((a, b) => a.variant - b.variant)) {
+      claim(groupKey, v.nodeId, "p03_nbest", false); // winner 不设 = 未定组
+    }
   }
 
   // ── 共同规则 → 输出 ──

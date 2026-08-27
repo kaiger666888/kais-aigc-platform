@@ -14,6 +14,8 @@ import {
 } from "@/lib/canvasRelationalStore";
 import {
   computeP09GoldGap,
+  adaptMasterTimelineToKst,
+  KstAdaptError,
   isSafeStandardName,
   isPathInsideRoot,
   GAP_PRODUCER,
@@ -501,6 +503,129 @@ router.get("/default-standard", async (_req, res) => {
       return res.status(err.status).send(error(err.message, err.data ?? null));
     }
     return res.status(500).send(error("标准集解析失败"));
+  }
+});
+
+/**
+ * GET /api/canvas/v2/gold-gap/standards — learning_sets 下全部 golden-standard-*
+ * 目录(M4:GoldPanel 标准集下拉真实数据化)。空目录/缺 p09_shot-list.json 也
+ * 列出但 hasP09=false(如实反映在库状态,不做静默过滤);排序与
+ * resolveStandardRef 主序一致(字典序最新在前),面板首位即缺省选集。
+ */
+router.get("/standards", async (_req, res) => {
+  try {
+    const root = learningSetsRoot();
+    let names: string[];
+    try {
+      names = await fsp.readdir(root);
+    } catch (e) {
+      throw new HttpError(400, `learning_sets 根不可读: ${root}(${(e as Error).message})`);
+    }
+    const standards: Array<{ name: string; mtime: string; hasP09: boolean }> = [];
+    for (const name of names) {
+      if (!name.startsWith("golden-standard-")) continue;
+      try {
+        const st = await fsp.stat(path.join(root, name));
+        if (!st.isDirectory()) continue;
+        let hasP09 = false;
+        try {
+          await fsp.access(path.join(root, name, "p09_shot-list.json"));
+          hasP09 = true;
+        } catch { /* 缺 p09 → hasP09=false 照常列出 */ }
+        standards.push({ name, mtime: new Date(st.mtimeMs).toISOString(), hasP09 });
+      } catch { /* stat 失败的条目跳过,不整表失败 */ }
+    }
+    standards.sort((a, b) => (a.name < b.name ? 1 : a.name > b.name ? -1 : 0));
+    return res.status(200).send(success({ standards }));
+  } catch (err) {
+    if (err instanceof HttpError) {
+      return res.status(err.status).send(error(err.message, err.data ?? null));
+    }
+    console.error("[canvas:v2/gold-gap] standards 列举失败:", err);
+    return res.status(500).send(error("标准集列举失败"));
+  }
+});
+
+// ─── M4:成片节奏保真度复测轨(kst 外环,测量≠选择决策)─────────────────────
+
+const scoreKstSchema = z.object({
+  candidatePath: z.string().min(1).max(1024),
+  standardRef: z.string().max(128).optional(),
+});
+
+/**
+ * POST /api/canvas/v2/gold-gap/score-kst — 成片节奏保真度复测(M4 / kst 外环)。
+ *
+ * 对真实成片时间轴(master-timeline EDL 或 kst 成片镜头表)跑既有 metrics.py,
+ * 与金标 p09 过同一 computeP09GoldGap:gold=p09 意图分布,kst=成片实测——
+ * 量的是「成片相对金标意图的节奏漂移」,为复测轨,不做 argmin 择优。
+ *
+ * 纪律:
+ *  - candidatePath 走既有 assertCandidatePath 三道白名单(episodes 根 +
+ *    词法 + realpath),与 score-p09 同一收口;
+ *  - kst 适配是纯函数(adaptMasterTimelineToKst),非法形状/空 edl → 400 明确
+ *    报错;适配结果写 os.tmpdir() 临时文件(mkdtemp + finally 随手清理);
+ *  - **不写决策账本**(测量≠选择决策;score-p09 的 applyGoldWinner 不复用);
+ *  - 无 DB 写、无新依赖;metrics.py 复用既有单发 + 前置自检。
+ *
+ * → 200 { gap: GoldGapResult, candidate_kind, standardRef, n_shots, candidatePath }
+ */
+router.post("/score-kst", async (req, res) => {
+  const parse = scoreKstSchema.safeParse(req.body);
+  if (!parse.success) {
+    return res.status(400).send(error("参数校验失败", parse.error.issues));
+  }
+  const { candidatePath, standardRef } = parse.data;
+
+  let tmpDir: string | null = null;
+  try {
+    // 1) 金标解析 + python 前置自检(与 score-p09 同序同语义)。
+    const standard = await resolveStandardRef(standardRef);
+    const pyPath = metricsPyPath();
+    await preflightPython(pyPath);
+    // 2) 成片文件白名单(episodes 根内)。
+    const abs = await assertCandidatePath(candidatePath);
+    // 3) 读 JSON + kst 适配(纯函数;非法形状 → 400 明确报错)。
+    let raw: unknown;
+    try {
+      raw = JSON.parse(await fsp.readFile(abs, "utf8"));
+    } catch (e) {
+      throw new HttpError(400, `成片文件不是合法 JSON: ${candidatePath}(${(e as Error).message})`);
+    }
+    let adapted: ReturnType<typeof adaptMasterTimelineToKst>;
+    try {
+      adapted = adaptMasterTimelineToKst(raw);
+    } catch (e) {
+      if (e instanceof KstAdaptError) throw new HttpError(400, e.message);
+      throw e;
+    }
+    // 4) 临时 kst 文件 + metrics.py 单发(复用既有桥,不再开并发池——单文件)。
+    tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), "kst-score-"));
+    const tmpKst = path.join(tmpDir, "kst.json");
+    await fsp.writeFile(tmpKst, JSON.stringify(adapted.shots), "utf8");
+    const refMetrics = await runPyMetrics(pyPath, standard.p09Path);
+    const kstMetrics = await runPyMetrics(pyPath, tmpKst);
+    // 5) gap 计算(gold=p09 意图,kst=成片实测;不写账本)。
+    const gap = computeP09GoldGap(standard.ref, refMetrics, kstMetrics, new Date());
+    return res.status(200).send(
+      success({
+        gap,
+        candidate_kind: adapted.candidateKind,
+        standardRef: standard.ref,
+        n_shots: adapted.shots.length,
+        candidatePath: abs,
+      }),
+    );
+  } catch (err) {
+    if (err instanceof HttpError) {
+      return res.status(err.status).send(error(err.message, err.data ?? null));
+    }
+    console.error("[canvas:v2/gold-gap] score-kst 失败:", err);
+    return res.status(500).send(error("成片保真度打分失败", { detail: String((err as Error).message).slice(0, 400) }));
+  } finally {
+    if (tmpDir != null) {
+      await fsp.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+    }
   }
 });
 

@@ -130,6 +130,109 @@ function metricGapOf(key: string, ref: Record<string, unknown>, cand: Record<str
   }
 }
 
+// ─── kst 适配(迭代平台 M4:成片节奏保真度复测轨)──────────────────────────
+
+/** kst(kais-shot-timeline)成片镜头行 — metrics.py kst 检测格式的最小形态。 */
+export interface KstShot {
+  id: string;
+  start_sec: number;
+  end_sec: number;
+  duration: number;
+}
+
+/** 适配来源标注(score-kst 响应 candidate_kind 原样透传)。 */
+export type KstCandidateKind = "master_timeline_edl" | "kst_shots";
+
+export interface KstAdaptResult {
+  shots: KstShot[];
+  candidateKind: KstCandidateKind;
+}
+
+/** 适配失败(score-kst 路由映射 400;消息面向内部工具面板,中文明确)。 */
+export class KstAdaptError extends Error {}
+
+/**
+ * 把两种成片时间轴输入归一为 kst 镜头行(metrics.py L37-44 自检格式的上游):
+ *   ① master-timeline:{value:{edl:[{clip_id, duration_sec, …}]}} — 按 edl
+ *      顺序累计 start_sec(duration 直通,end=start+duration),candidate_kind
+ *      = "master_timeline_edl";
+ *   ② kst 数组直通:顶层 [{id, start_sec, …}] 已是成片镜头表,candidate_kind
+ *      = "kst_shots"(end_sec 缺失时以 start+duration 补齐,duration 缺失时以
+ *      end−start 补齐——metrics.py kst 识别键是 duration,直通也要保它在场)。
+ * 两者都不是 / edl 或数组为空 / 关键字段缺数值 → KstAdaptError(路由层 400)。
+ * 纯函数:无 fs/db/network。
+ */
+export function adaptMasterTimelineToKst(parsed: unknown): KstAdaptResult {
+  // ① master-timeline EDL 形状
+  if (parsed != null && typeof parsed === "object" && !Array.isArray(parsed)) {
+    const value = (parsed as Record<string, unknown>).value;
+    if (value != null && typeof value === "object" && !Array.isArray(value)) {
+      const edl = (value as Record<string, unknown>).edl;
+      if (Array.isArray(edl)) {
+        if (edl.length === 0) {
+          throw new KstAdaptError("master-timeline edl 为空数组——无成片镜头可测");
+        }
+        const shots: KstShot[] = [];
+        let cursor = 0;
+        for (let i = 0; i < edl.length; i++) {
+          const rec = edl[i] as Record<string, unknown> | null;
+          if (rec == null || typeof rec !== "object") {
+            throw new KstAdaptError(`edl 第 ${i + 1} 项不是对象`);
+          }
+          const id = typeof rec.clip_id === "string" && rec.clip_id !== "" ? rec.clip_id : null;
+          if (id == null) {
+            throw new KstAdaptError(`edl 第 ${i + 1} 项缺 clip_id(字符串)`);
+          }
+          const duration = asFinite(rec.duration_sec);
+          if (duration == null) {
+            throw new KstAdaptError(`edl 第 ${i + 1} 项(${id})缺 duration_sec(数值)`);
+          }
+          shots.push({ id, start_sec: cursor, end_sec: cursor + duration, duration });
+          cursor += duration;
+        }
+        return { shots, candidateKind: "master_timeline_edl" };
+      }
+    }
+  }
+  // ② kst 数组直通(识别:首元素有 id + start_sec)
+  if (Array.isArray(parsed)) {
+    if (parsed.length === 0) {
+      throw new KstAdaptError("kst 空数组——无成片镜头可测");
+    }
+    const first = parsed[0] as Record<string, unknown> | null;
+    const kstShape =
+      first != null &&
+      typeof first === "object" &&
+      first.id != null &&
+      typeof first.start_sec === "number";
+    if (!kstShape) {
+      throw new KstAdaptError("输入既非 {value:{edl:[…]}} 也非 kst [{id,start_sec,…}] 数组");
+    }
+    const shots: KstShot[] = [];
+    for (let i = 0; i < parsed.length; i++) {
+      const row = parsed[i] as Record<string, unknown>;
+      if (row == null || typeof row !== "object") {
+        throw new KstAdaptError(`kst 第 ${i + 1} 行不是对象`);
+      }
+      const start = asFinite(row.start_sec);
+      const duration = asFinite(row.duration);
+      const end = asFinite(row.end_sec);
+      if (typeof row.id !== "string" || start == null || (duration == null && end == null)) {
+        throw new KstAdaptError(`kst 第 ${i + 1} 行缺 id/start_sec/duration(或 end_sec)数值字段`);
+      }
+      const dur = duration ?? end! - start;
+      shots.push({
+        id: row.id,
+        start_sec: start,
+        end_sec: end ?? start + dur,
+        duration: dur,
+      });
+    }
+    return { shots, candidateKind: "kst_shots" };
+  }
+  throw new KstAdaptError("输入既非 {value:{edl:[…]}} 也非 kst [{id,start_sec,…}] 数组");
+}
+
 // ─── Path guards(纯字符串形态校验;realpath/存在性检查在路由层)────────────
 
 /**

@@ -1,13 +1,16 @@
 /**
- * GoldPanel.tsx — 金标轨打分面板(迭代平台 M3 / B 轨,prompt GOLD-4)。
+ * GoldPanel.tsx — 金标轨打分面板(迭代平台 M3 / B 轨,prompt GOLD-4;M4 扩展)。
  *
  * 参考 G15TriagePanel 面板壳(开关由调用方条件渲染/Esc 收起/同主题),
- * 内部工具面板:能用 > 好看,muted 配色零动效。三区:
- *   ① 标准集选择(M3 仅展示服务端解析的当前默认,下拉占位 M4 多集);
+ * 内部工具面板:能用 > 好看,muted 配色零动效。四区:
+ *   ① 标准集选择(M4 起接 GET /standards 全集列表,缺 p09 的集如实标注;
+ *      /standards 失败退回 M3 单默认解析);
  *   ② 候选 shot-list 打分(手动贴路径,一行一条「标签|路径」或裸路径;
  *      表格 overall 升序,winner 🥇 高亮,数字 3 位);
  *   ③ gold_auto APPLY 门(填 groupId/winnerNodeId 后对当前 winner 落地;
- *      applied / deferred_to_client / rejected 三态如实展示)。
+ *      applied / deferred_to_client / rejected 三态如实展示);
+ *   ④ 成片保真度复测(M4 / kst 外环:master-timeline 或 kst 成片镜头表
+ *      对金标 p09 量节奏漂移;纯测量,无账本写入)。
  *
  * 打分确定性来源:后端 KMC lab metrics.py(goldGap per_metric 逐项
  * producer:"kmc-lab-metrics")——本面板不做任何本地打分。
@@ -18,9 +21,13 @@ import { useCanvasStore } from '../../store/canvasStore'
 import {
   scoreP09GoldGap,
   fetchDefaultGoldStandard,
+  listStandards,
+  scoreKst,
   type GoldCandidateResult,
   type GoldGapScoreResult,
   type GoldApplyState,
+  type GoldStandardEntry,
+  type KstScoreResult,
 } from '../../services/canvasApi'
 
 /** per_metric 已知五键的表格列序(缺项显示 —)。 */
@@ -57,6 +64,7 @@ export default function GoldPanel({ onClose }: { onClose: () => void }): React.R
   const projectId = useCanvasStore((s) => s.projectId) ?? 0
   const episodesId = useCanvasStore((s) => s.episodesId) ?? 0
   const [standardRef, setStandardRef] = useState<string>('加载中…')
+  const [standards, setStandards] = useState<GoldStandardEntry[] | null>(null)
   const [candidatesText, setCandidatesText] = useState('')
   const [scoring, setScoring] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -67,11 +75,29 @@ export default function GoldPanel({ onClose }: { onClose: () => void }): React.R
   const [winnerNodeId, setWinnerNodeId] = useState('')
   const [applying, setApplying] = useState(false)
 
+  // M4 成片保真度复测(kst 外环)
+  const [kstPath, setKstPath] = useState('')
+  const [kstScoring, setKstScoring] = useState(false)
+  const [kstError, setKstError] = useState<string | null>(null)
+  const [kstResult, setKstResult] = useState<KstScoreResult | null>(null)
+
   useEffect(() => {
     let cancelled = false
-    void fetchDefaultGoldStandard().then((d) => {
-      if (!cancelled && d != null) setStandardRef(d.standardRef)
-      else if (!cancelled) setStandardRef('未解析到金标集')
+    void listStandards().then((rows) => {
+      if (cancelled) return
+      if (rows != null && rows.length > 0) {
+        setStandards(rows)
+        // 服务端主序(字典序最新在前)首位 = resolveStandardRef 缺省选集;
+        // 缺 p09 的集不能打分,跳到首个可打分集。
+        const firstScorable = rows.find((s) => s.hasP09) ?? rows[0]!
+        setStandardRef(firstScorable.name)
+        return
+      }
+      // /standards 失败(旧后端/根不可读)→ 退回 M3 单默认解析
+      void fetchDefaultGoldStandard().then((d) => {
+        if (!cancelled && d != null) setStandardRef(d.standardRef)
+        else if (!cancelled) setStandardRef('未解析到金标集')
+      })
     })
     return () => { cancelled = true }
   }, [])
@@ -108,6 +134,25 @@ export default function GoldPanel({ onClose }: { onClose: () => void }): React.R
     ? [...result.results].sort((a, b) => a.gap.overall_gap01 - b.gap.overall_gap01)
     : []
 
+  // M4 ④:成片保真度复测(纯测量;标准集仅在真实入列时随传)
+  const runKst = async (): Promise<void> => {
+    const p = kstPath.trim()
+    if (p === '') {
+      setKstError('请先填成片时间轴路径(master-timeline.json 或 kst 成片镜头表)')
+      return
+    }
+    setKstScoring(true)
+    setKstError(null)
+    try {
+      const withStd = standards?.some((s) => s.name === standardRef) ? { standardRef } : {}
+      setKstResult(await scoreKst(p, withStd))
+    } catch (err) {
+      setKstError((err as Error).message || '成片复测失败')
+    } finally {
+      setKstScoring(false)
+    }
+  }
+
   return (
     <div
       data-testid="gold-panel"
@@ -141,11 +186,15 @@ export default function GoldPanel({ onClose }: { onClose: () => void }): React.R
               style={{ ...inputStyle, flex: 1, minHeight: 40 }}
               data-testid="gold-standard-select"
             >
-              <option value={standardRef}>{standardRef}</option>
+              {(standards ?? [{ name: standardRef, mtime: '', hasP09: true }]).map((s) => (
+                <option key={s.name} value={s.name}>
+                  {s.name}{s.hasP09 ? '' : '(缺 p09,不可打分)'}
+                </option>
+              ))}
             </select>
           </div>
           <div style={{ ...hintStyle, marginTop: 4 }}>
-            M3 仅支持 P09 维度;M4 多集入库后此处展开全集列表。
+            M4 全集列表,首位 = 服务端缺省;打分仅支持 P09 维度(缺 p09 的集如实列出但不可打分)。
           </div>
         </Section>
 
@@ -245,6 +294,73 @@ export default function GoldPanel({ onClose }: { onClose: () => void }): React.R
             落地走 select-winner 同一收口(含 locked 保护,账本 track=gold_auto);
             通道未开通时提示走正常选卡通道补落。
           </div>
+        </Section>
+
+        {/* ④ M4 成片保真度复测(kst 外环,纯测量无账本) */}
+        <Section title="④ 成片保真度复测(master-timeline / kst 成片镜头表)">
+          <input
+            value={kstPath}
+            onChange={(e) => setKstPath(e.target.value)}
+            placeholder="/data/.../episodes/ep-x/.pipeline-assets/master-timeline.json 或 kst [{id,start_sec,…}].json"
+            spellCheck={false}
+            style={{ ...inputStyle, fontFamily: 'var(--cv-font-mono, monospace)', fontSize: 11, minHeight: 40 }}
+            data-testid="gold-kst-input"
+          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+            <button
+              onClick={() => void runKst()}
+              disabled={kstScoring || kstPath.trim() === ''}
+              style={{ ...primaryBtnStyle, minHeight: 40, opacity: kstScoring || kstPath.trim() === '' ? 0.45 : 1 }}
+              data-testid="gold-kst-btn"
+            >
+              {kstScoring ? '复测中…(python 桥)' : '复测成片节奏'}
+            </button>
+            <span style={hintStyle}>相对路径按 episodes 根白名单解析;纯测量,不写决策账本</span>
+          </div>
+          {kstError != null && (
+            <div style={{ marginTop: 8, fontSize: 12, color: v3theme.signal.rejected }} data-testid="gold-kst-error">
+              {kstError}
+            </div>
+          )}
+          {kstResult != null && (
+            <div
+              data-testid="gold-kst-result"
+              style={{
+                marginTop: 10, padding: '8px 10px', borderRadius: 6, fontSize: 12,
+                border: `1px solid ${theme.border.default}`, background: theme.bg.input,
+              }}
+            >
+              <span style={{ color: theme.text.primary, fontWeight: 600 }}>
+                overall_gap01 = {kstResult.gap.overall_gap01.toFixed(4)}
+              </span>
+              <span style={{ ...hintStyle, marginLeft: 8 }}>
+                {kstResult.candidate_kind} · n={kstResult.n_shots} · 金标 {kstResult.standardRef}
+              </span>
+              <details style={{ marginTop: 6 }}>
+                <summary style={{ cursor: 'pointer', color: theme.text.secondary, fontSize: 11 }}>
+                  per_metric({kstResult.gap.per_metric.length})
+                </summary>
+                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 4, fontSize: 11 }}>
+                  <thead>
+                    <tr>
+                      <Th>指标</Th><Th>金标(p09)</Th><Th>成片(kst)</Th><Th>gap01</Th><Th>权重</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {kstResult.gap.per_metric.map((m) => (
+                      <tr key={m.key}>
+                        <Td>{METRIC_COLS.find((c) => c.key === m.key)?.head ?? m.key}</Td>
+                        <Td>{m.ref}</Td>
+                        <Td>{m.cand}</Td>
+                        <Td strong>{m.gap01.toFixed(4)}</Td>
+                        <Td>{m.weight}</Td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </details>
+            </div>
+          )}
         </Section>
       </div>
     </div>

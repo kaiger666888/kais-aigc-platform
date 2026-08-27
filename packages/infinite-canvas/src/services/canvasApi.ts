@@ -654,6 +654,75 @@ export async function fetchDefaultGoldStandard(
   }
 }
 
+// ─── 金标轨 M4:标准集列表 + 成片保真度复测(kst 外环) ─────────────────────
+
+/** GET /standards 行(learning_sets 下一个 golden-standard-* 目录;缺 p09 也列出)。 */
+export interface GoldStandardEntry {
+  name: string
+  mtime: string
+  hasP09: boolean
+}
+
+/**
+ * GET /api/canvas/v2/gold-gap/standards — learning_sets 下全部金标集目录
+ * (M4 面板标准集下拉真实数据化)。GET 裸 fetch 先例同上:失败返回 null 不抛。
+ */
+export async function listStandards(cancelToken?: CancelToken): Promise<GoldStandardEntry[] | null> {
+  const timeoutController = new AbortController()
+  const timeoutId = setTimeout(() => timeoutController.abort(), TIMEOUT_MS)
+  const signals: AbortSignal[] = [timeoutController.signal]
+  if (cancelToken) signals.push(cancelToken.signal)
+  const combined = new AbortController()
+  const onAbort = () => combined.abort()
+  signals.forEach((s) => {
+    if (s.aborted) combined.abort()
+    else s.addEventListener('abort', onAbort, { once: true })
+  })
+  try {
+    const res = await fetch(`${API_BASE}/canvas/v2/gold-gap/standards`, { signal: combined.signal })
+    if (!res.ok) return null
+    const json = await res.json()
+    if (json?.code !== 200 && json?.code !== 0) return null
+    const rows = json?.data?.standards
+    return Array.isArray(rows) ? (rows as GoldStandardEntry[]) : null
+  } catch {
+    return null
+  } finally {
+    clearTimeout(timeoutId)
+    signals.forEach((s) => s.removeEventListener('abort', onAbort))
+  }
+}
+
+/** POST /score-kst 响应(gap 与 score-p09 results[].gap 同形;纯测量,无账本写入)。 */
+export interface KstScoreResult {
+  gap: GoldGapResult
+  candidate_kind: 'master_timeline_edl' | 'kst_shots'
+  standardRef: string
+  n_shots: number
+  candidatePath: string
+}
+
+/**
+ * POST /api/canvas/v2/gold-gap/score-kst — 成片节奏保真度复测(M4 kst 外环):
+ * candidatePath 传 master-timeline.json({value:{edl:[…]}})或 kst 成片镜头表
+ * ([{id,start_sec,…}]);gold=p09 意图,kst=成片实测。python 桥耗时,timeout
+ * 放大到 60s(score-p09 同款)。
+ */
+export async function scoreKst(
+  candidatePath: string,
+  opts: { standardRef?: string; cancelToken?: CancelToken } = {},
+): Promise<KstScoreResult> {
+  const json = await apiCall<{ data: KstScoreResult }>(
+    '/canvas/v2/gold-gap/score-kst',
+    {
+      candidatePath,
+      ...(opts.standardRef != null && opts.standardRef !== '' ? { standardRef: opts.standardRef } : {}),
+    },
+    { cancelToken: opts.cancelToken, timeout: 60_000 },
+  )
+  return json.data
+}
+
 // ─── Gate 中心(Phase 54-04 GATE-02;54-05 服务端对接) ───────────────────
 
 /** GET /api/canvas/v2/gate-state 响应 = socket payload + episodeRefs 诊断键。 */

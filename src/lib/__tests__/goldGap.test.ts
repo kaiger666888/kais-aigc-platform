@@ -12,6 +12,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   computeP09GoldGap,
+  adaptMasterTimelineToKst,
+  KstAdaptError,
   parseCoverageRatio,
   isSafeStandardName,
   isPathInsideRoot,
@@ -179,5 +181,73 @@ test("GoldGapResult 元数据:standard_ref 透传 / scored_at ISO / producer 逐
   assert.ok(
     Number.isInteger(Math.round(m2.gap01 * 10_000)),
     "gap01 须 4 位小数粒度",
+  );
+});
+
+// ─── 6. M4 kst 适配(edl→kst 纯函数;score-kst 路由的 400 语义在此层)────────
+
+test("edl→kst:2 clip 按 edl 序累计 start,duration 直通,end=start+duration", () => {
+  const r = adaptMasterTimelineToKst({
+    value: {
+      edl: [
+        { clip_id: "S02_B02", duration_sec: 3.041667 },
+        { clip_id: "S03_B04", duration_sec: 3.041667 },
+      ],
+      total_duration_sec: 6.083334,
+    },
+  });
+  assert.equal(r.candidateKind, "master_timeline_edl");
+  assert.deepEqual(r.shots, [
+    { id: "S02_B02", start_sec: 0, end_sec: 3.041667, duration: 3.041667 },
+    { id: "S03_B04", start_sec: 3.041667, end_sec: 6.083334, duration: 3.041667 },
+  ]);
+});
+
+test("kst 数组直通识别(candidate_kind=kst_shots,duration 缺失时 end−start 补齐)", () => {
+  const r = adaptMasterTimelineToKst([
+    { id: "S01", start_sec: 0, end_sec: 2.5, duration: 2.5 },
+    { id: "S02", start_sec: 2.5, end_sec: 6.0 }, // 缺 duration → end−start 补
+  ]);
+  assert.equal(r.candidateKind, "kst_shots");
+  assert.equal(r.shots.length, 2);
+  assert.deepEqual(r.shots[1], { id: "S02", start_sec: 2.5, end_sec: 6.0, duration: 3.5 });
+});
+
+test("空 edl → KstAdaptError(路由层映射 400 的纯函数语义)", () => {
+  assert.throws(
+    () => adaptMasterTimelineToKst({ value: { edl: [] } }),
+    (e: unknown) => e instanceof KstAdaptError && e.message.includes("空"),
+  );
+});
+
+test("两者都不是 → KstAdaptError(对象无 edl / 数组缺 id+start_sec / 标量)", () => {
+  assert.throws(() => adaptMasterTimelineToKst({ value: { shot_list: [] } }), KstAdaptError);
+  assert.throws(() => adaptMasterTimelineToKst([{ foo: 1 }]), KstAdaptError);
+  assert.throws(() => adaptMasterTimelineToKst("not-json-shape"), KstAdaptError);
+  assert.throws(() => adaptMasterTimelineToKst(null), KstAdaptError);
+});
+
+test("edl 关键字段缺数值 → KstAdaptError(缺 clip_id / 缺 duration_sec)", () => {
+  assert.throws(
+    () => adaptMasterTimelineToKst({ value: { edl: [{ duration_sec: 2 }] } }),
+    (e: unknown) => e instanceof KstAdaptError && e.message.includes("clip_id"),
+  );
+  assert.throws(
+    () => adaptMasterTimelineToKst({ value: { edl: [{ clip_id: "S01" }, { clip_id: "S02", duration_sec: "3" }] } }),
+    (e: unknown) => e instanceof KstAdaptError && e.message.includes("duration_sec"),
+  );
+});
+
+test("edl 乱序时长累计不丢帧:3 clip 不等长 start 连续无缝", () => {
+  const r = adaptMasterTimelineToKst({
+    value: { edl: [
+      { clip_id: "A", duration_sec: 2 },
+      { clip_id: "B", duration_sec: 5 },
+      { clip_id: "C", duration_sec: 1.5 },
+    ] },
+  });
+  assert.deepEqual(
+    r.shots.map((s) => [s.id, s.start_sec, s.end_sec]),
+    [["A", 0, 2], ["B", 2, 7], ["C", 7, 8.5]],
   );
 });
