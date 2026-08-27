@@ -1,8 +1,9 @@
 /**
  * candidateEnvelope.ts — kmc 候选/变体统一信封契约 (Phase 53 VAR-01 kap 半部, D-02).
  *
- * One envelope for five candidate sources (p01 hook / p03 N-best / p11a0
- * conditional frames / p11a preview variants / p11b take-log), and ONE entry
+ * One envelope for the candidate sources (53-01 的 5 源:p01 hook / p03
+ * N-best / p11a0 conditional frames / p11a preview variants / p11b take-log;
+ * 迭代平台 v2 盲选批再扩 4 个文字源 p02/p03/p06/p09,见 candidateSourceSchema),and ONE entry
  * point (`parseCandidateEnvelope`) that accepts BOTH generations of wire
  * shape:
  *   - today's flat node-data shapes → `normalizeLegacyCandidateData` lifts
@@ -38,13 +39,24 @@ import { z } from "zod";
 
 // ─── Types (schema-first; every consumer imports from here) ────────────────
 
-/** The five candidate sources that flow kmc → kap (53-CONTEXT VAR-01). */
+/**
+ * The candidate sources that flow kmc → kap (53-CONTEXT VAR-01)。
+ *
+ * 前 5 值 = 视觉/产物源(53-01 契约);后 4 值 = 迭代平台 v2 文字类扩展
+ * (盲选批 spec §2.2,Kai 裁决①文字类最重要):zod enum 追加值天然向后
+ * 兼容,旧数据/旧信封不受影响。文字类候选以 script 型节点入组,extras
+ * 承载 `{field_rows:[{field,a,b,delta}]}` 字段级行对齐渲染数据。
+ */
 export const candidateSourceSchema = z.enum([
   "p01_hook",
   "p03_nbest",
   "p11a0_flf",
   "p11a_preview",
   "p11b_take",
+  "p02_outline",
+  "p03_script",
+  "p06_spatio",
+  "p09_shotlist",
 ]);
 export type CandidateSource = z.infer<typeof candidateSourceSchema>;
 

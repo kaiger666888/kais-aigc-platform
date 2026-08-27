@@ -36,6 +36,9 @@ import IterationPanel from './IterationPanel'
 import LoadingOverlay from './LoadingOverlay'
 // C/D 层接线（SPEC-step5 C/D）：变体墙(53-02 取代 Picker 主体,store 协议保留)、事件参数 popover、溯源高亮、C 角标/牌堆注册。
 import VariantWall from './variants/VariantWall'
+import BlindSelectionOverlay from './variants/BlindSelection/BlindSelectionOverlay'
+import { useBlindSelectionStore } from './variants/BlindSelection/blindSelectionStore'
+import { buildBlindQueue } from './variants/BlindSelection/blindOrder'
 import G15TriagePanel from './g15/G15TriagePanel'
 import { useG15TriageStore } from './g15/g15TriageStore'
 import EventParamsPopover from './eventParams/EventParamsPopover'
@@ -866,6 +869,16 @@ function CanvasInner() {
     }
   }, [iteration.status, iteration.panelOpen, setIterationPanelOpen, updateIterationProgress])
 
+  // 盲选会话(迭代平台 A 轨):快照当前待决组开 overlay;队列/随机序在会话
+  // 打开时生成并固定。图空/无组时 overlay 自呈空态(含翻案重开入口)。
+  const handleOpenBlindSelection = useCallback(() => {
+    const g = useCanvasStore.getState().graph
+    const groups = g
+      ? buildBlindQueue(g.variantGroups).map((grp) => ({ id: grp.id, variantNodeIds: grp.variantNodeIds }))
+      : []
+    useBlindSelectionStore.getState().openSession(groups)
+  }, [])
+
   const miniMapNodeColor = useCallback((node: any) => {
     // §2.1：minimap 节点色 = 模态色 + locked 石灰（拉片参考区一眼可辨）
     if (node.data?.curation === 'locked') return v3theme.signal.locked
@@ -1318,6 +1331,13 @@ function CanvasInner() {
                 ? '待审阅'
                 : '迭代'}
             </ToolbarButton>
+            <ToolbarButton
+              onClick={handleOpenBlindSelection}
+              disabled={!projectId || nodes.length === 0}
+              title="盲选迭代 — 蒙眼投票对照揭晓(迭代平台 A 轨)"
+            >
+              🔮 盲选
+            </ToolbarButton>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <span style={{ position: 'absolute', left: 9, display: 'flex', color: theme.text.tertiary, pointerEvents: 'none' }}>
                 <UiIcon kind="search" size={13} />
@@ -1389,6 +1409,7 @@ function CanvasInner() {
         <ShotTree />
         <NodeDetailPanel node={detailNode} onClose={() => setDetailNode(null)} />
         <VariantWall />
+        <BlindSelectionOverlay />
         {iteration.panelOpen && <IterationPanel />}
         <G15TriagePanel />
         {gateOpen && <GateCenterPanel />}

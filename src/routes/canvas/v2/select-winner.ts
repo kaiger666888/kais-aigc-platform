@@ -15,6 +15,7 @@ import {
   getManifestTransport,
   replayManifestWriteback,
 } from "@/lib/manifestWriteback";
+import { appendDecisionEvent, blindMetaSchema } from "@/lib/blindVoteLedger";
 import { ensureDrainStarted, drainOnce } from "@/lib/writebackQueue";
 import { getGateStateService } from "@/lib/gateStateService";
 
@@ -50,6 +51,10 @@ const selectWinnerSchema = z.object({
   // Phase 49 逐字节一致(向后兼容)。source 为候选 5 源 enum(53-01 契约)。
   frameSlot: z.enum(["first", "last"]).optional(),
   source: candidateSourceSchema.optional(),
+  // 迭代平台 v2 盲选批(M1):blind 元数据在场 → status==='updated' 段追加
+  // decision/v1 账本事件;缺省(不带 blind 字段)行为逐字节不变。schema
+  // 本体在 blindVoteLedger.ts(纯模块可单测),此处只组合。
+  blind: blindMetaSchema.optional(),
 });
 
 // 53-04 D-10:回写队列消费者(进程内单例 30s 串行 drain)。transport 为 null
@@ -77,7 +82,7 @@ router.post(
     if (!parse.success) {
       return res.status(400).send(error("参数校验失败", parse.error.issues));
     }
-    const { projectId, episodesId, winnerNodeId, frameSlot, source } = parse.data;
+    const { projectId, episodesId, winnerNodeId, frameSlot, source, blind } = parse.data;
     const groupId = req.params.groupId;
 
     try {
@@ -219,6 +224,33 @@ router.post(
         source,
         episodeRefs: [..._wbRefs],
       }).catch(() => {});
+
+      // [盲选批 M1] decision/v1 账本挂钩(D-09 同位收口;只在请求携带
+      // blind 元数据时落账,不带该字段的既有调用行为逐字节不变)。本端点
+      // 不掌握完整候选展示序,candidates_shown 以 winner 兜底单元素——
+      // 盲选 overlay 侧的完整展示序由会话事件补齐(P10 通道,M2 后续)。
+      // best-effort:appendDecisionEvent 自身 never-throws,void 不阻塞响应
+      // (与上方 bridge/writeback 同一控制流纪律)。
+      if (blind != null) {
+        void appendDecisionEvent({
+          schema: "decision/v1",
+          project_id: projectId,
+          episodes_id: episodesId,
+          episode_refs: [..._wbRefs],
+          session_id: blind.sessionId,
+          track: blind.track,
+          group_key: groupId.startsWith("cand:") ? groupId.slice("cand:".length) : groupId,
+          source: source ?? "unknown",
+          candidates_shown: [{ node_id: winnerNodeId, position: 1 }],
+          winner_node_id: winnerNodeId,
+          was_blind: blind.wasBlind,
+          selector: {
+            ...(blind.operatorNote != null ? { operator_note: blind.operatorNote } : {}),
+            ...(blind.reasonTags != null ? { reason_tags: blind.reasonTags } : {}),
+          },
+          revealed_after_vote: true,
+        }).catch(() => {});
+      }
 
       broadcastToProject(projectId, "variant:selected", {
         projectId,

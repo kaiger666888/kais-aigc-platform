@@ -484,6 +484,18 @@ export async function rejectNode(
  * 非 2xx 一律抛 ApiError（business/network）——调用方（canvasStore.selectWinner）
  * 在 catch 里回滚乐观更新，UI 不呈现未持久化的 winner（SC-2）。
  */
+/**
+ * 盲选批 M1:select-winner 的 blind 元数据(与后端 blindMetaSchema 同形;
+ * 缺省 track/wasBlind 由端点 zod default 归一,此处只透传不复制默认值)。
+ */
+export interface SelectWinnerBlindMeta {
+  sessionId?: string
+  track?: 'human_blind' | 'gold_auto' | 'gold_gated'
+  wasBlind?: boolean
+  operatorNote?: string
+  reasonTags?: string[]
+}
+
 export async function selectVariantWinner(
   projectId: number,
   episodesId: number,
@@ -491,10 +503,17 @@ export async function selectVariantWinner(
   winnerNodeId: string,
   cancelToken?: CancelToken,
   frameSlot?: 'first' | 'last',
+  blind?: SelectWinnerBlindMeta,
 ): Promise<void> {
   await apiCall<void>(
     `/canvas/v2/variant-groups/${encodeURIComponent(groupId)}/select-winner`,
-    { projectId, episodesId, winnerNodeId, ...(frameSlot ? { frameSlot } : {}) },
+    {
+      projectId,
+      episodesId,
+      winnerNodeId,
+      ...(frameSlot ? { frameSlot } : {}),
+      ...(blind != null ? { blind } : {}),
+    },
     { cancelToken },
   )
 }

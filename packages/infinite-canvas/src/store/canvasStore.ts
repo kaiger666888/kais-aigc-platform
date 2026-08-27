@@ -16,7 +16,7 @@ import { updateBranch as updateBranchApi } from '../services/canvasApi'
 import { normalizeScore } from '../utils/scoreVocabulary'
 import type { FlowBranch, VariantGroup, VariantGroupId } from '../types/canvas'
 import { asNodeId, asVariantGroupId } from '../types/canvas'
-import { approveNode as apiApproveNode, rejectNode as apiRejectNode, selectVariantWinner, saveCanvasGraph } from '../services/canvasApi'
+import { approveNode as apiApproveNode, rejectNode as apiRejectNode, selectVariantWinner, saveCanvasGraph, type SelectWinnerBlindMeta } from '../services/canvasApi'
 import { serializeGraphToV2 } from '../v3/serialize'
 import {
 } from './variantOps'
@@ -157,8 +157,14 @@ interface CanvasState {
   /** WRITE-02：删除节点 —— canonical 图变换（节点 + 触及 links + variantGroups 清理）
    *  → save-v2 统一持久化（不新增 delete 端点），失败外科式回滚（被删实体插回当前图）+ error toast。 */
   deleteNode: (nodeId: string) => Promise<void>
-  /** 选定变体组优胜（Phase 49 SELECT-02：乐观更新 → POST select-winner → 失败回滚）。 */
-  selectWinner: (nodeId: string, opts?: { frameSlot?: 'first' | 'last' }) => Promise<void>
+  /** 选定变体组优胜（Phase 49 SELECT-02：乐观更新 → POST select-winner → 失败回滚）。
+   *  盲选批 M1:opts.blind 透传端点 blind 元数据(不携带时行为不变);返回值
+   *  true=已持久化(含 200 no-op)/false=早退或失败已回滚——既有调用方忽略
+   *  返回值不受影响,盲选 overlay 据此决定是否推进下一组。 */
+  selectWinner: (
+    nodeId: string,
+    opts?: { frameSlot?: 'first' | 'last'; blind?: SelectWinnerBlindMeta },
+  ) => Promise<boolean>
 
   // 分支操作
   /** 55-06 (NAV-06):乐观 + 逐变化分支 REST PATCH + 失败整体回滚(selectWinner 范式)。 */
@@ -984,7 +990,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     // Phase 49 (D-04)：选定即时持久化 —— 无项目上下文时无法落库，早退不给"假成功"
     if (!projectId || !episodesId) {
       showToast('缺少项目上下文', 'warning')
-      return
+      return false
     }
 
     // canonical 路径：包内 selectVariant 纯函数（P12：winner 选定 + 下游边置灰 + 组 winner 持久化）
@@ -1002,31 +1008,34 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
           next = selectVariant(graph, group.id, nodeId)
         } catch (err) {
           showToast(`选定失败: ${(err as Error).message}`, 'error')
-          return
+          return false
         }
         get().setGraph(next, get().warnings)
         // Phase 49 (D-04)：乐观更新已上屏，追加 49-01 端点持久化；失败回滚 prevGraph，
         // UI 不呈现"已换选但库里没写"的假象（SC-2）
         try {
-          // 53-05 D-11:frameSlot 透传(第 6 参)——G13 首尾分选的端点参数面
-          await selectVariantWinner(projectId, episodesId, group.id, nodeId, undefined, opts?.frameSlot)
+          // 53-05 D-11:frameSlot 透传(第 6 参)——G13 首尾分选的端点参数面;
+          // 盲选批 M1:第 7 参 blind 元数据(在场时端点追加 decision/v1 账本事件);
+          // 第 7 参条件展开:不带 blind 保持 Phase 49 原 6 参调用形状逐字节不变
+          await selectVariantWinner(projectId, episodesId, group.id, nodeId, undefined, opts?.frameSlot, ...(opts?.blind != null ? [opts.blind] : []))
           showToast(`已选为优胜: ${nodeId}`, 'success')
+          return true
         } catch (err) {
           get().setGraph(prevGraph, get().warnings)
           showToast(`选定失败已回滚: ${(err as Error).message}`, 'error')
+          return false
         }
-        return
       }
       // graph 存在但该资产不在任何 V3 组里 → 落到旧路径会找不到组，直接提示
       showToast('该节点不属于变体组', 'warning')
-      return
+      return false
     }
 
     // 旧路径已废弃（53-05 D-12：双轨清除——本地 RF 选定与 v3 canonical 真值
     // 分叉，正是 Phase 51 写路径统一要消灭的形态）。graph 为空时不再有本地
     // 选定；等图加载（load-v2）后经 v3 路径 + select-winner 端点操作。
     console.warn('[canvasStore] legacy RF selectWinner 已废弃（D-12）：选定必须经 v3 graph + select-winner 端点')
-    return
+    return false
   },
 
   // 分支操作
