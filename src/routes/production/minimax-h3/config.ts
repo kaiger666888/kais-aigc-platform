@@ -615,9 +615,8 @@ export const H3_PROFILES: Record<H3ProfileName, H3ProfilePreset> = {
 //                   low→turbo 6步 / medium→turbo 8步 / high→native-sage 15步;
 //                   音频 tts-only: 跳 LTX Foley, TTS 对白与 H3 原生环境音混音
 //                   (修复旧 skipFoley 路径静默丢弃 ttsAudio 的 bug)。
-//   final-shot   —— P11b 成片: lightx2v-8-768p 9 步 (768p 训练域, 默认分辨率
-//                   1344×768 维持), 完整 LTX Foley 环境音 + TTS 混音管线
-//                   (audioMix 默认 balanced)。2026-08-28 Kai 盲测定案切换。
+//   final-shot   —— P11b 成片: native-sage 36 步 @1344×768 (默认分辨率), 完整
+//                   LTX Foley 环境音 + TTS 混音管线 (audioMix 默认 balanced)。
 //   final-motion —— (预留, 未暴露) 连续 motion 专用工作流; P09 分镜 schema 已有
 //                   camera_continuity/transition_method/首尾帧链 结构, 待设计。
 // 旧 5 档 (broll/keyframe-interp/portrait-dialogue/motion-board/lineart-color) 定义
@@ -652,13 +651,12 @@ export const H3_USE_CASES = {
     audio: "tts-only",
   },
   "final-shot": {
-    label: "P11b 成片 (lightx2v-8-768p 9 步, 完整 Foley + TTS 混音; Kai 盲测定案 2026-08-28)",
-    profile: "lightx2v-8-768p",
+    label: "P11b 成片 (native-sage 36 步 @1344×768, 完整 Foley + TTS 混音)",
+    profile: "native-sage",
     mode: "ref2va",
     audioMix: "balanced",
-    steps: 9,
+    steps: 36,
     audio: "full",
-    // ⚠️ blockCache 仅 native-sage 链路被 KAP 消费; 本档下 h3_blockCache 透传但被静默忽略。
   },
   broll: {
     label: "纯文本空镜 / B-roll (t2va, 无参考图, full Foley)",
