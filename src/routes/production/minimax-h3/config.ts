@@ -697,7 +697,7 @@ export type H3UseCaseName = keyof typeof H3_USE_CASES;
 // 所有 POST 路由 (generate/t2va/i2va/ref2va) 校验 profile 必须在白名单内,
 // 不在则 400 且错误信息只列白名单项; GET /workflows 能力清单也只返回白名单内容。
 // H3_PROFILES / H3_USE_CASES 里的其余档位定义保留不删 —— 重新开放 = 改这两个数组。
-export const H3_EXPOSED_PROFILES: readonly H3ProfileName[] = ["turbo", "native-sage"];
+export const H3_EXPOSED_PROFILES: readonly H3ProfileName[] = ["turbo", "native-sage", "lightx2v-8-768p"];
 export const H3_EXPOSED_USE_CASES: readonly H3UseCaseName[] = ["preview-lock", "final-shot"];
 
 // ============================================================
