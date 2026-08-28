@@ -535,7 +535,8 @@ export function buildH3WorkflowNative(opts: H3GenOpts): Record<string, any> {
 // H3 SigmaShift + LoRA 工作流构建 (LightX2V Turbo LoRA v1.0 4步/8步 / LineartAnime LoRA, 无 T8)
 // ============================================================
 //
-// LightX2V Turbo LoRA v1.0 正式版: lightx2v-4 (~72s, 768p, shift=6) / lightx2v-8 (~120s, 544p, shift=12)。
+// LightX2V Turbo LoRA v1.0 正式版: lightx2v-4 (~72s, 768p, shift=6) / lightx2v-8 (~120s, 544p, shift=12)
+// / lightx2v-8-768p (8步 768p 原生训练, shift=6, 2026-08-27 发布)。
 // LineartAnime LoRA (lineart-anime profile): rank=32, 20 步, 标准 shift=12, 仅 ref2va。
 // 两者共享同一 SigmaShift + LoRA + KSampler 拓扑, 故本函数已泛化为接受任意 LoRA 配置 (loraConfig)。
 // 三种模式共享节点 10/11/12/13/14_shift/15/16/20/30/31/32/33/34/40/41/42/50, 仅在以下处分支:
@@ -543,7 +544,7 @@ export function buildH3WorkflowNative(opts: H3GenOpts): Record<string, any> {
 //   - 节点 20 (正面条件): t2va/i2va 用 MiniMaxH3ImageToVideo; ref2va 用 MiniMaxH3ReferenceToVideo (同 native)
 //   - LoadImage 节点: i2va 首帧 = 节点 14; ref2va 参考图 = 节点 14/141/142... (同 native)
 // ⚠️ 关键区别 (与 native / T8):
-//   - 使用 SigmaShift (节点 14_shift) —— v1.0 按 variant 设 shift_video (4步=6, 8步=12), shift_audio=3.0。
+//   - 使用 SigmaShift (节点 14_shift) —— v1.0 按 variant 设 shift_video (4步=6, 8步544p=12, 8步768p=6), shift_audio=3.0。
 //     v0.1 旧版不带 SigmaShift 导致极暗画面; 正式版修正了 sigma schedule 故必须带 shift。
 //   - 不使用 T8 节点 (MiniMaxH3AudioConditioningT8 / DualClockSamplerT8 / AVDecodeT8)
 //   - 不使用 T8 Turbo LoRA (用独立 LightX2V LoRA, strength=1.0)
@@ -587,7 +588,8 @@ function buildH3WorkflowLightX2V(
     "13": { class_type: "VAELoader", inputs: { vae_name: H3_DEFAULTS.audioVaeName } },
 
     // === SigmaShift (LightX2V v1.0: shift 值因版本而异) ===
-    // 4步正式版: shift_video=6 (768p 训练优化); 8步正式版: shift_video=12 (544p mixed 训练)。
+    // 4步正式版: shift_video=6 (768p 训练优化); 8步544p版: shift_video=12 (mixed 训练);
+    // 8步768p版: shift_video=6 (768p 训练, 非 544p 版的 12)。
     // v0.1 旧版不用 SigmaShift → 极暗画面的真因正是缺少 shift。节点 ID 用 "14_shift"
     // 避免与 i2va 首帧 / ref2va 参考图的 LoadImage "14"/"141" 槽位冲突。
     "14_shift": {
@@ -1004,12 +1006,18 @@ export default router.post(
       blockCache: blockCacheOn,         // 仅 native 链路 builder 读取 (T8/LightX2V 忽略)
       blockCacheThreshold,              // 实际生效值 (请求覆盖或默认 0.4)
     };
-    // SigmaShift + LoRA 工作流 (无 T8): LightX2V Turbo LoRA v1.0 (lightx2v-4/8) 或
+    // SigmaShift + LoRA 工作流 (无 T8): LightX2V Turbo LoRA v1.0 (lightx2v-4/8/8-768p) 或
     // LineartAnime LoRA (lineart-anime)。三者共享同一拓扑, 仅 LoRA 配置/steps/shift 不同。
     // 用 rawProfile 字符串解析配置 (这些 profile.native=false 故 effectiveNative=false, 不会误入 native)。
     let loraShiftConfig: H3LoraShiftConfig | null = null;
-    if (rawProfile === "lightx2v-4" || rawProfile === "lightx2v-8") {
-      loraShiftConfig = H3_LIGHTX2V_VARIANTS[rawProfile as "lightx2v-4" | "lightx2v-8"];
+    if (
+      rawProfile === "lightx2v-4" ||
+      rawProfile === "lightx2v-8" ||
+      rawProfile === "lightx2v-8-768p"
+    ) {
+      loraShiftConfig = H3_LIGHTX2V_VARIANTS[
+        rawProfile as "lightx2v-4" | "lightx2v-8" | "lightx2v-8-768p"
+      ];
     } else if (rawProfile === "lineart-anime") {
       loraShiftConfig = H3_LINEART_ANIME;
     }
