@@ -146,6 +146,22 @@ export function getRegisteredServices(): ServiceProfile[] {
       healthTimeoutMs: 330_000, // 外层保险 (脚本内 wait_ready 300s 已兜底); 18.6GB NTFS 冷读
       idleTimeoutMs: 30 * 60 * 1000, // 30min 空闲释放 (与 qwen-llm 同策略)
     },
+    // Qwen3.8-27B vLLM (Huihui-Abliterated W4A16) — GPU 1, 纯文本批量推理档 :18020。
+    // 2026-08-29 收编: 之前是调度盲区(手动 qwen38.sh 拉起), 渲染/p11c 拉起 :8125 时抢卡。
+    // 与 qwen-llm(:8125) 显存互斥 (17.5G + 20.5G > 24G), ensureVram 按 VRAM 互相驱逐。
+    {
+      id: "qwen-vllm",
+      name: "Qwen3.8-27B vLLM (Huihui-Abliterated W4A16, batch)",
+      gpuId: 1,
+      vramEstMb: 17_500,
+      priority: 2, // 与 qwen-llm/qwen-ear 同级 (常驻低频服务, 渲染时让位)
+      category: "llm",
+      start: { type: "script", command: "bash", args: ["/opt/qwen-llm/kap-llm.sh", "start", "vllm-huihui"], timeoutMs: 1_200_000 },
+      stop: { type: "script", command: "bash", args: ["/opt/qwen-llm/kap-llm.sh", "stop"], timeoutMs: 120_000 },
+      healthUrl: "http://127.0.0.1:18020/health",
+      healthTimeoutMs: 960_000,
+      idleTimeoutMs: 30 * 60 * 1000,
+    },
   ];
 }
 
