@@ -68,6 +68,10 @@ const ROUTE_OVERRIDES: Record<string, string> = {
   // list expects mount at /v1/skills (handler: GET /), NOT /v1/skills/list
   "/v1/skills/list": "/v1/skills",
   // register stays as literal /v1/skills/register (correct as-is, handler: POST /)
+  // select-winner handler 内部路径是 /:groupId/select-winner,
+  // 挂载必须在 /canvas/v2/variant-groups (与前端 canvasApi.ts 契约一致)。
+  // 文件名派生会错挂成 /canvas/v2/select-winner → 双重路径 404 (08-25 实锤)。
+  "/canvas/v2/select-winner": "/canvas/v2/variant-groups",
 };
 
 function applyRouteOverride(routePath: string): string {
