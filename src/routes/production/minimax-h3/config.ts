@@ -264,9 +264,9 @@ export const H3_TURBO = {
   nodeId: "14_lora",          // LoraLoaderBypassModelOnly 节点 ID
   loaderClassType: "LoraLoaderBypassModelOnly", // INT8 模型用 bypass (非合并)
   // 动态分级步数策略 (2026-08-08 实测: 高动态4步画面崩坏严重,8步显著改善)
-  // 2026-08-17 分档调整: 中动态 4→8 步 (4 步中动态画面偏软); 高动态在 preview-lock
-  // 路由下已跳拓扑到 native-sage 15 步 (见 H3_PREVIEW_MOTION_ROUTES), 此表仅服务
-  // 显式 turbo=true 的直调 (thin routes / generate 平铺参数)。
+  // 2026-08-17 分档调整: 中动态 4→8 步 (4 步中动态画面偏软)。2026-08-31 preview 统一
+  // 9 步 (blind3 盲测定案) 后 preview-lock 路由已不再用 turbo (见 H3_PREVIEW_MOTION_ROUTES),
+  // 此表仅服务显式 turbo=true 的直调 (thin routes / generate 平铺参数)。
   motionSteps: {
     low: 6,       // 站立/对白/慢速移动
     medium: 8,    // 拥抱/行走/轻微动作 (2026-08-17: 4→8)
@@ -611,8 +611,9 @@ export const H3_PROFILES: Record<H3ProfileName, H3ProfilePreset> = {
 // 语义: useCase 只提供默认值; 调用方显式传 mode/profile/motion/steps/audioMix 仍可覆盖 (显式优先)。
 //
 // 2026-08-17 档位重构 (API 精简): 只暴露主链路两档 (见 H3_EXPOSED_USE_CASES 白名单):
-//   preview-lock —— P11a 创意锁定预览, motion 跨拓扑路由 (见 H3_PREVIEW_MOTION_ROUTES):
-//                   low→turbo 6步 / medium→turbo 8步 / high→native-sage 15步;
+//   preview-lock —— P11a 创意锁定预览, motion 路由 (见 H3_PREVIEW_MOTION_ROUTES):
+//                   2026-08-31 preview 统一 9 步 (blind3 盲测定案):
+//                   low/medium/high 全走 lightx2v-8-768p 9 步, 与成片同链同 LoRA;
 //                   音频 tts-only: 跳 LTX Foley, TTS 对白与 H3 原生环境音混音
 //                   (修复旧 skipFoley 路径静默丢弃 ttsAudio 的 bug)。
 //   final-shot   —— P11b 成片: lightx2v-8-768p 9 步 (768p 训练域, 默认分辨率
@@ -645,7 +646,7 @@ export interface H3UseCasePreset {
 
 export const H3_USE_CASES = {
   "preview-lock": {
-    label: "P11a 创意锁定预览 (motion 路由: low→turbo6 / medium→turbo8 / high→native-sage15; TTS-only 混音)",
+    label: "P11a 创意锁定预览 (lightx2v-8-768p 9步, 与成片同链 — 2026-08-31 preview 统一 9 步 blind3 盲测定案; TTS-only 混音)",
     profile: "turbo",
     mode: "ref2va",
     motion: "medium",
@@ -703,17 +704,17 @@ export const H3_EXPOSED_PROFILES: readonly H3ProfileName[] = ["turbo", "native-s
 export const H3_EXPOSED_USE_CASES: readonly H3UseCaseName[] = ["preview-lock", "final-shot"];
 
 // ============================================================
-// H3_PREVIEW_MOTION_ROUTES —— 预览档动态路由 (2026-08-17 新分档)
+// H3_PREVIEW_MOTION_ROUTES —— 预览档动态路由
 // ============================================================
-// preview-lock 按 motion 跨拓扑解析 profile+steps (取代旧 getTurboSteps 4/4/8 全 T8):
-//   low    → turbo      6 步 (T8 Turbo LoRA, 站立/对白/慢速, ~140s)
-//   medium → turbo      8 步 (T8 Turbo LoRA, 行走/轻微动作; 4 步中动态偏软)
-//   high   → native-sage 15 步 (Native KSampler, 追逐/打斗; T8 低步数高动态崩坏, 跳拓扑)
+// 2026-08-31 preview 统一 9 步 (blind3 盲测定案): 三档全走 lightx2v-8-768p 9 步,
+// 与 final-shot 成片同链同 LoRA (2026-08-30 blind3 三动态盲测 9步全胜36步基模, 高动 2.4×),
+// 取代旧分档 (low→turbo 6 / medium→turbo 8 / high→native-sage 15 跨拓扑跳档)。
+// motion 仍保留在路由键上: 调用方无需改传参, 未来再按 motion 细分只改此表。
 // 音频统一走 useCase.audio="tts-only"。调用方显式传 profile/steps 仍可覆盖 (显式优先)。
 export const H3_PREVIEW_MOTION_ROUTES: Record<H3MotionLevel, { profile: H3ProfileName; steps: number }> = {
-  low: { profile: "turbo", steps: 6 },
-  medium: { profile: "turbo", steps: 8 },
-  high: { profile: "native-sage", steps: 15 },
+  low: { profile: "lightx2v-8-768p", steps: 9 },
+  medium: { profile: "lightx2v-8-768p", steps: 9 },
+  high: { profile: "lightx2v-8-768p", steps: 9 },
 } as const;
 
 // ============================================================
