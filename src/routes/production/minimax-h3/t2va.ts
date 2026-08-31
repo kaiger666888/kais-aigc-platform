@@ -61,6 +61,7 @@ import {
   H3_RESOLUTION_TABLE,
   H3_DURATION_TABLE,
   alignH3FrameCount,
+  checkH3TokenBudget,
   getTurboSteps,
 } from "./config";
 
@@ -455,6 +456,32 @@ export default router.post(
     } else {
       length = alignH3FrameCount(H3_DEFAULTS.defaultLength);
       durationSeconds = length / H3_CONSTANTS.FPS;
+    }
+
+    // ── Token 预算校验 (2026-08-14 压力测试: 崩溃由 width×height×length 决定) ──
+    // reject → 400 拒绝 (340M+ 实测双后端崩溃); warn → 日志放行 (326M 实测可过, 不误杀)。
+    // 与 /generate 同一门 (镜像其 400 响应形状), 防 1344×768×362f=374M 必拒档绕道直连端点进 GPU 队列。
+    const tokenBudget = checkH3TokenBudget(width, height, length);
+    if (tokenBudget.level === "reject") {
+      return res.status(400).send(error(tokenBudget.message, {
+        tokenBudget: {
+          tokens: tokenBudget.tokens,
+          level: tokenBudget.level,
+          safeLine: 300_000_000,
+          crashLine: 340_000_000,
+          requested: { width, height, length },
+          suggestion:
+            length >= 340
+              ? { width: 1280, height: 704, length, note: "满时长请降分辨率 (1280×704×362f=326M 实测可过)" }
+              : { width: 1344, height: 768, length: Math.min(length, 311), note: "1344×768 最高 311f (13s)" },
+        },
+      }));
+    }
+    if (tokenBudget.level === "warn") {
+      console.warn(
+        `[t2va] H3 token budget WARN: ${width}×${height}×${length}f = ` +
+        `${tokenBudget.tokens.toLocaleString()} tokens — ${tokenBudget.message}`,
+      );
     }
 
     const workflow = native
