@@ -5,7 +5,8 @@
  *   cd /data/workspace/kais-aigc-platform && node --import tsx --test src/services/gpu/__tests__/gpuSchedulerProfiles.test.ts
  *
  * 隔离策略: getRegisteredServices() 是纯函数, 只断言注册表形态,
- * 不触发任何 docker / nvidia-smi / 健康检查网络调用。
+ * 不触发任何 docker / 健康检查网络调用。(2026-09-01 双3090 角色化后, 模块加载时
+ * GPU_DEVICES 快照会经 gpuRoles 探测一次 nvidia-smi — 失败静默回退硬编码, 无断言影响。)
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";

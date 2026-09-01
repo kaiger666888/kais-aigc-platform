@@ -43,7 +43,7 @@ services:
   # ---------------------------------------------------------------------------
   # 职责: 视频生成(Wan 2.2/1.4 I2V-T2V)、FLUX 图像、LTX-Video、
   #       TRELLIS2 3D 生成、抽卡预览、大模型推理
-  # GPU: RTX 3090 24GB (device_ids: ["1"])
+  # GPU: RTX 3090 24GB (device_ids: ["${KAIS_RENDER_GPU_INDEX:-1}"])
   # 端口: 8188
   # ---------------------------------------------------------------------------
   comfyui-primary:
@@ -60,7 +60,7 @@ services:
     environment:
       COMFYUI_LISTEN: "0.0.0.0"
       COMFYUI_PORT: 8188
-      NVIDIA_VISIBLE_DEVICES: "1"
+      NVIDIA_VISIBLE_DEVICES: "${KAIS_RENDER_GPU_INDEX:-1}"
       NVIDIA_DRIVER_CAPABILITIES: "compute,utility,graphics"
       # Phase 36 follow-up: 强制 PyTorch 按 PCI 总线序,与 nvidia-smi 编号对齐
       # 容器内只看到 1 张 GPU (隔离后),cuda:0 永远是被隔离的那张,但保持显式声明以防 NVIDIA Container Toolkit 行为变化
@@ -125,7 +125,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ["1"]
+              device_ids: ["${KAIS_RENDER_GPU_INDEX:-1}"]
               capabilities: [gpu]
     shm_size: "4g"
     healthcheck:
@@ -140,7 +140,7 @@ services:
   # ---------------------------------------------------------------------------
   # 职责: 4x 放大/超分辨率、背景移除(RMBG)、SDXL 抽卡预处理、
   #       轻量图像后处理、音频预处理
-  # GPU: RTX 3060Ti 8GB (可用 ~5.5GB, device_ids: ["0"])
+  # GPU: RTX 3060Ti 8GB (可用 ~5.5GB, device_ids: ["${KAIS_AUX_GPU_INDEX:-0}"])
   # 端口: 8189
   # ⚠️ 不可用于: 大模型推理 (>5GB VRAM)、视频生成、3D
   # ---------------------------------------------------------------------------
@@ -157,7 +157,7 @@ services:
     environment:
       COMFYUI_LISTEN: "0.0.0.0"
       COMFYUI_PORT: 8188
-      NVIDIA_VISIBLE_DEVICES: "0"
+      NVIDIA_VISIBLE_DEVICES: "${KAIS_AUX_GPU_INDEX:-0}"
       NVIDIA_DRIVER_CAPABILITIES: "compute,utility,graphics"
       CUDA_DEVICE_ORDER: PCI_BUS_ID
       TORCH_CUDA_DISABLE_TRITON: "1"
@@ -184,7 +184,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ["0"]
+              device_ids: ["${KAIS_AUX_GPU_INDEX:-0}"]
               capabilities: [gpu]
     shm_size: "2g"
     healthcheck:
@@ -203,7 +203,7 @@ services:
   # 3. kais-gold-team (统一执行 Agent) — GPU 调度中枢
   # ---------------------------------------------------------------------------
   # 负责: 调用 ComfyUI primary/auxiliary + 云端引擎执行任务
-  # GPU: 绑定 3090 (device_ids: ["1"])，用于 CosyVoice/ACE-Step 本地推理
+  # GPU: 绑定 3090 (device_ids: ["${KAIS_RENDER_GPU_INDEX:-1}"])，用于 CosyVoice/ACE-Step 本地推理
   # 路由: 根据工作流类型分发到 primary 或 auxiliary
   # ---------------------------------------------------------------------------
   kais-gold-team:
@@ -264,7 +264,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ["1"]     # GPU 1 = RTX 3090
+              device_ids: ["${KAIS_RENDER_GPU_INDEX:-1}"]     # 默认 GPU 1 = RTX 3090 (插卡日 setup 脚本回填 .env 防枚举漂移)
               capabilities: [gpu]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
@@ -451,7 +451,7 @@ services:
     ports:
       - "${LORA_TRAINER_PORT:-8070}:8070"
     environment:
-      NVIDIA_VISIBLE_DEVICES: "1"
+      NVIDIA_VISIBLE_DEVICES: "${KAIS_RENDER_GPU_INDEX:-1}"
       NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
       CUDA_DEVICE_ORDER: PCI_BUS_ID
       DATA_DIR: "/data"
@@ -476,7 +476,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ["1"]
+              device_ids: ["${KAIS_RENDER_GPU_INDEX:-1}"]
               capabilities: [gpu]
     networks:
       - kais-net

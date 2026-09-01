@@ -17,6 +17,9 @@ import axios from "axios";
 // gpuVramManager 的服务级占位 — 此前 idle 超时/GpuScheduler.release 只停服务,
 // 队列占位残留孤儿化 (ep-ccport-test01 p11a 5h 死锁的 D5 因子)。
 import { releaseEngineOccupancy } from "@/lib/gpuVramManager";
+// 双3090 Phase A (docs/gpu-dual-3090-expansion.md): 角色→UUID→索引解析库。
+// 索引一律运行时解析 (PCIe 枚举漂移免疫); 全链失败静默回退硬编码, 绝不抛异常。
+import { getGpuDevices, resolveServiceIndex, resolveServiceIndexSync } from "./gpuRoles";
 import type {
   GpuDevice,
   ServiceProfile,
@@ -60,6 +63,8 @@ export function getRegisteredServices(): ServiceProfile[] {
       idleTimeoutMs: 0,
     },
     // ComfyUI Auxiliary — GPU 0 (3060Ti), 空闲 10min 释放 (D9 注记同上)
+    // 双3090 Phase A: 不写 gpuRole, 默认按 id 命中 conf `comfyui-auxiliary_role=AUX_LIGHT`
+    // (chatterbox 同理) → AUX_LIGHT_UUID=3060Ti → 索引 0 = gpuId 兜底值, 行为不变。
     {
       id: "comfyui-auxiliary",
       name: "ComfyUI Auxiliary",
@@ -78,6 +83,9 @@ export function getRegisteredServices(): ServiceProfile[] {
       id: "cosyvoice",
       name: "CosyVoice TTS (bilingual)",
       gpuId: 1,
+      // 实际宿主是 kais-gold-team 容器 (tts_manager.py) → 角色键跟 conf 的
+      // kais-gold-team_role 走, 不用 profile.id (conf 无 cosyvoice_role 行)。
+      gpuRole: "kais-gold-team",
       vramEstMb: 3_500,
       priority: 1,
       category: "tts",
@@ -121,6 +129,9 @@ export function getRegisteredServices(): ServiceProfile[] {
       id: "qwen-llm",
       name: "Qwen3.8-27B LLM (llama.cpp, UD-Q4_K_XL)",
       gpuId: 1,
+      // 双3090 Phase A: gpuRole = gpu.conf 服务键 (此处与 id 同名, 插卡日 conf 翻
+      // qwen-llm_role=QC_GEN2 即切卡, 免改代码); 缺省本就用 id, 显式写出作机制示例。
+      gpuRole: "qwen-llm",
       vramEstMb: 20_500, // Q4 独占档 17.9G 权重 + 64K ctx 双 slot KV; kap-llm NEED_MB 20500 同源
       priority: 2, // 高于 comfyui(0)/tts(1), 低于 lora-trainer(3); 常驻低频服务, 渲染时让位
       category: "llm",
@@ -170,17 +181,30 @@ export function getRegisteredServices(): ServiceProfile[] {
 // GpuScheduler 管**服务生命周期** (docker/script 拉停), gpuVramManager 管**队列
 // 占位** — 两层各管各的导致停服务后占位残留。此映射让 release() 停完服务后
 // 顺手解掉对应引擎的队列占位 (releaseEngineOccupancy 幂等: 非持有者 no-op)。
-const SERVICE_TO_QUEUE_ENGINE: Record<string, { engine: string; gpuIndex: number }> = {
-  "qwen-llm": { engine: "qwen_eye", gpuIndex: 1 }, // :8125 ↔ llm 路由的 QWEN_EYE_QUEUE_KEY
-  "qwen-ear": { engine: "qwen_ear", gpuIndex: 1 }, // :8126 ↔ ear 路由
+const SERVICE_TO_QUEUE_ENGINE: Record<string, { engine: string }> = {
+  "qwen-llm": { engine: "qwen_eye" }, // :8125 ↔ llm 路由的 QWEN_EYE_QUEUE_KEY
+  "qwen-ear": { engine: "qwen_ear" }, // :8126 ↔ ear 路由
 };
 
 // ─── GPU 设备 ─────────────────────────────────────────
 
-export const GPU_DEVICES: GpuDevice[] = [
-  { id: 0, name: "RTX 3060 Ti", totalMb: 8192, gpusFlag: '"device=0"' },
-  { id: 1, name: "RTX 3090", totalMb: 24576, gpusFlag: '"device=1"' },
-];
+/**
+ * 兼容导出 — 模块加载时经 gpuRoles.getGpuDevices() 探测一次的快照
+ * (nvidia-smi 失败静默回退今日两卡硬编码, 启动路径零异常)。
+ * 动态视图 (插卡后 3 卡 / getState 实时设备表) 请用 getGpuDevices();
+ * 本常量仅为既有 import 点 (services/gpu/index.ts, scripts/verify-phase-23.ts) 保形。
+ */
+export const GPU_DEVICES: GpuDevice[] = getGpuDevices();
+
+/**
+ * Profile → 当前 GPU 索引 (双3090 Phase A 角色化)。
+ * 解析链: profile.gpuRole ?? profile.id → gpu.conf `<键>_role` → 角色 → UUID
+ * → nvidia-smi 实时索引 (进程内 5s TTL 缓存); 任何一环失败落回 profile.gpuId
+ * 静态值 (= 今日拓扑), 不抛异常。
+ */
+export function profileGpuIndex(profile: ServiceProfile): number {
+  return resolveServiceIndexSync(profile.gpuRole ?? profile.id) ?? profile.gpuId;
+}
 
 // ─── 调度器类 ─────────────────────────────────────────
 
@@ -289,7 +313,7 @@ export class GpuScheduler {
           const envFlags = Object.entries(mergedEnv).flatMap(([k, v]) => ["-e", `${k}=${v}`]);
           const volFlags = Object.entries(step.volumes || {}).flatMap(([host, container]) => ["-v", `${host}:${container}`]);
           const args = [
-            "run", "-d", "--gpus", GPU_DEVICES.find(g => g.id === profile.gpuId)?.gpusFlag || '"device=1"',
+            "run", "-d", "--gpus", getGpuDevices().find(g => g.id === profileGpuIndex(profile))?.gpusFlag || '"device=1"',
             "--name", step.containerName,
             ...step.runArgs, ...envFlags, ...volFlags, step.image,
           ];
@@ -360,6 +384,10 @@ export class GpuScheduler {
       return { granted: false, serviceId: req.serviceId, variantId: null, accessUrl: null, scheduledMs: 0, error: `Unknown service: ${req.serviceId}` };
     }
 
+    // 双3090 Phase A: profile.gpuId 只是静态兜底, 实际索引按 gpu.conf 角色链运行时解析
+    // (UUID→index 查询; 解析失败落 profile.gpuId, 不抛异常)。锁/驱逐/启动全程用同一索引。
+    const gpuIndex = profileGpuIndex(profile);
+
     // Record request time
     const state = this.services.get(req.serviceId)!;
     state.lastRequestAt = new Date().toISOString();
@@ -387,19 +415,19 @@ export class GpuScheduler {
     }
 
     // Acquire GPU lock via store (atomic cross-process when Redis-backed)
-    const acquired = await this.store.acquireLock(profile.gpuId, req.caller, LOCK_TTL_MS);
+    const acquired = await this.store.acquireLock(gpuIndex, req.caller, LOCK_TTL_MS);
     if (!acquired) {
       // Check if we already hold it (re-entrance is allowed)
-      const current = await this.store.getLock(profile.gpuId);
+      const current = await this.store.getLock(gpuIndex);
       if (current !== req.caller) {
-        return { granted: false, serviceId: req.serviceId, variantId: null, accessUrl: null, scheduledMs: 0, error: `GPU ${profile.gpuId} locked by ${current}` };
+        return { granted: false, serviceId: req.serviceId, variantId: null, accessUrl: null, scheduledMs: 0, error: `GPU ${gpuIndex} locked by ${current}` };
       }
     }
     // Auto-release safety net (in-process; TTL in store is the cross-process safety net)
     let lockTimeout: NodeJS.Timeout | null = null;
     const autoReleaseLock = async () => {
       if (lockTimeout) clearTimeout(lockTimeout);
-      await this.store.releaseLock(profile.gpuId, req.caller);
+      await this.store.releaseLock(gpuIndex, req.caller);
     };
     lockTimeout = setTimeout(() => { void autoReleaseLock(); }, LOCK_TTL_MS);
 
@@ -411,7 +439,7 @@ export class GpuScheduler {
       const targetVram = variant?.vramEstMb || profile.vramEstMb;
 
       // Evict lower-priority services if needed
-      const evicted = await this.ensureVram(profile.gpuId, targetVram, profile.priority, req.caller);
+      const evicted = await this.ensureVram(gpuIndex, targetVram, profile.priority, req.caller);
 
       // Start the target service
       state.status = "starting";
@@ -480,10 +508,12 @@ export class GpuScheduler {
       // D5 联动: 服务已停 → 队列占位同步解除 (幂等, 未占位时 no-op)。
       const queueEngine = SERVICE_TO_QUEUE_ENGINE[serviceId];
       if (queueEngine) {
+        // 双3090 Phase A: 占位 GPU 索引按角色链运行时解析 (旧硬编码 1; 解析失败仍落 1)
+        const gpuIndex = (await resolveServiceIndex(serviceId)) ?? 1;
         console.log(
-          `[GpuScheduler] service ${serviceId} stopped — releasing queue occupancy for ${queueEngine.engine} GPU${queueEngine.gpuIndex}`,
+          `[GpuScheduler] service ${serviceId} stopped — releasing queue occupancy for ${queueEngine.engine} GPU${gpuIndex}`,
         );
-        releaseEngineOccupancy(queueEngine.engine, queueEngine.gpuIndex);
+        releaseEngineOccupancy(queueEngine.engine, gpuIndex);
       }
     }
   }
@@ -496,7 +526,7 @@ export class GpuScheduler {
     for (const [id, state] of this.services) {
       if (id === exceptServiceId) continue;
       const profile = this.profilesCache.get(id)!;
-      if (profile.gpuId === gpuId && state.status !== "stopped") {
+      if (profileGpuIndex(profile) === gpuId && state.status !== "stopped") {
         await this.release(id);
       }
     }
@@ -514,12 +544,14 @@ export class GpuScheduler {
     for (const [gpuId, holder] of lockEntries) {
       locksObj[gpuId] = holder;
     }
-    // Ensure all known GPUs appear in the response (null if unheld)
-    for (const gpu of GPU_DEVICES) {
+    // Ensure all known GPUs appear in the response (null if unheld) —
+    // 双3090 Phase A: 设备表动态探测, 插卡后含 GPU2
+    const devices = getGpuDevices();
+    for (const gpu of devices) {
       if (!(gpu.id in locksObj)) locksObj[gpu.id] = null;
     }
     return {
-      devices: GPU_DEVICES.map(g => ({ ...g })),
+      devices: devices.map(g => ({ ...g })),
       services: Array.from(this.services.values()),
       pendingAllocation: null,
       locks: locksObj,
@@ -559,7 +591,7 @@ export class GpuScheduler {
       .filter(s => s.status !== "stopped" && s.profileId !== caller)
       .filter(s => {
         const p = this.profilesCache.get(s.profileId)!;
-        return p.gpuId === gpuId;
+        return profileGpuIndex(p) === gpuId;
       })
       .sort((a, b) => {
         const pa = this.profilesCache.get(a.profileId)!;
