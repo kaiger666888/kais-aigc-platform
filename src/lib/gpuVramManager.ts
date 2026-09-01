@@ -36,7 +36,11 @@
  *   KAP_VRAM_CACHE_MS              — nvidia-smi 结果缓存时长 (默认 5000ms)
  *   KAP_VRAM_FREE_TIMEOUT_MS       — ComfyUI /free 请求超时 (默认 5000ms)
  *   KAP_VRAM_FREE_WAIT_MS          — /free 后等待显存回收时长 (默认 3000ms)
- *   KAP_VRAM_GPU_INDEX             — ensureVram / withGpuQueue 默认 GPU 索引 (默认 1)
+ *   KAP_VRAM_GPU_INDEX             — ensureVram / withGpuQueue 默认 GPU 索引 (默认 1;
+ *                                    角色链解析失败时的现状链兜底之一, 见 B2b)
+ *   KAIS_GPU_CONF / KAIS_GPU_<KEY>_ROLE — GPU 角色化解析 (docs/gpu-dual-3090-expansion.md):
+ *                                    conf <engineKey>_role 有值时 engineGpuIndex 按角色
+ *                                    解析, 覆盖 ENGINE_GPU_INDEX 表值; 解析失败落表值
  *   KAP_VRAM_SKIP                  — "1" 跳过预检 (调试用)
  *   KAP_GPU_QUEUE_TIMEOUT_MS       — 锁内 vram_retry 等待上限 (默认 1800000 = 30min)
  *   KAP_GPU_LOCK_WAIT_TIMEOUT_MS   — 锁排队等待上限 (默认同 QUEUE_TIMEOUT; 0=禁用)
@@ -51,6 +55,9 @@ import { AsyncLocalStorage } from "async_hooks";
 // 跨进程门控 (P3-A/D4): 进程内锁之上的 redis mirror/strict 层, 默认 off —
 // 见 gpuQueueCrossProc.ts 头注释。
 import { getQueueGate } from "./gpuQueueCrossProc";
+// 双3090 Phase A 角色化 (docs/gpu-dual-3090-expansion.md): conf <engineKey>_role
+// → 角色 → UUID → nvidia-smi 索引; 失败静默回退本表现状链。
+import { lookupServiceRole, resolveRoleIndexSync } from "@/services/gpu/gpuRoles";
 
 const execFileAsync = promisify(execFile);
 
@@ -140,6 +147,12 @@ export const ENGINE_VRAM_REQUIREMENTS: Record<string, number> = {
 // 当前所有过队列的重型引擎都在 GPU1 (3090 生成卡) — 全表默认 1 = 行为不变。
 // 机制先行: 新增 GPU0 引擎 (如 comfyui-aux 类轻作业) 时在此登记 + 路由不传
 // gpuIndex 即自动落到正确卡, 与 defaultGpuIndex() (env 兜底) 解耦。
+//
+// 双3090 Phase A (docs/gpu-dual-3090-expansion.md): 引擎键在 gpu.conf 有
+// `<engineKey>_role` 登记 (env KAIS_GPU_<KEY>_ROLE 可覆盖) 时, engineGpuIndex
+// 按角色链运行时解析 (conf 现网已登记 qwen_tts/qwen_ear/qwen_eye/music3/sa3/ace/
+// indextts2 等, 插卡日 conf 翻 QC_GEN2 即整组切卡, 免改代码); 未登记/解析失败
+// 仍走本表现状链 — 全表默认 1 = 零行为变化。
 
 export const ENGINE_GPU_INDEX: Record<string, number> = {
   qwen_tts: 1,
@@ -162,8 +175,19 @@ export const ENGINE_GPU_INDEX: Record<string, number> = {
   // comfyui_aux: 0,
 };
 
-/** 引擎默认 GPU 归属 (未登记 → env KAP_VRAM_GPU_INDEX → 1) */
+/**
+ * 引擎默认 GPU 归属 (双3090 Phase A 角色化)。
+ * 解析顺序: conf/env `<engineKey>_role` 有值 → 角色链解析索引; 未登记或解析失败
+ * (nvidia-smi 不可用/UUID 不在位) → 现状链: 表内值 → env KAP_VRAM_GPU_INDEX → 1。
+ * 同步签名 (withGpuQueueTimed 排队路径在用) — 内部走 gpuRoles 的 5s TTL 缓存,
+ * 失败一律静默回退, 绝不抛异常。
+ */
 export function engineGpuIndex(engineKey: string): number {
+  const role = lookupServiceRole(engineKey);
+  if (role) {
+    const idx = resolveRoleIndexSync(role);
+    if (idx !== null) return idx;
+  }
   return ENGINE_GPU_INDEX[engineKey] ?? defaultGpuIndex();
 }
 

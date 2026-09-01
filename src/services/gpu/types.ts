@@ -42,8 +42,15 @@ export interface ServiceProfile {
   id: string;
   /** 显示名 */
   name: string;
-  /** 所属 GPU */
+  /** 所属 GPU (静态兜底值; 实际索引经 gpuRole 角色链运行时解析, 见下) */
   gpuId: number;
+  /**
+   * GPU 角色解析键 (双3090 Phase A, docs/gpu-dual-3090-expansion.md)。
+   * 传给 gpuRoles.resolveServiceIndexSync() 的服务名 — 命中
+   * /opt/kais-gpu/gpu.conf 的 `<键>_role` 行 (env KAIS_GPU_<键大写>_ROLE 可覆盖);
+   * 缺省用 profile.id。解析结果优先于 gpuId, 解析失败仍落 gpuId (今日拓扑)。
+   */
+  gpuRole?: string;
   /** 估计显存占用 MB */
   vramEstMb: number;
   /** 优先级 (0=最高, 5=最低) */
