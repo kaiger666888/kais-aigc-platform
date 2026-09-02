@@ -761,7 +761,8 @@ export default router.post(
     // ── useCase 分用途入口 (KMC 推荐: 一个参数解析 profile/mode/motion/audioMix) ──
     // useCase 仅提供默认值; 调用方显式传 mode/profile/motion/steps/audioMix 仍可覆盖 (显式优先)。
     // 2026-08-17 API 精简: 只接受白名单两档 (preview-lock / final-shot); 其余旧档
-    // (broll 等) 定义保留在 config.ts 但 400 拒绝。不传 useCase 时 profile 默认 turbo。
+    // (broll 等) 定义保留在 config.ts 但 400 拒绝。不传 useCase 时 profile 默认 lightx2v-8-768p
+    // (2026-09-02 turbo 退役, 原 fallback "turbo" 改为 blind3 定案的预览同链档)。
     const rawUseCase = (req.body.useCase as string)?.toLowerCase() || null;
     let useCasePreset: H3UseCasePreset | null = null;
     if (rawUseCase) {
@@ -778,8 +779,8 @@ export default router.post(
     if (!["low", "medium", "high"].includes(motion)) {
       return res.status(400).send(error(`motion must be one of: low | medium | high (got "${motion}")`));
     }
-    // 预览档动态路由 (2026-08-17): preview-lock 按 motion 跨拓扑解析 profile+steps
-    //   low→turbo 6步 / medium→turbo 8步 / high→native-sage 15 步。
+    // 预览档动态路由 (2026-08-17 建立; 2026-08-31 blind3 盲测后三档统一):
+    //   low/medium/high → 全走 lightx2v-8-768p 9 步 (与成片同链, 见 H3_PREVIEW_MOTION_ROUTES)。
     // 显式传 profile/steps 仍可覆盖 (显式优先)。
     const motionRoute =
       rawUseCase === "preview-lock"
@@ -835,13 +836,14 @@ export default router.post(
     const h3Seed = req.body.seed ? Number(req.body.seed) : Math.floor(Math.random() * 2147483647);
 
     // 采样步数覆盖 (优先级: 显式 steps > motion 路由(preview-lock) > useCase.steps > motion-based(turbo时) > profile.steps)
-    // 2026-08-17 API 精简: 只接受白名单 profile (turbo | native-sage); 其余旧档定义保留在
-    // config.ts H3_PROFILES 但 400 拒绝。默认 fallback 由 production 改为 turbo (最便宜预览拓扑)。
+    // 2026-08-17 API 精简: 只接受白名单 profile (native-sage | lightx2v-8-768p); 其余旧档定义保留在
+    // config.ts H3_PROFILES 但 400 拒绝。默认 fallback 2026-09-02 turbo 退役后由 "turbo"
+    // 改为 "lightx2v-8-768p" (blind3 定案的预览同链档, 原最便宜预览拓扑)。
     const rawProfile = (
       (req.body.profile as string) ||
       motionRoute?.profile ||
       useCasePreset?.profile ||
-      "turbo"
+      "lightx2v-8-768p"
     ).toLowerCase();
     if (!H3_EXPOSED_PROFILES.includes(rawProfile as (typeof H3_EXPOSED_PROFILES)[number])) {
       return res

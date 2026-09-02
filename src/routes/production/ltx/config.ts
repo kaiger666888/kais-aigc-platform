@@ -1,12 +1,20 @@
+// ⚠️ 本文件现仅为 ComfyUI 连接常量宿主; LTX 视频路由已于 2026-09-02 退役,
+// LTX 仅保留 Foley(见 minimax-h3/replace-audio.ts N1 工作流)。
+// ComfyUI 连接三常量 (comfyuiUrl/pollIntervalMs/pollTimeoutMs) 真源已提升到
+// src/lib/comfyui-conn.ts (comfyuiPoll.ts 从那里取); 本文件的 LTX_CONFIG 保留
+// 同名字段(取自 COMFYUI_CONN)做向后兼容。文件内其余 LTX_MSR_* / LTX_POSE 等
+// 常量已无消费者, 仅留档。
+import { COMFYUI_CONN } from "@/lib/comfyui-conn";
+
 export const LTX_CONFIG = {
-  comfyuiUrl: process.env.LTX_COMFYUI_URL || process.env.COMFYUI_URL || "http://localhost:8188",
+  comfyuiUrl: COMFYUI_CONN.comfyuiUrl,
   containerName: process.env.LTX_CONTAINER_NAME || "comfyui-primary",
   outputDir: process.env.OUTPUT_DIR || "/mnt/agents/output",
   comfyuiInputDir: "/root/ComfyUI/input",
   comfyuiOutputDir: "/root/ComfyUI/output",
-  pollIntervalMs: 2000,
-  pollTimeoutMs: 600_000, // 10 min
-  // External services for pose-video pipeline
+  pollIntervalMs: COMFYUI_CONN.pollIntervalMs,
+  pollTimeoutMs: COMFYUI_CONN.pollTimeoutMs, // 10 min
+  // External services for pose-video pipeline (路由已删, 仅留档)
   kimodoUrl: process.env.KIMODO_URL || "http://localhost:8002",
   blenderUrl: process.env.BLENDER_BVH_URL || "http://localhost:8095",
 };

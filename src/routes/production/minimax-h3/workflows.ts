@@ -5,7 +5,7 @@
  *
  * 返回当前暴露的工作流档位 (白名单内容, 见 config.ts H3_EXPOSED_*):
  *   - useCase 入口两档 (preview-lock 动态路由 / final-shot 成片)
- *   - profile 两档 (turbo / native-sage)
+ *   - profile 两档 (lightx2v-8-768p / native-sage; turbo 已于 2026-09-02 退役)
  *   - 分辨率预设表 + token 预算线
  * 供 KMC / 前端程序化发现可用工作流; 未列入白名单的档位一律 400 拒绝。
  */

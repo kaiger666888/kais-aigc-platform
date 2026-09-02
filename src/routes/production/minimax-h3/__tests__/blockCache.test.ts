@@ -572,11 +572,20 @@ export async function testHandlerE2e(): Promise<TestResult[]> {
     "e2e payload: blockCache=true + blockCacheThreshold=0.55 (元数据可核验)",
     JSON.stringify(on.json?.data)?.slice(0, 200));
 
-  // ④ turbo (T8/DualClock) + blockCache=on → 忽略
-  const turbo = await postGenerate(ctx, {
+  // ④a turbo profile 已退役 (2026-09-02 移出 H3_EXPOSED_PROFILES): 显式传 → 400
+  const turboProfileGone = await postGenerate(ctx, {
     ...e2eBase, profile: "turbo", steps: "8", blockCache: "on",
   });
-  check(results, turbo.status === 200, `turbo+blockCache=on 请求 200 (got ${turbo.status}: ${JSON.stringify(turbo.json).slice(0, 200)})`);
+  check(results, turboProfileGone.status === 400,
+    `profile="turbo" 退役后 400 (got ${turboProfileGone.status}: ${JSON.stringify(turboProfileGone.json)?.slice(0, 200)})`,
+    turboProfileGone.desc);
+
+  // ④ turbo 直调 (显式 turbo=true, T8/DualClock 拓扑; 不传 profile) + blockCache=on → 忽略
+  const { profile: _omittedProfile, ...noProfileBase } = e2eBase;
+  const turbo = await postGenerate(ctx, {
+    ...noProfileBase, turbo: "true", steps: "8", blockCache: "on",
+  });
+  check(results, turbo.status === 200, `turbo 直调+blockCache=on 请求 200 (got ${turbo.status}: ${JSON.stringify(turbo.json).slice(0, 200)})`);
   check(results, !!turbo.submittedWf, "turbo 请求: /prompt 提交图已捕获", turbo.desc);
   check(results,
     !!turbo.submittedWf && !JSON.stringify(turbo.submittedWf).includes("BlockCache"),
