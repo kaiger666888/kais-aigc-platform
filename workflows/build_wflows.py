@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate all ComfyUI workflow JSONs: LTX-2.3 (WF1-3) + Wan 2.2 (WF4-9).
+"""Generate all ComfyUI workflow JSONs: Wan 2.2 (WF4-9).
 
 Output format: ComfyUI API v0.4 (LiteGraph JSON)
 """
