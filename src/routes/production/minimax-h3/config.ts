@@ -253,7 +253,10 @@ export const H3_T8 = {
 // ⚠️ INT8/量化模型必须用 LoraLoader*Bypass* 而非普通合并型 (T8 README: 不要假设等价)。
 // ⚠️ Turbo 需非剪枝 fl2va 模型 —— pruned 模型无法完整应用 Turbo LoRA。
 //
-// 默认关闭 —— API 参数 turbo=true 或 profile="turbo" 时启用。
+// legacy: 仅服务显式 turbo=true 直调, KMC 主链已不走 turbo
+// (profile="turbo" 已于 2026-09-02 移出 H3_EXPOSED_PROFILES 白名单; preview-lock
+// 已统一 lightx2v-8-768p 9 步, 见 H3_PREVIEW_MOTION_ROUTES)。
+// 默认关闭 —— 仅 API 参数 turbo=true 显式直调时启用。
 // 步数由 motion 参数决定 (low/medium=4, high=8), 见 getTurboSteps()。
 export const H3_TURBO = {
   enabled: false,             // 默认关闭
@@ -500,8 +503,9 @@ export function resolveH3BlockCacheThreshold(raw: unknown): number {
 //   lineart-anime —— LineartAnime LoRA (DiffSynth-Studio, rank=32)。将线稿视频上色为彩色动漫视频,
 //                    20 步 + 标准 shift_video=12, 仅 ref2va 模式。复用 LightX2V 的 SigmaShift + LoRA
 //                    拓扑 (非 T8)。跳过 Foley (直出 H3 原生音频)。
-// 调用方通过 generate 的 `profile` 入参选择; 显式传 steps 时以 steps 为准 (但 turbo 仍由
-// profile.turbo / turbo 入参决定是否启用 LoRA)。
+// 调用方通过 generate 的 `profile` 入参选择 (须在 H3_EXPOSED_PROFILES 白名单内);
+// 显式传 steps 时以 steps 为准 (Turbo LoRA 仅由显式 turbo=true 入参启用;
+// profile="turbo" 已于 2026-09-02 移出白名单, 该档定义留档仅服务直调)。
 // nativeInterp 仅 native / native-sage 显式为 true, 其余档位保持 undefined (不插值)。
 export interface H3ProfilePreset {
   label: string;
@@ -647,7 +651,7 @@ export interface H3UseCasePreset {
 export const H3_USE_CASES = {
   "preview-lock": {
     label: "P11a 创意锁定预览 (lightx2v-8-768p 9步, 与成片同链 — 2026-08-31 preview 统一 9 步 blind3 盲测定案; TTS-only 混音)",
-    profile: "turbo",
+    profile: "lightx2v-8-768p",
     mode: "ref2va",
     motion: "medium",
     audio: "tts-only",
@@ -694,13 +698,16 @@ export const H3_USE_CASES = {
 export type H3UseCaseName = keyof typeof H3_USE_CASES;
 
 // ============================================================
-// H3_EXPOSED_* —— API 暴露白名单 (2026-08-17 精简决策)
+// H3_EXPOSED_* —— API 暴露白名单 (2026-08-17 精简决策; 2026-09-02 turbo 退役)
 // ============================================================
-// 只暴露 KMC 主链路两拓扑: turbo (T8+Turbo LoRA) / native-sage (Native KSampler)。
+// 只暴露 KMC 主链路两档: lightx2v-8-768p (LightX2V LoRA 9 步, preview/final 同链)
+// / native-sage (Native KSampler)。turbo 已于 2026-09-02 移出 (preview-lock 2026-08-31
+// 统一 lightx2v-8-768p 9 步后无 KMC 消费方); H3_PROFILES.turbo 定义保留, 仅服务
+// 显式 turbo=true 直调。
 // 所有 POST 路由 (generate/t2va/i2va/ref2va) 校验 profile 必须在白名单内,
 // 不在则 400 且错误信息只列白名单项; GET /workflows 能力清单也只返回白名单内容。
 // H3_PROFILES / H3_USE_CASES 里的其余档位定义保留不删 —— 重新开放 = 改这两个数组。
-export const H3_EXPOSED_PROFILES: readonly H3ProfileName[] = ["turbo", "native-sage", "lightx2v-8-768p"];
+export const H3_EXPOSED_PROFILES: readonly H3ProfileName[] = ["native-sage", "lightx2v-8-768p"];
 export const H3_EXPOSED_USE_CASES: readonly H3UseCaseName[] = ["preview-lock", "final-shot"];
 
 // ============================================================

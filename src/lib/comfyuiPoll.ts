@@ -8,7 +8,7 @@
 import axios from "axios";
 import path from "path";
 import fs from "fs";
-import { LTX_CONFIG } from "@/routes/production/ltx/config";
+import { COMFYUI_CONN } from "@/lib/comfyui-conn";
 
 export interface ComfyUiOutputFile {
   filename: string;
@@ -35,9 +35,9 @@ export async function pollComfyUi(
     onTick?: (elapsedMs: number, statusStr?: string) => void;
   } = {},
 ): Promise<PollResult> {
-  const comfyuiUrl = opts.comfyuiUrl || LTX_CONFIG.comfyuiUrl;
-  const interval = opts.pollIntervalMs ?? LTX_CONFIG.pollIntervalMs;
-  const timeout = opts.pollTimeoutMs ?? LTX_CONFIG.pollTimeoutMs;
+  const comfyuiUrl = opts.comfyuiUrl || COMFYUI_CONN.comfyuiUrl;
+  const interval = opts.pollIntervalMs ?? COMFYUI_CONN.pollIntervalMs;
+  const timeout = opts.pollTimeoutMs ?? COMFYUI_CONN.pollTimeoutMs;
   const start = Date.now();
   const deadline = start + timeout;
 
@@ -114,7 +114,7 @@ export function findOutputVideo(
  */
 export function buildViewUrl(
   file: ComfyUiOutputFile,
-  comfyuiUrl: string = LTX_CONFIG.comfyuiUrl,
+  comfyuiUrl: string = COMFYUI_CONN.comfyuiUrl,
 ): string {
   const q = new URLSearchParams({
     filename: file.filename,
