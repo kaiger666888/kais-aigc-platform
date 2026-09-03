@@ -123,7 +123,8 @@ export async function getGpuStatus(forceRefresh = false): Promise<GpuStatus[]> {
 
 export const ENGINE_VRAM_REQUIREMENTS: Record<string, number> = {
   qwen_tts: 8192,    // Qwen3-TTS 1.7B bf16 (~5GB) + 推理峰值余量
-  indextts2: 8192,   // IndexTTS-2 fp16 (~6GB) + 余量
+  indextts2: 8192,   // IndexTTS-2 fp16 (~6GB) + 余量 (2026-09-04 起 TTS 链已切 breeze_tts, 键保留防旧分支误调用)
+  breeze_tts: 8192,  // Breeze TTS 2 (7.2GB 权重常驻 breeze-tts.service + 推理峰值余量; IndexTTS2.5 后继)
   minimax_h3: 18432, // 18GB (int8 34GB 权重 dynamic VRAM 分段驻留 + VAE)
   flux2: 12288,      // FLUX.2-dev fp8mixed + TE (mistral cpu offload 后 GPU 侧 ~12GB)
   qwen_eye: 14336,   // 14GB (与 vision 引擎预检阈值一致; GpuScheduler qwen-llm vramEst 15.5GB 同源)
@@ -157,6 +158,7 @@ export const ENGINE_VRAM_REQUIREMENTS: Record<string, number> = {
 export const ENGINE_GPU_INDEX: Record<string, number> = {
   qwen_tts: 1,
   indextts2: 1,
+  breeze_tts: 1, // Breeze 常驻 RENDER_GEN1 (与 indextts2 同卡; 插卡日可在 gpu.conf 加 breeze_tts_role 角色化)
   minimax_h3: 1,
   flux2: 1,
   qwen_eye: 1,

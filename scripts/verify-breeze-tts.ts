@@ -1,14 +1,16 @@
 #!/usr/bin/env tsx
 /**
- * verify-indextts25.ts — VoiceDesign→IndexTTS 2.5 链路验证 runner。
+ * verify-breeze-tts.ts — Breeze TTS 2 契约 + 旧 indextts2 端点兼容性验证 runner。
  *
  * Project convention (Pitfalls B3): no vitest/jest at repo root. This
  * standalone tsx script follows the `scripts/verify-phase-28.ts` pattern:
- * import the test functions from src/routes/production/indextts2/__tests__/
- * indextts25.test.ts, sum pass/fail, exit 1 on any failure.
+ * import the test functions from src/routes/production/breezeTts/__tests__/
+ * breezeTts.test.ts, sum pass/fail, exit 1 on any failure.
+ *
+ * 接替 scripts/verify-indextts25.ts (2026-09-04 feat/tts-breeze 引擎替换)。
  *
  * Usage:
- *   npx tsx scripts/verify-indextts25.ts
+ *   npx tsx scripts/verify-breeze-tts.ts
  *
  * Exit codes:
  *   0 — all assertions pass
@@ -18,12 +20,16 @@
 
 import {
   testConfigFields,
-  testVoiceDesignStep1Direct,
+  testBreezeSpeakAppMount,
+  testBreezeSpeakDualPath,
+  testBreezeVoiceDesign,
   testVoiceDesignValidation,
-  testSpeakV25Branch,
-  testSpeakV2Preserved,
-  testSpeakDualPathAppMount,
-} from "../src/routes/production/indextts2/__tests__/indextts25.test";
+  testOldSpeakV25Compat,
+  testOldSpeakV2AlsoBreeze,
+  testOldVoiceDesignCompat,
+  testStatusCompat,
+  testOldBatchCompat,
+} from "../src/routes/production/breezeTts/__tests__/breezeTts.test";
 
 interface TestResult {
   name: string;
@@ -36,11 +42,15 @@ async function main(): Promise<void> {
 
   const suites: Array<[string, () => Promise<TestResult[]>]> = [
     ["config 字段", testConfigFields],
-    ["voice-design Step1 直连 :5111", testVoiceDesignStep1Direct],
+    ["breezeTts/speak multipart 代理 (app 级)", testBreezeSpeakAppMount],
+    ["breezeTts/speak 单/双路径挂载", testBreezeSpeakDualPath],
+    ["breezeTts/voice-design 单步代理", testBreezeVoiceDesign],
     ["voice-design 请求校验", testVoiceDesignValidation],
-    ["speak v2.5 分支 (multipart 代理)", testSpeakV25Branch],
-    ["speak version=2 legacy 保留", testSpeakV2Preserved],
-    ["speak 单/双路径 app 级挂载", testSpeakDualPathAppMount],
+    ["旧端点 speak v2.5 兼容转调", testOldSpeakV25Compat],
+    ["旧端点 speak version=2 同转调", testOldSpeakV2AlsoBreeze],
+    ["旧端点 voice-design 兼容转调", testOldVoiceDesignCompat],
+    ["旧端点 status + breeze status 探针", testStatusCompat],
+    ["旧端点 batch 兼容", testOldBatchCompat],
   ];
 
   for (const [label, fn] of suites) {
@@ -69,6 +79,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  console.error("verify-indextts25: uncaught exception:", err);
+  console.error("verify-breeze-tts: uncaught exception:", err);
   process.exit(2);
 });

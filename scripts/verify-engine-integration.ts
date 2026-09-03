@@ -117,8 +117,8 @@ console.log("\n[2] 提交特征 × 队列接入 × 豁免清单 (R2)");
 const EXEMPT: Record<string, string> = {
   "src/routes/production/flux/config.ts": "查询/配置",
   "src/routes/production/flux/status.ts": "查询/配置",
-  "src/routes/production/indextts2/config.ts": "查询/配置",
-  "src/routes/production/indextts2/status.ts": "查询/配置",
+  "src/routes/production/breezeTts/config.ts": "查询/配置 (comfyuiUrl 仅为 GPU 队列驱逐目标配置, 非提交方)",
+  "src/routes/production/indextts2/status.ts": "查询/配置 (2026-09-04 起 Breeze health 探针, 无 ComfyUI 提交)",
   "src/routes/production/ltx/config.ts": "查询/配置",
   "src/routes/production/minimax-h3/config.ts": "查询/配置",
   "src/routes/production/minimax-h3/status.ts": "查询/配置",
