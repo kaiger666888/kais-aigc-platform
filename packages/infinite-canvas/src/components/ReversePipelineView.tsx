@@ -37,7 +37,8 @@ import { edgePathD, type LayoutNode } from './pipeline/dagLayout'
 import DagNode, { type NodeTone, type ReverseNodeVisual } from './pipeline/DagNode'
 import DagEdge, { type EdgeTone, type DagEdgeKind } from './pipeline/DagEdge'
 
-const MIN_ZOOM = 0.3
+// MIN_ZOOM 0.25：布局含 g3 独立列后内容宽 ~6350px，0.3 下「适应」两侧各裁 92px（终审门出视口）
+const MIN_ZOOM = 0.25
 const MAX_ZOOM = 2.6
 /** 点击 vs 拖拽判定阈值（px）。超过则视为拖拽，抑制 click。 */
 const DRAG_THRESHOLD = 4
