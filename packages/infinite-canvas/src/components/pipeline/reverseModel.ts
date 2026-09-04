@@ -236,12 +236,19 @@ export function layoutReverseDag(): ReturnType<typeof layoutDag> {
     return e
   })
 
-  // 重算包围盒（行重排后）
+  // 重算包围盒并归一化到 (0,0) 原点（镜像/行重排后 x 可能为负，
+  // 渲染层 fit 假定布局原点=0，不归一会把整图推到视口外）
   const minX = Math.min(...nodes.map((n) => n.x))
   const minY = Math.min(...nodes.map((n) => n.y))
   const maxX = Math.max(...nodes.map((n) => n.x + NODE_WIDTH))
   const maxY = Math.max(...nodes.map((n) => n.y + NODE_HEIGHT))
-  return { nodes, edges, width: maxX - minX, height: maxY - minY }
+  const shifted = nodes.map((n) => ({ ...n, x: n.x - minX, y: n.y - minY }))
+  return {
+    nodes: shifted,
+    edges: laid.edges,
+    width: maxX - minX,
+    height: maxY - minY,
+  }
 }
 
 /** 逆向节点查表（id → def；视图渲染与详情面板共用）。 */
