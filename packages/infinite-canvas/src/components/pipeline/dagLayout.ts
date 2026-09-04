@@ -119,30 +119,40 @@ export function layoutDag(
   }
 }
 
+/** edgePathD 可选参数（逆向工程 DAG 视图用：rankdir 'RL' = 从右往左锚定）。缺省 'LR' 原路径零变化。 */
+export interface EdgePathOpts {
+  rankdir?: 'LR' | 'RL'
+}
+
 /**
  * 把边端点吸附到节点边界中点（左右出入），生成更整齐的贝塞尔路径。
- * dagre 的 points 已近似如此，这里二次规整：起点 = 源节点右边中点，终点 = 目标节点左边中点。
+ * dagre 的 points 已近似如此，这里二次规整：
+ *  - LR（缺省，原管线）：起点 = 源节点右边中点，终点 = 目标节点左边中点；
+ *  - RL（逆向视图）：源节点左边中点出、目标节点右边中点入（几何 = LR 的 x 镜像，箭头向左）。
+ * 两端节点都在查表内时，即使 dagre 未给 points（如布局后处理清空）也按节点边界生成直连曲线。
  */
 export function edgePathD(
   edge: LayoutEdge,
   nodeById: Map<string, LayoutNode>,
+  opts?: EdgePathOpts,
 ): string {
+  const rl = opts?.rankdir === 'RL'
   const src = nodeById.get(edge.from)
   const tgt = nodeById.get(edge.to)
   const pts = edge.points
-  if (!pts.length) return ''
+  if (!pts.length && !src && !tgt) return ''
   // 起点/终点优先用节点边界吸附，中间控制点保留 dagre 输出
   const start = src
-    ? { x: src.x + src.width, y: src.y + src.height / 2 }
+    ? { x: rl ? src.x : src.x + src.width, y: src.y + src.height / 2 }
     : pts[0]!
   const end = tgt
-    ? { x: tgt.x, y: tgt.y + tgt.height / 2 }
+    ? { x: rl ? tgt.x + tgt.width : tgt.x, y: tgt.y + tgt.height / 2 }
     : pts[pts.length - 1]!
   const midPts = pts.slice(1, -1)
-  // 三次贝塞尔：用源/目 x 差的一半作控制点水平偏移，得到平滑 S 曲线
+  // 三次贝塞尔：用源/目 x 差的一半作控制点水平偏移，得到平滑 S 曲线（RL 向左凸）
   const dx = Math.max(28, Math.abs(end.x - start.x) * 0.45)
-  const c1 = { x: start.x + dx, y: start.y }
-  const c2 = { x: end.x - dx, y: end.y }
+  const c1 = { x: start.x + (rl ? -dx : dx), y: start.y }
+  const c2 = { x: end.x + (rl ? dx : -dx), y: end.y }
   // 若 dagre 给了中间折点（多段），退化为折线 + 圆角（罕见，多为长跨层边）
   if (midPts.length >= 2) {
     const all = [start, ...midPts, end]

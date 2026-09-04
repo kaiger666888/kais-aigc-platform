@@ -18,7 +18,7 @@
  */
 import type { DagEdgeDef, DagNodeDef, PhaseGroup } from './model'
 import { DAG_NODES, DAG_EDGES } from './model'
-import { layoutDag, NODE_WIDTH, NODE_HEIGHT, type LayoutResult } from './dagLayout'
+import { layoutDag, NODE_WIDTH, NODE_HEIGHT, type LayoutEdge, type LayoutResult } from './dagLayout'
 
 // ─── 词汇表 ──────────────────────────────────────────────────
 
@@ -155,57 +155,61 @@ export const REVERSE_EDGES: readonly DagEdgeDef[] = [
   { from: 'script-draft', to: 'gate-g3' },
 ]
 
-// ─── 布局（LR + 输入边反转 + 整体水平镜像 + 取证行重排） ──────
+// ─── 布局（规格 §4 字面：dagre RL 直接喂裁判语义边 + 取证行重排 + 原点归一化） ───
 //
-// ⚠️ 与规格书 §4 字面的冲突适配（代码现实优先，等价改写）：
-// 规格字面是 `layoutDag(REVERSE_NODE_IDS, REVERSE_EDGES, { rankdir: 'RL' })`。
-// 但 dagre 的 RL 不是 LR 的水平镜像——它按 RL 语义独立重排（同 rank 节点从下往上排），
-// 会产生两处与「贴近原管线」目标相悖的结果（实测：节点 52 / 边 99）：
-//  ① src-master 坠入图中央（y≈269，主图 y 范围 24..1532）——真值源不在最右端；
-//  ② 取证 8 节点散布 4 个 y 层——不成「主图下方独立一行」。
-// 根因：dagre 为平衡边交叉把长程边（src-master→7 通道）的源拉向中间 rank，纯选项无解。
-// 等价改写（视觉效果与规格意图一致）：
-//  - 结构性反转：喂给 dagre 的边 = REVERSE_EDGES 的**端点交换**（from↔to）。
-//    这样 dagre 按「生产流拓扑」排 rank（恰好是原管线的 rank 语义 → 骨架同构），
-//    且 src-master/取证行是「纯 sinks」→ dagre 天然推到最右；
-//  - rankdir 'LR' + 事后把全部 x 坐标做整体水平镜像 ⇒ 视觉上右→左（与 RL 等价），
-//    且 y 逐行不变（LR 与 RL 的 y 排序差被消除）。
-// REVERSE_EDGES 本身不变（仍是从右往左的裁判语义），仅布局输入边做端点交换。
-// specLayoutResult 的边点同样镜像，保证渲染层 edgePathD 的源=左缘、目标=右缘几何成立。
-
-/** 供 dagre 消费的结构性反转边（from↔to 端点交换；与 REVERSE_EDGES 语义方向相反）。 */
-const REVERSE_LAYOUT_EDGES: ReadonlyArray<{ from: string; to: string }> = REVERSE_EDGES.map(
-  (e) => ({ from: e.to, to: e.from }),
-)
-
-/** 把 LR 布局结果整体水平镜像（保持包围盒左缘不动；y 不变）。 */
-function mirrorLR(result: ReturnType<typeof layoutDag>): ReturnType<typeof layoutDag> {
-  const minX = Math.min(...result.nodes.map((n) => n.x))
-  const mirrorX = (x: number): number => minX - (x - minX) - NODE_WIDTH
-  return {
-    ...result,
-    nodes: result.nodes.map((n) => ({ ...n, x: mirrorX(n.x) })),
-    edges: result.edges.map((e) => ({
-      ...e,
-      // 点序也随之镜像；渲染层会把首尾重新吸附到（已镜像的）节点边界
-      points: [...e.points].reverse().map((p) => ({ x: mirrorX(p.x), y: p.y })),
-    })),
-  }
-}
+// REVERSE_EDGES 本身就是从右往左的裁判语义（from = 右侧被审产物，to = 左侧裁决方），
+// `layoutDag(..., { rankdir: 'RL' })` 直接按该边集排 rank：
+//  - **布局边 = 渲染边 = REVERSE_EDGES 同一套**，无任何端点交换/镜像中间层。
+//    （旧实现「端点交换 + LR + 整体镜像」两次翻转叠加恰好抵消 rank 方向翻转，
+//    屏上渲染的是生产方向箭头的镜像骨架——2026-09-04 审查报告 P1-1，已按规格字面返工；
+//    「LR+镜像 ≡ RL」的旧等价性断言只对同一套边的节点摆放成立，交换端点后即被证伪。）
+//  - 骨架与原管线同位：生产 DAG 的末端（master-mp4 等）在 REVERSE_EDGES 里是无入边源
+//    → RL rank 0 = 最右端；生产根（topic-kernel / hook-candidates）成汇 → 最左端，
+//    与原管线 LR 同构（实测列序逐 rank 对齐原管线相位）。
+//  - RL 下 from（裁判）恒在 to（被裁决）右侧 ⇒ 详情面板「裁判链（右侧）/被裁决断言（左侧）」
+//    与几何一致（方向断言测试见 reverseModel.test.ts）。
+// dagre RL 的两项已知副作用由后处理覆盖（实测已不复现为主图问题）：
+//  ① src-master/取证 8 节点在主图内散布 → 摘出重排为「主图下方独立一行」；
+//  ② 布局原点漂移 → 出口归一化 shift 到 (0,0)（渲染层 fit 假定布局原点=0）。
+// 另一项前置适配：kind='back' 打回回环边**不进 dagre**（与 validateReverseGraph 的拓扑豁免
+// 同一先例）——原 DAG 的 preview-gate 打回回环经精确反转后仍是环，dagre 会自行挑选「去环边」
+// 反转（实测选中 5 条非 back 边），既破坏「非 back 边全部右→左」的方向保证，又把 shot-list
+// 一带的 rank 拉歪。豁免后 dagre 输入是纯 DAG（非 back 子图无环，test#3 保证）⇒ 零内部反转，
+// rank 严格沿边递增；back 边布局后补挂（points 合成下沉折线，渲染层按 RL 锚定吸附节点边界）。
 
 /**
  * 逆向视图布局（唯一布局入口，ReversePipelineView 与测试共用）。
- * 步骤：① dagre LR + 结构性反转边（生产流拓扑）→ ② 整体水平镜像（视觉右→左）→
- * ③ 取证 8 节点摘出，重排为「主图下方独立一行」：src-master 与主图最右端对齐、
- *    7 条 L0 通道横排、行内边仍右→左（见规格 §4 取证层行）。
+ * 步骤：① dagre RL 喂 REVERSE_EDGES 的非 back 子集（裁判语义边，无端点交换）→
+ * ② 取证 8 节点摘出，重排为「主图下方独立一行」：src-master 与主图最右端对齐、
+ *    7 条 L0 通道向左横排、行内边仍右→左（规格 §3.1/§4 取证层行）→
+ * ③ back 反馈边补挂 → ④ 包围盒归一化到 (0,0) 原点（节点与边中段点同步 shift）。
  */
 export function layoutReverseDag(): ReturnType<typeof layoutDag> {
-  const laid = mirrorLR(layoutDag(REVERSE_NODE_IDS, REVERSE_LAYOUT_EDGES))
+  const laid = layoutDag(
+    REVERSE_NODE_IDS,
+    REVERSE_EDGES.filter((e) => e.kind !== 'back'),
+    { rankdir: 'RL' },
+  )
   const nodes = [...laid.nodes]
   const byId = new Map(nodes.map((n) => [n.id, n]))
 
+  // 门 g3 规格落位（§3.1「最左端（requirement 之后）——封存终审」）：dagre 只能给
+  // rank(script-draft)+1，而生产根（topic-kernel 等）才是最深 rank——数据不加边就到不了
+  // 最左。终审门语义上「再往后一站」：其余节点整体右移一档，g3 独占最左列（归一化后
+  // x=0 = 全图最小；script-draft→g3 仍右→左，方向断言不破）。
+  const g3 = byId.get('gate-g3')
+  if (g3) {
+    const othersMinX = Math.min(...nodes.filter((n) => n.id !== 'gate-g3').map((n) => n.x))
+    const clearGap = NODE_WIDTH + 40 // g3 右缘与次左列左缘的空档（略宽于 rank 间距，终审独立成列）
+    if (g3.x + clearGap > othersMinX) {
+      const shift = g3.x + clearGap - othersMinX
+      for (const n of nodes) if (n.id !== 'gate-g3') n.x += shift
+    }
+  }
+
   // 主图（镜像节点）包围盒 → 取证行 y（主图底缘 + 固定间距）
   const mirrors = nodes.filter((n) => REVERSE_NODE_BY_ID.get(n.id)?.kind === 'mirror')
+  const forensicIds = new Set(FORENSICS_ROW_ORDER)
   if (mirrors.length > 0) {
     const mainMaxY = Math.max(...mirrors.map((n) => n.y + NODE_HEIGHT))
     // 主图右缘 = 镜像节点右缘最大值（含卡宽）
@@ -227,25 +231,42 @@ export function layoutReverseDag(): ReturnType<typeof layoutDag> {
     }
   }
 
-  // 边点同步：取证行节点的边端点吸附由渲染层 edgePathD 重算（节点边界中点），
-  // 这里仅重镜像中段折点已由 mirrorLR 处理；行重排后的中段点直接清空
-  //（edgePathD 对空 points 回退节点边界吸附，路径仍平滑）。
-  const forensicIds = new Set(FORENSICS_ROW_ORDER)
-  const edges = laid.edges.map((e) => {
-    if (forensicIds.has(e.from) || forensicIds.has(e.to)) return { ...e, points: [] }
-    return e
-  })
-
-  // 重算包围盒并归一化到 (0,0) 原点（镜像/行重排后 x 可能为负，
-  // 渲染层 fit 假定布局原点=0，不归一会把整图推到视口外）
+  // 归一化到 (0,0) 原点（渲染层 fit 假定布局原点=0；节点与边中段点同步 shift）
   const minX = Math.min(...nodes.map((n) => n.x))
   const minY = Math.min(...nodes.map((n) => n.y))
   const maxX = Math.max(...nodes.map((n) => n.x + NODE_WIDTH))
   const maxY = Math.max(...nodes.map((n) => n.y + NODE_HEIGHT))
-  const shifted = nodes.map((n) => ({ ...n, x: n.x - minX, y: n.y - minY }))
+  const shiftedNodes = nodes.map((n) => ({ ...n, x: n.x - minX, y: n.y - minY }))
+  const edges: LayoutEdge[] = laid.edges.map((e) => {
+    if (forensicIds.has(e.from) || forensicIds.has(e.to)) return { ...e, points: [] }
+    return { ...e, points: e.points.map((p) => ({ x: p.x - minX, y: p.y - minY })) }
+  })
+
+  // back 反馈边补挂：不参与 rank，几何合成「下沉旁路」折线（打回 = 逆主流程方向的回环，
+  // 允许 from.x < to.x 的反流向，虚线玫红标识见 DagEdge kind='back'；方向断言测试单列此二边）。
+  // 首尾占位点会被 edgePathD 的节点边界吸附替换，中段两点构成下沉凹口。
+  const mainBottom = Math.max(...nodes.map((n) => n.y + NODE_HEIGHT))
+  for (const e of REVERSE_EDGES) {
+    if (e.kind !== 'back') continue
+    const s = byId.get(e.from)
+    const t = byId.get(e.to)
+    if (!s || !t) continue
+    const dipY = Math.min(mainBottom, Math.max(s.y, t.y) + NODE_HEIGHT + 28) - minY
+    edges.push({
+      from: e.from,
+      to: e.to,
+      points: [
+        { x: 0, y: 0 }, // 占位：渲染层以源节点边界锚定替换
+        { x: s.x + NODE_WIDTH / 2 - minX, y: dipY },
+        { x: t.x + NODE_WIDTH / 2 - minX, y: dipY },
+        { x: 0, y: 0 }, // 占位：渲染层以目标节点边界锚定替换
+      ],
+    })
+  }
+
   return {
-    nodes: shifted,
-    edges: laid.edges,
+    nodes: shiftedNodes,
+    edges,
     width: maxX - minX,
     height: maxY - minY,
   }
