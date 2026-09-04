@@ -13,7 +13,7 @@
  */
 import { memo } from 'react'
 
-export type EdgeTone = 'default' | 'active' | 'dimmed'
+export type EdgeTone = 'default' | 'active' | 'dimmed' | 'reverse'
 export type DagEdgeKind = 'gate' | 'back'
 
 interface DagEdgeProps {
@@ -30,11 +30,14 @@ function DagEdgeImpl({ d, tone, upstreamDone, kind }: DagEdgeProps): React.React
   const dimmed = tone === 'dimmed'
   const kindStroke =
     kind === 'gate' ? 'rgba(224,182,101,0.55)' : kind === 'back' ? 'rgba(221,106,130,0.50)' : null
+  // 'reverse' tone（逆向工程 DAG 视图追加变体）：青紫系描边（KAP v3 image 青 #56B89A 低饱和），
+  // 其余语义与 'default' 一致；kind 优先级不变（gate/back 虚线金/玫不受影响）。
+  const reverseStroke = 'rgba(86,184,154,0.34)'
   const stroke = active
     ? 'rgba(237,238,241,0.55)'
     : dimmed
       ? 'rgba(255,255,255,0.05)'
-      : (kindStroke ?? 'rgba(255,255,255,0.16)')
+      : (kindStroke ?? (tone === 'reverse' ? reverseStroke : 'rgba(255,255,255,0.16)'))
   const dash =
     kind === 'gate' ? '5 4' : kind === 'back' ? '3 4' : !active && !upstreamDone ? '4 4' : undefined
   return (

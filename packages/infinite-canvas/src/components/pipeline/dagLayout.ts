@@ -43,20 +43,27 @@ export interface LayoutResult {
   height: number
 }
 
+/** 布局可选参数（逆向工程 DAG 视图用：rankdir 'RL' = 从右往左）。缺省 'LR' 保持原管线零变化。 */
+export interface LayoutDagOpts {
+  rankdir?: 'LR' | 'RL'
+}
+
 /**
  * 计算 DAG 分层布局。
  * @param nodeIds 参与布局的节点 id（通常 = DAG_NODES 全集；缺失的边缘端点会被跳过）
  * @param edges 依赖边 {from,to}
+ * @param opts 可选参数：rankdir（默认 'LR'，与历史调用零差异）
  */
 export function layoutDag(
   nodeIds: readonly string[],
   edges: ReadonlyArray<{ from: string; to: string }>,
+  opts?: LayoutDagOpts,
 ): LayoutResult {
   const idSet = new Set(nodeIds)
 
   const g = new dagre.graphlib.Graph()
   g.setGraph({
-    rankdir: 'LR',
+    rankdir: opts?.rankdir ?? 'LR',
     ranksep: RANK_SEP,
     nodesep: NODE_SEP,
     marginx: 24,

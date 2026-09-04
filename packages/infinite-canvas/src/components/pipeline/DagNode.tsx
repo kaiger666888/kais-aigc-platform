@@ -20,6 +20,22 @@ import { NODE_WIDTH, NODE_HEIGHT } from './dagLayout'
 
 export type NodeTone = 'normal' | 'active' | 'dimmed'
 
+/**
+ * 'reverse' 附加变体（逆向工程 DAG 视图专用，原管线不传 → 行为零变化）。
+ *  - variant: 'reverse' = 青紫系描边镜像节点卡（附「逆」徽标）；
+ *             'gate'    = Kai 审核门旗标卡（菱形边框 + G1/G2/G3）；
+ *             'forensics' = L0 取证通道卡（虚线边框）；
+ *             'source'  = 真值源卡（src-master，最右端）。
+ *  - status: 逆向状态（sealed 金绿 / active 琥珀 / pending 灰 / blocked 红，门 sealed 显示 ✓）。
+ *  - lane:   三泳道着色点标（T 文本 / V 视觉 / V+A 双点；门/取证为 null 不着色）。
+ */
+export interface ReverseNodeVisual {
+  variant: 'reverse' | 'gate' | 'forensics' | 'source'
+  status: 'sealed' | 'active' | 'pending' | 'blocked'
+  lane: 'text' | 'visual' | 'visual_audio' | null
+  gateTag?: 'G1' | 'G2' | 'G3'
+}
+
 interface DagNodeProps {
   model: DagNodeModel
   x: number
@@ -27,6 +43,8 @@ interface DagNodeProps {
   tone: NodeTone
   onClick: () => void
   onHover: (id: string | null) => void
+  /** 逆向视图附加视觉（缺省 = 原管线渲染路径，零差异）。 */
+  reverse?: ReverseNodeVisual
 }
 
 /**
@@ -54,8 +72,11 @@ function DagNodeImpl({
   tone,
   onClick,
   onHover,
+  reverse,
 }: DagNodeProps): React.ReactElement {
   ensurePulseKeyframes()
+  // ── 逆向变体分支（reverse 传入时接管渲染；原管线不传 → 走下方原有路径，零差异） ──
+  if (reverse) return <ReverseDagNode model={model} x={x} y={y} tone={tone} visual={reverse} onClick={onClick} onHover={onHover} />
   const { def, state, total, completed, selected, candidates, expected, progress } = model
   const meta = DAG_STATE_META[state]
   const groupColor = v3theme.phaseGroup[def.group]
@@ -219,3 +240,194 @@ function DagNodeImpl({
 
 const DagNode = memo(DagNodeImpl)
 export default DagNode
+
+// ═══════════════════════════════════════════════════════════════════════
+// 逆向工程 DAG 视图节点卡（追加变体；原管线渲染路径不经过此区）
+// ═══════════════════════════════════════════════════════════════════════
+
+/** 逆向主色调（青紫系，KAP v3 image 青 #56B89A 词汇）。 */
+const RV_ACCENT = '#56B89A'
+/** 状态词表（sealed=金绿 / active=琥珀 / pending=灰 / blocked=红）。 */
+const RV_STATUS_META: Record<ReverseNodeVisual['status'], { color: string; label: string }> = {
+  sealed: { color: '#56B89A', label: '已封存' },
+  active: { color: '#E0B665', label: '进行中' },
+  pending: { color: '#9A9FA8', label: '待启动' },
+  blocked: { color: '#DD6A82', label: '受阻' },
+}
+/** 泳道点标（post 双色 = V 青 + A 橙双点）。 */
+const RV_LANE_COLORS: Record<Exclude<ReverseNodeVisual['lane'], null>, string[]> = {
+  text: ['#E0B665'],
+  visual: ['#56B89A'],
+  visual_audio: ['#56B89A', '#E08547'],
+}
+
+function ReverseDagNode({
+  model,
+  x,
+  y,
+  tone,
+  visual,
+  onClick,
+  onHover,
+}: DagNodeProps & { visual: ReverseNodeVisual }): React.ReactElement {
+  const active = tone === 'active'
+  const dimmed = tone === 'dimmed'
+  const statusMeta = RV_STATUS_META[visual.status]
+  const gate = visual.variant === 'gate'
+  const forensics = visual.variant === 'forensics' || visual.variant === 'source'
+
+  // 边框：镜像/取证 = 青紫系描边（取证虚线）；门 = 旗标实边；active 高亮
+  const border = (() => {
+    if (active) return `1.5px solid ${RV_ACCENT}`
+    if (gate) return `1.5px solid ${RV_ACCENT}`
+    if (forensics) return `1px dashed rgba(86,184,154,0.45)`
+    return `1px solid rgba(86,184,154,0.30)`
+  })()
+
+  // 门节点旗标样式：外层四角 L 形旗标（菱形视觉锚点）+ G 字徽标；sealed 显示 ✓
+  const gateCheck = gate && visual.status === 'sealed' ? '✓' : null
+
+  // 底面：active 提亮；门/取证 微青染；镜像 默认暗底
+  const bg = active
+    ? '#1E2128'
+    : gate
+      ? 'linear-gradient(90deg, rgba(86,184,154,0.16) 0%, #16181D 60%)'
+      : forensics
+        ? 'linear-gradient(90deg, rgba(86,184,154,0.08) 0%, #16181D 60%)'
+        : '#16181D'
+
+  return (
+    <div
+      data-dag-node="1"
+      onClick={(e) => { e.stopPropagation(); onClick() }}
+      onMouseEnter={() => onHover(model.def.id)}
+      onMouseLeave={() => onHover(null)}
+      title={`${model.def.label} · 逆向状态：${statusMeta.label}`}
+      style={{
+        position: 'absolute',
+        left: x,
+        top: y,
+        width: NODE_WIDTH,
+        height: NODE_HEIGHT,
+        display: 'flex',
+        flexDirection: 'column',
+        background: bg,
+        border,
+        borderRadius: gate ? 4 : 8,
+        boxShadow: active
+          ? `0 0 0 1px ${RV_ACCENT}55, 0 6px 16px rgba(0,0,0,0.5)`
+          : '0 1px 2px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.04) inset',
+        overflow: 'hidden',
+        cursor: 'pointer',
+        opacity: dimmed ? 0.4 : 1,
+        transition: 'opacity 140ms ease, border-color 140ms ease, box-shadow 140ms ease',
+        // 门旗标：旋转 45° 的外框线营造菱形张力（内层文字保持水平）
+        outline: gate ? `1px solid rgba(86,184,154,0.35)` : undefined,
+        outlineOffset: gate ? 3 : undefined,
+      }}
+    >
+      {/* 左侧泳道点标（仅镜像节点；post = 双色点） */}
+      {visual.lane != null && (
+        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, display: 'flex', flexDirection: 'column' }}>
+          {RV_LANE_COLORS[visual.lane].map((c, i) => (
+            <div key={i} style={{ flex: 1, background: c, opacity: 0.85 }} />
+          ))}
+        </div>
+      )}
+
+      {/* 门节点：左上角 G 徽标（旗标字样）+ sealed ✓ */}
+      {gate && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 3,
+            padding: '1px 5px',
+            borderBottomLeftRadius: 5,
+            background: 'rgba(86,184,154,0.16)',
+            color: RV_ACCENT,
+            fontSize: 9.5,
+            fontWeight: 700,
+            fontFamily: 'var(--cv-font-mono, monospace)',
+            letterSpacing: '0.05em',
+          }}
+        >
+          {visual.gateTag}
+          {gateCheck && <span style={{ color: '#56B89A' }}>✓</span>}
+        </div>
+      )}
+
+      {/* 镜像节点：右上角「逆」小徽标 */}
+      {!gate && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            padding: '1px 5px',
+            borderBottomLeftRadius: 5,
+            background: 'rgba(86,184,154,0.12)',
+            color: RV_ACCENT,
+            fontSize: 9,
+            fontWeight: 700,
+          }}
+        >
+          逆
+        </div>
+      )}
+
+      {/* 主行：阶段码 + 标签 + 状态点 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px 0 10px' }}>
+        <span
+          style={{
+            flex: '0 0 auto',
+            color: gate || forensics ? RV_ACCENT : 'rgba(86,184,154,0.85)',
+            fontSize: 11,
+            fontWeight: 700,
+            fontFamily: 'var(--cv-font-mono, monospace)',
+            letterSpacing: '0.02em',
+          }}
+        >
+          {model.def.phaseCode}
+        </span>
+        <span
+          style={{
+            flex: '1 1 auto',
+            color: '#EDEEF1',
+            fontSize: 13,
+            fontWeight: 700,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            paddingRight: gate ? 34 : 16, // 给右上角徽标让位
+          }}
+        >
+          {model.def.label}
+        </span>
+        {/* 逆向状态点（无脉冲——逆向静态表，非实时执行态） */}
+        <div
+          title={statusMeta.label}
+          style={{
+            flex: '0 0 auto',
+            width: 9,
+            height: 9,
+            borderRadius: '50%',
+            background: visual.status === 'pending' ? 'transparent' : statusMeta.color,
+            border: visual.status === 'pending' ? `1.5px solid ${statusMeta.color}` : undefined,
+            boxShadow: visual.status === 'pending' ? undefined : `0 0 5px ${statusMeta.color}66`,
+          }}
+        />
+      </div>
+
+      {/* 计数行：逆向语义（状态文案） */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '2px 8px 5px 10px' }}>
+        <span style={{ fontSize: 10, color: statusMeta.color, opacity: 0.85 }}>
+          {statusMeta.label}
+        </span>
+      </div>
+    </div>
+  )
+}
