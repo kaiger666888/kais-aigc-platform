@@ -63,6 +63,7 @@ import { triggerStaleCascade } from '../hooks/useStale'
 import StoryboardTimeline from './StoryboardTimeline'
 import AssetManager from './assetManager/AssetManager'
 import PipelineStateMachine from './PipelineStateMachine'
+import ReversePipelineView from './ReversePipelineView'
 import StoryboardBoard from './storyboard/StoryboardBoard'
 import SceneShotBrowser from './SceneShotBrowser'
 import SearchNavigator from './canvas/SearchNavigator'
@@ -1117,6 +1118,9 @@ function CanvasInner() {
             <ViewModeButton active={viewMode === 'pipeline'} onClick={() => handleSetViewMode('pipeline')}>
               <UiIcon kind="pipeline" size={13} />管线
             </ViewModeButton>
+            <ViewModeButton active={viewMode === 'reverse'} onClick={() => handleSetViewMode('reverse')}>
+              <span style={{ display: 'inline-flex', transform: 'scaleX(-1)' }}><UiIcon kind="pipeline" size={13} /></span>逆向工程
+            </ViewModeButton>
             <ViewModeButton active={viewMode === 'storyboard_board'} onClick={() => handleSetViewMode('storyboard_board')}>
               <UiIcon kind="layout" size={13} />分镜板
             </ViewModeButton>
@@ -1190,6 +1194,10 @@ function CanvasInner() {
           <PipelineStateMachine
             onRefresh={projectId && episodesId != null ? () => loadCanvas(projectId, episodesId) : undefined}
             onLocateNode={handleLocateNode}
+          />
+        ) : viewMode === 'reverse' ? (
+          <ReversePipelineView
+            onRefresh={projectId && episodesId != null ? () => loadCanvas(projectId, episodesId) : undefined}
           />
         ) : viewMode === 'storyboard_board' ? (
           <StoryboardBoard />

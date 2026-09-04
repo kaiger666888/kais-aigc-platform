@@ -34,8 +34,8 @@ export interface ToastItem {
   type: 'success' | 'error' | 'info' | 'warning'
 }
 
-/** 视图模式（画布 / 时间轴 / 资产 / 管线状态机 / 分镜板）。 */
-export type ViewMode = 'canvas' | 'timeline' | 'assets' | 'pipeline' | 'storyboard_board' | 'scene_shots'
+/** 视图模式（画布 / 时间轴 / 资产 / 管线状态机 / 分镜板 / 逆向工程）。 */
+export type ViewMode = 'canvas' | 'timeline' | 'assets' | 'pipeline' | 'storyboard_board' | 'scene_shots' | 'reverse'
 
 interface CanvasState {
   // ─── V3 canonical（SPEC-step5 A.4：canonical = FlowGraphV3） ───
