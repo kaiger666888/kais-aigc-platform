@@ -5,7 +5,7 @@
  *（溯源 GOLDEN_SET_BLUEPRINT.md §6 v1.2 编排：断言并行 × 依赖反转链 × 三门波次定稿）。
  *
  * 结构：
- *  - A. 镜像节点：复用 model.ts DAG_NODES 的 id/label/phaseCode/group（45 个全量，不裁剪），
+ *  - A. 镜像节点：复用 model.ts DAG_NODES 的 id/label/phaseCode/group（41 个全量，不裁剪），
  *    泳道按 group 映射三泳道（research|story → T 文本；production → V 视觉；post → V+A 复合）；
  *  - B. 门节点：Kai 审核门 G1/G2/G3（旗标样式，见 DagNode reverse 分支）；
  *  - C. 取证层：src-master 真值源 + 7 条 L0 取证通道（虚线边框）。
@@ -46,7 +46,7 @@ export interface ReverseNodeDef {
   gateTag?: 'G1' | 'G2' | 'G3'
 }
 
-// ─── A. 镜像节点（45 个 = DAG_NODES 全量） ───────────────────
+// ─── A. 镜像节点（41 个 = DAG_NODES 全量） ───────────────────
 
 /** group → 三泳道（规格 §3.3：research+story→T；production→V；post→V+A 复合）。 */
 function laneOfGroup(group: PhaseGroup): ReverseLane {
@@ -96,7 +96,7 @@ const FORENSICS_NODES: readonly ReverseNodeDef[] = [
   { id: 'forensics-sceneframes', label: '场景干净帧候选', kind: 'forensics', phaseCode: 'L0', group: 'post', lane: null },
 ]
 
-/** 逆向节点全集（45 镜像 + 3 门 + 8 取证层）。 */
+/** 逆向节点全集（41 镜像 + 3 门 + 8 取证层）。 */
 export const REVERSE_NODES: readonly ReverseNodeDef[] = [
   ...MIRROR_NODES,
   ...GATE_NODES,
@@ -281,7 +281,8 @@ export const REVERSE_STATUS: Record<string, ReverseNodeStatus> = {
   'src-master': 'sealed',            // 原片在手
   'forensics-cuts': 'sealed', 'forensics-frames': 'sealed', 'forensics-asr': 'sealed',
   'forensics-reid': 'sealed', 'forensics-sceneframes': 'sealed',
-  'forensics-stems': 'pending', 'forensics-motion': 'pending',
+  'forensics-stems': 'pending',      // demucs 四轨原料已有（EP01 源片 stems/），kgr 侧 T0d 通道未建成——待通道化
+  'forensics-motion': 'sealed',      // kgr 6bf283f T0e 建成：109 镜×545 帧落盘 + motion_manifest（2026-09-04 刷新）
   'scene-images': 'sealed',          // W1c 7/7 闭环
   'shot-list': 'active', 'video-clips': 'active', // W1a s064 样板闭环、93镜批量进行中
   'character-bible': 'active',       // W1b 首轮已出、盲测修复中

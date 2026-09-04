@@ -3,7 +3,7 @@
  *
  * 以 PipelineStateMachine（原管线状态机）为模板改写，交互全部保留（滚轮缩放/拖拽平移/
  * fit-to-screen/hover 高亮/点击 detail），差异点：
- *  - 数据 = reverseModel（静态：45 镜像节点 + G1/G2/G3 门 + L0 取证层），不派生画布执行态；
+ *  - 数据 = reverseModel（静态：41 镜像节点 + G1/G2/G3 门 + L0 取证层），不派生画布执行态；
  *  - 布局 = layoutReverseDag()（规格 §4 字面：dagre RL 直接喂 REVERSE_EDGES 裁判语义边
  *    + 取证行重排 + 原点归一化，见 reverseModel 头注释），
  *    视觉骨架与原管线同构、依赖边从右往左（hover 高亮的是「它的裁判链」而非「它的产出链」）；
