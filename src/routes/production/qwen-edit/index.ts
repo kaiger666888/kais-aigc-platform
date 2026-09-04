@@ -1,4 +1,13 @@
 /**
+ * === 2026-09-04 转正定案 ===
+ * Qwen-Image-Edit-2511 经 Kai 终审（复杂场景 4-case 实测页 + C3 融合归因复盘
+ * + V1/V2 重做终审通过）转正为 KAP 正式图像编辑引擎。
+ * 同日 MaGe-Flow 定谳退役：真实调用 0 + 权重已删 + 路由下线（见 router.ts 历史）。
+ * 验收基准线：EP01 原片帧 4-case（C1优 C2优 C4良 C3中，V1/V2 重做终审通过）
+ * 运维知识库：kais-tools/kais-image-edit（farm）
+ */
+
+/**
  * Qwen-Image-Edit-2511 (GGUF) — 指令式图像编辑
  *
  * 使用 Qwen-Image-Edit-2511 Q4_K_M GGUF + Lightning 4-step 蒸馏 LoRA，
