@@ -50,7 +50,6 @@ import route46 from "./routes/production/indextts2/voice-design";
 import route47 from "./routes/production/llm/index";
 import route48 from "./routes/production/m3/generate";
 import route49 from "./routes/production/m3/status";
-import route50 from "./routes/production/mage/index";
 import route51 from "./routes/production/minimax-h3/generate";
 import route52 from "./routes/production/minimax-h3/i2va";
 import route53 from "./routes/production/minimax-h3/ref2va";
@@ -223,7 +222,6 @@ export default async (app: Express) => {
   app.use("/api/production/llm", route47);
   app.use("/api/production/m3/generate", route48);
   app.use("/api/production/m3/status", route49);
-  app.use("/api/production/mage", route50);
   app.use("/api/production/minimax-h3/generate", route51);
   app.use("/api/production/minimax-h3/i2va", route52);
   app.use("/api/production/minimax-h3/ref2va", route53);
