@@ -15,6 +15,7 @@ export class MemoryStateStore implements StateStore {
   private services = new Map<string, any>();
   private profiles = new Map<string, any>();
   private locks = new Map<number, string | null>();
+  private kv = new Map<string, any>();
 
   // ─── Services ──────────────────────────────────────────
   async getService(serviceId: string): Promise<any | null> {
@@ -65,10 +66,22 @@ export class MemoryStateStore implements StateStore {
     return Array.from(this.locks.entries());
   }
 
+  // ─── Generic KV ────────────────────────────────────────
+  async getKV<T = any>(key: string): Promise<T | null> {
+    return this.kv.get(key) ?? null;
+  }
+  async setKV(key: string, value: any): Promise<void> {
+    this.kv.set(key, value);
+  }
+  async deleteKV(key: string): Promise<void> {
+    this.kv.delete(key);
+  }
+
   // ─── Lifecycle ─────────────────────────────────────────
   async close(): Promise<void> {
     this.services.clear();
     this.profiles.clear();
     this.locks.clear();
+    this.kv.clear();
   }
 }
