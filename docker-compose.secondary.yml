@@ -1,0 +1,126 @@
+# =============================================================================
+# comfyui-secondary — GPU2 渲染溢出引擎 (双人格人格 B 承载, M2 交付物)
+# =============================================================================
+# 设计文档: docs/gpu-scheduling-architecture.md §2.4 (Persona Arbiter)
+#
+# 职责: 人格 B (渲染溢出) 期间与 comfyui-primary (GPU1) 并行消化渲染队列。
+#       人格 A (QC 驻留) 期间本容器不运行 — GPU2 归 qwen-ear/qwen-llm/
+#       qwen-vllm/music3 常驻 (KAP GpuScheduler 管理, 不经 compose 自动拉起)。
+#
+# ⚠️ 本文件只交付服务定义, 不随 stack 常启 (KAP 重启不自动起它):
+#      人工预演:  docker compose -f docker-compose.secondary.yml up -d comfyui-secondary
+#      人格回 A:  docker stop comfyui-secondary
+#    M3 PersonaArbiter 真实执行器接入后才由仲裁器自动起停 (切换只在任务边界)。
+#
+# GPU 锚定 (2026-09-04 CDI 迁移同款, 防 PCIe 换槽枚举漂移):
+#   devices: nvidia.com/gpu=$KAIS_QC_GPU_UUID (env 缺省 = /opt/kais-gpu/gpu.conf
+#   的 QC_GEN2_UUID, 2026-09-05 插卡日真值; nvidia-smi -L 可核对)。
+#   ⚠ 勿再设 NVIDIA_VISIBLE_DEVICES / device_ids — legacy prestart hook 不认 UUID。
+#
+# 挂载拓扑: 复用 comfyui-primary (docker-compose.v9.yml) 实测拓扑
+#   (docker inspect comfyui-primary 记录, 2026-09-06), 仅两处有意偏离:
+#     1. 输出目录 → /mnt/agents/output/gpu2 (与 primary gpu1 隔离)
+#     2. ComfyUI user 目录 → 独立命名卷 comfyui-secondary-user
+#        (primary 的 kais-comfyui-user 卷含运行态 running.json/队列/设置,
+#         双 ComfyUI 实例共写会互踩 — 不共用)
+# =============================================================================
+
+services:
+
+  comfyui-secondary:
+    image: ${COMFYUI_BASE_IMAGE:-yanwk/comfyui-boot:cu130-megapak-pt211}
+    container_name: comfyui-secondary
+    # unless-stopped: 人工/仲裁器 docker stop 后保持停止 (人格 A 期间不复活)
+    restart: unless-stopped
+    # 硬护栏同 comfyui-primary (feedback_comfyui-cgroup-limit):
+    # --lowvram 下 offload 会堆 CPU RAM, 无 limit 一路吃光整机触发 swap thrashing
+    mem_limit: 64g
+    memswap_limit: 72g
+    cpus: 10
+    ports:
+      - "${COMFYUI_SECONDARY_PORT:-8190}:8188"
+    environment:
+      COMFYUI_LISTEN: "0.0.0.0"
+      COMFYUI_PORT: 8188
+      # GPU 注入走服务级 devices: (CDI), 见下方 — 勿设 NVIDIA_VISIBLE_DEVICES
+      NVIDIA_DRIVER_CAPABILITIES: "compute,utility,graphics"
+      # Phase 36 follow-up: PyTorch 按 PCI 总线序 (容器内只见 1 张卡, cuda:0=被隔离卡)
+      CUDA_DEVICE_ORDER: PCI_BUS_ID
+      # triton 可导入时 ComfyUI --enable-triton-backend 会卡死启动 (primary 实测);
+      # SolAttn 走 per-model override, 不依赖全局 triton attention backend
+      TORCH_CUDA_DISABLE_TRITON: "1"
+      TRANSFORMERS_CACHE: /tmp/hf_cache
+      TORCH_HOME: /tmp/torch_cache
+      OUTPUT_DIR: /mnt/agents/output/gpu2
+      MODELS_DIR: /data/models/comfyui
+      HF_ENDPOINT: "https://hf-mirror.com"
+      HTTP_PROXY: "${HTTP_PROXY:-}"
+      HTTPS_PROXY: "${HTTPS_PROXY:-}"
+      http_proxy: "${http_proxy:-}"
+      https_proxy: "${https_proxy:-}"
+      NO_PROXY: "localhost,127.0.0.1,172.18.0.0/16"
+      W2V_BERT_PATH: "/data/models/w2v-bert-2.0"
+      CLI_ARGS: "--disable-metadata --lowvram --bf16-text-enc --bf16-unet --output-directory /mnt/agents/output/gpu2"
+    volumes:
+      # 输出隔离: secondary → gpu2 (primary 是 gpu1)
+      - ${OUTPUT_DIR:-/mnt/agents/output}/gpu2:/mnt/agents/output/gpu2
+      # 共享模型库 (与 primary 同库, 模型冷读走 page cache)
+      - ${DATA_MODELS_DIR:-/data/models/comfyui}:/root/ComfyUI/models:rw
+      - ${ACESTEP_MODELS_DIR:-/data/models/ACE-Step1.5}:/root/ComfyUI/models/ace-step:ro
+      # 独立 user 卷 — 勿与 primary 共用 (运行态互踩, 见文件头偏离说明 2)
+      - comfyui-secondary-user:/root/ComfyUI/user
+      # 增量节点拓扑 (与 primary 逐条对齐, 2026-09-06 inspect 快照)
+      - /data/workspace/comfyui-incremental-nodes:/root/ComfyUI/custom_nodes/kais-incremental
+      - /data/workspace/comfyui-incremental-nodes/ComfyUI-LTXVideo:/root/ComfyUI/custom_nodes/ComfyUI-LTXVideo
+      - /data/workspace/comfyui-incremental-nodes/ComfyUI-TRELLIS2:/root/ComfyUI/custom_nodes/ComfyUI-TRELLIS2
+      - /data/workspace/comfyui-incremental-nodes/ComfyUI_AIIA:/root/ComfyUI/custom_nodes/ComfyUI_AIIA
+      - /data/workspace/comfyui-incremental-nodes/facerestore_cf:/root/ComfyUI/custom_nodes/facerestore_cf
+      - /data/workspace/comfyui-incremental-nodes/ComfyUI-PromptRelay:/root/ComfyUI/custom_nodes/ComfyUI-PromptRelay
+      - /data/workspace/comfyui-incremental-nodes/ltx_foley_v2a:/root/ComfyUI/custom_nodes/ltx_foley_v2a
+      # SolAttn: kais-incremental 装载器认不出 (只暴露 comfy_entrypoint) → 顶层独立挂载
+      - /data/workspace/comfyui-extra-nodes/ComfyUI-SolAttn_triton:/root/ComfyUI/custom_nodes/ComfyUI-SolAttn_triton
+      # T8 套件 (MiniMaxH3AudioConditioningT8 等) 同理顶层独立挂载
+      - /data/workspace/comfyui-incremental-nodes/minimax-h3-audio-T8:/root/ComfyUI/custom_nodes/minimax-h3-audio-T8
+      # QwenTTS (AILab 版) — KAP v1/production TTS 路由依赖 AILab_Qwen3TTS* 节点名
+      - /data/workspace/comfyui-incremental-nodes/ComfyUI-QwenTTS:/root/ComfyUI/custom_nodes/ComfyUI-QwenTTS
+      - /data/workspace/comfyui-incremental-nodes/scripts/fix-kornia.sh:/root/user-scripts/pre-start.sh
+      - /data/workspace/comfyui-incremental-nodes/scripts/install-qwen-tts-deps.sh:/root/user-scripts/install-qwen-tts-deps.sh
+      - /data/workspace/comfyui-incremental-nodes/scripts/pre-start-qwen-tts.sh:/root/user-scripts/pre-start-qwen-tts.sh
+      - /data/workspace/comfyui-incremental-nodes/scripts/install-insightface.sh:/root/user-scripts/install-insightface.sh
+      - /data/workspace/comfyui-incremental-nodes/scripts/install-training-deps.sh:/root/user-scripts/install-training-deps.sh
+      - /data/workspace/comfyui-incremental-nodes/scripts/install-aiia-deps.sh:/root/user-scripts/install-aiia-deps.sh
+      - /data/workspace/comfyui-incremental-nodes/scripts/install-facerestore-deps.sh:/root/user-scripts/install-facerestore-deps.sh
+      - /data/models/cosyvoice:/root/ComfyUI/models/cosyvoice:rw
+      - /data/models/w2v-bert-2.0:/data/models/w2v-bert-2.0:ro
+      # HF/torch 缓存复用 primary 的卷 (只读为主, 双实例并发写 HF 缓存由 hf 内部文件锁兜底)
+      - comfyui-cache:/tmp/hf_cache
+    networks:
+      - kais-net
+    # CDI 锚定 QC_GEN2 卡 (env 缺省 = gpu.conf QC_GEN2_UUID 真值, 插卡日 2026-09-05)
+    devices:
+      - nvidia.com/gpu=${KAIS_QC_GPU_UUID:-GPU-ff7c4f25-8f1f-8e6a-78da-8ac9aae70644}
+    shm_size: "4g"
+    # healthcheck 与 comfyui-primary 逐字对齐 (v9 同款 /system_stats 探活)
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8188/system_stats')"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 180s
+
+# ─── 网络/卷 ────────────────────────────────────────────────────────────────
+# kais-net / kais-comfyui-cache 由主 stack (docker-compose.v9.yml) 创建 —
+# 本文件是独立叠加定义, 一律 external 引用, 不重建不改配。
+# comfyui-secondary-user 是本文件新建的独立卷 (首起时自动创建)。
+
+networks:
+  kais-net:
+    name: kais-net
+    external: true
+
+volumes:
+  comfyui-secondary-user:
+    name: kais-comfyui-secondary-user
+  comfyui-cache:
+    name: kais-comfyui-cache
+    external: true

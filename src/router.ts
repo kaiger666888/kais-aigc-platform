@@ -171,6 +171,8 @@ import route168 from "./routes/v1/trellis2/status";
 import route169 from "./routes/v1/tts/health";
 import route170 from "./routes/v1/tts/speak";
 import route171 from "./routes/v1/tts/status";
+// M1+M2 双卡调度 (2026-09-06 手动追加 — router.ts 提交版手维护惯例, 勿整文件重生成)
+import route172 from "./routes/production/gpu/index";
 
 export default async (app: Express) => {
   app.use("/api/assets/addAssets", route1);
@@ -215,6 +217,7 @@ export default async (app: Express) => {
   app.use("/api/production/flux/kontext-generate", route40);
   app.use("/api/production/flux/sceneGenerate", route41);
   app.use("/api/production/flux/status", route42);
+  app.use("/api/production/gpu", route172);
   app.use("/api/production/gpu-queue", route43);
   app.use("/api/production/indextts2/speak", route44);
   app.use("/api/production/indextts2/status", route45);
