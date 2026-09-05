@@ -1,6 +1,8 @@
 # KAP 双卡调度架构：优先级打断 + GPU2 双人格溢出
 
-> 状态：设计定稿（Kai 2026-09-06 拍板），M1+M2 本批实施。
+> 状态：✅ M1+M2 已实施并上生产（2026-09-06，merge `a6b57184`，独立复验 tsc=0 + gpu 域 70/70 全绿）。
+> 生产端点：`GET /api/production/gpu/scheduling`、`GET|POST /api/production/gpu/persona`。
+> 待办：M3 队列对接（ComfyUI 深度真信号、KMC 镜头边界回调、evicted 重入队、PersonaSwitchExecutor）；`docker-compose.secondary.yml` 已交付未起容器（人格 B 首次启用时 operator 割接）。
 > 作者：Hermes（架构决策）→ GLM 老司机实施。
 
 ## 0. 目标与已拍板决策
