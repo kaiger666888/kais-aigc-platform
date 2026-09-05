@@ -85,3 +85,17 @@ env 覆盖 (KAIS_GPU_<ROLE>_UUID)  →  gpu.conf 角色→UUID  →  发现兜�
 - **不迁移**：3060Ti 角色与全部现役服务端口不变；Phase A 前现网行为逐位相等（conf 默认=现状）。
 - 新卡驱动/供电/散热问题属于硬件验收，setup 脚本预检会拦截（带宽/温度只读检查，不做压测——压测另排）。
 - GLM 老司机批只做 KAP 代码与 compose 参数化；/opt 脚本与 conf 由 Hermes 维护（职责边界与历史一致）。
+
+## 7. 插卡日执行记录（✅ 2026-09-05 22:16 Hermes 实操）
+
+| 步骤 | 结果 |
+|---|---|
+| 新卡识别 | GPU-ff7c4f25 @ index2（未抢占 index1，无枚举漂移）|
+| conf 回填 | QC_GEN2_UUID 已写（备份 gpu.conf.bak.20260905_221631）|
+| 角色翻转 | qwen-llm/qwen-ear/qwen-vllm/music3 → QC_GEN2 |
+| compose env | KAIS_RENDER_GPU_INDEX=1 回填 |
+| KAP 重启 | --restart，60s 内恢复健康，调度面 devices=3 |
+| verify | **12/12 全绿**（验收器已同步修：第4项兼容 0904 CDI 形态）|
+| 功能冒烟 | llama-server q4 起→落卡 GPU2 实证→:8125 健康→停服还卡 |
+
+冒烟实锤并修复：`gpu-roles.sh` 的 `${!envkey}` 间接展开在调用方 `set -u` 下未绑定变量即炸，解析链静默跌回渲染卡兜底（首次冒烟 llama-server 落 GPU1）。修复 = `${!envkey:-}`；复冒烟落卡 GPU2 正确。
