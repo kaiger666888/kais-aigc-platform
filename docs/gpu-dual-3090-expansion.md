@@ -99,3 +99,18 @@ env 覆盖 (KAIS_GPU_<ROLE>_UUID)  →  gpu.conf 角色→UUID  →  发现兜�
 | 功能冒烟 | llama-server q4 起→落卡 GPU2 实证→:8125 健康→停服还卡 |
 
 冒烟实锤并修复：`gpu-roles.sh` 的 `${!envkey}` 间接展开在调用方 `set -u` 下未绑定变量即炸，解析链静默跌回渲染卡兜底（首次冒烟 llama-server 落 GPU1）。修复 = `${!envkey:-}`；复冒烟落卡 GPU2 正确。
+
+## 8. 冷排风扇双通道温控（✅ 2026-09-05 23:43 上线）
+
+第 6 节"压测另排"的散热侧回答。当晚停转实验 + 双向满载验证锁定通道归属：
+
+| 通道 | 归属 | 控制方 |
+|---|---|---|
+| pwm3/fan3 | 老水神冷排 | daemon 按 UUID=`GPU-c5cdd49c` 曲线调速 |
+| pwm1/fan1 | **新 3090 冷排**（停转 80s → GPU2 满载核温 +12°C 直线爬；fan2 停转无反应）| daemon 按 UUID=`GPU-ff7c4f25` 同款曲线（升级前走 BIOS 代理盲调，核心温度不可见）|
+| pwm2/fan2 | 机箱扇（与新卡温度无耦合，勿混）| BIOS Q-Fan 不变 |
+| pwm7 | 水泵/CPU 侧恒满速；fan4/5/6 空 | BIOS 不变 |
+
+`/opt/kais-gpu/gpu-fan-ctl.py` 升级为双通道：各自 NVML `GetHandleByUUID` 钉死（换槽/枚举漂移免疫，修掉旧版"取第一个 3090 + 硬编码 -i 1"的隐患）；每通道独立安全网——温度失联 15s 该通道回落 BIOS（另一通道照跑），卡恢复连续 3s 可读自动重新接管；失速自适应下限 / ≥80°C 拉满 / 任何退出路径恢复 `enable=5`。旧脚本备份 `gpu-fan-ctl.py.bak.20260905`；换卡改 UUID 走 `KAIS_FAN_PWM1_UUID`/`KAIS_FAN_PWM3_UUID` env 或直接改脚本。
+
+双向验证：新卡 369W 满载 pwm1 精确跟曲线（55°C→duty 191，理论 191.5）且 pwm3 不动；老卡满载 pwm3 同样跟曲线且 pwm1 不吃串扰；负载停止按降慢斜率回待机 64。备注：pwm1/3 `_mode` 均已是 1(PWM)，勿强改；新卡首次 CUDA 加载曾出现 `temperature.gpu=0` 一次性遥测抖动（`-q` 直查正常，未复现）。
