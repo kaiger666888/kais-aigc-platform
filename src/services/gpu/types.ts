@@ -96,6 +96,12 @@ export interface ServiceState {
   lastTransitionAt: string | null;
   /** 最后请求时间 (用于空闲超时) */
   lastRequestAt: string | null;
+  /**
+   * 最近一次 allocate 的任务优先级类 (M1 双卡调度, docs/gpu-scheduling-architecture.md §2.1)。
+   * 调用方声明维度, 与 profile.priority (VRAM 驱逐用) 正交; 缺省 prod-P3。
+   * 仅观测用 (scheduling API 优先级分布), 不参与调度决策。
+   */
+  priorityClass?: PriorityClass;
 }
 
 export interface SchedulerState {
@@ -108,6 +114,12 @@ export interface SchedulerState {
 }
 
 // ─── 分配请求 ─────────────────────────────────────────
+
+/**
+ * 任务优先级类 (M1 双卡调度, docs/gpu-scheduling-architecture.md §2.1)。
+ * 调用方声明的任务维度, 不改 profile.priority (VRAM 驱逐维度保持原样)。
+ */
+export type PriorityClass = "dev-P0" | "dev-P1" | "prod-P2" | "prod-P3";
 
 export interface AllocationRequest {
   /** 需要的服务 ID */
@@ -122,6 +134,15 @@ export interface AllocationRequest {
   autoRelease?: boolean;
   /** 空闲多久后自动释放 ms (0=不自动释放, 默认 600000 = 10min) */
   idleTimeoutMs?: number;
+  /**
+   * 任务优先级类 (缺省 prod-P3 = 今日行为)。
+   * dev 类可打断 prod 占卡 (T0/T1/T2), prod 类在 dev 占用期被 T0 拒绝。
+   */
+  priorityClass?: PriorityClass;
+  /** 强制硬杀 (T2): 仅 dev-P0 合法, 其余组合在入口直接拒绝 */
+  force?: boolean;
+  /** dev 占用 TTL 分钟数: 仅 dev 类合法 (缺省 120, 上限 480); prod 类传入直接拒绝 */
+  ttlMin?: number;
 }
 
 export interface AllocationResult {
@@ -132,8 +153,121 @@ export interface AllocationResult {
   accessUrl: string | null;
   /** 如果发生了模式切换 */
   evictedServices?: string[];
+  /**
+   * T0 语义字段 (M1): true = 目标卡被 dev 占用, prod 新派发被拒绝。
+   * 调用方可改投另一张卡或排队等待 (M3 队列消费者对接自动处理)。
+   */
+  preempted?: true;
+  /** T0 拒绝时的占卡方信息 (requester/priorityClass/deadline 等), 见 GpuPreemptState */
+  preemptInfo?: GpuPreemptState;
+  /**
+   * T2 硬杀语义 (M1): 因 dev 请求被驱逐的 prod 服务清单。
+   * 被驱逐方应自行重排 (自动重入队属 M3, 本批不实现)。
+   */
+  evictedForDev?: string[];
+  /** 本次请求的生效优先级类 (缺省折叠为 prod-P3) */
+  priorityClass?: PriorityClass;
+  /** dev 类 granted 时下发的占用 TTL (到期自动归还, 可续期) */
+  devTtl?: DevTtlState;
   /** 调度耗时 ms */
   scheduledMs: number;
   /** 错误信息 */
   error?: string;
+}
+
+// ─── 双卡调度 (M1/M2): 打断 / dev-TTL / scheduling 快照 ──────────────────
+
+/** dev 占用 TTL 状态 (docs/gpu-scheduling-architecture.md §2.3) */
+export interface DevTtlState {
+  /** 授予的 TTL 分钟数 (granted 时) / 续期分钟数 (renew 时) */
+  grantedMin: number;
+  /** 到期时刻 (ISO; 过期即自动归还) */
+  expiresAt: string;
+  /** 最近一次续期时刻 (ISO; 未续期过则缺省) */
+  renewedAt?: string;
+  /** 续期累计次数 */
+  renewals: number;
+}
+
+/**
+ * per-GPU preempt 状态机 (M1)。
+ * phase=requested: dev 已到达, 打断窗口进行中 (T0 停派发 → T1 边界让卡 → 超时升 T2)
+ * phase=held:      dev 已占卡 (granted), 直到 TTL 到期/显式释放
+ */
+export interface GpuPreemptState {
+  /** GPU 索引 (运行时解析, 与锁同键) */
+  gpuIndex: number;
+  phase: "requested" | "held";
+  /** 当前打断层级: T0 停派发 / T1 边界让卡 / T2 硬杀 (T2 为瞬时态, 随即转 held) */
+  tier: "T0" | "T1" | "T2";
+  /** 发起打断的调用方标识 */
+  requester: string;
+  /** 打断方声明/生效的优先级类 (必为 dev 类) */
+  priorityClass: PriorityClass;
+  /** 是否 force (T2 直达, 仅 dev-P0) */
+  force: boolean;
+  /** 打断请求到达时刻 (ISO) */
+  requestedAt: string;
+  /** T1 上限截止时刻 (ISO; 超时自动升 T2) */
+  deadlineAt: string;
+  /** dev 占用的目标服务 (TTL 归还时停掉它) */
+  holderServiceId: string | null;
+  /** dev-TTL (仅 held 态有意义) */
+  ttl: DevTtlState | null;
+}
+
+/** scheduling API 的 per-GPU 视图 (GET /api/production/gpu/scheduling) */
+export interface GpuSchedulingEntry {
+  gpuIndex: number;
+  name: string;
+  totalMb: number;
+  /** 在跑服务 (含各自优先级类) */
+  running: Array<{
+    serviceId: string;
+    status: ServiceStatus;
+    profilePriority: number;
+    priorityClass: PriorityClass | null;
+  }>;
+  /** 在跑服务的优先级类分布 (含 null=旧状态未记录) */
+  priorityDistribution: Record<string, number>;
+  /** GPU 全局串行队列排队深度 (gpuVramManager waiters 按 gpuIndex 聚合) */
+  queueDepth: number;
+  /** dev 占用 TTL 剩余 (null = 无 dev 占用) */
+  devTtl: (DevTtlState & { remainingMs: number }) | null;
+  /** preempt 状态 (null = 无打断) */
+  preempt: GpuPreemptState | null;
+}
+
+/** scheduling 快照 (含事件环) */
+export interface SchedulingSnapshot {
+  gpus: GpuSchedulingEntry[];
+  /** 最近调度事件 (preempt/TTL 生命周期, 新的在前) */
+  events: SchedulingEvent[];
+}
+
+/** 调度事件 (设计文档 §2.5: 谁让的卡/等待时长/被杀清单) */
+export interface SchedulingEvent {
+  at: string;
+  type:
+    | "preempt-requested" // T0: dev 到达, 停派发生效
+    | "t1-timeout-escalated" // T1 15min 超时 → 升 T2
+    | "t2-evicted" // T2 硬杀, 被杀 prod 清单
+    | "dev-granted" // dev 占卡成功 (TTL 起算)
+    | "dev-ttl-renewed"
+    | "dev-ttl-expired" // TTL 到期自动归还
+    | "preempt-released" // 显式释放/idle 停服归还
+    | "prod-rejected-t0"; // prod allocate 被 T0 拒绝
+  gpuIndex: number;
+  requester: string | null;
+  detail: Record<string, unknown>;
+}
+
+/** M2 persona 闸门裁决 (PersonaArbiter 提供, GpuScheduler 在 allocate 里消费) */
+export interface PersonaGateVerdict {
+  /** true = 该服务在当前人格下不可立即派发 (B 渲染溢出期间 QC allocate 走 T1 等待) */
+  wait: boolean;
+  /** 等待原因 (观测用) */
+  reason?: string;
+  /** 等待截止时刻 ISO (缺省由 scheduler 的 T1 上限兜底) */
+  deadlineAt?: string | null;
 }

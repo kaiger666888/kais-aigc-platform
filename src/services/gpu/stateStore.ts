@@ -41,6 +41,16 @@ export interface StateStore {
   /** Read all current locks; values are holder strings or null. */
   getAllLocks(): Promise<Array<[number, string | null]>>;
 
+  // ─── Generic KV (双卡调度 M1/M2) ───────────────────────
+  /**
+   * 自由键值空间 — preempt 状态镜像、persona 人格状态等跨进程可见的调度面数据。
+   * 与 services/profiles 的区别: 写入方自管键名 (调用方自带命名空间前缀),
+   * 值任意 JSON。M2 PersonaArbiter 的人格外则依赖它跨 KAP 重启存活。
+   */
+  getKV<T = any>(key: string): Promise<T | null>;
+  setKV(key: string, value: any): Promise<void>;
+  deleteKV(key: string): Promise<void>;
+
   // ─── Lifecycle ─────────────────────────────────────────
   /** Cleanup resources (close connections, etc). Idempotent. */
   close(): Promise<void>;

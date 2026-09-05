@@ -16,10 +16,18 @@ import axios from "axios";
 // 2026-08-19 (docs/gpu-unified-scheduling-plan.md D5): 停服务时联动释放
 // gpuVramManager 的服务级占位 — 此前 idle 超时/GpuScheduler.release 只停服务,
 // 队列占位残留孤儿化 (ep-ccport-test01 p11a 5h 死锁的 D5 因子)。
-import { releaseEngineOccupancy } from "@/lib/gpuVramManager";
+// M1 双卡调度: scheduling 快照的 queueDepth 亦从其 waiters 聚合 (§2.5)。
+import { releaseEngineOccupancy, getGpuQueueStatus } from "@/lib/gpuVramManager";
 // 双3090 Phase A (docs/gpu-dual-3090-expansion.md): 角色→UUID→索引解析库。
 // 索引一律运行时解析 (PCIe 枚举漂移免疫); 全链失败静默回退硬编码, 绝不抛异常。
 import { getGpuDevices, resolveServiceIndex, resolveServiceIndexSync } from "./gpuRoles";
+// M1 双卡调度 (docs/gpu-scheduling-architecture.md): 优先级类校验 (纯函数)。
+import {
+  validatePriorityOptions,
+  isDevClass,
+  DEFAULT_DEV_TTL_MIN,
+  MAX_DEV_TTL_MIN,
+} from "./priority";
 import type {
   GpuDevice,
   ServiceProfile,
@@ -29,6 +37,13 @@ import type {
   AllocationRequest,
   AllocationResult,
   SchedulerState,
+  PriorityClass,
+  DevTtlState,
+  GpuPreemptState,
+  GpuSchedulingEntry,
+  SchedulingSnapshot,
+  SchedulingEvent,
+  PersonaGateVerdict,
 } from "./types";
 import type { StateStore } from "./stateStore";
 import { MemoryStateStore } from "./memoryStateStore";
@@ -210,6 +225,33 @@ export function profileGpuIndex(profile: ServiceProfile): number {
 
 const LOCK_TTL_MS = 5 * 60 * 1000; // 5 min — must exceed any single allocate() duration
 
+/** M1 T1 边界让卡上限 (docs/gpu-scheduling-architecture.md §2.2: 上限 15min, 超时自动升 T2) */
+const T1_TIMEOUT_MS_DEFAULT = 15 * 60 * 1000;
+/** T1/dev-TTL 等待轮询间隔 (默认 2s; 测试可注入缩短) */
+const WAIT_POLL_MS_DEFAULT = 2_000;
+/** preempt/TTL 状态的 store KV 镜像键前缀 (跨进程观测; 计时器仍在进程内) */
+const PREEMPT_KV_PREFIX = "preempt:";
+
+/**
+ * 调度器可注入参数 (M1 双卡调度)。全部可选 — 缺省即生产语义, 仅为单测 hermetic 而设。
+ */
+export interface SchedulerTuningOpts {
+  /** 时钟 (TTL/preempt 截止判定; 缺省 Date.now。测试注入假钟做时间跳跃) */
+  now?: () => number;
+  /** T1 边界让卡上限 ms (缺省 15min) */
+  t1TimeoutMs?: number;
+  /** T1/persona 等待轮询间隔 ms (缺省 2s) */
+  waitPollMs?: number;
+  /** 等待休眠原语 (缺省 setTimeout; 测试注入即时返回) */
+  sleep?: (ms: number) => Promise<void>;
+}
+
+/** preempt 记录的进程内形态 (公开快照用 GpuPreemptState, 不暴露 waiters) */
+interface PreemptRuntime extends GpuPreemptState {
+  /** 正在等待让卡的 dev 请求数 (0 = 无人等待, 超时/放弃时可能撤销记录) */
+  waiters: number;
+}
+
 export class GpuScheduler {
   /** In-process service state cache. Authoritative within this process. */
   private services = new Map<string, ServiceState>();
@@ -226,9 +268,46 @@ export class GpuScheduler {
   /** Resolves when initial state has been registered into the store. */
   private initialized: Promise<void>;
 
-  constructor(store?: StateStore) {
+  // ─── M1 双卡调度状态 (docs/gpu-scheduling-architecture.md) ──────────────
+  /** per-GPU preempt/TTL 记录 (phase: requested=打断窗口 / held=dev 占卡中) */
+  private preempts = new Map<number, PreemptRuntime>();
+  /** dev-TTL 到期计时器 (进程内; 惰性扫描兜底, 见 sweepExpiredPreempts) */
+  private ttlTimers = new Map<number, NodeJS.Timeout>();
+  /** 调度事件环 (preempt/TTL 生命周期; 新的在尾) */
+  private events: SchedulingEvent[] = [];
+  /** 可注入时钟/参数 */
+  private tuning: Required<Pick<SchedulerTuningOpts, "now" | "t1TimeoutMs" | "waitPollMs">> & Pick<SchedulerTuningOpts, "sleep">;
+  /**
+   * M2 persona 闸门 (PersonaArbiter 注入; null = 未挂闸门, allocate 直通 = 今日行为)。
+   * gate(serviceId) 返回 {wait:true} 时 allocate 阻塞等待至放行/截止;
+   * 截止后调 onGateTimeout (仲裁器收卡回人格 A) 再放行 — T1 ≤15min 语义。
+   */
+  private personaGate: ((serviceId: string) => PersonaGateVerdict) | null = null;
+  private personaGateTimeout: ((serviceId: string) => Promise<void>) | null = null;
+
+  constructor(store?: StateStore, opts?: SchedulerTuningOpts) {
     this.store = store ?? new MemoryStateStore();
+    this.tuning = {
+      now: opts?.now ?? Date.now,
+      t1TimeoutMs: opts?.t1TimeoutMs ?? T1_TIMEOUT_MS_DEFAULT,
+      waitPollMs: opts?.waitPollMs ?? WAIT_POLL_MS_DEFAULT,
+      sleep: opts?.sleep,
+    };
     this.initialized = this.initialize();
+  }
+
+  /** M2: 注入 persona 闸门 (getPersonaArbiterAsync 装配; 传 null 卸载)。 */
+  setPersonaArbiterHooks(
+    gate: ((serviceId: string) => PersonaGateVerdict) | null,
+    onGateTimeout?: ((serviceId: string) => Promise<void>) | null,
+  ): void {
+    this.personaGate = gate;
+    this.personaGateTimeout = onGateTimeout ?? null;
+  }
+
+  /** M2: 调度器底层 StateStore (PersonaArbiter 共用同一后端做跨进程持久化)。 */
+  get stateStore(): StateStore {
+    return this.store;
   }
 
   private async initialize(): Promise<void> {
@@ -303,7 +382,8 @@ export class GpuScheduler {
 
   // ─── 服务生命周期 ──────────────────────────────────
 
-  private async executeStartStep(profile: ServiceProfile, envVars?: Record<string, string>): Promise<void> {
+  // protected: 单测子类桩化 (docker/script 零接触); 生产行为不变
+  protected async executeStartStep(profile: ServiceProfile, envVars?: Record<string, string>): Promise<void> {
     const steps = Array.isArray(profile.start) ? profile.start : [profile.start];
     for (const step of steps) {
       switch (step.type) {
@@ -342,7 +422,7 @@ export class GpuScheduler {
     }
   }
 
-  private async executeStopStep(profile: ServiceProfile): Promise<void> {
+  protected async executeStopStep(profile: ServiceProfile): Promise<void> {
     const steps = profile.stop ? (Array.isArray(profile.stop) ? profile.stop : [profile.stop])
       : this.inferStopSteps(profile);
     for (const step of steps) {
@@ -375,10 +455,31 @@ export class GpuScheduler {
   /**
    * 请求 GPU 资源分配。
    * 如果需要, 自动暂停低优先级服务; 拉起目标服务; 等待就绪。
+   *
+   * M1 双卡调度扩展 (docs/gpu-scheduling-architecture.md §2.1-§2.3):
+   *   - priorityClass/force/ttlMin 三元组入口校验, 非法组合直接拒绝
+   *   - T0 停派发: dev 打断/占用期间, 该卡的新 prod allocate 立即拒绝 (preempted:true)
+   *   - T1 边界让卡 (dev 非 force 默认): 等 prod 在跑任务收尾让卡, 上限 15min 超时升 T2
+   *   - T2 硬杀 (仅 dev-P0+force / T1 超时): 走既有 ensureVram 驱逐, 受害者标 evictedForDev
+   *   - dev-TTL: dev 占卡默认 120min (上限 480), 到期自动归还 (停 dev 服务+清 preempt)
+   * 缺省 (无 priorityClass = prod-P3, 无 preempt 记录) 时以上分支全部不进入 = 今日行为。
    */
   async allocate(req: AllocationRequest): Promise<AllocationResult> {
     await this.initialized;
-    const startTime = Date.now();
+    const startTime = this.tuning.now();
+
+    // ─── M1: 优先级三元组校验 (纯函数; 非法组合零调度动作直接拒绝) ───
+    const pv = validatePriorityOptions(req);
+    if (!pv.ok) {
+      return {
+        granted: false, serviceId: req.serviceId, variantId: null, accessUrl: null,
+        scheduledMs: 0, error: pv.reason,
+        ...(req.priorityClass !== undefined ? { priorityClass: req.priorityClass } : {}),
+      };
+    }
+    const { priorityClass: effectiveClass, force, ttlMin } = pv.value;
+    const isDev = isDevClass(effectiveClass);
+
     const profile = this.profilesCache.get(req.serviceId);
     if (!profile) {
       return { granted: false, serviceId: req.serviceId, variantId: null, accessUrl: null, scheduledMs: 0, error: `Unknown service: ${req.serviceId}` };
@@ -388,29 +489,61 @@ export class GpuScheduler {
     // (UUID→index 查询; 解析失败落 profile.gpuId, 不抛异常)。锁/驱逐/启动全程用同一索引。
     const gpuIndex = profileGpuIndex(profile);
 
+    // ─── M1-T0 停派发: dev 打断/占用期间, prod 新派发立即拒绝 (在跑任务不受影响) ───
+    // 调用方拿到 preempted:true 后可改投另一张卡或排队 (自动重排属 M3)。
+    const existingPreempt = this.preempts.get(gpuIndex);
+    if (!isDev && existingPreempt) {
+      this.pushEvent({
+        type: "prod-rejected-t0", gpuIndex, requester: req.caller,
+        detail: { serviceId: req.serviceId, holder: existingPreempt.requester, phase: existingPreempt.phase, holderClass: existingPreempt.priorityClass },
+      });
+      return {
+        granted: false, serviceId: req.serviceId, variantId: null, accessUrl: null,
+        scheduledMs: 0, preempted: true, preemptInfo: publicPreemptView(existingPreempt),
+        error: `GPU ${gpuIndex} 正被 dev 打断/占用 (${existingPreempt.priorityClass} by ${existingPreempt.requester}, phase=${existingPreempt.phase}) — 请改投其他卡或等待归还`,
+        ...(req.priorityClass !== undefined ? { priorityClass: effectiveClass } : {}),
+      };
+    }
+
     // Record request time
     const state = this.services.get(req.serviceId)!;
-    state.lastRequestAt = new Date().toISOString();
+    state.lastRequestAt = new Date(this.tuning.now()).toISOString();
     this.mirrorService(req.serviceId, state);
 
     // Reset idle timer (if any)
     this.resetIdleTimer(req.serviceId);
 
+    // ─── M2: persona 闸门 (PersonaArbiter 注入; B 渲染溢出期间 QC allocate 走 T1 等待 ≤15min) ───
+    if (this.personaGate) {
+      const gatePassed = await this.awaitPersonaGate(req.serviceId, startTime, req.waitTimeoutMs);
+      if (!gatePassed) {
+        return {
+          granted: false, serviceId: req.serviceId, variantId: null, accessUrl: null,
+          scheduledMs: this.tuning.now() - startTime,
+          error: "persona 等待被调用方 waitTimeoutMs 截断 (QC 服务在人格 B 期间排队让卡中)",
+        };
+      }
+    }
+
     // Already running + healthy with correct variant?
     if (state.status === "healthy" && state.variantId === (req.variantId || null)) {
       // Verify real liveness — in-process state can be stale (external stop / crash / reboot)
       if (profile.healthUrl) {
-        let alive = false;
-        try { await axios.get(profile.healthUrl, { timeout: 3_000 }); alive = true; } catch { /* stale */ }
+        const alive = await this.checkServiceAlive(profile);
         if (!alive) {
           console.warn(`[GpuScheduler] ${req.serviceId} memory state "healthy" but health check failed — falling through to restart`);
           state.status = "stopped";
           this.mirrorService(req.serviceId, state);
         } else {
-          return { granted: true, serviceId: req.serviceId, variantId: state.variantId, accessUrl: profile.healthUrl, scheduledMs: Date.now() - startTime };
+          // M1: 快速路径 = 服务已驻留, 未发生占卡 — 只记观测字段, 不建 preempt/TTL
+          state.priorityClass = effectiveClass;
+          this.mirrorService(req.serviceId, state);
+          return { granted: true, serviceId: req.serviceId, variantId: state.variantId, accessUrl: profile.healthUrl, scheduledMs: this.tuning.now() - startTime };
         }
       } else {
-        return { granted: true, serviceId: req.serviceId, variantId: state.variantId, accessUrl: profile.healthUrl, scheduledMs: Date.now() - startTime };
+        state.priorityClass = effectiveClass;
+        this.mirrorService(req.serviceId, state);
+        return { granted: true, serviceId: req.serviceId, variantId: state.variantId, accessUrl: profile.healthUrl, scheduledMs: this.tuning.now() - startTime };
       }
     }
 
@@ -431,6 +564,10 @@ export class GpuScheduler {
     };
     lockTimeout = setTimeout(() => { void autoReleaseLock(); }, LOCK_TTL_MS);
 
+    // M1 dev 打断记录 (锁内维护, 所有退出路径在 finally 清理 waiters)
+    let devPreemptRec: PreemptRuntime | null = null;
+    let grantedResult: AllocationResult | null = null;
+
     try {
       const variant = req.variantId && profile.variants
         ? profile.variants.find(v => v.variantId === req.variantId) || profile.variants[0]
@@ -438,12 +575,59 @@ export class GpuScheduler {
 
       const targetVram = variant?.vramEstMb || profile.vramEstMb;
 
+      // ─── M1-T1/T2: dev 请求的打断语义 (锁内, per-GPU 原子) ───
+      if (isDev) {
+        const busy = this.runningServicesOnGpu(gpuIndex, req.serviceId);
+        devPreemptRec = this.joinOrCreatePreempt(gpuIndex, {
+          requester: req.caller,
+          priorityClass: effectiveClass,
+          force,
+          tier: force ? "T2" : "T1",
+          holderServiceId: req.serviceId,
+          announce: busy.length > 0 || force,
+        });
+        if (busy.length > 0 && !force) {
+          // T1 边界让卡: 等 prod 在跑任务收尾; 上限 15min, 超时自动升 T2
+          const t1DeadlineMs = Date.parse(devPreemptRec.deadlineAt);
+          const callerCapMs = req.waitTimeoutMs !== undefined ? startTime + req.waitTimeoutMs : Infinity;
+          if (callerCapMs < t1DeadlineMs) {
+            // 调用方自设更短预算: 到点放弃 (不升级 T2), finally 撤销记录
+            await this.waitForBoundaryYield(gpuIndex, req.serviceId, Math.min(t1DeadlineMs, callerCapMs));
+            return {
+              granted: false, serviceId: req.serviceId, variantId: null, accessUrl: null,
+              scheduledMs: this.tuning.now() - startTime, priorityClass: effectiveClass,
+              error: `GPU ${gpuIndex} 的 T1 让卡等待被调用方 waitTimeoutMs 截断 (${Math.round(req.waitTimeoutMs! / 1000)}s) — preempt 已保留, 可重试或改投其他卡`,
+            };
+          }
+          const outcome = await this.waitForBoundaryYield(gpuIndex, req.serviceId, t1DeadlineMs);
+          if (outcome === "timeout") {
+            devPreemptRec.tier = "T2";
+            devPreemptRec.force = true;
+            void this.mirrorPreempt(devPreemptRec);
+            this.pushEvent({
+              type: "t1-timeout-escalated", gpuIndex, requester: req.caller,
+              detail: { serviceId: req.serviceId, waitedMs: this.tuning.now() - startTime, deadlineAt: devPreemptRec.deadlineAt },
+            });
+            // 落回下方 ensureVram 驱逐路径 (= T2 硬杀), 受害者标 evictedForDev
+          }
+        }
+        // force=true: 不等待, 直接 T2 (ensureVram 驱逐)
+      }
+
       // Evict lower-priority services if needed
       const evicted = await this.ensureVram(gpuIndex, targetVram, profile.priority, req.caller);
+      let evictedForDev: string[] | undefined;
+      if (isDev && evicted.length > 0) {
+        evictedForDev = evicted;
+        this.pushEvent({
+          type: "t2-evicted", gpuIndex, requester: req.caller,
+          detail: { evictedForDev: evicted, forced: force, tier: devPreemptRec?.tier ?? "T2" },
+        });
+      }
 
       // Start the target service
       state.status = "starting";
-      state.lastTransitionAt = new Date().toISOString();
+      state.lastTransitionAt = new Date(this.tuning.now()).toISOString();
       this.mirrorService(req.serviceId, state);
 
       const envVars = variant?.envVars;
@@ -457,7 +641,11 @@ export class GpuScheduler {
         state.status = healthy ? "healthy" : "error";
         this.mirrorService(req.serviceId, state);
         if (!healthy) {
-          return { granted: false, serviceId: req.serviceId, variantId: variant?.variantId || null, accessUrl: null, scheduledMs: Date.now() - startTime, evictedServices: evicted, error: "Service failed health check" };
+          return {
+            granted: false, serviceId: req.serviceId, variantId: variant?.variantId || null, accessUrl: null,
+            scheduledMs: this.tuning.now() - startTime, evictedServices: evicted,
+            ...(evictedForDev ? { evictedForDev } : {}), error: "Service failed health check",
+          };
         }
       } else {
         // No health check — assume started
@@ -467,6 +655,8 @@ export class GpuScheduler {
 
       state.variantId = variant?.variantId || null;
       state.instanceId = profile.id;
+      // M1: 记录生效优先级类 (scheduling API 优先级分布的观测来源)
+      state.priorityClass = effectiveClass;
       this.mirrorService(req.serviceId, state);
 
       // Set idle auto-release timer (use profile's configured timeout)
@@ -476,13 +666,30 @@ export class GpuScheduler {
         this.setIdleTimer(req.serviceId, idleTimeout);
       }
 
-      return { granted: true, serviceId: req.serviceId, variantId: state.variantId, accessUrl: profile.healthUrl, scheduledMs: Date.now() - startTime, evictedServices: evicted };
+      // ─── M1: dev granted → preempt 转 held + TTL 起算 ───
+      let devTtl: DevTtlState | undefined;
+      if (isDev && devPreemptRec) {
+        devTtl = this.promotePreemptToHeld(devPreemptRec, req.serviceId, ttlMin ?? DEFAULT_DEV_TTL_MIN) ?? undefined;
+      }
+
+      grantedResult = {
+        granted: true, serviceId: req.serviceId, variantId: state.variantId, accessUrl: profile.healthUrl,
+        scheduledMs: this.tuning.now() - startTime, evictedServices: evicted,
+        ...(evictedForDev ? { evictedForDev } : {}),
+        ...(req.priorityClass !== undefined ? { priorityClass: effectiveClass } : {}),
+        ...(devTtl ? { devTtl } : {}),
+      };
+      return grantedResult;
     } catch (err: any) {
       state.status = "error";
       this.mirrorService(req.serviceId, state);
-      return { granted: false, serviceId: req.serviceId, variantId: null, accessUrl: null, scheduledMs: Date.now() - startTime, error: err.message || String(err) };
+      return { granted: false, serviceId: req.serviceId, variantId: null, accessUrl: null, scheduledMs: this.tuning.now() - startTime, error: err.message || String(err) };
     } finally {
       await autoReleaseLock();
+      // M1: 未 granted 的 dev 请求撤出 preempt 记录 (无人等待则整条撤销, 卡还 prod)
+      if (isDev && devPreemptRec && !grantedResult) {
+        this.leavePreempt(devPreemptRec, "allocate-not-granted");
+      }
     }
   }
 
@@ -515,6 +722,13 @@ export class GpuScheduler {
         );
         releaseEngineOccupancy(queueEngine.engine, gpuIndex);
       }
+
+      // M1 联动: 停的是 dev 占卡服务 (idle 超时/显式 release/TTL 到期皆经此) →
+      // preempt 记录与 TTL 计时一并归还 (TTL 到期路径已先清记录, 此处幂等)。
+      const heldRec = Array.from(this.preempts.values()).find((r) => r.holderServiceId === serviceId);
+      if (heldRec) {
+        await this.clearPreempt(heldRec.gpuIndex, "holder-released", { releasedBy: caller ?? null });
+      }
     }
   }
 
@@ -530,6 +744,392 @@ export class GpuScheduler {
         await this.release(id);
       }
     }
+  }
+
+  // ─── M1 双卡调度: 打断 / dev-TTL / scheduling 快照 ──────────────────────
+  // (docs/gpu-scheduling-architecture.md §2.2-§2.3+§2.5; API 挂
+  //  /api/production/gpu/scheduling*)
+
+  /**
+   * scheduling 快照: per-GPU 在跑/优先级分布/队列深度/dev-TTL 剩余/preempt 态 + 事件环。
+   * 读取即做一次惰性过期清扫 (TTL 到期归还、无人等待的陈旧 requested 记录撤销),
+   * 与进程内计时器互为兜底 (注入时钟/进程重启场景计时器不可靠)。
+   */
+  async getSchedulingState(): Promise<SchedulingSnapshot> {
+    await this.initialized;
+    await this.sweepExpiredPreempts();
+    const now = this.tuning.now();
+    const devices = getGpuDevices();
+    const queue = getGpuQueueStatus();
+    const depthByGpu = new Map<number, number>();
+    for (const w of queue.waiters ?? []) {
+      depthByGpu.set(w.gpuIndex, (depthByGpu.get(w.gpuIndex) ?? 0) + 1);
+    }
+    const gpus: GpuSchedulingEntry[] = devices.map((d) => {
+      const running = Array.from(this.services.values())
+        .filter((s) => s.status !== "stopped")
+        .filter((s) => {
+          const p = this.profilesCache.get(s.profileId);
+          return !!p && profileGpuIndex(p) === d.id;
+        })
+        .map((s) => ({
+          serviceId: s.profileId,
+          status: s.status,
+          profilePriority: this.profilesCache.get(s.profileId)!.priority,
+          priorityClass: s.priorityClass ?? null,
+        }));
+      const priorityDistribution: Record<string, number> = {};
+      for (const r of running) {
+        const k = r.priorityClass ?? "unset";
+        priorityDistribution[k] = (priorityDistribution[k] ?? 0) + 1;
+      }
+      const rec = this.preempts.get(d.id) ?? null;
+      const devTtl = rec?.phase === "held" && rec.ttl
+        ? { ...rec.ttl, remainingMs: Math.max(0, Date.parse(rec.ttl.expiresAt) - now) }
+        : null;
+      return {
+        gpuIndex: d.id,
+        name: d.name,
+        totalMb: d.totalMb,
+        running,
+        priorityDistribution,
+        queueDepth: depthByGpu.get(d.id) ?? 0,
+        devTtl,
+        preempt: rec ? publicPreemptView(rec) : null,
+      };
+    });
+    return { gpus, events: this.events.slice(-50).reverse() };
+  }
+
+  /**
+   * dev-P0 续期: 重置 TTL 计时 (§2.3)。ttlMin 缺省沿用原授予值。
+   */
+  async renewDevTtl(
+    gpuIndex: number,
+    opts?: { ttlMin?: number; requester?: string },
+  ): Promise<{ ok: true; ttl: DevTtlState } | { ok: false; error: string }> {
+    await this.initialized;
+    await this.sweepExpiredPreempts();
+    const rec = this.preempts.get(gpuIndex);
+    if (!rec || rec.phase !== "held" || !rec.ttl) {
+      return { ok: false, error: `GPU ${gpuIndex} 无进行中的 dev 占用 (无可续期 TTL)` };
+    }
+    const ttlMin = opts?.ttlMin ?? rec.ttl.grantedMin;
+    if (!Number.isFinite(ttlMin) || ttlMin < 1 || ttlMin > MAX_DEV_TTL_MIN) {
+      return { ok: false, error: `ttlMin 必须为 1-${MAX_DEV_TTL_MIN} 的分钟数 (收到 ${opts?.ttlMin})` };
+    }
+    const now = this.tuning.now();
+    const ttl: DevTtlState = {
+      grantedMin: ttlMin,
+      expiresAt: new Date(now + ttlMin * 60_000).toISOString(),
+      renewedAt: new Date(now).toISOString(),
+      renewals: rec.ttl.renewals + 1,
+    };
+    rec.ttl = ttl;
+    this.armTtlTimer(gpuIndex, ttlMin * 60_000);
+    void this.mirrorPreempt(rec);
+    this.pushEvent({
+      type: "dev-ttl-renewed", gpuIndex, requester: opts?.requester ?? rec.requester,
+      detail: { ttlMin, expiresAt: ttl.expiresAt, renewals: ttl.renewals },
+    });
+    return { ok: true, ttl };
+  }
+
+  /**
+   * 手动强制打断 (force 语义, dev-P0 专属): 立即 T2 硬杀卡上 prod 服务并占卡起算 TTL。
+   * 不绑定具体服务 (holderServiceId=null), TTL 到期仅清记录还卡。
+   */
+  async forcePreempt(
+    gpuIndex: number,
+    opts: { requester: string; ttlMin?: number; priorityClass?: PriorityClass },
+  ): Promise<{ ok: true; preempt: GpuPreemptState; evictedForDev: string[] } | { ok: false; error: string }> {
+    await this.initialized;
+    const pc = opts.priorityClass ?? "dev-P0";
+    if (pc !== "dev-P0") {
+      return { ok: false, error: `手动强制打断是 dev-P0 语义 (收到 ${pc})` };
+    }
+    if (!opts.requester || typeof opts.requester !== "string") {
+      return { ok: false, error: "requester 必填 (打断审计归属)" };
+    }
+    const ttlMin = opts.ttlMin ?? DEFAULT_DEV_TTL_MIN;
+    if (!Number.isFinite(ttlMin) || ttlMin < 1 || ttlMin > MAX_DEV_TTL_MIN) {
+      return { ok: false, error: `ttlMin 必须为 1-${MAX_DEV_TTL_MIN} 的分钟数 (收到 ${opts.ttlMin})` };
+    }
+
+    // T2 硬杀: 停掉卡上全部在跑服务 (走既有 release → D5 队列占位联动一并解除)
+    const evictedForDev: string[] = [];
+    for (const s of this.runningServicesOnGpu(gpuIndex, null)) {
+      await this.release(s.profileId, `force-preempt:${opts.requester}`);
+      evictedForDev.push(s.profileId);
+    }
+    if (evictedForDev.length > 0) {
+      this.pushEvent({
+        type: "t2-evicted", gpuIndex, requester: opts.requester,
+        detail: { evictedForDev, source: "manual-force-preempt" },
+      });
+    }
+
+    // 建/转 held 记录 + TTL (已有 requested 记录直升 held; 已 held 则刷新 TTL)
+    const now = this.tuning.now();
+    let rec = this.preempts.get(gpuIndex);
+    if (!rec) {
+      rec = {
+        gpuIndex,
+        phase: "held",
+        tier: "T2",
+        requester: opts.requester,
+        priorityClass: pc,
+        force: true,
+        requestedAt: new Date(now).toISOString(),
+        deadlineAt: new Date(now).toISOString(),
+        holderServiceId: null,
+        ttl: null,
+        waiters: 0,
+      };
+      this.preempts.set(gpuIndex, rec);
+      this.pushEvent({
+        type: "preempt-requested", gpuIndex, requester: opts.requester,
+        detail: { priorityClass: pc, force: true, tier: "T2", source: "manual-force-preempt" },
+      });
+    }
+    rec.phase = "held";
+    rec.tier = "T2";
+    rec.force = true;
+    rec.holderServiceId = null;
+    rec.ttl = {
+      grantedMin: ttlMin,
+      expiresAt: new Date(now + ttlMin * 60_000).toISOString(),
+      renewals: 0,
+    };
+    this.armTtlTimer(gpuIndex, ttlMin * 60_000);
+    void this.mirrorPreempt(rec);
+    this.pushEvent({
+      type: "dev-granted", gpuIndex, requester: opts.requester,
+      detail: { source: "manual-force-preempt", ttlMin, expiresAt: rec.ttl.expiresAt, evictedForDev },
+    });
+    return { ok: true, preempt: publicPreemptView(rec), evictedForDev };
+  }
+
+  /**
+   * 手动归还 dev 占用 (TTL 到期自动归还的人工对应; API POST /scheduling/release)。
+   * 清 preempt/TTL, 若有 holder dev 服务则一并停掉 (既有 release 停服路径)。
+   */
+  async releaseDevOccupation(
+    gpuIndex: number,
+    requester?: string,
+  ): Promise<{ ok: boolean; error?: string }> {
+    await this.initialized;
+    const rec = this.preempts.get(gpuIndex);
+    if (!rec) {
+      return { ok: false, error: `GPU ${gpuIndex} 无 dev 打断/占用记录` };
+    }
+    const holder = rec.holderServiceId;
+    await this.clearPreempt(gpuIndex, "manual-release", { requester: requester ?? null });
+    if (holder) {
+      const st = this.services.get(holder);
+      if (st && st.status !== "stopped") {
+        await this.release(holder, `dev-release:${requester ?? "api"}`);
+      }
+    }
+    return { ok: true };
+  }
+
+  // ─── M1 内部: preempt 状态机 ────────────────────────────────────────────
+
+  /**
+   * 加入或创建 per-GPU preempt 记录 (dev allocate 锁内调用)。
+   * announce=false (卡空闲且非 force) 时静默建记录 — 只为 granted 后挂 TTL, 不发 T0 事件。
+   */
+  private joinOrCreatePreempt(
+    gpuIndex: number,
+    p: { requester: string; priorityClass: PriorityClass; force: boolean; tier: "T1" | "T2"; holderServiceId: string; announce: boolean },
+  ): PreemptRuntime {
+    const existing = this.preempts.get(gpuIndex);
+    if (existing) {
+      // 请求态: 与在等 dev 共享同一记录/截止时刻; held 态 (另一 dev 已占卡):
+      // 不另建记录不重置 TTL — promote 时按 holder 归属决定是否刷新
+      existing.waiters++;
+      return existing;
+    }
+    const now = this.tuning.now();
+    const rec: PreemptRuntime = {
+      gpuIndex,
+      phase: "requested",
+      tier: p.tier,
+      requester: p.requester,
+      priorityClass: p.priorityClass,
+      force: p.force,
+      requestedAt: new Date(now).toISOString(),
+      deadlineAt: new Date(now + this.tuning.t1TimeoutMs).toISOString(),
+      holderServiceId: p.holderServiceId,
+      ttl: null,
+      waiters: 1,
+    };
+    this.preempts.set(gpuIndex, rec);
+    void this.mirrorPreempt(rec);
+    if (p.announce) {
+      // T0 停派发自此刻生效 (prod 新 allocate 即拒)
+      this.pushEvent({
+        type: "preempt-requested", gpuIndex, requester: p.requester,
+        detail: { priorityClass: p.priorityClass, force: p.force, tier: p.tier },
+      });
+    }
+    return rec;
+  }
+
+  /** dev granted: requested → held, TTL 起算并武装计时器。已有 held 记录 (另一 dev 持有) 时不动, 返回 null。 */
+  private promotePreemptToHeld(rec: PreemptRuntime, holderServiceId: string, ttlMin: number): DevTtlState | null {
+    const now = this.tuning.now();
+    if (rec.phase === "held") {
+      if (rec.holderServiceId && rec.holderServiceId !== holderServiceId) {
+        return null; // 卡已被另一 dev 服务持有, TTL 归原持有者
+      }
+    }
+    rec.phase = "held";
+    rec.holderServiceId = holderServiceId;
+    const ttl: DevTtlState = {
+      grantedMin: ttlMin,
+      expiresAt: new Date(now + ttlMin * 60_000).toISOString(),
+      renewals: 0,
+    };
+    rec.ttl = ttl;
+    this.armTtlTimer(rec.gpuIndex, ttlMin * 60_000);
+    void this.mirrorPreempt(rec);
+    this.pushEvent({
+      type: "dev-granted", gpuIndex: rec.gpuIndex, requester: rec.requester,
+      detail: { holderServiceId, ttlMin, expiresAt: ttl.expiresAt },
+    });
+    return ttl;
+  }
+
+  /** dev 请求未 granted 的退出路径: 撤 waiters; 无人等待的 requested 记录整条撤销 (卡还 prod)。 */
+  private leavePreempt(rec: PreemptRuntime, reason: string): void {
+    rec.waiters = Math.max(0, rec.waiters - 1);
+    if (rec.waiters === 0 && rec.phase === "requested") {
+      void this.clearPreempt(rec.gpuIndex, reason);
+    }
+  }
+
+  /** 清记录 + TTL 计时器 + store 镜像, 发 preempt-released 事件。幂等 (记录不存在则 no-op)。 */
+  private async clearPreempt(gpuIndex: number, reason: string, detail?: Record<string, unknown>): Promise<void> {
+    const rec = this.preempts.get(gpuIndex);
+    if (!rec) return;
+    this.preempts.delete(gpuIndex);
+    const t = this.ttlTimers.get(gpuIndex);
+    if (t) { clearTimeout(t); this.ttlTimers.delete(gpuIndex); }
+    try { await this.store.deleteKV(PREEMPT_KV_PREFIX + gpuIndex); } catch { /* 镜像清理失败不影响归还 */ }
+    this.pushEvent({
+      type: "preempt-released", gpuIndex, requester: rec.requester,
+      detail: { reason, phase: rec.phase, holderServiceId: rec.holderServiceId, ...detail },
+    });
+  }
+
+  /** TTL 到期: 事件 + 清记录 + 停 holder dev 服务 (既有 idle-release 停服路径)。幂等。 */
+  private async handleDevTtlExpiry(gpuIndex: number): Promise<void> {
+    const rec = this.preempts.get(gpuIndex);
+    if (!rec || rec.phase !== "held") return;
+    if (rec.ttl && this.tuning.now() < Date.parse(rec.ttl.expiresAt)) return; // 续期后旧计时器误触发
+    this.pushEvent({
+      type: "dev-ttl-expired", gpuIndex, requester: rec.requester,
+      detail: {
+        holderServiceId: rec.holderServiceId,
+        grantedMin: rec.ttl?.grantedMin ?? null,
+        renewals: rec.ttl?.renewals ?? 0,
+      },
+    });
+    const holder = rec.holderServiceId;
+    await this.clearPreempt(gpuIndex, "dev-ttl-expired");
+    if (holder) {
+      const st = this.services.get(holder);
+      if (st && st.status !== "stopped") {
+        console.log(`[GpuScheduler] dev-TTL 到期: 归还 GPU${gpuIndex} — 停 dev 服务 ${holder}`);
+        await this.release(holder, "dev-ttl-expiry");
+      }
+    }
+  }
+
+  /** 惰性过期清扫: held 过期 → 归还; 无人等待且过截止的 requested → 撤销。 */
+  private async sweepExpiredPreempts(): Promise<void> {
+    const now = this.tuning.now();
+    for (const rec of Array.from(this.preempts.values())) {
+      if (rec.phase === "held") {
+        if (rec.ttl && now >= Date.parse(rec.ttl.expiresAt)) {
+          await this.handleDevTtlExpiry(rec.gpuIndex);
+        }
+      } else if (rec.waiters === 0 && now > Date.parse(rec.deadlineAt) + 5_000) {
+        await this.clearPreempt(rec.gpuIndex, "stale-requested-sweep");
+      }
+    }
+  }
+
+  private armTtlTimer(gpuIndex: number, delayMs: number): void {
+    const prev = this.ttlTimers.get(gpuIndex);
+    if (prev) clearTimeout(prev);
+    // unref: 不阻进程退出 (server 常驻无感; 惰性扫描兜底到期归还)
+    const t = setTimeout(() => { void this.handleDevTtlExpiry(gpuIndex); }, Math.max(0, delayMs));
+    t.unref?.();
+    this.ttlTimers.set(gpuIndex, t);
+  }
+
+  private async mirrorPreempt(rec: PreemptRuntime): Promise<void> {
+    try {
+      await this.store.setKV(PREEMPT_KV_PREFIX + rec.gpuIndex, publicPreemptView(rec));
+    } catch (err) {
+      console.warn(`[GpuScheduler] preempt mirror failed for GPU${rec.gpuIndex}:`, err);
+    }
+  }
+
+  /** T1 等待环: 目标卡除本请求服务外无在跑任务 = 让卡完成。到截止返回 timeout。 */
+  private async waitForBoundaryYield(gpuIndex: number, exceptServiceId: string, deadlineMs: number): Promise<"yielded" | "timeout"> {
+    for (;;) {
+      if (this.runningServicesOnGpu(gpuIndex, exceptServiceId).length === 0) return "yielded";
+      const remaining = deadlineMs - this.tuning.now();
+      if (remaining <= 0) return "timeout";
+      await this.doSleep(Math.min(this.tuning.waitPollMs, remaining));
+    }
+  }
+
+  /** M2 persona 闸门等待: 放行/截止; 截止先通知仲裁器收卡再复查, 仍不放行则兜底直通。 */
+  private async awaitPersonaGate(serviceId: string, startTimeMs: number, waitTimeoutMs?: number): Promise<boolean> {
+    if (!this.personaGate) return true;
+    let verdict = this.personaGate(serviceId);
+    if (!verdict.wait) return true;
+    let deadlineMs = verdict.deadlineAt ? Date.parse(verdict.deadlineAt) : startTimeMs + this.tuning.t1TimeoutMs;
+    if (waitTimeoutMs !== undefined) deadlineMs = Math.min(deadlineMs, startTimeMs + waitTimeoutMs);
+    for (;;) {
+      const remaining = deadlineMs - this.tuning.now();
+      if (remaining <= 0) {
+        if (this.personaGateTimeout) {
+          await this.personaGateTimeout(serviceId); // 仲裁器收卡 (B→A, T2 类比)
+        }
+        verdict = this.personaGate(serviceId);
+        if (!verdict.wait) return true;
+        console.warn(`[GpuScheduler] persona gate deadline passed for ${serviceId} and still waiting — proceeding`);
+        return true; // 闸门是观测性约束, 不无限阻塞业务
+      }
+      await this.doSleep(Math.min(this.tuning.waitPollMs, remaining));
+      verdict = this.personaGate(serviceId);
+      if (!verdict.wait) return true;
+    }
+  }
+
+  /** 该 GPU 上在跑服务 (可排除本请求自身)。 */
+  private runningServicesOnGpu(gpuIndex: number, exceptServiceId?: string | null): ServiceState[] {
+    return Array.from(this.services.values()).filter((s) => {
+      if (s.status === "stopped" || s.profileId === exceptServiceId) return false;
+      const p = this.profilesCache.get(s.profileId);
+      return !!p && profileGpuIndex(p) === gpuIndex;
+    });
+  }
+
+  private pushEvent(ev: Omit<SchedulingEvent, "at">): void {
+    this.events.push({ ...ev, at: new Date(this.tuning.now()).toISOString() });
+    if (this.events.length > 200) this.events.splice(0, this.events.length - 200);
+  }
+
+  private async doSleep(ms: number): Promise<void> {
+    if (this.tuning.sleep) return this.tuning.sleep(ms);
+    await new Promise((r) => setTimeout(r, ms));
   }
 
   /**
@@ -617,7 +1217,17 @@ export class GpuScheduler {
     return evicted;
   }
 
-  private async waitForHealthy(profile: ServiceProfile, maxMs?: number): Promise<boolean> {
+  /** 服务存活探测 (fast-path 防陈旧态; protected 供测试子类桩化, 免真网络调用) */
+  protected async checkServiceAlive(profile: ServiceProfile): Promise<boolean> {
+    try {
+      await axios.get(profile.healthUrl as string, { timeout: 3_000 });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  protected async waitForHealthy(profile: ServiceProfile, maxMs?: number): Promise<boolean> {
     if (!profile.healthUrl) return true;
     const timeout = maxMs || profile.healthTimeoutMs;
     const start = Date.now();
@@ -660,6 +1270,24 @@ export class GpuScheduler {
   private async restoreEvicted(evictorServiceId: string): Promise<void> {
     // No-op: all services are on-demand, no auto-restore needed
   }
+}
+
+// ─── M1 辅助 ─────────────────────────────────────────
+
+/** 剥离进程内字段 (waiters) 的公开 preempt 视图 (快照/store 镜像/result 通用)。 */
+function publicPreemptView(rec: PreemptRuntime): GpuPreemptState {
+  return {
+    gpuIndex: rec.gpuIndex,
+    phase: rec.phase,
+    tier: rec.tier,
+    requester: rec.requester,
+    priorityClass: rec.priorityClass,
+    force: rec.force,
+    requestedAt: rec.requestedAt,
+    deadlineAt: rec.deadlineAt,
+    holderServiceId: rec.holderServiceId,
+    ttl: rec.ttl,
+  };
 }
 
 // ─── 单例 ────────────────────────────────────────────

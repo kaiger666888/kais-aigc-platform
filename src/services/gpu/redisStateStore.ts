@@ -25,6 +25,7 @@ import type { StateStore } from "./stateStore";
 const KEY_PREFIX_SERVICES = "kais:gpu:services:";
 const KEY_PREFIX_PROFILES = "kais:gpu:profiles:";
 const KEY_PREFIX_LOCKS = "kais:gpu:locks:";
+const KEY_PREFIX_KV = "kais:gpu:kv:";
 
 const SCAN_COUNT = 100;
 
@@ -107,6 +108,18 @@ export class RedisStateStore implements StateStore {
   async getAllLocks(): Promise<Array<[number, string | null]>> {
     const entries = await this.scanKeyValues(KEY_PREFIX_LOCKS);
     return entries.map(([k, v]) => [parseInt(k, 10), v as string | null]);
+  }
+
+  // ─── Generic KV ────────────────────────────────────────
+  async getKV<T = any>(key: string): Promise<T | null> {
+    const raw = await this.client.get(KEY_PREFIX_KV + key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  }
+  async setKV(key: string, value: any): Promise<void> {
+    await this.client.set(KEY_PREFIX_KV + key, JSON.stringify(value));
+  }
+  async deleteKV(key: string): Promise<void> {
+    await this.client.del(KEY_PREFIX_KV + key);
   }
 
   // ─── Lifecycle ─────────────────────────────────────────
