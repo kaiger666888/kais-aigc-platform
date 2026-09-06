@@ -145,6 +145,30 @@ export async function probeBreezeHealth(): Promise<{
   }
 }
 
+/**
+ * 权重驻留快探 (R5 常驻感知, 2026-09-06) — 供 speak/voice-design 预检前判定
+ * 「Breeze 权重是否已常驻显存」, 决定增量 (2560MiB) 还是满档 (8192MiB) 预检。
+ *
+ * 与 probeBreezeHealth 的分工: 本函数为预检路径专用 — 1s 硬超时 (探针慢本身
+ * 就说明服务不健康, 不值得让 GPU 队列排队多等), 失败一律视为 not loaded
+ * (fail-closed 到满档预检, 绝不放行错增量)。fetchImpl 参数仅供单测注入桩。
+ */
+export async function probeBreezeResident(
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ modelLoaded: boolean; loading: boolean }> {
+  try {
+    const resp = await fetchImpl(`${BREEZE_TTS_CONFIG.serverUrl}/health`, {
+      signal: AbortSignal.timeout(1_000),
+    });
+    if (!resp.ok) return { modelLoaded: false, loading: false };
+    const data = (await resp.json()) as { model_loaded?: boolean; loading?: boolean };
+    // loading=true (加载中) 尚未驻留完成 — 按未加载处理, 走满档
+    return { modelLoaded: data.model_loaded === true, loading: data.loading === true };
+  } catch {
+    return { modelLoaded: false, loading: false };
+  }
+}
+
 /** wav 落盘 outputDir (映射 /oss/tts 静态服务), 返回 {filename, absPath} */
 export async function persistWav(audioBuffer: Buffer, prefix: string): Promise<{
   filename: string;

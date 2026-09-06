@@ -842,6 +842,16 @@ export async function withGpuQueueTimed<T>(
             gpuIndex,
             detail: `queue wait exceeded ${QUEUE_TIMEOUT_MS / 1000}s; last: free ${lastErr.freeMiB}MiB < need ${lastErr.requiredMiB}MiB`,
           });
+          // R5 可观测性 (2026-09-06): 注册表外常驻占用是 vram_retry 空转的主要
+          // 隐形因子 — ComfyUI /free 驱逐不到它们, 超时前留一条诊断线索, 让
+          // 「最长 10min 停滞后 TTL 自卸自愈」这类事件可归因 (不改重试逻辑本身)。
+          recordEvent({
+            at: new Date().toISOString(),
+            event: "vram_retry",
+            engine: engineKey,
+            gpuIndex,
+            detail: `suspect out-of-registry resident occupancy: breeze-tts :5130 (idle TTL 600s 自卸) / systemd 常驻服务不在 /free 驱逐范围 — 对照 nvidia-smi 与 GET :5130/health 的 model_loaded 定位`,
+          });
           console.error(
             `[gpuQueue] timeout ${engineKey} GPU${gpuIndex}: waited >${QUEUE_TIMEOUT_MS / 1000}s for vram (free ${lastErr.freeMiB}MiB < need ${lastErr.requiredMiB}MiB)`,
           );

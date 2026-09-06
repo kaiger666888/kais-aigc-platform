@@ -32,8 +32,8 @@ import {
   QueueAbortedError,
   QueuePurgedError,
 } from "@/lib/gpuVramManager";
-import { BREEZE_TTS_CONFIG, BREEZE_TTS_DEFAULTS, BREEZE_ENGINE_ID } from "./config";
-import { callBreezeClone, persistWav, resolveRefAudio, fixMulterFilename } from "./_client";
+import { BREEZE_TTS_CONFIG, BREEZE_TTS_DEFAULTS, BREEZE_ENGINE_ID, BREEZE_TTS_RESIDENT_INCREMENT_MIB } from "./config";
+import { callBreezeClone, persistWav, resolveRefAudio, fixMulterFilename, probeBreezeResident } from "./_client";
 import type { Response } from "express";
 
 const router = express.Router();
@@ -101,6 +101,9 @@ export async function speakBreezeCore(
 
   let out: { filename: string; absPath: string; synthTime: number; queueWaitMs: number };
   try {
+    // R5 常驻感知预检 (2026-09-06): 权重已驻留 → 只按合成增量预检 (music3 先例);
+    // 未加载/加载中/服务不可达 → 不传覆盖, 走满档 8192 (首请求加载峰值就是全量)
+    const resident = await probeBreezeResident();
     const result = await withGpuQueueTimed(
       "breeze_tts",
       async (queueWaitMs) => {
@@ -117,7 +120,11 @@ export async function speakBreezeCore(
         const persisted = await persistWav(synth.audioBuffer, "breeze_clone");
         return { ...persisted, synthTime: synth.synthTime, queueWaitMs };
       },
-      { comfyuiUrl: BREEZE_TTS_CONFIG.comfyuiUrl, signal: req.signal },
+      {
+        comfyuiUrl: BREEZE_TTS_CONFIG.comfyuiUrl,
+        signal: req.signal,
+        ...(resident.modelLoaded ? { requireVramMiB: BREEZE_TTS_RESIDENT_INCREMENT_MIB } : {}),
+      },
     );
     out = result.data;
   } catch (err: any) {

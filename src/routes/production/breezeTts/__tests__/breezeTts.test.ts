@@ -73,6 +73,14 @@ function restoreFetch(): void {
   captured.length = 0;
 }
 
+/**
+ * R5 常驻感知 (2026-09-06): speak/voice-design 预检前多一发 GET :5130/health
+ * (probeBreezeResident, 1s 超时) — 上游契约断言只关心业务请求, 过滤掉探针。
+ */
+function upstreamCaptured(): CapturedRequest[] {
+  return captured.filter((c) => !c.url.endsWith("/health"));
+}
+
 /** GPU 队列旁路 — KAP_VRAM_SKIP=1 跳过 ensureVram 预检 (nvidia-smi), 锁即时获取 */
 async function installGpuQueueBypass(): Promise<void> {
   process.env.KAP_VRAM_SKIP = "1";
@@ -258,10 +266,11 @@ export async function testBreezeSpeakAppMount(): Promise<TestResult[]> {
       "envelope audio_filename = breeze_clone_<ts>.wav", data.audio_filename);
     check(results, typeof data.synthesis_time_s === "number", "envelope synthesis_time_s (墙钟实测)");
 
-    // 上游契约: 恰好一次 :5130/clone multipart
-    check(results, captured.length === 1 && captured[0].url === "http://127.0.0.1:5130/clone",
-      "上游 POST {serverUrl}/clone 恰好一次", `requests: ${captured.map((c) => c.url).join(", ")}`);
-    const upBody = String(captured[0]?.body ?? "");
+    // 上游契约: 恰好一次 :5130/clone multipart (R5 /health 探针不计)
+    const up = upstreamCaptured();
+    check(results, up.length === 1 && up[0].url === "http://127.0.0.1:5130/clone",
+      "上游 POST {serverUrl}/clone 恰好一次", `requests: ${up.map((c) => c.url).join(", ")}`);
+    const upBody = String(up[0]?.body ?? "");
     check(results, multipartField(upBody, "text") === "你好世界", "上游 text 透传");
     check(results, multipartField(upBody, "instruction") === "开心一点", "上游 instruction 透传");
     check(results, multipartField(upBody, "cfg_scale") === "4", "上游 cfg_scale 透传 (caller 显式)");
@@ -363,11 +372,12 @@ export async function testBreezeVoiceDesign(): Promise<TestResult[]> {
     check(results, typeof data.ref_audio_filename === "string", "envelope ref_audio_filename (设计产物即音色身份证)");
     check(results, typeof data.ref_text === "string" && data.ref_text.length > 0, "envelope ref_text 回显");
 
-    // 上游契约: 恰好一次 :5130/generate JSON (无 :5111 设计步, 无 :5110 克隆步)
-    check(results, captured.length === 1 && captured[0].url === "http://127.0.0.1:5130/generate",
+    // 上游契约: 恰好一次 :5130/generate JSON (无 :5111 设计步, 无 :5110 克隆步; R5 /health 探针不计)
+    const up = upstreamCaptured();
+    check(results, up.length === 1 && up[0].url === "http://127.0.0.1:5130/generate",
       "上游 POST {serverUrl}/generate 恰好一次 (单步, 无 5111+5110 两步链)",
-      `requests: ${captured.map((c) => c.url).join(", ")}`);
-    const upBody = JSON.parse(String(captured[0]?.body ?? "{}"));
+      `requests: ${up.map((c) => c.url).join(", ")}`);
+    const upBody = JSON.parse(String(up[0]?.body ?? "{}"));
     check(results, upBody.text === "你好，这是我的声音。", "上游 text 直通");
     check(results, upBody.instruct === "约5岁男童", "上游 instruct 直通");
     check(results, upBody.cfg_scale === 4.0, "上游 cfg_scale 默认 4.0 (盲测胜出配方)");
@@ -477,9 +487,10 @@ export async function testOldSpeakV25Compat(): Promise<TestResult[]> {
     check(results, typeof data.synthesis_time_s === "number", "envelope synthesis_time_s");
 
     // 上游: emo_text → instruction 原文映射, cfg_scale=4.0, 无 5110/8188 流量
-    const upBody = String(captured[0]?.body ?? "");
-    check(results, captured[0]?.url === "http://127.0.0.1:5130/clone",
-      "上游 POST :5130/clone (不再打 :5110)", `got ${captured[0]?.url}`);
+    const up = upstreamCaptured();
+    const upBody = String(up[0]?.body ?? "");
+    check(results, up[0]?.url === "http://127.0.0.1:5130/clone",
+      "上游 POST :5130/clone (不再打 :5110)", `got ${up[0]?.url}`);
     check(results, multipartField(upBody, "instruction") === "悲伤压抑",
       "emo_text 原文 → instruction 映射");
     check(results, multipartField(upBody, "cfg_scale") === "4",
@@ -599,12 +610,13 @@ export async function testOldVoiceDesignCompat(): Promise<TestResult[]> {
       && typeof synth.audio_filename === "string" && synth.text === "你好，这是我的声音。",
       "envelope synthesis.{text,lang,synthesis_time_s,audio_filename} 同形");
 
-    // 上游: 单步 :5130/generate (不再有 :5111 设计步 + :5110 克隆步)
+    // 上游: 单步 :5130/generate (不再有 :5111 设计步 + :5110 克隆步; R5 /health 探针不计)
+    const up = upstreamCaptured();
     check(results,
-      captured.length === 1 && captured[0].url === "http://127.0.0.1:5130/generate",
+      up.length === 1 && up[0].url === "http://127.0.0.1:5130/generate",
       "上游恰好一次 :5130/generate (5111+5110 两步链退役)",
-      `requests: ${captured.map((c) => c.url).join(", ")}`);
-    const upBody = JSON.parse(String(captured[0]?.body ?? "{}"));
+      `requests: ${up.map((c) => c.url).join(", ")}`);
+    const upBody = JSON.parse(String(up[0]?.body ?? "{}"));
     check(results, upBody.instruct === "约5岁男童" && upBody.cfg_scale === 4.0,
       "上游 instruct 直通 + cfg_scale=4.0");
     check(results, legacyTrafficUrls().length === 0, "零 :5110/:5111/:8188 流量",

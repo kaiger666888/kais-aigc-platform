@@ -159,6 +159,9 @@ router.get("/status", async (_req, res) => {
 
   return res.status(200).send(success({
     scheduler: state,
+    // GPU 协调面后端 (R1 2026-09-06): "redis" = 跨进程互斥生效; "memory" = 协调面
+    // 降级 (REDIS_URL 未设/不可达) — 割接验证断言点, 详见 docs/gpu-sched-hardening.md
+    backend: scheduler.backendKind,
     llm,
     engine: QWEN_EYE_ENGINE,
     model: QWEN_EYE_MODEL,

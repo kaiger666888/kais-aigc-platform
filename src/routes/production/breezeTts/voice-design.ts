@@ -23,8 +23,8 @@
 import express from "express";
 import { success, error } from "@/lib/responseFormat";
 import { withGpuQueueTimed, VramInsufficientError } from "@/lib/gpuVramManager";
-import { BREEZE_TTS_CONFIG, BREEZE_TTS_DEFAULTS, BREEZE_ENGINE_ID } from "./config";
-import { callBreezeGenerate, persistWav } from "./_client";
+import { BREEZE_TTS_CONFIG, BREEZE_TTS_DEFAULTS, BREEZE_ENGINE_ID, BREEZE_TTS_RESIDENT_INCREMENT_MIB } from "./config";
+import { callBreezeGenerate, persistWav, probeBreezeResident } from "./_client";
 import type { Request, Response } from "express";
 
 const router = express.Router();
@@ -112,6 +112,9 @@ export async function voiceDesignBreezeCore(rawBody: VoiceDesignBody, res: Respo
     refDuration: number; queueWaitMs: number;
   };
   try {
+    // R5 常驻感知预检 (2026-09-06): 权重已驻留 → 只按合成增量预检 (music3 先例);
+    // 未加载/加载中/服务不可达 → 不传覆盖, 走满档 8192 (首请求加载峰值就是全量)
+    const resident = await probeBreezeResident();
     const result = await withGpuQueueTimed(
       "breeze_tts",
       async (queueWaitMs) => {
@@ -130,7 +133,10 @@ export async function voiceDesignBreezeCore(rawBody: VoiceDesignBody, res: Respo
           queueWaitMs,
         };
       },
-      { comfyuiUrl: BREEZE_TTS_CONFIG.comfyuiUrl },
+      {
+        comfyuiUrl: BREEZE_TTS_CONFIG.comfyuiUrl,
+        ...(resident.modelLoaded ? { requireVramMiB: BREEZE_TTS_RESIDENT_INCREMENT_MIB } : {}),
+      },
     );
     out = result.data;
   } catch (err: any) {
