@@ -61,7 +61,8 @@ async def list_engines():
         "vram_total_mb": local_health["vram_total_mb"],
         "vram_used_mb": local_health.get("vram_used_mb", 0),
         "queue_depth": 0,
-        "models": ["wan2.2-14b", "flux-dev", "ace-step", "cosyvoice", "real-esrgan"],
+        "models": ["wan2.2-14b", "flux-dev", "ace-step", "real-esrgan"],
+        # "cosyvoice" 已移除 — 2026-09-06 三轨 TTS (CosyVoice/GPT-SoVITS/Chatterbox) 退役
     })
 
     # Legacy cloud providers

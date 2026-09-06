@@ -1,7 +1,6 @@
 """kais-gold-team V6.0 — FastAPI application entry point."""
 from __future__ import annotations
 
-import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -15,17 +14,10 @@ from src.v6.engine_pool import EnginePool, get_engine_pool
 from src.v6.engines.base import BackendType
 from src.v6.executor import get_executor
 from src.v6.engines.mock import MockEngine
-from src.v6.engines.tts_http import TripleTrackTTSEngine
 
-# In-process TTS tracker needs the heavy local TTS stack (numba/torch/...);
-# optional at runtime — registration below is skipped when unavailable.
-try:
-    from src.v6.engines.tts import TTSTracker
-except Exception as _tts_import_exc:  # pragma: no cover
-    TTSTracker = None
-    logging.getLogger(__name__).warning(
-        "TTSTracker unavailable (heavy deps not installed): %s",
-        _tts_import_exc)
+# 2026-09-06: 三轨 TTS 退役 — TripleTrackTTSEngine (tts_http.py) 与 TTSTracker
+# (tts.py) 及 tts_unified_server.py 子进程托管已整体删除。现役 TTS = Breeze :5130
+# （宿主 systemd）+ KAP qwenTts 路由，gold-team 不再承载 TTS 引擎面。
 from src.v6.engines.hunyuan3d import Hunyuan3DEngine
 from src.v6.engines.hunyuan3d_mv import Hunyuan3DMvEngine
 from src.v6.engines.color_grade import ColorGradeEngine
@@ -35,14 +27,6 @@ from src.v6.routers import tasks, engines, events, health
 
 # GPU management routes
 from src.v6.routes.v1.gpu import router as gpu_router
-
-# Unified TTS server subprocess management
-TTS_UNIFIED_SCRIPT = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    "..", "..", "scripts", "tts_unified_server.py",
-)
-TTS_UNIFIED_ENABLED = os.environ.get("TTS_UNIFIED_ENABLED", "true").lower() in ("true", "1", "yes")
-TTS_UNIFIED_PORT = int(os.environ.get("TTS_UNIFIED_PORT", "9880"))
 
 logging.basicConfig(
     level=logging.INFO,
@@ -70,7 +54,7 @@ def _format_registration_summary(executor) -> str:
           comfyui-primary — ComfyUI (primary)
           comfyui-auxiliary — ComfyUI (auxiliary)
         [SUBPROCESS]
-          tts-http — Triple-Track TTS
+          hunyuan3d — Hunyuan3D Engine
         ...
     Empty sections are omitted.
     """
@@ -108,44 +92,10 @@ async def lifespan(app: FastAPI):
     executor.register_engine(MockEngine())
 
     # ── Subprocess Backend ──────────────────────────────────────────────
-    # ── TTS unified server (lazy-load subprocess) ────────────────────
-    tts_unified_process = None
-    if TTS_UNIFIED_ENABLED:
-        try:
-            script = os.path.abspath(TTS_UNIFIED_SCRIPT)
-            tts_unified_process = await asyncio.create_subprocess_exec(
-                "python3", script,
-                "--port", str(TTS_UNIFIED_PORT),
-                "--idle-timeout", "300",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            logger.info("Unified TTS server subprocess started (pid=%d, port=%d)",
-                        tts_unified_process.pid, TTS_UNIFIED_PORT)
-            await asyncio.sleep(2)
-        except Exception as e:
-            logger.warning("Failed to start unified TTS server: %s", e)
-
-    # Register TTS engines
-    # Triple-Track HTTP engine (preferred for TTS tasks)
-    try:
-        tts_http = TripleTrackTTSEngine()
-        await tts_http.start()
-        executor.register_engine(tts_http)
-        logger.info("Triple-Track TTS engine registered")
-    except Exception as e:
-        logger.warning("Triple-Track TTS engine init failed: %s", e)
-
-    # TTS Tracker (CosyVoice in-process + edge-tts fallback)
-    try:
-        if TTSTracker is None:
-            raise RuntimeError("TTSTracker import unavailable (heavy deps not installed)")
-        tts_tracker = TTSTracker()
-        await tts_tracker.start()
-        executor.register_engine(tts_tracker)
-        logger.info("TTS tracker engine registered")
-    except Exception as e:
-        logger.warning("TTS tracker engine init failed: %s", e)
+    # 2026-09-06: 三轨 TTS 退役 — TTS unified server 子进程托管与
+    # Triple-Track HTTP / TTS Tracker 两个引擎注册已删除（现役 TTS =
+    # Breeze :5130 + KAP qwenTts 路由）。TTS 类任务在此将 fail-loud
+    # （DEDICATED_ENGINES 指向的 tts-tracker 不再注册 → No engine available）。
 
     # Register Hunyuan3D-2 engine (image-to-3D via subprocess)
     try:
@@ -349,14 +299,6 @@ async def lifespan(app: FastAPI):
     await executor.stop()
     if local_pool:
         await local_pool.stop()
-    # Kill unified TTS subprocess if running
-    if tts_unified_process and tts_unified_process.returncode is None:
-        tts_unified_process.terminate()
-        try:
-            await asyncio.wait_for(tts_unified_process.wait(), timeout=10)
-        except asyncio.TimeoutError:
-            tts_unified_process.kill()
-        logger.info("Unified TTS server subprocess stopped")
     # Unload all engines from GPU
     try:
         pool = get_engine_pool()
