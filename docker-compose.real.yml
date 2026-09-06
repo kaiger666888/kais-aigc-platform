@@ -110,13 +110,16 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
-    # GPU support — nvidia runtime, RTX 3090 only
+    # GPU support — CDI UUID 锚定 (gpu-sched-hardening R3, 2026-09-06):
+    # legacy device_ids:["1"] 是裸索引, PCIe 枚举漂移时指错卡 (docs/gpu-dual-3090-expansion.md)。
+    # CDI 规格 = nvidia.com/gpu=<driver-UUID>, 真源 /opt/kais-gpu/gpu.conf RENDER_GEN1_UUID,
+    # 值经环境变量注入 (宿主 .env / compose environment 均可)。
     deploy:
       resources:
         reservations:
           devices:
-            - driver: nvidia
-              device_ids: ["1"]     # GPU 1 = RTX 3090
+            - driver: cdi
+              device_ids: ["nvidia.com/gpu=${KAIS_RENDER_GPU_UUID:-GPU-c5cdd49c-5a18-7d0b-2af5-1d2f642538c6}"]
               capabilities: [gpu]
 
   # ─── Review Platform ─────────────────────────────────────────────
