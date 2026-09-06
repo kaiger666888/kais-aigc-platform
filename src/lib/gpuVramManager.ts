@@ -143,6 +143,52 @@ export const ENGINE_VRAM_REQUIREMENTS: Record<string, number> = {
   default: 8192,
 };
 
+// ─── B2a. 桌面卡空闲地板 (2026-09-06, GPU0=3060Ti 兼职 GUI 显示卡) ───────────
+//
+// 背景: GPU0 是桌面合成器 (GNOME Wayland, 三屏含 4K) 的显示卡 — Wayland/Chrome
+// 常驻 ~1.9GB, GUI 峰值可冲 3.0-3.4GB。KAP 引擎若按"free 够就用"上卡, 渲染峰值
+// 会挤压桌面 buffer → 桌面卡顿。Linux 无 VRAM 硬分区 (cgroup 不支持), 预算约束
+// 只能落在预检层: 保证本作业提交后仍给桌面留下 floor 空闲。
+//
+// 语义: ensureVram / GpuScheduler.ensureVram 的放行条件从 free ≥ required
+// 收紧为 free ≥ required + floor。floor 只对配置了的卡生效 (默认仅 GPU0),
+// GPU1/GPU2 = 0 → 行为零变化。floor 计入 required 上报 (VramInsufficientError
+// 的 requiredMiB 含 floor), 日志显式标注 floor 来源, 排障可分辨。
+//
+// 默认值推导 (2026-09-06 实测): 8192(总) − ~1900(桌面三屏静止) − ~3400(GUI
+// 峰值头寸 4K 视频+截屏+多窗) − ~1100(该卡 KAP 峰值作业≈6.4G 预检上限)
+// = ~1790 → 取 1792MiB (= KAP 可用预算上限 ≈ 4608MiB, 与 docker-compose
+// 注释口径 5.5G 相比保守 0.9G, 为桌面峰值让位)。
+//
+// 覆盖: KAP_VRAM_FLOOR_MIB="0:1792,2:2048" (逗号分隔 gpuIndex:MIB; 非法项
+// 忽略)。设为空串/全非法 = 全部无地板 (逃生口)。
+export const GPU_VRAM_FLOOR_MIB_DEFAULT: Record<number, number> = { 0: 1792 };
+
+function parseFloorEnv(raw: string | undefined): Record<number, number> | null {
+  if (raw === undefined || raw === "") return null;
+  const out: Record<number, number> = {};
+  for (const item of raw.split(",")) {
+    const m = item.trim().match(/^(\d+):(\d+)$/);
+    if (!m) continue;
+    const idx = parseInt(m[1], 10);
+    const mib = parseInt(m[2], 10);
+    if (Number.isFinite(idx) && Number.isFinite(mib)) out[idx] = mib;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+/** 该卡预检空闲地板 (MiB): env KAP_VRAM_FLOOR_MIB > 内置默认 (仅 GPU0)。
+ * 语义: 未配置/全非法 → 内置默认; 显式空串 → 0 (全部无地板逃生口);
+ * 有合法项 → 列出的卡取 env 值 (含显式 0 可关), 未列出的卡回落内置默认。 */
+export function gpuFloorMib(gpuIndex: number): number {
+  const raw = process.env.KAP_VRAM_FLOOR_MIB;
+  if (raw === "") return 0; // 显式空串 = 全部无地板 (逃生口)
+  const def = GPU_VRAM_FLOOR_MIB_DEFAULT[gpuIndex] ?? 0;
+  const envTable = parseFloorEnv(raw);
+  if (!envTable) return def;
+  return envTable[gpuIndex] ?? def;
+}
+
 // ─── B2b. 引擎 → GPU 归属表 (2026-08-19 P3 / D8 GPU0 纳管) ─────────────────
 //
 // 当前所有过队列的重型引擎都在 GPU1 (3090 生成卡) — 全表默认 1 = 行为不变。
@@ -328,11 +374,14 @@ export async function ensureVram(
   }
   // 可回收常驻贡献 (KAP_VRAM_RESIDENT_AWARE=1 时按登记表计入, 默认 0 — 行为不变)
   const recyclableMiB = evictableResidentMiB(gpuIndex);
-  if (gpu.freeMiB + recyclableMiB >= requiredMiB) {
+  // 桌面卡空闲地板 (B2a; 默认仅 GPU0=1792, 其余卡 0 → 不改变放行条件)
+  const floorMiB = gpuFloorMib(gpuIndex);
+  const effRequiredMiB = requiredMiB + floorMiB;
+  if (gpu.freeMiB + recyclableMiB >= effRequiredMiB) {
     console.log(
-      `[gpuVramManager] ok ${engineKey}: need ${requiredMiB}MiB, GPU${gpuIndex} free ${gpu.freeMiB}MiB${recyclableMiB > 0 ? ` + evictable resident ${recyclableMiB}MiB` : ""}`,
+      `[gpuVramManager] ok ${engineKey}: need ${requiredMiB}MiB${floorMiB > 0 ? ` + desktop-floor ${floorMiB}MiB` : ""}, GPU${gpuIndex} free ${gpu.freeMiB}MiB${recyclableMiB > 0 ? ` + evictable resident ${recyclableMiB}MiB` : ""}`,
     );
-    return { freeMiB: gpu.freeMiB, requiredMiB, evicted: false };
+    return { freeMiB: gpu.freeMiB, requiredMiB: effRequiredMiB, evicted: false };
   }
 
   // 不足 → 驱逐 ComfyUI 缓存模型 (可逆) → 等回收 → 复查
@@ -348,15 +397,15 @@ export async function ensureVram(
         : 3_000;
       await new Promise((r) => setTimeout(r, waitMs));
       gpu = await check();
-      if (gpu && gpu.freeMiB + evictableResidentMiB(gpuIndex) >= requiredMiB) {
-        console.log(`[gpuVramManager] ok after /free: ${engineKey} GPU${gpuIndex} free ${gpu.freeMiB}MiB`);
-        return { freeMiB: gpu.freeMiB, requiredMiB, evicted: true };
+      if (gpu && gpu.freeMiB + evictableResidentMiB(gpuIndex) >= effRequiredMiB) {
+        console.log(`[gpuVramManager] ok after /free: ${engineKey} GPU${gpuIndex} free ${gpu.freeMiB}MiB${floorMiB > 0 ? ` (incl. desktop-floor ${floorMiB}MiB)` : ""}`);
+        return { freeMiB: gpu.freeMiB, requiredMiB: effRequiredMiB, evicted: true };
       }
     }
   }
 
   const freeMiB = gpu?.freeMiB ?? 0;
-  throw new VramInsufficientError({ engine: engineKey, freeMiB, requiredMiB, gpuIndex });
+  throw new VramInsufficientError({ engine: engineKey, freeMiB, requiredMiB: effRequiredMiB, gpuIndex });
 }
 
 // ─── B5. 全局引擎队列 (withGpuQueue, 2026-08-16 二期) ────────────────────────

@@ -17,7 +17,7 @@ import axios from "axios";
 // gpuVramManager 的服务级占位 — 此前 idle 超时/GpuScheduler.release 只停服务,
 // 队列占位残留孤儿化 (ep-ccport-test01 p11a 5h 死锁的 D5 因子)。
 // M1 双卡调度: scheduling 快照的 queueDepth 亦从其 waiters 聚合 (§2.5)。
-import { releaseEngineOccupancy, getGpuQueueStatus } from "@/lib/gpuVramManager";
+import { releaseEngineOccupancy, getGpuQueueStatus, gpuFloorMib } from "@/lib/gpuVramManager";
 // 双3090 Phase A (docs/gpu-dual-3090-expansion.md): 角色→UUID→索引解析库。
 // 索引一律运行时解析 (PCIe 枚举漂移免疫); 全链失败静默回退硬编码, 绝不抛异常。
 import { getGpuDevices, resolveServiceIndex, resolveServiceIndexSync } from "./gpuRoles";
@@ -86,7 +86,11 @@ export function getRegisteredServices(): ServiceProfile[] {
       id: "comfyui-auxiliary",
       name: "ComfyUI Auxiliary",
       gpuId: 0,
-      vramEstMb: 6_400,
+      // 2026-09-06: 6400 → 2800。GPU0 启用桌面空闲地板 (gpuVramManager B2a,
+      // floor=1792) 后, 旧 6400 (非 lowvram 全量口径) + floor = 8192 = 物理总量,
+      // allocate 预检结构性拒绝上卡。2800 = --lowvram 实测峰值 ~2.5G + 余量;
+      // 2800+1792=4592 ≤ 静止桌面态 free~5600, GUI 峰值态 free~4300 自动拒上 — 恰是想要的语义。
+      vramEstMb: 2_800,
       priority: 0,
       category: "comfyui",
       start: { type: "docker-start", containerName: "comfyui-auxiliary" },
@@ -1192,6 +1196,10 @@ export class GpuScheduler {
   }
 
   private async ensureVram(gpuId: number, neededMb: number, requesterPriority: number, caller: string): Promise<string[]> {
+    // 桌面卡空闲地板 (B2a, 2026-09-06): 入口一次性并入需求 — 下游注册表驱逐
+    // 循环 / kill-external 触发 / 终判的比较基准自动含 floor, 与引擎队列侧
+    // ensureVram (gpuVramManager) 同一放行口径。默认仅 GPU0=1792MiB, 其余卡 0。
+    neededMb += gpuFloorMib(gpuId);
     const freeMb = await this.getGpuVramFree(gpuId);
     if (freeMb >= neededMb) return [];
 
