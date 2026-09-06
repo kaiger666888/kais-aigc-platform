@@ -68,6 +68,7 @@ import StoryboardBoard from './storyboard/StoryboardBoard'
 import SceneShotBrowser from './SceneShotBrowser'
 import SearchNavigator from './canvas/SearchNavigator'
 import BranchPanel from './BranchPanel'
+import StyleLibraryPanel from './panel/StyleLibraryPanel'
 import GroupViewTheater from './theater/GroupViewTheater'
 import G16VoiceWorkbench from './g16/G16VoiceWorkbench'
 import { theaterTargetOf } from './theater/groupMembership'
@@ -150,6 +151,8 @@ function CanvasInner() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchNavOpen, setSearchNavOpen] = useState(false)
   const [branchPanelOpen, setBranchPanelOpen] = useState(false)
+  // Krea 风格库选择器(轻量风格词速查+复制,零写操作)
+  const [stylePanelOpen, setStylePanelOpen] = useState(false)
   // 迭代平台 M3 金标轨(B 轨)面板开合(与 branchPanel 同款本地 useState 壳)
   const [goldPanelOpen, setGoldPanelOpen] = useState(false)
 
@@ -1133,6 +1136,12 @@ function CanvasInner() {
             >
               <UiIcon kind="branch" size={13} />分支
             </ToolbarButton>
+            <ToolbarButton
+              onClick={() => setStylePanelOpen((v) => !v)}
+              title="风格库 — Krea 3548 条风格词速查与 prompt 复制"
+            >
+              <UiIcon kind="image" size={13} />风格库
+            </ToolbarButton>
           </div>
 
           {/* 应用级历史导航：后退 / 前进（全局功能，恢复完整应用状态） */}
@@ -1437,6 +1446,7 @@ function CanvasInner() {
         {goldPanelOpen && <GoldPanel onClose={() => setGoldPanelOpen(false)} />}
         {gateOpen && <GateCenterPanel />}
         {branchPanelOpen && <BranchPanel onClose={() => setBranchPanelOpen(false)} />}
+        {stylePanelOpen && <StyleLibraryPanel onClose={() => setStylePanelOpen(false)} />}
         <GroupViewTheater />
         <G16VoiceWorkbench />
         <SearchNavigator open={searchNavOpen} onClose={() => setSearchNavOpen(false)} initialQuery={searchQuery} />
