@@ -111,7 +111,6 @@ services:
       - /data/workspace/comfyui-incremental-nodes/scripts/install-training-deps.sh:/root/user-scripts/install-training-deps.sh
       - /data/workspace/comfyui-incremental-nodes/scripts/install-aiia-deps.sh:/root/user-scripts/install-aiia-deps.sh
       - /data/workspace/comfyui-incremental-nodes/scripts/install-facerestore-deps.sh:/root/user-scripts/install-facerestore-deps.sh
-      - /data/models/cosyvoice:/root/ComfyUI/models/cosyvoice:rw
       - /data/models/w2v-bert-2.0:/data/models/w2v-bert-2.0:ro
       - comfyui-cache:/tmp/hf_cache
     networks:
@@ -226,13 +225,8 @@ services:
       OUTPUT_DIR: /mnt/agents/output
       MODELS_DIR: /opt/kais/models
       # CosyVoice3 TTS (RL)
-      COSYVOICE_ROOT: /opt/CosyVoice
-      COSYVOICE_MODEL_DIR: /opt/CosyVoice/pretrained_models/FunAudioLLM/Fun-CosyVoice3-0.5B-2512
-      COSYVOICE_LLM_WEIGHT: llm.rl.pt
       MPLCONFIGDIR: /tmp/matplotlib
-      # TTS 三轨 — 环境变量 (TrackManager 读取)
-      GPTSOVITS_ROOT: /opt/GPT-SoVITS
-      CHATTERBOX_ROOT: /opt/chatterbox
+      # TTS 旧三轨(CosyVoice/GPT-SoVITS/chatterbox)退役 2026-09-06: 容器内 /opt/* 实测不存在,运行时零消费者; Breeze :5130 为现役 TTS
       TTS_IDLE_TIMEOUT: "300"
       # ACE-Step 音乐引擎禁用 (避免开机自动 spawn 子进程常驻 23GB 显存)
       # 引擎代码 main.py 用此开关跳过 register/start,日后需要音乐生成再开
@@ -241,11 +235,7 @@ services:
       - ${OUTPUT_DIR:-/mnt/agents/output}:/mnt/agents/output
       - ${MODELS_DIR:-/opt/kais/models}:/opt/kais/models:ro
       - ${DATA_MODELS_DIR:-/data/models}:/data/models
-      # CosyVoice3: 2026-08-19 合并双副本,原 docker volume kais-cosyvoice-models 改为 bind mount
-      - /data/models/cosyvoice/Fun-CosyVoice3-0.5B-2512:/opt/CosyVoice/pretrained_models/FunAudioLLM/Fun-CosyVoice3-0.5B-2512
-      # TTS 三轨模型目录挂载
-      - ${GPTSOVITS_DIR:-/data/models/GPT-SoVITS}:/opt/GPT-SoVITS
-      - ${CHATTERBOX_DIR:-/data/models/chatterbox}:/opt/chatterbox
+
       # HF cache: 挂载到 kais user 的 HOME 下（uid 999），持久化 Llama/Kimodo 等大模型
       - hf-cache:/home/kais/.cache/huggingface
     networks:
