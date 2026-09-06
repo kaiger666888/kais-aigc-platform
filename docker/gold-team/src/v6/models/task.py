@@ -16,9 +16,9 @@ class TaskType(str, enum.Enum):
     IMAGE_DRAW = "image_draw"
     IMAGE_REFINE = "image_refine"
     TTS = "tts"
-    TTS_ZH = "tts_zh"              # 中文语音合成 — 旧三轨承载已退役 (2026-09-06)
-    TTS_EN = "tts_en"              # 英文语音合成 — 旧三轨承载已退役 (2026-09-06)
-    TTS_BILINGUAL = "tts_bilingual"  # 双语语音合成 — 旧三轨承载已退役 (2026-09-06)
+    TTS_ZH = "tts_zh"              # 中文 TTS（三轨 GPT-SoVITS 已退役 2026-09-06, 现役 Breeze/KAP 承接）
+    TTS_EN = "tts_en"              # 英文 TTS（三轨 Chatterbox 已退役 2026-09-06, 现役 Breeze/KAP 承接）
+    TTS_BILINGUAL = "tts_bilingual"  # 双语 TTS（三轨 CosyVoice 已退役 2026-09-06, 现役 Breeze/KAP 承接）
     MUSIC = "music"
     SFX = "sfx"
     UPSCALE = "upscale"

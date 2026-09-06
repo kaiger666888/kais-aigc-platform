@@ -1,7 +1,7 @@
 """Engine registry — loads YAML definitions and builds engine instances.
 
 Scans the engines/ directory for YAML files, creates EngineConfig objects,
-and instantiates the appropriate engine class (DockerAPIEngine,
+and instantiates the appropriate engine class (DockerAPIEngine, DockerPollingAPIEngine,
 DockerCLIEngine, or FaceFusionEngine) based on engine name and mode.
 """
 from __future__ import annotations
@@ -17,6 +17,7 @@ from src.v6.docker.container_manager import ContainerManager
 from src.v6.engines.base import BaseEngine
 from src.v6.engines.docker_base import DockerAPIEngine
 from src.v6.engines.docker_cli import DockerCLIEngine
+from src.v6.engines.docker_polling import DockerPollingAPIEngine
 from src.v6.engines.facefusion import FaceFusionEngine
 
 logger = logging.getLogger(__name__)
@@ -25,10 +26,10 @@ logger = logging.getLogger(__name__)
 VRAM_ESTIMATES: dict[str, int] = {
     "facefusion": 24000,
     "wan": 16000,
-    "ltx": 16000,
     "trellis": 16000,
     "hunyuan3d": 16000,
     "latentsync": 16000,
+    "acestep": 16000,
     "flux": 22000,
     "flux-ipa": 22000,
     "sdxl": 8000,
@@ -38,7 +39,6 @@ VRAM_ESTIMATES: dict[str, int] = {
     "foleycrafter": 8000,
     "blender": 8000,
     "forge": 4000,
-    # "gpt_sovits": 4000 已退役 — 2026-09-06 三轨 TTS (CosyVoice/GPT-SoVITS/Chatterbox) 下线
     "liveportrait": 4000,
     "motiongpt": 4000,
     "musetalk": 4000,
@@ -67,6 +67,12 @@ _TASK_TYPE_ENDPOINTS: dict[str, dict[str, str]] = {
 
 # Extra Docker args per engine (model mounts, env vars, etc.)
 _EXTRA_DOCKER_ARGS: dict[str, list[str]] = {
+    "acestep": [
+        "-w", "/workspace",
+        "-e", "PYTHONPATH=/opt/acestep/app",
+        "-e", "HF_HUB_OFFLINE=1",
+        "-e", "ACESTEP_LM_MODEL_PATH=acestep-5Hz-lm-1.7B",
+    ],
     "facefusion": [
         "-w", "/app",
     ],
@@ -142,6 +148,8 @@ def build_engine_registry(
 
 def _create_engine(config: EngineConfig, container_mgr: ContainerManager) -> BaseEngine:
     """Create the appropriate engine class based on config."""
+    if config.name == "acestep":
+        return DockerPollingAPIEngine(config, container_mgr)
     if config.name == "blender":
         return DockerCLIEngine(config, container_mgr)
     if config.name == "facefusion":

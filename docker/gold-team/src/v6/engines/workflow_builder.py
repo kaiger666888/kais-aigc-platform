@@ -13,9 +13,8 @@ Supports:
   - FLUX + TRELLIS full pipeline (via build_flux_trellis_full_workflow)
   - ComfyUI Lip Sync workflows (via build_lipsync_workflow) — LatentSync
   - ComfyUI Frame Interpolation workflows (via build_frame_interpolate_workflow) — RIFE VFI
-  - TTS parameter dicts (via build_tts_workflow) — 遗留接口：三轨 TTS
-    （CosyVoice/GPT-SoVITS/Chatterbox）已于 2026-09-06 退役，backend 仅余
-    "auto"，仅供 executor 对 TTS 类任务的 fail-loud 分派分支引用
+  - TTS parameter dict (via build_tts_workflow) — not ComfyUI; the three-track
+    backend it fed was retired 2026-09-06, the builder is kept for TTS-type tasks
   - Hunyuan3D workflows (via build_hunyuan3d_workflow) — subprocess-based
   - Shot Analysis workflows (via build_shot_analysis_workflow) — per-shot cinematic
     deconstruction: ShotGeometryLK + AILab_QwenVL_Advanced (semantic) +
@@ -386,19 +385,20 @@ def build_tts_workflow(
     language: str = "auto",
     reference_audio: str = "",
 ) -> dict[str, Any]:
-    """Build a TTS parameter dict for the (retired) TTS engine face.
+    """Build a TTS parameter dict for TTS-type tasks.
 
-    2026-09-06 三轨 TTS 退役注记：本函数原为 TTSTracker.submit() 构造参数，
-    三轨词汇（gpt_sovits/chatterbox/cosyvoice backend 值与 zh/en/bilingual 轨道值）已随退役收敛删除；backend 仅余
-    "auto"。保留仅为 executor 的 TTS 类 fail-loud 分派分支仍引用（引擎面
-    已删，任务将以 No engine available 失败）。
+    退役注记（2026-09-06）：三轨 TTS 退役后本函数不再面向 TTSTracker——
+    消费方 engines/tts.py 已整体删除，原 track 路由字段与 zh/en/bilingual
+    轨道值及 gpt_sovits/chatterbox/cosyvoice backend 值已随三轨退役一并删除；
+    backend/language 现仅作为不透明参数透传，实际 TTS 由仓外
+    Breeze :5130 / KAP qwenTts 承接。
 
     Args:
         text: Text to synthesize.
         voice: Voice name.
         speed: Speech speed multiplier.
-        backend: 仅 'auto'（三轨 backend 值已随 2026-09-06 退役删除）.
-        language: 'zh', 'en', 'auto'（bilingual 轨道值已随退役删除）.
+        backend: 'auto'（历史三轨枚举值已随三轨退役删除）.
+        language: 'auto'（历史三轨枚举值已随三轨退役删除）.
         output_path: Explicit output file path.
         task_id: Used for auto-generating output path.
         reference_audio: Optional reference audio for voice cloning.

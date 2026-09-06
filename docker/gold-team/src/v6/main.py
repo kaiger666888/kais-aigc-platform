@@ -14,10 +14,9 @@ from src.v6.engine_pool import EnginePool, get_engine_pool
 from src.v6.engines.base import BackendType
 from src.v6.executor import get_executor
 from src.v6.engines.mock import MockEngine
-
-# 2026-09-06: 三轨 TTS 退役 — TripleTrackTTSEngine (tts_http.py) 与 TTSTracker
-# (tts.py) 及 tts_unified_server.py 子进程托管已整体删除。现役 TTS = Breeze :5130
-# （宿主 systemd）+ KAP qwenTts 路由，gold-team 不再承载 TTS 引擎面。
+# 三轨 TTS 引擎面已退役（2026-09-06）：TripleTrackTTSEngine（tts_http.py）与
+# TTSTracker（tts.py，纯三轨壳）已整体删除；现役 TTS = Breeze :5130
+# （宿主 systemd，不在本仓）+ KAP qwenTts 路由。
 from src.v6.engines.hunyuan3d import Hunyuan3DEngine
 from src.v6.engines.hunyuan3d_mv import Hunyuan3DMvEngine
 from src.v6.engines.color_grade import ColorGradeEngine
@@ -27,6 +26,9 @@ from src.v6.routers import tasks, engines, events, health
 
 # GPU management routes
 from src.v6.routes.v1.gpu import router as gpu_router
+
+# Unified TTS server 子进程托管已随三轨 TTS 退役移除（2026-09-06）——
+# scripts/tts_unified_server.py 已删除，无需再管理其生命周期。
 
 logging.basicConfig(
     level=logging.INFO,
@@ -54,7 +56,7 @@ def _format_registration_summary(executor) -> str:
           comfyui-primary — ComfyUI (primary)
           comfyui-auxiliary — ComfyUI (auxiliary)
         [SUBPROCESS]
-          hunyuan3d — Hunyuan3D Engine
+          facefusion-engine — FaceFusion (SUBPROCESS 示例)
         ...
     Empty sections are omitted.
     """
@@ -91,11 +93,10 @@ async def lifespan(app: FastAPI):
     # Always register mock engine for development
     executor.register_engine(MockEngine())
 
-    # ── Subprocess Backend ──────────────────────────────────────────────
-    # 2026-09-06: 三轨 TTS 退役 — TTS unified server 子进程托管与
-    # Triple-Track HTTP / TTS Tracker 两个引擎注册已删除（现役 TTS =
-    # Breeze :5130 + KAP qwenTts 路由）。TTS 类任务在此将 fail-loud
-    # （DEDICATED_ENGINES 指向的 tts-tracker 不再注册 → No engine available）。
+    # ── TTS 引擎注册已随三轨退役移除（2026-09-06）──────────────────────
+    # 原 TripleTrackTTSEngine / TTSTracker 注册块与 tts_unified_server
+    # 子进程拉起块整块删除；本仓不再托管 TTS 推理
+    # （现役 TTS = Breeze :5130 宿主 systemd + KAP qwenTts 路由，均在仓外）。
 
     # Register Hunyuan3D-2 engine (image-to-3D via subprocess)
     try:
@@ -299,6 +300,7 @@ async def lifespan(app: FastAPI):
     await executor.stop()
     if local_pool:
         await local_pool.stop()
+    # Unified TTS subprocess 已随三轨退役移除（2026-09-06），无需清理
     # Unload all engines from GPU
     try:
         pool = get_engine_pool()

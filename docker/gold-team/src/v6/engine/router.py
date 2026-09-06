@@ -45,9 +45,9 @@ VRAM_ESTIMATES: dict[TaskType, float] = {
     TaskType.IMAGE_DRAW: 8.0,
     TaskType.IMAGE_REFINE: 6.0,
     TaskType.TTS: 2.0,
-    TaskType.TTS_ZH: 4.0,         # 旧三轨承载已退役 (2026-09-06)
-    TaskType.TTS_EN: 2.0,         # 旧三轨承载已退役 (2026-09-06)
-    TaskType.TTS_BILINGUAL: 6.0,  # 旧三轨承载已退役 (2026-09-06)
+    TaskType.TTS_ZH: 4.0,         # 三轨 GPT-SoVITS 已退役 2026-09-06（估值保留, 供路由兜底）
+    TaskType.TTS_EN: 2.0,         # 三轨 Chatterbox 已退役 2026-09-06
+    TaskType.TTS_BILINGUAL: 6.0,  # 三轨 CosyVoice 已退役 2026-09-06
     TaskType.MUSIC: 4.0,
     TaskType.SFX: 2.0,
     TaskType.UPSCALE: 2.0,

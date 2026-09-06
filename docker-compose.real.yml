@@ -87,6 +87,8 @@ services:
       # Cloud job poll cap (was hardcoded 600s); keep TASK_TIMEOUT_SEC >= this
       CLOUD_JOB_MAX_WAIT_SEC: ${CLOUD_JOB_MAX_WAIT_SEC:-900}
       TASK_TIMEOUT_SEC: ${TASK_TIMEOUT_SEC:-960}
+      # Hunyuan3D infer subprocess python (self-contained torch venv, 2026-09-06)
+      KAIS_HUNYUAN3D_PYTHON: /opt/venv-hy3d/bin/python
     volumes:
       - /mnt/agents/output:/mnt/agents/output
       # Mount model cache to avoid re-downloading
@@ -101,6 +103,11 @@ services:
       # kmc episode assets (i2i reference images) — same path inside the
       # container so host-side ref paths work verbatim (read-only)
       - /data/workspace/kais-hermes-skills:/data/workspace/kais-hermes-skills:ro
+      # Hunyuan3D 3D arm (2026-09-06): shape/paint 权重真源(含 hy3dshape 代码树)
+      # + 自包含 torch venv(--copies, 宿主 glibc 2.39 ≤ 容器 2.41)。
+      # 引擎经 KAIS_HUNYUAN3D_PYTHON 调 venv python 起 infer 子进程。
+      - /data/models:/data/models:ro
+      - /data/workspace/kais-gold-team/venv-hy3d:/opt/venv-hy3d:ro
     depends_on:
       redis:
         condition: service_healthy

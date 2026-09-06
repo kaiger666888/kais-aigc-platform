@@ -6,9 +6,10 @@ from src.v6.engines.hunyuan3d import Hunyuan3DEngine
 from src.v6.engines.hunyuan3d_mv import Hunyuan3DMvEngine
 from src.v6.engines.mock import MockEngine
 
-# 2026-09-06: 三轨 TTS（CosyVoice/GPT-SoVITS/Chatterbox）已随三轨退役整体删除
-# （tts.py TTSTracker / tts_http.py TripleTrackTTSEngine / tts_unified_server.py）。
-# 现役 TTS = Breeze :5130（宿主 systemd）+ KAP qwenTts 路由，gold-team 不再承载 TTS。
+# 三轨 TTS 引擎面已退役（2026-09-06）：TTSTracker/TTSTrack（engines/tts.py，
+# in-process 三轨壳）与 TripleTrackTTSEngine（engines/tts_http.py，三轨 HTTP 面）
+# 均已整体删除，不再对外导出。现役 TTS = Breeze :5130（宿主 systemd，不在本仓）
+# + KAP qwenTts 路由。
 
 __all__ = [
     "BaseEngine",
