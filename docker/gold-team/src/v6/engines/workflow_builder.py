@@ -13,7 +13,9 @@ Supports:
   - FLUX + TRELLIS full pipeline (via build_flux_trellis_full_workflow)
   - ComfyUI Lip Sync workflows (via build_lipsync_workflow) — LatentSync
   - ComfyUI Frame Interpolation workflows (via build_frame_interpolate_workflow) — RIFE VFI
-  - TTS workflows (via build_tts_workflow) — subprocess-based, not ComfyUI
+  - TTS parameter dicts (via build_tts_workflow) — 遗留接口：三轨 TTS
+    （CosyVoice/GPT-SoVITS/Chatterbox）已于 2026-09-06 退役，backend 仅余
+    "auto"，仅供 executor 对 TTS 类任务的 fail-loud 分派分支引用
   - Hunyuan3D workflows (via build_hunyuan3d_workflow) — subprocess-based
   - Shot Analysis workflows (via build_shot_analysis_workflow) — per-shot cinematic
     deconstruction: ShotGeometryLK + AILab_QwenVL_Advanced (semantic) +
@@ -384,16 +386,19 @@ def build_tts_workflow(
     language: str = "auto",
     reference_audio: str = "",
 ) -> dict[str, Any]:
-    """Build a TTS workflow dict for the TTSTracker.
+    """Build a TTS parameter dict for the (retired) TTS engine face.
 
-    Returns a parameter dict consumed by TTSTracker.submit().
+    2026-09-06 三轨 TTS 退役注记：本函数原为 TTSTracker.submit() 构造参数，
+    三轨词汇（gpt_sovits/chatterbox/cosyvoice backend 值与 zh/en/bilingual 轨道值）已随退役收敛删除；backend 仅余
+    "auto"。保留仅为 executor 的 TTS 类 fail-loud 分派分支仍引用（引擎面
+    已删，任务将以 No engine available 失败）。
 
     Args:
         text: Text to synthesize.
         voice: Voice name.
         speed: Speech speed multiplier.
-        backend: 'auto', 'gpt_sovits', 'chatterbox', 'cosyvoice'.
-        language: 'zh', 'en', 'auto', 'bilingual'.
+        backend: 仅 'auto'（三轨 backend 值已随 2026-09-06 退役删除）.
+        language: 'zh', 'en', 'auto'（bilingual 轨道值已随退役删除）.
         output_path: Explicit output file path.
         task_id: Used for auto-generating output path.
         reference_audio: Optional reference audio for voice cloning.
@@ -414,7 +419,6 @@ def build_tts_workflow(
         "output_path": output_path,
         "language": language,
         "reference_audio": reference_audio,
-        "track": backend if backend in ("zh", "en", "bilingual", "gpt_sovits", "chatterbox", "cosyvoice") else "",
     }
 
 

@@ -45,9 +45,9 @@ VRAM_ESTIMATES: dict[TaskType, float] = {
     TaskType.IMAGE_DRAW: 8.0,
     TaskType.IMAGE_REFINE: 6.0,
     TaskType.TTS: 2.0,
-    TaskType.TTS_ZH: 4.0,         # GPT-SoVITS on 3090 (CUDA=0)
-    TaskType.TTS_EN: 2.0,         # Chatterbox-Turbo on 3090 (shared GPU)
-    TaskType.TTS_BILINGUAL: 6.0,  # CosyVoice on 3090
+    TaskType.TTS_ZH: 4.0,         # 旧三轨承载已退役 (2026-09-06)
+    TaskType.TTS_EN: 2.0,         # 旧三轨承载已退役 (2026-09-06)
+    TaskType.TTS_BILINGUAL: 6.0,  # 旧三轨承载已退役 (2026-09-06)
     TaskType.MUSIC: 4.0,
     TaskType.SFX: 2.0,
     TaskType.UPSCALE: 2.0,

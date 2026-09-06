@@ -38,7 +38,7 @@ VRAM_ESTIMATES: dict[str, int] = {
     "foleycrafter": 8000,
     "blender": 8000,
     "forge": 4000,
-    "gpt_sovits": 4000,
+    # "gpt_sovits": 4000 已退役 — 2026-09-06 三轨 TTS (CosyVoice/GPT-SoVITS/Chatterbox) 下线
     "liveportrait": 4000,
     "motiongpt": 4000,
     "musetalk": 4000,
