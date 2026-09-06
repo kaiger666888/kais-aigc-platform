@@ -62,8 +62,10 @@ export function getRegisteredServices(): ServiceProfile[] {
     // ⚠️ 2026-08-19 D9 排查注记: 容器本体在跑 (docker ps 可见), 但宿主机上另存在
     // 容器外手动拉起的裸 ComfyUI 进程 (python3.13 ./ComfyUI/main.py) — 它们不在
     // 本注册表管辖内, 生命周期指令 (docker start/stop) 对其无效。裸进程的清除走
-    // killExternalGpuProcesses (gpu-kill-external.sh) 兜底; 新增服务前先确认没有
-    // 重复的手动实例在跑 (docs/gpu-unified-scheduling-plan.md §D9)。
+    // ensureVram 尾部的 killExternalGpuProcesses (scripts/gpu-kill-external.sh,
+    // operator 部署到 /usr/local/bin; R2 2026-09-06 复活接线, 之前是零调用死代码) —
+    // 只在注册表驱逐完仍不足时触发, 且脚本自带容器/守护进程/常驻引擎防误杀护栏;
+    // 新增服务前先确认没有重复的手动实例在跑 (docs/gpu-unified-scheduling-plan.md §D9)。
     {
       id: "comfyui-primary",
       name: "ComfyUI Primary",
@@ -1162,9 +1164,17 @@ export class GpuScheduler {
 
 
   /**
-   * Kill non-ACE GPU processes until enough VRAM is free.
+   * Kill non-registry GPU processes until enough VRAM is free (R2, 2026-09-06 复活接线)。
+   *
+   * 调用 scripts/gpu-kill-external.sh (operator 部署到 /usr/local/bin; 脚本本体在
+   * 仓内 scripts/, 首行契约 OK freed=xxx / SKIP <reason>)。防误杀护栏在脚本侧:
+   * 跳过容器内进程 / systemd unit 进程 / nvidia 组件 / 已知常驻引擎
+   * (breeze_server/music3-server/rtx_vsr, env GPU_KILL_EXTERNAL_EXCLUDE 可扩展)。
+   * 本方法吞一切错误 (脚本缺失/超时/非零退出) — 外部清理是兜底, 失败不影响调用方
+   * 原有流程 (与接线前行为一致, 仅多一条 ERROR log)。
+   * protected: 单测子类桩化 (同 executeStartStep 桩法), 生产行为不变。
    */
-  private async killExternalGpuProcesses(gpuId: number, neededFreeMb: number): Promise<void> {
+  protected async killExternalGpuProcesses(gpuId: number, neededFreeMb: number): Promise<void> {
     try {
       const { stdout } = await execFileAsync("/usr/local/bin/gpu-kill-external.sh", [
         String(gpuId),
@@ -1212,6 +1222,21 @@ export class GpuScheduler {
       this.mirrorService(candidate.profileId, candidate);
       currentFree = await this.getGpuVramFree(gpuId);
       evicted.push(candidate.profileId);
+    }
+
+    // ─── R2 尾部接线 (2026-09-06): 注册表驱逐完仍不足 → 裸进程外部清理兜底 ───
+    // 卡上还有显存占用但已无注册表服务可驱逐 = 存在注册表外占卡者 (D9 裸进程/
+    // 其他进程)。killExternalGpuProcesses 内部吞错, 失败仅 ERROR log — 调用方
+    // 流程与接线前一致。free 足够时 (入口早退或驱逐循环已达标) 本分支零执行 =
+    // 零行为变化。
+    if (currentFree < neededMb) {
+      try {
+        await this.killExternalGpuProcesses(gpuId, neededMb);
+      } catch (err) {
+        // 兜底的双保险吞错 (方法本体已吞; 此处防桩化/子类实现抛出打断 allocate)
+        console.error(`[GPU Scheduler] killExternalGpuProcesses wrapper caught:`, err);
+      }
+      currentFree = await this.getGpuVramFree(gpuId);
     }
 
     return evicted;
