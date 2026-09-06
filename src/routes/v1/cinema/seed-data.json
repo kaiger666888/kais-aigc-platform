@@ -38983,21 +38983,23 @@
     "category": "character_anchor",
     "key_name": "three_quarter",
     "key_type": "anchor_type",
-    "primary_recommendation": "3q-source.png，yaw 45°。最常用角度，多数镜头默认。prompt: '3/4 view, head turned 45 degrees, showing depth and volume, partial side visibility'。",
-    "rationale": "自然深度+部分面部，是 stress test 的主参考（3Q anchor）；Seedance 双参考默认 [three_quarter, front] 之首。",
+    "primary_recommendation": "3q-source.png，yaw 45°。最常用角度，多数镜头默认。prompt: '3/4 view, head turned 45 degrees, showing depth and volume, partial side visibility'。⚠️ TR sheet 规格轴警示（2026-09-06 定谳）：45° 3q 作为 TR 转面图规格轴已废弃——dreamina/QwenEdit/Z-Image 三引擎在该轴 6+ take 全部失灵，TR v13 改用 col1 近身细节/正面/侧面/背面四列；本条目仅指镜头级 3q 参考锚，镜头级 3q 参考锚不受影响。",
+    "rationale": "自然深度+部分面部，是 stress test 的主参考（3Q anchor）；Seedance 双参考默认 [three_quarter, front] 之首。镜头级 3q 参考与 TR sheet 规格轴是两回事：前者健康，后者是引擎失灵轴（spec_axis_beyond_engine_capability）。",
     "extra_data": {
       "yaw_deg": 45,
       "file": "3q-source.png",
       "clip_i_threshold": 0.8,
       "priority_rank": 1,
-      "purpose": "default_most_shots"
+      "purpose": "default_most_shots",
+      "tr_axis_status": "retired as TR sheet spec axis 2026-09-06; shot-level 3q anchor unaffected"
     },
     "source_file": "4d-anchor-system.md",
     "source_section": "The 4 anchor views + View priority order",
     "tags": [
       "three_quarter",
       "anchor",
-      "default_reference"
+      "default_reference",
+      "tr_axis_retired"
     ],
     "priority": 78
   },
@@ -39557,14 +39559,23 @@
     "category": "turnaround_tier",
     "key_name": "single_image_turnaround_method",
     "key_type": "turnaround_tier",
-    "primary_recommendation": "推荐方法：用 dreamina image2image 从 front 参考生成 ONE 张含 4 视角的转面图（16:9, 2k, model 5.0Pro），再 ffmpeg 裁成 4 个锚点。Volvo 验证一致性 8-9/10 vs 逐视角 2-3/10。",
-    "rationale": "模型单次推理画 4 视角，身份（脸型/肤色/发/装）共享同一 latent space；逐视角生成每次重采样身份致 drift。",
+    "primary_recommendation": "推荐方法：用 Qwen-Image-Edit-2511 本地臂（ComfyUI 本地服务，经 KAP :10588 qwen-edit/edit 路由，steps=4/cfg=1.0/mp=1.5） 从参考锚 i2i 生成 ONE 张 1×4 转面图（16:9 横排，2560×1440），参考锚定重生成、对 sage 免疫；四列 = col1 近身上半身面部细节 / col2 正面全身 / col3 侧面 90° / col4 背面全身（v13 四列视角规格，取代旧 front/3q/side/back 轴）。Volvo 验证单图法一致性 8-9/10 vs 逐视角 2-3/10。2026-09-06 Kai 终审 v13 定稿：生成臂弃 dreamina 5.0Pro i2i。",
+    "rationale": "模型单次推理画 4 视角，身份（脸型/肤色/发/装）共享同一 latent space；逐视角生成每次重采样身份致 drift。跑器 tri_req_pipeline.py gen 已固化 v13 配方+自愈探活（发前 /system_stats 探活+45s 稳定窗+失败退避重试×6，骑过并行会话的 comfyui 重启风暴）。",
     "extra_data": {
       "method": "i2i",
       "ref_source": "front reference image",
       "resolution": "2560x1440 (16:9)",
-      "engine": "dreamina image2image --model_version=5.0Pro --ratio=16:9 --resolution_type=2k",
-      "validated_consistency": "8-9/10"
+      "engine": "qwen-image-edit-2511 (local, ComfyUI; KAP :10588 qwen-edit/edit)",
+      "params": {
+        "steps": 4,
+        "cfg": 1.0,
+        "mp": 1.5
+      },
+      "runner": "tri_req_pipeline.py gen",
+      "view_axis": "v13: closeup_detail/front/side/back",
+      "validated_consistency": "8-9/10",
+      "retired_engine": "dreamina 5.0Pro i2i (2026-09-06 弃)",
+      "kgr_ref": "kais-gold-remount README bda06d9 §TR v13"
     },
     "source_file": "turnaround-sheet-method.md",
     "source_section": "Step 1: Generate Turnaround Sheet",
@@ -39572,7 +39583,9 @@
       "turnaround",
       "method_a",
       "recommended",
-      "i2i"
+      "i2i",
+      "qwen_edit_2511",
+      "v13"
     ],
     "priority": 80
   },
@@ -39603,13 +39616,19 @@
     "category": "turnaround_tier",
     "key_name": "ffmpeg_crop_landscape",
     "key_type": "turnaround_tier",
-    "primary_recommendation": "16:9 横排 1×4（2560×1440，4列）裁切：crop=iw/4:ih:iw*N/4:0，N=0..3 对应 front/3q/side/back。",
-    "rationale": "确定性后处理（无 LLM）；按列等分裁切。",
+    "primary_recommendation": "16:9 横排 1×4（2560×1440，4列）裁切：crop=iw/4:ih:iw*N/4:0，N=0..3 对应 col1 近身上半身面部细节 / col2 正面全身 / col3 侧面 90° / col4 背面全身（v13 四列视角规格，取代旧 front/3q/side/back 轴）。",
+    "rationale": "确定性后处理（无 LLM）；按列等分裁切。45° 3q 轴已废弃（三引擎失灵，2026-09-06 定谳，见 tr_v13_viewpoint_spec）。",
     "extra_data": {
       "method": "ffmpeg_crop",
       "layout": "1x4 landscape",
       "resolution": "2560x1440",
-      "crop_filter": "crop=iw/4:ih:iw*N/4:0"
+      "crop_filter": "crop=iw/4:ih:iw*N/4:0",
+      "columns": [
+        "col1 closeup_detail",
+        "col2 front",
+        "col3 side",
+        "col4 back"
+      ]
     },
     "source_file": "turnaround-sheet-method.md",
     "source_section": "裁切脚本（ffmpeg）— Landscape (16:9)",
@@ -39617,7 +39636,8 @@
       "ffmpeg",
       "crop",
       "landscape",
-      "postprocess"
+      "postprocess",
+      "v13"
     ],
     "priority": 62
   },
@@ -39625,13 +39645,20 @@
     "category": "turnaround_tier",
     "key_name": "ffmpeg_crop_portrait_2x2",
     "key_type": "turnaround_tier",
-    "primary_recommendation": "9:16 竖屏 2×2 四宫格裁切（1440×2560，2行×2列）：左上 front / 右上 3q / 左下 side / 右下 back，crop=iw/2:ih/2:{0 or iw/2}:{0 or ih/2}。",
-    "rationale": "竖屏短剧默认形态；确定性裁切。",
+    "primary_recommendation": "9:16 竖屏 2×2 四宫格裁切（1440×2560，2行×2列）：左上 col1 近身细节 / 右上 col2 正面 / 左下 col3 侧面 / 右下 col4 背面，crop=iw/2:ih/2:{0 or iw/2}:{0 or ih/2}。v13 起竖屏不再直生 9:16（直生 2×2 '缺腿' bug 已弃），走 16:9 生成 → vertical_2x2_postprocess 重排；本裁切仅用于已是 2×2 布局的产物按格取列。",
+    "rationale": "竖屏短剧默认形态；确定性裁切。恒 16:9 生成+竖屏后处理稳定全身材，方向不匹配会令 IC-LoRA 身份条件化失效。",
     "extra_data": {
       "method": "ffmpeg_crop",
       "layout": "2x2 portrait",
       "resolution": "1440x2560",
-      "crop_filter": "crop=iw/2:ih/2:x:y"
+      "crop_filter": "crop=iw/2:ih/2:x:y",
+      "columns": [
+        "col1 closeup_detail",
+        "col2 front",
+        "col3 side",
+        "col4 back"
+      ],
+      "note": "9:16 direct generation deprecated; see vertical_2x2_postprocess"
     },
     "source_file": "turnaround-sheet-method.md",
     "source_section": "裁切脚本（ffmpeg）— Portrait (9:16)",
@@ -39639,7 +39666,8 @@
       "ffmpeg",
       "crop",
       "portrait",
-      "2x2"
+      "2x2",
+      "v13"
     ],
     "priority": 60
   },
@@ -39647,14 +39675,14 @@
     "category": "turnaround_tier",
     "key_name": "vertical_2x2_postprocess",
     "key_type": "turnaround_tier",
-    "primary_recommendation": "竖屏剧集：始终先 16:9 横排 4 列生成（dreamina 最可靠全身材格式），再后处理 crop→stack→resize 成竖排 2×2（height=2560, 1440px canvas 居中）。Landscape 剧集跳过后处理直接消费 16:9。2026-08-03《她从深渊归来》验证。",
-    "rationale": "dreamina 直接生成 9:16 2×2 不可靠（角色常被截到腰部'缺腿' bug）；恒 16:9 生成+竖屏后处理稳定全身材。方向不匹配会令 LiconMSR IC-LoRA 身份条件化失效。",
+    "primary_recommendation": "竖屏剧集：始终先 16:9 横排 1×4 生成（v13 视角规格四列；16:9 横排是全身材最可靠布局），再后处理 crop→stack→resize 成竖排 2×2（height=2560, 1440px canvas 居中）。Landscape 剧集跳过后处理直接消费 16:9。2026-08-03《她从深渊归来》验证；生成臂 2026-09-06 起为 Qwen-Image-Edit-2511 本地臂。",
+    "rationale": "引擎直接生成 9:16 2×2 不可靠（角色常被截到腰部'缺腿' bug）；恒 16:9 生成+竖屏后处理稳定全身材。方向不匹配会令 LiconMSR IC-LoRA 身份条件化失效。",
     "extra_data": {
       "method": "multistage",
-      "ref_source": "16:9 horizontal 4-column sheet",
+      "ref_source": "16:9 horizontal 4-column sheet (v13 columns)",
       "resolution": "1440x2560 final",
       "steps": [
-        "generate 16:9",
+        "generate 16:9 1x4",
         "crop left/right halves",
         "stack",
         "resize height=2560"
@@ -39666,7 +39694,8 @@
       "portrait",
       "postprocess",
       "vertical",
-      "full_body"
+      "full_body",
+      "v13"
     ],
     "priority": 70
   },
@@ -39674,14 +39703,14 @@
     "category": "turnaround_tier",
     "key_name": "Tier0_base_identity",
     "key_type": "turnaround_tier",
-    "primary_recommendation": "Tier 0 基础身份转面（紧身衣 bodysuit，灰色，非场景服装）：text2image 生 front 参考→image2image 生转面图。锁脸+体型于中性服装无关态。1×4 横排（16:9, 2560×1440），列: 面部特写/front/side profile/back。输出 turnaround_sheets/base_{char_id}.png。",
+    "primary_recommendation": "Tier 0 基础身份转面（紧身衣 bodysuit，灰色，非场景服装）：从 front 参考经 Qwen-Image-Edit-2511 本地臂生成转面图（v13 起弃 dreamina t2i+i2i 链）。锁脸+体型于中性服装无关态。1×4 横排（16:9, 2560×1440），v13 四列: col1 近身上半身面部细节 / col2 正面 / col3 侧面 90° 全彩 / col4 背面。角色须立身站立 full-body neutral pose。输出 turnaround_sheets/base_{char_id}.png。",
     "rationale": "LiconMSR 优化：旧 2-tier 给 LiconMSR 单视角参考图欠佳；先锁裸身份护照再穿装。角色须立身站立 full-body neutral pose。",
     "extra_data": {
       "tier": 0,
-      "method": "t2i+i2i",
-      "ref_source": "text2image front reference",
+      "method": "i2i (qwen-image-edit-2511 local)",
+      "ref_source": "front reference image",
       "resolution": "2560x1440 (16:9)",
-      "layout": "1x4 (face_detail/front/side/back)",
+      "layout": "1x4 (col1 closeup_detail/col2 front/col3 side/col4 back)",
       "costume": "tight-fitting gray bodysuit",
       "output": "turnaround_sheets/base_{char_id}.png"
     },
@@ -39691,7 +39720,8 @@
       "tier0",
       "base_identity",
       "bodysuit",
-      "liconmsr"
+      "liconmsr",
+      "v13"
     ],
     "priority": 78
   },
@@ -39699,14 +39729,14 @@
     "category": "turnaround_tier",
     "key_name": "Tier1_scene_costume",
     "key_type": "turnaround_tier",
-    "primary_recommendation": "Tier 1 场景定妆转面：image2image 从 Tier 0 整张 base 转面图（非裁切单视角）生成角色穿场景服装的转面图。每 (character×scene) 一对生成一张。参考图须是整张 Tier 0 转面以保证 4 视角身份连贯。",
+    "primary_recommendation": "Tier 1 场景定妆转面：经 Qwen-Image-Edit-2511 本地臂从 Tier 0 整张 base 转面图（非裁切单视角）参考锚定生成角色穿场景服装的转面图。每 (character×scene) 一对生成一张。参考图须是整张 Tier 0 转面以保证 4 视角身份连贯。1×4 横排 v13 四列（col1 近身细节/col2 正面/col3 侧面全彩/col4 背面）。",
     "rationale": "LiconMSR 实际参考此 Tier 1 表；用整张 Tier 0 表（非 crop）保证跨视角身份连贯。",
     "extra_data": {
       "tier": 1,
-      "method": "i2i",
+      "method": "i2i (qwen-image-edit-2511 local)",
       "ref_source": "entire Tier 0 base turnaround sheet (not crop)",
       "resolution": "2560x1440 (16:9)",
-      "layout": "1x4 (face_detail/front/side/back)",
+      "layout": "1x4 (col1 closeup_detail/col2 front/col3 side/col4 back)",
       "per_pair": "one per (character x scene)"
     },
     "source_file": "turnaround-sheet-method.md",
@@ -39715,7 +39745,8 @@
       "tier1",
       "scene_costume",
       "i2i",
-      "per_scene"
+      "per_scene",
+      "v13"
     ],
     "priority": 78
   },
@@ -39724,7 +39755,7 @@
     "key_name": "Tier2_liconmsr_assignment",
     "key_type": "turnaround_tier",
     "primary_recommendation": "Tier 2 LiconMSR 参考分配：Node 40 参考槽接收整张 Tier 1 场景服装转面表（full multi-view sheet，非裁切单视角）。shot-list refs 格式：[char_s costume turnaround, 第二角色 turnaround, 背景 scene 图]。裁切步骤已移除——LiconMSR 接收 full sheet。",
-    "rationale": "LiconMSR 的 IC-LoRA 训练于多视角参考表，喂同格式给推理时更丰富身份条件化，模型可在单参考槽内交叉引用 front/side/back。ArcFace 若实现可现场从 column 1 裁脸。",
+    "rationale": "LiconMSR 的 IC-LoRA 训练于多视角参考表，喂同格式给推理时更丰富身份条件化，模型可在单参考槽内交叉引用正面/侧面/背面各列。ArcFace 若实现可现场从 col1 裁脸。",
     "extra_data": {
       "tier": 2,
       "method": "reference_assignment",
@@ -39738,7 +39769,8 @@
       "tier2",
       "liconmsr",
       "assignment",
-      "full_sheet"
+      "full_sheet",
+      "v13"
     ],
     "priority": 75
   },
@@ -39746,19 +39778,23 @@
     "category": "turnaround_tier",
     "key_name": "turnaround_quality_validation",
     "key_type": "turnaround_tier",
-    "primary_recommendation": "生成后用 vision_analyze 验证跨视角一致性：问 'Are all 4 views clearly the SAME person? Check face shape, hair, skin tone, clothing. Rate consistency 1-10.' 可接受 ≥7/10；<7 重生（在 prompt 显式重复 identity 特征）。",
-    "rationale": "客观一致性 + 视觉抽检互补。",
+    "primary_recommendation": "生成后双门验收：① vision 跨视角一致性门——'Are all 4 views clearly the SAME person? Check face shape, hair, skin tone, clothing. Rate consistency 1-10.' 可接受 ≥7/10；<7 重生（prompt 显式重复 identity 特征）。② v13 1×4 条带门（均衡判据）——按列切条做均衡判据，各列色彩/亮度方差须均衡；某列呈低方差暗色形体 = 黑剪影列（措辞雷1 的像素级表现）直接 FAIL 拦截。形象一致性以 appearance_profile 为正典判定，勿按常识误判。",
+    "rationale": "黑剪影列是 silhouette 字面执行的像素级表现，缩略图 vision 判读可能漏检，条带均衡判据提供确定性拦截；旧 2x2 布局像素门（白底密度>0.03）+含 3q 的四视角分布检查为 v6 前口径，v13 起布局恒 1×4 横排（详见 tr_v13_band_gate）。",
     "extra_data": {
-      "method": "vision_analyze",
+      "method": "vision_analyze + 1x4 band gate",
       "pass_threshold": 7,
-      "scale": "1-10"
+      "scale": "1-10",
+      "band_gate": "per-column balance; low-variance dark column = silhouette reject",
+      "identity_canon": "appearance_profile"
     },
     "source_file": "turnaround-sheet-method.md",
     "source_section": "Quality Validation",
     "tags": [
       "validation",
       "vision_analyze",
-      "rating"
+      "rating",
+      "band_gate",
+      "v13"
     ],
     "priority": 65
   },
@@ -72226,5 +72262,871 @@
       "适用技能": "story-system"
     },
     "priority": "reference"
+  },
+  {
+    "category": "turnaround_tier",
+    "key_name": "tr_v13_viewpoint_spec",
+    "key_type": "turnaround_tier",
+    "primary_recommendation": "TR v13 视角规格（2026-09-06 Kai 终审定稿，全工厂硬规，取代 v6-v9 的 45° 轴规格）：TR 四列 16:9 横排 1×4（2560×1440）= col1 近身上半身面部细节锚（identity 细节列，须完整含于本列不触边）/ col2 正面全身（头顶到脚完整）/ col3 侧面 90°（禁 silhouette 措辞，必须 'FULLY RENDERED IN FULL COLOR'）/ col4 背面全身（同全彩渲染）。三个全身列同一中性站立 A-pose，双手空置。生成臂 = Qwen-Image-Edit-2511 本地臂（ComfyUI 本地服务，经 KAP :10588 qwen-edit/edit 路由，steps=4/cfg=1.0/mp=1.5），参考锚定重生成、对 sage 免疫；跑器 tri_req_pipeline.py gen 已固化 v13 配方+自愈探活（发前 /system_stats 探活+45s 稳定窗+失败退避重试×6）。禁止在新 prompt 中要求严格 45° 3q 视角。",
+    "rationale": "col2=3q(45°双眼) 是三引擎（qwen-edit/z-image/dreamina）共 6+ take 的失灵轴（v6→v12 反复复发）；Kai 0906 终审处置=方案C 改规格弃 45° 轴，用可达语义补偿。定稿三连：char_001=s941（v13c 指令清除轮出品）/ char_005=s934（v13b 原生）/ char_002=s951+s952 双 PASS 择优。",
+    "extra_data": {
+      "version": "v13",
+      "verdict_date": "2026-09-06",
+      "layout": "1x4 landscape 16:9, 2560x1440",
+      "columns": {
+        "col1": "closeup upper-body face detail (identity anchor, fully inside column)",
+        "col2": "full-body front, head-to-feet",
+        "col3": "full-body side 90deg, FULLY RENDERED IN FULL COLOR (no silhouette wording)",
+        "col4": "full-body back, full-color"
+      },
+      "engine": "qwen-image-edit-2511 (local)",
+      "endpoint": "KAP :10588 qwen-edit/edit (ComfyUI local)",
+      "params": {
+        "steps": 4,
+        "cfg": 1.0,
+        "mp": 1.5
+      },
+      "runner": "tri_req_pipeline.py gen (v13 recipe + self-heal probe)",
+      "supersedes": "v6-v9 45-degree three-quarter axis spec",
+      "kgr_ref": "kais-gold-remount README bda06d9 §TR v13 视角规格与措辞双雷"
+    },
+    "source_file": "turnaround-sheet-method.md",
+    "source_section": "v13 视角规格警示框（2026-09-06 Kai 定稿）",
+    "tags": [
+      "turnaround",
+      "v13",
+      "viewpoint_spec",
+      "qwen_edit_2511",
+      "hard_rule"
+    ],
+    "priority": 85
+  },
+  {
+    "category": "turnaround_tier",
+    "key_name": "tr_v13_wording_taboos",
+    "key_type": "turnaround_tier",
+    "primary_recommendation": "TR prompt 措辞双雷（prompt 措辞即行为，v13 实锤固化）：雷1 silhouette——写 'pure profile silhouette' 会被字面执行成纯黑剪影（v13 首轮 3/4 take 中招），侧面列必须全彩渲染正描述 'FULLY RENDERED IN FULL COLOR with all details visible'，禁用 silhouette/outline 类名词；雷2 负向提及即召唤——写 'no barcode marks' 防伪影反而稳定召唤顶缘条码伪影（与 H3 'No music' BGM ban 触发词教训同根：提及即召唤），任何伪影的负向禁令不得点名伪影本身，用正描述替代（'clean white background', 'nothing touches the canvas edge'）。已成片伪影的清除：QwenEdit-2511 指令编辑定点清除（tr_v13c 配方 'completely REMOVE the barcode-like strip...'，非重抽），清除后必须 vision 复验「清除生效+四格零改动（身份/结构未被编辑轮动掉）」双项。",
+    "rationale": "风格/视觉名词是生成指令非描述；负向提及是第二次实锤的召唤定律（H3 BGM ban → TR barcode）。伪影清除走指令编辑定点修，比重抽省 take 且不动其他列。",
+    "extra_data": {
+      "version": "v13",
+      "taboo_1": {
+        "pattern": "silhouette wording",
+        "effect": "literal black silhouette column",
+        "fix": "FULLY RENDERED IN FULL COLOR positive description"
+      },
+      "taboo_2": {
+        "pattern": "negative mention of artifact ('no barcode marks')",
+        "effect": "summons the artifact at top edge",
+        "fix": "positive description only ('clean white background')"
+      },
+      "artifact_cleanup": "tr_v13c instruction-edit removal + vision dual re-check",
+      "cross_ref": "H3 BGM ban trigger-word lesson (mention = summon)",
+      "kgr_ref": "kais-gold-remount README bda06d9 §TR v13 措辞双雷"
+    },
+    "source_file": "turnaround-sheet-method.md",
+    "source_section": "v13 视角规格警示框（措辞双雷）",
+    "tags": [
+      "turnaround",
+      "v13",
+      "wording_taboo",
+      "silhouette",
+      "negative_prompt"
+    ],
+    "priority": 82
+  },
+  {
+    "category": "turnaround_tier",
+    "key_name": "tr_v13_band_gate",
+    "key_type": "turnaround_tier",
+    "primary_recommendation": "TR v13 验收 1×4 条带门（均衡判据拦黑剪影列）：对 1×4 横排产物按列切条做均衡判据——各列色彩/亮度方差须均衡，某列呈低方差暗色形体（=措辞雷1 silhouette 字面执行的黑剪影列）直接 FAIL 拦截。与 vision 跨视角一致性门（≥7/10）构成双门验收。旧 2x2 布局像素门（白底密度>0.03）+含 3q 的四视角分布检查为 v6 前口径，v13 起布局恒 1×4 横排。",
+    "rationale": "黑剪影列在缩略图 vision 判读下可能漏检；条带均衡判据给出像素级确定性拦截，是措辞雷1 的最后防线。",
+    "extra_data": {
+      "version": "v13",
+      "gate": "1x4 per-column band balance",
+      "reject_condition": "low-variance dark column (silhouette literal execution)",
+      "companion_gate": "vision cross-view consistency >= 7/10",
+      "legacy_superseded": "2x2 white-density>0.03 pixel gate + front/3q/side/back distribution check"
+    },
+    "source_file": "turnaround-sheet-method.md",
+    "source_section": "Quality Validation（v13 条带门口径）",
+    "tags": [
+      "turnaround",
+      "v13",
+      "gate",
+      "validation",
+      "band_check"
+    ],
+    "priority": 76
+  },
+  {
+    "category": "character_failure_mode",
+    "key_name": "tr_silhouette_literal_execution",
+    "key_type": "character_failure",
+    "primary_recommendation": "失败模式：prompt 里的风格/视觉名词是生成指令非描述——'silhouette/outline' 等词被渲染引擎字面执行成单色形体（纯黑剪影列）。修复：描述形体一律用全彩渲染正描述（'FULLY RENDERED IN FULL COLOR with all details visible'），禁用 silhouette 类名词；已产出黑剪影列的条带整图重生成（黑列不可修补）。TR v13 首轮 3/4 take 实锤。",
+    "rationale": "视觉词被引擎当生成指令执行，与「描述性 prompt」直觉相反；黑剪影列可被 1×4 条带门均衡判据像素级拦截。",
+    "extra_data": {
+      "triple_id": "ft_20260906_tr_silhouette_literal_execution",
+      "failure_mode": "prompt_visual_term_literal_execution",
+      "defect_class": "L1",
+      "phase": "p04_turnaround",
+      "evidence": "char_001 s921/922, char_005 s923/924 全灭 (3/4 take)",
+      "generalizes": true,
+      "confidence": "verified"
+    },
+    "source_file": "failure-triples.jsonl",
+    "source_section": "ft_20260906_tr_silhouette_literal_execution (ep-xiaojianghu-ep01)",
+    "tags": [
+      "failure",
+      "turnaround",
+      "v13",
+      "silhouette",
+      "prompt_wording"
+    ],
+    "priority": 78
+  },
+  {
+    "category": "character_failure_mode",
+    "key_name": "tr_negative_mention_summons_artifact",
+    "key_type": "character_failure",
+    "primary_recommendation": "失败模式：负向提及即召唤——prompt 写 'no barcode marks' 防伪影，顶缘反而稳定出现条码伪影（提及即召唤定律第二次实锤：H3 'No music' BGM ban → TR barcode）。修复：伪影禁令不得点名伪影本身，全部改正描述（'clean white background', 'nothing touches the canvas edge'）；已成片伪影用 QwenEdit-2511 指令编辑定点清除（非重抽），清除后 vision 复验「清除生效+四格零改动」双项。",
+    "rationale": "负向 prompt 对这类引擎不是抑制而是引导注意；跨域同根（H3 BGM ban 触发词），凡伪影禁令一律正向化。",
+    "extra_data": {
+      "triple_id": "ft_20260906_tr_negative_mention_summons_artifact",
+      "failure_mode": "negative_prompt_summons_artifact",
+      "defect_class": "L1",
+      "phase": "p04_turnaround",
+      "evidence": "char_001 s931/932, char_005 s933 中招; s934 幸免",
+      "cross_ref": "H3 BGM ban trigger-word lesson",
+      "generalizes": true,
+      "confidence": "verified"
+    },
+    "source_file": "failure-triples.jsonl",
+    "source_section": "ft_20260906_tr_negative_mention_summons_artifact (ep-xiaojianghu-ep01)",
+    "tags": [
+      "failure",
+      "turnaround",
+      "negative_prompt",
+      "artifact",
+      "summons"
+    ],
+    "priority": 78
+  },
+  {
+    "category": "character_failure_mode",
+    "key_name": "tr_3q_axis_three_engine_dead",
+    "key_type": "character_failure",
+    "primary_recommendation": "失败模式：规格轴超出引擎能力边界——TR col2=3q(45°双眼) 横跨 v6-v12 共 6+ take 三引擎（qwen-edit-2511/z-image/dreamina 4.6）全部失灵（视角漂成近侧/纯侧/正面重复），双 take 抽卡纪律用尽仍不收敛。处置：对多引擎反复失灵的视角轴，正确做法=改规格（把不可达轴移出，用可达语义补偿），不是换引擎或无限抽卡；「引擎失灵轴」登记进硬规禁止后续 prompt 再要求（v13 已弃 45° 轴）。把不可达轴留在规格里 = 每轮白烧 take+反复送审打回。",
+    "rationale": "规格设计要探明引擎能力边界后再定轴；镜头级 3q 参考锚不受影响（character_anchor/three_quarter），废弃的只是 TR sheet 规格轴。",
+    "extra_data": {
+      "triple_id": "ft_20260906_tr_3q_axis_three_engine_dead",
+      "failure_mode": "spec_axis_beyond_engine_capability",
+      "defect_class": "L0",
+      "phase": "p04_turnaround",
+      "engines": [
+        "qwen-edit-2511",
+        "z-image",
+        "dreamina 4.6"
+      ],
+      "resolution": "v13 spec change: axis removed (2026-09-06)",
+      "generalizes": true,
+      "confidence": "verified"
+    },
+    "source_file": "failure-triples.jsonl",
+    "source_section": "ft_20260906_tr_3q_axis_three_engine_dead (ep-xiaojianghu-ep01)",
+    "tags": [
+      "failure",
+      "turnaround",
+      "engine_boundary",
+      "3q",
+      "spec_design"
+    ],
+    "priority": 80
+  },
+  {
+    "category": "tts_provider",
+    "key_name": "breeze_tts_2",
+    "key_type": "tts_provider",
+    "primary_recommendation": "Breeze TTS 2 — 端口 :5130，cfg=4.0，懒加载+TTL 600s 空闲卸载架构：import 零 GPU → 首请求懒加载（~12-21s）→ 空闲 BREEZE_IDLE_TTL_SEC（默认 600s）后台 reaper 卸载释放 7.6GB → 下次请求复活再加载。2026-09 起替代 IndexTTS 2.5 成为现役引擎之一。/health 新增 idle_seconds/ttl_sec/loading 字段，旧三字段（status/model_loaded/engine）语义不变，KAP 零改动。",
+    "rationale": "闲时 7.6GB 显存归还（生图独占 3090：ComfyUI 峰值 14.5GB+余量>9GB）；卸载与合成互斥（_lock.locked() 预检+持锁重查 last_used），KMC 批量 TTS 每次成功刷新 idle 窗口，reaper 不误杀在跑合成。正源仓 /data/workspace/breeze-tts-server，部署副本 /opt/breeze-tts/breeze_server.py，服务 breeze-tts.service 锚 GPU1(RENDER_GEN1)。",
+    "extra_data": {
+      "port": 5130,
+      "cfg": 4.0,
+      "idle_ttl_sec": 600,
+      "vram_freed_gb": 7.6,
+      "cold_load_sec": "12-21",
+      "service": "breeze-tts.service",
+      "gpu": "GPU1 (RENDER_GEN1)",
+      "repo": "/data/workspace/breeze-tts-server",
+      "health_new_fields": [
+        "idle_seconds",
+        "ttl_sec",
+        "loading"
+      ],
+      "replaced": "IndexTTS 2.5",
+      "online": "2026-09-04",
+      "pitfalls": [
+        "/clone 500 = CUDA OOM：先查 ComfyUI 残留缓存（nvidia-smi --query-compute-apps），POST :8188/free 驱逐；/free 返回 200 但释放是异步的，sleep 3 后复查",
+        "restart 后 curl 立刻打 = HTTP 000（uvicorn 启动 ~4s），sleep 4 再探针",
+        "冷启动延迟进入合成属正常（首请求 +12~21s 载模；KAP fetch 无超时，链路安全）"
+      ]
+    },
+    "source_file": "kais-audio/breeze-tts-lazy-load-ops/SKILL.md",
+    "source_section": "架构（git 正源）+ 实测定谳（2026-09-04）",
+    "tags": [
+      "tts",
+      "breeze",
+      "lazy_load",
+      "ttl_unload",
+      "current_engine",
+      "local"
+    ],
+    "priority": 73
+  },
+  {
+    "category": "engine_selection_rule",
+    "key_name": "h3_pat_detailmixer_verdict",
+    "key_type": "selection_rule",
+    "primary_recommendation": "H3 双采管线满帧徽章贴片伪影（PAT：彩色圆章/中文/拉丁字母贴纸/网点纹理圆）根因定谳 = pass2 DetailMixer refine 采样段注入——细节注入职能失控时把「加细节」渲染成贴纸状高频伪影。排除链：单采净（排除底模/prompt/refs）→ tapA pass1 上采直解净（排除 pass1+学习型上采器）→ 旁路 Reconcile 脏（洗清 Reconcile）→ 唯一未洗清 = DetailMixer。旁路 DetailMixer 不可行：pass2 latent 是上采后 packed 尺寸，DualClock pass1 采样器按 pass1 尺寸初始化，直接报 packed latent changed after sampler setup——洗清 DetailMixer 的正确姿势 = V2 式同节点参数对齐（stg/bias/tail 全关），非换采样器。",
+    "rationale": "方法论铁律（本次实证）：① 工作流目录名/预设声明 ≠ 接线真值（shot9 目录叫 nolora，元数据显示 5 个创意 LoRA，全量 trace 后全是悬空死端），判 LoRA 前必 trace；② 周期接缝检测对不规则徽章贴片天然失明（16/32/64/128 全部周期无签名，贴片非网格对齐），vision 判读不可省；③ 双解码抽头（N13 上采输出+N19 refine 输出各接 AVDecode+VHS）一次渲染同时拿两抽头对比即知注入段，比逐组件旁路快一个数量级。",
+    "extra_data": {
+      "verdict_date": "2026-09-06",
+      "engine": "h3",
+      "artifact": "满帧徽章贴片 (badge patch)",
+      "root_cause": "pass2 DetailMixer refine 采样注入",
+      "matrix": {
+        "shot11 生产完整两采": "满帧徽章",
+        "shot12b 单采": "干净",
+        "12c tapA pass1 上采直解": "无徽章",
+        "12c tapB refine 后": "满帧徽章",
+        "shot12e 旁路 Reconcile": "贴片依旧（Reconcile 洗清）",
+        "V2-RAT 完整 V2 栈": "干净·电影感"
+      },
+      "bypass_infeasible": "packed latent changed after sampler setup",
+      "correct_fix": "V2-style same-node param alignment (stg/bias/tail off)",
+      "verdict_page": "/home/kai/shared/2026-09-06/rat_final_verdict.html"
+    },
+    "source_file": "kais-video/h3-pat-detailmixer-badge-verdict/SKILL.md",
+    "source_section": "结论（判定矩阵+排除链）+ 方法论铁律（本次实证）",
+    "tags": [
+      "h3",
+      "detailmixer",
+      "pat",
+      "verdict",
+      "twopass",
+      "root_cause"
+    ],
+    "priority": 80
+  },
+  {
+    "category": "engine_selection_rule",
+    "key_name": "h3_v2_stack_release_verdict",
+    "key_type": "selection_rule",
+    "primary_recommendation": "H3 V2 栈 5s+15s 两采净 = 放量解锁：Kai 的 V2 工作流（文武双修 hybrid 底模+LoRA 三重奏）完整跑通=干净=现成修复面。V2 参数面 = hybrid b25-49 底模 + LoRA 三重奏（Combat V2 双强度 0.7/0.49 + Dasiwa + ErosMax + 电影质感 V0.1）+ DetailMixer 微调参数 stg/bias/tail 全关（SolAttn 被旁路仍干净=非必需件，容器 comfy_kitchen 缺 sol_attn 编译）。修复选项：方案A（推荐）生产两采换 V2 参数面；方案B 降级单采（已验证干净，损失 DetailMixer 细节增益）；待验 SolAttn 编译后 V2 完整形态是否更优。",
+    "rationale": "LoRA 栈维度跟底模走：V2 的 LoRA 按 hybrid b25-49 训练，换 fl2va convrot 底模会 mat1 and mat2 shapes cannot be multiplied（实锤 [96768,2688] vs 774144）。DynamicCombo V3 API 格式：selection 传选项名字符串，嵌套参数用点前缀键 selection.tau=1.3；audio_mode 契约：lock_source 要求 drive_audio 输入，探针无音源时用 native + audio_denoise_strength=1.0。",
+    "extra_data": {
+      "verdict_date": "2026-09-06",
+      "stack": "V2",
+      "base_model": "hybrid b25-49",
+      "lora_stack": {
+        "combat_v2": [
+          0.7,
+          0.49
+        ],
+        "dasiwa": null,
+        "erosmax": null,
+        "cinematic_v0.1": null
+      },
+      "detailmixer": "stg/bias/tail all off",
+      "solattn": "bypassed, clean → non-essential",
+      "options": {
+        "A_recommended": "production two-pass switches to V2 param face",
+        "B": "downgrade to single-pass (loses DetailMixer detail gain)",
+        "pending": "SolAttn compiled full V2 form"
+      }
+    },
+    "source_file": "kais-video/h3-pat-detailmixer-badge-verdict/SKILL.md",
+    "source_section": "V2 修复面 + 修复选项（给管线的落地方向）+ UI→API 转换四坑",
+    "tags": [
+      "h3",
+      "v2_stack",
+      "release",
+      "lora",
+      "detailmixer"
+    ],
+    "priority": 78
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "p12_postmix_loudness_renorm",
+    "key_type": "bgm",
+    "primary_recommendation": "P12 哑剧/sfx_only 集 LUFS 塌陷修复：voice stem 全静音（pantomime 设计）时，amix+loudnorm 产出 -20~-23 LUFS（目标 -16~-14）——修复= post-spatial 再归一化 pass，直接对已混 master 跑 loudnorm=I=-16:TP=-1.0:LRA=11。实测 delta 5.0-7.5 LUFS（ep-otter-doctor -20.6→-15.5 / v2 -20.5→-15.5 / ep-octopus-resignation -23.1→-15.6）。p12-compose-master.py 已内置 verify_and_normalize_lufs() 自动检测（LUFS 低于目标 1.0 即自动跑）；对白剧集统一应用也安全。",
+    "rationale": ">50% 时间线静默时 loudnorm 的 integrated 测量被静默加权拖低、sidechain ducking 无 voice 可压不触发——不是 bug 是正确数学结果。强制适用：pantomime（零对白）/ 静默>40% / ebur128 终检低于目标 2 LUFS 以上。",
+    "extra_data": {
+      "pitfall": 4,
+      "trigger": [
+        "pantomime (zero dialogue)",
+        ">40% silence timeline",
+        "ebur128 shows >2 LUFS below target"
+      ],
+      "fix": "post-spatial loudnorm=I=-16:TP=-1.0:LRA=11 on mixed master",
+      "measured": [
+        {
+          "ep": "ep-otter-doctor",
+          "before": -20.6,
+          "after": -15.5
+        },
+        {
+          "ep": "ep-otter-doctor-v2",
+          "before": -20.5,
+          "after": -15.5
+        },
+        {
+          "ep": "ep-octopus-resignation",
+          "before": -23.1,
+          "after": -15.6
+        }
+      ],
+      "lufs_targets": {
+        "voice": "-16±1.5",
+        "bgm_dialog": "-23±2",
+        "bgm_solo": "-20±1",
+        "sfx": "-20±1.5",
+        "final_mix": "-15~-16, TP -1.0"
+      }
+    },
+    "source_file": "audio_pipeline/references/p12-composition-pitfalls.md",
+    "source_section": "Pitfall 4 + Empirical Data + LUFS Targets Reference",
+    "tags": [
+      "audio_pipeline",
+      "lufs",
+      "loudnorm",
+      "pantomime",
+      "p12"
+    ],
+    "priority": 68
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "p12_amix_normalize_zero",
+    "key_type": "bgm",
+    "primary_recommendation": "amix 折叠链必须 normalize=0：amix 默认 normalize=1 每步折半两输入，N 条 placed clips 的 foldl 链中 clip k 权重 (1/2)^(N-k)——11-clip 实测首 VO 片段 -90.3dB（默认）vs -32.9dB（normalize=0），全文件均值 -49.4→-33.1dB。修法模式：amix=inputs=2:duration=longest:dropout_transition=0:normalize=0 + 链尾 alimiter=limit=0.95:level=false（p12b_audio_composition.py 全部 5 处 amix 已修，2026-08-28）。附带定谳：H3 native bed 不携带 TTS（VO 起点窗实测 -91dB 数字静默，对白 authority exclusively P12 voice overlay）；indextts25 VO 片 -22~-33dB vs bed -14dB，需 voice_gain 2.5 预增益让每个 VO 窗清晰越过 bed（~-22dB 均匀）。",
+    "rationale": "与 kmc-audio-mix-and-vo-policy 教训一（pairwise fold 衰减）同源；静默轨也必须保留在 amix 中（丢弃会截断 master 时长）。",
+    "extra_data": {
+      "pitfall": 11,
+      "default_fold_weight": "clip k gets (1/2)^(N-k)",
+      "fix_pattern": "amix=inputs=2:duration=longest:dropout_transition=0:normalize=0 + alimiter=limit=0.95:level=false",
+      "measured": {
+        "first_vo_default_db": -90.3,
+        "first_vo_fixed_db": -32.9,
+        "file_mean_default_db": -49.4,
+        "file_mean_fixed_db": -33.1
+      },
+      "h3_bed_finding": "H3 native bed ≠ voice carrier; dialogue authority = P12 overlay only",
+      "voice_gain": 2.5
+    },
+    "source_file": "audio_pipeline/references/p12-composition-pitfalls.md",
+    "source_section": "Pitfall 11: H3 Native Bed Does NOT Carry TTS + amix normalize=1 Fold",
+    "tags": [
+      "audio_pipeline",
+      "amix",
+      "normalize",
+      "h3_bed",
+      "voice_gain"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "p12_ffmpeg_mix_craft",
+    "key_type": "bgm",
+    "primary_recommendation": "P12 合成 ffmpeg 工艺五坑：① -filter_complex 必须单行（shell 反斜杠续行会把滤图片段当输出文件名）；② concat demuxer 的 concat_list.txt 必须写绝对路径（相对路径按 list 文件所在目录解析）；③ ebur128 校验只解析 Summary 段（裸 grep 'I:' 抓到 t=0.1s 的 -70 LUFS 瞬时读数非 integrated）；④ narration_mix.wav 是 mix 的前置而非产物——缺失时须先 adelay+amix 组装（静默轨也必须保留在混音，丢弃截断时长）；⑤ 嵌入式生成脚本禁 f-string（{} 转义地狱）——生成器写 standalone 文件+sys.argv 传参（>3-4 个花括号即禁嵌入）。混音路径选择：先探测 native audio/narration/bgm 三源存在性，取源最多的路径（3b 三轨 > 3c/3d 两轨 > 3e 纯 copy）；numpy 合成 drone 一律跳过 BGM（R11 ban，drone 比没有 BGM 更糟）。",
+    "rationale": "六步原子合并（voice timeline→stem loudnorm→sidechain mix→concat→mux）每步都有实测翻车点；决策树把源检测前置避免选错 mix 路径。",
+    "extra_data": {
+      "pitfalls": [
+        2,
+        3,
+        5,
+        10,
+        1
+      ],
+      "path_selection": {
+        "3b": "native + narration + bgm (3 tracks, preferred)",
+        "3c": "narration + bgm (2 tracks)",
+        "3d": "native + narration (2 tracks)",
+        "3e": "native only (-c copy)"
+      },
+      "stem_loudnorm": {
+        "voice": "I=-16:TP=-1.5:LRA=11",
+        "bgm": "I=-23:TP=-2.0:LRA=14",
+        "sfx": "I=-20:TP=-1.5:LRA=12"
+      }
+    },
+    "source_file": "audio_pipeline/references/p12-composition-pitfalls.md",
+    "source_section": "Pitfalls 1/2/3/5/10 + Audio Source Detection & Mix-Path Decision Tree",
+    "tags": [
+      "audio_pipeline",
+      "ffmpeg",
+      "filter_complex",
+      "ebur128",
+      "concat",
+      "p12"
+    ],
+    "priority": 66
+  },
+  {
+    "category": "audit_metric",
+    "key_name": "suspense_ledger_plant_density",
+    "key_type": "audit_dimension",
+    "primary_recommendation": "悬念线账本审计·埋线密度（每集 1 埋 1 收/推进）：每集至少 1 埋（新线）+ 1 收或推进（旧线）——只埋不收=PA-039 头号毒点「一直只埋不收」，只收不埋则追读力断流；单集埋线 ≤3 条（超即透支后期解释成本，短剧单集体量撑不起 4+ 并行悬念）；一次回收 ≤2 条且散布不同场景（集中一幕连收 3+=「说明会」毒点）；过渡集可豁免「1 埋」但「1 收或推进」不可豁免。",
+    "rationale": "账本契约：管线确定性账本（suspense_ledger.py，P02 登记/P03 消费）管记账与到期判定——线状态机 planted→advanced*→paid_off|dropped，类型默认跨度 mystery:8/promise:3/identity:10/object:5/rule:12（显式 deadline_episode 可覆盖）；auditor 管内容判定。审计输出 suspense_updates 数组（action 枚举 advance/pay_off/drop），shot_id 必须指向本集内实际承载场景，虚假 shot_id 会被下游 shot 校验暴露。",
+    "extra_data": {
+      "dimension": "plant_density",
+      "rules": {
+        "per_episode_min": "1 plant + 1 payoff/advance",
+        "plant_max_per_ep": 3,
+        "payoff_max_per_ep": 2,
+        "payoff_scatter": "different scenes required",
+        "transition_ep exemption": "plant exempt, payoff/advance NOT exempt"
+      },
+      "ledger_contract": {
+        "state_machine": "planted -> advanced* -> paid_off | dropped",
+        "type_spans": {
+          "mystery": 8,
+          "promise": 3,
+          "identity": 10,
+          "object": 5,
+          "rule": 12
+        },
+        "actions": [
+          "advance",
+          "pay_off",
+          "drop"
+        ]
+      },
+      "pa_refs": [
+        "PA-039",
+        "PA-065"
+      ]
+    },
+    "source_file": "suspense-ledger-audit.md",
+    "source_section": "审计维度 1 埋线密度 + Ledger 契约",
+    "tags": [
+      "script_auditor",
+      "suspense_ledger",
+      "plant_density",
+      "audit_metric"
+    ],
+    "priority": 64
+  },
+  {
+    "category": "audit_metric",
+    "key_name": "suspense_ledger_overdue_priority",
+    "key_type": "audit_dimension",
+    "primary_recommendation": "悬念线账本审计·超期线处置与清债优先级：deadline≤本集的线必须本集 advance/pay_off/drop 三者之一（管线 blocking，确定性检查）。auditor 内容判定四则——advance 必须实质（新信息/新代价/新可能性；「提起/想起/再次暗示」不算，回亮的正确形态=新镜头/新视角）；pay_off 必须兑现（直接回答埋点悬念问题，可顺带开新钩，禁答非所问）；drop 必须有声（note 给理由，无声弃线=「作者自己忘掉」毒点必 blocking）；回收对得上原线（借壳回收拿 B 物件答 A 悬念按未回收处理）。清债优先级（预算冲突时先 P0 后 P1 后 P2）：P0 影响主线理解（identity/rule/mystery）必须 pay_off 或强 advance，drop 不允许（P0 被 drop=审计 FAIL）；P1 情绪线可顺延一集（≤1 次，连续 2 集必须收）；P2 装饰线可 drop 不算弃债。",
+    "rationale": "「所有线同等重要」=PA-065 毒点，在本维度直接扣分；auditor 不得因「管线没 block」放过内容不实的 suspense_updates——在 weaknesses[] 以 category: suspense_ledger_quality 标注并扣 drama/logic 维分。",
+    "extra_data": {
+      "dimension": "overdue_disposal + payoff_priority",
+      "content_rules": [
+        "advance must be substantive",
+        "pay_off must answer the planted question",
+        "drop requires voiced reason",
+        "payoff must match original thread"
+      ],
+      "priority_tiers": {
+        "P0_core": "must pay_off or strong advance; drop forbidden (drop = audit FAIL)",
+        "P1_emotional": "advance defer ≤1 ep; 2 consecutive defers must resolve",
+        "P2_decorative": "drop allowed (noted), not counted as debt"
+      },
+      "blocking_split": {
+        "pipeline": "due-and-untouched → blocking (deterministic)",
+        "auditor": "authenticity/quality of updates (content judgment)"
+      }
+    },
+    "source_file": "suspense-ledger-audit.md",
+    "source_section": "审计维度 2 超期线处置 + 维度 3 清债优先级 + 与管线 blocking 的分工",
+    "tags": [
+      "script_auditor",
+      "suspense_ledger",
+      "overdue",
+      "payoff_priority"
+    ],
+    "priority": 64
+  },
+  {
+    "category": "camera_motion",
+    "key_name": "aftermath_slow_dolly_out",
+    "key_type": "camera_move",
+    "related_emotions": [
+      "aftermath",
+      "absurdity",
+      "unrepentant acceptance",
+      "isolation"
+    ],
+    "related_camera_moves": [
+      "slow dolly out",
+      "pull back"
+    ],
+    "related_shot_scales": [
+      "MCU",
+      "MS",
+      "WS"
+    ],
+    "primary_recommendation": "Aftermath（后果/废墟余波）镜范式：缓慢 dolly-out 揭示破坏全貌——camera 平稳后拉渐显全部破坏范围，角色独行于自己造成的废墟中（isolation+absurdity，轴线下行无升级）。配套要素：① 徒劳补救动作须 physically grounded（肢体伸向物件）+ explicitly futile（尝试可见失败）= absurd-comedy beat；② 损坏制服 L3 描述直接入 prompt（damaged uniform，不用崭新描述）；③ 环境破坏元素逐项列举（碎片/半塌结构/消散烟缕）；④ 暖色 grade 3800K「无悔接受」而非冷惧；⑤ SFX-only 音频（烟嘶+落尘+环境嗡鸣，无对白，lip_sync 空数组 vacuously satisfied）；physics walking/crawling 慢速刻意浮现，MCU 或更宽景别。",
+    "rationale": "验证载体 ep-chameleon-comedy SH11（2026-07-08，mean -40.9dB，2.46s/59 帧）。⚠️ 载体退役：LTX-2.3 LiconMSR 视频链路 2026-09-02 整体退役（KAP bda0ef0d / KMC c5307982），本条范式本身引擎无关仍适用，当前 P11 视频=H3。",
+    "extra_data": {
+      "shot_scale": "MCU or wider",
+      "physics_state": [
+        "walking",
+        "crawling"
+      ],
+      "camera_motivation": "reveal full damage scope; isolation",
+      "axis_line": "descending",
+      "audio": "SFX-only (smoke hiss + debris settling + ambient hum), no dialogue",
+      "color": "3800K warm, unrepentant acceptance",
+      "validated": "ep-chameleon-comedy SH11 (2026-07-08)",
+      "retired_carrier": "LTX-2.3 LiconMSR chain retired 2026-09-02; pattern itself engine-agnostic"
+    },
+    "speed_words": [
+      "slow dolly out",
+      "pulls backward smoothly and steadily"
+    ],
+    "source_file": "ltx-msr-aftermath-dolly-out-shots.md",
+    "source_section": "Shot Pattern Definition + Prompt Construction Pattern",
+    "tags": [
+      "camera_move",
+      "aftermath",
+      "dolly_out",
+      "shot_family",
+      "engine_agnostic"
+    ],
+    "priority": 58
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "bgm_spotting_session_system",
+    "key_type": "bgm",
+    "primary_recommendation": "P12b BGM Spotting Session 多段配乐系统（2026-08-11 实装，替代 numpy 正弦波占位）：P12a EDL + P07 style_vector → 场景边界+mood 变化分段（>120s 按 mood 细分）→ 逐段三引擎级联路由：① kais-bgm 素材库（0 GPU 免费，mood→MOOD_TO_CATEGORY→glob→deterministic random choice）② KAP AI（<60s 走 Stable Audio 3；≥60s 走 ACE-Step 1.5 instrumental）③ numpy drone（DEGRADED 兜底）→ ffmpeg acrossfade 2s 交叉淡化（<4s 短段 concat）+ apad 补齐 → bgm.wav。SH## clip_id 分段结构；核心模块 audio_pipeline/scripts/bgm_spotting.py（693 行），入口 p12-compose-master.py substep_composer()（try/except fallback，numpy 逻辑保留为 degraded）。",
+    "rationale": "单段整曲 BGM 无法跟随场景 mood 变化，spotting session 按电影配乐工艺分段+级联降级。待改进：素材匹配 v1 为 deterministic 随机选（可加 BPM/能量 fingerprint）；KAP 调用串行可并行；分段未考虑 transition_method 驱动的 BGM 过渡。",
+    "extra_data": {
+      "implemented": "2026-08-11",
+      "segmentation": "scene boundary + mood change; >120s subdivided by mood",
+      "cascade": [
+        "kais-bgm library (0 GPU)",
+        "KAP: Stable Audio 3 (<60s) / ACE-Step 1.5 instrumental (>=60s)",
+        "numpy drone (DEGRADED)"
+      ],
+      "crossfade_sec": 2,
+      "module": "audio_pipeline/scripts/bgm_spotting.py (693 lines)",
+      "cli": "python3 bgm_spotting.py --edl edl.json --output bgm.wav --duration 90.0 --style-vector '{...}' --work-dir /tmp/work",
+      "supersedes": "p12-bgm-spotting-session-design (design doc → code)"
+    },
+    "source_file": "kais-movie-pipeline/p12-bgm-spotting-implemented/SKILL.md",
+    "source_section": "架构 + 关键函数 + 向后兼容",
+    "tags": [
+      "audio_pipeline",
+      "bgm",
+      "spotting_session",
+      "p12b",
+      "implemented"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "bgm_verify_six_checks",
+    "key_type": "bgm",
+    "primary_recommendation": "bgm_verify.py 六项自动检查（librosa 特征提取，audio_pipeline/scripts/ 749 行，独立模块不依赖 bgm_spotting.py）：duration_match 15%（|diff|<0.5s）/ non_silent 15%（RMS mean>0.01，P14 阻断阈值 0.005）/ dynamic_range 20%（RMS std>0.02）/ arc_match 25%（RMS 能量曲线 opening 30%/middle 40%/ending 30% 三段比较 vs rise_fall/rising/falling/flat）/ segment_energy_variation 15%（段间 std>0.015）/ spectral_mood 10%（spectral centroid 在 mood 频段）。跳过的检查项权重按比例重分配给活跃项；RMS 曲线固定 10 段便于横向对比；librosa 为可选依赖，缺失时返回结构化 unavailable 报告（CLI 退出码 2）不 crash 调用方。",
+    "rationale": "验证 BGM 是否匹配 Spotting Session 的情绪弧线规划：segments 规划（mood/intensity/expected_arc）对照实际 BGM 特征。弧线判定：rise_fall=opening<middle 且 ending<middle（峰值在中间）/ rising=opening<ending / falling=opening>ending / flat=|opening-ending|<0.2*middle；expected_arc 为 None 时 infer_arc(segments) 按 intensity 峰值位置自动推断。",
+    "extra_data": {
+      "module": "audio_pipeline/scripts/bgm_verify.py (749 lines)",
+      "checks": {
+        "duration_match": 0.15,
+        "non_silent": 0.15,
+        "dynamic_range": 0.2,
+        "arc_match": 0.25,
+        "segment_energy_variation": 0.15,
+        "spectral_mood": 0.1
+      },
+      "pass_conditions": {
+        "duration_match": "|diff| < 0.5s",
+        "non_silent": "RMS mean > 0.01",
+        "dynamic_range": "RMS std > 0.02",
+        "arc_match": "arc direction correct",
+        "segment_energy_variation": "inter-seg std > 0.015",
+        "spectral_mood": "centroid in mood band"
+      },
+      "arc_types": [
+        "rise_fall",
+        "rising",
+        "falling",
+        "flat"
+      ],
+      "cli_exit_codes": "0=passed, 1=failed, 2=deps/params missing"
+    },
+    "source_file": "kais-movie-pipeline/p12-bgm-verification-system/SKILL.md",
+    "source_section": "6 项检查维度 + 弧线匹配逻辑 (arc_match)",
+    "tags": [
+      "audio_pipeline",
+      "bgm",
+      "verification",
+      "librosa",
+      "arc_match"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "bgm_strategy",
+    "key_name": "bgm_verify_p14_gate",
+    "key_type": "bgm",
+    "primary_recommendation": "bgm_verify P14 quality gate 集成与引擎实测结论：P14 quality_audit 末尾读 audio_stems.bgm.path → 解析 segments + total_duration → verify_bgm() → 转 audit finding。阻断策略：rms_mean<0.005 = critical → P11 rollback（重跑 P12b）；score<0.6 或某项 fail = WARNING 不阻断写报告；score≥0.6 全 pass = INFO；librosa 缺失/文件不存在 = 跳过不崩溃 P14。超时保护 SIGALRM 30s 硬超时（仅主线程生效；非主线程 signal.signal 抛 ValueError→降级无超时直接执行；选 signal 非 multiprocessing 规避 fork+threads 死锁）。多 episode 实测定谳：ACE-Step 1.5 是唯一弧线满分引擎（[Verse]→[Pre-Chorus]→[Chorus]→[Bridge]→[Outro] Section 标签精确控制 rise_fall，1.00）；SA3 氛围生成器无结构化弧线（0.88）；素材库 BGM 能量只增不减（▁▁▂▇▆▆▆█▇▇，弧线 0.00 不符叙事弧）；旧 numpy 假音乐 BPM=0 全不合格（0.60-0.68，R11 假音乐 ban 实证）。",
+    "rationale": "bgm_verify.py 是 Spotting Session 的验证层：segments 规划 →mood/intensity/expected_arc→ 六项检查→score→P14 finding；弧线叙事匹配是 BGM 质量的主导维度（权重 25%）。",
+    "extra_data": {
+      "integration": "P14 _run_bgm_verification() + _bgm_verify_to_finding() (+175 lines in p14_quality_audit.py)",
+      "blocking": {
+        "rms_mean < 0.005": "critical → P11 rollback (rerun P12b)",
+        "score < 0.6 or any fail": "WARNING, no block",
+        "score >= 0.6 all pass": "INFO",
+        "librosa missing / file absent": "skip, no crash"
+      },
+      "timeout": "SIGALRM 30s hard; non-main-thread degrades to no-timeout",
+      "engine_findings": {
+        "ace_step_1.5": "only full-score arc engine (Section tags control rise_fall, 1.00)",
+        "stable_audio_3": "ambient generator, no structured arc (0.88)",
+        "kais_bgm_library": "energy only rises, arc 0.00 mismatch",
+        "legacy_numpy": "BPM=0 fake music, all fail (0.60-0.68), R11 proof"
+      }
+    },
+    "source_file": "kais-movie-pipeline/p12-bgm-verification-system/SKILL.md",
+    "source_section": "P14 集成行为 + 阻断策略 + 多 Episode 验证结论",
+    "tags": [
+      "audio_pipeline",
+      "bgm",
+      "p14",
+      "quality_gate",
+      "engine_verdict"
+    ],
+    "priority": 70
+  },
+  {
+    "category": "character_failure_mode",
+    "key_name": "engine_grid_instruction_weakness",
+    "key_type": "character_failure",
+    "primary_recommendation": "失败模式：引擎直出多格网格的布局指令遵循弱——dreamina 4.6 text2image 直出 2x2 turnaround 网格，3 take 重复复现同一布局缺陷（take I/II/III 一致，best 仍 partial 未过）。修复：用单图多列参考图法绕开网格指令遵循弱项（引擎须在单次推理内自组织布局），禁硬磕同配方多 take。TR v13 起主生成臂 Qwen-Image-Edit-2511 + 恒 1×4 横排布局锚。",
+    "rationale": "网格布局指令遵循是引擎弱项而非 prompt 可修问题；同配方多 take 只会重复复现同一布局缺陷。",
+    "extra_data": {
+      "triple_id": "ft_20260902T1830_4535869d",
+      "failure_mode": "engine_grid_instruction_weakness",
+      "defect_class": "L1",
+      "phase": "p04_turnaround",
+      "engine": "dreamina 4.6",
+      "evidence": "3 take 重复复现同一布局缺陷 (take I/II/III)",
+      "generalizes": true,
+      "confidence": "verified"
+    },
+    "source_file": "failure-triples.jsonl",
+    "source_section": "ft_20260902T1830_4535869d (ep-xiaojianghu-ep01)",
+    "tags": [
+      "failure",
+      "turnaround",
+      "grid_layout",
+      "engine_weakness"
+    ],
+    "priority": 72
+  },
+  {
+    "category": "character_failure_mode",
+    "key_name": "upstream_reid_contamination",
+    "key_type": "character_failure",
+    "primary_recommendation": "失败模式：上游逆向输入包的角色帧目录污染——16 帧仅 4 帧真目标角色，逆向提取层混入异物帧导致 turnaround 参考被污染、下游配方迭代全部白费。修复：逆向供给的角色帧目录必须过 re-id 纯度校验才能进 turnaround 生产；污染源在逆向提取层而非生成层，先查上游数据纯度再迭代生成配方。",
+    "rationale": "上游脏数据会让下游配方迭代白费——定位失败层（提取层 vs 生成层）是第一动作；re-id 纯度门是 turnaround 生产的输入前置。",
+    "extra_data": {
+      "triple_id": "ft_20260902T1830_da90e25a",
+      "failure_mode": "upstream_reid_contamination",
+      "defect_class": "L0",
+      "phase": "p04_turnaround",
+      "evidence": "char_002 re-id 目录 16 帧仅 4 帧真螳螂",
+      "generalizes": true,
+      "confidence": "verified"
+    },
+    "source_file": "failure-triples.jsonl",
+    "source_section": "ft_20260902T1830_da90e25a (ep-xiaojianghu-ep01)",
+    "tags": [
+      "failure",
+      "turnaround",
+      "reid",
+      "upstream_hygiene"
+    ],
+    "priority": 74
+  },
+  {
+    "category": "engine_selection_rule",
+    "key_name": "vlm_multiframe_grid_perception_instability",
+    "key_type": "selection_rule",
+    "primary_recommendation": "VLM 判定引擎硬边界：glm-4.5v 对多格拼合网格的读图不稳定是感知层缺陷——同一网格图双跑读出互斥感知描述（run1 '扫击进行中姿态一致' vs run2 '抱白色茧束侧脸特写持深色长物'，12 条判定 7/12 diverged）。加判定规则（D3 双轴）救不了读错图。判定协议设计必须绕开多格网格形态（VLM 仅单图可靠是硬边界），否则上层任何规则都是空转。",
+    "rationale": "run9 v6 判定器 12 条×双跑实证：分歧纯在感知层（同一输入互斥描述），非判定规则分歧——引擎约束是协议设计输入，不是可修复项。",
+    "extra_data": {
+      "triple_id": "ft_20260903_run9_a1_grid",
+      "failure_mode": "vlm_multiframe_grid_perception_instability",
+      "defect_class": "L0",
+      "engine": "glm-4.5v",
+      "constraint": "single-image only reliable; multi-tile grids unstable",
+      "protocol_impact": "判定协议禁多格网格输入",
+      "evidence": "s64-v6 同网格图双跑互斥描述; 7/12 diverged",
+      "generalizes": true,
+      "confidence": "verified"
+    },
+    "source_file": "failure-triples.jsonl",
+    "source_section": "ft_20260903_run9_a1_grid (ep-xiaojianghu-ep01)",
+    "tags": [
+      "verdict_protocol",
+      "vlm",
+      "glm-4.5v",
+      "grid",
+      "perception_limit"
+    ],
+    "priority": 76
+  },
+  {
+    "category": "engine_selection_rule",
+    "key_name": "judge_beat_axis_blindspot",
+    "key_type": "selection_rule",
+    "primary_recommendation": "节拍型 LLM judge 的系统性盲区 = 动作滞后：judge 纯读节拍相位（对齐 ≤3%）不感知 SSIM 级画面错位（躬身滞后 1.3s/33%，SSIM 0.486/0.487 判死而 judge 双跑一致 pass）。规则：judge pass 必须过量化门（SSIM 等像素级指标）才能 AUTO-PASS；judge×量化冲突一律 ESCALATE 人工终审，不得取 judge 结论。",
+    "rationale": "节拍轴与画面轴是两个正交质量轴；judge 只看节拍时会把画面崩坏的 take 放行——量化门是 judge 的结构性补盲。",
+    "extra_data": {
+      "triple_id": "ft_20260902T2359_20c34638",
+      "failure_mode": "judge_beat_axis_blindspot",
+      "defect_class": "L0",
+      "phase": "pag_gate_judge",
+      "evidence": "s89-v3/v4 judge 双跑一致 pass，Kai 终审 fail（SSIM 0.486/0.487，躬身滞后 1.3s）",
+      "rule": "judge pass → quantitative gate → AUTO-PASS; judge×quant conflict → ESCALATE",
+      "generalizes": true,
+      "confidence": "verified"
+    },
+    "source_file": "failure-triples.jsonl",
+    "source_section": "ft_20260902T2359_20c34638 (ep-xiaojianghu-ep01)",
+    "tags": [
+      "verdict_protocol",
+      "judge",
+      "blindspot",
+      "quantitative_gate",
+      "escalate"
+    ],
+    "priority": 76
+  },
+  {
+    "category": "engine_selection_rule",
+    "key_name": "llm_judge_rationalizes_injected_contra_evidence",
+    "key_type": "selection_rule",
+    "primary_recommendation": "给 LLM judge 注入量化数字 ≠ 加约束：prompt 注入 SSIM 0.487（gate 0.55）后双跑仍一致 pass，且 reason 以「差异属静态外观」自洽化——LLM 会把冲突证据重新解释成支持自己结论。量化证据的强制力只能来自执行器代码里的硬 gate（量化 fail 即拦/PRESCREEN），不能委托给 prompt 层。凡需要量化否决力的判定，一律代码前置拦截，judge 只做代码拦不掉的语义判定。",
+    "rationale": "LLM 对注入的反证有无限的自洽化能力——证据注入改变说辞不改变结论；硬 gate 与 judge 的职责边界=代码管阈值，judge 管语义。",
+    "extra_data": {
+      "triple_id": "ft_20260903_run9_a3_ssim_inject",
+      "failure_mode": "llm_judge_rationalizes_injected_contra_evidence",
+      "defect_class": "L0",
+      "phase": "pag_gate_judge",
+      "evidence": "s89-v4 注入 SSIM 0.487 后双跑仍 pass，reason 自洽化",
+      "rule": "quantitative enforcement lives in executor code (hard gate/PRESCREEN), never in prompt",
+      "generalizes": true,
+      "confidence": "verified"
+    },
+    "source_file": "failure-triples.jsonl",
+    "source_section": "ft_20260903_run9_a3_ssim_inject (ep-xiaojianghu-ep01)",
+    "tags": [
+      "verdict_protocol",
+      "judge",
+      "hard_gate",
+      "prescreen",
+      "quantitative"
+    ],
+    "priority": 76
+  },
+  {
+    "category": "engine_selection_rule",
+    "key_name": "render_unit_definition_cross_cut_contamination",
+    "key_type": "selection_rule",
+    "primary_recommendation": "渲染单元定义铁律：渲染单元 = 物理切镜单元，非音频窗（±0.3-0.9s pad）。金标短剧切镜密（实测 93 镜中 21 镜 KST 节拍单元内还有物理切镜，全片 145 切点），音频窗±pad 必然吞进前后镜；跨硬切的 cond 首尾帧对 = 让模型在两镜之间「连续形变」，任何 prompt 都救不回。正确单元 = 物理切镜单元，端点帧取切镜安全侧（内缩 0.06s），渲染窗 = 音频窗 = 物理单元窗。",
+    "rationale": "smoke3 三镜终审全 FAIL 根因：s064 音频窗 2.07s 内含 4 个物理镜（冲刺镜仅 0.87s=42%），cond_last 竟取自下一镜画面——首尾帧条件是动作锚，跨切锚即跨镜形变。",
+    "extra_data": {
+      "triple_id": "ft_20260903_smoke3_unit_definition",
+      "failure_mode": "render_unit_definition_cross_cut_contamination",
+      "defect_class": "L0",
+      "phase": "s4_batch_render",
+      "authority": "physical cut unit (not audio window)",
+      "endpoint_inset_sec": 0.06,
+      "evidence": "s064 窗 2.07s 内 4 个物理镜; 全片 145 切点, 21/93 镜 KST 单元内含切镜",
+      "generalizes": true,
+      "confidence": "verified"
+    },
+    "source_file": "failure-triples.jsonl",
+    "source_section": "ft_20260903_smoke3_unit_definition (ep-xiaojianghu-ep01)",
+    "tags": [
+      "render",
+      "unit_definition",
+      "cross_cut",
+      "cond_frames"
+    ],
+    "priority": 78
+  },
+  {
+    "category": "engine_selection_rule",
+    "key_name": "render_duration_authority",
+    "key_type": "selection_rule",
+    "primary_recommendation": "渲染时长 authority = 物理镜窗帧数：对齐策略 floor4（≤原片且最近的四帧对齐），非 ceil4——向上多渲=改变原片节奏，终审打回「时长尽量严格对应原片」。音频窗只作音频来源不作时长依据。渲染落账/验收页必含 prompt+目标时长+原片时长+比值三列对比（Kai 硬性验收字段，缺列=页面打回）。实例：0.87s 物理镜（22f）正确对齐 floor4=20f（0.833s，0.958×），非 ceil 24f（1.15×）。",
+    "rationale": "时长偏差经三档实测收敛：旧音频窗版 2.08s（2.39×）→ ceil4 1.0s（1.15×）仍打回 → floor4 20f（0.958×）达标；「≤原片且最近」是唯一过审策略。",
+    "extra_data": {
+      "triple_id": "ft_20260903_render_duration_authority",
+      "failure_mode": "render_duration_authority_violation",
+      "defect_class": "L1",
+      "phase": "s4_batch_render",
+      "authority": "physical shot window frame count",
+      "alignment": "floor4 (<= original and nearest)",
+      "acceptance_fields": [
+        "prompt",
+        "target_duration",
+        "source_duration",
+        "ratio"
+      ],
+      "example": "0.87s/22f → floor4=20f (0.833s, 0.958x), not ceil 24f",
+      "generalizes": true,
+      "confidence": "verified"
+    },
+    "source_file": "failure-triples.jsonl",
+    "source_section": "ft_20260903_render_duration_authority (ep-xiaojianghu-ep01)",
+    "tags": [
+      "render",
+      "duration",
+      "authority",
+      "floor4",
+      "acceptance"
+    ],
+    "priority": 76
+  },
+  {
+    "category": "engine_selection_rule",
+    "key_name": "container_input_assumed_bindmount",
+    "key_type": "selection_rule",
+    "primary_recommendation": "comfyui-primary 容器 input 目录 = overlay 拷贝非 bind mount：host 直写 <kgr_stage> 容器不可见，ComfyUI 对不存在文件报 custom_validation_failed 但返回结构易被误读为瞬时故障。规则：任何新工具链接 ComfyUI 必须 docker cp 推输入 + docker cp 回拷输出，且 submit 前容器侧 ls 复核文件落位；把「文件不存在」验证失败当瞬时故障重试是浪费时间。output 未挂宿主时取证：docker inspect --format '{{.GraphDriver.Data.MergedDir}}' 拿 merged 层路径 + sudo cp 直接拷出。",
+    "rationale": "连续 4 次 submit 静默失败实证：假设 bind mount 是错误前提；容器文件系统语义（overlay）必须用容器侧操作（docker cp/ls）对齐。",
+    "extra_data": {
+      "triple_id": "ft_20260903_comfy_input_overlay_copy",
+      "failure_mode": "container_input_assumed_bindmount",
+      "defect_class": "L2",
+      "phase": "s4_batch_render",
+      "container": "comfyui-primary",
+      "rule": "docker cp in/out + container-side ls before submit",
+      "forensics": "GraphDriver.Data.MergedDir for unmounted output",
+      "generalizes": true,
+      "confidence": "verified"
+    },
+    "source_file": "failure-triples.jsonl",
+    "source_section": "ft_20260903_comfy_input_overlay_copy (ep-xiaojianghu-ep01)",
+    "tags": [
+      "comfyui",
+      "container",
+      "overlay",
+      "docker_cp",
+      "infra"
+    ],
+    "priority": 68
   }
 ]
