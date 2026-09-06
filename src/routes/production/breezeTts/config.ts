@@ -20,6 +20,17 @@
 /** 引擎标识 (envelope engine 字段, 与 /health 返回的 engine 一致) */
 export const BREEZE_ENGINE_ID = "breeze-tts-2";
 
+/**
+ * 权重已驻留时的增量预检阈值 (MiB) — R5 常驻感知, 2026-09-06。
+ * 来源: Breeze 权重 ~7.2G 由 breeze-tts.service 常驻 (懒加载 + 空闲 TTL 600s
+ * 自卸), 已加载时合成只需「推理峰值增量 + 余量」(~2.5G), 不必再按满档 8192
+ * (ENGINE_VRAM_REQUIREMENTS.breeze_tts) 预检 — 同 music3 增量预检先例
+ * (gpuVramManager.ts B2c / ensureVram docstring)。/health model_loaded=false
+ * (未加载/TTL 已自卸/服务不可达) 时仍走满档: 首次合成与 TTL 过期后首请求
+ * 的加载峰值就是全量。
+ */
+export const BREEZE_TTS_RESIDENT_INCREMENT_MIB = 2560;
+
 export const BREEZE_TTS_CONFIG = {
   /** Breeze TTS 2 standalone server (systemd breeze-tts.service, 宿主 127.0.0.1) */
   serverUrl: process.env.BREEZE_TTS_SERVER_URL || "http://127.0.0.1:5130",
