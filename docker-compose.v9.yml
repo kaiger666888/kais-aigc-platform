@@ -216,6 +216,9 @@ services:
       COMFYUI_AUX_PORT: "8188"
       # 默认引擎 (向后兼容)
       COMFYUI_URL: http://comfyui-primary:8188
+      # 容器形态走 compose 内网服务名; 宿主机 systemd 形态 (生产 KAP 现状) 不经
+      # 本文件, 其 REDIS_URL 在宿主 .env 配宿主映射端口 redis://127.0.0.1:6390
+      # (R1 2026-09-06 — 见 .env.example Redis 节, 勿把 redis://redis:6379 抄给宿主)。
       REDIS_URL: redis://redis:6379
       # Phase 36 follow-up: 对齐 PyTorch 与 nvidia-smi GPU 编号 (PCI 总线序)
       # gold-team 容器虽然通过 HTTP 调 ComfyUI,但也加载了 torch,保持显式声明
