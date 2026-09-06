@@ -58,6 +58,8 @@ import { getQueueGate } from "./gpuQueueCrossProc";
 // 双3090 Phase A 角色化 (docs/gpu-dual-3090-expansion.md): conf <engineKey>_role
 // → 角色 → UUID → nvidia-smi 索引; 失败静默回退本表现状链。
 import { lookupServiceRole, resolveRoleIndexSync } from "@/services/gpu/gpuRoles";
+import path from "path";
+import fs from "fs";
 
 const execFileAsync = promisify(execFile);
 
@@ -343,6 +345,20 @@ export function gpuOutputRoots(): string[] {
 export function comfyuiUrlForGpu(gpuIndex: number): string {
   if (gpuIndex === 2) return secondaryComfyuiUrl();
   return process.env.KAP_COMFYUI_URL_GPU1 || process.env.COMFYUI_URL || "http://localhost:8188";
+}
+
+/**
+ * 产物实际落点探测: 按 gpuOutputRoots 顺序找第一个存在者, 都不存在返回
+ * 第一根的拼接路径 (调用方可自行处理不存在场景)。防 primary 未来带上
+ * --output-directory gpu1 后读取路径错位 (M4 pre-start 修复的连带防护)。
+ */
+export function resolveOutputPath(filename: string): string {
+  const roots = gpuOutputRoots();
+  for (const root of roots) {
+    const candidate = path.join(root, filename);
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return path.join(roots[0], filename);
 }
 
 export interface GpuDispatchDecision {
