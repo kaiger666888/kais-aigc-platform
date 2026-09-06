@@ -1,6 +1,7 @@
 import express, { Router, Request, Response } from "express";
 import { success, error } from "@/lib/responseFormat";
 import { ACE_CONFIG } from "./config";
+import { gpuOutputRoots } from "@/lib/gpuVramManager";
 import fs from "fs";
 import path from "path";
 
@@ -18,10 +19,16 @@ router.get("/:filename", async (req: Request, res: Response) => {
     return res.status(400).send(error("Invalid filename"));
   }
 
-  const outputDir = ACE_CONFIG.comfyuiOutputDir;
-  const filePath = path.join(outputDir, filename);
-
-  if (!fs.existsSync(filePath)) {
+  // ── M4 双实例产物: 多根查找 (主根 → gpu2 根; GPU2 实例产物落 gpu2/) ──
+  let filePath: string | null = null;
+  for (const root of gpuOutputRoots()) {
+    const candidate = path.join(root, filename);
+    if (fs.existsSync(candidate)) {
+      filePath = candidate;
+      break;
+    }
+  }
+  if (!filePath) {
     return res.status(404).send(error("Audio file not found"));
   }
 

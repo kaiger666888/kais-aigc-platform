@@ -28,6 +28,10 @@ import {
   ENGINE_VRAM_REQUIREMENTS,
   forceReleaseOccupancy,
   purgeWaiters,
+  secondaryEnabled,
+  cachedAvailGpu2,
+  secondaryComfyuiUrl,
+  gpu2EngineAllowlist,
 } from "@/lib/gpuVramManager";
 
 const router = express.Router();
@@ -65,6 +69,13 @@ router.get("/", async (_req, res) => {
   const gpus = await getGpuStatus(); // 5s 缓存, 顺带带出各卡 free/used
   return res.status(200).send(success({
     ...queue,
+    // M4 双实例可观测: secondary 策略态 + 探活缓存 (cachedAvailGpu2 是 30s 缓存的同步读, 不发网络请求)
+    secondary: {
+      enabled: secondaryEnabled(),
+      avail: cachedAvailGpu2(),
+      url: secondaryComfyuiUrl(),
+      engines: gpu2EngineAllowlist(),
+    },
     vramRequirements: ENGINE_VRAM_REQUIREMENTS,
     gpus: gpus.map(({ index, name, totalMiB, usedMiB, freeMiB }) => ({
       index, name, totalMiB, usedMiB, freeMiB,

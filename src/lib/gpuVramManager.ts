@@ -239,7 +239,153 @@ export function engineGpuIndex(engineKey: string): number {
   return ENGINE_GPU_INDEX[engineKey] ?? defaultGpuIndex();
 }
 
-// ─── B2c. 常驻引擎显存登记 (2026-08-19 P3 / D6 常驻占用语义准备) ────────────
+// ─── B2c. GPU2 双实例统一调度 (2026-09-06, M4 双 3090) ─────────────────────
+//
+// 布局: GPU1 = comfyui-primary :8188 (RENDER_GEN1 主生成卡)
+//       GPU2 = comfyui-secondary :8190 (QC_GEN2 第二渲染实例, docker-compose.secondary.yml,
+//              CDI 锚 QC_GEN2_UUID, 共享模型库, 输出隔离 /mnt/agents/output/gpu2)
+// 队列锁 (withGpuQueue) 按 gpuIndex 分钥匙 → 跨卡作业天然并行; 本节只补
+// 「选卡 + 端点路由」决策点, withGpuQueue 锁内核零改动。
+//
+// 策略 (全部 env, 默认关 = 旧行为; KAP_GPU2_ENABLED=0 为总 kill-switch):
+//   KAP_GPU2_ENABLED=1                     总闸
+//   KAP_GPU2_ENGINES=sa3,ace,postprocess   白名单 (命中才可派 GPU2)
+//   KAP_COMFYUI_URL_GPU2=...               secondary 端点 (默认宿主 :8190)
+//
+// 首批收编 (v1): 纯 ComfyUI 工作流引擎 (fn 内 fetch {url}/prompt, 换 URL 即
+// 完整迁移): sa3 / ace / postprocess。
+// 明确不收编: music3 (diffusers 独立 server :5112, 非 ComfyUI 作业, URL 换卡
+// 语义不成立) / rtx_vsr (服务绑定 comfyui-primary 容器 :10589) / minimax_h3
+// (docker cp 投递容器名硬编码 + T8 节点集未在 secondary 验证, 后续批次) /
+// wan22/wan21/flux/trellis2 (后续批次按同模式)。
+// 探测失败静默回退 GPU1 — secondary 缺位绝不让请求失败。
+
+/** GPU2 渲染策略总闸 (env KAP_GPU2_ENABLED=1) */
+export function secondaryEnabled(): boolean {
+  return process.env.KAP_GPU2_ENABLED === "1";
+}
+
+/** GPU2 白名单引擎 (env KAP_GPU2_ENGINES, 逗号分隔) */
+export function gpu2EngineAllowlist(): string[] {
+  return (process.env.KAP_GPU2_ENGINES ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/** comfyui-secondary 端点 (env KAP_COMFYUI_URL_GPU2, 默认宿主 :8190) */
+export function secondaryComfyuiUrl(): string {
+  return process.env.KAP_COMFYUI_URL_GPU2 || "http://localhost:8190";
+}
+
+type Gpu2ProbeFn = (url: string) => Promise<boolean>;
+
+async function defaultProbeGpu2(url: string): Promise<boolean> {
+  try {
+    const resp = await fetch(url, { signal: AbortSignal.timeout(1500) });
+    return resp.ok;
+  } catch {
+    return false;
+  }
+}
+
+let gpu2AvailCache: { at: number; ok: boolean } | null = null;
+const GPU2_AVAIL_TTL_MS = 30_000;
+
+/** GPU2 secondary 可用性 (缓存同步读, 供状态端点; 未探测过=false) */
+export function cachedAvailGpu2(): boolean {
+  return gpu2AvailCache?.ok === true;
+}
+
+/** GPU2 secondary 可用性 (缓存过期真探测, 调度路径用; 30s 缓存) */
+export async function availGpu2(probe: Gpu2ProbeFn = defaultProbeGpu2): Promise<boolean> {
+  if (gpu2AvailCache && Date.now() - gpu2AvailCache.at < GPU2_AVAIL_TTL_MS) {
+    return gpu2AvailCache.ok;
+  }
+  const ok = await probe(secondaryComfyuiUrl());
+  gpu2AvailCache = { at: Date.now(), ok };
+  return ok;
+}
+
+/** 测试辅助: 清 GPU2 调度缓存 */
+export function __resetGpu2DispatchForTests(): void {
+  gpu2AvailCache = null;
+}
+
+// ── 异步任务↔实例钉扎 (ACE status/cancel 需轮询「提交所在」的实例) ──
+const GPU2_PIN_CAP = 2000;
+const gpu2PinnedTasks = new Map<string, { gpuIndex: number; at: number }>();
+
+/** 记录任务提交到哪张卡 (异步引擎 status/cancel 路由用; 超容量整表清一次) */
+export function pinTaskGpu(taskId: string, gpuIndex: number): void {
+  if (gpu2PinnedTasks.size >= GPU2_PIN_CAP) gpu2PinnedTasks.clear();
+  gpu2PinnedTasks.set(taskId, { gpuIndex, at: Date.now() });
+}
+
+/** 查任务钉扎卡 (未钉扎/超过 6h 视为过期 → undefined, 调用方回落 GPU1) */
+export function getPinnedGpu(taskId: string): number | undefined {
+  const rec = gpu2PinnedTasks.get(taskId);
+  if (!rec) return undefined;
+  if (Date.now() - rec.at > 6 * 3600_000) {
+    gpu2PinnedTasks.delete(taskId);
+    return undefined;
+  }
+  return rec.gpuIndex;
+}
+
+/** ComfyUI 产物查找根列表: 主根 + GPU2 根 (下载/读取路由按序试) */
+export function gpuOutputRoots(): string[] {
+  const root = process.env.OUTPUT_ROOT || process.env.OUTPUT_DIR || "/mnt/agents/output";
+  return [root, `${root}/gpu2`];
+}
+
+/** per-GPU ComfyUI 端点 (1→primary :8188, 2→secondary :8190; env KAP_COMFYUI_URL_GPU1/GPU2 可覆盖) */
+export function comfyuiUrlForGpu(gpuIndex: number): string {
+  if (gpuIndex === 2) return secondaryComfyuiUrl();
+  return process.env.KAP_COMFYUI_URL_GPU1 || process.env.COMFYUI_URL || "http://localhost:8188";
+}
+
+export interface GpuDispatchDecision {
+  gpuIndex: number;
+  secondary: boolean;
+}
+
+/**
+ * 选卡决策 (调用点在 withGpuQueue 前调用):
+ *   显式 preferGpu(1/2) 直通 > 总闸关 → 1 > 非白名单 → 1 >
+ *   GPU2 探活失败 → 1 (静默回退) > GPU2。
+ */
+export async function resolveDispatchGpuIndex(
+  engineKey: string,
+  preferGpu?: number,
+  opts: { probeFn?: Gpu2ProbeFn } = {},
+): Promise<GpuDispatchDecision> {
+  if (preferGpu === 1 || preferGpu === 2) {
+    return { gpuIndex: preferGpu, secondary: preferGpu === 2 };
+  }
+  if (!secondaryEnabled()) return { gpuIndex: 1, secondary: false };
+  if (!gpu2EngineAllowlist().includes(engineKey)) return { gpuIndex: 1, secondary: false };
+  if (!(await availGpu2(opts.probeFn))) {
+    console.log(`[gpuDispatch] ${engineKey}: GPU2 unavailable (probe fail), fallback GPU1`);
+    return { gpuIndex: 1, secondary: false };
+  }
+  // 显存头寸检查: 探活只证实例活着 — secondary 被 QC 大服务(qwen-ear ~18.5G)
+  // 占用或在跑大作业时, free 不足会让作业在 GPU2 队列里 vram_retry 空转 30min。
+  // 头寸不足 → 静默回退 GPU1 (那里排队语义成熟)。
+  const needMiB = ENGINE_VRAM_REQUIREMENTS[engineKey] ?? ENGINE_VRAM_REQUIREMENTS.default;
+  const gpus = await getGpuStatus(true);
+  const gpu2 = gpus.find((g) => g.index === 2);
+  if (!gpu2 || gpu2.freeMiB < needMiB + 1024) {
+    console.log(
+      `[gpuDispatch] ${engineKey}: GPU2 headroom insufficient (free ${gpu2?.freeMiB ?? -1}MiB < need ${needMiB}+1024MiB), fallback GPU1`,
+    );
+    return { gpuIndex: 1, secondary: false };
+  }
+  console.log(`[gpuDispatch] ${engineKey} → GPU2 (secondary, free ${gpu2.freeMiB}MiB)`);
+  return { gpuIndex: 2, secondary: true };
+}
+
+// ─── B2d. 常驻引擎显存登记 (2026-08-19 P3 / D6 常驻占用语义准备) ────────────
 //
 // 结构性缺口: music3/qwen_tts 等常驻 server 在请求间驻留显存, 但队列锁每请求
 // 释放 — ensureVram 只看 nvidia-smi free, 分不清「可驱逐」与「常驻不可驱逐」,

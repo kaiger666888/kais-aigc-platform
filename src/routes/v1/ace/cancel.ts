@@ -2,6 +2,7 @@ import express from "express";
 import { success, error } from "@/lib/responseFormat";
 import { ACE_CONFIG } from "./config";
 import { cancelCallbackTracker } from "./_shared/asyncCallback";
+import { getPinnedGpu, comfyuiUrlForGpu } from "@/lib/gpuVramManager";
 
 const router = express.Router();
 
@@ -18,7 +19,10 @@ export default router.post("/:promptId", async (req, res) => {
     return res.status(400).send(error("promptId is required"));
   }
 
-  const comfyuiUrl = ACE_CONFIG.comfyuiUrl;
+  // ── M4 双实例: 按提交时钉扎的实例取消 (interrupt 只作用于正确实例;
+  // 未钉扎的旧任务回落 primary — 行为不变) ──
+  const pinnedGpu = getPinnedGpu(promptId);
+  const comfyuiUrl = pinnedGpu === 2 ? comfyuiUrlForGpu(2) : ACE_CONFIG.comfyuiUrl;
   let removed = false;
   let interrupted = false;
   const notes: string[] = [];

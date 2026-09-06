@@ -2,7 +2,7 @@ import express from "express";
 import { Router, Request, Response } from "express";
 import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
-import { withGpuQueue } from "@/lib/gpuVramManager";
+import { withGpuQueue, resolveDispatchGpuIndex, comfyuiUrlForGpu, pinTaskGpu, gpuOutputRoots } from "@/lib/gpuVramManager";
 import {
   ACE_CONFIG,
   ACE_SAMPLERS,
@@ -395,8 +395,11 @@ export default router.post("/", async (req: Request, res: Response) => {
     return res.status(400).send(error(`Profile error: ${err.message}`));
   }
 
-  const comfyuiUrl = ACE_CONFIG.comfyuiUrl;
-  const outputDir = ACE_CONFIG.comfyuiOutputDir;
+  // ── M4 双实例选卡 (gpuDispatch): 白名单命中且 GPU2 探活成功 → secondary ──
+  const dispatch = await resolveDispatchGpuIndex("ace");
+  const comfyuiUrl = dispatch.secondary ? comfyuiUrlForGpu(2) : ACE_CONFIG.comfyuiUrl;
+  // 输出目录随实例: secondary 容器 --output-directory → /mnt/agents/output/gpu2
+  const outputDir = dispatch.secondary ? gpuOutputRoots()[1] : ACE_CONFIG.comfyuiOutputDir;
   const workflow = buildWorkflow(p);
 
   const hasCaption = p.caption && p.caption.trim().length > 0;
@@ -440,8 +443,9 @@ export default router.post("/", async (req: Request, res: Response) => {
         const result = await pollUntilComplete(comfyuiUrl, prompt_id);
         return { prompt_id, result };
       },
-      { gpuIndex: 1, comfyuiUrl },
+      { gpuIndex: dispatch.gpuIndex, comfyuiUrl },
     );
+    pinTaskGpu(prompt_id, dispatch.gpuIndex);
 
     if (result.status !== "success" || !result.outputs) {
       return res.status(500).send(error("ComfyUI generation failed"));

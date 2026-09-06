@@ -2,7 +2,7 @@ import express from "express";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { success, error } from "@/lib/responseFormat";
-import { withGpuQueue } from "@/lib/gpuVramManager";
+import { withGpuQueue, resolveDispatchGpuIndex, comfyuiUrlForGpu, pinTaskGpu } from "@/lib/gpuVramManager";
 import { ACE_CONFIG } from "./config";
 import { startCallbackTracker } from "./_shared/asyncCallback";
 
@@ -56,7 +56,9 @@ export default router.post("/", async (req, res) => {
     return res.status(400).send(error("At least one of prompt / caption / lyrics must be provided"));
   }
 
-  const comfyuiUrl = ACE_CONFIG.comfyuiUrl;
+  // ── M4 双实例选卡 (gpuDispatch): 白名单命中且 GPU2 探活成功 → secondary ──
+  const dispatch = await resolveDispatchGpuIndex("ace");
+  const comfyuiUrl = dispatch.secondary ? comfyuiUrlForGpu(2) : ACE_CONFIG.comfyuiUrl;
   const workflow = buildMinimalWorkflow(p);
 
   try {
@@ -97,8 +99,10 @@ export default router.post("/", async (req, res) => {
         }
         return data;
       },
-      { gpuIndex: 1, comfyuiUrl },
+      { gpuIndex: dispatch.gpuIndex, comfyuiUrl },
     );
+    // 异步链任务↔实例钉扎: status/cancel 按 pin 轮询正确的实例
+    pinTaskGpu(data.prompt_id, dispatch.gpuIndex);
 
     const clientTaskId = p.client_task_id || `ace_${uuidv4().replace(/-/g, "").slice(0, 12)}`;
 

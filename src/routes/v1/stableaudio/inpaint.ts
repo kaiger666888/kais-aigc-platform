@@ -2,7 +2,7 @@ import express from "express";
 import { Router, Request, Response } from "express";
 import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
-import { withGpuQueue } from "@/lib/gpuVramManager";
+import { withGpuQueue, resolveDispatchGpuIndex, comfyuiUrlForGpu, pinTaskGpu, gpuOutputRoots } from "@/lib/gpuVramManager";
 import {
   SA3_CONFIG,
   SA3_MODELS,
@@ -252,8 +252,11 @@ export default router.post("/", async (req: Request, res: Response) => {
     callback_url: raw.callback_url ?? null,
   } as Required<InpaintParams>;
 
-  const comfyuiUrl = SA3_CONFIG.comfyuiUrl;
-  const outputDir = SA3_CONFIG.comfyuiOutputDir;
+  // ── M4 双实例选卡 (gpuDispatch): 白名单命中且 GPU2 探活成功 → secondary;
+  // 输出目录随实例切换 (secondary 容器 --output-directory → /mnt/agents/output/gpu2) ──
+  const dispatch = await resolveDispatchGpuIndex("sa3");
+  const comfyuiUrl = dispatch.secondary ? comfyuiUrlForGpu(2) : SA3_CONFIG.comfyuiUrl;
+  const outputDir = dispatch.secondary ? gpuOutputRoots()[1] : SA3_CONFIG.comfyuiOutputDir;
 
   try {
     // 0. Upload input audio
@@ -292,8 +295,9 @@ export default router.post("/", async (req: Request, res: Response) => {
         const result = await pollUntilComplete(comfyuiUrl, prompt_id);
         return { prompt_id, result };
       },
-      { gpuIndex: 1, comfyuiUrl },
+      { gpuIndex: dispatch.gpuIndex, comfyuiUrl },
     );
+    pinTaskGpu(prompt_id, dispatch.gpuIndex);
 
     if (result.status !== "success" || !result.outputs) {
       return res.status(500).send(error("ComfyUI generation failed"));

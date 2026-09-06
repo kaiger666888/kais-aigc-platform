@@ -1,6 +1,7 @@
 import express from "express";
 import { success, error } from "@/lib/responseFormat";
 import { ACE_CONFIG } from "./config";
+import { getPinnedGpu, comfyuiUrlForGpu, gpuOutputRoots } from "@/lib/gpuVramManager";
 
 const router = express.Router();
 
@@ -36,8 +37,10 @@ export default router.get("/:promptId", async (req, res) => {
     return res.status(400).send(error("promptId is required"));
   }
 
-  const comfyuiUrl = ACE_CONFIG.comfyuiUrl;
-  const outputDir = ACE_CONFIG.comfyuiOutputDir;
+  // ── M4 双实例: 按提交时钉扎的实例轮询 (未钉扎的旧任务回落 primary) ──
+  const pinnedGpu = getPinnedGpu(promptId);
+  const comfyuiUrl = pinnedGpu === 2 ? comfyuiUrlForGpu(2) : ACE_CONFIG.comfyuiUrl;
+  const outputDir = pinnedGpu === 2 ? gpuOutputRoots()[1] : ACE_CONFIG.comfyuiOutputDir;
 
   try {
     // 1. Check history (completed/failed)
