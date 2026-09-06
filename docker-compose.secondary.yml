@@ -90,7 +90,6 @@ services:
       - /data/workspace/comfyui-incremental-nodes/scripts/install-training-deps.sh:/root/user-scripts/install-training-deps.sh
       - /data/workspace/comfyui-incremental-nodes/scripts/install-aiia-deps.sh:/root/user-scripts/install-aiia-deps.sh
       - /data/workspace/comfyui-incremental-nodes/scripts/install-facerestore-deps.sh:/root/user-scripts/install-facerestore-deps.sh
-      - /data/models/cosyvoice:/root/ComfyUI/models/cosyvoice:rw
       - /data/models/w2v-bert-2.0:/data/models/w2v-bert-2.0:ro
       # HF/torch 缓存复用 primary 的卷 (只读为主, 双实例并发写 HF 缓存由 hf 内部文件锁兜底)
       - comfyui-cache:/tmp/hf_cache
