@@ -1,0 +1,39 @@
+# KAP Text-Guard M1 — 生成图中文错字修复守卫 sidecar (:5120)
+#
+# ⚠️ 文档性提交: 本文件随仓库入库, 禁自动安装/enable/start —— 割接序列归
+#    operator, 见同目录 DELIVERY.md「割接序列」节。
+# 仿 Breeze 族 sidecar (breeze-tts :5130 / m3 :5112): hermes venv python 直跑,
+# WorkingDirectory 指向部署仓 textguard/ (日志 server.log 相对该目录)。
+#
+# 路径以部署仓 (主 checkout /data/workspace/kais-aigc-platform) 为准 —— worktree
+# (kais-aigc-platform-wt/*) 只是开发形态, 合并后由 operator 在主仓安装。
+
+[Unit]
+Description=KAP Text-Guard sidecar — 生成图中文错字修复守卫 (:5120)
+Documentation=file:///data/workspace/kais-aigc-platform/textguard/DELIVERY.md
+# docker.service 仅为启动排序提示 (crop 上传主路走 docker cp); ComfyUI
+# (comfyui-primary :8188) 的在位与显存调度由 operator 侧保障, 不在此强依赖。
+After=network.target docker.service
+
+[Service]
+Type=simple
+WorkingDirectory=/data/workspace/kais-aigc-platform/textguard
+ExecStart=/data/workspace/hermes-agent/.venv/bin/python3 server.py
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# 可覆盖配置 (默认值与语义见 server.py 头部注释, 全部可缺省):
+#   Environment=TEXTGUARD_PORT=5120
+#   Environment=TEXTGUARD_COMFY_URL=http://127.0.0.1:8188
+#   Environment=TEXTGUARD_CONTAINER=comfyui-primary
+#   Environment=TEXTGUARD_OUTPUT_ROOT=/mnt/agents/output/gpu1
+#   Environment=TEXTGUARD_SETTLE_S=45              # 提交前探活稳定窗 (秒), 0=关闭
+#   Environment=TEXTGUARD_ROUND_TIMEOUT_S=1800     # 单轮彩票 poll 预算 (秒)
+#   Environment=TEXTGUARD_ALLOWED_ROOTS=           # 本机路径白名单 (逗号分隔, 空=不限)
+# 例 (收紧白名单, 防任意路径读取):
+#   Environment=TEXTGUARD_ALLOWED_ROOTS=/mnt/agents/output,/data/workspace,/home/kai/shared
+
+[Install]
+WantedBy=multi-user.target
