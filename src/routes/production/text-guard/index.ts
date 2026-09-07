@@ -21,6 +21,7 @@
  * /api/production/text-guard, 见 scripts/regen-router.ts 与 DELIVERY.md)。
  */
 
+import axios, { type AxiosResponse } from "axios";
 import express from "express";
 import { error } from "@/lib/responseFormat";
 import type { Request, Response } from "express";
@@ -47,31 +48,37 @@ function validateImagePath(path: unknown): string {
   return path.trim();
 }
 
-/** 转发到 sidecar 并原样透传 {code,data,message} 包装 */
+/** 转发到 sidecar 并原样透传 {code,data,message} 包装
+ * 用 axios 而非原生 fetch: undici headersTimeout 默认 300s 且不受 AbortSignal.timeout
+ * 约束 —— /fix 磁盘级长请求(彩票排 ComfyUI 队)在 5 分钟整被 undici 掐断成 502
+ * (0907 割接实测)。axios 无此默认层, timeout 才是唯一且真实生效的上限。 */
 async function forwardToSidecar(
   pathname: "/check" | "/fix",
   payload: Record<string, unknown>,
   timeoutMs: number,
   res: Response,
 ): Promise<Response> {
-  let resp: globalThis.Response;
+  let resp: AxiosResponse;
   try {
-    resp = await fetch(`${TEXTGUARD_URL}${pathname}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(timeoutMs),
+    resp = await axios.post(`${TEXTGUARD_URL}${pathname}`, payload, {
+      timeout: timeoutMs,
+      // maxBodyLength/maxContentLength 解限, 防大 base64/长响应被 axios 默认上限截断
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity,
+      // 不抛 4xx/5xx —— sidecar 的 4xx 语义(envelope 内 code!=200)要原样透传
+      validateStatus: () => true,
     });
   } catch (err: any) {
-    const timedOut = err?.name === "TimeoutError" || err?.name === "AbortError";
+    const timedOut = err?.code === "ECONNABORTED";
     console.error(`[text-guard${pathname}] ${timedOut ? "超时" : "转发失败"}:`, err?.message || err);
     return res.status(timedOut ? 504 : 502).json(
       error(`text-guard sidecar ${timedOut ? `超时 (${timeoutMs / 1000}s)` : `不可达 (${TEXTGUARD_URL})`}: ${err?.message || err}`),
     );
   }
   // 状态码 + envelope 原样透传 (hit:false 也是 200, 勿改写)
-  const text = await resp.text();
-  res.status(resp.status).type("application/json").send(text);
+  res.status(resp.status).type("application/json").send(
+    typeof resp.data === "string" ? resp.data : JSON.stringify(resp.data),
+  );
   return res;
 }
 
