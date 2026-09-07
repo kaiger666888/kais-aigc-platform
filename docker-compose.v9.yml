@@ -51,11 +51,10 @@ services:
     container_name: comfyui-primary
     restart: unless-stopped
     # 硬护栏: --lowvram 会把加载过的模型全堆 CPU RAM 且不清,无 limit 时一路吃光整机触发 swap thrashing
-    # memory=40g swap=48g cpus=10 (feedback_comfyui-cgroup-limit)
-    # ⚠ 2026-09-07 双实例定容: 原 64g 是单实例时代护栏, 2×64g > 125G 物理 → earlyoom 连环杀
-    #   (0906/0907 夜双实例各 offload ~50G RAM, Telegram 闪退实锤) → 单容器 40g, 双实例 80g 总帽
-    mem_limit: 40g
-    memswap_limit: 48g
+    # 定谳历程: 64g(单实例时代,双实例超订) → 40g(0907防风暴,压死 B-v1 max anon 41.8G 两次)
+    #   → 48g/swap64g(0907 v2): 单容器峰值 42.4G+余量, 双实例 96G+系统 15G=111G<125G ✓
+    mem_limit: 48g
+    memswap_limit: 64g
     cpus: 10
     ports:
       - "${COMFYUI_PRIMARY_PORT:-8188}:8188"

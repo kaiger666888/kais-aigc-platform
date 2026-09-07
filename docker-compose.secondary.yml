@@ -34,10 +34,11 @@ services:
     restart: unless-stopped
     # 硬护栏同 comfyui-primary (feedback_comfyui-cgroup-limit):
     # --lowvram 下 offload 会堆 CPU RAM, 无 limit 一路吃光整机触发 swap thrashing
-    # ⚠ 2026-09-07 双实例定容: 2×64g > 125G 物理内存 → 0906/0907 夜 earlyoom 连环杀
-    #   (双 ComfyUI 各 offload ~50G RAM, Telegram/chrome/ToDesk 陪葬闪退) → 单容器 40g
-    mem_limit: 40g
-    memswap_limit: 48g
+    # ⚠ 2026-09-07 双实例定容 v2: 原 64g 是单实例时代护栏, 2×64g > 125G 物理 → earlyoom 连环杀
+    #   但 40g 过紧: B-v1 max 双脸+全身实测 anon 41.8G(内核 OOM 报告)两次击杀。
+    #   定谳 48g/swap64g: 单容器峰值 42.4G+12% 余量; 双实例 96G+系统 15G=111G<125G ✓
+    mem_limit: 48g
+    memswap_limit: 64g
     cpus: 10
     ports:
       - "${COMFYUI_SECONDARY_PORT:-8190}:8188"
