@@ -11,6 +11,11 @@
  *   1. nvidia-smi 清点 free 显存 (5s 缓存)
  *   2. 不足 → POST ComfyUI /free 驱逐缓存模型 → 复查
  *   3. 仍不足 → 抛 VramInsufficientError (结构化 vram_insufficient)
+ *   4. host-mem 闸 (2026-09-07): MemAvailable < KAP_HOSTMEM_FLOOR_MIB (默认
+ *      16G) → /free 驱逐复查 → 仍不足抛 HostMemInsufficientError (子类, 同环
+ *      退避重试)。背景: 0907 双实例容器内存超订 → earlyoom 连环杀宿主全场
+ *      (Telegram 陪葬); B-v1 max 单任务匿名内存 41.8G 实锤。MemAvailable 已
+ *      排除可回收 page cache (权重 mmap), 只有真匿名压力会触发本闸。
  *
  * 2026-08-16 二期 (跨引擎撞车, 20:47 事故):
  *   withEngineLock 是按引擎各管各的 (qwen_tts 与 minimax_h3 互不阻塞),
@@ -189,6 +194,49 @@ export function gpuFloorMib(gpuIndex: number): number {
   const envTable = parseFloorEnv(raw);
   if (!envTable) return def;
   return envTable[gpuIndex] ?? def;
+}
+
+// ─── B2c. host-mem 预检地板 (2026-09-07, 双实例容器超订事故后新增) ───────────
+//
+// 动机 (0907 实锤): ComfyUI 双实例各配 48g 上限, 重载工作流 (B-v1 max 双脸+全身)
+// 匿名内存 anon-rss=41.8G (内核 cgroup OOM 报告) — KAP 原有预检只看 VRAM 不看
+// host RAM, 双实例同跑 max 级任务时 MemAvailable 被压穿 → earlyoom 屠杀宿主
+// 全场 (chrome/WeChat/Telegram 陪葬, secondary 一晚 12 次重启)。
+//
+// 语义: 读 /proc/meminfo MemAvailable (内核"可立即分配"估算, 已排除可回收
+// page cache — 权重 mmap 属此类, 不会误触发), 低于地板即视为 host 侧不足:
+//   /free 驱逐 (顺带释放 host 侧权重 anon/mmap) → 复查 → 仍不足抛
+//   HostMemInsufficientError — 它是 VramInsufficientError 子类, withGpuQueueTimed
+//   的退避重试环原样适用 (前序任务结束 MemAvailable 回升后自然放行), 零调用方改动。
+//
+// 配置: KAP_HOSTMEM_FLOOR_MIB (MiB, 默认 16384=16G; 0=关闭本闸逃生口)。
+// 16G 推导: 系统+GUI 基线 ~15G (0907 观测 used 20G @ 空载), 双实例限额下
+// host 仍需保底 GUI/代理/监控存活空间 — 压到 16G 以下说明已在吃保底。
+// 读取失败 (非 Linux/文件缺失/解析失败) → 返回 null → 本闸静默跳过 (fail-open,
+// 与 nvidia-smi 缺失时的既有语义一致)。
+
+export function hostMemFloorMib(): number {
+  const raw = process.env.KAP_HOSTMEM_FLOOR_MIB;
+  if (raw === undefined || raw === "") return 16384;
+  const v = parseInt(raw, 10);
+  return Number.isFinite(v) && v >= 0 ? v : 16384;
+}
+
+/** 解析 /proc/meminfo 文本 → MemAvailable MiB; 缺行/非法 → null。 */
+export function parseMemAvailableMib(text: string): number | null {
+  const m = text.match(/^MemAvailable:\s+(\d+)\s*kB$/m);
+  if (!m) return null;
+  const kb = parseInt(m[1], 10);
+  return Number.isFinite(kb) ? Math.floor(kb / 1024) : null;
+}
+
+/** 当前 host 可用内存 (MiB); 不可得 → null (调用方 fail-open 跳过闸)。 */
+export function hostMemAvailableMib(): number | null {
+  try {
+    return parseMemAvailableMib(fs.readFileSync("/proc/meminfo", "utf8"));
+  } catch {
+    return null;
+  }
 }
 
 // ─── B2b. 引擎 → GPU 归属表 (2026-08-19 P3 / D8 GPU0 纳管) ─────────────────
@@ -449,7 +497,7 @@ function evictableResidentMiB(gpuIndex: number): number {
 
 /** 结构化显存不足错误 — 路由层捕获后以 vram_insufficient kind 返回给调用方 */
 export class VramInsufficientError extends Error {
-  readonly kind = "vram_insufficient" as const;
+  readonly kind: "vram_insufficient" | "host_mem_insufficient" = "vram_insufficient";
   readonly engine: string;
   readonly freeMiB: number;
   readonly requiredMiB: number;
@@ -469,6 +517,30 @@ export class VramInsufficientError extends Error {
     this.freeMiB = opts.freeMiB;
     this.requiredMiB = opts.requiredMiB;
     this.gpuIndex = opts.gpuIndex;
+  }
+}
+
+/**
+ * host-mem 预检不足 (2026-09-07 B2c) — VramInsufficientError 子类:
+ * withGpuQueueTimed 的 `instanceof VramInsufficientError` 退避重试环原样适用
+ * (前序任务结束 → MemAvailable 回升 → 重试放行), 路由层 kind 呈现为
+ * host_mem_insufficient 以便调用方区分 GPU 侧与 host 侧不足。
+ */
+export class HostMemInsufficientError extends VramInsufficientError {
+  readonly kind = "host_mem_insufficient" as const;
+  readonly availMiB: number;
+  readonly floorMiB: number;
+
+  constructor(opts: { engine: string; availMiB: number; floorMiB: number; gpuIndex: number }) {
+    super({
+      engine: opts.engine,
+      freeMiB: opts.availMiB,
+      requiredMiB: opts.floorMiB,
+      gpuIndex: opts.gpuIndex,
+    });
+    this.name = "HostMemInsufficientError";
+    this.availMiB = opts.availMiB;
+    this.floorMiB = opts.floorMiB;
   }
 }
 
@@ -539,6 +611,39 @@ export async function ensureVram(
   // 桌面卡空闲地板 (B2a; 默认仅 GPU0=1792, 其余卡 0 → 不改变放行条件)
   const floorMiB = gpuFloorMib(gpuIndex);
   const effRequiredMiB = requiredMiB + floorMiB;
+
+  // ── host-mem 预检闸 (B2c, 2026-09-07): MemAvailable 地板 —
+  // 不足先 /free 驱逐 (顺带释放 host 侧权重 anon/mmap) → 复查 → 仍不足抛
+  // HostMemInsufficientError (VramInsufficientError 子类, 上层退避环原样复用)。
+  const hostFloorMib = hostMemFloorMib();
+  const checkHostMem = (): number | null => {
+    if (hostFloorMib <= 0) return null; // 逃生口: KAP_HOSTMEM_FLOOR_MIB=0 关闸
+    return hostMemAvailableMib(); // null (读取失败) = fail-open 跳过
+  };
+  const hostLow = (): boolean => {
+    const avail = checkHostMem();
+    return avail !== null && avail < hostFloorMib;
+  };
+
+  if (hostLow()) {
+    const avail0 = hostMemAvailableMib() ?? 0;
+    console.warn(
+      `[gpuVramManager] host-mem low for ${engineKey}: MemAvailable ${avail0}MiB < floor ${hostFloorMib}MiB, evicting ComfyUI cache via /free`,
+    );
+    let hostEvicted = false;
+    if (comfyuiUrl) hostEvicted = await requestComfyuiFree(comfyuiUrl);
+    if (hostEvicted) {
+      const waitMs = process.env.KAP_VRAM_FREE_WAIT_MS
+        ? parseInt(process.env.KAP_VRAM_FREE_WAIT_MS, 10)
+        : 3_000;
+      await new Promise((r) => setTimeout(r, waitMs));
+    }
+    const avail1 = hostMemAvailableMib();
+    if (avail1 !== null && avail1 < hostFloorMib) {
+      throw new HostMemInsufficientError({ engine: engineKey, availMiB: avail1, floorMiB: hostFloorMib, gpuIndex });
+    }
+  }
+
   if (gpu.freeMiB + recyclableMiB >= effRequiredMiB) {
     console.log(
       `[gpuVramManager] ok ${engineKey}: need ${requiredMiB}MiB${floorMiB > 0 ? ` + desktop-floor ${floorMiB}MiB` : ""}, GPU${gpuIndex} free ${gpu.freeMiB}MiB${recyclableMiB > 0 ? ` + evictable resident ${recyclableMiB}MiB` : ""}`,
