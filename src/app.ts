@@ -16,6 +16,7 @@ import socketInit from "@/socket/index";
 import { setIo } from "@/utils/ws";
 import { isEletron } from "@/utils/getPath";
 import { bootReady } from "@/utils/db";
+import { hostMemAvailableMib, hostMemFloorMib } from "@/lib/gpuVramManager";
 import { loadArchRepos } from "@/lib/arch-tracked-repos";
 import { createIslandNavInjector } from "@/lib/islandNavInjector";
 
@@ -400,6 +401,55 @@ export default async function startServe(randomPort: Boolean = false) {
         );
       } else {
         console.log(`[引擎通道]: GOLD_TEAM_URL=${process.env.GOLD_TEAM_URL} — 画布重生成走真实引擎`);
+      }
+      // ── host-mem 空闲回收哨兵 (B2c 配套, 2026-09-07) ──
+      // 动机 (0907 实测): 批次跑完后 ComfyUI 权重 offload 驻留 host RAM 56G 不放,
+      // (重建容器即回落) — KAP_HOSTMEM_RECLAIM_IDLE_MIN>0 时, 空闲超过阈值则对
+      // 两实例 POST /free, 防长期驻留挤压 MemAvailable。默认 30min; 0=关。
+      const idleMin = parseInt(process.env.KAP_HOSTMEM_RECLAIM_IDLE_MIN || "30", 10);
+      if (idleMin > 0) {
+        const comfyUrls = (process.env.KAP_HOSTMEM_RECLAIM_URLS || "http://127.0.0.1:8188,http://127.0.0.1:8190")
+          .split(",").map((s) => s.trim()).filter(Boolean);
+        const lastActivity = new Map<string, number>(comfyUrls.map((u) => [u, Date.now()]));
+        const seenPrompts = new Map<string, Set<string>>(comfyUrls.map((u) => [u, new Set()]));
+        const IDLE_MS = idleMin * 60_000;
+        const hostFloor = hostMemFloorMib();
+        setInterval(() => {
+          void (async () => {
+            try {
+              const avail = hostMemAvailableMib();
+              if (avail === null || avail >= hostFloor * 2) return; // 水位充裕不折腾
+              for (const url of comfyUrls) {
+                try {
+                  const q = await fetch(`${url}/queue`, { signal: AbortSignal.timeout(4000) });
+                  const d = (await q.json()) as { queue_running?: unknown[]; queue_pending?: unknown[] };
+                  const busy = (d.queue_running?.length ?? 0) + (d.queue_pending?.length ?? 0);
+                  if (busy > 0) { lastActivity.set(url, Date.now()); continue; }
+                  // 队列空: 观察窗口内有无新作业(排空瞬间不立刻打)
+                  const hist = await fetch(`${url}/history?max_items=8`, { signal: AbortSignal.timeout(4000) });
+                  const h = (await hist.json()) as Record<string, unknown>;
+                  const seen = seenPrompts.get(url)!;
+                  let fresh = false;
+                  for (const pid of Object.keys(h)) {
+                    if (!seen.has(pid)) { seen.add(pid); fresh = true; }
+                  }
+                  if (fresh) { lastActivity.set(url, Date.now()); continue; }
+                  if (Date.now() - (lastActivity.get(url) ?? 0) < IDLE_MS) continue;
+                  if (seen.size > 4096) seen.clear(); // 防泄漏
+                  console.warn(`[hostmem-reclaim] idle>${idleMin}min & MemAvailable ${avail}MiB < 2×floor — POST ${url}/free`);
+                  await fetch(`${url}/free`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ unload_models: true, free_memory: true }),
+                    signal: AbortSignal.timeout(8000),
+                  }).catch(() => {});
+                  lastActivity.set(url, Date.now()); // 打过一次后重新计时
+                } catch { /* 单实例探活失败不影响其他 */ }
+              }
+            } catch { /* 哨兵永不抛 */ }
+          })();
+        }, 120_000); // 每 2 分钟巡检一次
+        console.log(`[hostmem-reclaim] 哨兵已启: idle>${idleMin}min & MemAvailable<${hostFloor * 2}MiB → /free ${comfyUrls.join(", ")}`);
       }
       resolve(realPort);
     });
