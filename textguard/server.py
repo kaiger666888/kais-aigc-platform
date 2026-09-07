@@ -443,6 +443,7 @@ def fix_core(image_path, box, expect_text, variants=None, carrier_desc=None, max
     uid = uuid.uuid4().hex[:8]
     best = None   # (score, composed, seed, inreg) — 未中时返回最高分残差
     hit = False   # 首中即停; 全程未中 = 引擎边界, 如实报 hit:false
+    ocr_blind = False  # OCR 首字符漏检指纹 (任一轮出现即置位)
     rounds = 0
     for seed in lottery_seeds(max_lottery):
         rounds += 1
@@ -461,6 +462,19 @@ def fix_core(image_path, box, expect_text, variants=None, carrier_desc=None, max
         joined = joined_text(inreg)
         hit = accept_hit(joined, expect_text, variants)
         score = 1.0 if hit else _char_overlap(normalize_text(joined), normalize_text(expect_text))
+        # OCR 盲区旗标 (0907 割接实测): 竖排书法首字符漏检会让真命中被判 false。
+        # 特征 = 长度差恰为 1 且缺的正是首字符 → 产物标 ocr_blind, 提示调用方 vision 复核。
+        # 注意: 不改判 hit (纪律=OCR 整串命中才收彩), 只是诚实上报盲区。
+        joined_norm = normalize_text(joined)
+        expect_norm = normalize_text(expect_text)
+        ocr_blind = (
+            not hit
+            and len(expect_norm) - len(joined_norm) == 1
+            and joined_norm == expect_norm[1:]
+        )
+        if ocr_blind:
+            score = max(score, 0.99)  # 盲区残差视作近满覆盖, 参与最优轮比较
+            log.info("[fix] seed=%s ocr_blind=True (首字符漏检指纹, 待 vision 复核)", seed)
         log.info("[fix] seed=%s %.0fs hit=%s ocr=%r", seed, elapsed, hit, joined)
         if best is None or score > best[0]:
             best = (score, composed, seed, inreg)
@@ -484,6 +498,7 @@ def fix_core(image_path, box, expect_text, variants=None, carrier_desc=None, max
     log.info("[fix] 完成 hit=%s seed=%s rounds=%d -> %s", hit, seed, rounds, output_path)
     return {
         "hit": hit,
+        "ocr_blind": ocr_blind,
         "seed": seed,
         "rounds": rounds,
         "ocr_final": [{"text": f["text"], "conf": f["conf"], "box": f["box"]} for f in inreg],
