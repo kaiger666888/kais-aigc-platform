@@ -92,9 +92,13 @@ describe("ltx/config.ts 保留 + comfyuiPoll 解耦 (FIX-2)", () => {
 });
 
 describe("H3 turbo 白名单退役 (FIX-3)", () => {
-  it("H3_EXPOSED_PROFILES 不含 turbo, 恰为 native-sage + lightx2v-8-768p", () => {
+  it("H3_EXPOSED_PROFILES 不含 turbo, 恰为 native-sage + lightx2v 三档 + vdn-8", () => {
     assert.ok(!H3_EXPOSED_PROFILES.includes("turbo"), "turbo 不应再在暴露白名单");
-    assert.deepEqual([...H3_EXPOSED_PROFILES].sort(), ["lightx2v-8-768p", "native-sage"]);
+    // 2026-09-08 cede2e5f 追加 lightx2v-4-v11/v12 (R2 盲测); 同日 VDN 集成追加 vdn-8
+    assert.deepEqual(
+      [...H3_EXPOSED_PROFILES].sort(),
+      ["lightx2v-4-v11", "lightx2v-4-v12", "lightx2v-8-768p", "native-sage", "vdn-8"],
+    );
     // 白名单每项都必须在 H3_PROFILES 有定义 (GET /workflows 能力清单依赖)
     for (const id of H3_EXPOSED_PROFILES) {
       assert.ok(H3_PROFILES[id], `白名单 profile ${id} 缺 H3_PROFILES 定义`);
@@ -103,8 +107,14 @@ describe("H3 turbo 白名单退役 (FIX-3)", () => {
 
   it("preview-lock useCase 解析 profile=lightx2v-8-768p, 与 motion 路由三档一致 (9 步)", () => {
     assert.equal(H3_USE_CASES["preview-lock"].profile, "lightx2v-8-768p");
+    // 2026-09-08 R2 盲测定案: low→lightx2v-4-v11 / medium,high→lightx2v-4-v12, 步数统一 9
+    const expectRoute: Record<string, string> = {
+      low: "lightx2v-4-v11",
+      medium: "lightx2v-4-v12",
+      high: "lightx2v-4-v12",
+    };
     for (const [motion, route] of Object.entries(H3_PREVIEW_MOTION_ROUTES)) {
-      assert.equal(route.profile, "lightx2v-8-768p", `motion=${motion} 应走 lightx2v-8-768p`);
+      assert.equal(route.profile, expectRoute[motion], `motion=${motion} 应走 ${expectRoute[motion]}`);
       assert.equal(route.steps, 9, `motion=${motion} 应 9 步`);
     }
     // 暴露的 useCase 白名单不变
