@@ -389,6 +389,20 @@ export default router.post(
         .status(400)
         .send(error(`profile must be one of: ${H3_EXPOSED_PROFILES.join(" | ")} (got "${rawProfile}")`));
     }
+    // profile 语义守卫 (2026-09-08): lightx2v 族 profile 只在 /generate 主路由有 loraShift 工作流链,
+    // per-mode 路由 (t2va/i2va/ref2va) 的 builder 不消费 H3_LIGHTX2V_VARIANTS —— 放行会静默降级 T8。
+    // 400 显式拒绝并指引, 禁静默错误。
+    if (
+      rawProfile === "lightx2v-4" ||
+      rawProfile === "lightx2v-8" ||
+      rawProfile === "lightx2v-8-768p" ||
+      rawProfile === "lightx2v-4-v11" ||
+      rawProfile === "lightx2v-4-v12"
+    ) {
+      return res
+        .status(400)
+        .send(error(`profile "${rawProfile}" requires POST /api/production/minimax-h3/generate (loraShift workflow chain); per-mode route does not support it`));
+    }
     const profile = H3_PROFILES[rawProfile as keyof typeof H3_PROFILES];
     const nativeParam = req.body.native === "true" || req.body.native === true || profile?.native === true;
     // tespeed: 原生链路是否插入 TESpeed 节点(35)。native-sage profile 的 tespeed=false → 不插入。
