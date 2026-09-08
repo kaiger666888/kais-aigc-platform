@@ -544,6 +544,13 @@ export default router.post(
         .status(400)
         .send(error(`profile "${rawProfile}" requires POST /api/production/minimax-h3/generate (loraShift workflow chain); per-mode route does not support it`));
     }
+    // profile 语义守卫 (2026-09-08 VDN 集成): vdn-8 只在 /generate 主路由有 ApplyVDNH3
+    // 工作流链, per-mode 路由的 builder 不构建 ApplyVDNH3 —— 放行会静默降级 T8。
+    if (rawProfile === "vdn-8") {
+      return res
+        .status(400)
+        .send(error(`profile "vdn-8" requires POST /api/production/minimax-h3/generate (VDN ApplyVDNH3 workflow chain); per-mode route does not support it`));
+    }
     const profile = H3_PROFILES[rawProfile as keyof typeof H3_PROFILES];
     const nativeParam = req.body.native === "true" || req.body.native === true || profile?.native === true;
     // tespeed: 原生链路是否插入 TESpeed 节点(35)。native-sage profile 的 tespeed=false → 不插入。

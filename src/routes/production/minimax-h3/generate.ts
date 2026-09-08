@@ -87,6 +87,7 @@ import {
   H3_NATIVE,
   H3_LIGHTX2V_VARIANTS,
   H3_LINEART_ANIME,
+  H3_VDN,
   H3_PROFILES,
   H3_USE_CASES,
   H3_EXPOSED_PROFILES,
@@ -736,6 +737,160 @@ function buildH3WorkflowLightX2V(
 }
 
 // ============================================================
+// H3 VDN 工作流构建 (ApplyVDNH3 int8-convrot + turbo adapter, 8 步, 无 T8 / 无 LoRA / 无 SigmaShift)
+// ============================================================
+//
+// VDN 引擎臂 (profile="vdn-8", 2026-09-08 Kai 盲测终审集成; 权威蓝图 /tmp/case08_241_dual.py,
+// 0907 实跑成功 prompt_id=5d732d1e)。图结构参考 buildH3WorkflowLightX2V, 但 model_chain 换
+// ApplyVDNH3 节点 —— 无 LoRA loader、无 SigmaShift 节点 (8 步链自带 shift 语义)。
+// 三种模式共享节点 10/11/12/13/15/20/30/31/32/33/34/40/41/42/50, 仅在以下处分支 (同 LightX2V):
+//   - 节点 20 (正面条件): t2va/i2va 用 MiniMaxH3ImageToVideo; ref2va 用 MiniMaxH3ReferenceToVideo
+//   - LoadImage 节点: i2va 首帧 = 节点 14; ref2va 参考图 = 节点 14/141/142...
+// ⚠️ 关键区别 (与 LightX2V / native / T8):
+//   - 节点 15 = ApplyVDNH3 (直挂 UNETLoader [12,0]; vdn_checkpoint 目录名 + turbo adapter)
+//   - 无 SigmaShift —— 8 步链自带 shift 语义, 插了反而错渲染 (0907 盲测获胜臂拓扑)
+//   - 无负面条件占位节点 16 —— 蓝图不含该节点 (BasicGuider 单 cond 即可, cfg=1.0)
+//   - 采样: KSamplerSelect(er_sde) + BasicScheduler(beta) + 8 步 + denoise 1.0
+//   - ref2va autogrow 键 = 点号前缀 ref_images.ref_image_N, ref_image_size="match"
+// ⚠️ 硬边界 (0907 两次实测 OOM 定谳): length ≤ 241f @1216×672 (3 参考图), 362f 必 OOM
+//   —— handler 侧 vdn-8 语义守卫按对齐后 length 400 拒绝。
+export function buildH3WorkflowVDN(opts: H3GenOpts): Record<string, any> {
+  const {
+    mode, prompt,
+    width, height, length, seed,
+    stepsOverride,
+    firstFrameFilename, refImageFilenames, filenamePrefix,
+  } = opts;
+
+  const isRef2va = mode === "ref2va";
+  // 三模式统一基模 fl2va_int8_convrot (同蓝图 UNETLoader; ref2va 别名亦指向同一文件)
+  const unetModel = isRef2va ? H3_DEFAULTS.ref2vaModel : H3_DEFAULTS.fl2vaModel;
+  const steps = stepsOverride || H3_VDN.steps;
+
+  const nodes: Record<string, any> = {
+    // === 模型 / 文本编码器 / VAE ===
+    "10": { class_type: "CLIPLoader", inputs: { clip_name: H3_DEFAULTS.clipName, type: "minimax" } },
+    "11": { class_type: "VAELoader", inputs: { vae_name: H3_DEFAULTS.videoVaeName } },
+    "12": { class_type: "UNETLoader", inputs: { unet_name: unetModel, weight_dtype: "default" } },
+    "13": { class_type: "VAELoader", inputs: { vae_name: H3_DEFAULTS.audioVaeName } },
+
+    // === model_chain: ApplyVDNH3 (直挂 UNETLoader; 无 SigmaShift / 无 LoRA loader) ===
+    // 全参数 = 0907 盲测获胜臂逐字蓝图 (turbo adapter + flex attention)。
+    [H3_VDN.nodeId]: {
+      class_type: H3_VDN.classType,
+      inputs: {
+        model: ["12", 0],
+        vdn_checkpoint: H3_VDN.checkpoint,
+        apply_turbo_adapter: H3_VDN.applyTurboAdapter,
+        strength: H3_VDN.strength,
+        lora_mode: H3_VDN.loraMode,
+        branch_weights: H3_VDN.branchWeights,
+        retain_buffers: H3_VDN.retainBuffers,
+        attention_backend: H3_VDN.attentionBackend,
+        verbose: H3_VDN.verbose,
+      },
+    },
+  };
+
+  // === LoadImage 节点 ===
+  // ref2va: 参考图首张 = "14", 其余 141,142...
+  if (isRef2va) {
+    refImageFilenames.forEach((filename, i) => {
+      const nodeId = i === 0 ? "14" : `14${i}`;
+      nodes[nodeId] = { class_type: "LoadImage", inputs: { image: filename } };
+    });
+  }
+  // i2va: 首帧图 = "14"
+  if (mode === "i2va" && firstFrameFilename) {
+    nodes["14"] = { class_type: "LoadImage", inputs: { image: firstFrameFilename } };
+  }
+
+  // === 正面条件 (分支逻辑同 native / LightX2V) ===
+  if (isRef2va) {
+    // ref2va: MiniMaxH3ReferenceToVideo, ref_images 通过点号键注入 (autogrow)
+    const refImageSlots: Record<string, any> = {};
+    refImageFilenames.forEach((_, i) => {
+      const nodeId = i === 0 ? "14" : `14${i}`;
+      refImageSlots[`ref_images.ref_image_${i}`] = [nodeId, 0];
+    });
+    nodes["20"] = {
+      class_type: "MiniMaxH3ReferenceToVideo",
+      inputs: {
+        clip: ["10", 0],
+        vae: ["11", 0],
+        audio_vae: ["13", 0],
+        prompt,
+        width, height, length,
+        ref_image_size: "match",
+        ...refImageSlots,
+      },
+    };
+  } else {
+    // t2va / i2va: MiniMaxH3ImageToVideo (i2va 接 first_frame)
+    nodes["20"] = {
+      class_type: "MiniMaxH3ImageToVideo",
+      inputs: {
+        clip: ["10", 0],
+        vae: ["11", 0],
+        prompt,
+        width, height, length,
+        ...(mode === "i2va" && firstFrameFilename ? { first_frame: ["14", 0] } : {}),
+      },
+    };
+  }
+
+  // === 采样链路 (er_sde + beta + 8 步; ⚠️ BasicGuider / BasicScheduler 的 model = ApplyVDNH3 输出) ===
+  nodes["30"] = {
+    class_type: "KSamplerSelect",
+    inputs: { sampler_name: H3_VDN.samplerName },
+  };
+  nodes["31"] = {
+    class_type: "BasicScheduler",
+    inputs: {
+      model: [H3_VDN.nodeId, 0],
+      scheduler: H3_VDN.scheduler,
+      steps,
+      denoise: H3_VDN.denoise,
+    },
+  };
+  nodes["32"] = { class_type: "RandomNoise", inputs: { noise_seed: seed } };
+  nodes["33"] = {
+    class_type: "BasicGuider",
+    inputs: { model: [H3_VDN.nodeId, 0], conditioning: ["20", 0] },
+  };
+  nodes["34"] = {
+    class_type: "SamplerCustomAdvanced",
+    inputs: {
+      noise: ["32", 0],
+      guider: ["33", 0],
+      sampler: ["30", 0],
+      sigmas: ["31", 0],
+      latent_image: ["20", 1],
+    },
+  };
+
+  // === 视频解码 ===
+  nodes["40"] = { class_type: "VAEDecode", inputs: { samples: ["34", 0], vae: ["11", 0] } };
+
+  // === 音频解码 (合并到视频) ===
+  nodes["41"] = { class_type: "VAEDecodeAudio", inputs: { samples: ["34", 0], vae: ["13", 0] } };
+
+  // === 合并视频 + 音频 ===
+  nodes["42"] = {
+    class_type: "CreateVideo",
+    inputs: { images: ["40", 0], fps: H3_CONSTANTS.FPS, audio: ["41", 0] },
+  };
+
+  // === 保存 (mp4 内嵌音频) ===
+  nodes["50"] = {
+    class_type: "SaveVideo",
+    inputs: { video: ["42", 0], filename_prefix: filenamePrefix, format: "mp4", codec: "auto" },
+  };
+
+  return nodes;
+}
+
+// ============================================================
 // Handler —— 三步管线编排
 // ============================================================
 
@@ -850,6 +1005,37 @@ export default router.post(
       return res
         .status(400)
         .send(error(`profile must be one of: ${H3_EXPOSED_PROFILES.join(" | ")} (got "${rawProfile}")`));
+    }
+    // ── vdn-8 profile 语义守卫 (2026-09-08, 参照 d3eb69e0 模式): 硬边界 + 互斥显式拒绝 ──
+    // 边界数字 241 = 0907 两次实测 OOM 定谳 (362f 必 OOM), 不重做边界实验。
+    // ⚠️ length 是 alignH3FrameCount 后的值 (渲染真值): 241 不在 n%17==5 网格上,
+    //    raw 227..241 → 对齐 243 > 241 仍拒 —— 实际可请求的最大网格值 = 226f。
+    // 互斥 (此臂禁插, 0907 盲测拓扑): LightX2V/Turbo LoRA 叠加 (显式 turbo=true)、
+    // 原生 KSampler 链 (显式 native=true) —— 显式 400 拒绝优于静默错渲染。
+    if (rawProfile === "vdn-8") {
+      if (length > H3_VDN.maxFrames) {
+        return res.status(400).send(error(
+          `profile=vdn-8 length ${length}f exceeds hard boundary ${H3_VDN.maxFrames}f — ` +
+          `0907 实测 OOM 边界: 所有模式 length ≤ 241f @1216×672 (3 参考图), 362f 必 OOM。` +
+          `(帧网格 n%17==5, 实际可请求的最大网格值 = 226f)。请降 length 或换 profile`,
+          {
+            vdnBoundary: {
+              maxFrames: H3_VDN.maxFrames,
+              requestedLength: length,
+              note: "boundary = 0907 实测 OOM (241f@1216×672×3refs OK / 362f OOM); guard judges aligned length",
+            },
+          },
+        ));
+      }
+      const turboExplicit = req.body.turbo === "true" || req.body.turbo === true;
+      const nativeExplicit = req.body.native === "true" || req.body.native === true;
+      if (turboExplicit || nativeExplicit) {
+        return res.status(400).send(error(
+          `profile=vdn-8 与显式 ${turboExplicit ? "turbo" : "native"}=true 互斥 — ` +
+          `VDN 臂禁插 Turbo/LightX2V LoRA 与 SigmaShift 原生链 (0907 盲测获胜拓扑: ApplyVDNH3 直挂 UNETLoader)。` +
+          `请去掉该参数或换 profile`,
+        ));
+      }
     }
     const profile = H3_PROFILES[rawProfile as keyof typeof H3_PROFILES];
     // native: profile=native-sage 或显式 native=true
@@ -1027,11 +1213,17 @@ export default router.post(
     } else if (rawProfile === "lineart-anime") {
       loraShiftConfig = H3_LINEART_ANIME;
     }
-    const h3Wf = effectiveNative
-      ? buildH3WorkflowNative({ ...nativeWfOpts, negativePrompt: H3_DEFAULT_NEGATIVE })
-      : loraShiftConfig
-        ? buildH3WorkflowLightX2V(nativeWfOpts, loraShiftConfig)
-        : buildH3WorkflowT8(nativeWfOpts);
+    // VDN 工作流 (vdn-8, 2026-09-08 集成): ApplyVDNH3 model_chain, 无 T8/LoRA/SigmaShift。
+    // 分支置于 native/loraShift/T8 之前 —— vdn-8 与显式 turbo/native 的冲突已在
+    // 上方 vdn-8 语义守卫 400 拒绝, 走到这里必是纯 VDN 语义 (turbo/native 标志均 false)。
+    const isVdn = rawProfile === "vdn-8";
+    const h3Wf = isVdn
+      ? buildH3WorkflowVDN(nativeWfOpts)
+      : effectiveNative
+        ? buildH3WorkflowNative({ ...nativeWfOpts, negativePrompt: H3_DEFAULT_NEGATIVE })
+        : loraShiftConfig
+          ? buildH3WorkflowLightX2V(nativeWfOpts, loraShiftConfig)
+          : buildH3WorkflowT8(nativeWfOpts);
 
     let h3PromptId: string | null = null;
     let localH3VideoPath: string | null = null;

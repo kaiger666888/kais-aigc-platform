@@ -410,6 +410,44 @@ export const H3_LINEART_ANIME = {
 } as const;
 
 // ============================================================
+// H3_VDN —— VDN 引擎臂 (ApplyVDNH3 int8-convrot + turbo adapter, 2026-09-08)
+// ============================================================
+// VDN 工作流正式集成 (profile="vdn-8", 可选档, 不切默认)。
+// 2026-09-08 Kai 盲测终审: VDN 臂 241f 同速下细节 2.5× 全面胜出 LightX2V 8Step。
+// 权威蓝图 = /tmp/case08_241_dual.py (0907 实跑成功, prompt_id=5d732d1e)。
+//
+// 链路: UNETLoader(12, 基模 fl2va_int8_convrot) → ApplyVDNH3(15) → 采样链路。
+// 与 LightX2V 链的关键差异:
+//   - model_chain 换 ApplyVDNH3 节点 (vdn_checkpoint 目录名 + turbo adapter),
+//     无 LoRA loader, 无 SigmaShift 节点 (8 步链自带 shift 语义, 插了反而错渲染)。
+//   - 采样: KSamplerSelect(er_sde) + BasicScheduler(beta) + 8 步 + denoise 1.0。
+//   - ref2va autogrow 键 = 点号前缀 ref_images.ref_image_N, ref_image_size="match"。
+//
+// ⚠️ VDN 硬边界 (0907 两次实测 OOM 定谳): 所有模式 length 上限 241f @1216×672
+//   (3 参考图); 362f 必 OOM。注意 H3 帧网格 n%17==5 —— 241 不在网格上,
+//   alignH3FrameCount(227..241) → 243 > 241, 守卫按对齐后 length 判 →
+//   实际可请求的最大网格值 = 226f。
+// ⚠️ 互斥 (此臂禁插, 见 generate.ts vdn-8 语义守卫): LightX2V/Turbo LoRA 叠加、
+//   SOL attention、kitchen/TESpeed 节点。
+export const H3_VDN = {
+  classType: "ApplyVDNH3",       // ComfyUI 节点类 (:8188/:8190 object_info 均已实测在位)
+  nodeId: "15",                  // model_chain 节点 ID (同 LightX2V LoRA 槽位约定; 与蓝图一致)
+  checkpoint: "vdn-minimax-h3-int8-convrot-comfyui",  // 权重目录名 (容器 /data/models/comfyui/vdn/ 下)
+  applyTurboAdapter: true,       // turbo adapter (0907 盲测获胜臂参数)
+  strength: 1.0,
+  loraMode: "merge",
+  branchWeights: "stream",
+  retainBuffers: "off",
+  attentionBackend: "flex",
+  verbose: true,
+  steps: 8,                      // 8 步口径 (0907 获胜臂实测, er_sde+beta)
+  samplerName: "er_sde",
+  scheduler: "beta",
+  denoise: 1.0,
+  maxFrames: 241,                // 0907 实测 OOM 硬边界 (362f 必 OOM); 守卫按对齐后 length 判
+} as const;
+
+// ============================================================
 // H3_NATIVE —— 原生 (non-T8) 链路采样器/调度器配置
 // ============================================================
 // T8 迁移前的原生 KSampler + SigmaShift 链路配置 (pre-T8, commit c2ad955a~1)。
@@ -562,7 +600,8 @@ export type H3ProfileName =
   | "lightx2v-8-768p"
   | "lightx2v-4-v11"
   | "lightx2v-4-v12"
-  | "lineart-anime";
+  | "lineart-anime"
+  | "vdn-8";
 
 export const H3_PROFILES: Record<H3ProfileName, H3ProfilePreset> = {
   preview: {
@@ -654,6 +693,14 @@ export const H3_PROFILES: Record<H3ProfileName, H3ProfilePreset> = {
     turbo: false,
     native: false,
     tespeed: false,
+  },
+  "vdn-8": {
+    label: "VDN 8-step (ApplyVDNH3 int8-convrot + turbo adapter, flex attention, length ≤241f — 0908 Kai 盲测 241f 同速细节 2.5× 胜 LightX2V)",
+    steps: 8,             // H3_VDN.steps (er_sde + beta 8 步口径)
+    skipFoley: true,      // 直出 H3 原生音频, 跳过 Foley
+    turbo: false,         // 互斥: 此臂禁插 Turbo/LightX2V LoRA (见 H3_VDN 注释)
+    native: false,        // 非原生 KSampler 链路 (ApplyVDNH3 直挂 UNETLoader)
+    tespeed: false,       // 互斥: 不插入 TESpeed 节点
   },
 } as const;
 
@@ -757,7 +804,9 @@ export type H3UseCaseName = keyof typeof H3_USE_CASES;
 // 不在则 400 且错误信息只列白名单项; GET /workflows 能力清单也只返回白名单内容。
 // H3_PROFILES / H3_USE_CASES 里的其余档位定义保留不删 —— 重新开放 = 改这两个数组。
 // 2026-09-08 R2 盲测定案 (Kai): 追加 lightx2v-4-v11/v12 (preview 动态分档 LoRA, 见 H3_PREVIEW_MOTION_ROUTES)。
-export const H3_EXPOSED_PROFILES: readonly H3ProfileName[] = ["native-sage", "lightx2v-8-768p", "lightx2v-4-v11", "lightx2v-4-v12"];
+// 2026-09-08 VDN 集成 (Kai 拍板「将 VDN 工作流正式集成到 kap」): 追加 vdn-8 (可选档, 不切默认,
+// 不动 useCase 映射; 仅 /generate 主路由支持, per-mode 路由 400 拒绝 — 见 d3eb69e0 语义守卫)。
+export const H3_EXPOSED_PROFILES: readonly H3ProfileName[] = ["native-sage", "lightx2v-8-768p", "lightx2v-4-v11", "lightx2v-4-v12", "vdn-8"];
 export const H3_EXPOSED_USE_CASES: readonly H3UseCaseName[] = ["preview-lock", "final-shot"];
 
 // ============================================================
