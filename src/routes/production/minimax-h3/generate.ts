@@ -779,8 +779,8 @@ export default router.post(
     if (!["low", "medium", "high"].includes(motion)) {
       return res.status(400).send(error(`motion must be one of: low | medium | high (got "${motion}")`));
     }
-    // 预览档动态路由 (2026-08-17 建立; 2026-08-31 blind3 盲测后三档统一):
-    //   low/medium/high → 全走 lightx2v-8-768p 9 步 (与成片同链, 见 H3_PREVIEW_MOTION_ROUTES)。
+    // 预览档动态路由 (2026-08-17 建立; 2026-08-31 blind3 三档统一; 2026-09-08 R2 改按动态分 LoRA):
+    //   low→lightx2v-4-v11 / medium,high→lightx2v-4-v12, 步数统一 9 (见 H3_PREVIEW_MOTION_ROUTES)。
     // 显式传 profile/steps 仍可覆盖 (显式优先)。
     const motionRoute =
       rawUseCase === "preview-lock"
@@ -836,7 +836,8 @@ export default router.post(
     const h3Seed = req.body.seed ? Number(req.body.seed) : Math.floor(Math.random() * 2147483647);
 
     // 采样步数覆盖 (优先级: 显式 steps > motion 路由(preview-lock) > useCase.steps > motion-based(turbo时) > profile.steps)
-    // 2026-08-17 API 精简: 只接受白名单 profile (native-sage | lightx2v-8-768p); 其余旧档定义保留在
+    // 2026-08-17 API 精简: 只接受白名单 profile (2026-09-08 起为 native-sage | lightx2v-8-768p |
+    // lightx2v-4-v11 | lightx2v-4-v12); 其余旧档定义保留在
     // config.ts H3_PROFILES 但 400 拒绝。默认 fallback 2026-09-02 turbo 退役后由 "turbo"
     // 改为 "lightx2v-8-768p" (blind3 定案的预览同链档, 原最便宜预览拓扑)。
     const rawProfile = (
@@ -1008,17 +1009,20 @@ export default router.post(
       blockCache: blockCacheOn,         // 仅 native 链路 builder 读取 (T8/LightX2V 忽略)
       blockCacheThreshold,              // 实际生效值 (请求覆盖或默认 0.4)
     };
-    // SigmaShift + LoRA 工作流 (无 T8): LightX2V Turbo LoRA v1.0 (lightx2v-4/8/8-768p) 或
-    // LineartAnime LoRA (lineart-anime)。三者共享同一拓扑, 仅 LoRA 配置/steps/shift 不同。
+    // SigmaShift + LoRA 工作流 (无 T8): LightX2V Turbo LoRA v1.0 (lightx2v-4/8/8-768p) +
+    // 4-step 家族 v1.1/v1.2 (lightx2v-4-v11/v12, 2026-09-08 R2 分档) 或
+    // LineartAnime LoRA (lineart-anime)。共享同一拓扑, 仅 LoRA 配置/steps/shift 不同。
     // 用 rawProfile 字符串解析配置 (这些 profile.native=false 故 effectiveNative=false, 不会误入 native)。
     let loraShiftConfig: H3LoraShiftConfig | null = null;
     if (
       rawProfile === "lightx2v-4" ||
       rawProfile === "lightx2v-8" ||
-      rawProfile === "lightx2v-8-768p"
+      rawProfile === "lightx2v-8-768p" ||
+      rawProfile === "lightx2v-4-v11" ||
+      rawProfile === "lightx2v-4-v12"
     ) {
       loraShiftConfig = H3_LIGHTX2V_VARIANTS[
-        rawProfile as "lightx2v-4" | "lightx2v-8" | "lightx2v-8-768p"
+        rawProfile as "lightx2v-4" | "lightx2v-8" | "lightx2v-8-768p" | "lightx2v-4-v11" | "lightx2v-4-v12"
       ];
     } else if (rawProfile === "lineart-anime") {
       loraShiftConfig = H3_LINEART_ANIME;

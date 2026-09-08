@@ -287,7 +287,7 @@ export function getTurboSteps(motion?: string): number {
 }
 
 // ============================================================
-// H3_LIGHTX2V —— LightX2V Turbo LoRA v1.0 配置 (4步 / 8步 / 8步768p 三版本, 非 T8 / 非 Turbo)
+// H3_LIGHTX2V —— LightX2V Turbo LoRA 配置 (v1.0 三版本 + 4-step v1.1/v1.2, 非 T8 / 非 Turbo)
 // ============================================================
 // LightX2V Turbo LoRA v1.0 正式版 (ComfyUI bf16 格式, 容器内):
 //   - minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors (768p/1344×768 训练, 4步)
@@ -309,7 +309,8 @@ export function getTurboSteps(motion?: string): number {
 //   3. 不使用 T8 Turbo LoRA (用独立 LightX2V LoRA, strength=1.0)。
 //   4. 用 SamplerCustomAdvanced + BasicScheduler(simple) + KSamplerSelect(res_multistep) + BasicGuider。
 //
-// 默认关闭 —— profile="lightx2v-4" / "lightx2v-8" / "lightx2v-8-768p" 时启用 (见 H3_PROFILES)。
+// 默认关闭 —— profile="lightx2v-4" / "lightx2v-8" / "lightx2v-8-768p" / "lightx2v-4-v11" /
+// "lightx2v-4-v12" 时启用 (见 H3_PROFILES)。
 // 旧的 v0.1 预览版权重文件保留在容器内, 未删除 (向后兼容)。
 export const H3_LIGHTX2V_VARIANTS = {
   // 4步正式版: 768p 训练分辨率, shift_video=6, 4 步推理
@@ -346,6 +347,32 @@ export const H3_LIGHTX2V_VARIANTS = {
     shiftVideo: 6.0,      // ⚠️ 768p 版官方 shift=6 (544p 版才是 12)
     shiftAudio: 3.0,
     samplerName: "euler",   // 官方 training_euler = FlowMatch Euler
+    scheduler: "simple",
+    denoise: 1.0,
+    nodeId: "15",
+    loaderClassType: "LoraLoaderModelOnly",
+  },
+  // 4-step 家族 v1.1/v1.2 权重 @9步口径 (N+1 终步 sigma=0)。2026-09-08 R2 盲测定案:
+  // 低动 v1.1 5★ / 高动 v1.2 5★+运镜遵循好; v1.0 主锚(final-shot)不变。R1 5步口径败因=欠采样已翻案。
+  "lightx2v-4-v11": {
+    loraName: "minimax_h3_fl2v_turbo_4step_v1.1_768p_comfyui_bf16.safetensors",
+    strengthModel: 1.0,
+    steps: 9,             // 4步权重@9步口径 (R2 盲测实证口径, 勿按5步评)
+    shiftVideo: 6.0,      // 768p 家族 shift=6
+    shiftAudio: 3.0,
+    samplerName: "euler",
+    scheduler: "simple",
+    denoise: 1.0,
+    nodeId: "15",
+    loaderClassType: "LoraLoaderModelOnly",
+  },
+  "lightx2v-4-v12": {
+    loraName: "minimax_h3_fl2v_turbo_4step_v1.2_768p_comfyui_bf16.safetensors",
+    strengthModel: 1.0,
+    steps: 9,
+    shiftVideo: 6.0,
+    shiftAudio: 3.0,
+    samplerName: "euler",
     scheduler: "simple",
     denoise: 1.0,
     nodeId: "15",
@@ -503,6 +530,10 @@ export function resolveH3BlockCacheThreshold(raw: unknown): number {
 //   lineart-anime —— LineartAnime LoRA (DiffSynth-Studio, rank=32)。将线稿视频上色为彩色动漫视频,
 //                    20 步 + 标准 shift_video=12, 仅 ref2va 模式。复用 LightX2V 的 SigmaShift + LoRA
 //                    拓扑 (非 T8)。跳过 Foley (直出 H3 原生音频)。
+//   lightx2v-4-v11 —— 4-step 家族 v1.1 权重 @9步口径 (768p, shift=6)。低动档 (2026-09-08 R2 盲测
+//                    case03 5★ 定案)。跳过 Foley。
+//   lightx2v-4-v12 —— 4-step 家族 v1.2 权重 @9步口径 (768p, shift=6)。高动档 (R2 case07 5★,
+//                    运镜遵循优)。跳过 Foley。
 // 调用方通过 generate 的 `profile` 入参选择 (须在 H3_EXPOSED_PROFILES 白名单内);
 // 显式传 steps 时以 steps 为准 (Turbo LoRA 仅由显式 turbo=true 入参启用;
 // profile="turbo" 已于 2026-09-02 移出白名单, 该档定义留档仅服务直调)。
@@ -529,6 +560,8 @@ export type H3ProfileName =
   | "lightx2v-4"
   | "lightx2v-8"
   | "lightx2v-8-768p"
+  | "lightx2v-4-v11"
+  | "lightx2v-4-v12"
   | "lineart-anime";
 
 export const H3_PROFILES: Record<H3ProfileName, H3ProfilePreset> = {
@@ -605,6 +638,22 @@ export const H3_PROFILES: Record<H3ProfileName, H3ProfilePreset> = {
     turbo: false,          // 不使用 T8 Turbo LoRA
     native: false,         // 不使用原生 KSampler 链路 (用 SigmaShift + LoRA, 同 LightX2V)
     tespeed: false,        // 不插入 TESpeed 节点
+  },
+  "lightx2v-4-v11": {
+    label: "LightX2V 4-step v1.1 @9-step (768p, shift=6) — 低动档 (R2 盲测 0908: case03 5★)",
+    steps: 9,
+    skipFoley: true,
+    turbo: false,
+    native: false,
+    tespeed: false,
+  },
+  "lightx2v-4-v12": {
+    label: "LightX2V 4-step v1.2 @9-step (768p, shift=6) — 高动档 (R2 盲测 0908: case07 5★, 运镜遵循优)",
+    steps: 9,
+    skipFoley: true,
+    turbo: false,
+    native: false,
+    tespeed: false,
   },
 } as const;
 
@@ -707,7 +756,8 @@ export type H3UseCaseName = keyof typeof H3_USE_CASES;
 // 所有 POST 路由 (generate/t2va/i2va/ref2va) 校验 profile 必须在白名单内,
 // 不在则 400 且错误信息只列白名单项; GET /workflows 能力清单也只返回白名单内容。
 // H3_PROFILES / H3_USE_CASES 里的其余档位定义保留不删 —— 重新开放 = 改这两个数组。
-export const H3_EXPOSED_PROFILES: readonly H3ProfileName[] = ["native-sage", "lightx2v-8-768p"];
+// 2026-09-08 R2 盲测定案 (Kai): 追加 lightx2v-4-v11/v12 (preview 动态分档 LoRA, 见 H3_PREVIEW_MOTION_ROUTES)。
+export const H3_EXPOSED_PROFILES: readonly H3ProfileName[] = ["native-sage", "lightx2v-8-768p", "lightx2v-4-v11", "lightx2v-4-v12"];
 export const H3_EXPOSED_USE_CASES: readonly H3UseCaseName[] = ["preview-lock", "final-shot"];
 
 // ============================================================
@@ -718,10 +768,14 @@ export const H3_EXPOSED_USE_CASES: readonly H3UseCaseName[] = ["preview-lock", "
 // 取代旧分档 (low→turbo 6 / medium→turbo 8 / high→native-sage 15 跨拓扑跳档)。
 // motion 仍保留在路由键上: 调用方无需改传参, 未来再按 motion 细分只改此表。
 // 音频统一走 useCase.audio="tts-only"。调用方显式传 profile/steps 仍可覆盖 (显式优先)。
+//
+// 2026-09-08 R2 盲测定案 (Kai 拍板): 低动→v1.1 / 高动→v1.2, 步数统一 9。
+// medium 未单盲: 默认随高动档 v1.2 (v1.2 运镜遵循度好, 中动通常含运镜; 且低动惩罚温和 3★)。
+// 如需改 medium 归属只改下面一行。
 export const H3_PREVIEW_MOTION_ROUTES: Record<H3MotionLevel, { profile: H3ProfileName; steps: number }> = {
-  low: { profile: "lightx2v-8-768p", steps: 9 },
-  medium: { profile: "lightx2v-8-768p", steps: 9 },
-  high: { profile: "lightx2v-8-768p", steps: 9 },
+  low: { profile: "lightx2v-4-v11", steps: 9 },
+  medium: { profile: "lightx2v-4-v12", steps: 9 },
+  high: { profile: "lightx2v-4-v12", steps: 9 },
 } as const;
 
 // ============================================================
