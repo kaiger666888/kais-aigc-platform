@@ -37,8 +37,13 @@ services:
     # ⚠ 2026-09-07 双实例定容 v2: 原 64g 是单实例时代护栏, 2×64g > 125G 物理 → earlyoom 连环杀
     #   但 40g 过紧: B-v1 max 双脸+全身实测 anon 41.8G(内核 OOM 报告)两次击杀。
     #   定谳 48g/swap64g: 单容器峰值 42.4G+12% 余量; 双实例 96G+系统 15G=111G<125G ✓
-    mem_limit: 48g
-    memswap_limit: 64g
+    #   → 58g/68g(0907晚 v4 对称化, Kai 拍板): 工作集探针+压限 A/B 证得 15s 362f 双采臂热集仅45G
+    #     (56g 在线压限全程 cur≤48G 零退化), 48g 对双采生产臂余量不足(与 40g 击杀 B-v1 同型风险);
+    #     对称 58g 让两臂均可独立承接全规格生产臂。限额账 58+58=116g, 真并行实驻≈48+48+系统13
+    #     ≈109G<125G ✓; 0907晚 四杀定谳: 冷加载洪峰×对手驻留 击杀RSS最大者, 10G swap配额是
+    #     真凶(zram 62.9G仅用11%) => memswap 68g→98g (swap.max 40G/容器, zram吸收52G洪峰)。
+    mem_limit: 58g
+    memswap_limit: 98g
     cpus: 10
     ports:
       - "${COMFYUI_SECONDARY_PORT:-8190}:8188"
@@ -63,10 +68,18 @@ services:
       https_proxy: "${https_proxy:-}"
       NO_PROXY: "localhost,127.0.0.1,172.18.0.0/16"
       W2V_BERT_PATH: "/data/models/w2v-bert-2.0"
-      CLI_ARGS: "--disable-metadata --lowvram --bf16-text-enc --bf16-unet --output-directory /mnt/agents/output/gpu2"
+      # 0908 Kai 拍板全局策略: 禁 pinned hostbuf (三 ComfyUI 容器统一) — 出处/数字同 v9.yml primary 段
+      CLI_ARGS: "--disable-metadata --lowvram --bf16-text-enc --bf16-unet --disable-pinned-memory --output-directory /mnt/agents/output/gpu2"
+      # kais-aimdo-sharedpool: 0908 canary FAIL (跨卡注册后 sticky CUDA error → c10::AcceleratorError terminate
+      # 双臂同判; 修复前禁开)。回滚位: 置 "1" 重启即再激活 (RUN_DIR 修复保留, socket 路径问题已解决)
+      AIMDO_SHARED_POOL: "0"
+      # 0908 修复 AF_UNIX path too long: 服务 socket 落短路径 (容器内 /sps-run, 双臂同宿主目录)
+      AIMDO_SHARED_POOL_RUN_DIR: "/sps-run"
     volumes:
       # 输出隔离: secondary → gpu2 (primary 是 gpu1)
       - ${OUTPUT_DIR:-/mnt/agents/output}/gpu2:/mnt/agents/output/gpu2
+      # 共享池 run 目录 (socket/锁, KB级) — 与 primary 同宿主目录, 跨臂发现依赖
+      - /data/workspace/comfyui-incremental-nodes/kais-aimdo-sharedpool/run:/sps-run
       # 共享模型库 (与 primary 同库, 模型冷读走 page cache)
       - ${DATA_MODELS_DIR:-/data/models/comfyui}:/root/ComfyUI/models:rw
       - ${ACESTEP_MODELS_DIR:-/data/models/ACE-Step1.5}:/root/ComfyUI/models/ace-step:ro

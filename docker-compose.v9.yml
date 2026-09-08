@@ -53,8 +53,17 @@ services:
     # 硬护栏: --lowvram 会把加载过的模型全堆 CPU RAM 且不清,无 limit 时一路吃光整机触发 swap thrashing
     # 定谳历程: 64g(单实例时代,双实例超订) → 40g(0907防风暴,压死 B-v1 max anon 41.8G 两次)
     #   → 48g/swap64g(0907 v2): 单容器峰值 42.4G+余量, 双实例 96G+系统 15G=111G<125G ✓
-    mem_limit: 48g
-    memswap_limit: 64g
+    #   → 66g/72g(0907晚 v3 修正): B-v4 (15s 362f 双采 2ref, 0907 正式臂) 实测 memory.peak=63G,
+    #     48g 上限会在生产渲染中途触发 high-line throttling + zram 抖动甚至 OOM 击杀;
+    #     42.4G 定容依据未覆盖 15s 双采工况。66g=63G峰值+3G 余量, 溢出仍走 zram(prio100, 3:1)。
+    #     双臂真并行实驻账: 63G(primary渲染)+42G(secondary渲染)+系统13G≈118G<125G ✓
+    #   → 58g/68g(0907晚 v4 终版, 工作集探针实测定谳): 内核页访问位(clear_refs+Referenced)实测
+    #     采样主段热集仅45G(TE14.6G+VAE5.5G采样期冷却), 56g 在线压限下 15s 362f 双采全规格
+    #     A/B: 耗时 1351.8s vs 无压限基线 1429.7s (零退化), 全程 cur≤48G, refault≤94M, oom_kill=0,
+    #     产物 362f/15.08s/双音轨/三帧亮度全过 → 63G 是无压限浪费态非需求。
+    #     58g=56g已证可行+10G未测极端余量(4ref/超长臂碎片累积)。双臂限额账: 58+48=106g ✓
+    mem_limit: 58g
+    memswap_limit: 98g
     cpus: 10
     ports:
       - "${COMFYUI_PRIMARY_PORT:-8188}:8188"
@@ -82,9 +91,21 @@ services:
       https_proxy: "${https_proxy:-}"
       NO_PROXY: "localhost,127.0.0.1,172.18.0.0/16"
       W2V_BERT_PATH: "/data/models/w2v-bert-2.0"
-      CLI_ARGS: "--disable-metadata --lowvram --bf16-text-enc --bf16-unet --output-directory /mnt/agents/output/gpu1"
+      # 0908 Kai 拍板全局策略: 禁 pinned hostbuf — 权重加载走直供分支(文件→C层staging→设备),
+      # 权重复用=page cache(跨容器共享一份, ~39.5G H3 全栈), 内存契约从 78G/双臂 anon 降为 0.
+      # 出处: pq#91 references/2026-09-08-antidote-final-nopin-verdict.md
+      # (双臂冷加载终审: avail 最低 100.2G / anon 峰 14.4G / 各 237s 渲染 success)
+      CLI_ARGS: "--disable-metadata --lowvram --bf16-text-enc --bf16-unet --disable-pinned-memory --output-directory /mnt/agents/output/gpu1"
+      # kais-aimdo-sharedpool: VMM 弹射窗拒绝一切外部 DMA(机制性判死, 0908 定谳) — 禁 pin 后
+      # pin 层不再触发, 池永久休眠勿置 "1"。历史: 0908 canary FAIL (跨卡注册后 sticky CUDA error →
+      # c10::AcceleratorError terminate 双臂同判; RUN_DIR socket 修复保留)。回滚位: 置 "1" 重启即再激活。
+      AIMDO_SHARED_POOL: "0"
+      # 0908 修复 AF_UNIX path too long: 服务 socket 落短路径 (容器内 /sps-run, 双臂同宿主目录)
+      AIMDO_SHARED_POOL_RUN_DIR: "/sps-run"
     volumes:
       - ${OUTPUT_DIR:-/mnt/agents/output}/gpu1:/mnt/agents/output/gpu1
+      # 共享池 run 目录 (socket/锁, KB级) — 与 secondary 同宿主目录, 跨臂发现依赖
+      - /data/workspace/comfyui-incremental-nodes/kais-aimdo-sharedpool/run:/sps-run
       - ${DATA_MODELS_DIR:-/data/models/comfyui}:/root/ComfyUI/models:rw
       - ${ACESTEP_MODELS_DIR:-/data/models/ACE-Step1.5}:/root/ComfyUI/models/ace-step:ro
       - comfyui-user:/root/ComfyUI/user
@@ -163,7 +184,9 @@ services:
       http_proxy: "${http_proxy:-}"
       https_proxy: "${https_proxy:-}"
       NO_PROXY: "localhost,127.0.0.1,172.18.0.0/16"
-      CLI_ARGS: "--lowvram"
+      # 0908 Kai 拍板全局策略: 禁 pinned hostbuf (三 ComfyUI 容器统一) — 出处/数字同 v9.yml primary 段
+      # auxiliary 为 SDXL/超分/去背轻载, pin 占用本就小, 统一为全局一致性
+      CLI_ARGS: "--lowvram --disable-pinned-memory"
     volumes:
       - ${OUTPUT_DIR:-/mnt/agents/output}/gpu0:/mnt/agents/output/gpu0
       - ${DATA_MODELS_DIR:-/data/models/comfyui}:/root/ComfyUI/models:ro
