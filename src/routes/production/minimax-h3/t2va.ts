@@ -44,7 +44,7 @@ import axios from "axios";
 import { z } from "zod";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
-import { VramInsufficientError, withGpuQueue } from "@/lib/gpuVramManager";
+import { VramInsufficientError, withGpuQueue, resolveDispatchGpuIndex, comfyuiUrlForGpu, pinTaskGpu } from "@/lib/gpuVramManager";
 import {
   H3_CONFIG,
   H3_DEFAULTS,
@@ -533,6 +533,11 @@ export default router.post(
           native,
         });
 
+    // ── M4 双实例选卡 (0908 收编, pq#91): 白名单命中 + GPU2 探活 + headroom 足 →
+    //    secondary; 探活/headroom 失败静默回退 GPU1。t2va 无文件输入, 无容器投递。──
+    const dispatch = await resolveDispatchGpuIndex("minimax_h3");
+    const comfyUrl = dispatch.secondary ? comfyuiUrlForGpu(2) : H3_CONFIG.comfyuiUrl;
+
     try {
       // ─── GPU 全局串行队列 (gpuVramManager withGpuQueue, 2026-08-19 收编) ───
       // t2va 与 /generate 同引擎 (minimax_h3) 必须同锁 — 此前直提 ComfyUI 绕过
@@ -542,7 +547,7 @@ export default router.post(
         "minimax_h3",
         async () => {
           const comfyRes = await axios.post(
-            `${H3_CONFIG.comfyuiUrl}/prompt`,
+            `${comfyUrl}/prompt`,
             { prompt: workflow },
             { timeout: 30_000, validateStatus: (s: number) => s < 500 },
           );
@@ -551,7 +556,7 @@ export default router.post(
           }
           return { kind: "ok" as const, promptId: comfyRes.data.prompt_id as string };
         },
-        { gpuIndex: 1, comfyuiUrl: H3_CONFIG.comfyuiUrl },
+        { gpuIndex: dispatch.gpuIndex, comfyuiUrl: comfyUrl },
       );
 
       if (submitted.kind === "rejected") {
@@ -559,6 +564,8 @@ export default router.post(
       }
 
       const promptId = submitted.promptId;
+      // 钉扎提交所在卡 — status 路由按钉扎卡轮询 (未钉扎回落 primary)
+      pinTaskGpu(promptId, dispatch.gpuIndex);
       res.status(200).send(success({
         promptId,
         status: "submitted",

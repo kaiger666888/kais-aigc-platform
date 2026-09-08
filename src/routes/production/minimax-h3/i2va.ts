@@ -48,7 +48,7 @@ import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { success, error } from "@/lib/responseFormat";
 import { validateFields } from "@/middleware/middleware";
-import { VramInsufficientError, withGpuQueue } from "@/lib/gpuVramManager";
+import { VramInsufficientError, withGpuQueue, resolveDispatchGpuIndex, comfyuiUrlForGpu, pinTaskGpu } from "@/lib/gpuVramManager";
 import {
   H3_CONFIG,
   H3_CONSTANTS,
@@ -78,14 +78,19 @@ if (!fs.existsSync(LOCAL_STAGING_DIR)) {
 }
 const upload = multer({ dest: LOCAL_STAGING_DIR });
 
-/** 把宿主文件拷进 ComfyUI 容器(先试 docker cp, 失败回退 docker exec -i cat)。 */
-function copyToContainer(localPath: string, containerPath: string) {
+/** 把宿主文件拷进 ComfyUI 容器(先试 docker cp, 失败回退 docker exec -i cat)。
+ *  containerName 可选 — GPU2 派发时传 comfyui-secondary (0908 收编)。 */
+function copyToContainer(
+  localPath: string,
+  containerPath: string,
+  containerName = H3_CONFIG.containerName,
+) {
   const { execSync, spawnSync } = require("child_process");
   try {
-    execSync(`docker cp "${localPath}" ${H3_CONFIG.containerName}:"${containerPath}"`, { timeout: 30_000 });
+    execSync(`docker cp "${localPath}" ${containerName}:"${containerPath}"`, { timeout: 30_000 });
   } catch {
     const fileContent = fs.readFileSync(localPath);
-    const child = spawnSync("docker", ["exec", "-i", H3_CONFIG.containerName, "bash", "-c", `cat > "${containerPath}"`], {
+    const child = spawnSync("docker", ["exec", "-i", containerName, "bash", "-c", `cat > "${containerPath}"`], {
       input: fileContent,
       timeout: 30_000,
     });
@@ -550,6 +555,12 @@ export default router.post(
       console.log(`[i2va] prompt missing 0.00s anchor line — auto-prepended (mode=${mode})`);
     }
 
+    // ── M4 双实例选卡 (0908 收编, pq#91): 白名单命中 + GPU2 探活 + headroom 足 →
+    //    secondary; 探活/headroom 失败静默回退 GPU1。容器投递随臂切 (input/ 非卷)。──
+    const dispatch = await resolveDispatchGpuIndex("minimax_h3");
+    const comfyUrl = dispatch.secondary ? comfyuiUrlForGpu(2) : H3_CONFIG.comfyuiUrl;
+    const containerName = dispatch.secondary ? H3_CONFIG.containerNameSecondary : H3_CONFIG.containerName;
+
     // ── 上传帧图到 ComfyUI 容器 ──
     let firstFrameFilename: string | null = null;
     let lastFrameFilename: string | null = null;
@@ -558,12 +569,12 @@ export default router.post(
       if (firstFrameFile) {
         const ext = path.extname(firstFrameFile.originalname || ".png") || ".png";
         firstFrameFilename = `${uuidv4()}${ext}`;
-        copyToContainer(firstFrameFile.path, `${H3_CONFIG.comfyuiInputDir}/${firstFrameFilename}`);
+        copyToContainer(firstFrameFile.path, `${H3_CONFIG.comfyuiInputDir}/${firstFrameFilename}`, containerName);
       }
       if (lastFrameFile) {
         const ext = path.extname(lastFrameFile.originalname || ".png") || ".png";
         lastFrameFilename = `${uuidv4()}${ext}`;
-        copyToContainer(lastFrameFile.path, `${H3_CONFIG.comfyuiInputDir}/${lastFrameFilename}`);
+        copyToContainer(lastFrameFile.path, `${H3_CONFIG.comfyuiInputDir}/${lastFrameFilename}`, containerName);
       }
     } catch (err: any) {
       // 清理本地暂存
@@ -621,7 +632,7 @@ export default router.post(
         "minimax_h3",
         async () => {
           const comfyRes = await axios.post(
-            `${H3_CONFIG.comfyuiUrl}/prompt`,
+            `${comfyUrl}/prompt`,
             { prompt: workflow },
             { timeout: 30_000, validateStatus: (s: number) => s < 500 },
           );
@@ -630,7 +641,7 @@ export default router.post(
           }
           return { kind: "ok" as const, promptId: comfyRes.data.prompt_id as string };
         },
-        { gpuIndex: 1, comfyuiUrl: H3_CONFIG.comfyuiUrl },
+        { gpuIndex: dispatch.gpuIndex, comfyuiUrl: comfyUrl },
       );
 
       if (submitted.kind === "rejected") {
@@ -638,6 +649,8 @@ export default router.post(
       }
 
       const promptId = submitted.promptId;
+      // 钉扎提交所在卡 — status 路由按钉扎卡轮询 (未钉扎回落 primary)
+      pinTaskGpu(promptId, dispatch.gpuIndex);
       res.status(200).send(success({
         promptId,
         status: "submitted",

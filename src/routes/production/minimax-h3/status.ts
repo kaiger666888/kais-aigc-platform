@@ -14,6 +14,7 @@
 import express from "express";
 import axios from "axios";
 import { success, error } from "@/lib/responseFormat";
+import { getPinnedGpu, comfyuiUrlForGpu } from "@/lib/gpuVramManager";
 import { H3_CONFIG } from "./config";
 
 const router = express.Router();
@@ -24,8 +25,13 @@ router.get("/:promptId", async (req, res) => {
     return res.status(400).send(error("promptId is required"));
   }
 
+  // ── M4 双实例 (0908 收编, pq#91): 按提交时钉扎的卡轮询 — GPU2 派发的作业
+  //    history 在 secondary (:8190); 未钉扎的旧任务回落 primary。──
+  const pinnedGpu = getPinnedGpu(promptId);
+  const comfyuiUrl = pinnedGpu === 2 ? comfyuiUrlForGpu(2) : H3_CONFIG.comfyuiUrl;
+
   try {
-    const resp = await axios.get(`${H3_CONFIG.comfyuiUrl}/history/${promptId}`, {
+    const resp = await axios.get(`${comfyuiUrl}/history/${promptId}`, {
       timeout: 10_000,
     });
 

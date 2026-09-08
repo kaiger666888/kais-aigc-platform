@@ -16,6 +16,8 @@
 export const H3_CONFIG = {
   comfyuiUrl: process.env.COMFYUI_URL || "http://localhost:8188",
   containerName: "comfyui-primary",
+  // GPU2 臂容器 (0908 收编 GPU2 派发): input/ 是容器文件系统非卷, 两臂各自要投
+  containerNameSecondary: "comfyui-secondary",
   outputDir: process.env.OUTPUT_DIR || "/mnt/agents/output",
   comfyuiInputDir: "/root/ComfyUI/input",
   comfyuiOutputDir: "/root/ComfyUI/output",

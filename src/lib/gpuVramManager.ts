@@ -304,11 +304,16 @@ export function engineGpuIndex(engineKey: string): number {
 //
 // 首批收编 (v1): 纯 ComfyUI 工作流引擎 (fn 内 fetch {url}/prompt, 换 URL 即
 // 完整迁移): sa3 / ace / postprocess。
+// 0908 二批收编 (pq#91 verdict): minimax_h3 — 四路由 (generate/i2va/ref2va/t2va)
+// 动态选卡, copyToContainer 按臂传容器名 (input/ 非卷两臂各投), H3 全节点集
+// :8190 object_info 实测在位 + 双臂冷加载终审 PASS (avail 最低 100.2G)。
 // 明确不收编: music3 (diffusers 独立 server :5112, 非 ComfyUI 作业, URL 换卡
-// 语义不成立) / rtx_vsr (服务绑定 comfyui-primary 容器 :10589) / minimax_h3
-// (docker cp 投递容器名硬编码 + T8 节点集未在 secondary 验证, 后续批次) /
+// 语义不成立) / rtx_vsr (服务绑定 comfyui-primary 容器 :10589) /
 // wan22/wan21/flux/trellis2 (后续批次按同模式)。
 // 探测失败静默回退 GPU1 — secondary 缺位绝不让请求失败。
+// ⚠ 运维事实: H3 驻留显存 /free 不可清 (aimdo VMM staged 不受 /free 控制) —
+//   secondary 常驻 ~16.8G 时 free 恒低, headroom 回退会遇「看似忙实为驻留」
+//   场景; 回退语义正确 (宁回 GPU1 排队, 不冒 vram_retry 空转), 读日志时知此因。
 
 /** GPU2 渲染策略总闸 (env KAP_GPU2_ENABLED=1) */
 export function secondaryEnabled(): boolean {

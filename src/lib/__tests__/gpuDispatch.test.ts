@@ -11,6 +11,9 @@
  */
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import {
   secondaryEnabled,
   gpu2EngineAllowlist,
@@ -22,6 +25,23 @@ import {
   resolveDispatchGpuIndex,
   __resetGpu2DispatchForTests,
 } from "../gpuVramManager";
+
+/**
+ * headroom 桩: 伪造 nvidia-smi 放临时目录并前置 PATH — getGpuStatus(force) 走
+ * execFile("nvidia-smi") 按 child env 的 PATH 解析, 不触真卡。返回临时目录
+ * (调用方 finally 恢复 PATH + rmSync)。
+ */
+function fakeNvidiaSmiDir(gpu2FreeMiB: number): string {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "kap-smi-"));
+  const exe = path.join(dir, "nvidia-smi");
+  const script =
+    `#!/bin/sh\n` +
+    `echo "1, RTX 3090, 24576, 2048, 22528"\n` +
+    `echo "2, RTX 3090, 24576, ${24576 - gpu2FreeMiB}, ${gpu2FreeMiB}"\n`;
+  fs.writeFileSync(exe, script);
+  fs.chmodSync(exe, 0o755);
+  return dir;
+}
 
 const ENV_KEYS = [
   "KAP_GPU2_ENABLED",
@@ -69,8 +89,8 @@ describe("gpuDispatch B2c — GPU2 双实例统一调度", () => {
 
     it("非白名单引擎在总闸开时也落 GPU1 (闸关=不触网络)", async () => {
       process.env.KAP_GPU2_ENABLED = "1";
-      process.env.KAP_GPU2_ENGINES = "sa3,ace";
-      const d = await resolveDispatchGpuIndex("minimax_h3");
+      process.env.KAP_GPU2_ENGINES = "sa3,ace,minimax_h3";
+      const d = await resolveDispatchGpuIndex("flux2");
       assert.deepEqual(d, { gpuIndex: 1, secondary: false });
     });
   });
@@ -143,6 +163,40 @@ describe("gpuDispatch B2c — GPU2 双实例统一调度", () => {
       assert.deepEqual(d2, { gpuIndex: 2, secondary: true });
       const d1 = await resolveDispatchGpuIndex("sa3", 1);
       assert.deepEqual(d1, { gpuIndex: 1, secondary: false });
+    });
+  });
+
+  // ── 0908 收编 (pq#91 verdict): minimax_h3 进白名单, 四路由动态选卡 ──
+  // probe + headroom 全桩化 (fake nvidia-smi 前置 PATH), 不触真卡不发网络请求。
+  describe("minimax_h3 GPU2 收编 (0908, pq#91)", () => {
+    it("白名单命中 + 探活成功 + headroom 足 → GPU2", async () => {
+      process.env.KAP_GPU2_ENABLED = "1";
+      process.env.KAP_GPU2_ENGINES = "sa3,ace,minimax_h3";
+      const dir = fakeNvidiaSmiDir(20480); // GPU2 free 20480 ≥ 18432+1024
+      const savedPath = process.env.PATH;
+      process.env.PATH = `${dir}:${savedPath}`;
+      try {
+        const d = await resolveDispatchGpuIndex("minimax_h3", undefined, { probeFn: async () => true });
+        assert.deepEqual(d, { gpuIndex: 2, secondary: true });
+      } finally {
+        process.env.PATH = savedPath;
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it("headroom 不足 (free < need+1024, 如 secondary 常驻 16.8G) → 静默回退 GPU1", async () => {
+      process.env.KAP_GPU2_ENABLED = "1";
+      process.env.KAP_GPU2_ENGINES = "sa3,ace,minimax_h3";
+      const dir = fakeNvidiaSmiDir(7291); // 0908 实测 secondary 常驻后 free 口径
+      const savedPath = process.env.PATH;
+      process.env.PATH = `${dir}:${savedPath}`;
+      try {
+        const d = await resolveDispatchGpuIndex("minimax_h3", undefined, { probeFn: async () => true });
+        assert.deepEqual(d, { gpuIndex: 1, secondary: false });
+      } finally {
+        process.env.PATH = savedPath;
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
     });
   });
 });

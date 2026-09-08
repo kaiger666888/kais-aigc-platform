@@ -7,7 +7,7 @@
  *
  * 隔离策略:
  *   - gpuLocks / waitingByEngine / eventRing 是模块级单例, node:test 同文件串行执行。
- *     每个用例使用独立 gpuIndex (201-209) + 独立 engine 名, 互不踩锁。
+ *     每个用例使用独立 gpuIndex (201-211) + 独立 engine 名, 互不踩锁。
  *   - 所有排队调用都传 { skipVram: true }, 不触碰 nvidia-smi / ComfyUI。
  *   - 挂起型 fn 的 promise 一律在测试内手动 resolve 并 await, 保证无残留 waiter/holder。
  *   - 断言 rejects 的 promise 在创建后立即挂 assert.rejects 处理器（避免 unhandledRejection）。
@@ -364,6 +364,45 @@ describe("gpuVramManager — GPU 统一调度三期 (A1-A4 + 管理原语)", () 
         ),
         "事件环应留 nested_pass_through 痕",
       );
+    },
+  );
+
+  // ── 0908 收编 (pq#91): minimax_h3 双卡派发后, 跨卡作业必须真并行 —— 锁按
+  //    gpuIndex 分钥匙, 同名引擎在另一张卡直接 acquire, 不等本卡 holder。
+  it(
+    "跨卡并行: GPU A 持锁期间同名引擎在 GPU B 直接 acquire (两把锁独立同时持有)",
+    { timeout: 5000 },
+    async () => {
+      const IDX_A = 210;
+      const IDX_B = 211;
+      let releaseA!: () => void;
+      let releaseB!: () => void;
+      const gateA = new Promise<void>((r) => (releaseA = r));
+      const gateB = new Promise<void>((r) => (releaseB = r));
+
+      const pA = withGpuQueue("t_xgpu_h3", () => gateA, { gpuIndex: IDX_A, skipVram: true });
+      await waitFor(
+        "A acquired",
+        () => getGpuQueueStatus().holders[IDX_A]?.engine === "t_xgpu_h3",
+      );
+
+      const pB = withGpuQueue("t_xgpu_h3", () => gateB, { gpuIndex: IDX_B, skipVram: true });
+      await waitFor(
+        "B acquired while A still held (no cross-card queueing)",
+        () => getGpuQueueStatus().holders[IDX_B]?.engine === "t_xgpu_h3",
+      );
+
+      // 此刻 A 仍持锁 — 两卡两把锁同时持有
+      assert.equal(getGpuQueueStatus().holders[IDX_A]?.engine, "t_xgpu_h3", "A 仍持锁");
+      assert.equal(getGpuQueueStatus().holders[IDX_B]?.engine, "t_xgpu_h3", "B 同时持锁");
+      assert.equal(waitersOn(IDX_A).length + waitersOn(IDX_B).length, 0, "无跨卡排队");
+
+      releaseB();
+      await pB;
+      releaseA();
+      await pA;
+      assert.equal(getGpuQueueStatus().holders[IDX_A], null, "A 释放后空闲");
+      assert.equal(getGpuQueueStatus().holders[IDX_B], null, "B 释放后空闲");
     },
   );
 });

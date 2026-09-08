@@ -125,14 +125,22 @@ export const LTX_AMBIENT = {
 // copyToContainer (与 ref2va.ts 一致)
 // ============================================================
 
-/** 把宿主文件拷进 ComfyUI 容器(先试 docker cp,失败回退 docker exec -i cat)。 */
-export function copyToContainer(localPath: string, containerPath: string) {
+/**
+ * 把宿主文件拷进 ComfyUI 容器(先试 docker cp,失败回退 docker exec -i cat)。
+ * containerName 可选 — GPU2 派发时传 comfyui-secondary (0908 收编; input/ 是
+ * 容器文件系统非卷, 两臂各自要投, 不传默认 primary 保持旧行为)。
+ */
+export function copyToContainer(
+  localPath: string,
+  containerPath: string,
+  containerName = H3_CONFIG.containerName,
+) {
   const { spawnSync } = require("child_process");
   try {
-    execSync(`docker cp "${localPath}" ${H3_CONFIG.containerName}:"${containerPath}"`, { timeout: 30_000 });
+    execSync(`docker cp "${localPath}" ${containerName}:"${containerPath}"`, { timeout: 30_000 });
   } catch {
     const fileContent = fs.readFileSync(localPath);
-    const child = spawnSync("docker", ["exec", "-i", H3_CONFIG.containerName, "bash", "-c", `cat > "${containerPath}"`], {
+    const child = spawnSync("docker", ["exec", "-i", containerName, "bash", "-c", `cat > "${containerPath}"`], {
       input: fileContent,
       timeout: 30_000,
     });

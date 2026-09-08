@@ -75,6 +75,9 @@ import {
   QueueAbortedError,
   QueuePurgedError,
   withGpuQueueTimed,
+  resolveDispatchGpuIndex,
+  comfyuiUrlForGpu,
+  pinTaskGpu,
 } from "@/lib/gpuVramManager";
 import { validateFields } from "@/middleware/middleware";
 import {
@@ -1070,6 +1073,14 @@ export default router.post(
     const audioMode = useCasePreset?.audio;
     const skipFoley = audioMode ? audioMode !== "full" : profile.skipFoley;
 
+    // ── M4 双实例选卡 (0908 收编, pq#91): 白名单命中 + GPU2 探活 + headroom 足 →
+    //    secondary (comfyuiUrl/容器随臂切); 探活或 headroom 失败静默回退 GPU1。
+    //    本路由内 H3 提交/轮询/下载、Foley 提交/轮询/下载、容器投递全部走同一臂 —
+    //    两臂 input/ 各自是容器文件系统非卷, 不能共用。──
+    const dispatch = await resolveDispatchGpuIndex("minimax_h3");
+    const comfyUrl = dispatch.secondary ? comfyuiUrlForGpu(2) : H3_CONFIG.comfyuiUrl;
+    const containerName = dispatch.secondary ? H3_CONFIG.containerNameSecondary : H3_CONFIG.containerName;
+
     // ── 文件入参 ──
     const files = req.files as Record<string, Express.Multer.File[]> | undefined;
     const imageFile = files?.image?.[0];
@@ -1122,13 +1133,13 @@ export default router.post(
       if (mode === "i2va" && imageFile) {
         const ext = path.extname(imageFile.originalname || ".png") || ".png";
         firstFrameFilename = `${uuidv4()}${ext}`;
-        copyToContainer(imageFile.path, `${H3_CONFIG.comfyuiInputDir}/${firstFrameFilename}`);
+        copyToContainer(imageFile.path, `${H3_CONFIG.comfyuiInputDir}/${firstFrameFilename}`, containerName);
       }
       if (mode === "ref2va") {
         for (const file of refImageFiles) {
           const ext = path.extname(file.originalname || ".png") || ".png";
           const fname = `${uuidv4()}${ext}`;
-          copyToContainer(file.path, `${H3_CONFIG.comfyuiInputDir}/${fname}`);
+          copyToContainer(file.path, `${H3_CONFIG.comfyuiInputDir}/${fname}`, containerName);
           refImageFilenames.push(fname);
         }
       }
@@ -1148,7 +1159,7 @@ export default router.post(
       const ext = path.extname(refVideoFile.originalname || ".mp4") || ".mp4";
       refVideoFilename = `${uuidv4()}${ext}`;
       try {
-        copyToContainer(refVideoFile.path, `${H3_CONFIG.comfyuiInputDir}/${refVideoFilename}`);
+        copyToContainer(refVideoFile.path, `${H3_CONFIG.comfyuiInputDir}/${refVideoFilename}`, containerName);
       } catch (err: any) {
         safeUnlink(refVideoFile.path);
         if (ttsAudioFile) safeUnlink(ttsAudioFile.path);
@@ -1250,7 +1261,7 @@ export default router.post(
         "minimax_h3",
         async (queueWaitMs) => {
           const comfyRes = await axios.post(
-            `${H3_CONFIG.comfyuiUrl}/prompt`,
+            `${comfyUrl}/prompt`,
             { prompt: h3Wf },
             { timeout: 30_000, validateStatus: (s: number) => s < 500 },
           );
@@ -1262,7 +1273,7 @@ export default router.post(
           // 轮询等待 H3 完成 (≤45 分钟 + 排队补偿)
           // 362帧 ref2va 实测 33 分钟 (模型重加载导致第二轮 124s/step)
           const poll = await pollComfyuiCompletion(
-            H3_CONFIG.comfyuiUrl, pid, 2_700_000 + queueWaitMs,
+            comfyUrl, pid, 2_700_000 + queueWaitMs,
             { orphanCleanup: true },
           );
           if (!poll.ok) {
@@ -1270,7 +1281,7 @@ export default router.post(
           }
           return { kind: "ok" as const, promptId: pid, outputs: poll.outputs };
         },
-        { gpuIndex: 1, comfyuiUrl: H3_CONFIG.comfyuiUrl, signal: ac.signal },
+        { gpuIndex: dispatch.gpuIndex, comfyuiUrl: comfyUrl, signal: ac.signal },
       );
       const h3Result = h3Out.data;
 
@@ -1286,11 +1297,13 @@ export default router.post(
         }));
       }
       h3PromptId = h3Result.promptId;
+      // 钉扎提交所在卡 — status 路由按钉扎卡轮询 (未钉扎回落 primary)
+      pinTaskGpu(h3PromptId, dispatch.gpuIndex);
 
       // 下载 H3 视频 (mp4, 内嵌音频) — 锁外下载 (纯 IO, 不占显存)
       localH3VideoPath = path.join(LOCAL_STAGING_DIR, `${h3PromptId}_h3.mp4`);
       tmpPaths.push(localH3VideoPath);
-      const fetched = await downloadVideoFromOutputs(H3_CONFIG.comfyuiUrl, h3Result.outputs, localH3VideoPath);
+      const fetched = await downloadVideoFromOutputs(comfyUrl, h3Result.outputs, localH3VideoPath);
       if (!fetched || !fs.existsSync(localH3VideoPath)) {
         safeUnlink(localTtsAudio);
         for (const p of tmpPaths) safeUnlink(p);
@@ -1420,10 +1433,10 @@ export default router.post(
       if (rawFrames <= 0) rawFrames = 97;
       numFrames = alignLtxFrames(rawFrames);
 
-      // 上传纯视频到容器
+      // 上传纯视频到容器 (同臂 — H3 产物在此臂渲染, Foley 输入也投此臂)
       const videoContainerFilename = `${uuidv4()}_h3pure.mp4`;
       const videoContainerPath = `${H3_CONFIG.comfyuiInputDir}/${videoContainerFilename}`;
-      copyToContainer(foleyInputPath, videoContainerPath);
+      copyToContainer(foleyInputPath, videoContainerPath, containerName);
 
       const foleySeed = LTX_AMBIENT.defaultSeed;
 
@@ -1438,7 +1451,7 @@ export default router.post(
       });
 
       const foleyRes = await axios.post(
-        `${H3_CONFIG.comfyuiUrl}/prompt`,
+        `${comfyUrl}/prompt`,
         { prompt: foleyWf },
         { timeout: 30_000, validateStatus: (s: number) => s < 500 },
       );
@@ -1448,13 +1461,13 @@ export default router.post(
       foleyPromptId = foleyRes.data.prompt_id as string;
 
       // 轮询等待 Foley 完成 (≤10 分钟)
-      const poll = await pollComfyuiCompletion(H3_CONFIG.comfyuiUrl, foleyPromptId, 600_000);
+      const poll = await pollComfyuiCompletion(comfyUrl, foleyPromptId, 600_000);
       if (!poll.ok) throw new Error(`Foley generation failed: ${poll.error}`);
 
       // 下载环境音
       ambientAudioPath = path.join(LOCAL_STAGING_DIR, `${foleyPromptId}_ambient.flac`);
       tmpPaths.push(ambientAudioPath);
-      const found = await downloadAudioFromOutputs(H3_CONFIG.comfyuiUrl, poll.outputs, ambientAudioPath);
+      const found = await downloadAudioFromOutputs(comfyUrl, poll.outputs, ambientAudioPath);
       if (!found || !fs.existsSync(ambientAudioPath)) throw new Error("Failed to produce ambient audio");
 
       // ── BGM 检测 + 换 seed 重试 (最多 2 次, 逻辑复制自 replace-audio) ──
@@ -1481,13 +1494,13 @@ export default router.post(
           filenamePrefix: `${filenamePrefix}_foley_retry${bgmRetries}`,
         });
         const retryRes = await axios.post(
-          `${H3_CONFIG.comfyuiUrl}/prompt`,
+          `${comfyUrl}/prompt`,
           { prompt: retryWf },
           { timeout: 30_000, validateStatus: (s: number) => s < 500 },
         );
         if (retryRes.status !== 200) break;
 
-        const retryPoll = await pollComfyuiCompletion(H3_CONFIG.comfyuiUrl, retryRes.data.prompt_id, 600_000);
+        const retryPoll = await pollComfyuiCompletion(comfyUrl, retryRes.data.prompt_id, 600_000);
         if (!retryPoll.ok) break;
 
         const retryAudioPath = path.join(
@@ -1495,7 +1508,7 @@ export default router.post(
           `${retryRes.data.prompt_id}_ambient_retry${bgmRetries}.flac`,
         );
         tmpPaths.push(retryAudioPath);
-        const retryFound = await downloadAudioFromOutputs(H3_CONFIG.comfyuiUrl, retryPoll.outputs, retryAudioPath);
+        const retryFound = await downloadAudioFromOutputs(comfyUrl, retryPoll.outputs, retryAudioPath);
         if (!retryFound) break;
 
         const retryBgm = detectBgm(retryAudioPath);
