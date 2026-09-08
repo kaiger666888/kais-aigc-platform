@@ -8,7 +8,7 @@
 #   - 3060Ti 职责: 放大(4x)、背景移除(RMBG)、SDXL 预处理、轻量推理
 #   - 共享模型库 /data/models/comfyui (只读), 共享缓存, 输出按引擎隔离
 #   - 增量节点通过 /data/workspace/comfyui-incremental-nodes 挂载:
-#     LTXVideo / TRELLIS2 / AIIA / kaola-IndexTTS2 / facerestore_cf / Licon-MSR /
+#     LTXVideo / TRELLIS2 / AIIA / kaola-IndexTTS2 / facerestore_cf /
 #     PromptRelay / ltx_foley_v2a / minimax-h3-audio-T8 / ComfyUI-QwenTTS
 #   - 碎片容器全部清理, 统一到 compose 管理
 #
@@ -43,7 +43,7 @@ services:
   # ---------------------------------------------------------------------------
   # 职责: 视频生成(Wan 2.2/1.4 I2V-T2V)、FLUX 图像、LTX-Video、
   #       TRELLIS2 3D 生成、抽卡预览、大模型推理
-  # GPU: RTX 3090 24GB (device_ids: ["1"])
+  # GPU: RTX 3090 24GB (device_ids: ["${KAIS_RENDER_GPU_UUID:-1}"])
   # 端口: 8188
   # ---------------------------------------------------------------------------
   comfyui-primary:
@@ -51,16 +51,27 @@ services:
     container_name: comfyui-primary
     restart: unless-stopped
     # 硬护栏: --lowvram 会把加载过的模型全堆 CPU RAM 且不清,无 limit 时一路吃光整机触发 swap thrashing
-    # memory=64g swap=72g cpus=10 (feedback_comfyui-cgroup-limit)
-    mem_limit: 64g
-    memswap_limit: 72g
+    # 定谳历程: 64g(单实例时代,双实例超订) → 40g(0907防风暴,压死 B-v1 max anon 41.8G 两次)
+    #   → 48g/swap64g(0907 v2): 单容器峰值 42.4G+余量, 双实例 96G+系统 15G=111G<125G ✓
+    #   → 66g/72g(0907晚 v3 修正): B-v4 (15s 362f 双采 2ref, 0907 正式臂) 实测 memory.peak=63G,
+    #     48g 上限会在生产渲染中途触发 high-line throttling + zram 抖动甚至 OOM 击杀;
+    #     42.4G 定容依据未覆盖 15s 双采工况。66g=63G峰值+3G 余量, 溢出仍走 zram(prio100, 3:1)。
+    #     双臂真并行实驻账: 63G(primary渲染)+42G(secondary渲染)+系统13G≈118G<125G ✓
+    #   → 58g/68g(0907晚 v4 终版, 工作集探针实测定谳): 内核页访问位(clear_refs+Referenced)实测
+    #     采样主段热集仅45G(TE14.6G+VAE5.5G采样期冷却), 56g 在线压限下 15s 362f 双采全规格
+    #     A/B: 耗时 1351.8s vs 无压限基线 1429.7s (零退化), 全程 cur≤48G, refault≤94M, oom_kill=0,
+    #     产物 362f/15.08s/双音轨/三帧亮度全过 → 63G 是无压限浪费态非需求。
+    #     58g=56g已证可行+10G未测极端余量(4ref/超长臂碎片累积)。双臂限额账: 58+48=106g ✓
+    mem_limit: 58g
+    memswap_limit: 98g
     cpus: 10
     ports:
       - "${COMFYUI_PRIMARY_PORT:-8188}:8188"
     environment:
       COMFYUI_LISTEN: "0.0.0.0"
       COMFYUI_PORT: 8188
-      NVIDIA_VISIBLE_DEVICES: "1"
+      # 2026-09-04: GPU 注入走 CDI (devices: nvidia.com/gpu=<driver-UUID>), 见服务级 devices:。
+      # ⚠ 勿再设 NVIDIA_VISIBLE_DEVICES / device_ids: legacy prestart hook 不认 UUID 直接 unknown device
       NVIDIA_DRIVER_CAPABILITIES: "compute,utility,graphics"
       # Phase 36 follow-up: 强制 PyTorch 按 PCI 总线序,与 nvidia-smi 编号对齐
       # 容器内只看到 1 张 GPU (隔离后),cuda:0 永远是被隔离的那张,但保持显式声明以防 NVIDIA Container Toolkit 行为变化
@@ -80,9 +91,21 @@ services:
       https_proxy: "${https_proxy:-}"
       NO_PROXY: "localhost,127.0.0.1,172.18.0.0/16"
       W2V_BERT_PATH: "/data/models/w2v-bert-2.0"
-      CLI_ARGS: "--disable-metadata --lowvram --bf16-text-enc --bf16-unet --output-directory /mnt/agents/output/gpu1"
+      # 0908 Kai 拍板全局策略: 禁 pinned hostbuf — 权重加载走直供分支(文件→C层staging→设备),
+      # 权重复用=page cache(跨容器共享一份, ~39.5G H3 全栈), 内存契约从 78G/双臂 anon 降为 0.
+      # 出处: pq#91 references/2026-09-08-antidote-final-nopin-verdict.md
+      # (双臂冷加载终审: avail 最低 100.2G / anon 峰 14.4G / 各 237s 渲染 success)
+      CLI_ARGS: "--disable-metadata --lowvram --bf16-text-enc --bf16-unet --disable-pinned-memory --output-directory /mnt/agents/output/gpu1"
+      # kais-aimdo-sharedpool: VMM 弹射窗拒绝一切外部 DMA(机制性判死, 0908 定谳) — 禁 pin 后
+      # pin 层不再触发, 池永久休眠勿置 "1"。历史: 0908 canary FAIL (跨卡注册后 sticky CUDA error →
+      # c10::AcceleratorError terminate 双臂同判; RUN_DIR socket 修复保留)。回滚位: 置 "1" 重启即再激活。
+      AIMDO_SHARED_POOL: "0"
+      # 0908 修复 AF_UNIX path too long: 服务 socket 落短路径 (容器内 /sps-run, 双臂同宿主目录)
+      AIMDO_SHARED_POOL_RUN_DIR: "/sps-run"
     volumes:
       - ${OUTPUT_DIR:-/mnt/agents/output}/gpu1:/mnt/agents/output/gpu1
+      # 共享池 run 目录 (socket/锁, KB级) — 与 secondary 同宿主目录, 跨臂发现依赖
+      - /data/workspace/comfyui-incremental-nodes/kais-aimdo-sharedpool/run:/sps-run
       - ${DATA_MODELS_DIR:-/data/models/comfyui}:/root/ComfyUI/models:rw
       - ${ACESTEP_MODELS_DIR:-/data/models/ACE-Step1.5}:/root/ComfyUI/models/ace-step:ro
       - comfyui-user:/root/ComfyUI/user
@@ -90,9 +113,7 @@ services:
       - /data/workspace/comfyui-incremental-nodes/ComfyUI-LTXVideo:/root/ComfyUI/custom_nodes/ComfyUI-LTXVideo
       - /data/workspace/comfyui-incremental-nodes/ComfyUI-TRELLIS2:/root/ComfyUI/custom_nodes/ComfyUI-TRELLIS2
       - /data/workspace/comfyui-incremental-nodes/ComfyUI_AIIA:/root/ComfyUI/custom_nodes/ComfyUI_AIIA
-      - /data/workspace/comfyui-incremental-nodes/ComfyUI-kaola-IndexTTS2:/root/ComfyUI/custom_nodes/ComfyUI-kaola-IndexTTS2
       - /data/workspace/comfyui-incremental-nodes/facerestore_cf:/root/ComfyUI/custom_nodes/facerestore_cf
-      - /data/workspace/comfyui-incremental-nodes/ComfyUI-Licon-MSR:/root/ComfyUI/custom_nodes/ComfyUI-Licon-MSR
       - /data/workspace/comfyui-incremental-nodes/ComfyUI-PromptRelay:/root/ComfyUI/custom_nodes/ComfyUI-PromptRelay
       - /data/workspace/comfyui-incremental-nodes/ltx_foley_v2a:/root/ComfyUI/custom_nodes/ltx_foley_v2a
       # SolAttn 用 ComfyExtension/io.ComfyNode API, kais-incremental 自动装载器认不出 → 独立挂载为顶层 custom_node
@@ -111,22 +132,14 @@ services:
       - /data/workspace/comfyui-incremental-nodes/scripts/install-insightface.sh:/root/user-scripts/install-insightface.sh
       - /data/workspace/comfyui-incremental-nodes/scripts/install-training-deps.sh:/root/user-scripts/install-training-deps.sh
       - /data/workspace/comfyui-incremental-nodes/scripts/install-aiia-deps.sh:/root/user-scripts/install-aiia-deps.sh
-      - /data/workspace/comfyui-incremental-nodes/scripts/install-indextts2-deps.sh:/root/user-scripts/install-indextts2-deps.sh
       - /data/workspace/comfyui-incremental-nodes/scripts/install-facerestore-deps.sh:/root/user-scripts/install-facerestore-deps.sh
-      - /data/models/cosyvoice:/root/ComfyUI/models/cosyvoice:rw
-      - /data/models/IndexTTS-2:/root/ComfyUI/models/IndexTTS-2:ro
-      - /data/models/IndexTTS-2.5:/root/ComfyUI/models/IndexTTS-2.5:rw
       - /data/models/w2v-bert-2.0:/data/models/w2v-bert-2.0:ro
       - comfyui-cache:/tmp/hf_cache
     networks:
       - kais-net
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              device_ids: ["1"]
-              capabilities: [gpu]
+    # GPU 锚定已迁 CDI (2026-09-04): legacy prestart hook 不认 UUID, DeviceRequests 路线废弃
+    devices:
+      - nvidia.com/gpu=${KAIS_RENDER_GPU_UUID:-1}
     shm_size: "4g"
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8188/system_stats')"]
@@ -140,7 +153,7 @@ services:
   # ---------------------------------------------------------------------------
   # 职责: 4x 放大/超分辨率、背景移除(RMBG)、SDXL 抽卡预处理、
   #       轻量图像后处理、音频预处理
-  # GPU: RTX 3060Ti 8GB (可用 ~5.5GB, device_ids: ["0"])
+  # GPU: RTX 3060Ti 8GB (可用 ~5.5GB, device_ids: ["${KAIS_AUX_GPU_UUID:-0}"])
   # 端口: 8189
   # ⚠️ 不可用于: 大模型推理 (>5GB VRAM)、视频生成、3D
   # ---------------------------------------------------------------------------
@@ -157,7 +170,7 @@ services:
     environment:
       COMFYUI_LISTEN: "0.0.0.0"
       COMFYUI_PORT: 8188
-      NVIDIA_VISIBLE_DEVICES: "0"
+      NVIDIA_VISIBLE_DEVICES: "${KAIS_AUX_GPU_UUID:-0}"
       NVIDIA_DRIVER_CAPABILITIES: "compute,utility,graphics"
       CUDA_DEVICE_ORDER: PCI_BUS_ID
       TORCH_CUDA_DISABLE_TRITON: "1"
@@ -171,7 +184,9 @@ services:
       http_proxy: "${http_proxy:-}"
       https_proxy: "${https_proxy:-}"
       NO_PROXY: "localhost,127.0.0.1,172.18.0.0/16"
-      CLI_ARGS: "--lowvram"
+      # 0908 Kai 拍板全局策略: 禁 pinned hostbuf (三 ComfyUI 容器统一) — 出处/数字同 v9.yml primary 段
+      # auxiliary 为 SDXL/超分/去背轻载, pin 占用本就小, 统一为全局一致性
+      CLI_ARGS: "--lowvram --disable-pinned-memory"
     volumes:
       - ${OUTPUT_DIR:-/mnt/agents/output}/gpu0:/mnt/agents/output/gpu0
       - ${DATA_MODELS_DIR:-/data/models/comfyui}:/root/ComfyUI/models:ro
@@ -179,13 +194,9 @@ services:
       - comfyui-cache:/tmp/hf_cache
     networks:
       - kais-net
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              device_ids: ["0"]
-              capabilities: [gpu]
+    # GPU 锚定已迁 CDI (2026-09-04)
+    devices:
+      - nvidia.com/gpu=${KAIS_AUX_GPU_UUID:-0}
     shm_size: "2g"
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8188/system_stats')"]
@@ -203,7 +214,7 @@ services:
   # 3. kais-gold-team (统一执行 Agent) — GPU 调度中枢
   # ---------------------------------------------------------------------------
   # 负责: 调用 ComfyUI primary/auxiliary + 云端引擎执行任务
-  # GPU: 绑定 3090 (device_ids: ["1"])，用于 CosyVoice/ACE-Step 本地推理
+  # GPU: 绑定 3090 (device_ids: ["${KAIS_RENDER_GPU_UUID:-1}"])，用于 CosyVoice/ACE-Step 本地推理
   # 路由: 根据工作流类型分发到 primary 或 auxiliary
   # ---------------------------------------------------------------------------
   kais-gold-team:
@@ -228,6 +239,9 @@ services:
       COMFYUI_AUX_PORT: "8188"
       # 默认引擎 (向后兼容)
       COMFYUI_URL: http://comfyui-primary:8188
+      # 容器形态走 compose 内网服务名; 宿主机 systemd 形态 (生产 KAP 现状) 不经
+      # 本文件, 其 REDIS_URL 在宿主 .env 配宿主映射端口 redis://127.0.0.1:6390
+      # (R1 2026-09-06 — 见 .env.example Redis 节, 勿把 redis://redis:6379 抄给宿主)。
       REDIS_URL: redis://redis:6379
       # Phase 36 follow-up: 对齐 PyTorch 与 nvidia-smi GPU 编号 (PCI 总线序)
       # gold-team 容器虽然通过 HTTP 调 ComfyUI,但也加载了 torch,保持显式声明
@@ -235,13 +249,8 @@ services:
       OUTPUT_DIR: /mnt/agents/output
       MODELS_DIR: /opt/kais/models
       # CosyVoice3 TTS (RL)
-      COSYVOICE_ROOT: /opt/CosyVoice
-      COSYVOICE_MODEL_DIR: /opt/CosyVoice/pretrained_models/FunAudioLLM/Fun-CosyVoice3-0.5B-2512
-      COSYVOICE_LLM_WEIGHT: llm.rl.pt
       MPLCONFIGDIR: /tmp/matplotlib
-      # TTS 三轨 — 环境变量 (TrackManager 读取)
-      GPTSOVITS_ROOT: /opt/GPT-SoVITS
-      CHATTERBOX_ROOT: /opt/chatterbox
+      # TTS 旧三轨(CosyVoice/GPT-SoVITS/chatterbox)退役 2026-09-06: 容器内 /opt/* 实测不存在,运行时零消费者; Breeze :5130 为现役 TTS
       TTS_IDLE_TIMEOUT: "300"
       # ACE-Step 音乐引擎禁用 (避免开机自动 spawn 子进程常驻 23GB 显存)
       # 引擎代码 main.py 用此开关跳过 register/start,日后需要音乐生成再开
@@ -250,22 +259,14 @@ services:
       - ${OUTPUT_DIR:-/mnt/agents/output}:/mnt/agents/output
       - ${MODELS_DIR:-/opt/kais/models}:/opt/kais/models:ro
       - ${DATA_MODELS_DIR:-/data/models}:/data/models
-      # CosyVoice3: 2026-08-19 合并双副本,原 docker volume kais-cosyvoice-models 改为 bind mount
-      - /data/models/cosyvoice/Fun-CosyVoice3-0.5B-2512:/opt/CosyVoice/pretrained_models/FunAudioLLM/Fun-CosyVoice3-0.5B-2512
-      # TTS 三轨模型目录挂载
-      - ${GPTSOVITS_DIR:-/data/models/GPT-SoVITS}:/opt/GPT-SoVITS
-      - ${CHATTERBOX_DIR:-/data/models/chatterbox}:/opt/chatterbox
+
       # HF cache: 挂载到 kais user 的 HOME 下（uid 999），持久化 Llama/Kimodo 等大模型
       - hf-cache:/home/kais/.cache/huggingface
     networks:
       - kais-net
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              device_ids: ["1"]     # GPU 1 = RTX 3090
-              capabilities: [gpu]
+    # GPU 锚定已迁 CDI (2026-09-04): legacy prestart hook 不认 UUID, DeviceRequests 路线废弃
+    devices:
+      - nvidia.com/gpu=${KAIS_RENDER_GPU_UUID:-1}  # # UUID 锚定 RTX 3090 (2026-09-04): nvidia-smi -L 取值回填 .env, PCIe 换槽枚举漂移免疫
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
       interval: 30s
@@ -451,7 +452,7 @@ services:
     ports:
       - "${LORA_TRAINER_PORT:-8070}:8070"
     environment:
-      NVIDIA_VISIBLE_DEVICES: "1"
+      NVIDIA_VISIBLE_DEVICES: "${KAIS_RENDER_GPU_UUID:-1}"
       NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
       CUDA_DEVICE_ORDER: PCI_BUS_ID
       DATA_DIR: "/data"
@@ -471,13 +472,9 @@ services:
       - ${DATA_DIR:-/data}/datasets:/data/datasets:rw
       - ${DATA_DIR:-/data}/output/lora:/data/output/lora:rw
       - ${DATA_DIR:-/data}/logs/lora-train:/data/logs/lora-train:rw
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              device_ids: ["1"]
-              capabilities: [gpu]
+    # GPU 锚定已迁 CDI (2026-09-04): legacy prestart hook 不认 UUID, DeviceRequests 路线废弃
+    devices:
+      - nvidia.com/gpu=${KAIS_RENDER_GPU_UUID:-1}
     networks:
       - kais-net
     healthcheck:
