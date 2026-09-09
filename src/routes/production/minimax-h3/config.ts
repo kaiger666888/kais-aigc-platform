@@ -388,6 +388,43 @@ export const H3_LIGHTX2V = H3_LIGHTX2V_VARIANTS["lightx2v-4"];
 export type H3LightX2VVariant = keyof typeof H3_LIGHTX2V_VARIANTS;
 
 // ============================================================
+// H3_FASTH3 —— FastH3 dense 蒸馏 LoRA (SigmaShift + LoRA 原生链, 2026-09-09)
+// ============================================================
+// FastH3 正式集成 (profile="fasth3", 可选档, 不切默认)。
+// 2026-09-09 Kai 盲测 R2 定谳 (CTL=同): FastH3 dense 5步 三动态全胜现役
+// lightx2v-8-768p 9步 (6 vs 2)。定谳 + 六对盲测产物台账:
+// /home/kai/shared/2026-09-09/ab_fasth3/verdict_r2.json (e2e 1.19-1.60×)。
+// 参数面 = 0909 A/B 六条蓝图实测口径 (蓝图脚本为 /tmp 临时件未随台账留存,
+// 以本块常量 + fasth3Profile.test.ts 逐字断言为准)。
+//
+// 权重: minimax_h3_fasth3_4step_dense_datafree_comfyui.safetensors
+//   (1.04G, 653 张量, 52 组 qkv 融合, operator 0909 转换; 宿主
+//   /data/models/comfyui/loras/, comfyui-primary + comfyui-secondary 双容器
+//   models/loras/ 均可见 —— 勿动权重)。
+//
+// 链路: 基座 = 现役 fl2va int8_convrot (同 lightx2v-8-768p 臂), SigmaShift + LoRA
+// 原生链 (非 T8、非 VDN)。走 buildH3WorkflowLightX2V 泛化拓扑, 不需要新 builder。
+// 节点链: 12(UNET) → 14_shift(SigmaShift) → 15(LoRA) → 31/33/34 采样;
+// 20 = ref2va 时 MiniMaxH3ReferenceToVideo(ref_image_size="match")。
+// 采样: euler + simple + 5 步 (4步蒸馏 +1 终步 sigma=0, 承 lightx2v-4 家族
+// N+1 惯例) + denoise 1.0; shift_video=6 / shift_audio=3.0 (768p 家族口径)。
+//
+// 仅 /generate 主路由支持 (per-mode 路由 400 拒绝, d3eb69e0 语义 — 见
+// H3_EXPOSED_PROFILES 注)。
+export const H3_FASTH3 = {
+  loraName: "minimax_h3_fasth3_4step_dense_datafree_comfyui.safetensors",
+  strengthModel: 1.0,
+  steps: 5,              // 4步蒸馏 +1 终步 sigma=0 (0909 A/B 实测口径)
+  shiftVideo: 6.0,       // 768p 家族口径
+  shiftAudio: 3.0,
+  samplerName: "euler",
+  scheduler: "simple",
+  denoise: 1.0,
+  nodeId: "15",
+  loaderClassType: "LoraLoaderModelOnly",
+} as const;
+
+// ============================================================
 // H3_LINEART_ANIME —— LineartAnime LoRA (DiffSynth-Studio) 配置
 // ============================================================
 // LineartAnime LoRA: 将线稿视频(line art)上色为彩色动漫视频。
@@ -574,6 +611,8 @@ export function resolveH3BlockCacheThreshold(raw: unknown): number {
 //                    case03 5★ 定案)。跳过 Foley。
 //   lightx2v-4-v12 —— 4-step 家族 v1.2 权重 @9步口径 (768p, shift=6)。高动档 (R2 case07 5★,
 //                    运镜遵循优)。跳过 Foley。
+//   fasth3       —— FastH3 dense 蒸馏 LoRA 5步 (768p 家族 shift=6, SigmaShift + LoRA 链同
+//                    LightX2V 拓扑)。0909 Kai 盲测三动态全胜 lightx2v-8-768p 9步。跳过 Foley。
 // 调用方通过 generate 的 `profile` 入参选择 (须在 H3_EXPOSED_PROFILES 白名单内);
 // 显式传 steps 时以 steps 为准 (Turbo LoRA 仅由显式 turbo=true 入参启用;
 // profile="turbo" 已于 2026-09-02 移出白名单, 该档定义留档仅服务直调)。
@@ -603,7 +642,8 @@ export type H3ProfileName =
   | "lightx2v-4-v11"
   | "lightx2v-4-v12"
   | "lineart-anime"
-  | "vdn-8";
+  | "vdn-8"
+  | "fasth3";
 
 export const H3_PROFILES: Record<H3ProfileName, H3ProfilePreset> = {
   preview: {
@@ -703,6 +743,14 @@ export const H3_PROFILES: Record<H3ProfileName, H3ProfilePreset> = {
     turbo: false,         // 互斥: 此臂禁插 Turbo/LightX2V LoRA (见 H3_VDN 注释)
     native: false,        // 非原生 KSampler 链路 (ApplyVDNH3 直挂 UNETLoader)
     tespeed: false,       // 互斥: 不插入 TESpeed 节点
+  },
+  "fasth3": {
+    label: "FastH3 dense 5-step (DMD2 蒸馏 LoRA, shift=6 — 0909 Kai 盲测三动态全胜 LXV-8 9步, e2e 1.2-1.6×)",
+    steps: 5,             // H3_FASTH3.steps (4步蒸馏 +1 终步 sigma=0, 0909 A/B 实测口径)
+    skipFoley: true,      // 直出 H3 原生音频, 跳过 Foley
+    turbo: false,         // 不使用 T8 Turbo LoRA (用独立 FastH3 dense LoRA)
+    native: false,        // 非原生 KSampler 链路 (SigmaShift + LoRA 链, 同 LightX2V 拓扑)
+    tespeed: false,       // 不插入 TESpeed 节点
   },
 } as const;
 
@@ -808,7 +856,9 @@ export type H3UseCaseName = keyof typeof H3_USE_CASES;
 // 2026-09-08 R2 盲测定案 (Kai): 追加 lightx2v-4-v11/v12 (preview 动态分档 LoRA, 见 H3_PREVIEW_MOTION_ROUTES)。
 // 2026-09-08 VDN 集成 (Kai 拍板「将 VDN 工作流正式集成到 kap」): 追加 vdn-8 (可选档, 不切默认,
 // 不动 useCase 映射; 仅 /generate 主路由支持, per-mode 路由 400 拒绝 — 见 d3eb69e0 语义守卫)。
-export const H3_EXPOSED_PROFILES: readonly H3ProfileName[] = ["native-sage", "lightx2v-8-768p", "lightx2v-4-v11", "lightx2v-4-v12", "vdn-8"];
+// 2026-09-09 FastH3 集成 (Kai 拍板「将 FastH3 正式集成到 kap」): 追加 fasth3 (可选档, 不切默认,
+// 不动 useCase/motion 路由映射; 仅 /generate 主路由支持, per-mode 路由 400 拒绝 — 同 vdn-8 语义)。
+export const H3_EXPOSED_PROFILES: readonly H3ProfileName[] = ["native-sage", "lightx2v-8-768p", "lightx2v-4-v11", "lightx2v-4-v12", "vdn-8", "fasth3"];
 export const H3_EXPOSED_USE_CASES: readonly H3UseCaseName[] = ["preview-lock", "final-shot"];
 
 // ============================================================

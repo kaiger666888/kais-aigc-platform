@@ -92,12 +92,13 @@ describe("ltx/config.ts 保留 + comfyuiPoll 解耦 (FIX-2)", () => {
 });
 
 describe("H3 turbo 白名单退役 (FIX-3)", () => {
-  it("H3_EXPOSED_PROFILES 不含 turbo, 恰为 native-sage + lightx2v 三档 + vdn-8", () => {
+  it("H3_EXPOSED_PROFILES 不含 turbo, 恰为 native-sage + lightx2v 三档 + vdn-8 + fasth3", () => {
     assert.ok(!H3_EXPOSED_PROFILES.includes("turbo"), "turbo 不应再在暴露白名单");
-    // 2026-09-08 cede2e5f 追加 lightx2v-4-v11/v12 (R2 盲测); 同日 VDN 集成追加 vdn-8
+    // 2026-09-08 cede2e5f 追加 lightx2v-4-v11/v12 (R2 盲测); 同日 VDN 集成追加 vdn-8;
+    // 2026-09-09 FastH3 集成追加 fasth3 (0909 Kai 盲测三动态全胜, 可选档不切默认)
     assert.deepEqual(
       [...H3_EXPOSED_PROFILES].sort(),
-      ["lightx2v-4-v11", "lightx2v-4-v12", "lightx2v-8-768p", "native-sage", "vdn-8"],
+      ["fasth3", "lightx2v-4-v11", "lightx2v-4-v12", "lightx2v-8-768p", "native-sage", "vdn-8"],
     );
     // 白名单每项都必须在 H3_PROFILES 有定义 (GET /workflows 能力清单依赖)
     for (const id of H3_EXPOSED_PROFILES) {
