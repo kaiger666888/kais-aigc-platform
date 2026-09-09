@@ -90,6 +90,7 @@ import {
   H3_NATIVE,
   H3_LIGHTX2V_VARIANTS,
   H3_LINEART_ANIME,
+  H3_FASTH3,
   H3_VDN,
   H3_PROFILES,
   H3_USE_CASES,
@@ -569,7 +570,10 @@ interface H3LoraShiftConfig {
   loaderClassType: string;
 }
 
-function buildH3WorkflowLightX2V(
+// export 供 fasth3Profile.test.ts 直调构图断言 (i2va/ref2va 构图无法 e2e ——
+// i2va 需 docker cp 首帧触碰真实容器, ref2va 图构造由 builder 层覆盖; 同
+// buildH3WorkflowT8/Native/VDN 三个先例)。
+export function buildH3WorkflowLightX2V(
   opts: H3GenOpts,
   loraConfig: H3LoraShiftConfig,
 ): Record<string, any> {
@@ -1207,8 +1211,9 @@ export default router.post(
       blockCacheThreshold,              // 实际生效值 (请求覆盖或默认 0.4)
     };
     // SigmaShift + LoRA 工作流 (无 T8): LightX2V Turbo LoRA v1.0 (lightx2v-4/8/8-768p) +
-    // 4-step 家族 v1.1/v1.2 (lightx2v-4-v11/v12, 2026-09-08 R2 分档) 或
-    // LineartAnime LoRA (lineart-anime)。共享同一拓扑, 仅 LoRA 配置/steps/shift 不同。
+    // 4-step 家族 v1.1/v1.2 (lightx2v-4-v11/v12, 2026-09-08 R2 分档)、
+    // LineartAnime LoRA (lineart-anime) 或 FastH3 dense 蒸馏 LoRA (fasth3, 2026-09-09)。
+    // 共享同一拓扑, 仅 LoRA 配置/steps/shift 不同。
     // 用 rawProfile 字符串解析配置 (这些 profile.native=false 故 effectiveNative=false, 不会误入 native)。
     let loraShiftConfig: H3LoraShiftConfig | null = null;
     if (
@@ -1223,6 +1228,11 @@ export default router.post(
       ];
     } else if (rawProfile === "lineart-anime") {
       loraShiftConfig = H3_LINEART_ANIME;
+    } else if (rawProfile === "fasth3") {
+      // FastH3 dense (2026-09-09 Kai 盲测集成): 同 SigmaShift + LoRA 链, 独立配置常量。
+      // LoRA 槽位唯一 (loraShiftConfig 单值) — 与其他 LoRA 档位天然互斥, 无需额外守卫;
+      // 无 vdn-8 式 length 硬边界 (走全局 1216×672/362f 家族边界对齐逻辑)。
+      loraShiftConfig = H3_FASTH3;
     }
     // VDN 工作流 (vdn-8, 2026-09-08 集成): ApplyVDNH3 model_chain, 无 T8/LoRA/SigmaShift。
     // 分支置于 native/loraShift/T8 之前 —— vdn-8 与显式 turbo/native 的冲突已在

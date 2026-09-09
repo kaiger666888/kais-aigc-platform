@@ -443,6 +443,13 @@ export default router.post(
         .status(400)
         .send(error(`profile "vdn-8" requires POST /api/production/minimax-h3/generate (VDN ApplyVDNH3 workflow chain); per-mode route does not support it`));
     }
+    // profile 语义守卫 (2026-09-09 FastH3 集成): fasth3 只在 /generate 主路由有 SigmaShift +
+    // LoRA 工作流链 (H3_FASTH3), per-mode 路由的 builder 不消费它 —— 放行会静默降级 T8。
+    if (rawProfile === "fasth3") {
+      return res
+        .status(400)
+        .send(error(`profile "fasth3" requires POST /api/production/minimax-h3/generate (FastH3 loraShift workflow chain); per-mode route does not support it`));
+    }
     const profile = H3_PROFILES[rawProfile as keyof typeof H3_PROFILES];
     const nativeParam = req.body.native === "true" || req.body.native === true || profile?.native === true;
     // tespeed: 原生链路是否插入 TESpeed 节点(35)。native-sage profile 的 tespeed=false → 不插入。
